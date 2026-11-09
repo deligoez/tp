@@ -1364,10 +1364,14 @@ so it changes only through the `tp epic` writers.
 | `epics[].milestone` | milestone name | required; names one of `milestones` |
 | `epics[].tags` | list of strings | opaque to tp, read only by `tag_checks` |
 | `epics[].depends_on` | list of `{id, why}` | `why` is required and is content, like `title` and `acceptance` |
+| `epics[].root` | boolean, written only when `true` | the epic has no dependency on purpose; `no-dependencies` does not fire on it |
 
 Any key outside this schema is the lint error `unknown-key`. The writers rewrite the file with
-2-space indentation, leave `<`, `>` and `&` unescaped and omit an empty list (`depends_on: []`), so a
-file already in that form, loaded and written unchanged, is byte-identical.
+2-space indentation, leave `<`, `>` and `&` unescaped and omit an empty list (`depends_on: []`) and
+`root: false`, so a file already in that form, loaded and written unchanged, is byte-identical. The
+file's **revision** is the lowercase hex SHA-256 of its bytes, and the empty string when it is absent;
+every graph writer prints the revision it left and takes `--if-revision`, and `tp epic lint` prints
+the one it read.
 
 ### Lint rules (`tp epic lint`)
 
@@ -1389,7 +1393,8 @@ one finding per offending item.
 | `later-milestone-dependency` | error | an epic depends on one in a later milestone of the same track; edges across tracks are free |
 | `gate-member-outside-milestone` | error | a gate's member is not in that milestone |
 | `unprovided-tag-check` | error | an epic carries a tag whose `provided_by` is not in its transitive dependencies; the provider itself is exempt |
-| `no-dependencies` | warning | an epic outside the first milestone of its track has no dependencies |
+| `no-dependencies` | warning | an epic outside the first milestone of its track has no dependencies and is not marked `root: true` |
+| `root-with-dependencies` | warning | an epic marked `root: true` has dependencies |
 | `thin-why` | warning | a `why`, case-folded and split into words, is non-empty and occurs as a run of whole words in the target epic's id or title |
 
 `tp epic review` runs the error rules over the whole file at every emission as `mechanical_checks`
