@@ -59,3 +59,25 @@ func TestEpicDone_RecordsATasklessEpicRefusesABoundOneAndUndoes(t *testing.T) {
 	require.Equal(t, 0, code, "stderr: %s", stderr)
 	assert.Nil(t, epicDoneRecord(t, dir, "c"), "--undo removes c's record")
 }
+
+// TestEpicDone_ConditionNeedsItsAcceptance is §10 row 5: a condition epic with
+// an empty acceptance is refused, writing nothing, and once its acceptance is
+// written the same done is accepted.
+func TestEpicDone_ConditionNeedsItsAcceptance(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{"version": 1, "milestones": [["A"]], "epics": [
+    {"id": "go", "title": "Go", "milestone": "A", "root": true, "condition": true}
+  ]}`)
+	before := readEpicGraphFile(t, dir)
+
+	_, stderr, code := runTP(t, dir, "epic", "done", "go", "--evidence", "board said yes")
+	assert.Equal(t, 1, code, "a condition with an empty acceptance is refused; stderr: %s", stderr)
+	assert.Contains(t, stderr, "acceptance")
+	assert.Equal(t, before, readEpicGraphFile(t, dir), "a refused done writes nothing")
+
+	_, stderr, code = runTP(t, dir, "epic", "set", "go", "acceptance=the board approves the budget")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	_, stderr, code = runTP(t, dir, "epic", "done", "go", "--evidence", "board said yes")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.NotNil(t, epicDoneRecord(t, dir, "go"), "with its acceptance written the condition is recorded done")
+}
