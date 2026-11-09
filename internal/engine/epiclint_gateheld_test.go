@@ -10,12 +10,12 @@ import (
 )
 
 // TestLintEpicGraph_GateHeldByConditionNamesMemberConditionAndPath: a, a
-// member of A's gate, waits on the undone condition c through w; it does not
-// wait on c2, which is done, nor on c3, which it reaches only through the
-// done d. One info finding, for (a, c).
+// member of A's gate, waits on the undone condition c of the earlier P through
+// w; it does not wait on c2, which is done, nor on c3, which it reaches only
+// through the done d. One info finding, for (a, c).
 func TestLintEpicGraph_GateHeldByConditionNamesMemberConditionAndPath(t *testing.T) {
 	cond := func(id string) model.Epic {
-		e := dependsOn(id, "A")
+		e := dependsOn(id, "P")
 		e.Condition, e.Acceptance = true, "the operator decides"
 		return e
 	}
@@ -25,7 +25,7 @@ func TestLintEpicGraph_GateHeldByConditionNamesMemberConditionAndPath(t *testing
 	d.Done = epicDoneRecord()
 	g := &model.EpicGraph{
 		Version:    1,
-		Milestones: [][]string{{"A"}},
+		Milestones: [][]string{{"P", "A"}},
 		Gates:      map[string]model.EpicGate{"A": {Members: []string{"a"}}},
 		Epics:      []model.Epic{dependsOn("a", "A", "w", "c2", "d"), dependsOn("w", "A", "c"), cond("c"), done, d, cond("c3")},
 	}
