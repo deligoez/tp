@@ -68,3 +68,16 @@ func TestEpicStatus_ReportsOpensAfterAndWaitingOn(t *testing.T) {
 	assert.Equal(t, opensAfterReport{Milestone: "Q", Open: true, OpensAfter: []string{"P"}, WaitingOn: []string{}}, ms["Q"])
 	assert.Equal(t, opensAfterReport{Milestone: "R", Open: true, OpensAfter: []string{"P"}, WaitingOn: []string{}}, ms["R"])
 }
+
+// TestEpicSet_NullOpensAfterListExits2: a null list is not "always open" nor
+// "absent"; set refuses it as a value that is not a list, writing nothing.
+func TestEpicSet_NullOpensAfterListExits2(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, opensAfterStatusGraph(false))
+	before := readEpicGraphFile(t, dir)
+
+	_, stderr, code := runTP(t, dir, "epic", "set", `opens_after={"R":null}`)
+	require.Equal(t, 2, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, `opens_after \"R\"`)
+	assert.Equal(t, before, readEpicGraphFile(t, dir))
+}
