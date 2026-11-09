@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.5.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-09T15:33:42.211114Z",
+  "updated_at": "2026-11-09T15:39:13.421632Z",
   "workflow": {
     "review_max_rounds": 4,
     "audit_max_rounds": 5
@@ -819,7 +819,7 @@
       "id": "docs-skill-epic-progress",
       "title": "Document the v1.5.0 commands in SKILL.md",
       "description": "Inventory rows for every new command and flag; Workflow E for binding, status, ready, claim, gates and thresholds, conditions, deferrable trigger work and long-lead epics placed in their earliest milestone.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -840,11 +840,18 @@
         "## 7. Epic commands",
         "## 4. Milestones and gates"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-09T15:33:46.578696Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-09T15:39:13.411558Z",
+      "closed_reason": "- every v1.5.0 command and flag has a complete SKILL.md inventory row (epic ready/status/export/claim/gate --met/done/--undo, set/init --epic, epic block on next/ready/claim/done/resume, escalate decisions); TestSkillFlagInventoryIsComplete passes, gate green\n- Workflow E covers binding, ready/status/export, claim, gates with thresholds and --met, conditions and epic done, the epic-blocked block, deferrable trigger work, long-lead epics in the earliest milestone and the epic-done/gate-met/epic-binding decisions; pinned by TestSkillWorkflowETracksProgress",
+      "gate_passed_at": "2026-11-09T15:39:13.411558Z",
+      "commit_sha": "99c757ca",
+      "commit_shas": [
+        "99c757ca"
+      ],
+      "commit_files": [
+        "internal/cli/epic_docs_test.go"
+      ]
     },
     {
       "id": "docs-reference-epic-progress",
