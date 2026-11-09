@@ -442,3 +442,31 @@ func TestClaim_AnIdThatIsNotOpenAnswersAsUnboundWhileBlocked(t *testing.T) {
 		assert.NotContains(t, stderr, "blocked_by_epics", "%v", args)
 	}
 }
+
+// TestCommit_RefusesAnOpenTaskOnABlockedFile is spec/1.5.0.md §6: tp commit
+// implicitly claims an open task, so on a blocked file it refuses one that is
+// not already wip — exit 1, blocked_by_epics, nothing committed or written —
+// while a wip task commits as on an unbound file. A tp commit that ignored the
+// graph starts and commits t1 and fails.
+func TestCommit_RefusesAnOpenTaskOnABlockedFile(t *testing.T) {
+	t.Parallel()
+	for _, status := range []string{"open", "wip"} {
+		dir := blockDir(t, "b", status)
+		require.NoError(t, os.Remove(filepath.Join(dir, ".git")))
+		initGitRepo(t, dir)
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "f.go"), []byte("package f\n"), 0o600))
+		before := taskFileBytes(t, dir)
+
+		stdout, stderr, code := runTP(t, dir, "commit", "t1", "implemented")
+		log := gitOut(t, dir, "log", "--format=%s")
+		if status == "wip" {
+			require.Equal(t, 0, code, "a wip task commits: stdout: %s stderr: %s", stdout, stderr)
+			assert.Contains(t, log, "feat(t1)")
+			continue
+		}
+		require.Equal(t, 1, code, "stdout: %s stderr: %s", stdout, stderr)
+		assert.Equal(t, []string{"c"}, blockedByEpics(t, stderr))
+		assert.NotContains(t, log, "feat(t1)", "nothing is committed")
+		assert.Equal(t, before, taskFileBytes(t, dir), "t1 stays open")
+	}
+}
