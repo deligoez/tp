@@ -137,3 +137,16 @@ func TestEpicReviewSlice_BlocksShowConditionAndThreshold(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotContains(t, s.Units[4].Block, "threshold:", "a gate without a threshold prints none")
 }
+
+// TestEpicReviewSlice_EditingAThresholdChangesTheGateHash: the gate unit's
+// hash covers its threshold, so editing it re-asks the unit.
+func TestEpicReviewSlice_EditingAThresholdChangesTheGateHash(t *testing.T) {
+	g := epicChainGraph()
+	g.Gates = map[string]model.EpicGate{"A": {Members: []string{"a"}, Threshold: "p95 under 200ms"}}
+	before := unitHashes(t, g)
+	g.Gates["A"] = model.EpicGate{Members: []string{"a"}, Threshold: "p95 under 100ms"}
+	after := unitHashes(t, g)
+
+	assert.NotEqual(t, before["gate:A"], after["gate:A"])
+	assert.Equal(t, before["epic:a"], after["epic:a"])
+}
