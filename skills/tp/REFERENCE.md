@@ -1390,7 +1390,7 @@ one finding per offending item.
 | `gate-member-outside-milestone` | error | a gate's member is not in that milestone |
 | `unprovided-tag-check` | error | an epic carries a tag whose `provided_by` is not in its transitive dependencies; the provider itself is exempt |
 | `no-dependencies` | warning | an epic outside the first milestone of its track has no dependencies |
-| `thin-why` | warning | a `why`, trimmed and case-folded, is non-empty and contained in the target epic's id or title |
+| `thin-why` | warning | a `why`, case-folded and split into words, is non-empty and occurs as a run of whole words in the target epic's id or title |
 
 `tp epic review` runs the error rules over the whole file at every emission as `mechanical_checks`
 and names their slugs in `mechanized_classes`, withheld from the role prompts.
