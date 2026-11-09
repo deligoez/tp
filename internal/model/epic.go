@@ -13,6 +13,10 @@ type EpicGraph struct {
 	Version int `json:"version"`
 	// Milestones is a list of tracks, each an ordered list of milestone names.
 	Milestones [][]string `json:"milestones"`
+	// OpensAfter maps a milestone to the milestones it opens after
+	// (spec/1.6.0.md §1); a milestone it does not name opens after the
+	// previous milestone of its track.
+	OpensAfter map[string][]string `json:"opens_after,omitempty"`
 	// Gates maps a milestone name to the epics its gate covers.
 	Gates map[string]EpicGate `json:"gates,omitempty"`
 	// TagChecks maps a tag to the epic every carrier of the tag must depend on.

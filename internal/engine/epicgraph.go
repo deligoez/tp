@@ -25,7 +25,7 @@ var ErrEpicGraphNotFound = errors.New("epic graph not found")
 // to the caller for the lint to report.
 var (
 	knownEpicGraphKeys = map[string]bool{
-		"version": true, "milestones": true, "gates": true, "tag_checks": true, "epics": true,
+		"version": true, "milestones": true, "opens_after": true, "gates": true, "tag_checks": true, "epics": true,
 	}
 	knownEpicKeys = map[string]bool{
 		"id": true, "title": true, "milestone": true, "tags": true, "depends_on": true, "acceptance": true, "root": true,
