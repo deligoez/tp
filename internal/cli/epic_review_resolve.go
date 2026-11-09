@@ -18,6 +18,10 @@ const epicResolveUsageForm = "tp epic review <slice> --resolve <0-based index>[,
 
 const epicResolveAllUsageForm = "tp epic review <slice> --resolve-all <fixed|wontfix|duplicate> [evidence]"
 
+// epicResolveUsageHint answers a malformed --resolve or --resolve-all: the
+// indices come from the last round's rows, which --status's state_dir holds.
+const epicResolveUsageHint = "indices are 0-based rows of the slice's last recorded round (round-<N>.ndjson under the state_dir --status names); wontfix and duplicate need evidence"
+
 // epicResolveResult is the payload of tp epic review --resolve and --resolve-all.
 type epicResolveResult struct {
 	StateDir      string `json:"state_dir"`
@@ -39,7 +43,7 @@ func parseEpicResolveIndices(arg string) []int {
 	for _, p := range parts {
 		index, err := strconv.Atoi(p)
 		if err != nil || seen[index] {
-			output.Error(ExitUsage, fmt.Sprintf("invalid index %q: must be 0-based integers, comma-separated and each once; expected %s", arg, epicResolveUsageForm))
+			output.Error(ExitUsage, fmt.Sprintf("invalid index %q: must be 0-based integers, comma-separated and each once; expected %s", arg, epicResolveUsageForm), epicResolveUsageHint)
 			os.Exit(ExitUsage)
 		}
 		seen[index] = true
@@ -54,7 +58,7 @@ func parseEpicResolveIndices(arg string) []int {
 // out of range, or one already resolved without force, changes no row.
 func runEpicReviewResolve(key engine.EpicSliceKey, args []string, force bool) {
 	if len(args) < 2 || len(args) > 3 {
-		output.Error(ExitUsage, "usage: "+epicResolveUsageForm)
+		output.Error(ExitUsage, "usage: "+epicResolveUsageForm, epicResolveUsageHint)
 		os.Exit(ExitUsage)
 	}
 	indices := parseEpicResolveIndices(args[0])
@@ -68,7 +72,7 @@ func runEpicReviewResolve(key engine.EpicSliceKey, args []string, force bool) {
 		selected := make([]map[string]any, 0, len(indices))
 		for _, index := range indices {
 			if index < 0 || index >= len(findings) {
-				output.Error(ExitUsage, fmt.Sprintf("finding index %d out of range (0-%d) in round %d", index, len(findings)-1, round))
+				output.Error(ExitUsage, fmt.Sprintf("finding index %d out of range (0-%d) in round %d", index, len(findings)-1, round), epicResolveUsageHint)
 				os.Exit(ExitUsage)
 			}
 			epicRefuseResolved(findings[index], index, force)
@@ -97,7 +101,7 @@ func runEpicReviewResolve(key engine.EpicSliceKey, args []string, force bool) {
 // last recorded round, or every finding under force. args: status, evidence?.
 func runEpicReviewResolveAll(key engine.EpicSliceKey, args []string, force bool) {
 	if len(args) < 1 || len(args) > 2 {
-		output.Error(ExitUsage, "usage: "+epicResolveAllUsageForm)
+		output.Error(ExitUsage, "usage: "+epicResolveAllUsageForm, epicResolveUsageHint)
 		os.Exit(ExitUsage)
 	}
 	status, evidence := epicResolveDisposition(args)
@@ -128,7 +132,7 @@ func epicResolveDisposition(args []string) (status, evidence string) {
 		evidence = args[1]
 	}
 	if !validResolveStatuses[status] {
-		output.Error(ExitUsage, fmt.Sprintf("invalid status: %s (must be fixed, wontfix, or duplicate)", status))
+		output.Error(ExitUsage, fmt.Sprintf("invalid status: %s (must be fixed, wontfix, or duplicate)", status), epicResolveUsageHint)
 		os.Exit(ExitUsage)
 	}
 	requireAcceptanceEvidence(status, evidence)
