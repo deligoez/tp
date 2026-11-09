@@ -101,6 +101,24 @@ func TestLintEpicGraph_PartialParallelNamesThePairAndItsEpics(t *testing.T) {
 	assert.Empty(t, findingsOf(t, LintEpicGraph(partialParallelGraph(false), nil), EpicRulePartialParallel))
 }
 
+// TestLintEpicGraph_PartialParallelThroughDefaultsWarns: on track [P, Q, R]
+// with Q opening after none, R has no entry and opens after Q by default, so
+// it does not open after P without anyone having chosen that; r's edge to p
+// is a warning, not info.
+func TestLintEpicGraph_PartialParallelThroughDefaultsWarns(t *testing.T) {
+	g := opensAfterGraph([][]string{{"P", "Q", "R"}}, map[string][]string{"Q": {}})
+	g.Epics = []model.Epic{
+		{ID: "p", Title: "p", Milestone: "P", Root: true},
+		{ID: "q", Title: "q", Milestone: "Q", Root: true},
+		{ID: "r", Title: "r", Milestone: "R", DependsOn: []model.EpicDep{{ID: "p", Why: "needs p"}}},
+	}
+	warnings := findingsOf(t, LintEpicGraph(g, nil), EpicRulePartialParallel)
+	require.Len(t, warnings, 1)
+	assert.Equal(t, EpicSeverityWarning, warnings[0].Severity)
+	assert.Equal(t, []string{"P", "R"}, warnings[0].Names)
+	assert.Equal(t, []string{"r"}, warnings[0].Epics)
+}
+
 // TestLintEpicGraph_LaterMilestoneDependencyKeepsTrackOrder is C2.7: an
 // opens_after entry does not reorder a track, so an R→Q edge is no error
 // while a Q epic depending on an R epic is still later-milestone-dependency.
