@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.5.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-09T14:16:17.3517Z",
+  "updated_at": "2026-11-09T14:22:00.335918Z",
   "workflow": {
     "review_max_rounds": 4,
     "audit_max_rounds": 5
@@ -354,7 +354,7 @@
       "id": "gate-met-command",
       "title": "Record a met threshold on a gate",
       "description": "tp epic gate \u003cm\u003e --met --evidence writes met {at, evidence, threshold}, refused while a member is not done or the threshold is empty; a threshold edited after its met record shows as changed. §10 row 8.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "gates"
@@ -368,11 +368,18 @@
         "## 4. Milestones and gates",
         "## 10. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-09T14:17:59.336229Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-09T14:22:00.326648Z",
+      "closed_reason": "- §10 row 8: TestEpicGateMet_RefusedUntilMembersDoneAndThresholdSet (exit 1, file byte-identical while member a is not done and while the threshold is empty; accepted once both hold and tp epic gate is then green)\n- TestEpicGateMet_CopiesThresholdAndAnEditShowsChanged (met record copies the threshold; an edited threshold shows threshold_changed while the record stands); gate green",
+      "gate_passed_at": "2026-11-09T14:22:00.326648Z",
+      "commit_sha": "8951308e19400fe883dda16057507dcc4dae4917",
+      "commit_shas": [
+        "8951308e19400fe883dda16057507dcc4dae4917"
+      ],
+      "commit_files": [
+        "internal/cli/epic_gate_test.go"
+      ]
     },
     {
       "id": "gate-report-command",
