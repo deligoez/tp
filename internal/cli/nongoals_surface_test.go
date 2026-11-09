@@ -62,6 +62,7 @@ done: auto-commit batch commit covered-by files gate-passed reason-file skip-gat
 epic:
 epic add: bulk if-revision stdin
 epic export: md
+epic gate:
 epic import: force if-revision
 epic link: if-revision
 epic lint:
