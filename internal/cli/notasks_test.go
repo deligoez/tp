@@ -56,3 +56,14 @@ func TestNext_AnEmptyTaskFileAnswersNoTasksYet(t *testing.T) {
 	assertNoTasksYet(t, dir, "next")
 	assertNoTasksYet(t, dir, "next", "--peek")
 }
+
+// TestNext_AnEmptyEpicBoundFileAnswersNoTasksYet: tp next --epic b on b's
+// only bound file, which holds no task, answers as plain tp next does.
+func TestNext_AnEmptyEpicBoundFileAnswersNoTasksYet(t *testing.T) {
+	t.Parallel()
+	dir := epicFileRepo(t)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b1.md"), []byte("# b1\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b1.tasks.json"), []byte(`{"version":1,"spec":"b1.md","epic":"b","tasks":[]}`), 0o600))
+	initGitRepo(t, dir)
+	assertNoTasksYet(t, dir, "next", "--epic", "b")
+}
