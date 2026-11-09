@@ -1420,6 +1420,7 @@ two cycle rules reports one finding per offending item.
 | `gate-member-deferrable` | error | a gate lists an epic both in `members` and in `deferrable`; a deferrable epic never holds a gate (v1.6.0) |
 | `unprovided-tag-check` | error | an epic carries a tag whose `provided_by` is not in its transitive dependencies; the provider itself is exempt |
 | `opens-after-cycle` | error | `opens_after`, track defaults applied, has a cycle, a self-reference included |
+| `opens-after-not-list` | error | an `opens_after` value is null or not a list, which only a hand edit writes: `tp epic set` and `tp epic import` refuse it, and every other reader than `tp epic lint` exits 3 on a non-list value (v1.6.0) |
 | `no-dependencies` | warning | an epic outside the first milestone of its track has no dependencies and is neither marked `root: true` nor a condition |
 | `root-with-dependencies` | warning | an epic marked `root: true` has dependencies |
 | `thin-why` | warning | a `why`, case-folded and split into words, is non-empty and occurs as a run of whole words in the target epic's id or title |
