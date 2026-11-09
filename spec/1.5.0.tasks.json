@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.5.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-09T15:06:35.571687Z",
+  "updated_at": "2026-11-09T15:09:52.841659Z",
   "workflow": {
     "review_max_rounds": 4,
     "audit_max_rounds": 5
@@ -663,7 +663,7 @@
       "id": "epic-throughput-rollup",
       "title": "Derive weekly throughput with the estimate roll-up",
       "description": "throughput counts epics done now in the ISO week of their done_at (C4); the estimate-versus-actual roll-up tp report computes per task, summed per epic; an epic's estimate is estimate_minutes, else the sum of its bound tasks' when every one has one.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "status"
@@ -676,11 +676,18 @@
       "source_sections": [
         "## 7. Epic commands"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-09T15:06:57.434708Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-09T15:09:52.832201Z",
+      "closed_reason": "- C4: TestEpicThroughput_CountsEpicsDoneNowInTheirISOWeek asserts reopened c (in_progress, stale done_at in W44) counts in no week, then in W45 once done again; ISO year boundary 2027-01-01 -\u003e 2026-W53\n- TestEpicRollup_SumsReportPerTaskPerEpic asserts b's two bound files sum to estimate 30, actual 46, tracked 3 through computeReport (tp report), open task untracked; gate green",
+      "gate_passed_at": "2026-11-09T15:09:52.832201Z",
+      "commit_sha": "9bd45414",
+      "commit_shas": [
+        "9bd45414"
+      ],
+      "commit_files": [
+        "internal/cli/epic_rollup_test.go"
+      ]
     },
     {
       "id": "epic-status-command",
