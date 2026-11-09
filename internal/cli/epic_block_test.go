@@ -171,8 +171,14 @@ func TestDone_RefusesAnOpenTaskOnABlockedFile(t *testing.T) {
 	batch := filepath.Join(dir, "batch.ndjson")
 	require.NoError(t, os.WriteFile(batch, []byte(`{"id":"t1","reason":"tested by the fixture"}`+"\n"), 0o600))
 	stdout, stderr, code = runTP(t, dir, "done", "--batch", batch)
-	require.NotEqual(t, 0, code, "stdout: %s stderr: %s", stdout, stderr)
+	require.Equal(t, 1, code, "a batch refused by the block exits 1 as by id: stdout: %s stderr: %s", stdout, stderr)
 	assert.Contains(t, stdout, "epic b is blocked by c")
+	var p struct {
+		Failures []json.RawMessage `json:"failures"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &p), "stdout: %s", stdout)
+	require.Len(t, p.Failures, 1, "stdout: %s", stdout)
+	assert.Equal(t, []string{"c"}, blockedByEpics(t, string(p.Failures[0])), "the refused row carries the field its hint names")
 
 	assert.NotContains(t, string(taskFileBytes(t, dir)), `"done"`, "no task of the blocked file closed")
 }
