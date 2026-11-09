@@ -27,7 +27,7 @@ type epicExportResult struct {
 	Slices     []engine.EpicSliceState `json:"slices"`
 }
 
-// epicExportEpic is one epic's place, derived state and bound files, and
+// epicExportEpic is one epic's title, place, derived state and bound files, and
 // what it waits on and what waits on it (spec/1.6.0.md F9). Downstream is
 // absent on a done epic, which nothing waits on; Actionable is a condition's
 // key alone, false once the condition is done. HeldBy lists the undone
@@ -35,6 +35,7 @@ type epicExportResult struct {
 // dependency, both in depends_on order.
 type epicExportEpic struct {
 	ID         string                 `json:"id"`
+	Title      string                 `json:"title"`
 	Milestone  string                 `json:"milestone"`
 	Condition  bool                   `json:"condition"`
 	Status     string                 `json:"status"`
@@ -137,7 +138,7 @@ func epicExportEpics(g *model.EpicGraph, states map[string]engine.EpicState, bou
 	epics := make([]epicExportEpic, 0, len(g.Epics))
 	for i := range g.Epics {
 		e := &g.Epics[i]
-		item := epicExportEpic{ID: e.ID, Milestone: e.Milestone, Condition: e.Condition,
+		item := epicExportEpic{ID: e.ID, Title: e.Title, Milestone: e.Milestone, Condition: e.Condition,
 			Status: states[e.ID].Status, DoneAt: states[e.ID].DoneAt, Files: files[e.ID]}
 		if item.Files == nil {
 			item.Files = []engine.EpicFileState{}
