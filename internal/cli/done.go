@@ -387,6 +387,7 @@ func runDoneMulti(taskFilePath string, taskIDs []string, reason string) error {
 		os.Exit(ExitFile)
 		return nil
 	}
+	blocked := epicBlockedBy(tfPre, taskFilePath)
 	// Gate runs once iff at least one target survives the cheap checks (§6.1)
 	assume := make(map[string]bool)
 	survivors := 0
@@ -459,7 +460,7 @@ func runDoneMulti(taskFilePath string, taskIDs []string, reason string) error {
 
 			// Every refusal runs before the target touches its task, so a
 			// refused target is written back exactly as it was read.
-			if refusal := checkMultiTarget(tf, task, reason, doneSet); refusal != nil {
+			if refusal := checkMultiTarget(tf, task, reason, doneSet, blocked); refusal != nil {
 				failed = append(failed, refusal)
 				continue
 			}
@@ -518,6 +519,7 @@ func runDoneMulti(taskFilePath string, taskIDs []string, reason string) error {
 				wipCount++
 			}
 		}
+		readyCount = doneReadyCount(readyCount, blocked)
 
 		result := map[string]any{
 			"closed": closedIDs,
@@ -551,13 +553,17 @@ func runDoneMulti(taskFilePath string, taskIDs []string, reason string) error {
 }
 
 // checkMultiTarget runs every refusal one target of `tp done <id>... <reason>`
-// can meet inside the lock — a blocking dependency, an already-done or
-// unclaimable status, --covered-by, closure verification, in that order —
-// without touching the task, and returns the failure row or nil. As in
-// checkBatchRow, validating before the implicit claim is what keeps a refused
-// open task open: the claim used to run first and was written back.
-func checkMultiTarget(tf *model.TaskFile, task *model.Task, reason string, doneSet map[string]bool) map[string]any {
+// can meet inside the lock — an open task of a blocked file, a blocking
+// dependency, an already-done or unclaimable status, --covered-by, closure
+// verification, in that order — without touching the task, and returns the
+// failure row or nil. As in checkBatchRow, validating before the implicit
+// claim is what keeps a refused open task open: the claim used to run first
+// and was written back.
+func checkMultiTarget(tf *model.TaskFile, task *model.Task, reason string, doneSet map[string]bool, blocked []string) map[string]any {
 	id := task.ID
+	if msg := doneBlockedMessage(tf, id, blocked); msg != "" {
+		return map[string]any{"id": id, "error": msg, "blocked_by_epics": blocked, "hint": epicBlockHint}
+	}
 	if task.Status == model.StatusOpen {
 		for _, dep := range task.DependsOn {
 			if !doneSet[dep] {
