@@ -44,14 +44,76 @@ type MilestoneGate struct {
 // milestone of its track has a green gate: the first of a track is always
 // open, and tracks do not wait on each other. A milestone gates names no entry
 // for still has its default gate. A milestone listed in no track is absent.
+// MilestoneGates returns the verdict of every milestone a track lists, so
+// ready, status, the export and the critical path read one answer
+// (spec/1.5.0.md §4, spec/1.6.0.md §1). states is DeriveEpicStates' result. A
+// milestone is open when every milestone it opens after (EffectiveOpensAfter)
+// is open and has a green gate: one that opens after none is always open. A
+// milestone on an opens_after cycle, or opening after a milestone no track
+// lists, both lint errors, stays closed. A milestone gates names no entry for
+// still has its default gate. A milestone listed in no track is absent.
 func MilestoneGates(g *model.EpicGraph, states map[string]EpicState) map[string]MilestoneGate {
-	out := map[string]MilestoneGate{}
+	o := milestoneOpening{after: EffectiveOpensAfter(g), green: map[string]bool{}, open: map[string]bool{}, visiting: map[string]bool{}}
+	for m := range o.after {
+		o.green[m] = GateGreen(g, m, states)
+	}
+	out := make(map[string]MilestoneGate, len(o.after))
+	for m := range o.after {
+		out[m] = MilestoneGate{Green: o.green[m], Open: o.isOpen(m)}
+	}
+	return out
+}
+
+// milestoneOpening memoizes which milestones are open.
+type milestoneOpening struct {
+	after    map[string][]string
+	green    map[string]bool
+	open     map[string]bool
+	visiting map[string]bool
+}
+
+// isOpen reports whether m is open; a milestone met again while its own
+// answer is pending closes the cycle, which keeps every milestone on it closed.
+func (o *milestoneOpening) isOpen(m string) bool {
+	if open, ok := o.open[m]; ok {
+		return open
+	}
+	if o.visiting[m] {
+		return false
+	}
+	o.visiting[m] = true
+	open := true
+	for _, x := range o.after[m] {
+		if _, tracked := o.after[x]; !tracked || !o.green[x] || !o.isOpen(x) {
+			open = false
+			break
+		}
+	}
+	o.visiting[m] = false
+	o.open[m] = open
+	return open
+}
+
+// EffectiveOpensAfter returns, for every milestone a track lists, the
+// milestones it opens after (spec/1.6.0.md §1): its opens_after entry as
+// written, else the previous milestone of its track, else none for a track's
+// first. A milestone named in two tracks takes its first place. Every list is
+// a fresh, non-nil copy.
+func EffectiveOpensAfter(g *model.EpicGraph) map[string][]string {
+	out := map[string][]string{}
 	for _, track := range g.Milestones {
-		open := true
-		for _, m := range track {
-			green := GateGreen(g, m, states)
-			out[m] = MilestoneGate{Green: green, Open: open}
-			open = open && green
+		for i, m := range track {
+			if _, seen := out[m]; seen {
+				continue
+			}
+			switch after, ok := g.OpensAfter[m]; {
+			case ok:
+				out[m] = append([]string{}, after...)
+			case i == 0:
+				out[m] = []string{}
+			default:
+				out[m] = []string{track[i-1]}
+			}
 		}
 	}
 	return out
