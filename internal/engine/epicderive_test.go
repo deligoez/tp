@@ -138,3 +138,46 @@ func TestDeriveEpicStates_TasklessDoneAtIsRecordTime(t *testing.T) {
 	assert.True(t, g.Epics[2].Done.At.Equal(*at))
 	assert.Nil(t, epicDoneAtIn(t, g, root, "a"))
 }
+
+// recordAuditRoundsAt appends n clean audit rounds recorded at at, each
+// matching the spec's current hash, so the file's audit converges at at.
+func recordAuditRoundsAt(t *testing.T, specPath string, n int, at time.Time) {
+	t.Helper()
+	hash, err := SpecHash(specPath)
+	require.NoError(t, err)
+	st, err := EnsureReviewState(specPath)
+	require.NoError(t, err)
+	for range n {
+		st.AuditRounds = append(st.AuditRounds, ReviewRound{
+			Round: len(st.AuditRounds) + 1, Clean: true, SpecHash: hash, RecordedAt: at.Format(time.RFC3339),
+		})
+	}
+	require.NoError(t, SaveReviewState(specPath, st))
+}
+
+// TestDeriveEpicStates_BoundDoneAtMovesWithConvergence: a bound epic is done at
+// the time of the audit round that brought its last file to release; after a
+// spec edit reopens it it has no done_at, and a new convergence moves done_at
+// to the new round's time (spec/1.5.0.md §3).
+func TestDeriveEpicStates_BoundDoneAtMovesWithConvergence(t *testing.T) {
+	root := boundFilesRepo(t)
+	g := statusChain()
+	first := writeStatusFile(t, root, "b1", model.StatusDone)
+	second := writeStatusFile(t, root, "b2", model.StatusDone)
+	t1 := time.Date(2026, 3, 1, 10, 0, 0, 0, time.UTC)
+	t2 := time.Date(2026, 3, 2, 10, 0, 0, 0, time.UTC)
+	recordAuditRoundsAt(t, second, 2, t2)
+	recordAuditRoundsAt(t, first, 2, t1)
+	at := epicDoneAtIn(t, g, root, "b")
+	require.NotNil(t, at)
+	assert.True(t, t2.Equal(*at), "the last file to reach release sets done_at: %v", at)
+
+	require.NoError(t, os.WriteFile(first, []byte("# Spec\n\nEdited.\n"), 0o600))
+	assert.Nil(t, epicDoneAtIn(t, g, root, "b"), "a reopened epic has no done_at")
+
+	t3 := time.Date(2026, 4, 1, 10, 0, 0, 0, time.UTC)
+	recordAuditRoundsAt(t, first, 2, t3)
+	at = epicDoneAtIn(t, g, root, "b")
+	require.NotNil(t, at)
+	assert.True(t, t3.Equal(*at), "done again, done_at moves: %v", at)
+}
