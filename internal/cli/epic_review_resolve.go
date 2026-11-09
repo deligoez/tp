@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/deligoez/tp/internal/engine"
@@ -13,7 +14,7 @@ import (
 
 // epicResolveUsageForm / epicResolveAllUsageForm name the positional shape of
 // tp epic review's dispositions, which write the slice's last recorded round.
-const epicResolveUsageForm = "tp epic review <slice> --resolve <0-based index> <fixed|wontfix|duplicate> [evidence]"
+const epicResolveUsageForm = "tp epic review <slice> --resolve <0-based index>[,<index>...] <fixed|wontfix|duplicate> [evidence]"
 
 const epicResolveAllUsageForm = "tp epic review <slice> --resolve-all <fixed|wontfix|duplicate> [evidence]"
 
@@ -22,25 +23,41 @@ type epicResolveResult struct {
 	StateDir      string `json:"state_dir"`
 	Round         int    `json:"round"`
 	Index         *int   `json:"index,omitempty"`
+	Indices       []int  `json:"indices,omitempty"`
 	ResolvedCount *int   `json:"resolved_count,omitempty"`
 	SkippedCount  *int   `json:"skipped_count,omitempty"`
 	Status        string `json:"status"`
 	NextAction    string `json:"next_action"`
 }
 
-// runEpicReviewResolve dispositions one finding of the slice's last recorded
-// round, as tp review --resolve does a findings file. args: index, status,
-// evidence?. An out-of-range index exits 2 and writes nothing.
+// parseEpicResolveIndices reads one 0-based index or a comma-separated list
+// of them, exiting 2 on anything else or on an index named twice.
+func parseEpicResolveIndices(arg string) []int {
+	parts := strings.Split(arg, ",")
+	indices := make([]int, 0, len(parts))
+	seen := map[int]bool{}
+	for _, p := range parts {
+		index, err := strconv.Atoi(p)
+		if err != nil || seen[index] {
+			output.Error(ExitUsage, fmt.Sprintf("invalid index %q: must be 0-based integers, comma-separated and each once; expected %s", arg, epicResolveUsageForm))
+			os.Exit(ExitUsage)
+		}
+		seen[index] = true
+		indices = append(indices, index)
+	}
+	return indices
+}
+
+// runEpicReviewResolve dispositions the listed findings of the slice's last
+// recorded round, as tp review --resolve does a findings file. args: indices,
+// status, evidence?. Every index is checked before any row is written, so one
+// out of range, or one already resolved without force, changes no row.
 func runEpicReviewResolve(key engine.EpicSliceKey, args []string, force bool) {
 	if len(args) < 2 || len(args) > 3 {
 		output.Error(ExitUsage, "usage: "+epicResolveUsageForm)
 		os.Exit(ExitUsage)
 	}
-	index, err := strconv.Atoi(args[0])
-	if err != nil {
-		output.Error(ExitUsage, fmt.Sprintf("invalid index %q: must be a 0-based integer; expected %s", args[0], epicResolveUsageForm))
-		os.Exit(ExitUsage)
-	}
+	indices := parseEpicResolveIndices(args[0])
 	status, evidence := epicResolveDisposition(args[1:])
 	run, path, round := epicResolveTarget(key)
 	lockErr := engine.WithFileLock(path, func() error {
@@ -48,14 +65,19 @@ func runEpicReviewResolve(key engine.EpicSliceKey, args []string, force bool) {
 		if readErr != nil {
 			return readErr
 		}
-		if index < 0 || index >= len(findings) {
-			output.Error(ExitUsage, fmt.Sprintf("finding index %d out of range (0-%d) in round %d", index, len(findings)-1, round))
-			os.Exit(ExitUsage)
+		selected := make([]map[string]any, 0, len(indices))
+		for _, index := range indices {
+			if index < 0 || index >= len(findings) {
+				output.Error(ExitUsage, fmt.Sprintf("finding index %d out of range (0-%d) in round %d", index, len(findings)-1, round))
+				os.Exit(ExitUsage)
+			}
+			epicRefuseResolved(findings[index], index, force)
+			selected = append(selected, findings[index])
 		}
-		epicRefuseResolved(findings[index], index, force)
-		fenceReviewAcceptance(status, findings[index:index+1])
-		findings[index]["resolved"] = map[string]any{
-			"status": status, "evidence": evidence, "resolved_at": time.Now().UTC().Format(time.RFC3339),
+		fenceReviewAcceptance(status, selected)
+		at := time.Now().UTC().Format(time.RFC3339)
+		for _, row := range selected {
+			row["resolved"] = map[string]any{"status": status, "evidence": evidence, "resolved_at": at}
 		}
 		return writeNDJSON(path, findings)
 	})
@@ -63,7 +85,11 @@ func runEpicReviewResolve(key engine.EpicSliceKey, args []string, force bool) {
 		exitEpicResolveError(path, lockErr)
 	}
 	result := epicResolvePayload(&run, round, status)
-	result.Index = &index
+	if len(indices) == 1 {
+		result.Index = &indices[0]
+	} else {
+		result.Indices = indices
+	}
 	printEpicResolve(&result)
 }
 
