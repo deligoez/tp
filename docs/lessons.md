@@ -304,6 +304,25 @@ mechanism it is changing. Budget a self-referential release at roughly twice a c
 **split on seams rather than on line count**: splitting buys predictability and reviewable surface, not
 fewer rounds. The floor for a small tool spec is 4 rounds (v0.31.1, 56 lines at round 1), not 11.
 
+#### What grounding found on this corpus
+
+README's "What grounding finds" paragraph states its claim without figures; these are the counts
+behind it, derived from this repository's own ground rounds. Both round directories are read,
+because ground rounds live under `spec/.tp-review/` and `spec/backlog/.tp-review/` alike. The tier
+counts are over the rows that carry a `tier`, because a `NOT-A-CLAIM` row may omit one; the verdict
+counts are over every row:
+
+```bash
+python3 -c 'import json,glob,collections,os
+G=sorted(glob.glob("spec/.tp-review/*/ground-round-*.ndjson")
+       + glob.glob("spec/backlog/.tp-review/*/ground-round-*.ndjson"))
+R=[json.loads(l) for f in G for l in open(f) if l.strip()]
+D={"run","probe","red-green","break-and-control"}
+print(len(G), len({os.path.basename(os.path.dirname(f)) for f in G}))
+T=[r for r in R if r.get("tier")]; F=[r for r in R if r["verdict"]=="FAIL"]
+print(len(R), collections.Counter(r["verdict"] for r in R))
+print(len(T), sum(r["tier"] in D for r in T), len(F), sum(r.get("tier") in D for r in F))'
+```
 #### The round corpus, and two things this file got wrong about it
 
 **Every derivation over the round corpus needs BOTH globs** — `spec/.tp-review/*/*.ndjson` and
