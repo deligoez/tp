@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.5.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-09T13:23:21.131456Z",
+  "updated_at": "2026-11-09T13:31:07.25315Z",
   "workflow": {
     "review_max_rounds": 4,
     "audit_max_rounds": 5
@@ -139,7 +139,7 @@
       "id": "set-epic-binding",
       "title": "Bind a task file with tp set --epic",
       "description": "tp set --epic \u003cid\u003e writes the task file's epic and --epic \"\" removes it. Refused (exit 1, nothing written) when the graph does not hold the id, the epic is a condition, or it carries a done record. §10 row 1.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "binding"
@@ -153,11 +153,18 @@
         "## 2. Binding",
         "## 10. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-09T13:25:13.231387Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-09T13:31:07.239637Z",
+      "closed_reason": "- §10 row 1: TestSetEpic_BindsTheTaskFile, TestSetEpic_AbsentIDIsRefusedAndWritesNothing, TestSetEpic_ConditionIsRefusedAndWritesNothing, TestSetEpic_DoneEpicIsRefusedAndWritesNothing pass; gate green\n- TestSetEpic_EmptyRemovesTheBinding passes",
+      "gate_passed_at": "2026-11-09T13:31:07.239637Z",
+      "commit_sha": "f4670be8",
+      "commit_shas": [
+        "f4670be8"
+      ],
+      "commit_files": [
+        "internal/cli/set_epic_test.go"
+      ]
     },
     {
       "id": "init-epic-binding",
