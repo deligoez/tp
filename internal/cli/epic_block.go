@@ -67,7 +67,7 @@ func exitIfNextBlocked(tf *model.TaskFile, taskFilePath string) {
 	if blocked == nil {
 		return
 	}
-	printBlockedAnswer(map[string]any{
+	printResultOrExit(map[string]any{
 		"done":             false,
 		"message":          "No task to start: " + epicBlockedMessage(tf, blocked) + ".",
 		"blocked_by_epics": blocked,
@@ -75,11 +75,11 @@ func exitIfNextBlocked(tf *model.TaskFile, taskFilePath string) {
 	os.Exit(ExitState)
 }
 
-// printBlockedAnswer prints a blocked file's answer; a stdout that cannot be
+// printResultOrExit prints a command's JSON result; a stdout that cannot be
 // written is a file error and exits 3, as in tp ground
 // (TestOneStdoutWriteErrorIsOneClassification).
-func printBlockedAnswer(answer map[string]any) {
-	if err := output.JSON(answer); err != nil {
+func printResultOrExit(result any) {
+	if err := output.JSON(result); err != nil {
 		output.Error(ExitFile, err.Error(), groundStdoutHint)
 		os.Exit(ExitFile)
 	}
@@ -130,7 +130,7 @@ func readyBlocked(tf *model.TaskFile, taskFilePath string) bool {
 	if blocked == nil {
 		return false
 	}
-	printBlockedAnswer(map[string]any{"ready": []model.Task{}, "blocked_by_epics": blocked})
+	printResultOrExit(map[string]any{"ready": []model.Task{}, "blocked_by_epics": blocked})
 	if readyFirst {
 		os.Exit(ExitState)
 	}
