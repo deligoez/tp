@@ -58,3 +58,13 @@ func TestConditionsActionable_ADependentInAClosedMilestoneWithABoundFileCounts(t
 	assert.True(t, conditionActionableOf(closedDependentGraph(), bound))
 }
 
+// TestConditionsActionable_EveryDependentDoneIsNotActionable: c gates w1 and
+// w2, both done, so c gates nothing.
+func TestConditionsActionable_EveryDependentDoneIsNotActionable(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"A"}}, Epics: []model.Epic{
+		{ID: "c", Title: "C", Milestone: "A", Root: true, Condition: true, Acceptance: "the board says yes"},
+		{ID: "w1", Title: "W1", Milestone: "A", DependsOn: []model.EpicDep{{ID: "c", Why: "w1 ships once the board agrees"}}},
+		{ID: "w2", Title: "W2", Milestone: "A", DependsOn: []model.EpicDep{{ID: "c", Why: "w2 ships once the board agrees"}}},
+	}}
+	assert.False(t, conditionActionableOf(g, nil, "w1", "w2"))
+}
