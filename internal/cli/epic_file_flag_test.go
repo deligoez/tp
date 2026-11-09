@@ -127,3 +127,16 @@ func TestEpicFlag_NoBoundFileExits4(t *testing.T) {
 		assert.Contains(t, stderr, `epic \"u\" has no bound task file`, "%v", args)
 	}
 }
+
+// TestEpicFlag_WithFileIsAUsageError is F8: --epic picks the file --file
+// names, so passing both exits 2.
+func TestEpicFlag_WithFileIsAUsageError(t *testing.T) {
+	t.Parallel()
+	dir := epicFileRepo(t)
+	writeEpicFile(t, dir, "b1", "b", "open")
+	initGitRepo(t, dir)
+
+	_, stderr, code := runTP(t, dir, "ready", "--epic", "b", "--file", "x.tasks.json")
+	require.Equal(t, 2, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "--epic and --file are mutually exclusive")
+}
