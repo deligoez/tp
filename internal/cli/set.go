@@ -33,6 +33,7 @@ var (
 	setWorkflowFlag bool
 	setProjectFlag  bool
 	setLocalFlag    bool
+	setEpicFlag     string
 
 	editableWorkflowFields = map[string]bool{
 		"review_clean_rounds":  true,
@@ -80,6 +81,7 @@ func newSetCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&setWorkflowFlag, "workflow", false, "update workflow-level fields instead of a task")
 	cmd.Flags().BoolVar(&setProjectFlag, "project", false, "with --workflow: write to the project .tp/config.json")
 	cmd.Flags().BoolVar(&setLocalFlag, "local", false, "write a flag default to .tp/local.json (defaults.<flag>=<bool>)")
+	cmd.Flags().StringVar(&setEpicFlag, "epic", "", "bind the task file to this epic of .tp/epics.json; \"\" removes the binding")
 	return cmd
 }
 
@@ -90,7 +92,10 @@ type setLine struct {
 	Value json.RawMessage `json:"value"`
 }
 
-func runSet(_ *cobra.Command, args []string) error {
+func runSet(cmd *cobra.Command, args []string) error {
+	if cmd.Flags().Changed("epic") {
+		return runSetEpic(args, setEpicFlag)
+	}
 	if setLocalFlag {
 		return runSetLocal(args)
 	}
