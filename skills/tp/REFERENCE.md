@@ -1544,15 +1544,24 @@ The read commands write nothing and list epics in graph order, every list `[]` w
   and they share one chain, whatever the order of the epics. `--compact` leaves
   `dependents_by_milestone` out of every ready item, on `tp epic ready` and `tp epic status`.
 - **`actionable`** (v1.6.0): a condition is actionable when it is not done, every direct
-  dependency is done, its milestone is open, and either nothing depends on it or some not-done
-  dependent, in an open milestone or with a bound file, has only conditions among its undone direct
-  dependencies.
+  dependency is done, its milestone is open, and at least one of: it is a member of an open
+  milestone's gate (explicit `members`, since the default members leave conditions out), so
+  deciding it can turn that gate green; nothing depends on it; or some not-done dependent, in an
+  open milestone or with a bound file, has only conditions among its undone direct dependencies.
+  The first keeps a condition that holds a gate from waiting on a dependent in the milestone that
+  gate opens, which would never open.
+- **`not_actionable`** (v1.6.0): on every undone condition that is not actionable, every reason that
+  holds, in this order: `milestone` (its milestone is not open), `dependencies` (a direct dependency
+  of its own is not done), `dependents` (no open milestone's gate holds it and no dependent that can
+  move waits on it and on conditions alone). Absent on an actionable condition; a condition never
+  carries `waiting_on`, which is a milestone's key.
 - **`tp epic ready [--all]`**: `{ready: [{id, title, milestone, downstream}], claimed: [{id, title,
-  milestone, by, at}], operator: {conditions: [{id, title, milestone, actionable}], gates:
-  [{milestone, threshold}]}}`. `ready` is sorted by `longest_chain`, then `dependents`, both
+  milestone, by, at}], operator: {conditions: [{id, title, milestone, actionable, not_actionable?}],
+  gates: [{milestone, threshold}]}}`. `ready` is sorted by `longest_chain`, then `dependents`, both
   descending, then graph order; `claimed` holds the epics that would be ready but for their claim, in
   graph order; a bound epic is in no list. `operator.conditions` holds the actionable conditions;
-  `--all` lists every not-done condition of a tracked milestone with `actionable` `true` or `false`.
+  `--all` lists every not-done condition of a tracked milestone with `actionable` `true` or `false`,
+  and `not_actionable` on each `false` one.
   `operator.gates` names gates whose members are done and whose threshold has no `met`, open or not,
   in track order. `--all` lifts the open-milestone rule.
 - **`tp epic gate <m>`**: `{milestone, green, members: [{id, state, status}], deferrable: [{id,
@@ -1562,7 +1571,8 @@ The read commands write nothing and list epics in graph order, every list `[]` w
   counted in work epics; ties go to the earlier epic in graph order; it ignores `--milestone`,
   `--open` and `--compact`. Each tracked milestone once, in track order: `{milestone, open,
   opens_after, waiting_on, counts: {planned, claimed, specced, in_progress, done, conditions_done},
-  share_done, gate, ready, claimed, blocked: [{id, title, milestone, held_by, blocked_by}], operator,
+  share_done, gate, ready, claimed, blocked: [{id, title, milestone, held_by, blocked_by,
+  not_actionable?}], operator,
   critical_path: {by_count, by_estimate: {chain, estimate_minutes}}, throughput: [{week, done}],
   rollup: [{epic, estimate_minutes, actual_minutes, tracked, estimate_total}]}`. `opens_after` is
   the effective list, defaults applied; `waiting_on` those of it not open or not green, `[]` once
@@ -1573,7 +1583,7 @@ The read commands write nothing and list epics in graph order, every list `[]` w
   `share_done` is `done` over the milestone's work epics to two places, 0 with none, and a done
   condition counts in `conditions_done` alone. `blocked` is each not-done epic with a dependency not
   done: `blocked_by` every such dependency once, `held_by` the conditions among them (v1.6.0), as
-  export's epics. `by_count` runs in work order, the gate member last, `[]` when every member is done; ties go
+  export's epics, and on a condition `not_actionable`. `by_count` runs in work order, the gate member last, `[]` when every member is done; ties go
   to the earlier gate member, then the earlier dependency. `by_estimate.chain` is `null` when an
   epic on a chain has no estimate. `throughput` lists only weeks with a done work epic, ascending, as
   UTC ISO weeks (`2026-W45`), counting epics `done` now. `rollup` has a row per bound epic, summing
@@ -1586,9 +1596,10 @@ The read commands write nothing and list epics in graph order, every list `[]` w
   - `graph` is `.tp/epics.json` as stored; `milestones` is `tp epic status`'s `milestones`,
     uncompacted.
   - `epics`: `{id, title, milestone, condition, status, done_at, files, downstream?, actionable?,
-    held_by, blocked_by}`, `done_at` RFC 3339 or `null`. `downstream` is the one above without
-    `dependents_by_milestone`, absent on a done epic; `actionable` is present on conditions only,
-    `false` once done. `blocked_by` lists the undone direct dependencies, `held_by` the conditions
+    not_actionable?, held_by, blocked_by}`, `done_at` RFC 3339 or `null`. `downstream` is the one
+    above without `dependents_by_milestone`, absent on a done epic; `actionable` is present on
+    conditions only, `false` once done; `not_actionable` on an undone condition that is not
+    actionable. `blocked_by` lists the undone direct dependencies, `held_by` the conditions
     among them, both in `depends_on` order. `files` is `[]` when unbound, else each `{path, phase,
     tasks: {open, wip, done}, review, audit, ground}`: `path` relative to the git toplevel, `phase`
     `tp resume`'s, each loop `{round, state}`. Review and audit count recorded rounds, `state`
