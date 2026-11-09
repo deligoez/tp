@@ -60,13 +60,15 @@ commit: files
 config: dry-run extract force resolved
 done: auto-commit batch commit covered-by files gate-passed reason-file skip-gate stdin
 epic:
-epic add: bulk stdin
+epic add: bulk if-revision stdin
 epic export: md
-epic import: force
+epic import: force if-revision
+epic link: if-revision
 epic lint:
-epic remove: force
+epic remove: force if-revision
 epic review: check epic force milestone record resolve resolve-all role status
-epic set:
+epic set: if-revision
+epic unlink: if-revision
 escalate: decision evidence option
 graph: from tag
 ground: check force record status units
