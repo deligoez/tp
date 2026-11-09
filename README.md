@@ -239,6 +239,7 @@ tp epic link <from> <to> <why> # Add one edge, or reword its why
 tp epic unlink <from> <to>     # Remove one edge; every writer takes --if-revision <sha256 of the file> and prints revision
 tp epic milestone add <name>   # Insert a milestone --after|--before <m>, or open a --new-track with it
 tp epic gate <m>               # A milestone's gate: members green or red, deferrable apart, threshold; exit 0 only when green
+tp epic done <id> --evidence e # Record an epic with no bound file done (--undo removes it); a condition needs its acceptance
 tp epic import <file>          # Replace the graph with a file (--force over one holding epics); reports its lint findings
 tp epic review --epic <id>     # One prompt per graph role over a slice (or --milestone <m>, --epics <ids> [--name]; --role narrows)
 ```
