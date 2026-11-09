@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.5.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-09T13:31:23.617066Z",
+  "updated_at": "2026-11-09T13:35:09.659695Z",
   "workflow": {
     "review_max_rounds": 4,
     "audit_max_rounds": 5
@@ -170,7 +170,7 @@
       "id": "init-epic-binding",
       "title": "Bind a new task file through tp init",
       "description": "tp init \u003cspec\u003e --epic \u003cid\u003e writes epic into the created task file under the same refusals as tp set --epic.",
-      "status": "wip",
+      "status": "done",
       "tags": [
         "cli",
         "binding"
@@ -185,10 +185,16 @@
       ],
       "started_at": "2026-11-09T13:31:23.617066Z",
       "duration_source": "claimed",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-11-09T13:35:09.647026Z",
+      "closed_reason": "- TestInitEpic_CreatesAFileBoundToTheEpic passes; gate green\n- TestInitEpic_AbsentIDIsRefusedAndCreatesNoFile, TestInitEpic_ConditionIsRefusedAndCreatesNoFile, TestInitEpic_DoneEpicIsRefusedAndCreatesNoFile pass",
+      "gate_passed_at": "2026-11-09T13:35:09.647026Z",
+      "commit_sha": "a98d9f02",
+      "commit_shas": [
+        "a98d9f02"
+      ],
+      "commit_files": [
+        "internal/cli/init_epic_test.go"
+      ]
     },
     {
       "id": "condition-refuses-bound-claimed",
