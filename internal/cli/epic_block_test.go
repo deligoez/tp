@@ -420,3 +420,25 @@ func TestClaim_AnAllDoneFileAnswersAsUnboundWhileBlocked(t *testing.T) {
 		assert.NotContains(t, stderr, "blocked_by_epics", "%v", args)
 	}
 }
+
+// TestClaim_AnIdThatIsNotOpenAnswersAsUnboundWhileBlocked is spec/1.5.0.md
+// §6, judged per id as tp done judges: on a blocked file that still holds an
+// open task, tp claim of a done task or of an id the file does not hold
+// answers exactly as on an unbound file — exit 4, not open or not found — with
+// no blocked_by_epics. A claim that judged the whole file first exits 1 naming
+// c and fails.
+func TestClaim_AnIdThatIsNotOpenAnswersAsUnboundWhileBlocked(t *testing.T) {
+	t.Parallel()
+	blocked := blockDir(t, "b", "open", "done")
+	unbound := blockDir(t, "", "open", "done")
+
+	for _, args := range [][]string{{"claim", "t2"}, {"claim", "zz"}, {"claim", "t2", "zz"}} {
+		wantStdout, wantStderr, wantCode := runTP(t, unbound, args...)
+		require.Equal(t, 4, wantCode, "%v on the unbound file: %s", args, wantStderr)
+		stdout, stderr, code := runTP(t, blocked, args...)
+		assert.Equal(t, wantCode, code, "%v stdout: %s stderr: %s", args, stdout, stderr)
+		assert.Equal(t, wantStderr, stderr, "%v", args)
+		assert.Equal(t, wantStdout, stdout, "%v", args)
+		assert.NotContains(t, stderr, "blocked_by_epics", "%v", args)
+	}
+}
