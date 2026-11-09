@@ -82,9 +82,9 @@ type epicDownstreamReport struct {
 	Ready []struct {
 		ID         string `json:"id"`
 		Downstream *struct {
-			LongestChain          int            `json:"longest_chain"`
-			Dependents            int            `json:"dependents"`
-			DependentsOpen        int            `json:"dependents_open"`
+			LongestChain          int                   `json:"longest_chain"`
+			Dependents            int                   `json:"dependents"`
+			DependentsOpen        int                   `json:"dependents_open"`
 			DependentsByMilestone []milestoneDependents `json:"dependents_by_milestone"`
 		} `json:"downstream"`
 	} `json:"ready"`
