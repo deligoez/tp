@@ -76,7 +76,7 @@ func exitIfNextBlocked(tf *model.TaskFile, taskFilePath string) {
 // (TestOneStdoutWriteErrorIsOneClassification).
 func printBlockedAnswer(answer map[string]any) {
 	if err := output.JSON(answer); err != nil {
-		output.Error(ExitFile, err.Error())
+		output.Error(ExitFile, err.Error(), groundStdoutHint)
 		os.Exit(ExitFile)
 	}
 }
