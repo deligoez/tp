@@ -107,3 +107,27 @@ func TestEpicExport_CarriesTheWholeGraphCriticalPath(t *testing.T) {
 	assert.JSONEq(t, `{"by_count": ["k", "w", "x", "y"]}`, string(*export.CriticalPath))
 	assert.JSONEq(t, string(*status.CriticalPath), string(*export.CriticalPath))
 }
+
+// TestEpicStatus_BlockedItemsCarryHeldBy: status's blocked items say, as
+// export's epics do, which blockers are the operator's conditions.
+func TestEpicStatus_BlockedItemsCarryHeldBy(t *testing.T) {
+	t.Parallel()
+	var status struct {
+		Milestones []struct {
+			Blocked []struct {
+				ID     string   `json:"id"`
+				HeldBy []string `json:"held_by"`
+			} `json:"blocked"`
+		} `json:"milestones"`
+	}
+	stdout := runEpicStatus(t, downstreamDir(t, exportF9Epics(), nil))
+	require.NoError(t, json.Unmarshal([]byte(stdout), &status), "stdout: %s", stdout)
+	held := map[string][]string{}
+	for _, m := range status.Milestones {
+		for _, b := range m.Blocked {
+			require.NotNil(t, b.HeldBy, "%s carries held_by", b.ID)
+			held[b.ID] = b.HeldBy
+		}
+	}
+	assert.Equal(t, map[string][]string{"w": {"k"}, "x": {}, "y": {}}, held)
+}
