@@ -30,6 +30,9 @@ fix needs a design choice leaves this file for a decision note.
   (`commit.go`), a failed follow-up closure commit only warns, `runCommit`'s final `output.JSON` and
   `claimSingle`'s do not exit 3 when stdout cannot be written, and a `git add` failure still offers the
   committer-identity hint. Repro: a git shim refusing `diff --cached`, or `1</dev/null`.
+- **`tp brief` and `tp plan` on a task file with no task still say "All tasks complete"**
+  (`brief.go`, `plan.go`), where `tp next` since v1.6.0 says "no tasks yet" and names the phase
+  `tp resume` reports. Repro: `tp init spec.md` then `tp brief` / `tp plan`.
 - **The tp plugin's scope-fence hook blocks reads and fixture writes it should allow.** A codedbpro
   read of a file under `spec/.tp-review/` is refused as a hand-edit, and an auditor writing a
   `*.tasks.json` fixture into a `mktemp -d` directory outside the repo is refused too. Repro: from a
