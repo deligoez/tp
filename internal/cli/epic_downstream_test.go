@@ -160,3 +160,13 @@ func TestEpicReady_ADoneEpicCutsTheDownstream(t *testing.T) {
 	assert.Equal(t, 2, dependents, "a1 and a5")
 }
 
+// TestEpicReady_DependentsOpenCountsOnlyOpenMilestones is C1.3: M2 is closed
+// while M1's gate is red, so of r1's five dependents only a1 and a2 are open.
+func TestEpicReady_DependentsOpenCountsOnlyOpenMilestones(t *testing.T) {
+	t.Parallel()
+	_, dependents, open, byMilestone := readyDownstream(t, downstreamDir(t, downstreamEpics(10), nil)).item(t, "r1")
+	assert.Equal(t, 5, dependents)
+	assert.Equal(t, 2, open)
+	assert.Equal(t, map[string]int{"M1": 2, "M2": 3}, byMilestone)
+}
+
