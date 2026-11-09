@@ -32,6 +32,9 @@ type epicWriteResult struct {
 	DroppedKeys []string `json:"dropped_keys"`
 	Revision    string   `json:"revision"`
 	Action      string   `json:"action,omitempty"`
+	// AncestryChanged is tp epic set opens_after= and milestones='s report of
+	// the milestones whose ancestry the write changed; absent elsewhere.
+	AncestryChanged *[]engine.AncestryChange `json:"ancestry_changed,omitempty"`
 }
 
 func newEpicAddCmd() *cobra.Command {
@@ -195,11 +198,13 @@ func epicIfRevision(cmd *cobra.Command) *string {
 
 // epicWriteOpts are what a writer adds to the shared write: the revision it
 // read, the payload lines of a --bulk write, and the action a link or unlink
-// reports, which mutate fills in.
+// reports, and the ancestry changes a set of opens_after or milestones
+// reports, both of which mutate fills in.
 type epicWriteOpts struct {
 	ifRevision  *string
 	bulkLines   map[string][]int
 	action      *string
+	ancestry    *[]engine.AncestryChange
 	refusedHint string
 }
 
@@ -230,7 +235,7 @@ func writeEpicGraphWith(opts epicWriteOpts, mutate func(*model.EpicGraph) error)
 	if err != nil {
 		exitEpicWriteError(err, &opts)
 	}
-	result := epicWriteResult{File: out.Path, Epics: count, DroppedKeys: out.Dropped, Revision: out.Revision}
+	result := epicWriteResult{File: out.Path, Epics: count, DroppedKeys: out.Dropped, Revision: out.Revision, AncestryChanged: opts.ancestry}
 	if opts.action != nil {
 		result.Action = *opts.action
 	}

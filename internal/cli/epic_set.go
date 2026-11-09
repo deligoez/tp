@@ -45,8 +45,27 @@ func runEpicSet(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		epicSetUsageExit(err.Error())
 	}
-	writeEpicGraph(cmd, mutate)
+	opts := epicWriteOpts{ifRevision: epicIfRevision(cmd)}
+	if len(args) == 1 && (key == "opens_after" || key == "milestones") {
+		mutate = withAncestryReport(mutate, &opts)
+	}
+	writeEpicGraphWith(opts, mutate)
 	return nil
+}
+
+// withAncestryReport wraps a set of opens_after or milestones so the response
+// lists the milestones whose ancestry the write changed (spec/1.6.0.md §1).
+func withAncestryReport(mutate func(*model.EpicGraph) error, opts *epicWriteOpts) func(*model.EpicGraph) error {
+	changes := []engine.AncestryChange{}
+	opts.ancestry = &changes
+	return func(g *model.EpicGraph) error {
+		before := &model.EpicGraph{Milestones: g.Milestones, OpensAfter: g.OpensAfter}
+		if err := mutate(g); err != nil {
+			return err
+		}
+		changes = engine.EpicAncestryChanges(before, g)
+		return nil
+	}
 }
 
 // epicSetUsageExit refuses a malformed set before any lock is taken.
