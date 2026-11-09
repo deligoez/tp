@@ -11,10 +11,12 @@ import (
 	"github.com/deligoez/tp/internal/output"
 )
 
-// epicPlanResult is tp epic status's payload (spec/1.5.0.md §7, C1): one
+// epicPlanResult is tp epic status's payload (spec/1.5.0.md §7, C1): the
+// whole graph's critical path (spec/1.6.0.md F1), by count only, then one
 // report per tracked milestone, in track order.
 type epicPlanResult struct {
-	Milestones []epicMilestoneReport `json:"milestones"`
+	CriticalPath epicPathReport        `json:"critical_path"`
+	Milestones   []epicMilestoneReport `json:"milestones"`
 }
 
 // epicMilestoneReport is one milestone's state. Throughput, Rollup and the
@@ -137,7 +139,10 @@ func epicPlanStatus(g *model.EpicGraph, states map[string]engine.EpicState, boun
 		}
 		p.estimates = estimates
 	}
-	out := epicPlanResult{Milestones: make([]epicMilestoneReport, 0, len(milestones))}
+	out := epicPlanResult{
+		CriticalPath: epicPathReport{ByCount: engine.GraphCriticalPath(g, states)},
+		Milestones:   make([]epicMilestoneReport, 0, len(milestones)),
+	}
 	for _, m := range milestones {
 		rep, err := p.milestone(m)
 		if err != nil {

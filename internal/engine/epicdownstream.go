@@ -50,6 +50,28 @@ func EpicDownstreams(g *model.EpicGraph, states map[string]EpicState, gates map[
 	return out
 }
 
+// GraphCriticalPath returns the longest chain of not-done epics in the whole
+// graph by count of work epics, in work order: it starts at a not-done epic
+// with no not-done dependency and may cross milestones and tracks. Ties go to
+// the earlier epic in graph order; empty when no work epic is left.
+func GraphCriticalPath(g *model.EpicGraph, states map[string]EpicState) []string {
+	w := newDownstreamWalk(g, states)
+	head, best := -1, 0
+	for i := range g.Epics {
+		if !w.undone(i) || w.waits[i] {
+			continue
+		}
+		if c := w.weight(i) + w.longest(i); c > best {
+			head, best = i, c
+		}
+	}
+	path := []string{}
+	for i := head; i >= 0; i = w.next[i] {
+		path = append(path, g.Epics[i].ID)
+	}
+	return path
+}
+
 // downstreamWalk walks depends_on edges forwards, from an epic to the
 // not-done epics depending on it, memoizing each epic's chain and reach.
 // Epics are addressed by graph position; a repeated id keeps its first.
