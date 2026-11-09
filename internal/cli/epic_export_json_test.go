@@ -108,3 +108,18 @@ func TestEpicExport_ASliceRecordedBeforeV150HasKeyNull(t *testing.T) {
 	assert.Equal(t, "null", string(p.Slices[0].Key))
 	assert.Equal(t, 1, p.Slices[0].Round)
 }
+
+// TestEpicExport_ASliceWithoutKeyFileReportsTheKeyItsRoundsName is F6: the
+// --epic b slice lost its key file and snapshots, but its round names
+// epic:b, so the export reports that key, and writes no key file.
+func TestEpicExport_ASliceWithoutKeyFileReportsTheKeyItsRoundsName(t *testing.T) {
+	t.Parallel()
+	dir := exportWithBRecorded(t)
+	sliceDir := stripSliceKey(t, dir)
+
+	p := runEpicExportJSON(t, dir)
+
+	require.Len(t, p.Slices, 1)
+	assert.JSONEq(t, `{"kind": "epic", "value": "b"}`, string(p.Slices[0].Key))
+	assert.NoFileExists(t, filepath.Join(sliceDir, "key.json"), "the export only reads")
+}
