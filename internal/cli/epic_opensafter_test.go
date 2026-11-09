@@ -2,6 +2,9 @@ package cli_test
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -77,6 +80,21 @@ func TestEpicSet_NullOpensAfterListExits2(t *testing.T) {
 	before := readEpicGraphFile(t, dir)
 
 	_, stderr, code := runTP(t, dir, "epic", "set", `opens_after={"R":null}`)
+	require.Equal(t, 2, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, `opens_after \"R\"`)
+	assert.Equal(t, before, readEpicGraphFile(t, dir))
+}
+
+// TestEpicImport_NullOpensAfterListExits2: import refuses the null list set
+// refuses, before anything is written.
+func TestEpicImport_NullOpensAfterListExits2(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, opensAfterStatusGraph(false))
+	before := readEpicGraphFile(t, dir)
+	payload := strings.Replace(opensAfterStatusGraph(false), `{"R": ["P"]}`, `{"R": null}`, 1)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "g.json"), []byte(payload), 0o600))
+
+	_, stderr, code := runTP(t, dir, "epic", "import", "g.json", "--force")
 	require.Equal(t, 2, code, "stderr: %s", stderr)
 	assert.Contains(t, stderr, `opens_after \"R\"`)
 	assert.Equal(t, before, readEpicGraphFile(t, dir))
