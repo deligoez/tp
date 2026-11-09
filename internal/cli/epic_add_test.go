@@ -181,9 +181,10 @@ func TestEpicAdd_TrailingDataAfterTheEpicIsAUsageError(t *testing.T) {
 	}
 }
 
-// TestEpicAdd_BulkListsARepeatedIDOnce: two rows sharing an id write one
-// epic, so a payload echoing every row would list z twice.
-func TestEpicAdd_BulkListsARepeatedIDOnce(t *testing.T) {
+// TestEpicAdd_BulkReportsTheFileEpicCount: the payload counts the epics the
+// file holds after the write rather than echoing ids the caller already has —
+// two rows sharing an id write one epic, so z and y make two.
+func TestEpicAdd_BulkReportsTheFileEpicCount(t *testing.T) {
 	t.Parallel()
 	dir := epicGraphDir(t, `{
   "version": 1,
@@ -200,10 +201,10 @@ func TestEpicAdd_BulkListsARepeatedIDOnce(t *testing.T) {
 	stdout, stderr, code := runTP(t, dir, "epic", "add", "--bulk", bulk)
 	require.Equal(t, 0, code, "stderr: %s", stderr)
 	var out struct {
-		Epics []string `json:"epics"`
+		Epics int `json:"epics"`
 	}
 	require.NoError(t, json.Unmarshal([]byte(stdout), &out), "stdout: %s", stdout)
-	assert.Equal(t, []string{"z", "y"}, out.Epics)
+	assert.Equal(t, 2, out.Epics)
 }
 
 // TestEpicAdd_BulkMissingFileHintNamesEpicRows: --bulk takes epic rows, so a
