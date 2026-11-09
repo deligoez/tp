@@ -165,6 +165,10 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 		exitDoneCheckError(ce)
 		return nil
 	}
+	// §6: a blocked file refuses a task that is not already wip, before the
+	// gate runs and before anything is written.
+	blocked := epicBlockedBy(tfPre, taskFilePath)
+	refuseBlockedDone(tfPre, taskID, blocked)
 	if doneGatePassed && engine.EffectiveWorkflowForTaskFile(taskFilePath).QualityGate != "" {
 		output.Notice("quality gate is executed by tp; --gate-passed ignored")
 	}
@@ -192,6 +196,7 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 
 		// Implicit claim: open -> wip -> done
 		if task.Status == model.StatusOpen {
+			refuseBlockedDone(tf, task.ID, blocked)
 			done := make(map[string]bool)
 			for i := range tf.Tasks {
 				if tf.Tasks[i].Status == model.StatusDone {
@@ -350,6 +355,7 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 				wipCount++
 			}
 		}
+		readyCount = doneReadyCount(readyCount, blocked)
 
 		result := map[string]any{
 			"closed": task.ID,

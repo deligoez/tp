@@ -82,3 +82,38 @@ func readyBlocked(tf *model.TaskFile, taskFilePath string) bool {
 	}
 	return true
 }
+
+// doneBlockedMessage is why tp done refuses task id of tf while tf's epic is
+// blocked: closing a task that is not already wip would start it. It is ""
+// when blocked is nil, the task is not open, or tf does not hold it.
+func doneBlockedMessage(tf *model.TaskFile, id string, blocked []string) string {
+	if blocked == nil {
+		return ""
+	}
+	task, _, err := model.FindTask(tf, id)
+	if err != nil || task.Status != model.StatusOpen {
+		return ""
+	}
+	return fmt.Sprintf("cannot done: task %s is not wip and %s", id, epicBlockedMessage(tf, blocked))
+}
+
+// refuseBlockedDone is tp done's block for one task: while tf's epic is
+// blocked it refuses a task that is not already wip, exits 1 and carries
+// blocked_by_epics.
+func refuseBlockedDone(tf *model.TaskFile, id string, blocked []string) {
+	msg := doneBlockedMessage(tf, id, blocked)
+	if msg == "" {
+		return
+	}
+	output.ErrorExtras(ExitValidation, msg, map[string]any{"blocked_by_epics": blocked}, epicBlockHint)
+	os.Exit(ExitValidation)
+}
+
+// doneReadyCount is the ready count tp done reports: a blocked file offers
+// no task to start, so its open tasks are left out.
+func doneReadyCount(ready int, blocked []string) int {
+	if blocked != nil {
+		return 0
+	}
+	return ready
+}
