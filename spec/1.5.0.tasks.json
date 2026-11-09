@@ -1,17 +1,713 @@
 {
   "version": 1,
   "spec": "spec/1.5.0.md",
-  "created_at": "2026-11-09T12:10:03.755188Z",
-  "updated_at": "2026-11-09T12:10:03.759175Z",
+  "created_at": "0001-01-01T00:00:00Z",
+  "updated_at": "2026-11-09T12:43:48.841028Z",
   "workflow": {
     "review_max_rounds": 4,
     "audit_max_rounds": 5
   },
   "coverage": {
-    "total_sections": 0,
-    "mapped_sections": 0,
-    "context_only": [],
+    "total_sections": 11,
+    "mapped_sections": 9,
+    "context_only": [
+      "# tp v1.5.0 — the plan tracks its own progress",
+      "## 9. Non-goals"
+    ],
     "unmapped": []
   },
-  "tasks": []
+  "tasks": [
+    {
+      "id": "epic-schema-new-fields",
+      "title": "Add the v1.5.0 schema fields",
+      "description": "Epic gains condition (written only when true), estimate_minutes (only when set), claimed {at, by} and done {at, evidence}; a gate gains threshold and met {at, evidence, threshold}; a task file gains epic. The graph loader accepts the new keys; a file without them reads and writes byte-identically.",
+      "status": "open",
+      "tags": [
+        "model",
+        "schema"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 15,
+      "acceptance": "- a graph and a task file carrying every new key load and write back unchanged\n- a v1.4.2 graph without them writes back byte-identically\n- condition false and an unset estimate_minutes are omitted on write",
+      "source_sections": [
+        "## 8. Schema"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-writers-carry-records",
+      "title": "Carry lifecycle records through whole-object writers",
+      "description": "A writer that replaces a whole object (set gates=, a --bulk row replacing an epic) carries over the existing claimed, done and met records and refuses a payload that names them (exit 2); tp epic import writes them as the payload has them (the migration).",
+      "status": "open",
+      "tags": [
+        "engine",
+        "writers"
+      ],
+      "depends_on": [
+        "epic-schema-new-fields"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- set gates= keeps an existing met record and a --bulk row keeps an existing claimed and done\n- a set gates= or --bulk payload naming met, claimed or done exits 2 and writes nothing\n- tp epic import writes claimed, done and met from its payload",
+      "source_sections": [
+        "## 8. Schema"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-review-block-fields",
+      "title": "Show the v1.5.0 fields in review blocks",
+      "description": "The epic review block shows condition: true; the gate block shows the gate's threshold, so editing either changes the unit hash and re-asks it.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "review"
+      ],
+      "depends_on": [
+        "epic-schema-new-fields"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "- an epic block shows condition when true and a gate block shows its threshold\n- editing a threshold changes the gate unit's hash and re-asks it",
+      "source_sections": [
+        "## 8. Schema"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-bound-files-walk",
+      "title": "Find the task files bound to each epic",
+      "description": "Walk every tracked or untracked *.tasks.json under the repository root, ignore rules respected, and index them by their epic field.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "binding"
+      ],
+      "depends_on": [
+        "epic-schema-new-fields"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- a tracked and an untracked bound file are both found and an ignored one is not\n- files are indexed by epic id; a file with no epic is in no epic's list",
+      "source_sections": [
+        "## 2. Binding"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "set-epic-binding",
+      "title": "Bind a task file with tp set --epic",
+      "description": "tp set --epic \u003cid\u003e writes the task file's epic and --epic \"\" removes it. Refused (exit 1, nothing written) when the graph does not hold the id, the epic is a condition, or it carries a done record. §10 row 1.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "binding"
+      ],
+      "depends_on": [
+        "epic-bound-files-walk"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- §10 row 1: tp set --epic b binds the file; an absent id, a condition and a done epic exit 1 and write nothing\n- tp set --epic \"\" removes the binding",
+      "source_sections": [
+        "## 2. Binding",
+        "## 10. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "init-epic-binding",
+      "title": "Bind a new task file through tp init",
+      "description": "tp init \u003cspec\u003e --epic \u003cid\u003e writes epic into the created task file under the same refusals as tp set --epic.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "binding"
+      ],
+      "depends_on": [
+        "set-epic-binding"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "- tp init spec --epic b creates a task file bound to b\n- an absent id, a condition or a done epic refuses and creates no file",
+      "source_sections": [
+        "## 2. Binding"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "condition-refuses-bound-claimed",
+      "title": "Refuse condition on bound or claimed epics",
+      "description": "Setting condition: true through any writer is refused (exit 1) on an epic that has a bound file or a claim, so a condition never has either.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "conditions"
+      ],
+      "depends_on": [
+        "epic-bound-files-walk"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- tp epic set b condition=true exits 1 while a file binds b\n- the same exits 1 while b is claimed, and writes nothing",
+      "source_sections": [
+        "## 5. Conditions"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-status-derive",
+      "title": "Derive an epic's status from its files",
+      "description": "planned, claimed, specced, in_progress and done per §3, from bound files' tp resume phases, a done record and a claim; a claim on a bound epic is ignored; a bound spec edited after release falls back with its file. §10 row 2.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "status"
+      ],
+      "depends_on": [
+        "epic-bound-files-walk"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- §10 row 2: b moves planned, claimed, specced, in_progress and done as its file moves\n- done needs every bound file at release; a file whose tasks are all done but audit not converged is in_progress\n- a claim on a bound epic does not change its status",
+      "source_sections": [
+        "## 3. Status",
+        "## 10. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-done-at",
+      "title": "Derive an epic's done_at",
+      "description": "done_at is the done record's time, else the time of the audit round that most recently brought the last bound file to release; it moves when an epic reopens and is done again.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "status"
+      ],
+      "depends_on": [
+        "epic-status-derive"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- a taskless epic's done_at is its record's time\n- a bound epic's done_at is the converging audit round's time, and moves after a reopen and a new convergence",
+      "source_sections": [
+        "## 3. Status"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "gate-default-members",
+      "title": "Default a gate's members to its work epics",
+      "description": "With no members key, or no gates entry, a milestone's gate members are its epics that are neither conditions nor deferrable; deferrable epics never hold a gate. §10 row 9.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "gates"
+      ],
+      "depends_on": [
+        "epic-schema-new-fields"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- §10 row 9: a condition of A is not a default member and a deferrable work epic does not hold A's gate\n- an explicit members list overrides the default",
+      "source_sections": [
+        "## 4. Milestones and gates",
+        "## 10. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "gate-green-milestone-open",
+      "title": "Derive milestone openness from gate state",
+      "description": "Green: every member done and, with a threshold, a met record. A milestone is open when every earlier milestone of its track has a green gate; the first is always open; tracks do not wait on each other. §10 rows 6 and 7.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "gates"
+      ],
+      "depends_on": [
+        "gate-default-members",
+        "epic-status-derive"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- §10 row 7: with a gate named only on B, B opens once A's epics are done and C once B's gate is green\n- a threshold gate is red until a met record exists even with every member done\n- a member that falls back turns its gate red again while the met record stands",
+      "source_sections": [
+        "## 4. Milestones and gates",
+        "## 10. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "gate-met-command",
+      "title": "Record a met threshold on a gate",
+      "description": "tp epic gate \u003cm\u003e --met --evidence writes met {at, evidence, threshold}, refused while a member is not done or the threshold is empty; a threshold edited after its met record shows as changed. §10 row 8.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "gates"
+      ],
+      "depends_on": [
+        "gate-green-milestone-open"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- §10 row 8: --met is refused while a member is not done and while the threshold is empty, accepted once both hold\n- the met record copies the threshold, and an edited threshold shows as changed in tp epic gate",
+      "source_sections": [
+        "## 4. Milestones and gates",
+        "## 10. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "gate-report-command",
+      "title": "Report a milestone gate with tp epic gate",
+      "description": "tp epic gate \u003cm\u003e reports each member green or red, the deferrable epics apart, the threshold and its met record, and exits 0 only when the gate is green.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "gates"
+      ],
+      "depends_on": [
+        "gate-green-milestone-open"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- members are reported green or red and deferrable epics apart\n- exit 0 only when the gate is green, else 1",
+      "source_sections": [
+        "## 7. Epic commands"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-done-command",
+      "title": "Record a taskless epic done with evidence",
+      "description": "tp epic done \u003cid\u003e --evidence writes done {at, evidence} on an epic with no bound file; refused on a bound epic and on a condition with an empty acceptance; --undo removes the record. §10 rows 4 and 5.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "conditions"
+      ],
+      "depends_on": [
+        "epic-bound-files-walk"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- §10 row 4: done c records c, the same on bound b exits 1, --undo removes c's record\n- §10 row 5: a condition with an empty acceptance is refused and with it written is accepted",
+      "source_sections": [
+        "## 5. Conditions",
+        "## 10. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-block-compute",
+      "title": "Compute a bound file's epic block",
+      "description": "A bound file's epic is blocked while a direct dependency is not done; a done record counts as done. A bound file whose epic the graph does not hold, or with no graph file, is treated as unbound with a notice.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "gating"
+      ],
+      "depends_on": [
+        "epic-status-derive"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- blocked_by_epics names the direct dependencies not done, and a dependency's done record clears it\n- a file bound to an absent epic, or with no graph file, is unblocked and says so",
+      "source_sections": [
+        "## 6. The graph gates the work"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "next-ready-claim-gating",
+      "title": "Gate task selection by the epic block",
+      "description": "While the file's epic is blocked, tp next, tp next --peek and tp ready offer no task to start and carry blocked_by_epics; tp claim exits 1; a wip task is still returned by tp next. §10 row 3 (task half).",
+      "status": "open",
+      "tags": [
+        "cli",
+        "gating"
+      ],
+      "depends_on": [
+        "epic-block-compute"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- §10 row 3: tp next reports no task and blocked_by_epics [c] while c is not done, and the task once c is done\n- tp claim exits 1 on a blocked file and tp next returns an already-wip task",
+      "source_sections": [
+        "## 6. The graph gates the work",
+        "## 10. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "done-gating",
+      "title": "Gate tp done on a blocked file",
+      "description": "tp done refuses a task that is not already wip in a blocked file; the next-task counts tp done reports leave blocked tasks out.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "gating"
+      ],
+      "depends_on": [
+        "epic-block-compute"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- §10 row 3: tp done on an open, not-wip task of a blocked file exits 1, and a wip task closes\n- has_next and the ready count leave a blocked file's tasks out",
+      "source_sections": [
+        "## 6. The graph gates the work",
+        "## 10. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "resume-epic-blocker",
+      "title": "Report an epic block from tp resume",
+      "description": "With no wip task, tp resume on a blocked bound file reports the block as a blocker and offers no implement unit; with a wip task it offers that task's unit as today. §10 row 3 (resume half).",
+      "status": "open",
+      "tags": [
+        "cli",
+        "resume"
+      ],
+      "depends_on": [
+        "epic-block-compute"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- §10 row 3: tp resume reports a blocker and no implement unit while c is not done and no task is wip\n- with a wip task it offers that task's implement unit",
+      "source_sections": [
+        "## 6. The graph gates the work",
+        "## 10. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-ready-command",
+      "title": "List startable epics with tp epic ready",
+      "description": "Work epics in an open milestone, not done, direct dependencies done, no bound file, claim or condition; apart: conditions awaiting the operator, gates awaiting a threshold, claimed epics with their holder (C1); --all lifts the open rule. §10 rows 6 and 10.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "ready"
+      ],
+      "depends_on": [
+        "gate-green-milestone-open"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- §10 row 6: y in B is listed only with --all while A's gate is red, and once A's gate is green\n- §10 row 10: a condition with done dependencies is listed apart from the work epics\n- C1: a claimed epic that would be ready is listed apart with its holder",
+      "source_sections": [
+        "## 7. Epic commands",
+        "## 10. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-claim-command",
+      "title": "Reserve an epic with tp epic claim",
+      "description": "tp epic claim \u003cid\u003e [--by] writes claimed {at, by} under the lock; exit 1 when a claim exists, on a condition, a done epic or a bound epic; not refused for a blocked epic or closed milestone; --release removes it, a bound epic included (C6). §10 row 11.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "claim"
+      ],
+      "depends_on": [
+        "epic-bound-files-walk"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- §10 row 11: a second claim on b exits 1 and --release lets it through\n- claiming a condition, a done or a bound epic exits 1\n- C6: --release on a bound epic removes its claim",
+      "source_sections": [
+        "## 7. Epic commands",
+        "## 10. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-critical-path",
+      "title": "Derive a milestone's critical path",
+      "description": "Longest chain by count of not-done epics joined by dependency edges ending at a not-done gate member; a done epic cuts a chain; chains cross milestones and tracks; the heaviest chain by summed estimate (C2) only when every epic on every such chain has an estimate. §10 row 12 with C5.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "status"
+      ],
+      "depends_on": [
+        "gate-default-members",
+        "epic-status-derive"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- §10 row 12 with C5: on the chain with b done and A's gate on a, the path is [a]\n- C2: the estimate chain is the heaviest by summed estimate, chosen apart from the longest by count\n- the estimate chain is omitted when an epic on a chain has no estimate",
+      "source_sections": [
+        "## 7. Epic commands",
+        "## 10. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-throughput-rollup",
+      "title": "Derive weekly throughput with the estimate roll-up",
+      "description": "throughput counts epics done now in the ISO week of their done_at (C4); the estimate-versus-actual roll-up tp report computes per task, summed per epic; an epic's estimate is estimate_minutes, else the sum of its bound tasks' when every one has one.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "status"
+      ],
+      "depends_on": [
+        "epic-done-at"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- C4: a reopened epic counts in no week until it is done again\n- the roll-up sums tp report's per-task estimate and actual per epic",
+      "source_sections": [
+        "## 7. Epic commands"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-status-command",
+      "title": "Report the plan with tp epic status",
+      "description": "Per milestone: open, counts by status and share done, gate state, ready and blocked lists with blockers, what waits on the operator, claim holders, critical_path, throughput and the roll-up; --milestone narrows; --compact drops the estimate chain, throughput and the roll-up.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "status"
+      ],
+      "depends_on": [
+        "epic-ready-command",
+        "epic-critical-path",
+        "epic-throughput-rollup"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- each milestone reports open, counts, share done, gate state, ready, blocked with blockers and operator waits\n- --compact leaves out the estimate chain, throughput and the roll-up\n- claimed epics show their holder",
+      "source_sections": [
+        "## 7. Epic commands"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-review-slice-key",
+      "title": "Record each epic review slice's key",
+      "description": "Each tp epic review emission writes its slice's key (kind and value or ids and name) into the slice's state directory, so slices can be listed.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "review"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "- an emission writes the slice key file in the state directory\n- a slice without the file reads as key unknown",
+      "source_sections": [
+        "## 7. Epic commands"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-export-json",
+      "title": "Export the plan as versioned JSON",
+      "description": "tp epic export with no format flag prints JSON: a schema version, every derived field, each bound file's path, phase, task counts and each loop's round and state, and every epic review slice with its key and state (key null for a pre-v1.5.0 slice); --md keeps the tables. §10 row 13.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "export"
+      ],
+      "depends_on": [
+        "epic-status-command",
+        "epic-review-slice-key"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- §10 row 13: the JSON carries version, b's bound file with its phase, and a recorded slice with its key\n- a slice recorded before v1.5.0 is listed with key null\n- --md prints the milestone tables as before",
+      "source_sections": [
+        "## 7. Epic commands",
+        "## 10. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-unattended-fences",
+      "title": "Fence epic operator writes under TP_UNATTENDED",
+      "description": "tp epic done and --undo, tp epic gate --met, tp init --epic and tp set --epic (empty too) exit 2 under TP_UNATTENDED; EscalationDecisions gains epic-done, gate-met and epic-binding; tp epic import keeps other (C3); tp epic claim runs. §10 row 14.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "unattended"
+      ],
+      "depends_on": [
+        "epic-done-command",
+        "gate-met-command",
+        "init-epic-binding",
+        "epic-claim-command"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- §10 row 14: done, done --undo, gate --met and set --epic \"\" exit 2 and claim exits 0\n- EscalationDecisions holds epic-done, gate-met and epic-binding, and import escalates as other (C3)",
+      "source_sections": [
+        "## 7. Epic commands",
+        "## 10. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "docs-skill-epic-progress",
+      "title": "Document the v1.5.0 commands in SKILL.md",
+      "description": "Inventory rows for every new command and flag; Workflow E for binding, status, ready, claim, gates and thresholds, conditions, deferrable trigger work and long-lead epics placed in their earliest milestone.",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [
+        "epic-export-json",
+        "epic-unattended-fences",
+        "resume-epic-blocker",
+        "done-gating",
+        "next-ready-claim-gating",
+        "gate-report-command",
+        "condition-refuses-bound-claimed",
+        "epic-writers-carry-records",
+        "epic-review-block-fields"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- every new command and flag has an inventory row and the flag inventory test passes\n- Workflow E covers binding, ready, claim, gates with thresholds, conditions, deferrable trigger work and long-lead epics",
+      "source_sections": [
+        "## 7. Epic commands",
+        "## 4. Milestones and gates"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "docs-reference-epic-progress",
+      "title": "Document the v1.5.0 rules in REFERENCE",
+      "description": "REFERENCE epic section: new schema keys, the status table, gate defaults, green and open, conditions, the export contract and the exit-code table rows.",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [
+        "docs-skill-epic-progress"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- the schema table lists condition, estimate_minutes, claimed, done, threshold, met and the task file's epic\n- the exit table covers every new refusal",
+      "source_sections": [
+        "## 8. Schema",
+        "## 3. Status"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "docs-readme-epic-progress",
+      "title": "Index the v1.5.0 commands in README",
+      "description": "README command index rows for the new commands and the Epic Graph section's progress tracking, gates and conditions.",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [
+        "docs-skill-epic-progress"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "- the command index lists every new tp epic subcommand and the README index test passes\n- the Epic Graph section describes status, gates opening milestones and conditions",
+      "source_sections": [
+        "## 1. Decision"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
 }
