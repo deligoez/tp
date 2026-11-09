@@ -82,7 +82,8 @@ func lintEpicTagChecks(g *model.EpicGraph) []EpicLintFinding {
 func lintEpicNoDependencies(g *model.EpicGraph) []EpicLintFinding {
 	pos := milestonePositions(g)
 	var out []EpicLintFinding
-	for _, e := range g.Epics {
+	for i := range g.Epics {
+		e := &g.Epics[i]
 		if p, ok := pos[e.Milestone]; ok && p.index > 0 && len(e.DependsOn) == 0 && !e.Root {
 			out = append(out, epicWarning(EpicRuleNoDependencies,
 				fmt.Sprintf("epic %q in %q has no dependencies", e.ID, e.Milestone), e.ID))
@@ -95,7 +96,8 @@ func lintEpicNoDependencies(g *model.EpicGraph) []EpicLintFinding {
 // dependencies, so the mark does not outlive the reason for it.
 func lintEpicRootWithDependencies(g *model.EpicGraph) []EpicLintFinding {
 	var out []EpicLintFinding
-	for _, e := range g.Epics {
+	for i := range g.Epics {
+		e := &g.Epics[i]
 		if e.Root && len(e.DependsOn) > 0 {
 			out = append(out, epicWarning(EpicRuleRootWithDependencies,
 				fmt.Sprintf("epic %q is marked root and has %d dependencies", e.ID, len(e.DependsOn)), e.ID))
@@ -111,7 +113,8 @@ func lintEpicRootWithDependencies(g *model.EpicGraph) []EpicLintFinding {
 func lintEpicThinWhy(g *model.EpicGraph) []EpicLintFinding {
 	byID := epicsByID(g)
 	var out []EpicLintFinding
-	for _, e := range g.Epics {
+	for i := range g.Epics {
+		e := &g.Epics[i]
 		for _, d := range e.DependsOn {
 			target, ok := byID[d.ID]
 			why := epicWords(d.Why)

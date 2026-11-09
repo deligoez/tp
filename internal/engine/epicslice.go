@@ -89,7 +89,8 @@ func sliceGates(g *model.EpicGraph, key EpicSliceKey, asked map[string]bool) []s
 	var out []string
 	for _, m := range sortedMapKeys(g.Gates) {
 		listed, held := true, false
-		for _, e := range g.Epics {
+		for i := range g.Epics {
+			e := &g.Epics[i]
 			if e.Milestone == m {
 				held = true
 				listed = listed && asked[e.ID]
@@ -113,7 +114,8 @@ func sliceEpicIDs(g *model.EpicGraph, key EpicSliceKey, byID map[string]*model.E
 			want[id] = true
 		}
 		var ids []string
-		for _, e := range g.Epics {
+		for i := range g.Epics {
+			e := &g.Epics[i]
 			if want[e.ID] {
 				delete(want, e.ID)
 				ids = append(ids, e.ID)
@@ -132,7 +134,8 @@ func sliceEpicIDs(g *model.EpicGraph, key EpicSliceKey, byID map[string]*model.E
 	}
 	var ids []string
 	seen := map[string]bool{}
-	for _, e := range g.Epics {
+	for i := range g.Epics {
+		e := &g.Epics[i]
 		if e.Milestone == key.Milestone && !seen[e.ID] {
 			seen[e.ID] = true
 			ids = append(ids, e.ID)
@@ -157,7 +160,8 @@ func milestoneDeclared(g *model.EpicGraph, name string) bool {
 func epicSliceContext(g *model.EpicGraph, asked map[string]bool) []EpicContextBlock {
 	near := map[string]bool{}
 	dependency := map[string]bool{}
-	for _, e := range g.Epics {
+	for i := range g.Epics {
+		e := &g.Epics[i]
 		for _, d := range e.DependsOn {
 			if asked[e.ID] {
 				near[d.ID] = true

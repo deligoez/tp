@@ -30,7 +30,8 @@ func milestonePositions(g *model.EpicGraph) map[string]milestonePos {
 // a repeated id is duplicate-name's finding.
 func epicMilestones(g *model.EpicGraph) map[string]string {
 	byID := make(map[string]string, len(g.Epics))
-	for _, e := range g.Epics {
+	for i := range g.Epics {
+		e := &g.Epics[i]
 		if _, ok := byID[e.ID]; !ok {
 			byID[e.ID] = e.Milestone
 		}
@@ -42,7 +43,8 @@ func epicMilestones(g *model.EpicGraph) map[string]string {
 // trimmed, whether or not its target exists.
 func lintEpicMissingWhy(g *model.EpicGraph) []EpicLintFinding {
 	var out []EpicLintFinding
-	for _, e := range g.Epics {
+	for i := range g.Epics {
+		e := &g.Epics[i]
 		for _, d := range e.DependsOn {
 			if strings.TrimSpace(d.Why) == "" {
 				out = append(out, epicError(EpicRuleMissingWhy,
@@ -58,7 +60,8 @@ func lintEpicMissingWhy(g *model.EpicGraph) []EpicLintFinding {
 func lintEpicMilestones(g *model.EpicGraph) []EpicLintFinding {
 	pos := milestonePositions(g)
 	var out []EpicLintFinding
-	for _, e := range g.Epics {
+	for i := range g.Epics {
+		e := &g.Epics[i]
 		if _, ok := pos[e.Milestone]; !ok {
 			out = append(out, epicNamedError(EpicRuleUnknownMilestone,
 				fmt.Sprintf("epic %q has milestone %q, which is in no track", e.ID, e.Milestone), []string{e.Milestone}, e.ID))

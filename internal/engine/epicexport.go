@@ -26,9 +26,10 @@ func EpicGraphMarkdown(g *model.EpicGraph) string {
 			add(name)
 		}
 	}
-	for _, e := range g.Epics {
+	for i := range g.Epics {
+		e := &g.Epics[i]
 		add(e.Milestone)
-		byMilestone[e.Milestone] = append(byMilestone[e.Milestone], e)
+		byMilestone[e.Milestone] = append(byMilestone[e.Milestone], *e)
 	}
 
 	var b strings.Builder
@@ -45,7 +46,8 @@ func EpicGraphMarkdown(g *model.EpicGraph) string {
 func writeMilestoneTable(b *strings.Builder, name string, epics []model.Epic) {
 	b.WriteString("## " + markdownCell(name) + "\n\n")
 	b.WriteString("| id | title | tags | depends on |\n|---|---|---|---|\n")
-	for _, e := range epics {
+	for k := range epics {
+		e := &epics[k]
 		deps := make([]string, 0, len(e.DependsOn))
 		for _, d := range e.DependsOn {
 			deps = append(deps, d.ID+": "+d.Why)

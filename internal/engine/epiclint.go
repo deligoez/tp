@@ -99,7 +99,8 @@ func epicNamedError(rule, message string, names []string, epics ...string) EpicL
 // epicIDs returns the set of ids the graph defines.
 func epicIDs(g *model.EpicGraph) map[string]bool {
 	ids := make(map[string]bool, len(g.Epics))
-	for _, e := range g.Epics {
+	for i := range g.Epics {
+		e := &g.Epics[i]
 		ids[e.ID] = true
 	}
 	return ids
@@ -120,7 +121,8 @@ func lintEpicCycles(g *model.EpicGraph) []EpicLintFinding {
 	ids := epicIDs(g)
 	adj := map[string][]string{}
 	var nodes []string
-	for _, e := range g.Epics {
+	for i := range g.Epics {
+		e := &g.Epics[i]
 		if _, ok := adj[e.ID]; !ok {
 			nodes = append(nodes, e.ID)
 			adj[e.ID] = nil
@@ -203,7 +205,8 @@ func (t *tarjan) visit(n string) {
 func lintEpicDangling(g *model.EpicGraph) []EpicLintFinding {
 	ids := epicIDs(g)
 	var out []EpicLintFinding
-	for _, e := range g.Epics {
+	for i := range g.Epics {
+		e := &g.Epics[i]
 		for _, d := range e.DependsOn {
 			if !ids[d.ID] {
 				out = append(out, epicError(EpicRuleDanglingReference,
@@ -254,7 +257,8 @@ func lintGateDangling(name string, gate model.EpicGate, ids, milestones map[stri
 func lintEpicDuplicates(g *model.EpicGraph) []EpicLintFinding {
 	var out []EpicLintFinding
 	var epicIDList []string
-	for _, e := range g.Epics {
+	for i := range g.Epics {
+		e := &g.Epics[i]
 		epicIDList = append(epicIDList, e.ID)
 	}
 	for _, id := range repeated(epicIDList) {
