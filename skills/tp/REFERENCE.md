@@ -1455,6 +1455,95 @@ every prompt. Each prompt's `output_path` (`epic-review-<hash prefix>-r<N>-<role
 relative to the directory `tp epic review` ran in, as review's is; inside a `tp run` unit it is the
 `$TP_ROUND_DIR` path instead.
 
+### Binding and status (v1.5.0)
+
+A task file names its epic in the top-level `epic` (schema above). An epic's bound files are every
+tracked or untracked `*.tasks.json` under the repository root, ignore rules respected, whose `epic`
+names it. Status is derived on every read and never stored:
+
+| status | holds when |
+|---|---|
+| `planned` | no bound file, no done record, no claim |
+| `claimed` | no bound file, no done record, a claim |
+| `specced` | a bound file, and no task of any bound file is `wip` or `done` |
+| `in_progress` | a task of a bound file is `wip` or `done`, and not every bound file is at `release` |
+| `done` | every bound file is at `release`, or, with no bound file, a done record |
+
+`release` is the phase `tp resume` reports for the file, so a bound spec edited after its release
+falls back to `audit` and its epic to `in_progress`. A claim on an epic with a bound file is
+ignored; it outlives the binding, and `claim --release` still removes it. `done_at` is the done
+record's `at`, else the `recorded_at` of the audit round that most recently brought the last bound
+file to `release`; it is `null` when the epic is not done or that round carries no `recorded_at`.
+
+### Gates, conditions and the epic block (v1.5.0)
+
+A gate's members are its listed `members`, or, when it lists none or `gates` has no entry for the
+milestone, every epic of the milestone that is neither a condition nor `deferrable`; `deferrable`
+epics never hold it. Every milestone therefore has a gate.
+
+- **Green**: every member `done` and, when the gate has a `threshold`, a `met` record. Members are
+  read live, so one that falls back turns the gate red while `met` stands. `--met` copies the
+  threshold into the record; a second `--met` overwrites it. A threshold edited after its record
+  adds `threshold_changed: true` to `tp epic gate` and `tp epic status`, and the gate stays green.
+- **Open**: every earlier milestone of the track has a green gate. A track's first milestone always
+  is, and tracks do not wait on each other. Only an open milestone's epics are ready; a closed
+  milestone never holds a bound file back.
+- **Conditions**: an epic with `condition: true` has no bound file and no claim, and is done only by
+  `tp epic done <id> --evidence`, which also records an unbound work epic done.
+
+The epic block reads direct dependencies only: an epic's own `depends_on`, a done record counting as
+done whatever lies behind it. While one of a bound file's epic's dependencies is not `done`:
+
+| command | behaviour |
+|---|---|
+| `tp next`, `tp next --peek` | `{done: false, message, blocked_by_epics}`, exit 4; a `wip` task is still returned |
+| `tp ready` | `{ready: [], blocked_by_epics}` in every mode, `--count` and `--ids` too; `--first` exits 4 |
+| `tp claim` | exit 1, the error object carrying `blocked_by_epics` |
+| `tp done` | exit 1 on a task that is not `wip`; a `wip` task closes, and the next-task counts leave blocked tasks out |
+| `tp resume` | with no `wip` task, the `epic-blocked` blocker and no implement unit |
+
+A file bound to an epic the graph does not hold, or with no graph file, behaves as unbound, and
+`tp next`, `tp ready` and `tp claim` say so on stderr.
+
+### Read payloads and `tp epic export` (v1.5.0)
+
+The read commands write nothing and list epics in graph order, every list `[]` when empty.
+
+- **`tp epic ready [--all]`**: `{ready: [{id, title, milestone}], claimed: [{id, title, milestone,
+  by, at}], operator: {conditions: [{id, title, milestone}], gates: [{milestone, threshold}]}}`.
+  `claimed` holds the epics that would be ready but for their claim; a bound epic is in no list.
+  `operator.gates` names gates whose members are done and whose threshold has no `met`, open or not,
+  in track order. `--all` lifts the open-milestone rule, for conditions too.
+- **`tp epic gate <m>`**: `{milestone, green, members: [{id, state, status}], deferrable: [{id,
+  status}], threshold?, met?, threshold_changed?}`, `state` `green` or `red`.
+- **`tp epic status [--milestone <m>]`**: `{milestones: [...]}`, each tracked milestone once, in
+  track order: `{milestone, open, counts: {planned, claimed, specced, in_progress, done}, share_done,
+  gate, ready, claimed, blocked: [{id, title, milestone, blocked_by}], operator, critical_path:
+  {by_count, by_estimate: {chain, estimate_minutes}}, throughput: [{week, done}], rollup: [{epic,
+  estimate_minutes, actual_minutes, tracked}]}`. `gate` is `tp epic gate`'s payload; `ready` and
+  `operator` are `tp epic ready`'s, filtered to the milestone; `claimed` is every epic whose status
+  is `claimed`, blocked ones too. `share_done` is done over the milestone's epics to two places, 0
+  for an empty one. `blocked` is each not-done epic with a dependency not done. `by_count` runs in
+  work order, the gate member last, `[]` when every member is done; ties go to the earlier gate
+  member, then the earlier dependency. `by_estimate.chain` is `null` when an epic on a chain has no
+  estimate. `throughput` lists only weeks with a done epic, ascending, as UTC ISO weeks
+  (`2026-W45`), counting epics `done` now. `rollup` has a row per bound epic, summing `tp report`'s
+  totals over its files. `--compact` leaves `by_estimate`, `throughput` and `rollup` out.
+- **`tp epic export`**: JSON, `{version, graph, milestones, epics, slices}`, every key always
+  present; `--md` prints the per-milestone tables instead, and `--compact` is ignored. `version` is
+  1; renaming, removing or retyping a key bumps it, adding one does not.
+  - `graph` is `.tp/epics.json` as stored; `milestones` is `tp epic status`'s report, uncompacted.
+  - `epics`: `{id, status, done_at, files}`, `done_at` RFC 3339 or `null`. `files` is `[]` when
+    unbound, else each `{path, phase, tasks: {open, wip, done}, review, audit, ground}`: `path`
+    relative to the git toplevel, `phase` `tp resume`'s, each loop `{round, state}`. Review and
+    audit count recorded rounds, `state` `none`, `done`, `stale` (review only), `cap_reached` or
+    `open`; ground counts emitted rounds, `state` `none`, `complete` or `open`.
+  - `slices`: each `.tp/epic-review/` directory in name order, `{dir, key, round, state}`. `key` is
+    its `key.json` record or `null` before the slice's first v1.5.0 emission; `state` is `done`,
+    `in_flight` (emitted, not recorded), `none`, `stale`, `cap_reached` or `open`, graded as
+    `tp epic review --status` does. A null-key slice, or one naming an epic or milestone the graph
+    no longer holds, is graded without staleness.
+
 ### Exit codes (`tp epic`)
 
 | code | outcome |
