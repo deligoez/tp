@@ -100,3 +100,18 @@ func TestLintEpicGraph_PartialParallelNamesThePairAndItsEpics(t *testing.T) {
 	assert.Empty(t, findingsOf(t, LintEpicGraph(partialParallelGraph(false), nil), EpicRulePartialParallel))
 }
 
+// TestLintEpicGraph_LaterMilestoneDependencyKeepsTrackOrder is C2.7: an
+// opens_after entry does not reorder a track, so an R→Q edge is no error
+// while a Q epic depending on an R epic is still later-milestone-dependency.
+func TestLintEpicGraph_LaterMilestoneDependencyKeepsTrackOrder(t *testing.T) {
+	g := partialParallelGraph(true)
+	assert.Empty(t, opensAfterErrors(g), "an R→Q edge is not a lint error")
+
+	g.OpensAfter["Q"] = []string{}
+	g.Epics[1].Root = false
+	g.Epics[1].DependsOn = []model.EpicDep{{ID: "r3", Why: "needs r3"}}
+	errs := opensAfterErrors(g)
+	require.Len(t, errs, 1, "%v", errs)
+	assert.Equal(t, EpicRuleLaterMilestoneDependency, errs[0].Rule)
+	assert.Equal(t, []string{"q1", "r3"}, errs[0].Epics)
+}
