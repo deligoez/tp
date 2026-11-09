@@ -121,10 +121,14 @@ flowchart TD
       EPICS["tp epic add / set / import<br/>milestones, epics, edges with a why"]
       ELINT["tp epic lint<br/>is the graph well formed?"]
       EREVIEW["tp epic review<br/>one milestone or epic at a time"]
+      EREADY["tp epic ready / claim<br/>what can start, who has it"]
+      EGATE["tp epic gate / status<br/>members done, threshold met: the next milestone opens"]
       EPICS --> ELINT --> EREVIEW
       EREVIEW -->|"repair the graph"| EREVIEW
+      EREVIEW --> EREADY
+      EGATE --> EREADY
     end
-    EREVIEW -->|"one epic, one spec"| SPEC
+    EREADY -->|"tp init --epic: one epic, one spec"| SPEC
 
     SPEC["spec/my-feature.md<br/>decisions and test rows"] --> LINT["tp lint<br/>does the document hold together?"]
     SIDECAR["spec/my-feature-measurements.md<br/>measurements and derivations"] -.->|"cited by the spec, graded by nothing"| SPEC
@@ -143,6 +147,7 @@ flowchart TD
       REVIEW --> DECOMPOSE --> IMPLEMENT --> AUDIT --> RELEASE
       AUDIT -->|"fix the code"| AUDIT
     end
+    RELEASE -->|"every bound file at release: the epic is done"| EGATE
 ```
 
 Ground, review, epic review and audit are loops rather than steps, and they are the *same* loop —
