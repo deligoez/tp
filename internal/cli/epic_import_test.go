@@ -100,3 +100,46 @@ func TestEpicImport_TrailingDataAfterTheGraphIsAUsageError(t *testing.T) {
 	_, err := os.Stat(filepath.Join(dir, ".tp", "epics.json"))
 	assert.True(t, os.IsNotExist(err), "a refused import writes nothing")
 }
+
+// TestEpicImport_WritesClaimedDoneAndMetFromThePayload is §8: import is the
+// migration, so unlike the whole-object writers it writes the records as the
+// payload has them.
+func TestEpicImport_WritesClaimedDoneAndMetFromThePayload(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, "")
+	payload := epicImportPayload(t, `{
+  "version": 1,
+  "milestones": [["A"]],
+  "gates": {"A": {"members": ["a"], "threshold": "ships", "met": {"at": "2026-01-04T03:04:05Z", "evidence": "run 7", "threshold": "ships"}}},
+  "epics": [
+    {"id": "a", "title": "A", "milestone": "A", "claimed": {"at": "2026-01-02T03:04:05Z", "by": "ann"}, "done": {"at": "2026-01-03T03:04:05Z", "evidence": "shipped"}}
+  ]
+}
+`)
+
+	_, stderr, code := runTP(t, dir, "epic", "import", payload)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var g struct {
+		Gates map[string]struct {
+			Met *struct {
+				Evidence string `json:"evidence"`
+			} `json:"met"`
+		} `json:"gates"`
+		Epics []struct {
+			Claimed *struct {
+				By string `json:"by"`
+			} `json:"claimed"`
+			Done *struct {
+				Evidence string `json:"evidence"`
+			} `json:"done"`
+		} `json:"epics"`
+	}
+	require.NoError(t, json.Unmarshal(readEpicGraphFile(t, dir), &g))
+	require.NotNil(t, g.Gates["A"].Met)
+	assert.Equal(t, "run 7", g.Gates["A"].Met.Evidence)
+	require.Len(t, g.Epics, 1)
+	require.NotNil(t, g.Epics[0].Claimed)
+	assert.Equal(t, "ann", g.Epics[0].Claimed.By)
+	require.NotNil(t, g.Epics[0].Done)
+	assert.Equal(t, "shipped", g.Epics[0].Done.Evidence)
+}
