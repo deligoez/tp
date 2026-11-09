@@ -9,6 +9,19 @@ import (
 	"github.com/deligoez/tp/internal/engine"
 )
 
+// TestReferenceCarriesTheEpicExportContract pins spec/1.5.0.md §7's read
+// payloads: tp epic ready, gate and status, and the versioned export's keys.
+func TestReferenceCarriesTheEpicExportContract(t *testing.T) {
+	t.Parallel()
+	body := docSectionBody(t, readRepoDoc(t, "skills/tp/REFERENCE.md"), "### Read payloads and `tp epic export` (v1.5.0)")
+	for _, term := range []string{
+		"`tp epic ready`", "`tp epic gate`", "`tp epic status`", "`version`", "`graph`", "`milestones`",
+		"`epics`", "`slices`", "`done_at`", "`phase`", "`in_flight`", "`key`", "`--compact`", "`--md`",
+	} {
+		assert.Contains(t, body, term, "the payload section names %q", term)
+	}
+}
+
 // epicRuleSlugs is every rule tp epic lint can report, in the order of
 // spec/1.3.0.md §4's table.
 var epicRuleSlugs = []string{
