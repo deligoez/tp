@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.5.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-09T13:03:51.28297Z",
+  "updated_at": "2026-11-09T13:09:34.242064Z",
   "workflow": {
     "review_max_rounds": 4,
     "audit_max_rounds": 5
@@ -102,7 +102,7 @@
       "id": "epic-bound-files-walk",
       "title": "Find the task files bound to each epic",
       "description": "Walk every tracked or untracked *.tasks.json under the repository root, ignore rules respected, and index them by their epic field.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "binding"
@@ -115,11 +115,18 @@
       "source_sections": [
         "## 2. Binding"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-09T13:04:41.835286Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-09T13:09:34.228373Z",
+      "closed_reason": "- TestEpicBoundFiles_TrackedAndUntrackedFoundIgnoredNot: tracked and untracked bound files found, an ignored one not; gate green\n- TestEpicBoundFiles_IndexedByEpicUnboundInNone: files indexed by epic id, an unbound file in no list (red under a mutant dropping the unbound check); gate green",
+      "gate_passed_at": "2026-11-09T13:09:34.228373Z",
+      "commit_sha": "5284d5b2",
+      "commit_shas": [
+        "5284d5b2"
+      ],
+      "commit_files": [
+        "internal/engine/epicbound_test.go"
+      ]
     },
     {
       "id": "set-epic-binding",
