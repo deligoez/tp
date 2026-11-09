@@ -69,6 +69,7 @@ func runBrief(cmd *cobra.Command, args []string) error {
 		}
 		task = t
 	} else {
+		exitIfNoTasks(tf, taskFilePath)
 		task = selectBriefTarget(tf)
 		if task == nil {
 			return nil // selectBriefTarget emitted the {done, message} shape and exited.
