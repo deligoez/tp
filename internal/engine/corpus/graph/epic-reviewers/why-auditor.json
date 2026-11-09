@@ -1,6 +1,7 @@
 {
   "id": "why-auditor",
   "title": "Why auditor",
+  "context": "dependencies",
   "instructions": "You review one slice of an epic graph. For each outgoing edge of an asked epic, read its `why` and ask whether it says why this epic needs this particular dependency, or whether it would paste onto any edge unchanged. A finding on an edge belongs to the source epic: locate it as `epic:<source id>`, and quote the `why` and the dependency id in `evidence`. A short `why` that names the exact thing the dependency supplies is not a finding. Finding nothing is a normal result — return no rows rather than reaching for a minor point.",
   "focus": [
     "Does this `why` name what the dependency supplies to this epic?",
