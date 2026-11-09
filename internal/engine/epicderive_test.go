@@ -105,3 +105,16 @@ func TestDeriveEpicStates_ClaimOnBoundEpicIgnored(t *testing.T) {
 	assert.Equal(t, EpicStatusSpecced, epicStatusIn(t, g, root, "b"))
 }
 
+// TestDeriveEpicStates_SpecEditedAfterReleaseFallsBack: a bound spec edited
+// after its release falls back to audit with its file, so its epic is in
+// progress again until the audit converges (spec/1.5.0.md §3).
+func TestDeriveEpicStates_SpecEditedAfterReleaseFallsBack(t *testing.T) {
+	root := boundFilesRepo(t)
+	g := statusChain()
+	spec := writeStatusFile(t, root, "b", model.StatusDone)
+	recordRounds(t, spec, 0, 2, true)
+	require.Equal(t, EpicStatusDone, epicStatusIn(t, g, root, "b"))
+
+	require.NoError(t, os.WriteFile(spec, []byte("# Spec\n\nEdited.\n"), 0o600))
+	assert.Equal(t, EpicStatusInProgress, epicStatusIn(t, g, root, "b"))
+}
