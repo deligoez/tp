@@ -25,7 +25,7 @@ func TestEpicLintRulesAreInTheReadmeRuleTable(t *testing.T) {
 	for _, rule := range []string{
 		engine.EpicRuleCycle, engine.EpicRuleDanglingReference, engine.EpicRuleDuplicateName,
 		engine.EpicRuleUnknownKey, engine.EpicRuleMissingWhy, engine.EpicRuleUnknownMilestone,
-		engine.EpicRuleLaterMilestoneDependency, engine.EpicRuleGateMemberOutsideMilestone,
+		engine.EpicRuleLaterMilestoneDependency, engine.EpicRuleGateMemberOutsideMilestone, engine.EpicRuleGateMemberDeferrable,
 		engine.EpicRuleUnprovidedTagCheck, engine.EpicRuleNoDependencies, engine.EpicRuleThinWhy,
 		engine.EpicRuleRootWithDependencies, engine.EpicRuleOpensAfterCycle, engine.EpicRulePartialParallel,
 	} {
