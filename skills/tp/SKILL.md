@@ -533,10 +533,54 @@ table a prose document embeds. Build it one topic at a time, each topic through 
    `wontfix` with a pointer to where the design is taken up, or leave them open, and decide outside
    the graph.
 
-Then take the next topic. Every writer (`add`, `set`, `remove`, `import`) and `--record` exits 2
-under `TP_UNATTENDED`: changing the plan is the operator's, so a unit that finds the need records it
-with `tp escalate --decision other`. The file's schema, the lint rules, the state directory and the
-exit codes are in [REFERENCE.md](REFERENCE.md).
+Then take the next topic. Every graph writer (`add`, `set`, `remove`, `import`, `link`, `unlink`,
+`milestone add`) and `--record` exits 2 under `TP_UNATTENDED`: changing the plan is the operator's,
+so a unit that finds the need records it with `tp escalate --decision other`. The file's schema, the
+lint rules, the state directory and the exit codes are in [REFERENCE.md](REFERENCE.md).
+
+**Tracking the work (v1.5.0).** An epic's status is derived when read, never stored: `planned`,
+`claimed`, `specced`, `in_progress` or `done`, from its bound files' `tp resume` phases or, with none,
+from a done record.
+
+1. **Read what can start.** `tp epic ready` lists the work epics that can start now, the claimed ones
+   with their holder, and what waits on the operator (conditions, gates whose threshold needs a met
+   record); `--all` lifts the open-milestone rule. `tp epic status [--milestone <m>]` adds, per
+   milestone, the counts, the gate, the blocked list, `critical_path`, `throughput` and the estimate
+   roll-up. `tp epic export` prints all of it as one JSON contract, with each bound file's phase and
+   loop states: read it rather than tp's state files.
+2. **Claim to reserve.** `tp epic claim <id> [--by <name>]` before you plan an epic, so a parallel
+   agent sees it taken; `--release` gives it back. A blocked epic or one in a closed milestone can be
+   claimed. It runs under `TP_UNATTENDED`: an agent reserves its own work.
+3. **Bind when you start.** `tp init <spec> --epic <id>`, or `tp set --epic <id>` on an existing task
+   file, once you write the epic's spec: binding is the decision to start it, its status follows the
+   file from then on, and its claim is ignored. Write one spec per epic (a family shares a design
+   note) so a later epic's dependencies never hold back an earlier one's tasks. `tp set --epic ""`
+   removes the binding.
+4. **The epic block.** While a direct dependency of a bound file's epic is not done, `tp next`,
+   `tp next --peek`, `tp ready` and `tp claim` offer no task and carry `blocked_by_epics`; `tp next`
+   exits 4, `tp claim` 1, and `tp done` refuses a task that is not already `wip`. A `wip` task stays
+   resumable and closable. With no `wip` task, `tp resume` reports the `epic-blocked` blocker and
+   offers no implement unit: stop and report it. A milestone not yet open does not hold a bound file
+   back.
+5. **Gates and thresholds.** A milestone opens when every earlier milestone of its track has a green
+   gate: every member done and, when the gate carries a `threshold` (the exit condition in the
+   operator's words, written before the work), a met record. A gate naming no `members` holds every
+   epic of its milestone that is neither a condition nor `deferrable`. `tp epic gate <m>` reports it
+   and exits 0 only when green. Once the members are done, the operator measures and records
+   `tp epic gate <m> --met --evidence "<text or URL>"`. List under `deferrable` the work that waits on
+   a trigger that may never come, so it never holds the milestone.
+6. **Conditions.** An external precondition is an epic with `condition: true`
+   (`tp epic set <id> condition=true`) whose `acceptance` says what it waits for; work that must not
+   start before it depends on it. It takes no task file and no claim, and is done only by
+   `tp epic done <id> --evidence "<text or URL>"`, which also closes an unbound work epic finished
+   outside tp; `--undo` removes the record.
+7. **Long-lead epics.** Place an epic that takes long in the earliest milestone where it can start,
+   its real dependencies as edges, not in the milestone it must finish by: `tp epic ready` offers it
+   as soon as they are done, and `critical_path` shows the chain it lengthens.
+
+Under `TP_UNATTENDED` the operator's records exit 2, the removals included: `tp epic done` and its
+`--undo` escalate as `epic-done`, `tp epic gate --met` as `gate-met`, and `tp init --epic` and
+`tp set --epic` (an empty value too) as `epic-binding`.
 
 ## Reset-native workflow & commit strategy (v0.28.0)
 
