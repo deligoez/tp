@@ -173,12 +173,13 @@ func runCommit(_ *cobra.Command, args []string) error {
 		// paths. A closure that lands in no commit exits 3 inside.
 		foldClosureCommit(".", task.ID, sha, []string{taskFilePath})
 
-		return output.JSON(map[string]any{
+		printResultOrExit(map[string]any{
 			"id":      task.ID,
 			"sha":     sha,
 			"message": strings.SplitN(msg, "\n", 2)[0],
 			"file":    taskFileLabel(taskFilePath),
 		})
+		return nil
 	})
 }
 
