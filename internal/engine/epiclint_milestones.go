@@ -109,12 +109,22 @@ func lintEpicGateMembers(g *model.EpicGraph) []EpicLintFinding {
 		if _, ok := pos[name]; !ok {
 			continue
 		}
-		hint := gateKeyHint(name, g.Gates[name].Members, byID)
-		for _, id := range g.Gates[name].Members {
-			if m, ok := byID[id]; ok && m != name {
-				out = append(out, epicNamedError(EpicRuleGateMemberOutsideMilestone,
-					fmt.Sprintf("gate %q member %q is in milestone %q%s", name, id, m, hint), []string{name}, id))
-			}
+		gate := g.Gates[name]
+		hint := gateKeyHint(name, gate.Members, byID)
+		out = append(out, gateListOutside(name, "member", hint, gate.Members, byID)...)
+		out = append(out, gateListOutside(name, "deferrable", "", gate.Deferrable, byID)...)
+	}
+	return out
+}
+
+// gateListOutside reports each id of one gate list whose epic is in another
+// milestone than the gate's; field names the list in the message.
+func gateListOutside(name, field, hint string, ids []string, byID map[string]string) []EpicLintFinding {
+	var out []EpicLintFinding
+	for _, id := range ids {
+		if m, ok := byID[id]; ok && m != name {
+			out = append(out, epicNamedError(EpicRuleGateMemberOutsideMilestone,
+				fmt.Sprintf("gate %q %s %q is in milestone %q%s", name, field, id, m, hint), []string{name}, id))
 		}
 	}
 	return out
