@@ -28,3 +28,19 @@ func TestEpicStatus_CompactDropsEachMilestoneCriticalPath(t *testing.T) {
 		assert.False(t, has, "milestone %s carries critical_path", m["milestone"])
 	}
 }
+
+// TestEpicReady_CompactDropsDependentsByMilestone: choosing what to start
+// needs the ranking counts, not their split per milestone, so --compact
+// leaves dependents_by_milestone out of every ready item and keeps the rest.
+func TestEpicReady_CompactDropsDependentsByMilestone(t *testing.T) {
+	t.Parallel()
+	dir := downstreamDir(t, []downstreamEpic{dsEpic("a", "M1"), dsEpic("b", "M1", "a"), dsEpic("c", "M2", "b")}, nil)
+	for _, args := range [][]string{{"--compact", "epic", "ready"}, {"--compact", "epic", "status"}} {
+		stdout, stderr, code := runTP(t, dir, args...)
+		require.Equal(t, 0, code, "stderr: %s", stderr)
+		assert.NotContains(t, stdout, "dependents_by_milestone", "%v", args)
+		assert.Contains(t, stdout, `"longest_chain": 2`, "%v", args)
+	}
+	stdout, _, _ := runTP(t, dir, "epic", "ready")
+	assert.Contains(t, stdout, "dependents_by_milestone", "without --compact the split stays")
+}
