@@ -198,13 +198,16 @@ func epicUnit(e *model.Epic, byID map[string]*model.Epic) EpicReviewUnit {
 	return EpicReviewUnit{Key: "epic:" + e.ID, Block: block, Hash: epicHash(hashed.String())}
 }
 
-// epicBlock renders an epic's id, title, milestone, tags, acceptance and each
-// outgoing edge with its why.
+// epicBlock renders an epic's id, title, milestone, condition when true, tags,
+// acceptance and each outgoing edge with its why.
 func epicBlock(e *model.Epic) string {
 	var b strings.Builder
 	b.WriteString("epic: " + e.ID + "\n")
 	b.WriteString("title: " + e.Title + "\n")
 	b.WriteString("milestone: " + e.Milestone + "\n")
+	if e.Condition {
+		b.WriteString("condition: true\n")
+	}
 	if len(e.Tags) > 0 {
 		b.WriteString("tags: " + strings.Join(e.Tags, ", ") + "\n")
 	}
@@ -220,7 +223,8 @@ func epicBlock(e *model.Epic) string {
 	return b.String()
 }
 
-// epicGateBlock renders a milestone's gate: its members and deferrables.
+// epicGateBlock renders a milestone's gate: its members, deferrables and
+// threshold.
 func epicGateBlock(milestone string, gate model.EpicGate) string {
 	block := "gate: " + milestone + "\nmembers: " + strings.Join(gate.Members, ", ") + "\n"
 	if len(gate.Deferrable) > 0 {
