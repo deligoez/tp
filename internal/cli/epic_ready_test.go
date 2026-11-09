@@ -105,3 +105,26 @@ func TestEpicReady_AClaimedEpicIsListedApartWithItsHolder(t *testing.T) {
 	assert.Equal(t, "agent-1", r.Claimed[0].By, "the claimed list names the holder")
 }
 
+// TestEpicReady_AGateWhoseThresholdIsUnmetWaitsOnTheOperator is §7: a gate
+// whose members are done and whose threshold has no met record waits on the
+// operator; once met it is listed no more.
+func TestEpicReady_AGateWhoseThresholdIsUnmetWaitsOnTheOperator(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{"version": 1, "milestones": [["A", "B"]],
+  "gates": {"A": {"members": [], "threshold": "p95 under 200ms"}},
+  "epics": [
+    {"id": "x", "title": "X", "milestone": "A", "root": true, "done": {"at": "2026-01-02T03:04:05Z", "evidence": "e"}},
+    {"id": "y", "title": "Y", "milestone": "B", "root": true}
+  ]}`)
+
+	r := runEpicReady(t, dir)
+	require.Len(t, r.Operator.Gates, 1)
+	assert.Equal(t, "A", r.Operator.Gates[0].Milestone)
+	assert.Empty(t, r.readyIDs(), "B stays closed while A's threshold is unmet")
+
+	_, stderr, code := runTP(t, dir, "epic", "gate", "A", "--met", "--evidence", "run 7")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	r = runEpicReady(t, dir)
+	assert.Empty(t, r.Operator.Gates, "a met gate waits on no one")
+	assert.Equal(t, []string{"y"}, r.readyIDs())
+}
