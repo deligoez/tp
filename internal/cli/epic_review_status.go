@@ -46,7 +46,15 @@ func epicReviewLoop(run *epicReviewRun) engine.EpicReviewStatus {
 	return st
 }
 
-// refuseEpicReviewAtCap exits 4 with tp review's escalation hint when the
+// epicBudgetHint answers a slice at its round cap: the slice's own resolve
+// command, and where the operator raises the cap the slice reads.
+func epicBudgetHint(key engine.EpicSliceKey) string {
+	return fmt.Sprintf("disposition each remaining finding of the slice's last round — tp epic review %s --resolve <index> fixed|wontfix|duplicate \"<evidence>\" "+
+		"(accepting a blocking finding is the operator's decision); raising the cap is the operator's too: "+
+		"tp set --workflow --project review_max_rounds=<N> writes it to .tp/config.json, which every slice reads", epicSliceLabel(key))
+}
+
+// refuseEpicReviewAtCap exits 4 with the slice's budget hint when the
 // slice's recorded rounds reached review_max_rounds and it is not converged:
 // a reached cap refuses emission and record alike.
 func refuseEpicReviewAtCap(run *epicReviewRun) {
@@ -55,7 +63,7 @@ func refuseEpicReviewAtCap(run *epicReviewRun) {
 		return
 	}
 	output.Error(ExitState, fmt.Sprintf("epic review round budget exhausted: %d rounds recorded for %s and not converged",
-		st.Round, epicSliceLabel(run.key)), budgetEscalationHint)
+		st.Round, epicSliceLabel(run.key)), epicBudgetHint(run.key))
 	os.Exit(ExitState)
 }
 
@@ -109,9 +117,9 @@ func epicStatusNextAction(key engine.EpicSliceKey, st *engine.EpicReviewStatus, 
 	case st.Done:
 		return "the slice's loop is done by " + st.DoneBy + ": nothing to run"
 	case st.CapReached && st.Stale:
-		return "the graph changed after the round cap: raising review_max_rounds for a verification round is the operator's decision"
+		return "the graph changed after the round cap: a verification round needs the operator to raise review_max_rounds (tp set --workflow --project review_max_rounds=<N>, .tp/config.json)"
 	case st.CapReached:
-		return "the round cap is reached: " + budgetEscalationHint
+		return "the round cap is reached: " + epicBudgetHint(key)
 	case st.InFlightRound > 0:
 		return fmt.Sprintf("record round %d: tp epic review %s --record <file>", st.InFlightRound, label)
 	}
