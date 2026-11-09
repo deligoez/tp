@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.5.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-09T14:48:21.556471Z",
+  "updated_at": "2026-11-09T14:55:01.276003Z",
   "workflow": {
     "review_max_rounds": 4,
     "audit_max_rounds": 5
@@ -593,7 +593,7 @@
       "id": "epic-claim-command",
       "title": "Reserve an epic with tp epic claim",
       "description": "tp epic claim \u003cid\u003e [--by] writes claimed {at, by} under the lock; exit 1 when a claim exists, on a condition, a done epic or a bound epic; not refused for a blocked epic or closed milestone; --release removes it, a bound epic included (C6). §10 row 11.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "claim"
@@ -607,11 +607,18 @@
         "## 7. Epic commands",
         "## 10. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-09T14:50:09.697532Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-09T14:55:01.265833Z",
+      "closed_reason": "- §10 row 11: TestEpicClaim_SecondClaimExitsOneAndReleaseLetsItThrough (second claim exits 1 naming the holder, --release then lets it through); gate green\n- TestEpicClaim_RefusesAConditionADoneAndABoundEpic: claiming c (condition), d (done) or bound b exits 1 and writes nothing\n- C6: TestEpicClaim_ReleaseOnABoundEpicRemovesItsClaim removes a bound epic's claim",
+      "gate_passed_at": "2026-11-09T14:55:01.265833Z",
+      "commit_sha": "e29309b7",
+      "commit_shas": [
+        "e29309b7"
+      ],
+      "commit_files": [
+        "internal/cli/epic_claim_test.go"
+      ]
     },
     {
       "id": "epic-critical-path",
