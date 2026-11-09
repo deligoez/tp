@@ -1,13 +1,21 @@
 package engine
 
-import "github.com/deligoez/tp/internal/model"
+import (
+	"cmp"
+	"slices"
+
+	"github.com/deligoez/tp/internal/model"
+)
 
 // EpicReadiness is what can start and what waits on the operator
 // (spec/1.5.0.md §7, spec/1.5.0-corrections.md C1). Each list holds ids in
 // graph order, Gates milestone names in track order.
 type EpicReadiness struct {
-	// Ready holds the work epics that can start.
+	// Ready holds the work epics that can start, most downstream first
+	// (spec/1.6.0.md F1): by longest chain, then dependents, then graph order.
 	Ready []string
+	// Downstream holds each ready epic's downstream.
+	Downstream map[string]EpicDownstream
 	// Claimed holds the epics that would be ready but for their claim.
 	Claimed []string
 	// Conditions holds the conditions waiting on the operator.
@@ -50,6 +58,14 @@ func EpicReady(g *model.EpicGraph, states map[string]EpicState, bound map[string
 			}
 		}
 	}
+	r.Downstream = EpicDownstreams(g, states, gates, r.Ready)
+	slices.SortStableFunc(r.Ready, func(a, b string) int {
+		da, db := r.Downstream[a], r.Downstream[b]
+		if c := cmp.Compare(db.LongestChain, da.LongestChain); c != 0 {
+			return c
+		}
+		return cmp.Compare(db.Dependents, da.Dependents)
+	})
 	return r
 }
 

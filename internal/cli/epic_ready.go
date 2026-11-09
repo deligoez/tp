@@ -13,7 +13,7 @@ import (
 
 // epicReadyResult is tp epic ready's payload (spec/1.5.0.md §7, C1).
 type epicReadyResult struct {
-	Ready    []epicReadyEpic   `json:"ready"`
+	Ready    []epicReadyItem   `json:"ready"`
 	Claimed  []epicClaimedEpic `json:"claimed"`
 	Operator epicOperatorWait  `json:"operator"`
 }
@@ -23,6 +23,20 @@ type epicReadyEpic struct {
 	ID        string `json:"id"`
 	Title     string `json:"title"`
 	Milestone string `json:"milestone"`
+}
+
+// epicReadyItem is one ready epic with what waits on it (spec/1.6.0.md F1).
+type epicReadyItem struct {
+	epicReadyEpic
+	Downstream epicDownstreamCounts `json:"downstream"`
+}
+
+// epicDownstreamCounts is engine.EpicDownstream's payload.
+type epicDownstreamCounts struct {
+	LongestChain          int            `json:"longest_chain"`
+	Dependents            int            `json:"dependents"`
+	DependentsOpen        int            `json:"dependents_open"`
+	DependentsByMilestone map[string]int `json:"dependents_by_milestone"`
 }
 
 // epicClaimedEpic is an epic that would be ready but for its claim, with the
@@ -82,12 +96,12 @@ func epicReadyReport(g *model.EpicGraph, r *engine.EpicReadiness) epicReadyResul
 		return epicReadyEpic{ID: e.ID, Title: e.Title, Milestone: e.Milestone}
 	}
 	result := epicReadyResult{
-		Ready:    make([]epicReadyEpic, 0, len(r.Ready)),
+		Ready:    make([]epicReadyItem, 0, len(r.Ready)),
 		Claimed:  make([]epicClaimedEpic, 0, len(r.Claimed)),
 		Operator: epicOperatorWait{Conditions: make([]epicReadyEpic, 0, len(r.Conditions)), Gates: make([]epicThresholdWait, 0, len(r.Gates))},
 	}
 	for _, id := range r.Ready {
-		result.Ready = append(result.Ready, entry(id))
+		result.Ready = append(result.Ready, epicReadyItem{epicReadyEpic: entry(id), Downstream: epicDownstreamCounts(r.Downstream[id])})
 	}
 	for _, id := range r.Claimed {
 		c := byID[id].Claimed

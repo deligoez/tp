@@ -25,7 +25,7 @@ type epicMilestoneReport struct {
 	Counts       map[string]int    `json:"counts"`
 	ShareDone    float64           `json:"share_done"`
 	Gate         epicGateResult    `json:"gate"`
-	Ready        []epicReadyEpic   `json:"ready"`
+	Ready        []epicReadyItem   `json:"ready"`
 	Claimed      []epicClaimedEpic `json:"claimed"`
 	Blocked      []epicBlockedEpic `json:"blocked"`
 	Operator     epicOperatorWait  `json:"operator"`
@@ -156,7 +156,7 @@ func (p *epicPlan) milestone(m string) (epicMilestoneReport, error) {
 		Milestone: m,
 		Open:      p.gates[m].Open,
 		Gate:      gate,
-		Ready:     inMilestone(p.ready.Ready, m, func(e epicReadyEpic) string { return e.Milestone }),
+		Ready:     inMilestone(p.ready.Ready, m, func(e epicReadyItem) string { return e.Milestone }),
 		Operator: epicOperatorWait{
 			Conditions: inMilestone(p.ready.Operator.Conditions, m, func(e epicReadyEpic) string { return e.Milestone }),
 			Gates:      inMilestone(p.ready.Operator.Gates, m, func(w epicThresholdWait) string { return w.Milestone }),
