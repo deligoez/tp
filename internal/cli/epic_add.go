@@ -210,12 +210,17 @@ func writeEpicGraph(cmd *cobra.Command, mutate func(*model.EpicGraph) error) {
 }
 
 // writeEpicGraphWith runs one locked, lint-checked write of .tp/epics.json
-// and reports it: exit 1 naming the new errors, 4 naming an absent epic or a
+// and reports it: exit 1 naming the new errors or an epic made a condition
+// while claimed or bound, 4 naming an absent epic or a
 // stale revision, 3 on a file error.
 func writeEpicGraphWith(opts epicWriteOpts, mutate func(*model.EpicGraph) error) {
 	count := 0
 	counted := func(g *model.EpicGraph) error {
+		conditions := engine.EpicConditions(g)
 		if err := mutate(g); err != nil {
+			return err
+		}
+		if err := engine.RefuseNewConditions(g, conditions, "."); err != nil {
 			return err
 		}
 		count = len(g.Epics)
@@ -267,6 +272,7 @@ func classifyEpicWriteError(err error, opts *epicWriteOpts) (code int, message, 
 	}{
 		{new(*engine.EpicStaleRevisionError), ExitState, epicStaleRevisionHint},
 		{new(*engine.EpicRemoveRefusedError), ExitValidation, epicRemoveRefusedHint},
+		{new(*engine.EpicConditionRefusedError), ExitValidation, epicConditionRefusedHint},
 		{new(*engine.EpicNotFoundError), ExitState, epicNotFoundHint},
 		{new(*engine.EpicEdgeNotFoundError), ExitState, epicEdgeNotFoundHint},
 		{new(*engine.EpicMilestoneNotFoundError), ExitState, epicMilestoneNotFoundHint},
@@ -279,6 +285,10 @@ func classifyEpicWriteError(err error, opts *epicWriteOpts) (code int, message, 
 	}
 	return ExitFile, err.Error(), epicGraphWriteHint
 }
+
+// epicConditionRefusedHint answers a write that would make a claimed or bound
+// epic a condition.
+const epicConditionRefusedHint = "a condition has no bound file and no claim: release the claim or bind the task file to another epic first, or keep the epic a work epic"
 
 // epicStaleRevisionHint answers a write whose --if-revision is stale.
 const epicStaleRevisionHint = "re-read .tp/epics.json, redo the edit on what it holds now, and pass the revision of those bytes (or the one the last writer printed)"
