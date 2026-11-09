@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -82,4 +84,44 @@ func TestCriticalPath_EstimateChainOmittedWhenAnEpicHasNone(t *testing.T) {
 	assert.Equal(t, []string{"x2", "x", "m"}, path.ByCount)
 	assert.Nil(t, path.ByEstimate)
 	assert.Zero(t, path.EstimateMinutes)
+}
+
+// writeEstimateTaskFile writes a task file under dir holding one task per
+// estimate given and returns its path.
+func writeEstimateTaskFile(t *testing.T, dir, name string, estimates ...int) string {
+	t.Helper()
+	tf := model.TaskFile{Version: 1, Spec: "s.md"}
+	for i, est := range estimates {
+		tf.Tasks = append(tf.Tasks, model.Task{
+			ID: name + string(rune('1'+i)), Title: "T", Status: model.StatusOpen,
+			EstimateMinutes: est, Acceptance: "a", DependsOn: []string{},
+		})
+	}
+	path := filepath.Join(dir, name+".tasks.json")
+	require.NoError(t, model.WriteTaskFile(path, &tf))
+	return path
+}
+
+// TestEpicEstimates_OwnElseEveryBoundTaskElseNone is §7: an epic's estimate
+// is its estimate_minutes when set, else the sum of its bound tasks'
+// estimates when every one has one, else none.
+func TestEpicEstimates_OwnElseEveryBoundTaskElseNone(t *testing.T) {
+	dir := t.TempDir()
+	g := epicChainGraph()
+	g.Epics[0].EstimateMinutes = 90
+	bound := map[string][]string{
+		"a": {writeEstimateTaskFile(t, dir, "a", 5)},
+		"b": {writeEstimateTaskFile(t, dir, "b1", 5, 10), writeEstimateTaskFile(t, dir, "b2", 15)},
+		"c": {writeEstimateTaskFile(t, dir, "c", 5, 0)},
+	}
+
+	estimates, err := EpicEstimates(g, bound)
+
+	require.NoError(t, err)
+	assert.Equal(t, map[string]int{"a": 90, "b": 30}, estimates,
+		"c has a task with no estimate and d no estimate and no bound file")
+
+	require.NoError(t, os.WriteFile(bound["b"][0], []byte("{"), 0o600))
+	_, err = EpicEstimates(g, bound)
+	assert.Error(t, err, "an unreadable bound file is an error")
 }
