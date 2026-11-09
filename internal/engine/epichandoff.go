@@ -2,6 +2,7 @@ package engine
 
 import (
 	"regexp"
+	"slices"
 
 	"github.com/deligoez/tp/internal/model"
 )
@@ -57,10 +58,5 @@ func namedInAny(id string, texts []string) bool {
 		return false
 	}
 	re := regexp.MustCompile(`(^|[^\p{L}\p{N}_-])` + regexp.QuoteMeta(id) + `($|[^\p{L}\p{N}_-])`)
-	for _, t := range texts {
-		if re.MatchString(t) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(texts, re.MatchString)
 }
