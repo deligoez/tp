@@ -108,3 +108,19 @@ func TestNextPeekAndReady_CarryBlockedByEpics(t *testing.T) {
 	assert.Empty(t, ready.Ready)
 }
 
+// TestClaim_ExitsOneOnABlockedFile is spec/1.5.0.md §6: tp claim exits 1 on
+// a blocked file, names the dependency and writes nothing, by id and with
+// --all-ready.
+func TestClaim_ExitsOneOnABlockedFile(t *testing.T) {
+	t.Parallel()
+	dir := blockDir(t, "b", "open", "open")
+	before := taskFileBytes(t, dir)
+
+	for _, args := range [][]string{{"claim", "t1"}, {"claim", "t1", "t2"}, {"claim", "--all-ready"}} {
+		_, stderr, code := runTP(t, dir, args...)
+		require.Equal(t, 1, code, "%v stderr: %s", args, stderr)
+		assert.Equal(t, []string{"c"}, blockedByEpics(t, stderr), "%v", args)
+		assert.Equal(t, before, taskFileBytes(t, dir), "%v writes nothing", args)
+	}
+}
+
