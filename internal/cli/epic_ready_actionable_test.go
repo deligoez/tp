@@ -100,3 +100,15 @@ func TestEpicReady_C3_5_AStandaloneConditionIsActionable(t *testing.T) {
 	assert.Equal(t, map[string]bool{"c": true}, operatorConditions(t, dir))
 }
 
+// TestEpicReady_C3_6_ConditionsThatAloneHoldAnEpicAreBothActionable is C3.6:
+// w waits on c1 and c2 and nothing else.
+func TestEpicReady_C3_6_ConditionsThatAloneHoldAnEpicAreBothActionable(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{"version": 1, "milestones": [["A"]], "epics": [
+    {"id": "c1", "title": "C1", "milestone": "A", "root": true, "condition": true, "acceptance": "legal says yes"},
+    {"id": "c2", "title": "C2", "milestone": "A", "root": true, "condition": true, "acceptance": "the board says yes"},
+    {"id": "w", "title": "W", "milestone": "A", "depends_on": [{"id": "c1", "why": "w ships once legal agrees"}, {"id": "c2", "why": "w ships once the board agrees"}]}
+  ]}`)
+	assert.Equal(t, map[string]bool{"c1": true, "c2": true}, operatorConditions(t, dir))
+}
+
