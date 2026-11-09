@@ -168,3 +168,25 @@ func TestEpicReview_RegressionSeesOnlyNewlyNamedHandoffs(t *testing.T) {
 		assert.NotContains(t, p.Prompt, "epic: d\n", "%s: d was named before the change", p.Role)
 	}
 }
+
+// TestEpicReviewStatus_OpenLeavesOutResolvedRows: a round of a medium and a
+// low finding, the medium one resolved fixed: open counts only the low one.
+// Counting rows without reading their resolution reports medium 1.
+func TestEpicReviewStatus_OpenLeavesOutResolvedRows(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChain)
+	slice := []string{"--epic", "b"}
+	runEpicReview(t, dir, slice...)
+	recordEpicRound(t, dir,
+		`{"severity":"medium","finding":"one","location":"epic:b","evidence":"b"}`+"\n"+
+			`{"severity":"low","finding":"two","location":"epic:b","evidence":"b"}`+"\n", slice...)
+	_, stderr, code := runTP(t, dir, append([]string{"epic", "review"}, append(slice, "--resolve", "0", "fixed")...)...)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	stdout, _, _ := runTP(t, dir, append([]string{"epic", "review"}, append(slice, "--status")...)...)
+	var st struct {
+		Open map[string]int `json:"open"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &st), "stdout: %s", stdout)
+	assert.Equal(t, map[string]int{"critical": 0, "high": 0, "medium": 0, "low": 1}, st.Open)
+}
