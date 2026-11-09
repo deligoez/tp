@@ -112,6 +112,17 @@ func TestEpicSet_GateFieldOfAnUnknownMilestoneExits4(t *testing.T) {
 	assert.Equal(t, before, readEpicGraphFile(t, dir))
 }
 
+// TestEpicSet_GateFieldOfAnUnknownMilestoneListsTheMilestones: the refusal
+// names the milestones the tracks hold, so the agent need not dump the graph.
+func TestEpicSet_GateFieldOfAnUnknownMilestoneListsTheMilestones(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicGateFieldGraph(""))
+	_, stderr, code := runTP(t, dir, "epic", "set", "gates.Z.threshold=ships")
+	require.Equal(t, 4, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "the tracks hold A, B")
+	assert.NotContains(t, stderr, "export --md")
+}
+
 // TestEpicSet_GateMembersAddingALintErrorIsRefused: b is in B, so naming it a
 // member of A's gate adds gate-member-outside-milestone and writes nothing.
 func TestEpicSet_GateMembersAddingALintErrorIsRefused(t *testing.T) {
