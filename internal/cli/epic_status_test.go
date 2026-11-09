@@ -126,3 +126,22 @@ func TestEpicStatus_CompactLeavesOutTheEstimateChainThroughputAndRollup(t *testi
 	assert.NotContains(t, compactPath, "by_estimate", "the estimate chain is left out")
 	assert.JSONEq(t, `["b", "a"]`, string(compactPath["by_count"]), "the chain by count stays")
 }
+
+// TestEpicStatus_AClaimedEpicShowsItsHolder is C1: tp epic status names the
+// holder beside each claimed epic, a blocked one too.
+func TestEpicStatus_AClaimedEpicShowsItsHolder(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{"version": 1, "milestones": [["A"]], "epics": [
+    {"id": "a", "title": "A", "milestone": "A", "root": true},
+    {"id": "b", "title": "B", "milestone": "A", "depends_on": [{"id": "a", "why": "w"}], "claimed": {"at": "2026-01-02T03:04:05Z", "by": "agent-1"}}
+  ]}`)
+
+	r := decodeEpicStatus(t, runEpicStatus(t, dir))
+
+	require.Len(t, r.Milestones, 1)
+	m := r.Milestones[0]
+	require.Len(t, m.Claimed, 1)
+	assert.Equal(t, "b", m.Claimed[0].ID)
+	assert.Equal(t, "agent-1", m.Claimed[0].By, "the claimed epic shows its holder")
+	assert.Equal(t, 1, m.Counts["claimed"])
+}
