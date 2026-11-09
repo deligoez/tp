@@ -112,3 +112,13 @@ func TestEpicReady_C3_6_ConditionsThatAloneHoldAnEpicAreBothActionable(t *testin
 	assert.Equal(t, map[string]bool{"c1": true, "c2": true}, operatorConditions(t, dir))
 }
 
+// TestEpicReady_C3_7_ADoneConditionIsListedInNeitherMode is C3.7.
+func TestEpicReady_C3_7_ADoneConditionIsListedInNeitherMode(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{"version": 1, "milestones": [["A"]], "epics": [
+    {"id": "c", "title": "C", "milestone": "A", "root": true, "condition": true, "acceptance": "the board says yes", "done": {"at": "2026-01-02T03:04:05Z", "evidence": "minutes"}},
+    {"id": "w", "title": "W", "milestone": "A", "depends_on": [{"id": "c", "why": "w ships once the board agrees"}]}
+  ]}`)
+	assert.Empty(t, operatorConditions(t, dir))
+	assert.Empty(t, operatorConditions(t, dir, "--all"))
+}
