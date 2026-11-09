@@ -170,3 +170,18 @@ func TestEpicReady_DependentsOpenCountsOnlyOpenMilestones(t *testing.T) {
 	assert.Equal(t, map[string]int{"M1": 2, "M2": 3}, byMilestone)
 }
 
+// TestEpicReady_ADeferrableDependentCountsAndALeafConditionDoesNot is C1.4: r4
+// gains f, deferrable in M2's gate, and k, a condition nothing depends on;
+// f counts in dependents and k adds nothing.
+func TestEpicReady_ADeferrableDependentCountsAndALeafConditionDoesNot(t *testing.T) {
+	t.Parallel()
+	k := dsEpic("k", "M1", "r4")
+	k.Condition, k.Acceptance = true, "board says yes"
+	epics := append(downstreamEpics(10), dsEpic("f", "M2", "r4"), k)
+	gates := map[string]any{"M2": map[string]any{"members": []string{}, "deferrable": []string{"f"}}}
+	chain, dependents, _, byMilestone := readyDownstream(t, downstreamDir(t, epics, gates)).item(t, "r4")
+	assert.Equal(t, 1, chain)
+	assert.Equal(t, 1, dependents, "f counts, k does not")
+	assert.Equal(t, map[string]int{"M2": 1}, byMilestone)
+}
+
