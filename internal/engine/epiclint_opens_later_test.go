@@ -41,3 +41,16 @@ func TestLintEpicGraph_DependencyOpensLaterMemberIsAnError(t *testing.T) {
 	assert.Contains(t, found[0].Message, "a -> b")
 }
 
+// TestLintEpicGraph_DependencyOpensLaterThroughADeferrableIsAnError is
+// fixture (ii): the member a reaches b through c, a deferrable epic of A, so
+// A's gate still waits on B: one error with the path, and no warning for c.
+func TestLintEpicGraph_DependencyOpensLaterThroughADeferrableIsAnError(t *testing.T) {
+	g := opensLaterGraph(dependsOn("a", "A", "c"), dependsOn("c", "A", "b"), dependsOn("b", "B"))
+	g.Gates = map[string]model.EpicGate{"A": {Deferrable: []string{"c"}}}
+	found := findingsOf(t, LintEpicGraph(g, nil), EpicRuleDependencyOpensLater)
+	require.Len(t, found, 1, "%v", found)
+	assert.Equal(t, EpicSeverityError, found[0].Severity)
+	assert.Equal(t, []string{"a", "b"}, found[0].Epics)
+	assert.Contains(t, found[0].Message, "a -> c -> b")
+}
+
