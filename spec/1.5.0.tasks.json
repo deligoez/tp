@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.5.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-09T15:20:06.365285Z",
+  "updated_at": "2026-11-09T15:28:39.756292Z",
   "workflow": {
     "review_max_rounds": 4,
     "audit_max_rounds": 5
@@ -753,7 +753,7 @@
       "id": "epic-export-json",
       "title": "Export the plan as versioned JSON",
       "description": "tp epic export with no format flag prints JSON: a schema version, every derived field, each bound file's path, phase, task counts and each loop's round and state, and every epic review slice with its key and state (key null for a pre-v1.5.0 slice); --md keeps the tables. §10 row 13.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "export"
@@ -768,11 +768,18 @@
         "## 7. Epic commands",
         "## 10. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-09T15:26:41.847533Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-09T15:28:39.747009Z",
+      "closed_reason": "- TestEpicExport_JSONCarriesVersionBoundFileAndSliceKey (§10 row 13): version 1, b's bound file b.tasks.json with phase review, the --epic b slice with key {kind: epic, value: b}; gate green\n- TestEpicExport_ASliceRecordedBeforeV150HasKeyNull: a slice with no key.json is listed with key null\n- TestEpicExport_OneTablePerMilestoneInTrackOrder passes unchanged with --md; TestEpicExport_WithoutMdPrintsJSON replaces the old exit-2 test",
+      "gate_passed_at": "2026-11-09T15:28:39.747009Z",
+      "commit_sha": "c1880555",
+      "commit_shas": [
+        "c1880555"
+      ],
+      "commit_files": [
+        "internal/cli/epic_export_json_test.go"
+      ]
     },
     {
       "id": "epic-unattended-fences",
