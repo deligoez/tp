@@ -128,3 +128,24 @@ func TestEpicReviewStatus_NamesWhatIsStillOpen(t *testing.T) {
 	assert.Equal(t, "blocking", st.ConvergeOn)
 	assert.Equal(t, map[string]int{"critical": 0, "high": 0, "medium": 1, "low": 0}, st.Open)
 }
+
+// TestEpicReview_RegressionWithoutFixesSaysSo: a round that follows an edit
+// rather than a resolved fix tells regression there are no fixed findings to
+// confirm, instead of pointing at a list that is not there.
+func TestEpicReview_RegressionWithoutFixesSaysSo(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChain)
+	r1 := runEpicReview(t, dir, "--milestone", "A")
+	writeEpicRound(t, dir, &r1, "")
+	editEpicGraph(t, dir, "b needs c", "b needs c's parser")
+	r2 := runEpicReview(t, dir, "--milestone", "A")
+	var regression string
+	for _, p := range r2.Prompts {
+		if p.Role == "regression" {
+			regression = p.Prompt
+		}
+	}
+	require.NotEmpty(t, regression)
+	assert.Contains(t, regression, "No finding was resolved fixed since round 1")
+	assert.NotContains(t, regression, "each fixed finding below")
+}
