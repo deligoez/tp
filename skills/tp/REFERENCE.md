@@ -1410,11 +1410,23 @@ lowercase hex SHA-256 of the slice kind, a NUL byte and its value — so `--mile
 From round 2 a unit whose hash equals the round before's and that holds no open finding is carried
 and not asked; a unit with no recorded hash is asked and makes the slice stale. Convergence and the
 cap resolve `review_clean_rounds`, `review_converge_on` and `review_max_rounds` from the project
-layer over the built-in default, with no task file layer. With no `.tp/epic-reviewers/` the three
-built-in graph roles run (`dod-satisfiability`, `why-auditor`, `phase-economist`); a populated
-directory replaces them. Each prompt's `output_path` (`epic-review-<hash prefix>-r<N>-<role>.ndjson`)
-is relative to the directory `tp epic review` ran in, as review's is; inside a `tp run` unit it is
-the `$TP_ROUND_DIR` path instead.
+layer over the built-in default, with no task file layer. A round counts as clean when none of its
+rows is open and blocking, as in `tp review`: a row resolved `wontfix` or `duplicate` is closed, and
+one resolved `fixed` changed the graph, so the slice is stale until a later round reads the change.
+With no `.tp/epic-reviewers/` the three built-in graph roles run (`dod-satisfiability`,
+`why-auditor`, `phase-economist`); a populated directory replaces them. From round 2 the built-in
+`regression` role is appended whenever an asked unit changed or the round before resolved a finding
+`fixed`.
+
+Each prompt reads, in order: the role's instructions, the asked units, the role's focus questions
+and any round input (regression's fixed findings), the output contract and the file to write, then
+the context, and a last line repeating the row keys and the file. A role file's optional `context`
+key scopes that context: `neighbours` (the default) shows every epic one edge away in either
+direction, `dependencies` only the epics an asked unit depends on; `dod-satisfiability` and
+`why-auditor` ship with `dependencies`. A carried gate's block is shown read-only in the context of
+every prompt. Each prompt's `output_path` (`epic-review-<hash prefix>-r<N>-<role>.ndjson`) is
+relative to the directory `tp epic review` ran in, as review's is; inside a `tp run` unit it is the
+`$TP_ROUND_DIR` path instead.
 
 ### Exit codes (`tp epic`)
 
