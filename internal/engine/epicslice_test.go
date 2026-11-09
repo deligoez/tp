@@ -150,3 +150,28 @@ func TestEpicReviewSlice_EditingAThresholdChangesTheGateHash(t *testing.T) {
 	assert.NotEqual(t, before["gate:A"], after["gate:A"])
 	assert.Equal(t, before["epic:a"], after["epic:a"])
 }
+
+// TestEpicReviewSlice_EditingOpensAfterChangesTheGateHash is spec/1.6.0.md
+// §1: a gate block shows its milestone's opens_after entry, so editing it
+// re-asks the unit; a milestone opens_after does not name prints no line.
+func TestEpicReviewSlice_EditingOpensAfterChangesTheGateHash(t *testing.T) {
+	g := epicChainGraph()
+	g.Gates = map[string]model.EpicGate{"A": {Members: []string{"a"}}}
+	before := unitHashes(t, g)
+	s, err := EpicReviewSlice(g, EpicSliceKey{Milestone: "A"})
+	require.NoError(t, err)
+	assert.NotContains(t, s.Units[4].Block, "opens_after:")
+
+	g.OpensAfter = map[string][]string{"A": {"L1"}}
+	s, err = EpicReviewSlice(g, EpicSliceKey{Milestone: "A"})
+	require.NoError(t, err)
+	assert.Contains(t, s.Units[4].Block, "opens_after: L1\n")
+	after := unitHashes(t, g)
+	assert.NotEqual(t, before["gate:A"], after["gate:A"])
+	assert.Equal(t, before["epic:a"], after["epic:a"])
+
+	g.OpensAfter["A"] = []string{}
+	s, err = EpicReviewSlice(g, EpicSliceKey{Milestone: "A"})
+	require.NoError(t, err)
+	assert.Contains(t, s.Units[4].Block, "opens_after: []\n")
+}
