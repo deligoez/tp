@@ -108,7 +108,7 @@ Resolves the task file by the discovery order (a spec argument wins and uses its
 
 `--compact` drops `next_action.summary`, each `kept[].reason`, and each `blockers[].message`; keeps every `data` plus `bookkeeping`, `guidance` and `next_units` (all decision-critical — §8.4). Under an escalate blocker a `--compact` reader therefore reads `blockers[].code` and `data`.
 
-Blocker vocabulary (fixed order): `unexplained-changes` (**agent-clearable**, `{count}`), `no-ready-task` (escalate, `{blocked_by}`), `epic-blocked` (escalate, `{epic, blocked_by_epics}`; v1.5.0: the bound file's epic has a dependency not done and no task is `wip`, so no implement unit is offered), `review-budget-exhausted` / `audit-budget-exhausted` (escalate, `{cap, blocking_fixed_at_cap}`; fires when the cap is reached and the loop is not done, never under cap 0), `spec-stale` (escalate, `{spec}`; its message names the round that clears it: `tp review <spec>`, then `tp review <spec> --record <file>`).
+Blocker vocabulary (fixed order): `unexplained-changes` (**agent-clearable**, `{count}`), `no-ready-task` (escalate, `{blocked_by}`), `epic-blocked` (escalate, `{epic, blocked_by_epics}`; v1.5.0: the bound file's epic has a dependency not done and no task is `wip`, so no implement unit is offered; v1.6.0: when every such dependency is a condition, data adds `operator: {decision: "epic-done", commands}` and the message names the operator's `tp epic done <c> --evidence <evidence>`), `review-budget-exhausted` / `audit-budget-exhausted` (escalate, `{cap, blocking_fixed_at_cap}`; fires when the cap is reached and the loop is not done, never under cap 0), `spec-stale` (escalate, `{spec}`; its message names the round that clears it: `tp review <spec>`, then `tp review <spec> --record <file>`).
 
 ### `commit_strategy` — `builtin` / `auto` / `hc`
 
@@ -1382,10 +1382,12 @@ Any key outside this schema is the lint error `unknown-key`. The writers rewrite
 `root: false`, so a file already in that form, loaded and written unchanged, is byte-identical. The
 file's **revision** is the lowercase hex SHA-256 of its bytes, and the empty string when it is absent;
 every graph writer prints the revision it left and takes `--if-revision`, and `tp epic lint` prints
-the one it read. `tp epic set opens_after=` and `milestones=` also print, after `revision`,
-`ancestry_changed: [{milestone, lost, gained}]` (v1.6.0): each milestone whose transitive openers,
-defaults applied, the write changed, in the new graph's track order and then milestones only the
-old graph listed; `lost` in the old order, `gained` in the new; `[]` when none moved.
+the one it read. `tp epic set opens_after=` and `milestones=`, `tp epic milestone add` and
+`tp epic import` also print, after `revision`, `ancestry_changed: [{milestone, lost, gained}]`
+(v1.6.0): each milestone of the old graph whose transitive openers, defaults applied, the write
+changed, in the new graph's track order and then milestones only the old graph listed; `lost` in
+the old order, `gained` in the new; `[]` when none moved. A milestone the write adds is not
+listed, so a first write of `milestones`, or an import into a project without a graph, prints `[]`.
 
 `claimed`, `done` and `met` are written by their commands and by `tp epic import`, the migration; a
 writer that replaces a whole object (`add`, a `--bulk` row, `set gates=`) carries them over and
@@ -1400,8 +1402,10 @@ the sorted ids it names. Every writer runs the error rules over the file as it w
 write and refuses one adding an error; an error's identity is its rule, its sorted epic ids and the
 milestone, gate or key names it involves, so an error already in the file does not block an
 unrelated write. A refused write carries one hint per distinct broken rule, joined by `; ` in the
-order the errors come (a `--bulk` refusal keeps its row hint). Every rule but the two cycle rules
-reports one finding per offending item.
+order the errors come (a `--bulk` refusal keeps its row hint). A write that shrinks a cycle, of
+epics or of `opens_after` milestones, adds no error and passes. The refusal names each added error
+as `rule [epics] (message)`, the brackets left out for one that names no epic. Every rule but the
+two cycle rules reports one finding per offending item.
 
 | Rule | Severity | Fires when |
 |------|----------|------------|
@@ -1510,7 +1514,7 @@ done whatever lies behind it. While one of a bound file's epic's dependencies is
 
 | command | behaviour |
 |---|---|
-| `tp next`, `tp next --peek` | `{done: false, message, blocked_by_epics}`, exit 4; a `wip` task is still returned |
+| `tp next`, `tp next --peek` | `{done: false, message, blocked_by_epics}`, exit 4; a `wip` task is still returned. When every blocker is a condition, which only the operator decides, it adds `operator: {decision: "epic-done", commands: ["tp epic done <c> --evidence <evidence>"]}` (v1.6.0) |
 | `tp ready` | `{ready: [], blocked_by_epics}` in every mode, `--count` and `--ids` too; `--first` exits 4 |
 | `tp claim` | exit 1, the error object carrying `blocked_by_epics`, when an id it was given is an `open` task (`--all-ready`: when the file holds one); ids none of which is `open` answer as on an unbound file — not open, not found, exit 4 |
 | `tp done` | refuses a task that is not `wip`: by id at exit 1, by several ids and by `--batch` as a failed row carrying `blocked_by_epics`, exit 1 when the block refuses every row; a `wip` task closes, and the next-task counts leave blocked tasks out. The block is judged on the file read under the lock, after the quality gate ran |
@@ -1535,6 +1539,9 @@ The read commands write nothing and list epics in graph order, every list `[]` w
   `longest_chain` is the most such epics on one path, `dependents` their count, `dependents_open`
   those in an open milestone (every open track head included). `dependents_by_milestone` lists
   milestones with at least one, tracks in graph order, each in track order, then untracked ones.
+  On a dependency cycle (a lint error) its members depend on each other: each counts the others,
+  and they share one chain, whatever the order of the epics. `--compact` leaves
+  `dependents_by_milestone` out of every ready item, on `tp epic ready` and `tp epic status`.
 - **`actionable`** (v1.6.0): a condition is actionable when it is not done, every direct
   dependency is done, its milestone is open, and either nothing depends on it or some not-done
   dependent, in an open milestone or with a bound file, has only conditions among its undone direct
@@ -1554,24 +1561,26 @@ The read commands write nothing and list epics in graph order, every list `[]` w
   counted in work epics; ties go to the earlier epic in graph order; it ignores `--milestone`,
   `--open` and `--compact`. Each tracked milestone once, in track order: `{milestone, open,
   opens_after, waiting_on, counts: {planned, claimed, specced, in_progress, done, conditions_done},
-  share_done, gate, ready, claimed, blocked: [{id, title, milestone, blocked_by}], operator,
+  share_done, gate, ready, claimed, blocked: [{id, title, milestone, held_by, blocked_by}], operator,
   critical_path: {by_count, by_estimate: {chain, estimate_minutes}}, throughput: [{week, done}],
   rollup: [{epic, estimate_minutes, actual_minutes, tracked, estimate_total}]}`. `opens_after` is
   the effective list, defaults applied; `waiting_on` those of it not open or not green, `[]` once
-  open. `--open` keeps the open milestones only. `gate` is `tp epic gate`'s payload; `ready` and
+  open. `--open` keeps the open milestones only; with a `--milestone` that is closed it exits 4
+  naming what the milestone waits on. `gate` is `tp epic gate`'s payload; `ready` and
   `operator` are `tp epic ready`'s, filtered to the milestone; `claimed` is every epic whose status
   is `claimed`, blocked ones too. The status counts and `share_done` cover work epics only:
   `share_done` is `done` over the milestone's work epics to two places, 0 with none, and a done
   condition counts in `conditions_done` alone. `blocked` is each not-done epic with a dependency not
-  done. `by_count` runs in work order, the gate member last, `[]` when every member is done; ties go
+  done: `blocked_by` every such dependency once, `held_by` the conditions among them (v1.6.0), as
+  export's epics. `by_count` runs in work order, the gate member last, `[]` when every member is done; ties go
   to the earlier gate member, then the earlier dependency. `by_estimate.chain` is `null` when an
   epic on a chain has no estimate. `throughput` lists only weeks with a done work epic, ascending, as
   UTC ISO weeks (`2026-W45`), counting epics `done` now. `rollup` has a row per bound epic, summing
   `tp report`'s totals over its files; `estimate_total` sums every task's estimate whatever its
-  status, the other figures closed tasks only. `--compact` leaves `by_estimate`, `throughput` and
-  `rollup` out.
-- **`tp epic export`**: JSON, `{version, graph, milestones, epics, slices}`, every key always
-  present; `--md` prints the per-milestone tables instead, and `--compact` is ignored. `version` is
+  status, the other figures closed tasks only. `--compact` leaves each milestone's `critical_path`
+  (v1.6.0: the top-level one carries the chain), `throughput` and `rollup` out.
+- **`tp epic export`**: JSON, `{version, critical_path, graph, milestones, epics, slices}`, every key
+  always present; `critical_path` is `tp epic status`'s top-level one (v1.6.0); `--md` prints the per-milestone tables instead, and `--compact` is ignored. `version` is
   1; renaming, removing or retyping a key bumps it, adding one does not.
   - `graph` is `.tp/epics.json` as stored; `milestones` is `tp epic status`'s `milestones`,
     uncompacted.
@@ -1594,10 +1603,13 @@ The read commands write nothing and list epics in graph order, every list `[]` w
 ### `--epic` on `tp resume`, `tp next`, `tp ready` (v1.6.0)
 
 `--epic <id>` names the task file as `--file` would, overriding `TP_FILE`: the epic's only bound
-file, else the only one whose phase is not `release`. Otherwise it exits 4 naming the candidates
-(the files not at `release`, or every bound file when all are), or saying the epic has no bound
-task file, an id the graph does not hold included. With `--file` it exits 2; an unreadable task
-file exits 3.
+file, else the only one whose phase is not `release`. Otherwise it exits 4: naming the candidates
+(the files not at `release`, or every bound file when all are) in the message and as a `candidates`
+array of `--file` arguments; saying the epic has no bound task file; or, for an id the graph does
+not hold (or with no graph file), `epic "<id>" is not in the graph`. With `--file` it exits 2; an
+unreadable task file exits 3. A task file's path, here and in every write payload's `file`, is
+relative to the directory the command ran in, symlinks resolved on both sides, so it works as
+`--file` from there, a subdirectory or a symlinked cwd (macOS `/tmp`, `/var`) included.
 
 ### Exit codes (`tp epic`)
 
@@ -1605,6 +1617,6 @@ file exits 3.
 |------|---------|
 | 0 | the command completed; for `tp epic lint`, no error-severity finding; for `--status --check`, the loop is `done` and every mechanical check passes; for `tp epic gate`, the gate is green; `done --undo` with no record and `claim --release` with no claim change nothing |
 | 1 | `tp epic lint` found an error; a write whose after-state adds a lint error; `tp epic remove` of an epic another depends on without `--force`, or of a `tag_checks` provider even with it; `tp epic import` over a file holding epics without `--force`; a `--record` row missing a required key or locating outside the slice (the whole file is refused); `--status --check` not done; `--resolve` of an already resolved finding without `--force`; `milestone add` of a name a track already holds; `tp epic gate` of a red gate; `tp epic claim` while a claim exists (the message names its holder), or of a condition, a done epic or one with a bound file; `tp epic done` of an epic with a bound file, or of a condition with an empty acceptance; `gate --met` while a member is not done or the threshold is empty; `set <id> condition=true` on an epic with a bound file or a claim; outside `tp epic`, `tp init --epic` and `tp set --epic` naming an epic the graph does not hold, a condition or a done epic (nothing is written) |
-| 2 | usage: a payload key outside the schema, an unknown `set` field or gate field (`gates.<m>.<field>=`) or bad JSON, an `opens_after=` value that is not an object of string lists, an `add` or `--bulk` payload that names `claimed` or `done` and a `set gates=` one that names `met`, a `condition=` value other than `true`/`false`, `review` without exactly one of `--milestone`/`--epic`/`--epics`, `--name` without `--epics` or an empty `--epics`, `milestone add` without exactly one of `--after`/`--before`/`--new-track`, an unknown `--role`, an invalid `--resolve` status, an out-of-range or repeated index or a `wontfix`/`duplicate` without evidence, `tp epic done` without exactly one of `--evidence`/`--undo`, `gate --met` without `--evidence` or `--evidence` without `--met`, `claim --release` with `--by`; and under `TP_UNATTENDED` every writer, `--record`, `tp epic done` and its `--undo`, `gate --met`, and `tp init --epic` and `tp set --epic` (an empty value too) — `tp epic claim` runs |
+| 2 | usage: a payload key outside the schema, an unknown `set` field or gate field (`gates.<m>.<field>=`) or bad JSON, an `opens_after=` value that is not an object of string lists (a `null` list included, on `set` and `import` alike), an `add` or `--bulk` payload that names `claimed` or `done` and a `set gates=` one that names `met`, a `condition=` value other than `true`/`false`, `review` without exactly one of `--milestone`/`--epic`/`--epics`, `--name` without `--epics` or an empty `--epics`, `milestone add` without exactly one of `--after`/`--before`/`--new-track`, an unknown `--role`, an invalid `--resolve` status, an out-of-range or repeated index or a `wontfix`/`duplicate` without evidence, `tp epic done` without exactly one of `--evidence`/`--undo`, `gate --met` without `--evidence` or `--evidence` without `--met`, `claim --release` with `--by`; and under `TP_UNATTENDED` every writer, `--record`, `tp epic done` and its `--undo`, `gate --met`, and `tp init --epic` and `tp set --epic` (an empty value too) — `tp epic claim` runs |
 | 3 | file: no graph file, a malformed one, unreadable slice state, a project config that does not parse, or `--resolve` with no recorded round; for `ready`, `status`, `gate` and `export`, no graph file or an unreadable bound task file |
-| 4 | state: an absent epic (`set`, `remove`, `link`/`unlink`'s `<from>`, `review --epic`/`--epics`, `claim`, `done`), edge (`unlink`) or milestone (`review --milestone`, `milestone add`'s anchor, `gate`'s milestone, `status --milestone`, `set gates.<m>.<field>=`); a stale `--if-revision`; a reached cap — `review_max_rounds` rounds recorded and not converged — refuses emission and `--record`, naming the slice's `--resolve` and the key that raises the cap |
+| 4 | state: an absent epic (`set`, `remove`, `link`/`unlink`'s `<from>`, `review --epic`/`--epics`, `claim`, `done`), edge (`unlink`) or milestone (`review --milestone`, `milestone add`'s anchor, `gate`'s milestone, `status --milestone`, `set gates.<m>.<field>=`, the message listing the milestones the tracks hold), or a `status --open --milestone` that is closed; a stale `--if-revision`; a reached cap — `review_max_rounds` rounds recorded and not converged — refuses emission and `--record`, naming the slice's `--resolve` and the key that raises the cap |
