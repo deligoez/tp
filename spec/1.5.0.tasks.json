@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.5.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-09T14:55:01.276003Z",
+  "updated_at": "2026-11-09T14:59:22.216389Z",
   "workflow": {
     "review_max_rounds": 4,
     "audit_max_rounds": 5
@@ -569,7 +569,7 @@
       "id": "epic-ready-command",
       "title": "List startable epics with tp epic ready",
       "description": "Work epics in an open milestone, not done, direct dependencies done, no bound file, claim or condition; apart: conditions awaiting the operator, gates awaiting a threshold, claimed epics with their holder (C1); --all lifts the open rule. §10 rows 6 and 10.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "ready"
@@ -583,11 +583,18 @@
         "## 7. Epic commands",
         "## 10. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-09T14:55:32.474761Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-09T14:59:22.206291Z",
+      "closed_reason": "- §10 row 6: TestEpicReady_ALaterMilestoneWaitsForTheGateUnlessAll (y in B listed only with --all while A's gate is red, and once it is green); gate green\n- §10 row 10: TestEpicReady_AConditionIsListedApartFromTheWorkEpics (conditions with done dependencies under operator.conditions, not in ready)\n- C1: TestEpicReady_AClaimedEpicIsListedApartWithItsHolder (claimed list names by)",
+      "gate_passed_at": "2026-11-09T14:59:22.206291Z",
+      "commit_sha": "4e35248f",
+      "commit_shas": [
+        "4e35248f"
+      ],
+      "commit_files": [
+        "internal/cli/epic_ready_test.go"
+      ]
     },
     {
       "id": "epic-claim-command",
