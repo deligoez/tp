@@ -181,3 +181,18 @@ func TestEpicSet_GateDeferrableOutsideItsMilestoneIsRefused(t *testing.T) {
 	assert.Contains(t, stderr, `deferrable \"b\" is in milestone \"B\"`)
 	assert.Equal(t, before, readEpicGraphFile(t, dir))
 }
+
+// TestEpicSet_GateMemberAlsoDeferrableIsRefused: deferrable epics never hold
+// a gate, so listing a2 in members after deferrable contradicts the gate;
+// the second one-field write is refused and the file keeps the first.
+func TestEpicSet_GateMemberAlsoDeferrableIsRefused(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicGateFieldGraph(""))
+	setGateField(t, dir, "gates.A.deferrable=a2")
+	before := readEpicGraphFile(t, dir)
+
+	_, stderr, code := runTP(t, dir, "epic", "set", "gates.A.members=a1,a2")
+	require.Equal(t, 1, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "gate-member-deferrable")
+	assert.Equal(t, before, readEpicGraphFile(t, dir))
+}
