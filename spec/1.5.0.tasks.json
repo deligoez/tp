@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.5.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-09T13:12:36.362231Z",
+  "updated_at": "2026-11-09T13:18:53.56626Z",
   "workflow": {
     "review_max_rounds": 4,
     "audit_max_rounds": 5
@@ -49,7 +49,7 @@
       "id": "epic-writers-carry-records",
       "title": "Carry lifecycle records through whole-object writers",
       "description": "A writer that replaces a whole object (set gates=, a --bulk row replacing an epic) carries over the existing claimed, done and met records and refuses a payload that names them (exit 2); tp epic import writes them as the payload has them (the migration).",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "writers"
@@ -62,11 +62,18 @@
       "source_sections": [
         "## 8. Schema"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-09T13:14:08.03596Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-09T13:18:53.55327Z",
+      "closed_reason": "- set gates= keeps met (TestEpicSet_GatesKeepsAnExistingMetRecord) and a --bulk row keeps claimed and done (TestEpicAdd_BulkRowKeepsAnExistingClaimAndDone)\n- set gates= naming met and a --bulk row naming claimed or done exit 2 and write nothing (TestEpicSet_GatesNamingMetIsAUsageErrorAndWritesNothing, TestEpicAdd_BulkRowNamingARecordIsAUsageErrorAndWritesNothing)\n- tp epic import writes claimed, done and met from its payload (TestEpicImport_WritesClaimedDoneAndMetFromThePayload, seen red under a mutation clearing claimed); gate green",
+      "gate_passed_at": "2026-11-09T13:18:53.55327Z",
+      "commit_sha": "a5d4f8e1",
+      "commit_shas": [
+        "a5d4f8e1"
+      ],
+      "commit_files": [
+        "internal/cli/epic_import_test.go"
+      ]
     },
     {
       "id": "epic-review-block-fields",
