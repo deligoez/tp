@@ -400,7 +400,9 @@ An escalation is a normal, expected outcome, not a crash. `tp escalate --decisio
 ```
 
 `decision` is one of `skip-gate`, `raise-review-cap`, `raise-audit-cap`, `import-force`,
-`audit-converge-on`, `accept-finding`, `discard-emission`, `other`;
+`audit-converge-on`, `accept-finding`, `discard-emission`, `epic-done`, `gate-met`, `epic-binding`,
+`other`; the three epic decisions are the v1.5.0 operator records (`tp epic done`, `gate --met`, a
+binding), and `tp epic import` keeps `other`;
 `--option` is repeatable and `options` is `[]` when none is given. Outside a run (`TP_RUN_DIR` unset)
 the command is a **usage error**, so it cannot be used to fabricate a record.
 
