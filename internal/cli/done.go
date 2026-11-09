@@ -973,9 +973,7 @@ func runDoneBatch() error {
 			result["report"] = summary
 		}
 
-		if jsonErr := output.JSON(result); jsonErr != nil {
-			output.Error(ExitFile, jsonErr.Error())
-		}
+		printResultOrExit(result)
 
 		if len(failures) == len(entries) {
 			os.Exit(allRefusedBatchExit(failures))
