@@ -39,12 +39,6 @@ type MilestoneGate struct {
 }
 
 // MilestoneGates returns the verdict of every milestone a track lists, so
-// ready, status and the critical path read one answer (spec/1.5.0.md §4).
-// states is DeriveEpicStates' result. A milestone is open when every earlier
-// milestone of its track has a green gate: the first of a track is always
-// open, and tracks do not wait on each other. A milestone gates names no entry
-// for still has its default gate. A milestone listed in no track is absent.
-// MilestoneGates returns the verdict of every milestone a track lists, so
 // ready, status, the export and the critical path read one answer
 // (spec/1.5.0.md §4, spec/1.6.0.md §1). states is DeriveEpicStates' result. A
 // milestone is open when every milestone it opens after (EffectiveOpensAfter)
