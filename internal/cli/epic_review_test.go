@@ -137,7 +137,7 @@ func TestEpicReview_LintErrorsAreMechanicalChecksWithheldFromThePrompts(t *testi
 	assert.True(t, passed["dangling-reference"], "a rule with no finding passes")
 
 	errorRules := []string{
-		"cycle", "dangling-reference", "duplicate-name", "gate-member-outside-milestone",
+		"cycle", "dangling-reference", "duplicate-name", "gate-member-deferrable", "gate-member-outside-milestone",
 		"later-milestone-dependency", "missing-why", "opens-after-cycle", "unknown-key",
 		"unknown-milestone", "unprovided-tag-check",
 	}
