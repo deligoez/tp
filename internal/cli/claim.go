@@ -46,11 +46,7 @@ func runClaim(_ *cobra.Command, args []string) error {
 			os.Exit(ExitFile)
 			return nil
 		}
-		var targets []string
-		if !claimAllReady {
-			targets = args
-		}
-		refuseBlockedClaim(tf, taskFilePath, targets)
+		refuseBlockedClaim(tf, taskFilePath, claimTargets(args))
 
 		// Determine which IDs to claim
 		var ids []string
@@ -93,6 +89,15 @@ func runClaim(_ *cobra.Command, args []string) error {
 		// Batch claim
 		return claimBatch(tf, taskFilePath, ids)
 	})
+}
+
+// claimTargets is the ids tp claim judges its epic block on: args, or nil
+// under --all-ready, which judges every task of the file.
+func claimTargets(args []string) []string {
+	if claimAllReady {
+		return nil
+	}
+	return args
 }
 
 func claimSingle(tf *model.TaskFile, taskFilePath, id string) error {
