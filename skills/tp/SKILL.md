@@ -645,7 +645,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp plan --level 0,1` | Filter by parallelism levels (multi-agent) |
 | `tp commit <id> [reason]` | Stage + structured commit + record SHA |
 | `tp commit <id> --files "*.go"` | Selective file staging |
-| `tp done <id> "reason"` | Single close with implicit claim + verification; runs the quality gate |
+| `tp done <id> "reason"` | Single close with implicit claim + verification; runs the quality gate. On a bound file whose epic is blocked it closes a `wip` task and refuses any other at exit 1 with `blocked_by_epics`; the next-task counts leave the blocked tasks out |
 | `tp done <id> --skip-gate "why"` | Skip gate execution, record `gate_skipped_reason` (needs user approval) |
 | `tp done <id> --gate-passed` | Gate-less projects only: record an attestation; ignored when a gate is set |
 | `tp done <id> --auto-commit` | Commit + close in one call |
@@ -669,7 +669,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 ### Incremental
 | Command | Purpose |
 |---------|---------|
-| `tp next` | Resume WIP or claim next ready |
+| `tp next` | Resume WIP or claim next ready; on a bound file whose epic has a dependency not done it returns a `wip` task, else exits 4 with `{done: false, message, blocked_by_epics}` (`--peek` too) |
 | `tp next --minimal` | Minimal output: {id, acceptance} only |
 | `tp next --peek` | Preview the next ready task without claiming; unlike plain `tp next` it ignores WIP |
 | `tp next --brief` | Claim the task and return its brief (identity, scope, prior work, close recipe); `--brief` + `--minimal` exit 2 |
@@ -677,7 +677,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 ### Task state
 | Command | Purpose |
 |---------|---------|
-| `tp claim <id> [id...]` | open -> wip (batch: multiple IDs) |
+| `tp claim <id> [id...]` | open -> wip (batch: multiple IDs); on a bound file whose epic is blocked it exits 1 with `blocked_by_epics` |
 | `tp claim --all-ready` | Claim all ready tasks at once |
 | `tp unclaim <id> [id...]` | wip -> open (clears `started_at`; batch; an open id is a no-op in `already_open`) |
 | `tp close <id> <reason>` | wip -> done (low-level, prefer tp done) |
@@ -699,7 +699,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | Command | Purpose |
 |---------|---------|
 | `tp list` | All tasks (--status, --tag, --ids, --compact) |
-| `tp ready` | Deps-satisfied tasks (--first, --count, --ids) |
+| `tp ready` | Deps-satisfied tasks (--first, --count, --ids); on a bound file whose epic is blocked every mode prints `{ready: [], blocked_by_epics}` and `--first` exits 4 |
 | `tp show <id>` | Full details + spec_excerpt + blocks |
 | `tp status` | Progress summary (open/wip/done counts) |
 | `tp report` | Per-task duration + estimation accuracy |
