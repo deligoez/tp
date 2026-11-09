@@ -73,3 +73,17 @@ func TestEpicSet_MilestonesReportsChangedAncestry(t *testing.T) {
 		{Milestone: "A", Lost: []string{}, Gained: []string{"B"}},
 	}, runEpicSetAncestry(t, dir, `milestones=[["B", "A", "C"]]`))
 }
+
+// TestEpicSet_FirstMilestonesWriteReportsNoAncestry: milestones that did not
+// exist before the write had no ancestry to change, so a first write lists
+// none, and a later one lists only the milestones it already held.
+func TestEpicSet_FirstMilestonesWriteReportsNoAncestry(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{"version": 1, "milestones": [], "epics": []}`)
+	assert.Equal(t, []ancestryChange{}, runEpicSetAncestry(t, dir, `milestones=[["A", "B", "C"]]`))
+
+	assert.Equal(t, []ancestryChange{
+		{Milestone: "B", Lost: []string{}, Gained: []string{"X"}},
+		{Milestone: "C", Lost: []string{}, Gained: []string{"X"}},
+	}, runEpicSetAncestry(t, dir, `milestones=[["A", "X", "B", "C"]]`), "X is new: B and C gain it, X itself is not listed")
+}
