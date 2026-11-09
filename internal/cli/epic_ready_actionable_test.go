@@ -55,3 +55,12 @@ func TestEpicReady_C3_1_AConditionBehindUndoneWorkIsNotActionable(t *testing.T) 
 	assert.Equal(t, map[string]bool{"c": false}, operatorConditions(t, dir, "--all"))
 }
 
+// TestEpicReady_C3_2_OnceTheWorkIsDoneTheConditionIsActionable is C3.2: with
+// u done, c is all that holds w.
+func TestEpicReady_C3_2_OnceTheWorkIsDoneTheConditionIsActionable(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, conditionWaitGraph(true))
+	assert.Equal(t, map[string]bool{"c": true}, operatorConditions(t, dir))
+	assert.Equal(t, map[string]bool{"c": true}, operatorConditions(t, dir, "--all"))
+}
+
