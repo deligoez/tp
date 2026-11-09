@@ -19,7 +19,6 @@ cli newAuditCmd
 cli newReviewCmd
 cli printReportTTY
 cli rankFilesBySpecTerms
-cli runClaim
 cli runClose
 cli runCommit
 cli runConfigExtract

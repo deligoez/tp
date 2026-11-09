@@ -49,36 +49,9 @@ func runClaim(_ *cobra.Command, args []string) error {
 		refuseBlockedClaim(tf, taskFilePath, claimTargets(args))
 
 		// Determine which IDs to claim
-		var ids []string
+		ids := args
 		if claimAllReady {
-			done := make(map[string]bool)
-			for i := range tf.Tasks {
-				if tf.Tasks[i].Status == model.StatusDone {
-					done[tf.Tasks[i].ID] = true
-				}
-			}
-			for i := range tf.Tasks {
-				if tf.Tasks[i].Status != model.StatusOpen {
-					continue
-				}
-				allDone := true
-				for _, dep := range tf.Tasks[i].DependsOn {
-					if !done[dep] {
-						allDone = false
-						break
-					}
-				}
-				if allDone {
-					ids = append(ids, tf.Tasks[i].ID)
-				}
-			}
-			if len(ids) == 0 {
-				output.Error(ExitState, "no ready tasks to claim")
-				os.Exit(ExitState)
-				return nil
-			}
-		} else {
-			ids = args
+			ids = allReadyIDs(tf)
 		}
 
 		// Single claim: preserve original output format
@@ -89,6 +62,38 @@ func runClaim(_ *cobra.Command, args []string) error {
 		// Batch claim
 		return claimBatch(tf, taskFilePath, ids)
 	})
+}
+
+// allReadyIDs is what tp claim --all-ready claims: the open tasks of tf whose
+// dependencies are done, in file order. None ready exits 4.
+func allReadyIDs(tf *model.TaskFile) []string {
+	done := make(map[string]bool)
+	for i := range tf.Tasks {
+		if tf.Tasks[i].Status == model.StatusDone {
+			done[tf.Tasks[i].ID] = true
+		}
+	}
+	var ids []string
+	for i := range tf.Tasks {
+		if tf.Tasks[i].Status != model.StatusOpen {
+			continue
+		}
+		allDone := true
+		for _, dep := range tf.Tasks[i].DependsOn {
+			if !done[dep] {
+				allDone = false
+				break
+			}
+		}
+		if allDone {
+			ids = append(ids, tf.Tasks[i].ID)
+		}
+	}
+	if len(ids) == 0 {
+		output.Error(ExitState, "no ready tasks to claim")
+		os.Exit(ExitState)
+	}
+	return ids
 }
 
 // claimTargets is the ids tp claim judges its epic block on: args, or nil
