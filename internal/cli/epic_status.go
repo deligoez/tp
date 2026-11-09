@@ -182,17 +182,31 @@ func (p *epicPlan) milestone(m string) (epicMilestoneReport, error) {
 	return rep, nil
 }
 
-// counts returns m's epics counted by derived status, every status present,
-// and the share done, rounded to two places; 0 for a milestone with no epic.
+// epicCountConditionsDone is the counts key of m's done conditions, reported
+// apart from the status counts (spec/1.6.0.md B2).
+const epicCountConditionsDone = "conditions_done"
+
+// counts returns m's work epics counted by derived status, every status
+// present, and its done conditions under conditions_done, apart: a condition
+// is the operator's precondition, not delivered work. shareDone is the share of
+// the work epics done, rounded to two places; 0 for a milestone with none.
 func (p *epicPlan) counts(m string) (counts map[string]int, shareDone float64) {
 	counts = map[string]int{
 		engine.EpicStatusPlanned: 0, engine.EpicStatusClaimed: 0, engine.EpicStatusSpecced: 0,
-		engine.EpicStatusInProgress: 0, engine.EpicStatusDone: 0,
+		engine.EpicStatusInProgress: 0, engine.EpicStatusDone: 0, epicCountConditionsDone: 0,
 	}
 	total := 0
 	for i := range p.g.Epics {
-		if e := &p.g.Epics[i]; e.Milestone == m {
-			counts[p.states[e.ID].Status]++
+		e := &p.g.Epics[i]
+		status := p.states[e.ID].Status
+		switch {
+		case e.Milestone != m:
+		case e.Condition:
+			if status == engine.EpicStatusDone {
+				counts[epicCountConditionsDone]++
+			}
+		default:
+			counts[status]++
 			total++
 		}
 	}
