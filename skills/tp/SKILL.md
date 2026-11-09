@@ -503,19 +503,20 @@ table a prose document embeds. Build it one topic at a time, each topic through 
 2. **`tp epic set milestones='<json>'`** — only when the topic needs a milestone the file does not
    have: the value is every track, each an ordered list of milestone names, and it **replaces the
    whole list**, so start from the current one (`tp epic export --md` or the file) and insert the new
-   name. `tp epic set gates=<json>` and `tag_checks=<json>` replace whole the same way. The first
-   `set` creates an absent file; a topic that fits existing milestones skips this step.
+   name. `tp epic set opens_after=<json>`, `gates=<json>` and `tag_checks=<json>` replace whole the
+   same way; `gates.<m>.<field>=` edits one gate. The first `set` creates an absent file; a topic that
+   fits existing milestones skips this step.
 3. **`tp epic add --bulk <ndjson>`** — the topic's epics, one per line, every row or none. The lint
    check runs on the file as the whole batch leaves it, so rows may depend on each other in any
    order; a single `tp epic add` needs every target it names to exist already. A write whose
    after-state holds a lint error the before-state did not exits 1 and writes nothing, naming each
    error by its epic ids.
-4. **`tp epic lint`** — read the warnings (`no-dependencies`, `thin-why`) the writers do not refuse;
-   exit 0 means no error-severity finding.
+4. **`tp epic lint`** — read the warnings (`no-dependencies`, `thin-why`, `partial-parallel`) the
+   writers do not refuse; exit 0 means no error-severity finding.
 5. **`tp epic review --milestone <m>` (or `--epic <id>`) over the touched slice** — a milestone
-   slice asks every epic in it, not only the topic's, so a topic spread over several milestones costs
-   a round per milestone; for a topic, review the topic itself with `tp epic review --epics <ids>
-   --name <topic>`, which keeps one slice as the topic grows. Spawn one
+   slice asks every epic in it, not only the topic's, and its gate, so a topic spread over several
+   milestones costs a round per milestone; for a topic, review the topic itself with
+   `tp epic review --epics <ids> --name <topic>`, which keeps one slice as the topic grows. Spawn one
    sub-agent per role prompt, merge their rows into one file, `--record` it, fix the graph or
    `--resolve` each finding, and repeat until `tp epic review <slice> --status --check` exits 0.
    Unchanged units carry from round to round, so a round after a small edit asks only what moved,
@@ -542,12 +543,15 @@ lint rules, the state directory and the exit codes are in [REFERENCE.md](REFEREN
 `claimed`, `specced`, `in_progress` or `done`, from its bound files' `tp resume` phases or, with none,
 from a done record.
 
-1. **Read what can start.** `tp epic ready` lists the work epics that can start now, the claimed ones
-   with their holder, and what waits on the operator (conditions, gates whose threshold needs a met
-   record); `--all` lifts the open-milestone rule. `tp epic status [--milestone <m>]` adds, per
-   milestone, the counts, the gate, the blocked list, `critical_path`, `throughput` and the estimate
-   roll-up. `tp epic export` prints all of it as one JSON contract, with each bound file's phase and
-   loop states: read it rather than tp's state files.
+1. **Read what can start.** `tp epic ready` lists the work epics that can start now, ranked by
+   `downstream` — `longest_chain`, then `dependents`: start from the top. `dependents_open` counts
+   every open milestone, every open track head included; for one phase read
+   `dependents_by_milestone`. Claimed epics with their holder and what waits on the operator
+   (conditions, gates whose threshold needs a met record) are apart; `--all` lifts the open-milestone
+   rule. `tp epic status [--milestone <m>] [--open]` adds the graph's `critical_path` and, per
+   milestone, `opens_after`, `waiting_on`, the counts, the gate, the blocked list, `throughput` and
+   the estimate roll-up. `tp epic export` prints all of it as one JSON contract, with each bound
+   file's phase and loop states: read it rather than tp's state files.
 2. **Claim to reserve.** `tp epic claim <id> [--by <name>]` before you plan an epic, so a parallel
    agent sees it taken; `--release` gives it back. A blocked epic or one in a closed milestone can be
    claimed. It runs under `TP_UNATTENDED`: an agent reserves its own work.
@@ -562,18 +566,30 @@ from a done record.
    resumable and closable. With no `wip` task, `tp resume` reports the `epic-blocked` blocker and
    offers no implement unit: stop and report it. A milestone not yet open does not hold a bound file
    back.
-5. **Gates and thresholds.** A milestone opens when every earlier milestone of its track has a green
-   gate: every member done and, when the gate carries a `threshold` (the exit condition in the
+5. **Gates and thresholds.** A milestone opens when every milestone it opens after is open and has a
+   green gate: every member done and, when the gate carries a `threshold` (the exit condition in the
    operator's words, written before the work), a met record. A gate naming no `members` holds every
    epic of its milestone that is neither a condition nor `deferrable`. `tp epic gate <m>` reports it
    and exits 0 only when green. Once the members are done, the operator measures and records
    `tp epic gate <m> --met --evidence "<text or URL>"`. List under `deferrable` the work that waits on
-   a trigger that may never come, so it never holds the milestone.
-6. **Conditions.** An external precondition is an epic with `condition: true`
+   a trigger that may never come, so it never holds the milestone. Edit one gate with
+   `tp epic set gates.<m>.threshold=<text>` (or `.deferrable=`, `.members=`), which keeps its `met`.
+6. **Opening order.** A milestone opens after the previous one of its track by default, the first
+   after none. `tp epic set opens_after=<json>` changes that per milestone: `[]` on each of a family
+   of siblings keeps them one track, always open; `{"R": ["P"]}` opens R after P, in parallel with
+   Q. After every `opens_after` or `milestones` write, read `ancestry_changed`: a one-key edit
+   re-routes the later milestones of the track, so confirm each listed `lost`/`gained` is meant.
+   `partial-parallel` names epics that depend on a milestone theirs no longer opens after; the block
+   still makes them wait. It is `info` when the milestone's own entry chose that, a `warning` when it
+   follows from defaults, which is the case to check.
+7. **Conditions.** An external precondition is an epic with `condition: true`
    (`tp epic set <id> condition=true`) whose `acceptance` says what it waits for; work that must not
    start before it depends on it. It takes no task file and no claim, and is done only by
    `tp epic done <id> --evidence "<text or URL>"`, which also closes an unbound work epic finished
-   outside tp; `--undo` removes the record.
+   outside tp; `--undo` removes the record. `tp epic ready` asks the operator for it only when it is
+   `actionable`: its dependencies done, its milestone open, and nothing depends on it or some undone
+   dependent, in an open milestone or with a bound file, waits on conditions alone; `--all` lists the
+   rest with `actionable: false`.
 7. **Long-lead epics.** Place an epic that takes long in the earliest milestone where it can start,
    its real dependencies as edges, not in the milestone it must finish by: `tp epic ready` offers it
    as soon as they are done, and `critical_path` shows the chain it lengthens.
@@ -757,13 +773,14 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp validate` | Task file validation + line coverage + atomicity |
 | `tp validate --strict` | Atomicity warnings become errors |
 | `tp validate --project` | Cross-spec workflow drift (informational; `--strict` → exit 1) |
-| `tp epic lint` | Lint `.tp/epics.json` and write nothing: `{errors, warnings, findings[]}`, each finding `{rule, severity, epics, message}`; exit 0 with no error-severity finding, 1 with one, 3 with no graph file. The rules are in README.md's lint rule table |
-| `tp epic export` | Print the plan as JSON and write nothing, the contract a view of the plan reads: `{version, graph, milestones, epics, slices}`. `version` is the schema version (1); `graph` is `.tp/epics.json` as stored; `milestones` is `tp epic status`'s full report; `epics` each `{id, status, done_at, files}`, every bound file `{path, phase, tasks: {open, wip, done}, review, audit, ground}` with `path` repo-relative, `phase` the one `tp resume` reports and each loop `{round, state}` (`none`, `open`, `stale`, `cap_reached`, `done`; ground `complete` once every emitted unit is dispositioned); `slices` every epic review slice `{dir, key, round, state}`, `key` null for a slice recorded before v1.5.0 until its next emission, `state` adding `in_flight` for an emitted round not yet recorded. Exit 0; 3 with no graph file or an unreadable bound file or review state |
+| `tp epic lint` | Lint `.tp/epics.json` and write nothing: `{errors, warnings, findings[]}`, each finding `{rule, severity, epics, message}`, `severity` `error`, `warning` or `info` (counted in neither); exit 0 with no error-severity finding, 1 with one, 3 with no graph file. The rules are in README.md's lint rule table |
+| `tp epic export` | Print the plan as JSON and write nothing, the contract a view of the plan reads: `{version, graph, milestones, epics, slices}`. `version` is the schema version (1); `graph` is `.tp/epics.json` as stored; `milestones` is `tp epic status`'s full report; `epics` each `{id, title, milestone, condition, status, done_at, files, downstream?, actionable?, held_by, blocked_by}` — `downstream` (`ready`'s without `dependents_by_milestone`) on a not-done epic, `actionable` on a condition, `held_by` its undone conditions among its direct dependencies, `blocked_by` every undone one — every bound file `{path, phase, tasks: {open, wip, done}, review, audit, ground}` with `path` repo-relative, `phase` the one `tp resume` reports and each loop `{round, state}` (`none`, `open`, `stale`, `cap_reached`, `done`; ground `complete` once every emitted unit is dispositioned); `slices` every epic review slice `{dir, key, round, state}`, `key` null for a slice recorded before v1.5.0 until its next emission unless its recorded rounds name its units, `state` adding `in_flight` for an emitted round not yet recorded. Exit 0; 3 with no graph file or an unreadable bound file or review state |
 | `tp epic export --md` | Print `.tp/epics.json` as one Markdown table per milestone, in track order — columns id, title, tags, depends on (`id: why`, `; `-separated) — and write nothing; epics in no track's milestone follow in their own tables. Exit 3 with no graph file |
 | `tp epic add '<json>'` / `tp epic add --stdin` | Add one epic (`{id, title, milestone, tags?, depends_on?: [{id, why}], acceptance?, root?, condition?, estimate_minutes?}`; keys outside it exit 2, and so do `claimed` and `done`, which only `tp epic claim` and `tp epic done` write) to `.tp/epics.json` under its lock, creating an absent file; prints `{file, epics, dropped_keys, revision}` — `epics` the number of epics the file holds after the write and `revision` the file's revision after it (every writer), `dropped_keys` naming by path each key outside the schema the file held and the write did not carry (`[]` when none). A write whose after-state holds a lint error the before-state did not exits 1 naming each one and writes nothing, so a file already holding an error is repaired one write at a time; an id the file holds is a new `duplicate-name` |
 | `tp epic add --bulk <ndjson>` | The same, one epic per line, every row or none; a row whose `id` exists replaces that epic in place. Rows may depend on each other in any order, since the lint check runs on the file the whole batch leaves; a refused batch names, after each error, the 1-based payload lines of the epics it names (`--bulk lines 1, 4`) |
 | `tp epic set <id> <field>=<value>` | Set one field of epic `<id>` in `.tp/epics.json` under its lock: `title`, `milestone` and `acceptance` take the value as written, `tags` and `depends_on` take JSON, `root` and `condition` take `true` or `false` (the id is not settable; `condition=true` on an epic a task file binds or a claim holds exits 1); prints `{file, epics, dropped_keys, revision}`. An unknown field or bad JSON exits 2, an absent epic 4; a write whose after-state holds a lint error the before-state did not exits 1 naming it and writes nothing |
-| `tp epic set <milestones\|gates\|tag_checks>=<json>` | Replace that whole top-level object, creating an absent file; the same lint rule applies |
+| `tp epic set <milestones\|opens_after\|gates\|tag_checks>=<json>` | Replace that whole top-level object, creating an absent file; the same lint rule applies. `opens_after=` and `milestones=` add `ancestry_changed: [{milestone, lost, gained}]`, each milestone whose transitive openers the write changed (`[]` when none) |
+| `tp epic set gates.<m>.<threshold\|deferrable\|members>=<value>` | Edit one gate, creating its entry, carrying its `met` and other fields: `threshold` as written, `deferrable` and `members` a comma list; an empty value clears (`members` to the implicit list). A milestone no track lists exits 4, an unknown field 2; the same lint rule applies |
 | `tp epic remove <id>` | Remove epic `<id>` from `.tp/epics.json` under its lock; prints `{file, epics, dropped_keys, revision}`. An epic another epic depends on exits 1 naming the dependents and writes nothing; an absent epic exits 4 |
 | `tp epic remove <id> --force` | Also drop the edges into it and its gate memberships (`members` and `deferrable`); an epic a `tag_checks` entry names as provider is refused even so (exit 1, writes nothing) — repoint the check with `tp epic set tag_checks=<json>` first |
 | `tp epic import <file>` | Replace `.tp/epics.json` with `<file>`, a graph in the file's own shape (keys outside it exit 2), under its lock, creating an absent file; prints `{file, epics, findings, revision}`, `epics` the number of epics written. The payload is written whatever lint errors it holds and they are reported in `findings`; a file that already holds epics exits 1 and writes nothing |
@@ -788,12 +805,12 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp epic claim <id> [--by <name>]` | Write `claimed: {at, by}` under the file's lock, `by` defaulting to `$USER`, else `agent`; prints the writers' payload. A claim reserves, so a blocked epic or one in a closed milestone is claimed. Refused at exit 1, writing nothing, when a claim exists (naming its holder), on a condition, a done epic and an epic a task file binds; an absent id exits 4. Not fenced under `TP_UNATTENDED`: an agent reserves its own work |
 | `tp epic claim <id> --release` | Remove the epic's claim, on a bound epic too; an unclaimed epic exits 0 and changes nothing; `--by` with it exits 2 |
 | `tp epic claim <id> --if-revision <hex>` | The same guard on `claim` |
-| `tp epic ready` | List what can start and write nothing: `{ready, claimed, operator: {conditions, gates}}`. `ready` holds the work epics `{id, title, milestone}` in an open milestone, not done, every direct dependency done, with no bound file and no claim; `claimed` the ones that would be ready but for their claim, each with `by` and `at`; `operator.conditions` the conditions not done whose dependencies are done and whose milestone is open; `operator.gates` each `{milestone, threshold}` whose members are done and whose threshold has no met record. An epic whose milestone is in no track is never listed. Exit 0; 3 with no graph file or an unreadable bound file |
-| `tp epic ready --all` | The same with the open-milestone rule lifted |
-| `tp epic status` | Report each tracked milestone, in track order, and write nothing: `{milestones: [{milestone, open, counts, share_done, gate, ready, claimed, blocked, operator, critical_path, throughput, rollup}]}`. `counts` holds every derived status; `gate` is `tp epic gate`'s payload; `ready` and `operator` are `tp epic ready`'s lists for the milestone; `claimed` every epic whose status is `claimed`, with `by` and `at`; `blocked` each not-done epic with `blocked_by`, its dependencies not done; `critical_path` `{by_count, by_estimate: {chain, estimate_minutes}}`, `chain` null when an epic on a chain has no estimate; `throughput` `[{week, done}]`; `rollup` `[{epic, estimate_minutes, actual_minutes, tracked}]`. `--compact` leaves out `by_estimate`, `throughput` and `rollup`. Exit 0; 3 with no graph file or an unreadable bound file |
+| `tp epic ready` | List what can start and write nothing: `{ready, claimed, operator: {conditions, gates}}`. `ready` holds the work epics `{id, title, milestone, downstream}` in an open milestone, not done, every direct dependency done, with no bound file and no claim, sorted by `downstream.longest_chain`, then `dependents`, then graph order; `downstream` is `{longest_chain, dependents, dependents_open, dependents_by_milestone: [{milestone, dependents}]}` over the not-done work epics depending on it, transitively; `claimed` the ones that would be ready but for their claim, each with `by` and `at`; `operator.conditions` the `actionable` conditions `{id, title, milestone, actionable}`; `operator.gates` each `{milestone, threshold}` whose members are done and whose threshold has no met record. An epic whose milestone is in no track is never listed. Exit 0; 3 with no graph file or an unreadable bound file |
+| `tp epic ready --all` | The same with the open-milestone rule lifted; `operator.conditions` lists every not-done condition of a tracked milestone, each with `actionable` `true` or `false` |
+| `tp epic status` | Report each tracked milestone, in track order, and write nothing: `{critical_path: {by_count}, milestones: [{milestone, open, opens_after, waiting_on, counts, share_done, gate, ready, claimed, blocked, operator, critical_path, throughput, rollup}]}`. The top-level `critical_path` is the longest chain of not-done epics in the whole graph, in work order; `opens_after` is the milestone's effective list (defaults applied), `waiting_on` those of it not open or not green. `counts` holds every derived status over work epics plus `conditions_done`, and `share_done` is done over work epics; `gate` is `tp epic gate`'s payload; `ready` and `operator` are `tp epic ready`'s lists for the milestone; `claimed` every epic whose status is `claimed`, with `by` and `at`; `blocked` each not-done epic with `blocked_by`, its dependencies not done; `critical_path` `{by_count, by_estimate: {chain, estimate_minutes}}`, `chain` null when an epic on a chain has no estimate; `throughput` `[{week, done}]`; `rollup` `[{epic, estimate_minutes, actual_minutes, tracked, estimate_total}]`, `estimate_total` over every task of the bound files. `--compact` leaves out `by_estimate`, `throughput` and `rollup`. Exit 0; 3 with no graph file or an unreadable bound file |
 | `tp epic status --milestone <m>` | The same for one milestone; one no track lists exits 4 |
 | `tp epic status --open` | The same for the open milestones only; the top-level `critical_path` is unchanged |
-| `tp epic review --milestone <m>` / `tp epic review --epic <id>` | Emit a graph review round over one slice of `.tp/epics.json`: the milestone's epics plus its gate unit when `gates` names it, or the one epic, each asked unit's block followed by the blocks of its neighbours as context. One prompt per graph role (`.tp/epic-reviewers/` when populated, else the three built-ins); prints `{state_dir, round, units, context, mechanical_checks, mechanized_classes, prompts, next_action}` and writes the round's unit-hash snapshot under `state_dir`. Every error-severity lint rule runs over the whole file as `mechanical_checks` and its slug is in `mechanized_classes`, withheld from the prompts; a failing check does not refuse the emission. Neither flag or both exits 2 and writes nothing; an absent epic or milestone exits 4 |
+| `tp epic review --milestone <m>` / `tp epic review --epic <id>` | Emit a graph review round over one slice of `.tp/epics.json`: the milestone's epics plus its gate unit (every milestone has one: members, deferrable, threshold and effective `opens_after`), or the one epic, each asked unit's block followed by the blocks of its neighbours as context. One prompt per graph role (`.tp/epic-reviewers/` when populated, else the three built-ins); prints `{state_dir, round, units, context, mechanical_checks, mechanized_classes, prompts, next_action}` and writes the round's unit-hash snapshot under `state_dir`. Every error-severity lint rule runs over the whole file as `mechanical_checks` and its slug is in `mechanized_classes`, withheld from the prompts; a failing check does not refuse the emission. Neither flag or both exits 2 and writes nothing; an absent epic or milestone exits 4 |
 | `tp epic review --epics <ids>` | The same over a set of epics: exactly those, in file order, plus the gate unit of each milestone whose every epic is listed. `<ids>` is comma-separated CSV (quote an id that holds a comma) and the flag may repeat; an empty list exits 2 and an absent id 4. An unnamed set's state is keyed by its sorted ids, so a different set is a different slice, and `--epics x` is not `--epic x`. Exactly one of `--milestone`, `--epic` and `--epics` is required |
 | `tp epic review --epics <ids> --name <name>` | Key the set's state by `<name>` instead: a set that grows between rounds keeps its round counter, cap and decisions, and carries every unit whose hash did not change. `--name` without `--epics` exits 2 |
 | `tp epic review <slice> --role <name>` | Emit only that role's prompt, with `tp review --role`'s three name classes: an emitted role keeps its prompt, a recognised one emits none, an unknown one exits 2 |
