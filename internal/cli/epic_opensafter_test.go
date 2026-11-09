@@ -99,3 +99,15 @@ func TestEpicImport_NullOpensAfterListExits2(t *testing.T) {
 	assert.Contains(t, stderr, `opens_after \"R\"`)
 	assert.Equal(t, before, readEpicGraphFile(t, dir))
 }
+
+// TestEpicSet_OpensAfterCycleRefusalNamesNoEmptyEpicList: a finding that
+// names milestones, not epics, prints no empty "[]" in the refusal.
+func TestEpicSet_OpensAfterCycleRefusalNamesNoEmptyEpicList(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, opensAfterStatusGraph(false))
+
+	_, stderr, code := runTP(t, dir, "epic", "set", `opens_after={"P":["Q"]}`)
+	require.Equal(t, 1, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "opens-after-cycle (opens_after cycle among milestones P, Q)")
+	assert.NotContains(t, stderr, "[]")
+}
