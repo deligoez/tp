@@ -31,3 +31,14 @@ func TestEpicSliceKey_EachKindReadsBackAsWritten(t *testing.T) {
 	}
 }
 
+// TestEpicSliceKey_ASliceWithoutTheFileReadsAsUnknown: a slice recorded
+// before v1.5.0 has no key file, and reads as key unknown rather than an error.
+func TestEpicSliceKey_ASliceWithoutTheFileReadsAsUnknown(t *testing.T) {
+	stateDir := filepath.Join(t.TempDir(), "slice")
+	require.NoError(t, os.MkdirAll(stateDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(stateDir, "snapshot-round-1.json"), []byte(`{"round": 1, "units": {}}`+"\n"), 0o600))
+
+	got, err := ReadEpicSliceKey(stateDir)
+	require.NoError(t, err)
+	assert.Nil(t, got)
+}
