@@ -36,11 +36,13 @@ func (f *EpicLintFinding) RefusalText() string {
 
 // EpicWriteOutcome is what a graph write leaves behind: the file's path, the
 // paths of the keys outside the schema it did not carry, and the file's
-// revision after the write.
+// revision after the write. Ancestry is an import's ancestry_changed
+// against the graph it replaced, [] when there was none.
 type EpicWriteOutcome struct {
 	Path     string
 	Dropped  []string
 	Revision string
+	Ancestry []AncestryChange
 }
 
 // UpdateEpicGraph applies mutate to tpDir/epics.json under the file's write

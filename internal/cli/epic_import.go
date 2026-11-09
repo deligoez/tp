@@ -24,6 +24,9 @@ type epicImportResult struct {
 	Epics    int                      `json:"epics"`
 	Findings []engine.EpicLintFinding `json:"findings"`
 	Revision string                   `json:"revision"`
+	// AncestryChanged lists the milestones of the replaced graph whose
+	// ancestry the import changed, as tp epic set milestones= does.
+	AncestryChanged []engine.AncestryChange `json:"ancestry_changed"`
 }
 
 func newEpicImportCmd() *cobra.Command {
@@ -66,7 +69,7 @@ func runEpicImport(cmd *cobra.Command, args []string) error {
 		output.Error(ExitFile, err.Error(), epicGraphWriteHint)
 		os.Exit(ExitFile)
 	}
-	result := epicImportResult{File: out.Path, Epics: len(g.Epics), Findings: findings, Revision: out.Revision}
+	result := epicImportResult{File: out.Path, Epics: len(g.Epics), Findings: findings, Revision: out.Revision, AncestryChanged: out.Ancestry}
 	if result.Findings == nil {
 		result.Findings = []engine.EpicLintFinding{}
 	}

@@ -27,7 +27,7 @@ func (e *EpicImportRefusedError) Error() string {
 // payload's own lint errors do not refuse the write (D4): the after-state's
 // findings are returned for the caller to report.
 func ImportEpicGraph(tpDir string, g *model.EpicGraph, force bool, ifRevision *string) (EpicWriteOutcome, []EpicLintFinding, error) {
-	out := EpicWriteOutcome{Path: filepath.Join(tpDir, EpicGraphFile), Dropped: []string{}}
+	out := EpicWriteOutcome{Path: filepath.Join(tpDir, EpicGraphFile), Dropped: []string{}, Ancestry: []AncestryChange{}}
 	if err := os.MkdirAll(tpDir, 0o755); err != nil {
 		return out, nil, fmt.Errorf("create %s: %w", tpDir, err)
 	}
@@ -36,20 +36,25 @@ func ImportEpicGraph(tpDir string, g *model.EpicGraph, force bool, ifRevision *s
 		if err := checkEpicRevision(tpDir, ifRevision); err != nil {
 			return err
 		}
-		if !force {
-			current, _, err := LoadEpicGraph(tpDir)
-			if err != nil && !errors.Is(err, ErrEpicGraphNotFound) {
-				return err
-			}
-			if err == nil && len(current.Epics) > 0 {
-				return &EpicImportRefusedError{Path: out.Path, Epics: len(current.Epics)}
-			}
+		// --force replaces even an unreadable file; it then has no
+		// ancestry to compare against.
+		current, _, err := LoadEpicGraph(tpDir)
+		if err != nil {
+			current = nil
+		}
+		if err != nil && !force && !errors.Is(err, ErrEpicGraphNotFound) {
+			return err
+		}
+		if !force && current != nil && len(current.Epics) > 0 {
+			return &EpicImportRefusedError{Path: out.Path, Epics: len(current.Epics)}
 		}
 		if err := WriteEpicGraph(tpDir, g); err != nil {
 			return err
 		}
+		if current != nil {
+			out.Ancestry = EpicAncestryChanges(current, g)
+		}
 		findings = LintEpicGraph(g, nil)
-		var err error
 		out.Revision, err = EpicGraphRevision(tpDir)
 		return err
 	})
