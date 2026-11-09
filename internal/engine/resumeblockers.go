@@ -129,7 +129,9 @@ func BuildBlockers(in *BlockerInputs) []Blocker {
 // epicBlockedBlocker is the epic-blocked blocker, or nil: it stands in the
 // implement phase while the file's epic is blocked and no task is wip. A wip
 // task stays resumable, so its implement unit is offered as before; with none,
-// no task can start, and only finishing the dependencies clears it.
+// no task can start, and only finishing the dependencies clears it. When
+// every dependency is a condition no agent can, so the message and data
+// name the operator's decision and record of each.
 func epicBlockedBlocker(in *BlockerInputs) *Blocker {
 	blk := in.EpicBlock
 	if in.Phase != PhaseImplement || blk == nil || len(blk.BlockedBy) == 0 {
@@ -138,12 +140,18 @@ func epicBlockedBlocker(in *BlockerInputs) *Blocker {
 	if _, wip, _ := ImplementPreview(in.TaskFile); wip {
 		return nil
 	}
-	return &Blocker{
+	b := &Blocker{
 		Code:    "epic-blocked",
 		Class:   ClassEscalate,
 		Message: fmt.Sprintf("no task can start: epic %s is blocked by %s; finish those epics first", blk.Epic, strings.Join(blk.BlockedBy, ", ")),
 		Data:    map[string]any{"epic": blk.Epic, "blocked_by_epics": blk.BlockedBy},
 	}
+	if op := blk.OperatorAction(); op != nil {
+		b.Message = fmt.Sprintf("no task can start: epic %s is blocked by the condition(s) %s, the operator's decision (%s): %s",
+			blk.Epic, strings.Join(blk.BlockedBy, ", "), op.Decision, strings.Join(op.Commands, "; "))
+		b.Data["operator"] = op
+	}
+	return b
 }
 
 // budgetBlockerMessage words a *-budget-exhausted blocker: what is left at the
