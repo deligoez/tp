@@ -31,6 +31,23 @@ var epicRuleSlugs = []string{
 	engine.EpicRuleUnprovidedTagCheck, engine.EpicRuleNoDependencies, engine.EpicRuleThinWhy,
 }
 
+// TestReferenceOpensMilestonesThroughGates pins spec/1.5.0.md §4-§6: default
+// gate members, green, open, the met record, conditions and the epic block.
+func TestReferenceOpensMilestonesThroughGates(t *testing.T) {
+	t.Parallel()
+	doc := readRepoDoc(t, "skills/tp/REFERENCE.md")
+	gates := docSectionBody(t, doc, "### Gates, conditions and the epic block (v1.5.0)")
+	for _, term := range []string{
+		"deferrable", "**Green**", "**Open**", "`met`", "`threshold_changed: true`", "`condition: true`",
+		"`blocked_by_epics`", "`tp next`", "`tp claim`", "`tp done`", "`wip`", "behaves as unbound",
+	} {
+		assert.Contains(t, gates, term, "the gates section names %q", term)
+	}
+	resume := docSectionBody(t, doc, "### `tp resume [spec]` — resume oracle (read-only)")
+	assert.Contains(t, resume, "`epic-blocked` (escalate, `{epic, blocked_by_epics}`;",
+		"the blocker vocabulary names epic-blocked with its class and data")
+}
+
 // TestSkillCarriesWorkflowE pins spec/1.3.0.md §7's Workflow E: its section
 // names the five steps of the graph loop, in order.
 func TestSkillCarriesWorkflowE(t *testing.T) {
