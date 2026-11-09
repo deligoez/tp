@@ -94,3 +94,14 @@ func TestDeriveEpicStates_DoneNeedsEveryBoundFileAtRelease(t *testing.T) {
 	assert.Equal(t, EpicStatusDone, epicStatusIn(t, g, root, "b"))
 }
 
+// TestDeriveEpicStates_ClaimOnBoundEpicIgnored: a claim on an epic with a
+// bound file changes nothing (spec/1.5.0.md §3, C6), so a bound epic with only
+// open tasks is specced, claimed or not.
+func TestDeriveEpicStates_ClaimOnBoundEpicIgnored(t *testing.T) {
+	root := boundFilesRepo(t)
+	g := statusChain()
+	g.Epics[1].Claimed = &model.EpicClaim{At: time.Now().UTC(), By: "agent-1"}
+	writeStatusFile(t, root, "b", model.StatusOpen)
+	assert.Equal(t, EpicStatusSpecced, epicStatusIn(t, g, root, "b"))
+}
+
