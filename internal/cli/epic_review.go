@@ -55,7 +55,7 @@ type epicReviewRun struct {
 func newEpicReviewCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "review",
-		Short: "Emit one prompt per graph role over a milestone's or an epic's slice of .tp/epics.json",
+		Short: "Emit one prompt per graph role over a slice of .tp/epics.json: a milestone, an epic, or a set of epics",
 		Args:  epicReviewArgs,
 		RunE:  runEpicReview,
 	}
