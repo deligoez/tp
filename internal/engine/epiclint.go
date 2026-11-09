@@ -41,6 +41,18 @@ const (
 	EpicRuleRootWithDependencies = "root-with-dependencies"
 )
 
+// opens_after rules of the epic graph lint (spec/1.6.0.md §1). A name
+// opens_after holds that no track lists is unknown-milestone's finding.
+const (
+	// EpicRuleOpensAfterCycle is the error on milestones that open after
+	// each other, a milestone opening after itself included.
+	EpicRuleOpensAfterCycle = "opens-after-cycle"
+	// EpicRulePartialParallel is the warning on a milestone that does not
+	// open after an earlier milestone of its track while some of its epics
+	// depend directly on that milestone's epics.
+	EpicRulePartialParallel = "partial-parallel"
+)
+
 // EpicLintFinding is one lint result. Epics holds the sorted, distinct ids the
 // finding names, a dangling id included; it is never nil, so it encodes as [].
 // Names holds the sorted milestone, gate, tag or key names the finding
@@ -66,11 +78,13 @@ func LintEpicGraph(g *model.EpicGraph, unknown []EpicGraphUnknownKey) []EpicLint
 	out = append(out, lintEpicUnknownKeys(unknown)...)
 	out = append(out, lintEpicMissingWhy(g)...)
 	out = append(out, lintEpicMilestones(g)...)
+	out = append(out, lintEpicOpensAfter(g)...)
 	out = append(out, lintEpicGateMembers(g)...)
 	out = append(out, lintEpicTagChecks(g)...)
 	out = append(out, lintEpicNoDependencies(g)...)
 	out = append(out, lintEpicThinWhy(g)...)
 	out = append(out, lintEpicRootWithDependencies(g)...)
+	out = append(out, lintEpicPartialParallel(g)...)
 	return out
 }
 
