@@ -55,23 +55,12 @@ func epicBlockedMessage(tf *model.TaskFile, blocked []string) string {
 	return fmt.Sprintf("epic %s is blocked by %s", tf.Epic, strings.Join(blocked, ", "))
 }
 
-// hasOpenTask reports whether tf holds a task that is still open, the only
-// kind the epic block stops from starting.
-func hasOpenTask(tf *model.TaskFile) bool {
-	for i := range tf.Tasks {
-		if tf.Tasks[i].Status == model.StatusOpen {
-			return true
-		}
-	}
-	return false
-}
-
 // exitIfNextBlocked is tp next's and tp next --peek's block: while tf's epic
 // is blocked it reports no task to start, carrying blocked_by_epics, and
 // exits 4 as when no task is ready. A file with no open task has nothing to
 // start, so its normal answer (all tasks complete) stands.
 func exitIfNextBlocked(tf *model.TaskFile, taskFilePath string) {
-	if !hasOpenTask(tf) {
+	if !engine.HasOpenTasks(tf) {
 		return
 	}
 	blocked := epicBlockedBy(tf, taskFilePath)
@@ -113,7 +102,7 @@ func refuseBlockedClaim(tf *model.TaskFile, taskFilePath string) {
 // when no task is ready. It reports whether it answered. A file with no open
 // task has nothing to start and answers as an unbound one does.
 func readyBlocked(tf *model.TaskFile, taskFilePath string) bool {
-	if !hasOpenTask(tf) {
+	if !engine.HasOpenTasks(tf) {
 		return false
 	}
 	blocked := epicBlockedBy(tf, taskFilePath)

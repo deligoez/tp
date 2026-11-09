@@ -71,7 +71,7 @@ func BuildBlockers(in *BlockerInputs) []Blocker {
 
 	// no-ready-task — escalate: implement with open tasks but none ready (payload.task is null).
 	if in.Phase == PhaseImplement {
-		if _, _, hasTask := ImplementPreview(in.TaskFile); !hasTask && hasOpenTasks(in.TaskFile) {
+		if _, _, hasTask := ImplementPreview(in.TaskFile); !hasTask && HasOpenTasks(in.TaskFile) {
 			blockers = append(blockers, Blocker{
 				Code:    "no-ready-task",
 				Class:   ClassEscalate,
@@ -180,7 +180,9 @@ func unmetDeps(tf *model.TaskFile) []string {
 }
 
 // hasOpenTasks reports whether any task in tf is open.
-func hasOpenTasks(tf *model.TaskFile) bool {
+// HasOpenTasks reports whether any task in tf is open: the only kind the epic
+// block stops from starting, and what tells no-ready-task from all done.
+func HasOpenTasks(tf *model.TaskFile) bool {
 	for i := range tf.Tasks {
 		if tf.Tasks[i].Status == model.StatusOpen {
 			return true
