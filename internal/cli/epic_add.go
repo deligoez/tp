@@ -309,7 +309,7 @@ func epicBulkRefusedMessage(refused *engine.EpicWriteRefusedError, bulkLines map
 	parts := make([]string, 0, len(refused.New))
 	for i := range refused.New {
 		f := &refused.New[i]
-		part := fmt.Sprintf("%s [%s] (%s)", f.Rule, strings.Join(f.Epics, ", "), f.Message)
+		part := f.RefusalText()
 		var nums []int
 		for _, id := range f.Epics {
 			nums = append(nums, bulkLines[id]...)

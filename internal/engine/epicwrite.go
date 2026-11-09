@@ -19,10 +19,19 @@ type EpicWriteRefusedError struct {
 func (e *EpicWriteRefusedError) Error() string {
 	parts := make([]string, 0, len(e.New))
 	for i := range e.New {
-		f := &e.New[i]
-		parts = append(parts, fmt.Sprintf("%s [%s] (%s)", f.Rule, strings.Join(f.Epics, ", "), f.Message))
+		parts = append(parts, e.New[i].RefusalText())
 	}
 	return "write refused: it adds lint errors the file did not hold: " + strings.Join(parts, "; ")
+}
+
+// RefusalText is the finding as a refused write names it: its rule, the epics
+// it names in brackets unless it names none (a milestone, gate or key
+// finding), and its message.
+func (f *EpicLintFinding) RefusalText() string {
+	if len(f.Epics) == 0 {
+		return fmt.Sprintf("%s (%s)", f.Rule, f.Message)
+	}
+	return fmt.Sprintf("%s [%s] (%s)", f.Rule, strings.Join(f.Epics, ", "), f.Message)
 }
 
 // EpicWriteOutcome is what a graph write leaves behind: the file's path, the
