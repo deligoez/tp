@@ -14,7 +14,7 @@ Activates when: a `.tasks.json` file exists, user asks to implement a spec/plan/
 A short resume intent — "continue with tp", "resume tp" — is a sufficient standalone prompt in ANY tp project after a context clear. `tp resume` rebuilds the full picture from durable state (task file, spec, `.tp-review/`, `.tp/local.json`, git); nothing load-bearing lives in the context window. On the trigger:
 
 1. **Orient**: `tp resume` → `{phase, blockers, next_action}`. (PATH `tp`; in tp's own self-development use the freshly-built dogfood binary instead.)
-2. **Clear agent-clearable blockers**: `unexplained-changes` → commit the changes via the project's commit tool, or `tp keep <path> "<reason>"` for intentionally-uncommitted files; then re-run `tp resume`. Stop and report human-only blockers (`*-budget-exhausted`, `no-ready-task`).
+2. **Clear agent-clearable blockers**: `unexplained-changes` → commit the changes via the project's commit tool, or `tp keep <path> "<reason>"` for intentionally-uncommitted files; then re-run `tp resume`. Stop and report human-only blockers (`*-budget-exhausted`, `no-ready-task`, `epic-blocked`).
 3. **Work ONLY the reported phase** — do not run the next phase in the same session:
    - **review** → Workflow A Step 2 (review loop until `tp review <spec> --status --check` exits 0 — converged, or at the round cap with every finding of the latest round dispositioned; `wontfix`/`duplicate` are terminal and may be set pre-record, `fixed` implies a spec change and forces a re-review). An `ungrounded` key in `tp review`'s envelope says the spec's own claims have not been checked against the world — no phase reports that; on the Full track run the ground loop (Step 1.5) before the counted rounds.
    - **decompose** → Workflow A Step 3 (atomic tasks: 1 verb, ≤8-word title, ≤3 acceptance, `source_sections` for EVERY task; backward-pass every table row + numbered list item into some task's acceptance; `tp validate` until clean; `tp import tasks.json` plain, no `--force`).
@@ -593,7 +593,7 @@ Every unit — a review round, decomposition, one task, one audit round — is d
 ```
 r = tp resume
 for each blocker: agent-clearable (unexplained-changes) → reconcile (commit or tp keep), re-run resume
-                  escalate (no-ready-task, *-budget-exhausted, spec-stale) → stop, hand to a human
+                  escalate (no-ready-task, epic-blocked, *-budget-exhausted, spec-stale) → stop, hand to a human
                     (next_action.summary names the blocker; command and brief_command are null)
 blockers empty  → run next_action.command in a FRESH unit (sub-agent / session / process)
 repeat until phase == release
@@ -657,7 +657,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp done --batch file.ndjson` | Batch close from NDJSON; a row's `commit` is a sha or an array of shas, and a row naming both `commit` and `commit_shas` fails while the other rows close |
 | `tp done <id> --reason-file reason.md` | Read the closure reason from a file instead of an argument |
 | `tp done <id> --stdin` | Read the closure reason from stdin |
-| `tp resume [spec]` | Report phase + next action from durable state (reset-native, read-only; `--compact`) |
+| `tp resume [spec]` | Report phase + next action from durable state (reset-native, read-only; `--compact`); a bound file whose epic is blocked and holds no `wip` task reports the `epic-blocked` blocker and no implement unit |
 | `tp brief [id]` | The unit brief (read-only): identity + scope fence + prior work + the task + the close recipe; claims nothing |
 | `tp brief <id> --prior <n>` | Override the prior-work recency cap (0-20; 0 = dependency entries only) |
 | `tp run [spec]` | Drive the cycle unattended, one unit at a time |
