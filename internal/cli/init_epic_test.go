@@ -42,3 +42,10 @@ func assertInitBindingRefused(t *testing.T, id, want string) {
 	assert.True(t, os.IsNotExist(err), "a refused binding creates no task file")
 }
 
+// TestInitEpic_AbsentIDIsRefusedAndCreatesNoFile is §2: an init that wrote
+// the file before checking the id would leave a file bound to nothing.
+func TestInitEpic_AbsentIDIsRefusedAndCreatesNoFile(t *testing.T) {
+	t.Parallel()
+	assertInitBindingRefused(t, "z", "not in the graph")
+}
+
