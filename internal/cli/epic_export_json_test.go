@@ -75,16 +75,32 @@ func TestEpicExport_JSONCarriesVersionBoundFileAndSliceKey(t *testing.T) {
 	assert.Equal(t, "open", p.Slices[0].State, "one clean round does not converge the slice")
 }
 
-// TestEpicExport_ASliceRecordedBeforeV150HasKeyNull is §7: a slice whose
-// state directory holds no key file, as one recorded before v1.5.0, is listed
-// with key null until its next emission.
-func TestEpicExport_ASliceRecordedBeforeV150HasKeyNull(t *testing.T) {
-	t.Parallel()
-	dir := exportWithBRecorded(t)
+// stripSliceKey removes the key file and the snapshots of the one slice
+// under dir, as a slice recorded before v1.5.0 may lack, and returns the
+// slice's state directory.
+func stripSliceKey(t *testing.T, dir string) string {
+	t.Helper()
 	keys, err := filepath.Glob(filepath.Join(dir, ".tp", "epic-review", "*", "key.json"))
 	require.NoError(t, err)
 	require.Len(t, keys, 1)
 	require.NoError(t, os.Remove(keys[0]))
+	sliceDir := filepath.Dir(keys[0])
+	snapshots, err := filepath.Glob(filepath.Join(sliceDir, "snapshot-round-*.json"))
+	require.NoError(t, err)
+	for _, s := range snapshots {
+		require.NoError(t, os.Remove(s))
+	}
+	return sliceDir
+}
+
+// TestEpicExport_ASliceRecordedBeforeV150HasKeyNull is §7 with F6: a slice
+// whose state directory holds no key file and whose recorded rounds name no
+// unit is listed with key null until its next emission.
+func TestEpicExport_ASliceRecordedBeforeV150HasKeyNull(t *testing.T) {
+	t.Parallel()
+	dir := exportWithBRecorded(t)
+	sliceDir := stripSliceKey(t, dir)
+	require.NoError(t, os.WriteFile(filepath.Join(sliceDir, "round-1.ndjson"), nil, 0o600))
 
 	p := runEpicExportJSON(t, dir)
 
