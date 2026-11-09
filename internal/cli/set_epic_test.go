@@ -77,3 +77,10 @@ func assertBindingRefused(t *testing.T, id, want string) {
 	assert.Equal(t, string(before), string(after), "a refused binding writes nothing")
 }
 
+// TestSetEpic_AbsentIDIsRefusedAndWritesNothing is §10 row 1: a binding
+// written before the id is checked would bind the file to nothing.
+func TestSetEpic_AbsentIDIsRefusedAndWritesNothing(t *testing.T) {
+	t.Parallel()
+	assertBindingRefused(t, "z", "not in the graph")
+}
+
