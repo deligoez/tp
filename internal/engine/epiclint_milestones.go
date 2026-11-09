@@ -93,8 +93,11 @@ func lintLaterMilestoneEdges(e *model.Epic, pos map[string]milestonePos, byID ma
 }
 
 // lintEpicGateMembers reports each gate member whose epic is in another
-// milestone than the gate's. A gates key naming no milestone and a member
-// naming no epic are dangling-reference's findings, not this rule's.
+// milestone than the gate's. A gate is its milestone's exit list, so when
+// every member sits in one other milestone the gate was keyed by the
+// milestone it opens and the message names the key it belongs under. A gates
+// key naming no milestone and a member naming no epic are
+// dangling-reference's findings, not this rule's.
 func lintEpicGateMembers(g *model.EpicGraph) []EpicLintFinding {
 	pos := milestonePositions(g)
 	byID := epicMilestones(g)
@@ -103,12 +106,33 @@ func lintEpicGateMembers(g *model.EpicGraph) []EpicLintFinding {
 		if _, ok := pos[name]; !ok {
 			continue
 		}
+		hint := gateKeyHint(name, g.Gates[name].Members, byID)
 		for _, id := range g.Gates[name].Members {
 			if m, ok := byID[id]; ok && m != name {
 				out = append(out, epicNamedError(EpicRuleGateMemberOutsideMilestone,
-					fmt.Sprintf("gate %q member %q is in milestone %q", name, id, m), []string{name}, id))
+					fmt.Sprintf("gate %q member %q is in milestone %q%s", name, id, m, hint), []string{name}, id))
 			}
 		}
 	}
 	return out
+}
+
+// gateKeyHint names the key a gate belongs under when every member it names
+// that exists sits in one milestone other than the key's; otherwise "".
+func gateKeyHint(name string, members []string, byID map[string]string) string {
+	other := ""
+	for _, id := range members {
+		m, ok := byID[id]
+		if !ok {
+			continue
+		}
+		if m == name || (other != "" && m != other) {
+			return ""
+		}
+		other = m
+	}
+	if other == "" {
+		return ""
+	}
+	return fmt.Sprintf("; a gate is keyed by the milestone its members are in (did you mean gates.%q?)", other)
 }
