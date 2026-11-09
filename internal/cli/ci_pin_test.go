@@ -62,3 +62,34 @@ func TestWorkflowToolsArePinned(t *testing.T) {
 	assert.Positive(t, checked,
 		"no `go install` found in any workflow — the regex or the workflows moved, and this guard is measuring nothing")
 }
+
+// setupGoVersion matches a workflow's `go-version:` value.
+var setupGoVersion = regexp.MustCompile(`go-version:\s*(\S+)`)
+
+// TestWorkflowGoIsPinned: the Go toolchain is a gate tool too. `stable` moved
+// from 1.27.1 to 1.27.3 with no commit here, and golangci-lint v2.13.2 then
+// failed on every push reading the new stdlib's export data (version 5) — the
+// same pass-or-fail-by-the-day mechanism TestWorkflowToolsArePinned guards
+// against, one layer down. Every workflow pins an exact N.N.N.
+func TestWorkflowGoIsPinned(t *testing.T) {
+	t.Parallel()
+	dir := filepath.Join(repoRoot(t), ".github", "workflows")
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+
+	exact := regexp.MustCompile(`^\d+\.\d+\.\d+$`)
+	checked := 0
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".yml") {
+			continue
+		}
+		body, readErr := os.ReadFile(filepath.Join(dir, entry.Name()))
+		require.NoError(t, readErr)
+		for _, match := range setupGoVersion.FindAllStringSubmatch(string(body), -1) {
+			checked++
+			assert.Regexp(t, exact, strings.Trim(match[1], `"'`),
+				"%s sets up Go at the floating version %q: pin the exact version the gate is measured at", entry.Name(), match[1])
+		}
+	}
+	assert.Positive(t, checked, "no `go-version:` found in any workflow — the regex or the workflows moved")
+}
