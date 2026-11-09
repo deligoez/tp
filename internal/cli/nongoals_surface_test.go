@@ -75,7 +75,7 @@ escalate: decision evidence option
 graph: from tag
 ground: check force record status units
 import: force spec
-init: commit-strategy domain eject-roles force graph quality-gate
+init: commit-strategy domain eject-roles epic force graph quality-gate
 keep: list remove
 lint:
 list: ids status tag
