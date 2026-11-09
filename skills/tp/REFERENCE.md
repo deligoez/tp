@@ -1360,13 +1360,20 @@ so it changes only through the `tp epic` writers.
 | Key | Shape | Meaning |
 |-----|-------|---------|
 | `milestones` | list of tracks, each an ordered list of names | a name appears once across all tracks; order matters within a track only |
-| `gates.<milestone>` | `{members, deferrable}` | the milestone's **exit** gate, reviewed with it: keyed by the milestone whose epics it lists, not the one it opens; every member must be in that milestone |
+| `gates.<milestone>` | `{members, deferrable, threshold, met}` | the milestone's **exit** gate, reviewed with it: keyed by the milestone whose epics it lists, not the one it opens; every member must be in that milestone; an epic review block shows `threshold`, so editing it re-asks the gate |
 | `tag_checks.<tag>.provided_by` | epic id | every epic carrying the tag must depend on this epic, directly or transitively |
 | `epics[].id` | non-empty string | opaque and unique in the file; spaces and non-ASCII stay as written |
 | `epics[].milestone` | milestone name | required; names one of `milestones` |
 | `epics[].tags` | list of strings | opaque to tp, read only by `tag_checks` |
 | `epics[].depends_on` | list of `{id, why}` | `why` is required and is content, like `title` and `acceptance` |
 | `epics[].root` | boolean, written only when `true` | the epic has no dependency on purpose; `no-dependencies` does not fire on it |
+| `epics[].condition` | boolean, written only when `true` | a precondition the operator decides: no bound file, no claim, done only by a done record; refused on an epic with either |
+| `epics[].estimate_minutes` | integer, written only when set | the epic's estimate; with none, the sum of its bound tasks' estimates when every one has one |
+| `epics[].claimed` | `{at, by}` | written by `tp epic claim`; ignored while a file is bound |
+| `epics[].done` | `{at, evidence}` | written by `tp epic done`, only on an epic with no bound file |
+| `gates.<milestone>.threshold` | string | the exit condition in the operator's words, written before the work |
+| `gates.<milestone>.met` | `{at, evidence, threshold}` | written by `tp epic gate --met`, copying the threshold it was judged against |
+| a task file's `epic` | epic id, top-level | binds the file (v1.5.0): `tp init --epic`, `tp set --epic` (`""` removes it); refused for an id the graph does not hold, a condition or a done epic |
 
 Any key outside this schema is the lint error `unknown-key`. The writers rewrite the file with
 2-space indentation, leave `<`, `>` and `&` unescaped and omit an empty list (`depends_on: []`) and
@@ -1374,6 +1381,10 @@ Any key outside this schema is the lint error `unknown-key`. The writers rewrite
 file's **revision** is the lowercase hex SHA-256 of its bytes, and the empty string when it is absent;
 every graph writer prints the revision it left and takes `--if-revision`, and `tp epic lint` prints
 the one it read.
+
+`claimed`, `done` and `met` are written by their commands and by `tp epic import`, the migration; a
+writer that replaces a whole object (`add`, a `--bulk` row, `set gates=`) carries them over and
+exits 2 on a payload naming them. A file without the v1.5.0 keys reads as before.
 
 ### Lint rules (`tp epic lint`)
 
