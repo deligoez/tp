@@ -270,3 +270,45 @@ func TestEpicAdd_TwoInputSourcesAreAUsageError(t *testing.T) {
 		})
 	}
 }
+
+// epicGraphWithRecords holds an epic a carrying a claim and a done record.
+const epicGraphWithRecords = `{
+  "version": 1,
+  "milestones": [["A"]],
+  "epics": [
+    {"id": "a", "title": "A", "milestone": "A", "claimed": {"at": "2026-01-02T03:04:05Z", "by": "ann"}, "done": {"at": "2026-01-03T03:04:05Z", "evidence": "shipped"}}
+  ]
+}
+`
+
+// TestEpicAdd_BulkRowKeepsAnExistingClaimAndDone is §8: a --bulk row replaces
+// the epic whole, so a writer that did not carry the records over would drop
+// a's claim and done record.
+func TestEpicAdd_BulkRowKeepsAnExistingClaimAndDone(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicGraphWithRecords)
+	bulk := filepath.Join(dir, "rows.ndjson")
+	require.NoError(t, os.WriteFile(bulk, []byte(`{"id": "a", "title": "Renamed", "milestone": "A"}`+"\n"), 0o600))
+
+	_, stderr, code := runTP(t, dir, "epic", "add", "--bulk", bulk)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	var g struct {
+		Epics []struct {
+			Title   string `json:"title"`
+			Claimed *struct {
+				By string `json:"by"`
+			} `json:"claimed"`
+			Done *struct {
+				Evidence string `json:"evidence"`
+			} `json:"done"`
+		} `json:"epics"`
+	}
+	require.NoError(t, json.Unmarshal(readEpicGraphFile(t, dir), &g))
+	require.Len(t, g.Epics, 1)
+	assert.Equal(t, "Renamed", g.Epics[0].Title, "the row replaces the epic")
+	require.NotNil(t, g.Epics[0].Claimed, "the claim is carried over")
+	assert.Equal(t, "ann", g.Epics[0].Claimed.By)
+	require.NotNil(t, g.Epics[0].Done, "the done record is carried over")
+	assert.Equal(t, "shipped", g.Epics[0].Done.Evidence)
+}
