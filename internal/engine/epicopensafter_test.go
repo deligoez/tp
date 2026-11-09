@@ -51,3 +51,15 @@ func TestMilestoneGates_OpensAfterSkipsAnEarlierMilestone(t *testing.T) {
 	assert.Equal(t, []string{"P", "Q", "R"}, openOf(t, g), "R opens after P, not after the red Q")
 }
 
+// TestMilestoneGates_EmptyOpensAfterIsAlwaysOpen is C2.2: on one track
+// [L1, L2, L3] with [] on each, every gate red and nothing done, all three
+// milestones are open.
+func TestMilestoneGates_EmptyOpensAfterIsAlwaysOpen(t *testing.T) {
+	g := opensAfterGraph([][]string{{"L1", "L2", "L3"}}, map[string][]string{"L1": {}, "L2": {}, "L3": {}})
+	gates := gatesOf(t, g)
+	for _, m := range []string{"L1", "L2", "L3"} {
+		assert.False(t, gates[m].Green, "%s's gate is red", m)
+	}
+	assert.Equal(t, []string{"L1", "L2", "L3"}, openOf(t, g))
+}
+
