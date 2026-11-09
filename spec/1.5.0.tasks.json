@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.5.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-09T13:35:09.659695Z",
+  "updated_at": "2026-11-09T13:42:21.667155Z",
   "workflow": {
     "review_max_rounds": 4,
     "audit_max_rounds": 5
@@ -230,7 +230,7 @@
       "id": "epic-status-derive",
       "title": "Derive an epic's status from its files",
       "description": "planned, claimed, specced, in_progress and done per §3, from bound files' tp resume phases, a done record and a claim; a claim on a bound epic is ignored; a bound spec edited after release falls back with its file. §10 row 2.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "status"
@@ -244,11 +244,18 @@
         "## 3. Status",
         "## 10. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-09T13:37:26.099408Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-09T13:42:21.656421Z",
+      "closed_reason": "- §10 row 2: TestDeriveEpicStates_BMovesAsItsFileMoves walks b planned, claimed, specced, in_progress (wip, then all done before audit) and done after the audit converges; a done-from-tasks mutant turned it red\n- TestDeriveEpicStates_DoneNeedsEveryBoundFileAtRelease and TestDeriveEpicStates_SpecEditedAfterReleaseFallsBack: done needs every bound file at release; all tasks done with an unconverged audit is in_progress\n- TestDeriveEpicStates_ClaimOnBoundEpicIgnored: a claim on a bound epic leaves it specced; gate green",
+      "gate_passed_at": "2026-11-09T13:42:21.656421Z",
+      "commit_sha": "4727d76b",
+      "commit_shas": [
+        "4727d76b"
+      ],
+      "commit_files": [
+        "internal/engine/epicderive_test.go"
+      ]
     },
     {
       "id": "epic-done-at",
