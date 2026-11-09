@@ -91,3 +91,10 @@ func TestSetEpic_ConditionIsRefusedAndWritesNothing(t *testing.T) {
 	assertBindingRefused(t, "c", "condition")
 }
 
+// TestSetEpic_DoneEpicIsRefusedAndWritesNothing is §10 row 1: a done epic
+// takes no new work.
+func TestSetEpic_DoneEpicIsRefusedAndWritesNothing(t *testing.T) {
+	t.Parallel()
+	assertBindingRefused(t, "d", "done")
+}
+
