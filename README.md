@@ -401,7 +401,8 @@ Every rule identifier tp can put in a `findings[].rule` field, and the command t
 | `later-milestone-dependency` | `tp epic lint` | error | An epic depends on one in a later milestone of the same track; edges across tracks are free |
 | `gate-member-outside-milestone` | `tp epic lint` | error | A gate's member is not in that milestone |
 | `unprovided-tag-check` | `tp epic lint` | error | An epic carries a tag whose `provided_by` is not in its transitive dependencies; the provider itself is exempt |
-| `no-dependencies` | `tp epic lint` | warning | An epic outside the first milestone of its track has no dependencies |
+| `no-dependencies` | `tp epic lint` | warning | An epic outside the first milestone of its track has no dependencies and is not marked `root: true` |
+| `root-with-dependencies` | `tp epic lint` | warning | An epic marked `root: true` has dependencies |
 | `thin-why` | `tp epic lint` | warning | A `why`, case-folded and split into words, is non-empty and occurs as a run of whole words in the target epic's id or title |
 
 `tp import` runs the same task-file checks as `tp validate`, so it emits that half of the table too.
