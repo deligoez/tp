@@ -235,41 +235,44 @@ func writeEpicGraphWith(opts epicWriteOpts, mutate func(*model.EpicGraph) error)
 
 // exitEpicWriteError maps a refused or failed graph write to its exit code.
 func exitEpicWriteError(err error, bulkLines map[string][]int) {
-	var refused *engine.EpicWriteRefusedError
-	var notFound *engine.EpicNotFoundError
-	var removeRefused *engine.EpicRemoveRefusedError
-	var mce *engine.MalformedConfigError
+	code, message, hint := classifyEpicWriteError(err, bulkLines)
+	output.Error(code, message, hint)
+	os.Exit(code)
+}
+
+// classifyEpicWriteError names the exit code, message and hint of a refused
+// or failed graph write: 4 for a lock, a stale revision or something absent,
+// 1 for a refusal, 3 for a file error.
+func classifyEpicWriteError(err error, bulkLines map[string][]int) (code int, message, hint string) {
 	var lockErr *engine.LockTimeoutError
-	var stale *engine.EpicStaleRevisionError
-	var edgeNotFound *engine.EpicEdgeNotFoundError
-	switch {
-	case errors.As(err, &lockErr):
-		output.Error(ExitState, lockErr.Error(), lockErr.Hint())
-		os.Exit(ExitState)
-	case errors.As(err, &stale):
-		output.Error(ExitState, stale.Error(), epicStaleRevisionHint)
-		os.Exit(ExitState)
-	case errors.As(err, &removeRefused):
-		output.Error(ExitValidation, removeRefused.Error(), epicRemoveRefusedHint)
-		os.Exit(ExitValidation)
-	case errors.As(err, &notFound):
-		output.Error(ExitState, notFound.Error(), epicNotFoundHint)
-		os.Exit(ExitState)
-	case errors.As(err, &edgeNotFound):
-		output.Error(ExitState, edgeNotFound.Error(), epicEdgeNotFoundHint)
-		os.Exit(ExitState)
-	case errors.As(err, &refused) && bulkLines != nil:
-		output.Error(ExitValidation, epicBulkRefusedMessage(refused, bulkLines), epicBulkRefusedHint)
-		os.Exit(ExitValidation)
-	case errors.As(err, &refused):
-		output.Error(ExitValidation, refused.Error(), epicWriteRefusedHint)
-		os.Exit(ExitValidation)
-	case errors.As(err, &mce):
-		output.Error(ExitFile, mce.Error(), epicGraphFileHint)
-		os.Exit(ExitFile)
+	if errors.As(err, &lockErr) {
+		return ExitState, lockErr.Error(), lockErr.Hint()
 	}
-	output.Error(ExitFile, err.Error(), epicGraphWriteHint)
-	os.Exit(ExitFile)
+	var refused *engine.EpicWriteRefusedError
+	if errors.As(err, &refused) {
+		if bulkLines != nil {
+			return ExitValidation, epicBulkRefusedMessage(refused, bulkLines), epicBulkRefusedHint
+		}
+		return ExitValidation, refused.Error(), epicWriteRefusedHint
+	}
+	for _, c := range []struct {
+		target any
+		code   int
+		hint   string
+	}{
+		{new(*engine.EpicStaleRevisionError), ExitState, epicStaleRevisionHint},
+		{new(*engine.EpicRemoveRefusedError), ExitValidation, epicRemoveRefusedHint},
+		{new(*engine.EpicNotFoundError), ExitState, epicNotFoundHint},
+		{new(*engine.EpicEdgeNotFoundError), ExitState, epicEdgeNotFoundHint},
+		{new(*engine.EpicMilestoneNotFoundError), ExitState, epicMilestoneNotFoundHint},
+		{new(*engine.EpicMilestoneExistsError), ExitValidation, epicMilestoneExistsHint},
+		{new(*engine.MalformedConfigError), ExitFile, epicGraphFileHint},
+	} {
+		if errors.As(err, c.target) {
+			return c.code, err.Error(), c.hint
+		}
+	}
+	return ExitFile, err.Error(), epicGraphWriteHint
 }
 
 // epicStaleRevisionHint answers a write whose --if-revision is stale.
