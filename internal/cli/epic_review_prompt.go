@@ -60,6 +60,7 @@ func epicRegressionPrompt(run *epicReviewRun, asked string) epicReviewPrompt {
 	var b strings.Builder
 	b.WriteString(epicRegressionInstructions)
 	b.WriteString(asked)
+	b.WriteString(epicChangedText(run))
 	if len(run.carry.Fixed) > 0 {
 		fmt.Fprintf(&b, "\nFindings round %d resolved fixed — confirm each fix holds:\n", run.round-1)
 		for _, row := range run.carry.Fixed {
@@ -108,14 +109,32 @@ func epicDecidedText(run *epicReviewRun) string {
 		return ""
 	}
 	var b strings.Builder
-	b.WriteString("\nAlready decided — do not raise these again unless the cause they name changed:\n")
-	for _, row := range run.carry.Decided {
-		loc, _ := row["location"].(string)
-		finding, _ := row["finding"].(string)
-		resolved, _ := row["resolved"].(map[string]any)
+	b.WriteString("\nAlready decided — do not raise these again unless the cause they name changed; \"this round\" in a decision's evidence means the round it names:\n")
+	for _, d := range run.carry.Decided {
+		loc, _ := d.Row["location"].(string)
+		finding, _ := d.Row["finding"].(string)
+		resolved, _ := d.Row["resolved"].(map[string]any)
 		status, _ := resolved["status"].(string)
 		evidence, _ := resolved["evidence"].(string)
-		fmt.Fprintf(&b, "- %s: %s — %s: %s\n", loc, finding, status, evidence)
+		fmt.Fprintf(&b, "- %s: %s — round %d, %s: %s\n", loc, finding, d.Round, status, evidence)
+	}
+	return b.String()
+}
+
+// epicChangedText shows, for each asked unit whose own block changed since
+// the round before, the block that round read and the block now, so the
+// regression role reads the change rather than reconstructing it.
+func epicChangedText(run *epicReviewRun) string {
+	var b strings.Builder
+	for _, u := range run.slice.Units {
+		before, ok := run.carry.Before[u.Key]
+		if !ok {
+			continue
+		}
+		if b.Len() == 0 {
+			fmt.Fprintf(&b, "\nChanged since round %d — each unit as that round read it, then as it reads now:\n", run.round-1)
+		}
+		fmt.Fprintf(&b, "--- %s, round %d\n%s--- %s, now\n%s", u.Key, run.round-1, before, u.Key, u.Block)
 	}
 	return b.String()
 }
