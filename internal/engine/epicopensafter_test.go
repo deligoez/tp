@@ -63,3 +63,17 @@ func TestMilestoneGates_EmptyOpensAfterIsAlwaysOpen(t *testing.T) {
 	assert.Equal(t, []string{"L1", "L2", "L3"}, openOf(t, g))
 }
 
+// TestMilestoneGates_OpensAfterCrossesTracks is C2.3: on tracks [X, Y] and
+// [Z] with Z opening after Y, Z opens only when Y is open (X green) and Y is
+// green; X green with Y red, or Y done while X is red, leaves Z closed.
+func TestMilestoneGates_OpensAfterCrossesTracks(t *testing.T) {
+	g := opensAfterGraph([][]string{{"X", "Y"}, {"Z"}}, map[string][]string{"Z": {"Y"}})
+	markDone(g, "y")
+	assert.Equal(t, []string{"X"}, openOf(t, g), "Y is green but not open while X is red")
+
+	g = opensAfterGraph([][]string{{"X", "Y"}, {"Z"}}, map[string][]string{"Z": {"Y"}})
+	markDone(g, "x")
+	assert.Equal(t, []string{"X", "Y"}, openOf(t, g), "X green with Y red leaves Z closed")
+	markDone(g, "y")
+	assert.Equal(t, []string{"X", "Y", "Z"}, openOf(t, g))
+}
