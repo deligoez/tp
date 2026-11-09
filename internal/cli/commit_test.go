@@ -286,6 +286,25 @@ func TestCommit_AFailedClosureStageExitsThree(t *testing.T) {
 	require.Equal(t, 3, code, "stdout: %s stderr: %s", stdout, stderr)
 	assert.Contains(t, stderr, "shim refuses add")
 	assert.NotContains(t, stdout+stderr, "user.name", "no committer identity is involved in staging")
+
+	// The application commit has landed: the envelope names it and the exact
+	// recovery, so an agent amends instead of re-running tp commit, which
+	// would make a second commit and overwrite commit_sha.
+	var envelope map[string]any
+	for line := range strings.SplitSeq(stderr, "\n") {
+		if strings.HasPrefix(line, "{") {
+			require.NoError(t, json.Unmarshal([]byte(line), &envelope))
+		}
+	}
+	require.NotNil(t, envelope, "no JSON error envelope on stderr: %s", stderr)
+	head := exec.Command("git", "rev-parse", "--short", "HEAD")
+	head.Dir = dir
+	out, err := head.Output()
+	require.NoError(t, err)
+	assert.Equal(t, strings.TrimSpace(string(out)), envelope["commit_sha"])
+	hint, _ := envelope["hint"].(string)
+	assert.Contains(t, hint, "git add spec.tasks.json && git commit --amend --no-edit")
+	assert.Contains(t, hint, "do not re-run tp commit")
 }
 
 func TestCommitSequentialTasks(t *testing.T) {
