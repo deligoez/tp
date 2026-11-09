@@ -666,12 +666,13 @@ type batchFailure struct {
 }
 
 // batchRefusalContext is the batch-wide state checkBatchRow reads: the tasks
-// done so far (file and batch), the ids the batch carries, and the effective
-// commit_strategy.
+// done so far (file and batch), the ids the batch carries, the effective
+// commit_strategy, and the epics blocking the file.
 type batchRefusalContext struct {
 	doneSet  map[string]bool
 	batchIDs map[string]bool
 	strategy string
+	blocked  []string
 }
 
 // checkBatchRow runs every refusal a row can meet once the gate has settled —
@@ -713,9 +714,12 @@ func checkBatchRow(tf *model.TaskFile, task *model.Task, entry *batchEntry, rc b
 	return shas, nil
 }
 
-// batchRowBlocker is the failure for an open task's first dependency that is
-// not done, or nil when none blocks it.
+// batchRowBlocker is the failure for an open task of a blocked file, or for
+// its first dependency that is not done, or nil when none blocks it.
 func batchRowBlocker(tf *model.TaskFile, task *model.Task, rc batchRefusalContext) *batchFailure {
+	if msg := doneBlockedMessage(tf, task.ID, rc.blocked); msg != "" {
+		return &batchFailure{ID: task.ID, Error: msg, Hint: epicBlockHint}
+	}
 	for _, dep := range task.DependsOn {
 		if rc.doneSet[dep] {
 			continue
@@ -766,6 +770,7 @@ func runDoneBatch() error {
 		return nil
 	}
 	batchStrategy := resolveEffectiveStrategy(taskFilePath)
+	blocked := epicBlockedBy(tfPre, taskFilePath)
 
 	// Gate runs once before any entry is processed, iff a surviving entry
 	// without skip_gate exists (§6.1); on failure, skip entries still close
@@ -857,7 +862,7 @@ func runDoneBatch() error {
 
 			// Every refusal runs before the row touches its task, so a
 			// refused row is written back exactly as it was read.
-			shas, refusal := checkBatchRow(tf, task, &entry, batchRefusalContext{doneSet: doneSet, batchIDs: batchIDs, strategy: batchStrategy})
+			shas, refusal := checkBatchRow(tf, task, &entry, batchRefusalContext{doneSet: doneSet, batchIDs: batchIDs, strategy: batchStrategy, blocked: blocked})
 			if refusal != nil {
 				failures = append(failures, *refusal)
 				continue
@@ -924,6 +929,7 @@ func runDoneBatch() error {
 				doneCount++
 			}
 		}
+		readyCount = doneReadyCount(readyCount, blocked)
 
 		result := map[string]any{
 			"closed":    closedCount,
