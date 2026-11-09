@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.5.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-09T15:28:39.756292Z",
+  "updated_at": "2026-11-09T15:33:42.211114Z",
   "workflow": {
     "review_max_rounds": 4,
     "audit_max_rounds": 5
@@ -785,7 +785,7 @@
       "id": "epic-unattended-fences",
       "title": "Fence epic operator writes under TP_UNATTENDED",
       "description": "tp epic done and --undo, tp epic gate --met, tp init --epic and tp set --epic (empty too) exit 2 under TP_UNATTENDED; EscalationDecisions gains epic-done, gate-met and epic-binding; tp epic import keeps other (C3); tp epic claim runs. §10 row 14.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "unattended"
@@ -802,11 +802,18 @@
         "## 7. Epic commands",
         "## 10. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-09T15:29:47.19305Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-09T15:33:42.201949Z",
+      "closed_reason": "- §10 row 14: TestEpicOperatorWrites_UnattendedExitTwo (done, done --undo, gate --met, set --epic a/\"\", init --epic exit 2 naming their decision, files byte-identical) and TestEpicClaim_RunsUnattended (claim and --release exit 0); gate green\n- TestEscalateAcceptsTheDocumentedDecisions pins epic-done, gate-met, epic-binding in engine.EscalationDecisions; the import subtest escalates as other (C3)",
+      "gate_passed_at": "2026-11-09T15:33:42.201949Z",
+      "commit_sha": "da59e90c",
+      "commit_shas": [
+        "da59e90c"
+      ],
+      "commit_files": [
+        "internal/cli/epic_operator_fence_test.go"
+      ]
     },
     {
       "id": "docs-skill-epic-progress",
