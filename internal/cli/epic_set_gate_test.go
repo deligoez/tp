@@ -112,3 +112,15 @@ func TestEpicSet_GateFieldOfAnUnknownMilestoneExits4(t *testing.T) {
 	assert.Equal(t, before, readEpicGraphFile(t, dir))
 }
 
+// TestEpicSet_GateMembersAddingALintErrorIsRefused: b is in B, so naming it a
+// member of A's gate adds gate-member-outside-milestone and writes nothing.
+func TestEpicSet_GateMembersAddingALintErrorIsRefused(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicGateFieldGraph(""))
+	before := readEpicGraphFile(t, dir)
+	_, stderr, code := runTP(t, dir, "epic", "set", "gates.A.members=a1,b")
+	require.Equal(t, 1, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "gate-member-outside-milestone")
+	assert.Equal(t, before, readEpicGraphFile(t, dir))
+}
+
