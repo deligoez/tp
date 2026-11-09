@@ -167,3 +167,17 @@ func TestEpicSet_GateDeferrableNamingAnUnknownIDGetsTheGateHint(t *testing.T) {
 	assert.Contains(t, stderr, `list only epics of milestone \"A\" that the graph holds`)
 	assert.NotContains(t, stderr, "depend only on epics the graph holds")
 }
+
+// TestEpicSet_GateDeferrableOutsideItsMilestoneIsRefused: b is in B, so
+// naming it deferrable in A's gate adds gate-member-outside-milestone, as a
+// member would, and writes nothing.
+func TestEpicSet_GateDeferrableOutsideItsMilestoneIsRefused(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicGateFieldGraph(""))
+	before := readEpicGraphFile(t, dir)
+	_, stderr, code := runTP(t, dir, "epic", "set", "gates.A.deferrable=b")
+	require.Equal(t, 1, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "gate-member-outside-milestone")
+	assert.Contains(t, stderr, `deferrable \"b\" is in milestone \"B\"`)
+	assert.Equal(t, before, readEpicGraphFile(t, dir))
+}
