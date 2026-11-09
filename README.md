@@ -413,6 +413,7 @@ Every rule identifier tp can put in a `findings[].rule` field, and the command t
 | `unknown-milestone` | `tp epic lint` | error | An epic's `milestone` is absent or in no track, or `opens_after` names a milestone in no track |
 | `later-milestone-dependency` | `tp epic lint` | error | An epic depends on one in a later milestone of the same track; edges across tracks are free |
 | `gate-member-outside-milestone` | `tp epic lint` | error | A gate member or deferrable epic is not in that milestone |
+| `gate-member-deferrable` | `tp epic lint` | error | A gate lists an epic both in `members` and in `deferrable` |
 | `unprovided-tag-check` | `tp epic lint` | error | An epic carries a tag whose `provided_by` is not in its transitive dependencies; the provider itself is exempt |
 | `opens-after-cycle` | `tp epic lint` | error | The milestones' `opens_after`, track defaults applied, has a cycle (a self-reference too) |
 | `no-dependencies` | `tp epic lint` | warning | An epic outside the first milestone of its track has no dependencies and is neither marked `root: true` nor a condition |
