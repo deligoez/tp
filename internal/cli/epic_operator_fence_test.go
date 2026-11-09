@@ -52,3 +52,19 @@ func TestEpicOperatorWrites_UnattendedExitTwo(t *testing.T) {
 		})
 	}
 }
+
+// TestEpicClaim_RunsUnattended is spec/1.5.0.md §10 row 14 for claim: an
+// agent reserves its own work, so tp epic claim and its --release exit 0
+// under TP_UNATTENDED. A fence on claim fails it.
+func TestEpicClaim_RunsUnattended(t *testing.T) {
+	t.Parallel()
+	dir := bindingDir(t, "b")
+
+	_, stderr, code := runTPFence(t, dir, true, "epic", "claim", "a", "--by", "agent-1")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.Contains(t, string(readEpicGraphFile(t, dir)), `"by": "agent-1"`)
+
+	_, stderr, code = runTPFence(t, dir, true, "epic", "claim", "a", "--release")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.NotContains(t, string(readEpicGraphFile(t, dir)), "agent-1")
+}
