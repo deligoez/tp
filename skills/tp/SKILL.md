@@ -584,6 +584,7 @@ from a done record.
    `partial-parallel` names epics that depend on a milestone theirs no longer opens after; the block
    still makes them wait. It is `info` when the milestone's own entry chose that, a `warning` when it
    follows from defaults, which is the case to check.
+   `dependency-opens-later` is the error on a gate member reaching an epic of a later-opening milestone.
 7. **Conditions.** An external precondition is an epic with `condition: true`
    (`tp epic set <id> condition=true`) whose `acceptance` says what it waits for; work that must not
    start before it depends on it. It takes no task file and no claim, and is done only by
@@ -593,6 +594,7 @@ from a done record.
    milestone's gate, or nothing depends on it, or some undone dependent, in an open milestone or with
    a bound file, waits on conditions alone; `--all` lists the rest with `actionable: false` and
    `not_actionable`, every reason in the order `milestone`, `dependencies`, `dependents`.
+   `gate-held-by-condition` (info) names each gate member waiting on an undone condition, with the path.
 7. **Long-lead epics.** Place an epic that takes long in the earliest milestone where it can start,
    its real dependencies as edges, not in the milestone it must finish by: `tp epic ready` offers it
    as soon as they are done, and `critical_path` shows the chain it lengthens.
