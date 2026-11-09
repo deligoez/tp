@@ -297,9 +297,7 @@ func runGit(args ...string) error {
 // any .tp-review/ or .tp/ state tp wrote in the same invocation).
 func foldClosureCommit(dir, taskID, implSHA string, writtenPaths []string) error {
 	if canAmendClosure(dir, implSHA, writtenPaths) {
-		for _, p := range writtenPaths {
-			_ = runGitDir(dir, "add", "--", p)
-		}
+		stageClosureOrExit(dir, taskID, writtenPaths)
 		if err := runGitDir(dir, "commit", "--amend", "--no-edit"); err == nil {
 			return nil
 		}
@@ -339,11 +337,22 @@ func canAmendClosure(dir, implSHA string, writtenPaths []string) bool {
 // followUpClosureCommit creates a separate follow-up commit chore(tp): record
 // <id> closure carrying the closed task file (§5.1d), leaving C1 as commit_sha.
 func followUpClosureCommit(dir, taskID string, paths []string) error {
-	for _, p := range paths {
-		_ = runGitDir(dir, "add", "--", p)
-	}
+	stageClosureOrExit(dir, taskID, paths)
 	msg := fmt.Sprintf("chore(tp): record %s closure", taskID)
 	return runGitDir(dir, "commit", "-m", msg)
+}
+
+// stageClosureOrExit stages the paths tp wrote for taskID's closure. The
+// implementation commit has already landed, so a failed add leaves the
+// closure on disk and in no commit; amending or committing past it would
+// hide that, so it exits 3 with git's message on stderr.
+func stageClosureOrExit(dir, taskID string, paths []string) {
+	for _, p := range paths {
+		if err := runGitDir(dir, "add", "--", p); err != nil {
+			output.Error(ExitFile, fmt.Sprintf("git add of %s failed: %v; task %s's closure is on disk but in no commit", p, err, taskID), gitIndexHint)
+			os.Exit(ExitFile)
+		}
+	}
 }
 
 func gitHeadShortSHA(dir string) (string, error) {
