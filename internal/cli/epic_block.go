@@ -163,6 +163,24 @@ func refuseBlockedDone(tf *model.TaskFile, id string, blocked []string) {
 	os.Exit(ExitValidation)
 }
 
+// refuseBlockedCommit is tp commit's block: its implicit claim would start
+// task, so while tf's epic is blocked an open task is refused, exit 1 with
+// blocked_by_epics, before anything is staged or written. A task that is not
+// open reads nothing. tf is the file read under tp commit's lock.
+func refuseBlockedCommit(tf *model.TaskFile, task *model.Task, taskFilePath string) {
+	if task.Status != model.StatusOpen {
+		return
+	}
+	blocked := epicBlockedBy(tf, taskFilePath)
+	if blocked == nil {
+		return
+	}
+	output.ErrorExtras(ExitValidation,
+		fmt.Sprintf("cannot commit: task %s is not wip and %s", task.ID, epicBlockedMessage(tf, blocked)),
+		map[string]any{"blocked_by_epics": blocked}, epicBlockHint)
+	os.Exit(ExitValidation)
+}
+
 // doneReadyCount is the ready count tp done reports: a blocked file offers
 // no task to start, so its open tasks are left out.
 func doneReadyCount(ready int, blocked []string) int {

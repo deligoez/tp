@@ -71,6 +71,10 @@ func runCommit(_ *cobra.Command, args []string) error {
 			return nil
 		}
 
+		// The implicit claim below starts an open task, which a blocked
+		// epic forbids (spec/1.5.0.md §6); a wip task commits as before.
+		refuseBlockedCommit(tf, task, taskFilePath)
+
 		// Implicit claim
 		if task.Status == model.StatusOpen {
 			done := make(map[string]bool)
