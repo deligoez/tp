@@ -40,6 +40,9 @@ func epicFindingRefusedHint(f *engine.EpicLintFinding) string {
 	if hint, ok := epicDanglingOriginHints[f.Origin]; ok && f.Rule == engine.EpicRuleDanglingReference {
 		return hint
 	}
+	if f.Rule == engine.EpicRuleDependencyOpensLater {
+		return dependencyOpensLaterHint(f)
+	}
 	if hint, ok := epicRuleRefusedHints[f.Rule]; ok {
 		return hint
 	}
@@ -63,4 +66,17 @@ func epicRefusedHint(refused *engine.EpicWriteRefusedError) string {
 		return epicWriteRefusedHint
 	}
 	return strings.Join(hints, "; ")
+}
+
+// dependencyOpensLaterHint answers a gate member reaching an epic of a
+// milestone that opens after the gate's: the finding's Gate is the gate's
+// milestone, and its other name the later one.
+func dependencyOpensLaterHint(f *engine.EpicLintFinding) string {
+	later := f.Gate
+	for _, name := range f.Names {
+		if name != f.Gate {
+			later = name
+		}
+	}
+	return fmt.Sprintf("move the epic of %q the message names to a milestone that opens no later than %q, or drop the dependency, or make the member deferrable", later, f.Gate)
 }
