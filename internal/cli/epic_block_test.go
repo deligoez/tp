@@ -87,3 +87,24 @@ func TestNext_BlockedByEpicUntilItIsDone(t *testing.T) {
 	assert.Empty(t, blockedByEpics(t, stdout))
 }
 
+// TestNextPeekAndReady_CarryBlockedByEpics is spec/1.5.0.md §6: tp next
+// --peek and tp ready offer no task to start on a blocked file and carry
+// blocked_by_epics.
+func TestNextPeekAndReady_CarryBlockedByEpics(t *testing.T) {
+	t.Parallel()
+	dir := blockDir(t, "b", "open", "open")
+
+	stdout, stderr, code := runTP(t, dir, "next", "--peek")
+	require.Equal(t, 4, code, "stderr: %s", stderr)
+	assert.Equal(t, []string{"c"}, blockedByEpics(t, stdout))
+
+	stdout, stderr, code = runTP(t, dir, "ready")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.Equal(t, []string{"c"}, blockedByEpics(t, stdout))
+	var ready struct {
+		Ready []json.RawMessage `json:"ready"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &ready))
+	assert.Empty(t, ready.Ready)
+}
+
