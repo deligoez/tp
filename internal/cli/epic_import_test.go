@@ -69,15 +69,15 @@ func TestEpicImport_PayloadWithACycleIsWrittenAndReported(t *testing.T) {
 	stdout, stderr, code := runTP(t, dir, "epic", "import", payload)
 	require.Equal(t, 0, code, "stderr: %s", stderr)
 	var out struct {
-		File     string   `json:"file"`
-		Epics    []string `json:"epics"`
+		File     string `json:"file"`
+		Epics    int    `json:"epics"`
 		Findings []struct {
 			Rule  string   `json:"rule"`
 			Epics []string `json:"epics"`
 		} `json:"findings"`
 	}
 	require.NoError(t, json.Unmarshal([]byte(stdout), &out), "stdout: %s", stdout)
-	assert.Equal(t, []string{"x", "y"}, out.Epics)
+	assert.Equal(t, 2, out.Epics, "import counts the epics it wrote rather than listing them")
 	require.Len(t, out.Findings, 1)
 	assert.Equal(t, "cycle", out.Findings[0].Rule)
 	assert.Equal(t, []string{"x", "y"}, out.Findings[0].Epics)
