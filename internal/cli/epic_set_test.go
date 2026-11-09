@@ -54,6 +54,27 @@ func TestEpicSet_FieldAddingAnErrorIsRefusedAndWritesNothing(t *testing.T) {
 	assert.Equal(t, before, readEpicGraphFile(t, dir), "a refused set writes nothing")
 }
 
+// TestEpicSet_GatesNamingMetIsAUsageErrorAndWritesNothing is §8: met is
+// written by its command, so a payload that names it exits 2 before any write.
+func TestEpicSet_GatesNamingMetIsAUsageErrorAndWritesNothing(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{
+  "version": 1,
+  "milestones": [["A"]],
+  "epics": [
+    {"id": "a", "title": "A", "milestone": "A"}
+  ]
+}
+`)
+	before := readEpicGraphFile(t, dir)
+
+	_, stderr, code := runTP(t, dir, "epic", "set",
+		`gates={"A": {"members": ["a"], "met": {"at": "2026-01-02T03:04:05Z", "evidence": "run 7", "threshold": ""}}}`)
+	require.Equal(t, 2, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "met")
+	assert.Equal(t, before, readEpicGraphFile(t, dir), "a refused set writes nothing")
+}
+
 // TestEpicSet_GatesAndTagChecksReplaceTheWholeObject: a set merging into the
 // existing object would keep gate A and tag check det.
 func TestEpicSet_GatesAndTagChecksReplaceTheWholeObject(t *testing.T) {
