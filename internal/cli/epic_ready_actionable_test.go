@@ -77,3 +77,16 @@ func TestEpicReady_C3_3_AConditionWithAnUndoneDependencyIsNotActionable(t *testi
 	assert.Equal(t, map[string]bool{"c": false}, operatorConditions(t, dir, "--all"))
 }
 
+// TestEpicReady_C3_4_AConditionInAClosedMilestoneIsNotActionable is C3.4: c
+// is in B, which waits on A's red gate.
+func TestEpicReady_C3_4_AConditionInAClosedMilestoneIsNotActionable(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{"version": 1, "milestones": [["A", "B"]], "epics": [
+    {"id": "a", "title": "A", "milestone": "A", "root": true},
+    {"id": "c", "title": "C", "milestone": "B", "root": true, "condition": true, "acceptance": "the board says yes"},
+    {"id": "w", "title": "W", "milestone": "B", "depends_on": [{"id": "c", "why": "w ships once the board agrees"}]}
+  ]}`)
+	assert.Empty(t, operatorConditions(t, dir))
+	assert.Equal(t, map[string]bool{"c": false}, operatorConditions(t, dir, "--all"))
+}
+
