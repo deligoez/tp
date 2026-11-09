@@ -57,3 +57,19 @@ func TestEpicSet_OpensAfterReportsChangedAncestry(t *testing.T) {
 		runEpicSetAncestry(t, dir, `opens_after={"G": ["E2"], "H": ["F", "G"]}`), "an unchanged map lists none")
 }
 
+// TestEpicSet_MilestonesReportsChangedAncestry: reordering a track swaps
+// its first two milestones' ancestry and leaves the third's, which opens
+// after both either way, unlisted; rows follow the new track order.
+func TestEpicSet_MilestonesReportsChangedAncestry(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{
+  "version": 1,
+  "milestones": [["A", "B", "C"]],
+  "epics": [{"id": "a", "title": "A", "milestone": "A", "root": true}]
+}
+`)
+	assert.Equal(t, []ancestryChange{
+		{Milestone: "B", Lost: []string{"A"}, Gained: []string{}},
+		{Milestone: "A", Lost: []string{}, Gained: []string{"B"}},
+	}, runEpicSetAncestry(t, dir, `milestones=[["B", "A", "C"]]`))
+}
