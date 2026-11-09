@@ -197,6 +197,38 @@ func TestDone_RefusesAnOpenTaskOnABlockedFile(t *testing.T) {
 	assert.NotContains(t, string(taskFileBytes(t, dir)), `"done"`, "no task of the blocked file closed")
 }
 
+// TestNextAndReady_AnAllDoneFileAnswersAllDoneWhileBlocked is spec/1.5.0.md
+// §6: the block only stops starting a task, so a file whose tasks are all done
+// answers as an unbound one does — tp next and tp next --peek report all
+// tasks complete, tp ready lists nothing and --first exits 4 with no ready
+// tasks — and carries no blocked_by_epics. A block judged before the all-done
+// answer reports the blocked epic instead and fails.
+func TestNextAndReady_AnAllDoneFileAnswersAllDoneWhileBlocked(t *testing.T) {
+	t.Parallel()
+	dir := blockDir(t, "b", "done", "done")
+
+	for _, args := range [][]string{{"next"}, {"next", "--peek"}} {
+		stdout, stderr, code := runTP(t, dir, args...)
+		require.Equal(t, 4, code, "%v stdout: %s stderr: %s", args, stdout, stderr)
+		var p struct {
+			Done    bool   `json:"done"`
+			Message string `json:"message"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(stdout), &p), "%v stdout: %s", args, stdout)
+		assert.True(t, p.Done, "%v stdout: %s", args, stdout)
+		assert.Equal(t, "All tasks complete", p.Message, "%v", args)
+		assert.Empty(t, blockedByEpics(t, stdout), "%v", args)
+	}
+
+	stdout, stderr, code := runTP(t, dir, "ready")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.JSONEq(t, "[]", stdout)
+
+	_, stderr, code = runTP(t, dir, "ready", "--first")
+	assert.Equal(t, 4, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "no ready tasks")
+}
+
 // gateBindsDir returns a project holding blockGraph(false) and an unbound
 // spec.tasks.json with two open tasks whose quality gate binds the file to
 // the blocked epic b while it runs.
