@@ -1426,7 +1426,7 @@ two cycle rules reports one finding per offending item.
 | `root-with-dependencies` | warning | an epic marked `root: true` has dependencies |
 | `thin-why` | warning | a `why`, case-folded and split into words, is non-empty and occurs as a run of whole words in the target epic's id or title |
 | `partial-parallel` | warning, or info when the milestone has an `opens_after` entry | a milestone does not open after an earlier milestone of its track, even transitively, yet some of its epics depend directly on that milestone's epics; one finding per pair, `epics` those dependents |
-| `gate-held-by-condition` | info | an effective gate member reaches an undone condition through epics without a done record; one finding per member and condition, `epics` the two, the path in the message (v1.6.0) |
+| `gate-held-by-condition` | info | effective gate members reach an undone condition of another milestone through epics without a done record; one finding per gate milestone and condition, `epics` the condition and every member reaching it, one example path in the message. A condition in the gate's own milestone, the trigger of a trigger-led milestone, is not reported (v1.6.0) |
 
 `tp epic review` runs the error rules over the whole file at every emission as `mechanical_checks`
 and names their slugs in `mechanized_classes`, withheld from the role prompts.
