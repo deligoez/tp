@@ -129,6 +129,28 @@ func TestEpicSet_GatesAndTagChecksReplaceTheWholeObject(t *testing.T) {
 	assert.Equal(t, "b", g.TagChecks["ui"].ProvidedBy)
 }
 
+// TestEpicSet_ConditionOnAFreeEpicIsWritten: the refusal is for a bound or
+// claimed epic only, so one with neither becomes a condition and back.
+func TestEpicSet_ConditionOnAFreeEpicIsWritten(t *testing.T) {
+	t.Parallel()
+	dir := boundEpicDir(t, `{
+  "version": 1,
+  "milestones": [["A"]],
+  "epics": [
+    {"id": "b", "title": "B", "milestone": "A"},
+    {"id": "c", "title": "C", "milestone": "A", "acceptance": "the vendor signs"}
+  ]
+}
+`)
+	_, stderr, code := runTP(t, dir, "epic", "set", "c", "condition=true")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.Contains(t, string(readEpicGraphFile(t, dir)), `"condition": true`)
+
+	_, stderr, code = runTP(t, dir, "epic", "set", "c", "condition=false")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.NotContains(t, string(readEpicGraphFile(t, dir)), `"condition"`)
+}
+
 // TestEpicSet_GatesKeepsAnExistingMetRecord is §8: set gates= replaces the
 // object whole, so a writer that did not carry met over would drop A's record.
 func TestEpicSet_GatesKeepsAnExistingMetRecord(t *testing.T) {
