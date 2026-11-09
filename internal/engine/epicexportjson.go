@@ -133,8 +133,8 @@ func epicGroundLoop(specPath string) (EpicLoop, error) {
 }
 
 // EpicSliceState is one epic review slice as tp epic export lists it: its
-// state directory's name under .tp/epic-review/, its key (nil for a slice
-// recorded before v1.5.0), and its loop.
+// state directory's name under .tp/epic-review/, its key (key.json's, else
+// the one its recorded rounds name; nil when neither says), and its loop.
 type EpicSliceState struct {
 	Dir string              `json:"dir"`
 	Key *EpicSliceKeyRecord `json:"key"`
@@ -163,6 +163,9 @@ func EpicReviewSlices(tpDir string, g *model.EpicGraph, p EpicReviewPolicy) ([]E
 		key, err := ReadEpicSliceKey(dir)
 		if err != nil {
 			return nil, err
+		}
+		if key == nil {
+			key = deriveEpicSliceKey(dir, g)
 		}
 		units, known := epicSliceUnits(g, key)
 		st, err := EpicReviewLoopStatus(dir, units, p)
