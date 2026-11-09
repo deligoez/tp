@@ -318,9 +318,7 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 		// commit on guard failure, leaving the working tree clean for tp-owned
 		// paths. Only when tp made the implementation commit this invocation.
 		if doneAutoCommit && len(doneCommits) > 0 {
-			if foldErr := foldClosureCommit(".", task.ID, doneCommits[0], []string{taskFilePath}); foldErr != nil {
-				fmt.Fprintf(os.Stderr, "warning: could not fold closure into %s: %v\n", doneCommits[0], foldErr)
-			}
+			foldClosureCommit(".", task.ID, doneCommits[0], []string{taskFilePath})
 		}
 
 		warnUnexplainedChanges(unexplainedChangeCount(taskFilePath))

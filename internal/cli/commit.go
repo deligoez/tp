@@ -170,10 +170,8 @@ func runCommit(_ *cobra.Command, args []string) error {
 
 		// §5.1b-d: fold the closure into C1 via amend (guarded), or a follow-up
 		// commit on guard failure, leaving the working tree clean for tp-owned
-		// paths. Best-effort: the closure record is already on disk.
-		if foldErr := foldClosureCommit(".", task.ID, sha, []string{taskFilePath}); foldErr != nil {
-			fmt.Fprintf(os.Stderr, "warning: could not fold closure into %s: %v\n", sha, foldErr)
-		}
+		// paths. A closure that lands in no commit exits 3 inside.
+		foldClosureCommit(".", task.ID, sha, []string{taskFilePath})
 
 		return output.JSON(map[string]any{
 			"id":      task.ID,
@@ -312,14 +310,14 @@ func runGit(args ...string) error {
 // Both guards must hold, else it falls back to a follow-up commit (§5.1d).
 // writtenPaths are the paths tp wrote during this command (the task file, plus
 // any .tp-review/ or .tp/ state tp wrote in the same invocation).
-func foldClosureCommit(dir, taskID, implSHA string, writtenPaths []string) error {
+func foldClosureCommit(dir, taskID, implSHA string, writtenPaths []string) {
 	if canAmendClosure(dir, implSHA, writtenPaths) {
 		stageClosureOrExit(dir, taskID, implSHA, writtenPaths, "git commit --amend --no-edit")
 		if err := runGitDir(dir, "commit", "--amend", "--no-edit"); err == nil {
-			return nil
+			return
 		}
 	}
-	return followUpClosureCommit(dir, taskID, implSHA, writtenPaths)
+	followUpClosureCommitOrExit(dir, taskID, implSHA, writtenPaths)
 }
 
 // canAmendClosure reports whether both §5.1b guards hold:
@@ -351,12 +349,22 @@ func canAmendClosure(dir, implSHA string, writtenPaths []string) bool {
 	return true
 }
 
-// followUpClosureCommit creates a separate follow-up commit chore(tp): record
-// <id> closure carrying the closed task file (§5.1d), leaving C1 as commit_sha.
-func followUpClosureCommit(dir, taskID, implSHA string, paths []string) error {
+// followUpClosureCommitOrExit creates a separate follow-up commit chore(tp):
+// record <id> closure carrying the closed task file (§5.1d), leaving C1 as
+// commit_sha. C1 has landed, so a failed commit leaves the closure staged and
+// in no commit: it exits 3 with implSHA as commit_sha and the exact recovery,
+// as stageClosureOrExit does, rather than warning and exiting 0.
+func followUpClosureCommitOrExit(dir, taskID, implSHA string, paths []string) {
 	msg := fmt.Sprintf("chore(tp): record %s closure", taskID)
-	stageClosureOrExit(dir, taskID, implSHA, paths, fmt.Sprintf("git commit -m %q", msg))
-	return runGitDir(dir, "commit", "-m", msg)
+	commitCmd := fmt.Sprintf("git commit -m %q", msg)
+	stageClosureOrExit(dir, taskID, implSHA, paths, commitCmd)
+	if err := runGitDir(dir, "commit", "-m", msg); err != nil {
+		hint := fmt.Sprintf("application commit %s already landed and the closure is staged; recover with `%s`; do not re-run tp commit or tp done for %s, which would make a second commit and overwrite commit_sha. %s",
+			implSHA, commitCmd, taskID, gitSubprocessHint)
+		output.ErrorExtras(ExitFile, fmt.Sprintf("git commit of task %s's closure failed: %v; the closure is on disk but in no commit", taskID, err),
+			map[string]any{"commit_sha": implSHA}, hint)
+		os.Exit(ExitFile)
+	}
 }
 
 // stageClosureOrExit stages the paths tp wrote for taskID's closure. The

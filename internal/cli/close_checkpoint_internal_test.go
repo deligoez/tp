@@ -98,8 +98,7 @@ func TestFoldClosureCommit_FollowUpOnHeadsMoved(t *testing.T) {
 	gitRunInternal(t, dir, "commit", "--allow-empty", "-m", "sneaky")
 	writeInternalFile(t, filepath.Join(dir, "spec.tasks.json"), "v2 closed\n")
 
-	err := foldClosureCommit(dir, "t1", c1, []string{"spec.tasks.json"})
-	require.NoError(t, err)
+	foldClosureCommit(dir, "t1", c1, []string{"spec.tasks.json"})
 
 	logOut := gitRunInternal(t, dir, "log", "--format=%s")
 	assert.Contains(t, logOut, "chore(tp): record t1 closure")
