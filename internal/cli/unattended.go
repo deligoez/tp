@@ -51,6 +51,16 @@ func fenceEpicWrite(what string) {
 	}
 }
 
+// fenceEpicOperatorWrite refuses a done record, a met record or a binding
+// under TP_UNATTENDED, the removals included (spec/1.5.0.md §7): each is the
+// operator's, and decision is the name a unit escalates it under. tp epic
+// claim is not fenced, since an agent reserves its own work.
+func fenceEpicOperatorWrite(what, decision string) {
+	if engine.Unattended() {
+		refuseUnattended(what, decision)
+	}
+}
+
 // refuseUnattendedCommandField reports an attempt to set runner or notify_cmd
 // under TP_UNATTENDED and exits 2. These are fenced more strictly than the
 // caps: they name commands the driver executes, so no value at any layer is

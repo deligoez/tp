@@ -33,6 +33,7 @@ func newEpicDoneCmd() *cobra.Command {
 // --evidence and --undo (else exit 2), then one locked write that exits 1 on
 // a refusal and 4 for an absent epic.
 func runEpicDone(cmd *cobra.Command, args []string) error {
+	fenceEpicOperatorWrite("tp epic done", engine.EscalateEpicDone)
 	evidence, _ := cmd.Flags().GetString("evidence")
 	undo, _ := cmd.Flags().GetBool("undo")
 	if undo == (evidence != "") {

@@ -58,6 +58,7 @@ func runInit(_ *cobra.Command, args []string) error {
 	}
 	specPath := args[0]
 	if initEpic != "" {
+		fenceEpicOperatorWrite("tp init --epic", engine.EscalateEpicBinding)
 		exitOnEpicBindingRefusal(initEpic)
 	}
 

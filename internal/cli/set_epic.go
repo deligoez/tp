@@ -23,6 +23,7 @@ type epicBindingWritten struct {
 // runSetEpic implements tp set --epic <id> (spec/1.5.0.md §2): it writes id
 // as the task file's epic, or removes the binding when id is empty.
 func runSetEpic(args []string, id string) error {
+	fenceEpicOperatorWrite("tp set --epic", engine.EscalateEpicBinding)
 	if len(args) != 0 {
 		output.Error(ExitUsage, "tp set --epic takes no positional arguments", `tp set --epic <id>, or tp set --epic "" to remove the binding`)
 		os.Exit(ExitUsage)

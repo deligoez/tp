@@ -61,6 +61,7 @@ func newEpicGateCmd() *cobra.Command {
 // while a member is not done or the threshold is empty, 4 for a milestone no
 // track lists, and the shared write's codes otherwise.
 func runEpicGateMet(cmd *cobra.Command, m string) {
+	fenceEpicOperatorWrite("tp epic gate --met", engine.EscalateGateMet)
 	evidence, _ := cmd.Flags().GetString("evidence")
 	if evidence == "" {
 		output.Error(ExitUsage, "--met needs --evidence", epicGateMetUsageHint)
