@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"maps"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -59,7 +61,12 @@ func withAncestryReport(mutate func(*model.EpicGraph) error, opts *epicWriteOpts
 	changes := []engine.AncestryChange{}
 	opts.ancestry = &changes
 	return func(g *model.EpicGraph) error {
-		before := &model.EpicGraph{Milestones: g.Milestones, OpensAfter: g.OpensAfter}
+		// A copy of the tracks: a mutation may edit one in place (an insert).
+		tracks := make([][]string, len(g.Milestones))
+		for i, track := range g.Milestones {
+			tracks[i] = slices.Clone(track)
+		}
+		before := &model.EpicGraph{Milestones: tracks, OpensAfter: maps.Clone(g.OpensAfter)}
 		if err := mutate(g); err != nil {
 			return err
 		}

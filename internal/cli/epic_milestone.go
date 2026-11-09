@@ -55,6 +55,10 @@ func runEpicMilestoneAdd(cmd *cobra.Command, args []string) error {
 		os.Exit(ExitUsage)
 	}
 	action := engine.EpicEdgeAdded
-	writeEpicGraphWith(epicWriteOpts{ifRevision: epicIfRevision(cmd), action: &action}, engine.InsertMilestone(args[0], place))
+	// An insert re-routes the default opens_after of the milestone after it,
+	// so the write reports the ancestry it changed, as set milestones= does.
+	opts := epicWriteOpts{ifRevision: epicIfRevision(cmd), action: &action}
+	mutate := withAncestryReport(engine.InsertMilestone(args[0], place), &opts)
+	writeEpicGraphWith(opts, mutate)
 	return nil
 }
