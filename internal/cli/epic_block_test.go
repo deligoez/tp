@@ -183,6 +183,48 @@ func TestDone_RefusesAnOpenTaskOnABlockedFile(t *testing.T) {
 	assert.NotContains(t, string(taskFileBytes(t, dir)), `"done"`, "no task of the blocked file closed")
 }
 
+// gateBindsDir returns a project holding blockGraph(false) and an unbound
+// spec.tasks.json with two open tasks whose quality gate binds the file to
+// the blocked epic b while it runs.
+func gateBindsDir(t *testing.T) string {
+	t.Helper()
+	dir := blockDir(t, "", "open", "open")
+	var tf map[string]any
+	require.NoError(t, json.Unmarshal(taskFileBytes(t, dir), &tf))
+	delete(tf, "epic")
+	tf["workflow"] = map[string]any{"quality_gate": binaryPath + " set --epic b"}
+	body, err := json.Marshal(tf)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.tasks.json"), body, 0o600))
+	return dir
+}
+
+// TestDone_ABindingMadeDuringTheGateRefusesTheOpenTask is spec/1.5.0.md §6:
+// the epic block is judged on the file read under the lock, so a gate that
+// binds the file to a blocked epic while it runs leaves the open task open —
+// by id, by several ids and by --batch. A tp done that judged the file it read
+// before the gate closes t1 and fails.
+func TestDone_ABindingMadeDuringTheGateRefusesTheOpenTask(t *testing.T) {
+	t.Parallel()
+	for _, mode := range []string{"single", "multi", "batch"} {
+		dir := gateBindsDir(t)
+		args := []string{"done", "t1", "tested by the fixture"}
+		switch mode {
+		case "multi":
+			args = []string{"done", "t1", "t2", "tested by the fixture"}
+		case "batch":
+			batch := filepath.Join(dir, "batch.ndjson")
+			require.NoError(t, os.WriteFile(batch, []byte(`{"id":"t1","reason":"tested by the fixture"}`+"\n"), 0o600))
+			args = []string{"done", "--batch", batch}
+		}
+		stdout, stderr, code := runTP(t, dir, args...)
+		assert.Equal(t, 1, code, "%s: stdout: %s stderr: %s", mode, stdout, stderr)
+		after := string(taskFileBytes(t, dir))
+		require.Contains(t, after, `"epic": "b"`, "%s: the gate bound the file", mode)
+		assert.NotContains(t, after, `"status": "done"`, "%s: no open task of the now blocked file closed", mode)
+	}
+}
+
 // TestDone_ClosesAWipTaskOnABlockedFileAndCountsNoNext is spec/1.5.0.md §6: a
 // wip task closes on a blocked file as today, and the next-task counts leave
 // the blocked file's open tasks out: ready is 0 and has_next is false.
