@@ -148,3 +148,31 @@ func TestNext_AbsentEpicBehavesAsUnboundAndSaysSo(t *testing.T) {
 	assert.Contains(t, stderr, `"z"`)
 	assert.Contains(t, stderr, "behaves as unbound")
 }
+
+// TestDone_RefusesAnOpenTaskOnABlockedFile is spec/1.5.0.md §10 row 3: on a
+// blocked file tp done refuses a task that is not already wip — by id it
+// exits 1, names the dependency and writes nothing; by several ids and by
+// --batch the task is refused and stays open. A tp done that ignored the graph
+// claims and closes t1 and fails.
+func TestDone_RefusesAnOpenTaskOnABlockedFile(t *testing.T) {
+	t.Parallel()
+	dir := blockDir(t, "b", "open", "open")
+	before := taskFileBytes(t, dir)
+
+	_, stderr, code := runTP(t, dir, "done", "t1", "tested by the fixture")
+	require.Equal(t, 1, code, "stderr: %s", stderr)
+	assert.Equal(t, []string{"c"}, blockedByEpics(t, stderr))
+	assert.Equal(t, before, taskFileBytes(t, dir), "a refused tp done writes nothing")
+
+	stdout, stderr, code := runTP(t, dir, "done", "t1", "t2", "tested by the fixture")
+	require.Equal(t, 1, code, "stdout: %s stderr: %s", stdout, stderr)
+	assert.Contains(t, stdout, "epic b is blocked by c")
+
+	batch := filepath.Join(dir, "batch.ndjson")
+	require.NoError(t, os.WriteFile(batch, []byte(`{"id":"t1","reason":"tested by the fixture"}`+"\n"), 0o600))
+	stdout, stderr, code = runTP(t, dir, "done", "--batch", batch)
+	require.NotEqual(t, 0, code, "stdout: %s stderr: %s", stdout, stderr)
+	assert.Contains(t, stdout, "epic b is blocked by c")
+
+	assert.NotContains(t, string(taskFileBytes(t, dir)), `"done"`, "no task of the blocked file closed")
+}
