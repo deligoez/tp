@@ -1366,8 +1366,8 @@ so it changes only through the `tp epic` writers.
 | `epics[].depends_on` | list of `{id, why}` | `why` is required and is content, like `title` and `acceptance` |
 
 Any key outside this schema is the lint error `unknown-key`. The writers rewrite the file with
-2-space indentation and leave `<`, `>` and `&` unescaped, so a file loaded and written unchanged is
-byte-identical.
+2-space indentation, leave `<`, `>` and `&` unescaped and omit an empty list (`depends_on: []`), so a
+file already in that form, loaded and written unchanged, is byte-identical.
 
 ### Lint rules (`tp epic lint`)
 
