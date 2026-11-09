@@ -88,7 +88,7 @@ report:
 resume:
 review: affected-files check diff-from docs-path final-round findings force harness-note merge no-state output perspective record report resolve resolve-all role round spec-inline status test-path verify
 run: dry-run status
-set: bulk local project workflow
+set: bulk epic local project workflow
 show:
 stats:
 status:
