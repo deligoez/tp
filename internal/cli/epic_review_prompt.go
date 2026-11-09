@@ -66,6 +66,13 @@ func epicRegressionPrompt(run *epicReviewRun, asked string) epicReviewPrompt {
 	b.WriteString(epicRegressionInstructions)
 	b.WriteString(asked)
 	b.WriteString(epicChangedText(run))
+	if len(run.handoff) > 0 {
+		b.WriteString("\nNamed by a changed unit — the epics its text hands work to; check each takes what it is handed, but do not review it:\n")
+		for _, c := range run.handoff {
+			b.WriteString("---\n" + c.Block)
+		}
+		b.WriteString("---\n")
+	}
 	if len(run.carry.Fixed) > 0 {
 		fmt.Fprintf(&b, "\nFindings round %d resolved fixed — confirm each fix holds:\n", run.round-1)
 		for _, row := range run.carry.Fixed {

@@ -50,6 +50,7 @@ type epicReviewRun struct {
 	all      []engine.EpicReviewUnit
 	carry    engine.EpicCarry
 	checks   []engine.EpicMechanicalCheck
+	handoff  []engine.EpicContextBlock // epics a changed unit's text names, for regression
 }
 
 func newEpicReviewCmd() *cobra.Command {
@@ -200,9 +201,11 @@ func loadEpicReviewRun(key engine.EpicSliceKey) epicReviewRun {
 		output.Error(ExitFile, err.Error(), epicRoundFileHint)
 		os.Exit(ExitFile)
 	}
+	context := engine.EpicCarriedContext(g, carry.Asked)
 	return epicReviewRun{
 		key: key, tpDir: tpDir, stateDir: stateDir, round: round, all: slice.Units, carry: carry,
-		slice:  engine.EpicSlice{Units: carry.Asked, Context: engine.EpicCarriedContext(g, carry.Asked)},
-		checks: engine.EpicMechanicalChecks(engine.LintEpicGraph(g, unknown)),
+		slice:   engine.EpicSlice{Units: carry.Asked, Context: context},
+		checks:  engine.EpicMechanicalChecks(engine.LintEpicGraph(g, unknown)),
+		handoff: engine.EpicHandoffContext(g, &carry, context),
 	}
 }
