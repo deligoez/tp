@@ -239,7 +239,7 @@ tp review spec.md --role NAME  # Emit one role's prompt only (also on tp audit)
 tp audit spec.md               # Post-implementation: verify the code matches the spec
 tp validate                    # Task file + coverage + atomicity (--strict, --project)
 tp epic lint                   # Lint the epic graph in .tp/epics.json (exit 1 on an error, 3 with no file)
-tp epic export                 # The plan as versioned JSON: graph, derived status, bound files' loops, review slices (--md: tables)
+tp epic export                 # The plan as versioned JSON: critical path, graph, derived status, bound files' loops, review slices (--md: tables)
 tp epic add '<json>'           # Add an epic (--stdin, --bulk); a write adding a lint error exits 1, writes nothing
 tp epic set <id> field=value   # Set an epic field, milestones|opens_after|gates|tag_checks=<json> whole, or gates.<m>.<field>=<value>
 tp epic remove <id>            # Remove an epic; one depended on needs --force, a tag_checks provider is refused
@@ -250,7 +250,7 @@ tp epic gate <m>               # A milestone's gate: members green or red, defer
 tp epic done <id> --evidence e # Record an epic with no bound file done (--undo removes it); a condition needs its acceptance
 tp epic claim <id> --by <name> # Reserve an epic (--release frees it); refused when claimed, on a condition, a done or a bound epic
 tp epic ready                  # Work epics that can start, ranked by downstream; claimed ones and actionable conditions apart (--all)
-tp epic status                 # Critical path; per milestone: open, waiting_on, counts, gate, ready, blocked (--milestone, --open, --compact)
+tp epic status                 # Critical path; per milestone: open, waiting_on, counts, gate, ready, blocked with held_by (--milestone, --open, --compact)
 tp epic import <file>          # Replace the graph with a file (--force over one holding epics); reports its lint findings
 tp epic review --epic <id>     # One prompt per graph role over a slice (or --milestone <m>, --epics <ids> [--name]; --role narrows)
 ```
@@ -550,7 +550,8 @@ owns the spec written for it; the graph is designed and reviewed the way a spec 
 - **The graph gates the work.** While a bound file's epic has a dependency not done, `tp next`,
   `tp ready` and `tp claim` offer no task and name `blocked_by_epics`, and `tp resume` reports
   `epic-blocked`, so `tp run` stops instead of driving a unit that cannot move; a `wip` task still
-  finishes.
+  finishes. When only conditions block it, `tp next` and `tp resume` name the operator's
+  `tp epic done <c> --evidence`.
 - **Read as one contract.** `tp epic ready` says what can start, ranked by the not-done work that
   waits on each epic (`downstream`), and who holds a claim; `tp epic status` adds the graph's
   critical path and, per milestone, the gate, what it opens after and waits on, the blocked list,
