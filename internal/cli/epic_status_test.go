@@ -163,3 +163,20 @@ func TestEpicStatus_ADoneEpicCutsTheCriticalPath(t *testing.T) {
 	require.Len(t, r.Milestones, 1)
 	assert.Equal(t, []string{"a"}, r.Milestones[0].CriticalPath.ByCount)
 }
+
+// TestEpicStatus_MilestoneNarrowsTheReport is §7: --milestone reports only
+// that milestone, and one no track lists exits 4.
+func TestEpicStatus_MilestoneNarrowsTheReport(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{"version": 1, "milestones": [["A", "B"]], "epics": [
+    {"id": "x", "title": "X", "milestone": "A", "root": true},
+    {"id": "y", "title": "Y", "milestone": "B", "root": true}
+  ]}`)
+
+	r := decodeEpicStatus(t, runEpicStatus(t, dir, "--milestone", "B"))
+	require.Len(t, r.Milestones, 1)
+	assert.Equal(t, "B", r.Milestones[0].Milestone)
+
+	_, stderr, code := runTP(t, dir, "epic", "status", "--milestone", "Z")
+	assert.Equal(t, 4, code, "stderr: %s", stderr)
+}
