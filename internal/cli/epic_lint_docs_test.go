@@ -27,6 +27,7 @@ func TestEpicLintRulesAreInTheReadmeRuleTable(t *testing.T) {
 		engine.EpicRuleUnknownKey, engine.EpicRuleMissingWhy, engine.EpicRuleUnknownMilestone,
 		engine.EpicRuleLaterMilestoneDependency, engine.EpicRuleGateMemberOutsideMilestone,
 		engine.EpicRuleUnprovidedTagCheck, engine.EpicRuleNoDependencies, engine.EpicRuleThinWhy,
+		engine.EpicRuleRootWithDependencies, engine.EpicRuleOpensAfterCycle, engine.EpicRulePartialParallel,
 	} {
 		assert.True(t, rows[rule], "README.md's rule table has no `tp epic lint` row for %q", rule)
 	}
