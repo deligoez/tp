@@ -124,3 +124,22 @@ func TestEpicSet_GateMembersAddingALintErrorIsRefused(t *testing.T) {
 	assert.Equal(t, before, readEpicGraphFile(t, dir))
 }
 
+// TestEpicSet_GateFieldHonoursIfRevision: a stale revision exits 4 and writes
+// nothing; the current one writes.
+func TestEpicSet_GateFieldHonoursIfRevision(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicGateFieldGraph(""))
+	before := readEpicGraphFile(t, dir)
+	_, stderr, code := runTP(t, dir, "epic", "set", "gates.A.threshold=ships", "--if-revision", "0000000000000000")
+	require.Equal(t, 4, code, "stderr: %s", stderr)
+	assert.Equal(t, before, readEpicGraphFile(t, dir))
+
+	stdout, stderr, code := runTP(t, dir, "epic", "set", "gates.A.threshold=ships")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var out struct {
+		Revision string `json:"revision"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+	setGateField(t, dir, "gates.A.threshold=ships twice", "--if-revision", out.Revision)
+	assert.Equal(t, "ships twice", gatesOnFile(t, dir)["A"].Threshold)
+}
