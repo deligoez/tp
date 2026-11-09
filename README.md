@@ -488,6 +488,33 @@ round-by-round recipe is in
 [SKILL.md](skills/tp/SKILL.md); the fields and the audit JSON schema are in
 [REFERENCE.md](skills/tp/REFERENCE.md).
 
+## Epic Graph
+
+One spec covers one feature. A project whose plan is hundreds of features with dependencies between
+them keeps that plan in **`.tp/epics.json`**: ordered milestone tracks, each milestone's exit gate,
+and epics whose `depends_on` edges each carry a required `why`. One epic is one node of the plan and
+owns the spec written for it; the graph is designed and reviewed the way a spec is.
+
+- **Written only through tp.** `tp epic add|set|remove|import` lock the file and refuse a write that
+  adds a lint error the file did not already hold, so the graph is never left broken by a write; the
+  plugin's write-deny hook fences the file against direct edits.
+- **Linted.** `tp epic lint` checks the structure (cycles, dangling ids, an epic depending on a later
+  milestone, a gate member outside its milestone) and the one semantic gap with a structure: an epic
+  tagged for a checker it does not transitively depend on. Warnings flag a `why` that only restates
+  its target and an epic outside a track's first milestone with no dependencies.
+- **Reviewed in slices.** `tp epic review --milestone <m>` or `--epic <id>` emits one prompt per
+  graph role over the asked epics, with their neighbours as context, and runs the spec loop's rules:
+  record, carry unchanged units, converge, cap. The built-in roles ask whether an epic's definition of
+  done names a capability none of its dependencies provides (`dod-satisfiability`), whether each
+  `why` is a reason (`why-auditor`), and whether an epic sits where the plan needs it
+  (`phase-economist`); `regression` joins a round that follows a change.
+- **Exported for people.** `tp epic export --md` prints one table per milestone; tp renders no map.
+
+The loop is Workflow E in [SKILL.md](skills/tp/SKILL.md); the file, the lint rules, the prompt
+shape and the state directory are in [REFERENCE.md](skills/tp/REFERENCE.md). Binding a task file to
+its epic, deriving an epic's status from it, and asking the graph what is ready next come in a later
+release.
+
 ## AX (Agent Experience)
 
 tp is designed for AI agents first (AX), not humans (DX):
