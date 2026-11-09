@@ -1,10 +1,12 @@
 package cli
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestPreToolUseHookAllowsReadsOfTpState: the fence stops hand-edits, so a
@@ -67,4 +69,20 @@ func TestPreToolUseHookFencesOnlyTheSessionRepository(t *testing.T) {
 			})
 		}
 	}
+}
+
+// TestPreToolUseHookFencesTheRepositoryThroughASymlink: leaving the fence takes
+// a path outside the session's repository in every spelling. A path that
+// reaches the repository's own task file through a symlink elsewhere is that
+// file, so it stays refused; a fence that compared spellings only would let
+// it through.
+func TestPreToolUseHookFencesTheRepositoryThroughASymlink(t *testing.T) {
+	t.Parallel()
+	link := filepath.Join(t.TempDir(), "link")
+	require.NoError(t, os.Symlink(repoRoot(t), link))
+
+	path := filepath.Join(link, "spec", "0.35.0.tasks.json")
+	run := runPreToolUseHook(t, "Write", map[string]any{"file_path": path, "content": "{}"})
+	assert.True(t, run.denied(), "%s is the repository's task file; exit=%d stderr=%q", path, run.exitCode, run.stderr)
+	assert.Contains(t, run.stderr, "hand-edited")
 }
