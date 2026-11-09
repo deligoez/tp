@@ -68,7 +68,7 @@ epic lint:
 epic milestone:
 epic milestone add: after before if-revision new-track
 epic remove: force if-revision
-epic review: check epic force milestone record resolve resolve-all role status
+epic review: check epic epics force milestone name record resolve resolve-all role status
 epic set: if-revision
 epic unlink: if-revision
 escalate: decision evidence option
