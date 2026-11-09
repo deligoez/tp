@@ -161,13 +161,14 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 		os.Exit(ExitFile)
 		return nil
 	}
+	// §6: a blocked file refuses a task that is not already wip, before its
+	// evidence is judged, before the gate runs and before anything is
+	// written, as the multi-id and batch paths do.
+	refuseBlockedDone(tfPre, taskID, epicBlockedBy(tfPre, taskFilePath))
 	if ce := checkDoneTarget(tfPre, taskID, reason, doneCoveredBy, nil); ce != nil {
 		exitDoneCheckError(ce)
 		return nil
 	}
-	// §6: a blocked file refuses a task that is not already wip, before the
-	// gate runs and before anything is written.
-	refuseBlockedDone(tfPre, taskID, epicBlockedBy(tfPre, taskFilePath))
 	if doneGatePassed && engine.EffectiveWorkflowForTaskFile(taskFilePath).QualityGate != "" {
 		output.Notice("quality gate is executed by tp; --gate-passed ignored")
 	}
