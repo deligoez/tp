@@ -176,3 +176,27 @@ func TestDone_RefusesAnOpenTaskOnABlockedFile(t *testing.T) {
 
 	assert.NotContains(t, string(taskFileBytes(t, dir)), `"done"`, "no task of the blocked file closed")
 }
+
+// TestDone_ClosesAWipTaskOnABlockedFileAndCountsNoNext is spec/1.5.0.md §6: a
+// wip task closes on a blocked file as today, and the next-task counts leave
+// the blocked file's open tasks out: ready is 0 and has_next is false.
+func TestDone_ClosesAWipTaskOnABlockedFileAndCountsNoNext(t *testing.T) {
+	t.Parallel()
+	dir := blockDir(t, "b", "open", "wip")
+
+	stdout, stderr, code := runTP(t, dir, "done", "t2", "tested by the fixture")
+	require.Equal(t, 0, code, "stdout: %s stderr: %s", stdout, stderr)
+	var p struct {
+		Closed    string `json:"closed"`
+		HasNext   bool   `json:"has_next"`
+		Remaining struct {
+			Ready int `json:"ready"`
+			Open  int `json:"open"`
+		} `json:"remaining"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &p), "stdout: %s", stdout)
+	assert.Equal(t, "t2", p.Closed)
+	assert.Equal(t, 1, p.Remaining.Open)
+	assert.Equal(t, 0, p.Remaining.Ready, "a blocked file's open task is not ready")
+	assert.False(t, p.HasNext)
+}
