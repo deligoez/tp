@@ -241,6 +241,7 @@ func exitEpicWriteError(err error, bulkLines map[string][]int) {
 	var mce *engine.MalformedConfigError
 	var lockErr *engine.LockTimeoutError
 	var stale *engine.EpicStaleRevisionError
+	var edgeNotFound *engine.EpicEdgeNotFoundError
 	switch {
 	case errors.As(err, &lockErr):
 		output.Error(ExitState, lockErr.Error(), lockErr.Hint())
@@ -253,6 +254,9 @@ func exitEpicWriteError(err error, bulkLines map[string][]int) {
 		os.Exit(ExitValidation)
 	case errors.As(err, &notFound):
 		output.Error(ExitState, notFound.Error(), epicNotFoundHint)
+		os.Exit(ExitState)
+	case errors.As(err, &edgeNotFound):
+		output.Error(ExitState, edgeNotFound.Error(), epicEdgeNotFoundHint)
 		os.Exit(ExitState)
 	case errors.As(err, &refused) && bulkLines != nil:
 		output.Error(ExitValidation, epicBulkRefusedMessage(refused, bulkLines), epicBulkRefusedHint)
