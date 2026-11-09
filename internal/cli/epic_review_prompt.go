@@ -21,23 +21,26 @@ const epicFindingContract = "\n\nOutput contract — write one JSON object per l
 
 // buildEpicReviewPrompts renders one prompt per role, in corpus order, and
 // the built-in regression prompt last when the round has something to guard.
-// A round asking no unit emits no prompt (§5).
+// A round asking no unit emits no prompt (§5). Each prompt reads task, asked
+// units, round inputs, contract, then context: on a large slice the context is
+// most of the prompt, and a reader that stops early must already have the
+// contract.
 func buildEpicReviewPrompts(run *epicReviewRun, roles []model.Role) []epicReviewPrompt {
 	if len(run.slice.Units) == 0 {
 		return []epicReviewPrompt{}
 	}
-	body := epicReviewSliceText(run)
+	asked := epicAskedText(run)
 	prompts := make([]epicReviewPrompt, 0, len(roles)+1)
 	for i := range roles {
 		role := &roles[i]
 		var b strings.Builder
 		b.WriteString(role.Instructions + "\n\n")
-		b.WriteString(body)
+		b.WriteString(asked)
 		writeEpicFocus(&b, role.Focus)
-		prompts = append(prompts, epicPromptWithTail(run, role.ID, &b))
+		prompts = append(prompts, epicPromptWithTail(run, role.ID, &b, epicContextText(run, role.Context)))
 	}
 	if run.round >= 2 && run.carry.Regression() {
-		prompts = append(prompts, epicRegressionPrompt(run, body))
+		prompts = append(prompts, epicRegressionPrompt(run, asked))
 	}
 	return prompts
 }
@@ -49,12 +52,12 @@ const epicRegressionInstructions = "You guard an epic graph against regressions 
 	"is resolved in the current text without breaking a neighbour. Report only what a change lost or broke; " +
 	"finding nothing is a normal result.\n\n"
 
-// epicRegressionPrompt renders the regression role's prompt: the slice text
-// and the findings the round before resolved fixed.
-func epicRegressionPrompt(run *epicReviewRun, body string) epicReviewPrompt {
+// epicRegressionPrompt renders the regression role's prompt: the asked units,
+// the findings the round before resolved fixed, and the full context.
+func epicRegressionPrompt(run *epicReviewRun, asked string) epicReviewPrompt {
 	var b strings.Builder
 	b.WriteString(epicRegressionInstructions)
-	b.WriteString(body)
+	b.WriteString(asked)
 	if len(run.carry.Fixed) > 0 {
 		fmt.Fprintf(&b, "\nFindings round %d resolved fixed — confirm each fix holds:\n", run.round-1)
 		for _, row := range run.carry.Fixed {
@@ -63,33 +66,56 @@ func epicRegressionPrompt(run *epicReviewRun, body string) epicReviewPrompt {
 			fmt.Fprintf(&b, "- %s: %s\n", loc, finding)
 		}
 	}
-	return epicPromptWithTail(run, engine.RegressionRoleID, &b)
+	return epicPromptWithTail(run, engine.RegressionRoleID, &b, epicContextText(run, ""))
 }
 
 // epicPromptWithTail closes a role's prompt with the mechanized exclusion,
-// the finding contract and the role's output path.
-func epicPromptWithTail(run *epicReviewRun, role string, b *strings.Builder) epicReviewPrompt {
+// the finding contract and the role's output path, then the context, and
+// repeats the row keys and the path on the last line.
+func epicPromptWithTail(run *epicReviewRun, role string, b *strings.Builder, context string) epicReviewPrompt {
 	path := epicRoleOutputPath(run, role)
 	b.WriteString(mechanizedExclusionPrefix + strings.Join(engine.EpicErrorRules(), ", "))
 	b.WriteString(epicFindingContract)
 	fmt.Fprintf(b, "\nWrite this round's findings to: %s\nProduce findings for this round only, write them to that file, then stop.\n", path)
+	b.WriteString(context)
+	fmt.Fprintf(b, "\nReminder: write one NDJSON row per finding with severity, finding, location and evidence to %s, then stop.\n", path)
 	return epicReviewPrompt{Role: role, Prompt: b.String(), OutputPath: path}
 }
 
-// epicReviewSliceText renders the asked units, then the context blocks.
-func epicReviewSliceText(run *epicReviewRun) string {
+// epicAskedText renders the round's header and the asked units' blocks.
+func epicAskedText(run *epicReviewRun) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "This is epic review round %d of %s.\n\nAsked units:\n", run.round, epicSliceLabel(run.key))
 	for _, u := range run.slice.Units {
 		b.WriteString("---\n" + u.Block)
 	}
 	b.WriteString("---\n")
-	if len(run.slice.Context) > 0 {
+	return b.String()
+}
+
+// epicContextText renders the context blocks a role is shown — every
+// neighbour, or only the asked units' dependencies under
+// model.RoleContextDependencies — then each carried gate's block, read only,
+// and the carried units no block shows, by key.
+func epicContextText(run *epicReviewRun, scope string) string {
+	var b strings.Builder
+	var blocks []engine.EpicContextBlock
+	for _, c := range run.slice.Context {
+		if c.Dependency || scope != model.RoleContextDependencies {
+			blocks = append(blocks, c)
+		}
+	}
+	if len(blocks) > 0 {
 		b.WriteString("\nContext — the epics one edge away; read them, do not review them:\n")
-		for _, c := range run.slice.Context {
+		for _, c := range blocks {
 			b.WriteString("---\n" + c.Block)
 		}
 		b.WriteString("---\n")
+	}
+	for _, u := range run.carry.Carried {
+		if strings.HasPrefix(u.Key, "gate:") {
+			fmt.Fprintf(&b, "\nCarried gate — unchanged since round %d; read it, do not review it:\n---\n%s---\n", run.round-1, u.Block)
+		}
 	}
 	if ids := epicCarriedByID(run); len(ids) > 0 {
 		fmt.Fprintf(&b, "\nCarried — unchanged since round %d and not asked again: %s\n", run.round-1, strings.Join(ids, ", "))
@@ -97,8 +123,9 @@ func epicReviewSliceText(run *epicReviewRun) string {
 	return b.String()
 }
 
-// epicCarriedByID returns the carried units no context block shows: a gate,
-// or an epic adjacent to no asked unit, which appears by its key only (D5).
+// epicCarriedByID returns the carried epics no context block shows: an epic
+// adjacent to no asked unit, which appears by its key only (D5). A carried
+// gate is shown by its block instead.
 func epicCarriedByID(run *epicReviewRun) []string {
 	shown := map[string]bool{}
 	for _, c := range run.slice.Context {
@@ -106,7 +133,7 @@ func epicCarriedByID(run *epicReviewRun) []string {
 	}
 	ids := []string{}
 	for _, u := range run.carry.Carried {
-		if !shown[u.Key] {
+		if !shown[u.Key] && !strings.HasPrefix(u.Key, "gate:") {
 			ids = append(ids, u.Key)
 		}
 	}
