@@ -764,7 +764,7 @@ Before closing a task (`tp done`):
 
 Review and audit roles are **project-owned data** — one JSON file per role under the repo-root `.tp/`:
 
-- `.tp/reviewers/*.json` drives `tp review`; `.tp/auditors/*.json` drives `tp audit` (phase = directory). Schema `{id, title, instructions, focus[], domains[]}`; `id` MUST equal the filename stem (lowercase kebab-case); `regression` is reserved. Commit the corpus to VCS.
+- `.tp/reviewers/*.json` drives `tp review`; `.tp/auditors/*.json` drives `tp audit` (phase = directory). Schema `{id, title, instructions, focus[], domains[], context}` (`context` is read only by `tp epic review`); `id` MUST equal the filename stem (lowercase kebab-case); `regression` is reserved. Commit the corpus to VCS.
 - A populated phase directory **replaces** the embedded default corpus for that phase; absent/empty keeps tp's curated defaults (software: implementer/tester/architect + spec-coverage/security/maintainability-conventions; prose: coherence/soundness + spec-coverage/soundness). A project happy with defaults keeps **zero role files**.
 - `tp init --eject-roles [--domain software|prose] [--force]` writes the defaults as editable, byte-identical files, and **ejected role files are not rewritten on upgrade** — re-eject with `--force` to adopt newer default prompts. tp's own repo dogfoods a custom 4+4 corpus (adopted v0.26.0: implementer/tester/architect/ax-economist reviewers + spec-coverage/go-safety/maintainability-conventions/ax-contract auditors).
 
