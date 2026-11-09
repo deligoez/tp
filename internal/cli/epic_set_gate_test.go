@@ -100,3 +100,15 @@ func TestEpicSet_GateMembersSetsAnExplicitListAndAnEmptyValueMakesItImplicit(t *
 	assert.Equal(t, []string{"a2"}, gate.Deferrable)
 }
 
+// TestEpicSet_GateFieldOfAnUnknownMilestoneExits4: Z is in no track, so the
+// set exits 4 as other milestone refusals do and writes nothing.
+func TestEpicSet_GateFieldOfAnUnknownMilestoneExits4(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicGateFieldGraph(""))
+	before := readEpicGraphFile(t, dir)
+	_, stderr, code := runTP(t, dir, "epic", "set", "gates.Z.threshold=ships")
+	require.Equal(t, 4, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, `milestone \"Z\" is in no track`)
+	assert.Equal(t, before, readEpicGraphFile(t, dir))
+}
+
