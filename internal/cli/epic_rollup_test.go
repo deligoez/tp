@@ -51,11 +51,11 @@ func TestEpicRollup_SumsReportPerTaskPerEpic(t *testing.T) {
 	rows, err := epicRollup(g, bound, "A")
 
 	require.NoError(t, err)
-	assert.Equal(t, []epicRollupRow{{Epic: "b", EstimateMinutes: 30, ActualMinutes: 46, Tracked: 3}}, rows)
+	assert.Equal(t, []epicRollupRow{{Epic: "b", EstimateMinutes: 30, ActualMinutes: 46, Tracked: 3, EstimateTotal: 130}}, rows)
 
 	rows, err = epicRollup(g, bound, "B")
 	require.NoError(t, err)
-	assert.Equal(t, []epicRollupRow{{Epic: "x", EstimateMinutes: 5, ActualMinutes: 5, Tracked: 1}}, rows)
+	assert.Equal(t, []epicRollupRow{{Epic: "x", EstimateMinutes: 5, ActualMinutes: 5, Tracked: 1, EstimateTotal: 55}}, rows)
 }
 
 // TestEpicRollup_EstimateTotalCoversEveryTask pins spec/1.6.0.md B3: beside
