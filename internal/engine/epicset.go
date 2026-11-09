@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/deligoez/tp/internal/model"
 )
@@ -28,9 +29,13 @@ var EpicGraphSetKeys = []string{"milestones", "opens_after", "gates", "tag_check
 var EpicFieldSetKeys = []string{"title", "milestone", "tags", "depends_on", "acceptance", "root", "condition"}
 
 // ParseEpicGraphSet decodes value for one of EpicGraphSetKeys and returns the
-// mutation that replaces that whole object. A bad key or value is an error
+// mutation that replaces that whole object, or for gates.<m>.<field> the one
+// that edits a single gate (spec/1.6.0.md B1). A bad key or value is an error
 // before any lock is taken.
 func ParseEpicGraphSet(key, value string) (func(*model.EpicGraph) error, error) {
+	if rest, ok := strings.CutPrefix(key, "gates."); ok {
+		return parseGateFieldSet(rest, value)
+	}
 	switch key {
 	case "milestones":
 		var m [][]string
@@ -86,6 +91,72 @@ func parseGatesSet(value string) (func(*model.EpicGraph) error, error) {
 		g.Gates = gates
 		return nil
 	}, nil
+}
+
+// EpicGateFieldSetKeys are the gate fields tp epic set gates.<m>.<field>
+// writes: threshold takes the text as written, deferrable and members a
+// comma-separated id list, empty to clear (members [] is the implicit list).
+var EpicGateFieldSetKeys = []string{"threshold", "deferrable", "members"}
+
+// parseGateFieldSet decodes value for gates.<m>.<field>, rest being
+// <m>.<field>, and returns the mutation editing that one gate: it creates the
+// entry when gates has none and carries its met and other fields. The
+// mutation returns an *EpicMilestoneNotFoundError when no track lists m.
+func parseGateFieldSet(rest, value string) (func(*model.EpicGraph) error, error) {
+	dot := strings.LastIndex(rest, ".")
+	if dot <= 0 {
+		return nil, fmt.Errorf("expected gates.<milestone>.<field>, got gates.%s", rest)
+	}
+	milestone, field := rest[:dot], rest[dot+1:]
+	apply, err := gateFieldSetter(field, value)
+	if err != nil {
+		return nil, err
+	}
+	return func(g *model.EpicGraph) error {
+		if _, tracked := milestonePositions(g)[milestone]; !tracked {
+			return &EpicMilestoneNotFoundError{Name: milestone}
+		}
+		gate := g.Gates[milestone]
+		if gate.Members == nil {
+			gate.Members = []string{}
+		}
+		apply(&gate)
+		if g.Gates == nil {
+			g.Gates = map[string]model.EpicGate{}
+		}
+		g.Gates[milestone] = gate
+		return nil
+	}, nil
+}
+
+// gateFieldSetter returns the setter of one of EpicGateFieldSetKeys.
+func gateFieldSetter(field, value string) (func(*model.EpicGate), error) {
+	switch field {
+	case "threshold":
+		return func(gate *model.EpicGate) { gate.Threshold = value }, nil
+	case "deferrable":
+		ids := splitGateIDs(value)
+		return func(gate *model.EpicGate) { gate.Deferrable = ids }, nil
+	case "members":
+		ids := splitGateIDs(value)
+		if ids == nil {
+			ids = []string{}
+		}
+		return func(gate *model.EpicGate) { gate.Members = ids }, nil
+	}
+	return nil, fmt.Errorf("unknown gate field %q: one of %v", field, EpicGateFieldSetKeys)
+}
+
+// splitGateIDs splits a comma-separated id list, trimming each id and
+// dropping empty ones; nil when none is left.
+func splitGateIDs(value string) []string {
+	var ids []string
+	for id := range strings.SplitSeq(value, ",") {
+		if id = strings.TrimSpace(id); id != "" {
+			ids = append(ids, id)
+		}
+	}
+	return ids
 }
 
 // ParseEpicFieldSet decodes value for one of EpicFieldSetKeys and returns the
