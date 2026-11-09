@@ -143,3 +143,16 @@ func TestEpicSet_GateFieldHonoursIfRevision(t *testing.T) {
 	setGateField(t, dir, "gates.A.threshold=ships twice", "--if-revision", out.Revision)
 	assert.Equal(t, "ships twice", gatesOnFile(t, dir)["A"].Threshold)
 }
+
+// TestEpicSet_GateMembersNamingAnUnknownIDGetsTheGateHint: zz names no epic,
+// so the refusal hint tells how to fix the gate list, not a depends_on edge.
+func TestEpicSet_GateMembersNamingAnUnknownIDGetsTheGateHint(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicGateFieldGraph(""))
+	before := readEpicGraphFile(t, dir)
+	_, stderr, code := runTP(t, dir, "epic", "set", "gates.A.members=a1,zz")
+	require.Equal(t, 1, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, `list only epics of milestone \"A\" that the graph holds`)
+	assert.NotContains(t, stderr, "depend only on epics the graph holds")
+	assert.Equal(t, before, readEpicGraphFile(t, dir))
+}
