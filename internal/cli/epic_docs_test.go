@@ -36,6 +36,23 @@ func TestSkillCarriesWorkflowE(t *testing.T) {
 	}
 }
 
+// TestSkillWorkflowETracksProgress pins spec/1.5.0.md's half of Workflow E:
+// binding, reading the plan, claiming, gates with thresholds, conditions, the
+// epic block on the task commands, deferrable trigger work, long-lead epics
+// and the three escalation decisions the operator writes are fenced under.
+func TestSkillWorkflowETracksProgress(t *testing.T) {
+	t.Parallel()
+	body := docSectionBody(t, readRepoDoc(t, "skills/tp/SKILL.md"), "## Workflow E:")
+	for _, term := range []string{
+		"tp init <spec> --epic", "tp set --epic", "tp epic ready", "tp epic status", "tp epic export",
+		"tp epic claim", "threshold", "tp epic gate <m> --met --evidence", "condition",
+		"tp epic done <id> --evidence", "blocked_by_epics", "epic-blocked", "deferrable",
+		"earliest milestone", engine.EscalateEpicDone, engine.EscalateGateMet, engine.EscalateEpicBinding,
+	} {
+		assert.Contains(t, body, term, "Workflow E names %q", term)
+	}
+}
+
 // TestReferenceCarriesTheEpicGraphContract pins §7's REFERENCE.md half: the
 // file schema, a row per lint rule, the state directory and the exit codes.
 func TestReferenceCarriesTheEpicGraphContract(t *testing.T) {
