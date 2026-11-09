@@ -74,17 +74,13 @@ func TestEpicReviewSlice_EditingAWhyChangesTheSourceAndItsDependents(t *testing.
 	assert.Equal(t, before["epic:d"], after["epic:d"])
 }
 
-func TestEpicReviewSlice_GateUnitOnlyWithAGatesEntry(t *testing.T) {
-	s, err := EpicReviewSlice(epicChainGraph(), EpicSliceKey{Milestone: "A"})
-	require.NoError(t, err)
-	assert.Equal(t, []string{"epic:a", "epic:b", "epic:c", "epic:d"}, unitKeys(s.Units))
-	assert.Empty(t, s.Context)
-
+func TestEpicReviewSlice_GateUnitShowsTheGatesEntry(t *testing.T) {
 	g := epicChainGraph()
 	g.Gates = map[string]model.EpicGate{"A": {Members: []string{"a", "b"}, Deferrable: []string{"c"}}}
-	s, err = EpicReviewSlice(g, EpicSliceKey{Milestone: "A"})
+	s, err := EpicReviewSlice(g, EpicSliceKey{Milestone: "A"})
 	require.NoError(t, err)
 	assert.Equal(t, []string{"epic:a", "epic:b", "epic:c", "epic:d", "gate:A"}, unitKeys(s.Units))
+	assert.Empty(t, s.Context)
 	gate := s.Units[4]
 	assert.Contains(t, gate.Block, "members: a, b")
 	assert.Contains(t, gate.Block, "deferrable: c")
@@ -153,14 +149,14 @@ func TestEpicReviewSlice_EditingAThresholdChangesTheGateHash(t *testing.T) {
 
 // TestEpicReviewSlice_EditingOpensAfterChangesTheGateHash is spec/1.6.0.md
 // §1: a gate block shows its milestone's opens_after entry, so editing it
-// re-asks the unit; a milestone opens_after does not name prints no line.
+// re-asks the unit; a milestone opens_after does not name shows its default.
 func TestEpicReviewSlice_EditingOpensAfterChangesTheGateHash(t *testing.T) {
 	g := epicChainGraph()
 	g.Gates = map[string]model.EpicGate{"A": {Members: []string{"a"}}}
 	before := unitHashes(t, g)
 	s, err := EpicReviewSlice(g, EpicSliceKey{Milestone: "A"})
 	require.NoError(t, err)
-	assert.NotContains(t, s.Units[4].Block, "opens_after:")
+	assert.Contains(t, s.Units[4].Block, "opens_after: []\n", "a track's first milestone opens after none")
 
 	g.OpensAfter = map[string][]string{"A": {"L1"}}
 	s, err = EpicReviewSlice(g, EpicSliceKey{Milestone: "A"})

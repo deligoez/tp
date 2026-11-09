@@ -156,7 +156,7 @@ func TestEpicReview_RoleNarrowsTheEmissionToOnePrompt(t *testing.T) {
 	dir := epicGraphDir(t, epicChain)
 	out := runEpicReview(t, dir, "--milestone", "A", "--role", "why-auditor")
 	assert.Equal(t, []string{"why-auditor"}, promptRoles(&out))
-	assert.Equal(t, []string{"epic:a", "epic:b", "epic:c", "epic:d"}, out.Units)
+	assert.Equal(t, []string{"epic:a", "epic:b", "epic:c", "epic:d", "gate:A"}, out.Units)
 
 	_, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A", "--role", "no-such-role")
 	assert.Equal(t, 2, code, "stderr: %s", stderr)

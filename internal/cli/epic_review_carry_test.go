@@ -38,14 +38,14 @@ func TestEpicReview_UnchangedUnitsAreCarried(t *testing.T) {
 	dir := epicGraphDir(t, epicChain)
 
 	r1 := runEpicReview(t, dir, "--milestone", "A")
-	require.Equal(t, []string{"epic:a", "epic:b", "epic:c", "epic:d"}, r1.Units)
+	require.Equal(t, []string{"epic:a", "epic:b", "epic:c", "epic:d", "gate:A"}, r1.Units, "A's implicit gate is a unit too")
 	writeEpicRound(t, dir, &r1, "")
 
 	r2 := runEpicReview(t, dir, "--milestone", "A")
 	assert.Equal(t, 2, r2.Round)
 	assert.Empty(t, r2.Units, "round 2 asks no unit")
 	assert.Empty(t, r2.Prompts, "round 2 emits no prompts")
-	assert.Equal(t, []string{"epic:a", "epic:b", "epic:c", "epic:d"}, r2.Carried)
+	assert.Equal(t, []string{"epic:a", "epic:b", "epic:c", "epic:d", "gate:A"}, r2.Carried)
 	assert.Contains(t, r2.NextAction, "empty file")
 	writeEpicRound(t, dir, &r2, "")
 
@@ -54,7 +54,7 @@ func TestEpicReview_UnchangedUnitsAreCarried(t *testing.T) {
 	assert.Equal(t, 3, r3.Round)
 	assert.Equal(t, []string{"epic:a", "epic:b"}, r3.Units)
 	assert.Equal(t, []string{"c"}, r3.Context, "the carried neighbour c is context")
-	assert.Equal(t, []string{"epic:c", "epic:d"}, r3.Carried)
+	assert.Equal(t, []string{"epic:c", "epic:d", "gate:A"}, r3.Carried)
 	for _, p := range r3.Prompts {
 		assert.NotContains(t, p.Prompt, "epic: d\n", "%s carries d by id only", p.Role)
 	}
