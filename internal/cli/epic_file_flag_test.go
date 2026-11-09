@@ -114,6 +114,24 @@ func TestEpicFlag_TwoFilesInFlightExit4NamingBoth(t *testing.T) {
 	assert.Contains(t, stderr, "b2.tasks.json")
 }
 
+// TestEpicFlag_RefusalCarriesCandidates: the exit-4 payload lists the files
+// to choose from as a "candidates" array, each a --file argument.
+func TestEpicFlag_RefusalCarriesCandidates(t *testing.T) {
+	t.Parallel()
+	dir := epicFileRepo(t)
+	writeEpicFile(t, dir, "b1", "b", "open")
+	writeEpicFile(t, dir, "b2", "b", "open")
+	initGitRepo(t, dir)
+
+	_, stderr, code := runTP(t, dir, "ready", "--epic", "b")
+	require.Equal(t, 4, code, "stderr: %s", stderr)
+	var res struct {
+		Candidates []string `json:"candidates"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stderr), &res), "stderr: %s", stderr)
+	assert.Equal(t, []string{"b1.tasks.json", "b2.tasks.json"}, res.Candidates)
+}
+
 // TestEpicFlag_NoBoundFileExits4 is F8: u binds no file, so --epic u exits 4
 // on each of the three commands.
 func TestEpicFlag_NoBoundFileExits4(t *testing.T) {
