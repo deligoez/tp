@@ -104,10 +104,25 @@ tp done create-model "User model at app/Models/User.php. Migration runs." --gate
 and `tp ground` are deliberately **not** among them. They are steps you run, not phases an oracle
 tracks, and `tp run` makes the same omission concrete: it drives eight unit kinds
 (`internal/engine/unitkind.go`) and none of them grounds anything, so no unattended run ever reaches
-grounding. Ground is the one loop you have to remember.
+grounding. Ground is the one loop you have to remember inside a spec's cycle.
+
+Above the spec sits the project's plan, when it has one: a graph of epics in `.tp/epics.json`, one
+spec per epic ([Epic Graph](#epic-graph)). Its loop is not a phase either — `tp resume` tracks one
+spec at a time and `tp run` has no epic unit — so the graph is designed and reviewed by hand, slice
+by slice, before and between the specs it plans.
 
 ```mermaid
 flowchart TD
+    subgraph PLAN["the plan: .tp/epics.json"]
+      direction TB
+      EPICS["tp epic add / set / import<br/>milestones, epics, edges with a why"]
+      ELINT["tp epic lint<br/>is the graph well formed?"]
+      EREVIEW["tp epic review<br/>one milestone or epic at a time"]
+      EPICS --> ELINT --> EREVIEW
+      EREVIEW -->|"repair the graph"| EREVIEW
+    end
+    EREVIEW -->|"one epic, one spec"| SPEC
+
     SPEC["spec/my-feature.md<br/>decisions and test rows"] --> LINT["tp lint<br/>does the document hold together?"]
     SIDECAR["spec/my-feature-measurements.md<br/>measurements and derivations"] -.->|"cited by the spec, graded by nothing"| SPEC
     LINT --> GROUND["tp ground<br/>do its claims hold in the world?"]
