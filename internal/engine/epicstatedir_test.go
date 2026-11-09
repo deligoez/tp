@@ -43,3 +43,12 @@ func TestEpicReviewStateDir_PathLikeIDStaysUnderTheStateRoot(t *testing.T) {
 	assert.False(t, strings.Contains(rel, string(filepath.Separator)) || strings.HasPrefix(rel, ".."), "dir %s escapes %s", dir, root)
 	assert.Regexp(t, lowerHex, rel)
 }
+
+// TestEpicReviewStateDir_TwoSlicesOfOneKindNeverShare: two epics, and two
+// milestones, each get a directory of their own. A key text that dropped the
+// value would give every slice of a kind one directory and mix their rounds.
+func TestEpicReviewStateDir_TwoSlicesOfOneKindNeverShare(t *testing.T) {
+	tpDir := filepath.Join(t.TempDir(), ".tp")
+	assert.NotEqual(t, EpicReviewStateDir(tpDir, EpicSliceKey{Epic: "a"}), EpicReviewStateDir(tpDir, EpicSliceKey{Epic: "b"}))
+	assert.NotEqual(t, EpicReviewStateDir(tpDir, EpicSliceKey{Milestone: "A"}), EpicReviewStateDir(tpDir, EpicSliceKey{Milestone: "B"}))
+}
