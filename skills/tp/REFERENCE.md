@@ -452,7 +452,7 @@ the `SessionStart` hook fails with the install command rather than degrading qui
 | Event | Matcher | Behaviour |
 |---|---|---|
 | `SessionStart` | `*` | preflight `tp`'s presence and version, then inject `tp resume --compact` as additional context |
-| `PreToolUse` | `Write\|Edit\|MultiEdit\|NotebookEdit` and codedbpro's `create`/`edit`/`patch`/`replace`/`batch` | deny writes to `.tp-review/` contents, `*.tasks.json`, `.tp/config.json` and `.tp/local.json`; a `batch` is judged op by op, so one whose ops are all reads passes |
+| `PreToolUse` | `Write\|Edit\|MultiEdit\|NotebookEdit` and codedbpro's `create`/`edit`/`patch`/`replace`/`batch` | deny writes to `.tp-review/` contents, `*.tasks.json`, `.tp/config.json` and `.tp/local.json` inside the session's repository (git's top level from `$CLAUDE_PROJECT_DIR`, else the hook's cwd); a write outside it, such as a fixture under `mktemp -d`, passes, and so does a read-only tool; a `batch` is judged op by op, so one whose ops are all reads passes |
 | `Stop` | — | inside a role unit whose findings file fails its predicate and with no escalation record, block **once** with the reason |
 
 The session hook deliberately does not branch on the matcher (`clear` is not reliably reported on
