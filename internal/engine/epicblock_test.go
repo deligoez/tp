@@ -78,3 +78,14 @@ func TestEpicBlockFor_AbsentEpicOrNoGraphIsUnblockedAndSaysSo(t *testing.T) {
 	assert.Contains(t, block.Notice, `"z"`)
 }
 
+// TestEpicBlockFor_UnboundFileReadsNoGraph is spec/1.5.0.md §6: an unbound
+// file behaves as at v1.4.2, so not even a malformed graph beside it is read.
+func TestEpicBlockFor_UnboundFileReadsNoGraph(t *testing.T) {
+	root := boundFilesRepo(t)
+	require.NoError(t, os.MkdirAll(filepath.Join(root, ".tp"), 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".tp", EpicGraphFile), []byte("{"), 0o600))
+
+	block, err := EpicBlockFor(&model.TaskFile{}, filepath.Join(root, "u.tasks.json"))
+	require.NoError(t, err)
+	assert.Nil(t, block)
+}
