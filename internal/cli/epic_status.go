@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"fmt"
 	"os"
 	"slices"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -82,8 +84,8 @@ func newEpicStatusCmd() *cobra.Command {
 
 // runEpicStatus reads the graph and its bound files, derives every epic's
 // state once, writes nothing, and exits 0; 3 with no readable graph or bound
-// file, 4 for a --milestone no track lists. --open keeps the open milestones
-// only (spec/1.6.0.md F7). --compact leaves out each milestone's critical
+// file, 4 for a --milestone no track lists, or a closed one with --open.
+// --open keeps the open milestones only (spec/1.6.0.md F7). --compact leaves out each milestone's critical
 // path, throughput and the roll-up.
 func runEpicStatus(cmd *cobra.Command, _ []string) error {
 	only, _ := cmd.Flags().GetString("milestone")
@@ -97,8 +99,7 @@ func runEpicStatus(cmd *cobra.Command, _ []string) error {
 		milestones = []string{only}
 	}
 	if open, _ := cmd.Flags().GetBool("open"); open {
-		gates := engine.MilestoneGates(g, states)
-		milestones = slices.DeleteFunc(milestones, func(m string) bool { return !gates[m].Open })
+		milestones = openMilestonesOrExit(g, states, milestones, only)
 	}
 	result, err := epicPlanStatus(g, states, bound, milestones, flagCompact)
 	if err != nil {
@@ -111,6 +112,20 @@ func runEpicStatus(cmd *cobra.Command, _ []string) error {
 		os.Exit(ExitFile)
 	}
 	return nil
+}
+
+// openMilestonesOrExit keeps the open milestones of milestones. A milestone
+// --milestone named that is closed exits 4 saying what it waits on: an empty
+// report would read as a milestone with nothing in it.
+func openMilestonesOrExit(g *model.EpicGraph, states map[string]engine.EpicState, milestones []string, only string) []string {
+	gates := engine.MilestoneGates(g, states)
+	if only != "" && !gates[only].Open {
+		waits := engine.MilestoneWaitingOn(engine.EffectiveOpensAfter(g)[only], gates)
+		output.Error(ExitState, fmt.Sprintf("milestone %q is closed: it waits on %s", only, strings.Join(waits, ", ")),
+			"drop --open to report it, or tp epic status --open for the open milestones")
+		os.Exit(ExitState)
+	}
+	return slices.DeleteFunc(milestones, func(m string) bool { return !gates[m].Open })
 }
 
 // trackedMilestones lists every milestone a track names once, in track order.
