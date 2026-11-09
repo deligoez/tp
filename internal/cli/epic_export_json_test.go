@@ -123,3 +123,21 @@ func TestEpicExport_ASliceWithoutKeyFileReportsTheKeyItsRoundsName(t *testing.T)
 	assert.JSONEq(t, `{"kind": "epic", "value": "b"}`, string(p.Slices[0].Key))
 	assert.NoFileExists(t, filepath.Join(sliceDir, "key.json"), "the export only reads")
 }
+
+// TestEpicExport_AMilestoneSliceKeyIsDerivedFromAnEpicFinding is F6: a
+// --milestone A slice whose only round names epic:c is A's slice, not c's;
+// the key whose hash is the directory's name wins.
+func TestEpicExport_AMilestoneSliceKeyIsDerivedFromAnEpicFinding(t *testing.T) {
+	t.Parallel()
+	dir := boundEpicDir(t, epicChain)
+	runEpicReview(t, dir, "--milestone", "A")
+	path := epicRecordFile(t, dir, `{"severity":"low","finding":"f1","location":"epic:c","evidence":"e1"}`+"\n")
+	_, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A", "--record", path)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	stripSliceKey(t, dir)
+
+	p := runEpicExportJSON(t, dir)
+
+	require.Len(t, p.Slices, 1)
+	assert.JSONEq(t, `{"kind": "milestone", "value": "A"}`, string(p.Slices[0].Key))
+}
