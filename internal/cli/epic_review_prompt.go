@@ -1,9 +1,11 @@
 package cli
 
 import (
+	"encoding/csv"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/deligoez/tp/internal/engine"
@@ -171,10 +173,22 @@ func writeEpicFocus(b *strings.Builder, focus []string) {
 	}
 }
 
-// epicSliceLabel names the slice in prose and in the next_action command.
+// epicSliceLabel names the slice in prose and in the next_action command; a
+// set is written as one CSV --epics value, so an id holding a comma is quoted.
 func epicSliceLabel(key engine.EpicSliceKey) string {
-	if key.Milestone != "" {
+	switch {
+	case key.Milestone != "":
 		return "--milestone " + key.Milestone
+	case len(key.Epics) > 0:
+		var b strings.Builder
+		w := csv.NewWriter(&b)
+		_ = w.Write(key.Epics)
+		w.Flush()
+		label := "--epics " + strconv.Quote(strings.TrimRight(b.String(), "\n"))
+		if key.Name != "" {
+			label += " --name " + strconv.Quote(key.Name)
+		}
+		return label
 	}
 	return "--epic " + key.Epic
 }

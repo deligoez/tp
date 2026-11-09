@@ -3,6 +3,7 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/spf13/cobra"
 
@@ -11,7 +12,7 @@ import (
 )
 
 // epicReviewUsageHint answers a tp epic review call that names no slice, or two.
-const epicReviewUsageHint = "pass exactly one of --milestone <m> or --epic <id>"
+const epicReviewUsageHint = "pass exactly one of --milestone <m>, --epic <id> or --epics <id,id,...> [--name <name>]"
 
 // epicReviewStateHint answers a failed write under the slice's state
 // directory. The shared stateWriteHint names tp review's .tp-review, not the
@@ -60,6 +61,8 @@ func newEpicReviewCmd() *cobra.Command {
 	}
 	cmd.Flags().String("milestone", "", "Review every epic of this milestone, plus its gate")
 	cmd.Flags().String("epic", "", "Review this one epic")
+	cmd.Flags().StringSlice("epics", nil, "Review this set of epics, comma-separated CSV (quote an id holding a comma); repeatable")
+	cmd.Flags().String("name", "", "With --epics: key the set's state by this name, so the set may grow between rounds")
 	cmd.Flags().String("role", "", "Emit only this role's prompt")
 	cmd.Flags().String("record", "", "Record this NDJSON findings file as the slice's next round")
 	cmd.Flags().Bool("status", false, "Print the slice's convergence status")
@@ -138,15 +141,33 @@ func runEpicReviewDisposition(cmd *cobra.Command, key engine.EpicSliceKey, args 
 	return false
 }
 
-// epicReviewSliceKey reads the slice flags, exiting 2 unless exactly one is set.
+// epicReviewSliceKey reads the slice flags, exiting 2 unless exactly one of
+// --milestone, --epic and --epics is set, when --epics lists no id or an
+// empty one, or when --name comes without --epics.
 func epicReviewSliceKey(cmd *cobra.Command) engine.EpicSliceKey {
 	milestone, _ := cmd.Flags().GetString("milestone")
 	epic, _ := cmd.Flags().GetString("epic")
-	if (milestone == "") == (epic == "") {
-		output.Error(ExitUsage, "tp epic review takes exactly one of --milestone or --epic", epicReviewUsageHint)
+	epics, _ := cmd.Flags().GetStringSlice("epics")
+	name, _ := cmd.Flags().GetString("name")
+	set := cmd.Flags().Changed("epics")
+	given := 0
+	for _, on := range []bool{milestone != "", epic != "", set} {
+		if on {
+			given++
+		}
+	}
+	switch {
+	case given != 1:
+		output.Error(ExitUsage, "tp epic review takes exactly one of --milestone, --epic or --epics", epicReviewUsageHint)
+		os.Exit(ExitUsage)
+	case cmd.Flags().Changed("name") && !set:
+		output.Error(ExitUsage, "--name names a set slice and needs --epics", epicReviewUsageHint)
+		os.Exit(ExitUsage)
+	case set && (len(epics) == 0 || slices.Contains(epics, "")):
+		output.Error(ExitUsage, "--epics needs at least one id and no empty one", epicReviewUsageHint)
 		os.Exit(ExitUsage)
 	}
-	return engine.EpicSliceKey{Milestone: milestone, Epic: epic}
+	return engine.EpicSliceKey{Milestone: milestone, Epic: epic, Epics: epics, Name: name}
 }
 
 // epicRoundFileHint answers a recorded round tp cannot read back or rewrite.
