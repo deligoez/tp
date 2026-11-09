@@ -286,3 +286,24 @@ func TestLintEpicGraph_GateHintNamesTheKeyForSeveralMembers(t *testing.T) {
 		assert.Contains(t, f.Message, `gates."B"`)
 	}
 }
+
+// TestLintEpicGraph_ARootIsNotWarnedForHavingNoDependencies: two
+// later-milestone epics without dependencies, one marked root: only the other
+// warns no-dependencies. A root that then gains an edge warns
+// root-with-dependencies, so the mark cannot go stale silently.
+func TestLintEpicGraph_ARootIsNotWarnedForHavingNoDependencies(t *testing.T) {
+	g := warningGraph()
+	g.Epics[0].DependsOn = nil
+	g.Epics = append(g.Epics,
+		model.Epic{ID: "r", Title: "Root", Milestone: "B", Root: true})
+	noDeps := findingsOf(t, LintEpicGraph(g, nil), EpicRuleNoDependencies)
+	require.Len(t, noDeps, 1)
+	assert.Equal(t, []string{"b"}, noDeps[0].Epics, "the root r is not warned")
+	assert.Empty(t, findingsOf(t, LintEpicGraph(g, nil), EpicRuleRootWithDependencies))
+
+	g.Epics[3].DependsOn = []model.EpicDep{{ID: "a", Why: "r reads a's ledger"}}
+	stale := findingsOf(t, LintEpicGraph(g, nil), EpicRuleRootWithDependencies)
+	require.Len(t, stale, 1)
+	assert.Equal(t, []string{"r"}, stale[0].Epics)
+	assert.Equal(t, EpicSeverityWarning, stale[0].Severity)
+}
