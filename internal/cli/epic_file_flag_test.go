@@ -113,3 +113,17 @@ func TestEpicFlag_TwoFilesInFlightExit4NamingBoth(t *testing.T) {
 	assert.Contains(t, stderr, "b1.tasks.json")
 	assert.Contains(t, stderr, "b2.tasks.json")
 }
+
+// TestEpicFlag_NoBoundFileExits4 is F8: u binds no file, so --epic u exits 4
+// on each of the three commands.
+func TestEpicFlag_NoBoundFileExits4(t *testing.T) {
+	t.Parallel()
+	dir := epicFileRepo(t)
+	initGitRepo(t, dir)
+
+	for _, args := range [][]string{{"resume"}, {"next", "--peek"}, {"ready"}} {
+		_, stderr, code := runTP(t, dir, append(args, "--epic", "u")...)
+		require.Equal(t, 4, code, "%v stderr: %s", args, stderr)
+		assert.Contains(t, stderr, `epic \"u\" has no bound task file`, "%v", args)
+	}
+}
