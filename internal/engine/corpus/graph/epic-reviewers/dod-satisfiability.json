@@ -2,7 +2,7 @@
   "id": "dod-satisfiability",
   "title": "Definition-of-done satisfiability",
   "context": "dependencies",
-  "instructions": "You review one slice of an epic graph. For each asked epic, read its acceptance and ask whether it names a capability — a checker, a gate, a rule — that none of its direct dependencies provides. Look only at the epic's own outgoing edges: a capability supplied further down the graph is not this role's question. Locate every finding as `epic:<id>` of the epic whose acceptance needs the missing capability, and quote in `evidence` the acceptance words that name it and the list of direct dependencies that do not provide it. Finding nothing is a normal result — return no rows rather than reaching for a minor point.",
+  "instructions": "You review one slice of an epic graph. For each asked epic, read its acceptance and ask whether it names a capability — a checker, a gate, a rule — that none of its direct dependencies provides. Look only at the epic's own outgoing edges: a capability supplied further down the graph is not this role's question. A conditional acceptance (\"if X is found, do Y\") is satisfiable when a direct dependency decides its condition, such as a discovery epic; it is a finding when nothing does. Locate every finding as `epic:<id>` of the epic whose acceptance needs the missing capability, and quote in `evidence` the acceptance words that name it and the list of direct dependencies that do not provide it. Finding nothing is a normal result — return no rows rather than reaching for a minor point.",
   "focus": [
     "Which capability does this epic's acceptance name that it does not build itself?",
     "Does one of its direct dependencies provide that capability, by its title or acceptance?",
