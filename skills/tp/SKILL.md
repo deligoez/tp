@@ -511,7 +511,11 @@ table a prose document embeds. Build it one topic at a time, each topic through 
 5. **`tp epic review --milestone <m>` (or `--epic <id>`) over the touched slice** — spawn one
    sub-agent per role prompt, merge their rows into one file, `--record` it, fix the graph or
    `--resolve` each finding, and repeat until `tp epic review <slice> --status --check` exits 0.
-   Unchanged units carry from round to round, so a round after a small edit asks only what moved.
+   Unchanged units carry from round to round, so a round after a small edit asks only what moved,
+   and a re-asked unit's prompt lists its earlier `wontfix`/`duplicate` decisions so they are not
+   raised again. Every round that resolves a finding `fixed` makes one more round necessary, so a cap
+   of 3 leaves room for two repair rounds and one clean one; on a large slice the operator may choose
+   `review_max_rounds` 4–5 before round 1 (`tp set --workflow --project`).
 
 Then take the next topic. Every writer (`add`, `set`, `remove`, `import`) and `--record` exits 2
 under `TP_UNATTENDED`: changing the plan is the operator's, so a unit that finds the need records it
