@@ -36,6 +36,9 @@ const (
 	EpicRuleUnprovidedTagCheck = "unprovided-tag-check"
 	EpicRuleNoDependencies     = "no-dependencies"
 	EpicRuleThinWhy            = "thin-why"
+	// EpicRuleRootWithDependencies is spec/1.4.0.md §4's warning on an epic
+	// marked root that has dependencies.
+	EpicRuleRootWithDependencies = "root-with-dependencies"
 )
 
 // EpicLintFinding is one lint result. Epics holds the sorted, distinct ids the
@@ -67,6 +70,7 @@ func LintEpicGraph(g *model.EpicGraph, unknown []EpicGraphUnknownKey) []EpicLint
 	out = append(out, lintEpicTagChecks(g)...)
 	out = append(out, lintEpicNoDependencies(g)...)
 	out = append(out, lintEpicThinWhy(g)...)
+	out = append(out, lintEpicRootWithDependencies(g)...)
 	return out
 }
 

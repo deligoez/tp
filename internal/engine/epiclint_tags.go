@@ -83,9 +83,22 @@ func lintEpicNoDependencies(g *model.EpicGraph) []EpicLintFinding {
 	pos := milestonePositions(g)
 	var out []EpicLintFinding
 	for _, e := range g.Epics {
-		if p, ok := pos[e.Milestone]; ok && p.index > 0 && len(e.DependsOn) == 0 {
+		if p, ok := pos[e.Milestone]; ok && p.index > 0 && len(e.DependsOn) == 0 && !e.Root {
 			out = append(out, epicWarning(EpicRuleNoDependencies,
 				fmt.Sprintf("epic %q in %q has no dependencies", e.ID, e.Milestone), e.ID))
+		}
+	}
+	return out
+}
+
+// lintEpicRootWithDependencies warns on each epic marked root that has
+// dependencies, so the mark does not outlive the reason for it.
+func lintEpicRootWithDependencies(g *model.EpicGraph) []EpicLintFinding {
+	var out []EpicLintFinding
+	for _, e := range g.Epics {
+		if e.Root && len(e.DependsOn) > 0 {
+			out = append(out, epicWarning(EpicRuleRootWithDependencies,
+				fmt.Sprintf("epic %q is marked root and has %d dependencies", e.ID, len(e.DependsOn)), e.ID))
 		}
 	}
 	return out
