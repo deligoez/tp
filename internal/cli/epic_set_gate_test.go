@@ -1,0 +1,67 @@
+package cli_test
+
+import (
+	"encoding/json"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// epicGateFieldGraph is track [A, B] with a1 and a2 in A, b in B, and gates
+// as written (an empty gates leaves the key out).
+func epicGateFieldGraph(gates string) string {
+	g := `{"version": 1, "milestones": [["A", "B"]],`
+	if gates != "" {
+		g += ` "gates": ` + gates + `,`
+	}
+	return g + ` "epics": [
+    {"id": "a1", "title": "A1", "milestone": "A", "root": true},
+    {"id": "a2", "title": "A2", "milestone": "A", "root": true},
+    {"id": "b", "title": "B", "milestone": "B", "root": true}
+  ]}`
+}
+
+// epicGateMet is a met record judged against "p95 under 200ms".
+const epicGateMet = `{"at": "2026-01-02T03:04:05Z", "evidence": "dashboard", "threshold": "p95 under 200ms"}`
+
+// gateOnFile is one gate as the graph file holds it; Members is a pointer so
+// an absent or null list tells apart from [].
+type gateOnFile struct {
+	Members    *[]string       `json:"members"`
+	Deferrable []string        `json:"deferrable"`
+	Threshold  string          `json:"threshold"`
+	Met        json.RawMessage `json:"met"`
+}
+
+// gatesOnFile reads the graph file's gates.
+func gatesOnFile(t *testing.T, dir string) map[string]gateOnFile {
+	t.Helper()
+	var g struct {
+		Gates map[string]gateOnFile `json:"gates"`
+	}
+	require.NoError(t, json.Unmarshal(readEpicGraphFile(t, dir), &g))
+	return g.Gates
+}
+
+// setGateField runs tp epic set with arg and requires exit 0.
+func setGateField(t *testing.T, dir string, arg ...string) {
+	t.Helper()
+	_, stderr, code := runTP(t, dir, append([]string{"epic", "set"}, arg...)...)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+}
+
+// TestEpicSet_GateThresholdEditsOneGateAndKeepsItsMet: the threshold changes,
+// the met record and the members stay, and the other gate is untouched.
+func TestEpicSet_GateThresholdEditsOneGateAndKeepsItsMet(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicGateFieldGraph(`{"A": {"members": ["a1"], "threshold": "p95 under 200ms", "met": `+epicGateMet+`}, "B": {"members": [], "threshold": "ships"}}`))
+	setGateField(t, dir, "gates.A.threshold=p95 under 150ms")
+	gates := gatesOnFile(t, dir)
+	assert.Equal(t, "p95 under 150ms", gates["A"].Threshold)
+	assert.JSONEq(t, epicGateMet, string(gates["A"].Met), "met is carried, its threshold copy shows the edit")
+	require.NotNil(t, gates["A"].Members)
+	assert.Equal(t, []string{"a1"}, *gates["A"].Members)
+	assert.Equal(t, "ships", gates["B"].Threshold)
+}
+
