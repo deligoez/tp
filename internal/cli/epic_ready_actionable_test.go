@@ -90,3 +90,13 @@ func TestEpicReady_C3_4_AConditionInAClosedMilestoneIsNotActionable(t *testing.T
 	assert.Equal(t, map[string]bool{"c": false}, operatorConditions(t, dir, "--all"))
 }
 
+// TestEpicReady_C3_5_AStandaloneConditionIsActionable is C3.5: nothing
+// depends on c and it depends on nothing.
+func TestEpicReady_C3_5_AStandaloneConditionIsActionable(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{"version": 1, "milestones": [["A"]], "epics": [
+    {"id": "c", "title": "C", "milestone": "A", "root": true, "condition": true, "acceptance": "the board says yes"}
+  ]}`)
+	assert.Equal(t, map[string]bool{"c": true}, operatorConditions(t, dir))
+}
+
