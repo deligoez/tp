@@ -101,3 +101,18 @@ func TestEpicReviewSlice_UnknownEpicOrMilestoneIsAnError(t *testing.T) {
 	_, err = EpicReviewSlice(epicChainGraph(), EpicSliceKey{Milestone: "Q"})
 	require.Error(t, err)
 }
+
+// TestEpicReviewSlice_ABlockCarriesTheAcceptance: dod-satisfiability reads an
+// epic's acceptance from its block, so an epic with one shows it and an epic
+// without one prints no empty acceptance line.
+func TestEpicReviewSlice_ABlockCarriesTheAcceptance(t *testing.T) {
+	g := epicChainGraph()
+	g.Epics[1].Acceptance = "b passes the ledger checker"
+	s, err := EpicReviewSlice(g, EpicSliceKey{Epic: "b"})
+	require.NoError(t, err)
+	require.Len(t, s.Units, 1)
+	assert.Contains(t, s.Units[0].Block, "acceptance: b passes the ledger checker\n")
+	for _, c := range s.Context {
+		assert.NotContains(t, c.Block, "acceptance:", "%s has no acceptance", c.ID)
+	}
+}
