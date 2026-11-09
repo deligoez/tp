@@ -149,7 +149,8 @@ func claimSingle(tf *model.TaskFile, taskFilePath, id string) error {
 	}
 
 	output.Success(fmt.Sprintf("claimed %s", task.ID))
-	return output.JSON(taskWritten{Task: task, File: taskFileLabel(taskFilePath)})
+	printResultOrExit(taskWritten{Task: task, File: taskFileLabel(taskFilePath)})
+	return nil
 }
 
 type claimFailure struct {
