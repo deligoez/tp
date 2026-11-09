@@ -81,3 +81,31 @@ func TestEpicDone_ConditionNeedsItsAcceptance(t *testing.T) {
 	require.Equal(t, 0, code, "stderr: %s", stderr)
 	assert.NotNil(t, epicDoneRecord(t, dir, "go"), "with its acceptance written the condition is recorded done")
 }
+
+// TestEpicDone_UndoThatRecreatesAWaitCycleIsLintedNotRefused: on tracks
+// [[A], [B]] with B opening after A, a, the member of A's gate, depends on b
+// in B, and b's done record cuts that wait. Removing the record re-creates
+// the cycle; the undo is the operator's record, so it is written, and tp epic
+// lint reports the cycle.
+func TestEpicDone_UndoThatRecreatesAWaitCycleIsLintedNotRefused(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{"version": 1, "milestones": [["A"], ["B"]], "opens_after": {"B": ["A"]}, "epics": [
+    {"id": "a", "title": "A", "milestone": "A", "depends_on": [{"id": "b", "why": "a extends b's model"}]},
+    {"id": "b", "title": "B", "milestone": "B", "root": true, "done": {"at": "2026-01-02T03:04:05Z", "evidence": "shipped"}}
+  ]}`)
+	out, stderr, code := runEpicLint(t, dir)
+	require.Equal(t, 0, code, "the done record cuts the wait; stderr: %s", stderr)
+	assert.Zero(t, out.Errors)
+
+	_, stderr, code = runTP(t, dir, "epic", "done", "b", "--undo")
+	require.Equal(t, 0, code, "an undo is not refused; stderr: %s", stderr)
+	assert.Nil(t, epicDoneRecord(t, dir, "b"))
+
+	out, stderr, code = runEpicLint(t, dir)
+	require.Equal(t, 1, code, "stderr: %s", stderr)
+	var rules []string
+	for _, f := range out.Findings {
+		rules = append(rules, f.Rule)
+	}
+	assert.Contains(t, rules, "dependency-opens-later")
+}
