@@ -194,6 +194,36 @@ func TestDoneAutoCommit(t *testing.T) {
 	assert.NotNil(t, show["commit_sha"])
 }
 
+// TestDoneAutoCommit_AFailedLockUnstageExitsThree: --auto-commit unstages tp's
+// lock files before it commits, and `git rm --cached --ignore-unmatch` exits 0
+// when nothing matches, so a failure there is a real one: tp done exits 3,
+// commits nothing and leaves the task open. A tp done that discarded the error
+// commits the staged lock files with the implementation, exits 0 and fails.
+func TestDoneAutoCommit_AFailedLockUnstageExitsThree(t *testing.T) {
+	t.Parallel()
+	dir := setupCommitProject(t, "t1")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "f.go"), []byte("package f\n"), 0o600))
+
+	realGit, err := exec.LookPath("git")
+	require.NoError(t, err)
+	shimDir := t.TempDir()
+	shim := "#!/bin/sh\nif [ \"$1\" = rm ]; then echo 'fatal: shim refuses rm' >&2; exit 128; fi\nexec '" + realGit + "' \"$@\"\n"
+	require.NoError(t, os.WriteFile(filepath.Join(shimDir, "git"), []byte(shim), 0o700)) //nolint:gosec // the shim must be executable
+	path := "PATH=" + shimDir + string(os.PathListSeparator) + os.Getenv("PATH")
+
+	_, stderr, code := runTPEnv(t, dir, []string{path}, "done", "t1", "t1 acceptance met completely", "--gate-passed", "--auto-commit")
+	require.Equal(t, 3, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "shim refuses rm")
+
+	log := exec.Command("git", "log", "--format=%s")
+	log.Dir = dir
+	out, err := log.Output()
+	require.NoError(t, err)
+	assert.NotContains(t, string(out), "feat(t1)", "nothing is committed")
+	stdout, _, _ := runTP(t, dir, "show", "t1")
+	assert.NotContains(t, stdout, `"status": "done"`, "the task stays open")
+}
+
 func TestCommitSequentialTasks(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
