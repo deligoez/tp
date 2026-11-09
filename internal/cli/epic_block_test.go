@@ -124,3 +124,14 @@ func TestClaim_ExitsOneOnABlockedFile(t *testing.T) {
 	}
 }
 
+// TestNext_ReturnsAWipTaskWhileBlocked is spec/1.5.0.md §6: the block stops
+// starting a task, not finishing one, so tp next still returns a wip task.
+func TestNext_ReturnsAWipTaskWhileBlocked(t *testing.T) {
+	t.Parallel()
+	dir := blockDir(t, "b", "open", "wip")
+
+	stdout, stderr, code := runTP(t, dir, "next")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.Contains(t, stdout, `"id": "t2"`)
+}
+
