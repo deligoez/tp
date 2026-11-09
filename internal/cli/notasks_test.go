@@ -89,3 +89,10 @@ func TestReadyAndClaimAllReady_AnEmptyTaskFileSaysNoTasksYet(t *testing.T) {
 		assert.Contains(t, stderr, "tp review", "%v", args)
 	}
 }
+
+// TestBrief_AnEmptyTaskFileAnswersNoTasksYet: tp brief with no id on a file
+// with zero tasks answers as tp next does, not that all tasks are complete.
+func TestBrief_AnEmptyTaskFileAnswersNoTasksYet(t *testing.T) {
+	t.Parallel()
+	assertNoTasksYet(t, emptyTaskFileDir(t), "brief")
+}
