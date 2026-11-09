@@ -66,3 +66,31 @@ func TestEpicGate_ReportsMembersGreenOrRedAndDeferrableApart(t *testing.T) {
 	assert.Equal(t, "planned", out.Deferrable[0].Status)
 }
 
+// TestEpicGate_ExitsZeroOnlyWhenGreen: with every member done, a threshold
+// with no met record holds the gate at exit 1; with its met record the gate
+// is green at exit 0, and a threshold edited after the record shows as changed
+// while the record stands.
+func TestEpicGate_ExitsZeroOnlyWhenGreen(t *testing.T) {
+	graph := func(gate string) string {
+		return `{"version": 1, "milestones": [["A"]], "gates": {"A": ` + gate + `},
+  "epics": [{"id": "a", "title": "A", "milestone": "A", "root": true, "done": {"at": "2026-01-05T09:00:00Z", "evidence": "shipped"}}]}`
+	}
+	met := `"met": {"at": "2026-01-06T09:00:00Z", "evidence": "dashboard", "threshold": "p95 under 200ms"}`
+
+	out, code := runEpicGate(t, epicGraphDir(t, graph(`{"members": [], "threshold": "p95 under 200ms"}`)), "A")
+	assert.Equal(t, 1, code, "a threshold not yet met holds the gate")
+	assert.False(t, out.Green)
+	assert.Equal(t, "p95 under 200ms", out.Threshold)
+	assert.Empty(t, out.Met)
+
+	out, code = runEpicGate(t, epicGraphDir(t, graph(`{"members": [], "threshold": "p95 under 200ms", `+met+`}`)), "A")
+	assert.Equal(t, 0, code)
+	assert.True(t, out.Green)
+	assert.NotEmpty(t, out.Met)
+	assert.False(t, out.ThresholdChanged)
+
+	out, code = runEpicGate(t, epicGraphDir(t, graph(`{"members": [], "threshold": "p95 under 150ms", `+met+`}`)), "A")
+	assert.Equal(t, 0, code, "the met record stands")
+	assert.True(t, out.ThresholdChanged, "a threshold edited after its met record shows as changed")
+}
+
