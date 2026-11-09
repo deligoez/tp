@@ -135,6 +135,21 @@ func TestReferenceCarriesTheEpicGraphContract(t *testing.T) {
 	}
 }
 
+// TestReferenceCoversTheEpicProgressRefusals pins spec/1.5.0.md's refusals to
+// the `tp epic` exit-code table: claims, done records, met records, conditions,
+// bindings and an absent --milestone each have a row naming them.
+func TestReferenceCoversTheEpicProgressRefusals(t *testing.T) {
+	t.Parallel()
+	codes := docSectionBody(t, readRepoDoc(t, "skills/tp/REFERENCE.md"), "### Exit codes (`tp epic`)")
+	for _, term := range []string{
+		"tp epic claim", "--release", "--by", "tp epic done", "--undo", "--met", "threshold",
+		"condition=true", "empty acceptance", "tp init --epic", "tp set --epic", "names `claimed`",
+		"`status --milestone`", "`gate`'s milestone", "red",
+	} {
+		assert.Contains(t, codes, term, "the exit code table covers %q", term)
+	}
+}
+
 // TestReadmeIndexListsEveryEpicSubcommand pins §7's README.md half against the
 // command tree itself, so a subcommand added later without a row fails here.
 func TestReadmeIndexListsEveryEpicSubcommand(t *testing.T) {
