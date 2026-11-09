@@ -40,6 +40,8 @@ type Epic struct {
 	Tags       []string  `json:"tags,omitempty"`
 	DependsOn  []EpicDep `json:"depends_on,omitempty"`
 	Acceptance string    `json:"acceptance,omitempty"`
+	// Root says the epic has no dependency on purpose; written only when true.
+	Root bool `json:"root,omitempty"`
 }
 
 // EpicDep is one dependency edge; Why is required by the schema.
