@@ -416,6 +416,7 @@ Every rule identifier tp can put in a `findings[].rule` field, and the command t
 | `gate-member-deferrable` | `tp epic lint` | error | A gate lists an epic both in `members` and in `deferrable` |
 | `unprovided-tag-check` | `tp epic lint` | error | An epic carries a tag whose `provided_by` is not in its transitive dependencies; the provider itself is exempt |
 | `opens-after-cycle` | `tp epic lint` | error | The milestones' `opens_after`, track defaults applied, has a cycle (a self-reference too) |
+| `opens-after-not-list` | `tp epic lint` | error | An `opens_after` value is null or not a list, which only a hand edit writes (`tp epic set` and `tp epic import` refuse it) |
 | `no-dependencies` | `tp epic lint` | warning | An epic outside the first milestone of its track has no dependencies and is neither marked `root: true` nor a condition |
 | `root-with-dependencies` | `tp epic lint` | warning | An epic marked `root: true` has dependencies |
 | `thin-why` | `tp epic lint` | warning | A `why`, case-folded and split into words, is non-empty and occurs as a run of whole words in the target epic's id or title |
