@@ -23,6 +23,25 @@ set -u
 
 payload=$(cat)
 
+# A call that only reads is not a hand-edit, so it passes whatever it names.
+# The matcher names no reader, but a reader that reaches this hook anyway -
+# a wider matcher, a user-level registration, a host that routes every MCP
+# call through it - would otherwise have its path argument judged like a
+# write target, and a codedbpro read of a round file was refused that way with
+# the hand-edit message. The list is drop-batch-reads.awk's reader list plus
+# the native readers. The tool name is extracted as the path is below, with a
+# bare quote on both sides of the key, and a payload naming more than one
+# tool_name matches no single entry and is judged in full.
+tool_name=$(printf '%s' "$payload" |
+	grep -Eo '"tool_name"[[:space:]]*:[[:space:]]*"[^"]*"' |
+	sed -e 's/^[^:]*:[[:space:]]*"//' -e 's/"$//')
+case $tool_name in
+Read | Grep | Glob | LS | NotebookRead | \
+	mcp__codedbpro__read | mcp__codedbpro__faster_search | mcp__codedbpro__meta_search | \
+	mcp__codedbpro__diff | mcp__codedbpro__lint | mcp__codedbpro__memo)
+	exit 0
+	;;
+esac
 # normalize prints the form a path is compared in: lowercased, with runs of
 # separators collapsed and `.` / `..` segments resolved away. Without this the
 # fence is a spelling match, and every one of `.tp/./config.json`,
