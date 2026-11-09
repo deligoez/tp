@@ -64,7 +64,7 @@ func TestEpicReviewResolve_AnOutOfRangeIndexChangesNothing(t *testing.T) {
 	assert.Equal(t, string(before), string(after), "the round file is unchanged")
 	matches, err := filepath.Glob(filepath.Join(filepath.Dir(files[0]), "*"))
 	require.NoError(t, err)
-	assert.Len(t, matches, 2, "only round-1.ndjson and its snapshot exist")
+	assert.Len(t, matches, 3, "only round-1.ndjson, its snapshot and the slice's key.json exist")
 }
 
 // TestEpicReviewResolve_SeveralIndicesAtOnce: --resolve 0,2 dispositions both
