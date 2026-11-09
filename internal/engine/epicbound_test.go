@@ -66,3 +66,21 @@ func TestEpicBoundFiles_IndexedByEpicUnboundInNone(t *testing.T) {
 
 	assert.Equal(t, map[string][]string{"a": {a}, "b": {b1, b2}}, got)
 }
+
+// TestEpicBoundFiles_AnUnparsableFileIsAnError is spec/1.5.0.md §6: a task
+// file that cannot be parsed may be bound to any epic, so the walk is an
+// *UnreadableTaskFileError naming it, not an index without it.
+func TestEpicBoundFiles_AnUnparsableFileIsAnError(t *testing.T) {
+	root := boundFilesRepo(t)
+	writeBoundTaskFile(t, root, "a.tasks.json", "a")
+	bad := filepath.Join(root, "spec", "bad.tasks.json")
+	require.NoError(t, os.MkdirAll(filepath.Dir(bad), 0o750))
+	require.NoError(t, os.WriteFile(bad, []byte("{"), 0o600))
+
+	got, err := EpicBoundFiles(root)
+
+	var unreadable *UnreadableTaskFileError
+	require.ErrorAs(t, err, &unreadable)
+	assert.Equal(t, bad, unreadable.Path)
+	assert.Nil(t, got)
+}
