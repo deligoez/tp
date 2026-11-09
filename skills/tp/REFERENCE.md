@@ -694,7 +694,7 @@ tp:
 Reviewer and auditor roles are project-owned JSON files under the repo-root `.tp/` (discovered via the git-boundary anchor, committed to VCS):
 
 - `.tp/reviewers/*.json` — `tp review` roles; `.tp/auditors/*.json` — `tp audit` roles. The phase is inferred from the directory.
-- Schema (one shared parser/validator): `id` (MUST equal the filename stem, `^[a-z0-9]+(-[a-z0-9]+)*$`, not the reserved `regression`), `title`, `instructions`, `focus` (string[], optional), `domains` (string[], optional — default: every domain). Any other top-level key is a validation error — tp owns the finding output contract.
+- Schema (one shared parser/validator): `id` (MUST equal the filename stem, `^[a-z0-9]+(-[a-z0-9]+)*$`, not the reserved `regression`), `title`, `instructions`, `focus` (string[], optional), `domains` (string[], optional — default: every domain), `context` (`neighbours` or `dependencies`, optional; read only by `tp epic review`, see Epic Graph). Any other top-level key is a validation error — tp owns the finding output contract.
 - The embedded default auditor prompts changed in v0.31.2 (language-neutral wording). Every eject writes an advisory to stderr — `note: these roles are starting points; rewrite their focus for your project's stack and conventions.` — suppressed by `--quiet` but not by JSON mode; the eject JSON payload keys stay exactly `ejected` and `domain`.
 
 | Command / flag | Meaning |
