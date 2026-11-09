@@ -1,10 +1,12 @@
 package cli_test
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -47,4 +49,35 @@ func TestCommit_AFailedStagedCheckExitsThree(t *testing.T) {
 	out, err := log.Output()
 	require.NoError(t, err)
 	assert.NotContains(t, string(out), "feat(t1)", "nothing is committed")
+}
+
+// TestCommit_AFailedFollowUpClosureCommitExitsThree: with every commit after
+// the implementation commit refused, the amend fails and so does the follow-up
+// chore(tp) commit, leaving the closure staged but in no commit. tp commit used
+// to only warn and exit 0; it exits 3 and its envelope names the landed
+// commit and the exact recovery, as a failed closure stage does.
+func TestCommit_AFailedFollowUpClosureCommitExitsThree(t *testing.T) {
+	t.Parallel()
+	dir := setupCommitProject(t, "t1")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "f.go"), []byte("package f\n"), 0o600))
+
+	stdout, stderr, code := runTPEnv(t, dir, []string{gitRefusingNthPath(t, "commit", 2)}, "commit", "t1", "t1 acceptance met completely")
+	require.Equal(t, 3, code, "stdout: %s stderr: %s", stdout, stderr)
+	assert.Contains(t, stderr, "shim refuses commit")
+
+	var envelope map[string]any
+	for line := range strings.SplitSeq(stderr, "\n") {
+		if strings.HasPrefix(line, "{") {
+			require.NoError(t, json.Unmarshal([]byte(line), &envelope))
+		}
+	}
+	require.NotNil(t, envelope, "no JSON error envelope on stderr: %s", stderr)
+	head := exec.Command("git", "rev-parse", "--short", "HEAD")
+	head.Dir = dir
+	out, err := head.Output()
+	require.NoError(t, err)
+	assert.Equal(t, strings.TrimSpace(string(out)), envelope["commit_sha"])
+	hint, _ := envelope["hint"].(string)
+	assert.Contains(t, hint, `git commit -m "chore(tp): record t1 closure"`)
+	assert.Contains(t, hint, "do not re-run tp commit")
 }
