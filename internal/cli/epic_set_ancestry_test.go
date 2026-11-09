@@ -87,3 +87,28 @@ func TestEpicSet_FirstMilestonesWriteReportsNoAncestry(t *testing.T) {
 		{Milestone: "C", Lost: []string{}, Gained: []string{"X"}},
 	}, runEpicSetAncestry(t, dir, `milestones=[["A", "X", "B", "C"]]`), "X is new: B and C gain it, X itself is not listed")
 }
+
+// epicAncestryOf runs tp epic with args in dir and returns the response's
+// ancestry_changed, failing when the key is absent.
+func epicAncestryOf(t *testing.T, dir string, args ...string) []ancestryChange {
+	t.Helper()
+	stdout, stderr, code := runTP(t, dir, append([]string{"epic"}, args...)...)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var out struct {
+		AncestryChanged *[]ancestryChange `json:"ancestry_changed"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out), "stdout: %s", stdout)
+	require.NotNil(t, out.AncestryChanged, "stdout: %s", stdout)
+	return *out.AncestryChanged
+}
+
+// TestEpicMilestoneAdd_ReportsChangedAncestry: inserting X after F re-routes
+// G's default opens_after through X, so G and H, which opens after G, gain X.
+func TestEpicMilestoneAdd_ReportsChangedAncestry(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, ancestryGraph)
+	assert.Equal(t, []ancestryChange{
+		{Milestone: "G", Lost: []string{}, Gained: []string{"X"}},
+		{Milestone: "H", Lost: []string{}, Gained: []string{"X"}},
+	}, epicAncestryOf(t, dir, "milestone", "add", "X", "--after", "F"))
+}
