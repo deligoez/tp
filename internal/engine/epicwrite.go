@@ -25,22 +25,33 @@ func (e *EpicWriteRefusedError) Error() string {
 	return "write refused: it adds lint errors the file did not hold: " + strings.Join(parts, "; ")
 }
 
+// EpicWriteOutcome is what a graph write leaves behind: the file's path, the
+// paths of the keys outside the schema it did not carry, and the file's
+// revision after the write.
+type EpicWriteOutcome struct {
+	Path     string
+	Dropped  []string
+	Revision string
+}
+
 // UpdateEpicGraph applies mutate to tpDir/epics.json under the file's write
 // lock and writes the result, unless the after-state holds an error the
 // before-state did not: then it writes nothing and returns an
-// *EpicWriteRefusedError. An error from mutate also writes nothing and is
-// returned as is. An absent file starts as an empty version-1 graph, so any
-// writer creates it. Keys outside the schema are not carried into the
-// written file, so the after-state is linted without them; their paths are
-// returned as dropped, an empty list when there were none. It returns the
-// path of the graph file.
-func UpdateEpicGraph(tpDir string, mutate func(*model.EpicGraph) error) (path string, dropped []string, err error) {
-	path = filepath.Join(tpDir, EpicGraphFile)
-	dropped = []string{}
+// *EpicWriteRefusedError. With ifRevision set, a file whose revision differs
+// is refused first with an *EpicStaleRevisionError. An error from mutate also
+// writes nothing and is returned as is. An absent file starts as an empty
+// version-1 graph, so any writer creates it. Keys outside the schema are not
+// carried into the written file, so the after-state is linted without them;
+// their paths are returned as dropped, an empty list when there were none.
+func UpdateEpicGraph(tpDir string, ifRevision *string, mutate func(*model.EpicGraph) error) (EpicWriteOutcome, error) {
+	out := EpicWriteOutcome{Path: filepath.Join(tpDir, EpicGraphFile), Dropped: []string{}}
 	if err := os.MkdirAll(tpDir, 0o755); err != nil {
-		return path, dropped, fmt.Errorf("create %s: %w", tpDir, err)
+		return out, fmt.Errorf("create %s: %w", tpDir, err)
 	}
-	err = WithFileLock(path, func() error {
+	err := WithFileLock(out.Path, func() error {
+		if err := checkEpicRevision(tpDir, ifRevision); err != nil {
+			return err
+		}
 		g, unknown, err := LoadEpicGraph(tpDir)
 		if errors.Is(err, ErrEpicGraphNotFound) {
 			g, err = &model.EpicGraph{Version: 1, Milestones: [][]string{}, Epics: []model.Epic{}}, nil
@@ -59,11 +70,12 @@ func UpdateEpicGraph(tpDir string, mutate func(*model.EpicGraph) error) (path st
 			return err
 		}
 		for _, k := range unknown {
-			dropped = append(dropped, k.Path)
+			out.Dropped = append(out.Dropped, k.Path)
 		}
-		return nil
+		out.Revision, err = EpicGraphRevision(tpDir)
+		return err
 	})
-	return path, dropped, err
+	return out, err
 }
 
 // AddEpics appends epics to g in order. With replace, an epic whose id g

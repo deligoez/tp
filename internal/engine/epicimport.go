@@ -21,31 +21,37 @@ func (e *EpicImportRefusedError) Error() string {
 }
 
 // ImportEpicGraph replaces tpDir/epics.json with g under the file's write
-// lock. A file that holds epics is refused with an *EpicImportRefusedError
-// unless force; an absent file is created. The payload's own lint errors do
-// not refuse the write (D4): the after-state's findings are returned for the
-// caller to report. It returns the path of the graph file.
-func ImportEpicGraph(tpDir string, g *model.EpicGraph, force bool) (string, []EpicLintFinding, error) {
-	path := filepath.Join(tpDir, EpicGraphFile)
+// lock. With ifRevision set, a file whose revision differs is refused first
+// with an *EpicStaleRevisionError. A file that holds epics is refused with an
+// *EpicImportRefusedError unless force; an absent file is created. The
+// payload's own lint errors do not refuse the write (D4): the after-state's
+// findings are returned for the caller to report.
+func ImportEpicGraph(tpDir string, g *model.EpicGraph, force bool, ifRevision *string) (EpicWriteOutcome, []EpicLintFinding, error) {
+	out := EpicWriteOutcome{Path: filepath.Join(tpDir, EpicGraphFile), Dropped: []string{}}
 	if err := os.MkdirAll(tpDir, 0o755); err != nil {
-		return path, nil, fmt.Errorf("create %s: %w", tpDir, err)
+		return out, nil, fmt.Errorf("create %s: %w", tpDir, err)
 	}
 	var findings []EpicLintFinding
-	err := WithFileLock(path, func() error {
+	err := WithFileLock(out.Path, func() error {
+		if err := checkEpicRevision(tpDir, ifRevision); err != nil {
+			return err
+		}
 		if !force {
 			current, _, err := LoadEpicGraph(tpDir)
 			if err != nil && !errors.Is(err, ErrEpicGraphNotFound) {
 				return err
 			}
 			if err == nil && len(current.Epics) > 0 {
-				return &EpicImportRefusedError{Path: path, Epics: len(current.Epics)}
+				return &EpicImportRefusedError{Path: out.Path, Epics: len(current.Epics)}
 			}
 		}
 		if err := WriteEpicGraph(tpDir, g); err != nil {
 			return err
 		}
 		findings = LintEpicGraph(g, nil)
-		return nil
+		var err error
+		out.Revision, err = EpicGraphRevision(tpDir)
+		return err
 	})
-	return path, findings, err
+	return out, findings, err
 }
