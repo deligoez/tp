@@ -25,6 +25,6 @@ func newEpicRemoveCmd() *cobra.Command {
 func runEpicRemove(cmd *cobra.Command, args []string) error {
 	fenceEpicWrite("tp epic remove")
 	force, _ := cmd.Flags().GetBool("force")
-	writeEpicGraph(args, engine.RemoveEpic(args[0], force))
+	writeEpicGraph(engine.RemoveEpic(args[0], force))
 	return nil
 }

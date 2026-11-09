@@ -33,11 +33,9 @@ func runEpicSet(_ *cobra.Command, args []string) error {
 	if !ok {
 		epicSetUsageExit("expected <field>=<value>, got " + args[len(args)-1])
 	}
-	ids := []string{}
 	var mutate func(*model.EpicGraph) error
 	var err error
 	if len(args) == 2 {
-		ids = append(ids, args[0])
 		mutate, err = engine.ParseEpicFieldSet(args[0], key, value)
 	} else {
 		mutate, err = engine.ParseEpicGraphSet(key, value)
@@ -45,7 +43,7 @@ func runEpicSet(_ *cobra.Command, args []string) error {
 	if err != nil {
 		epicSetUsageExit(err.Error())
 	}
-	writeEpicGraph(ids, mutate)
+	writeEpicGraph(mutate)
 	return nil
 }
 

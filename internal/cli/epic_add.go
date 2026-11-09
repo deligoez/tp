@@ -21,11 +21,11 @@ import (
 const epicWriteRefusedHint = "fix the payload so it adds no lint error; tp epic lint shows the errors the file already holds"
 
 // epicWriteResult is every epic writer's payload: the file it wrote, the
-// epic ids the write touched, and the paths of the keys outside the schema it
-// did not carry into the file.
+// number of epics the file holds after the write, and the paths of the keys
+// outside the schema it did not carry into the file.
 type epicWriteResult struct {
 	File        string   `json:"file"`
-	Epics       []string `json:"epics"`
+	Epics       int      `json:"epics"`
 	DroppedKeys []string `json:"dropped_keys"`
 }
 
@@ -52,16 +52,7 @@ func runEpicAdd(cmd *cobra.Command, args []string) error {
 	} else {
 		epics = []model.Epic{decodeEpicArg(cmd, args)}
 	}
-	// Rows sharing an id write one epic, so each id is listed once, first-seen.
-	ids := make([]string, 0, len(epics))
-	seen := make(map[string]bool, len(epics))
-	for i := range epics {
-		if !seen[epics[i].ID] {
-			seen[epics[i].ID] = true
-			ids = append(ids, epics[i].ID)
-		}
-	}
-	writeEpicGraph(ids, func(g *model.EpicGraph) error {
+	writeEpicGraph(func(g *model.EpicGraph) error {
 		engine.AddEpics(g, epics, bulk != "")
 		return nil
 	})
@@ -180,8 +171,16 @@ func readBulkEpics(path string) []model.Epic {
 // writeEpicGraph runs one locked, lint-checked write of .tp/epics.json and
 // reports it: exit 1 naming the new errors, 4 naming an absent epic, 3 on a
 // file error.
-func writeEpicGraph(ids []string, mutate func(*model.EpicGraph) error) {
-	path, dropped, err := engine.UpdateEpicGraph(engine.ProjectConfigDir("."), mutate)
+func writeEpicGraph(mutate func(*model.EpicGraph) error) {
+	count := 0
+	counted := func(g *model.EpicGraph) error {
+		if err := mutate(g); err != nil {
+			return err
+		}
+		count = len(g.Epics)
+		return nil
+	}
+	path, dropped, err := engine.UpdateEpicGraph(engine.ProjectConfigDir("."), counted)
 	var refused *engine.EpicWriteRefusedError
 	var notFound *engine.EpicNotFoundError
 	var removeRefused *engine.EpicRemoveRefusedError
@@ -207,7 +206,7 @@ func writeEpicGraph(ids []string, mutate func(*model.EpicGraph) error) {
 		output.Error(ExitFile, err.Error(), epicGraphWriteHint)
 		os.Exit(ExitFile)
 	}
-	if err := output.JSON(epicWriteResult{File: path, Epics: ids, DroppedKeys: dropped}); err != nil {
+	if err := output.JSON(epicWriteResult{File: path, Epics: count, DroppedKeys: dropped}); err != nil {
 		output.Error(ExitFile, err.Error(), internalEncodeHint)
 		os.Exit(ExitFile)
 	}
