@@ -95,3 +95,34 @@ func TestEpicStatus_ReportsEachMilestone(t *testing.T) {
 	assert.Empty(t, b.Ready, "an epic of a closed milestone is not ready")
 	assert.Empty(t, b.Blocked)
 }
+
+// TestEpicStatus_CompactLeavesOutTheEstimateChainThroughputAndRollup is
+// spec/1.5.0.md §7: under --compact the estimate chain, throughput and the
+// roll-up are left out; without it each is reported.
+func TestEpicStatus_CompactLeavesOutTheEstimateChainThroughputAndRollup(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{"version": 1, "milestones": [["A"]], "epics": [
+    {"id": "a", "title": "A", "milestone": "A", "estimate_minutes": 30, "depends_on": [{"id": "b", "why": "w"}]},
+    {"id": "b", "title": "B", "milestone": "A", "root": true, "estimate_minutes": 20}
+  ]}`)
+	keys := func(stdout string) (milestone, path map[string]json.RawMessage) {
+		var r struct {
+			Milestones []map[string]json.RawMessage `json:"milestones"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(stdout), &r), "stdout: %s", stdout)
+		require.Len(t, r.Milestones, 1)
+		require.NoError(t, json.Unmarshal(r.Milestones[0]["critical_path"], &path))
+		return r.Milestones[0], path
+	}
+
+	full, fullPath := keys(runEpicStatus(t, dir))
+	assert.Contains(t, full, "throughput")
+	assert.Contains(t, full, "rollup")
+	assert.JSONEq(t, `{"chain": ["b", "a"], "estimate_minutes": 50}`, string(fullPath["by_estimate"]))
+
+	compact, compactPath := keys(runEpicStatus(t, dir, "--compact"))
+	assert.NotContains(t, compact, "throughput")
+	assert.NotContains(t, compact, "rollup")
+	assert.NotContains(t, compactPath, "by_estimate", "the estimate chain is left out")
+	assert.JSONEq(t, `["b", "a"]`, string(compactPath["by_count"]), "the chain by count stays")
+}
