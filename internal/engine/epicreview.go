@@ -11,7 +11,7 @@ import (
 // emission checks mechanically, in ascending order.
 var epicErrorRules = []string{
 	EpicRuleCycle, EpicRuleDanglingReference, EpicRuleDuplicateName,
-	EpicRuleGateMemberOutsideMilestone, EpicRuleLaterMilestoneDependency,
+	EpicRuleGateMemberDeferrable, EpicRuleGateMemberOutsideMilestone, EpicRuleLaterMilestoneDependency,
 	EpicRuleMissingWhy, EpicRuleOpensAfterCycle, EpicRuleUnknownKey, EpicRuleUnknownMilestone,
 	EpicRuleUnprovidedTagCheck,
 }

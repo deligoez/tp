@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/deligoez/tp/internal/model"
@@ -113,6 +114,21 @@ func lintEpicGateMembers(g *model.EpicGraph) []EpicLintFinding {
 		hint := gateKeyHint(name, gate.Members, byID)
 		out = append(out, gateListOutside(name, "member", hint, gate.Members, byID)...)
 		out = append(out, gateListOutside(name, "deferrable", "", gate.Deferrable, byID)...)
+		out = append(out, gateMembersDeferrable(name, &gate)...)
+	}
+	return out
+}
+
+// gateMembersDeferrable reports each id an explicit members list shares with
+// the gate's deferrable list. An implicit list never does: it leaves the
+// deferrable epics out (GateMembers).
+func gateMembersDeferrable(name string, gate *model.EpicGate) []EpicLintFinding {
+	var out []EpicLintFinding
+	for _, id := range gate.Members {
+		if slices.Contains(gate.Deferrable, id) {
+			out = append(out, epicNamedError(EpicRuleGateMemberDeferrable,
+				fmt.Sprintf("gate %q lists %q both as a member and as deferrable, and a deferrable epic never holds a gate", name, id), []string{name}, id))
+		}
 	}
 	return out
 }

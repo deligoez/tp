@@ -18,6 +18,7 @@ var epicRuleRefusedHints = map[string]string{
 	engine.EpicRuleUnknownMilestone:           "name a milestone a track lists, or add it to a track first (tp epic milestone add)",
 	engine.EpicRuleLaterMilestoneDependency:   "move the edge's target to this or an earlier milestone of the track, or move this epic to a later milestone",
 	engine.EpicRuleGateMemberOutsideMilestone: "list as a gate's members or deferrable only epics of its milestone, or move the epic into that milestone",
+	engine.EpicRuleGateMemberDeferrable:       "list the epic in the gate's members or its deferrable, not both (tp epic set gates.<m>.members= or .deferrable=)",
 	engine.EpicRuleUnprovidedTagCheck:         "make the epic depend on the tag's provider, or drop the tag from the epic",
 	engine.EpicRuleOpensAfterCycle:            "drop or redirect one opens_after entry of the cycle; a milestone without an entry opens after the previous one of its track",
 }

@@ -31,6 +31,9 @@ const (
 	EpicRuleUnknownMilestone           = "unknown-milestone"
 	EpicRuleLaterMilestoneDependency   = "later-milestone-dependency"
 	EpicRuleGateMemberOutsideMilestone = "gate-member-outside-milestone"
+	// EpicRuleGateMemberDeferrable is the error on an epic a gate lists both
+	// as a member and as deferrable: deferrable epics never hold a gate.
+	EpicRuleGateMemberDeferrable = "gate-member-deferrable"
 )
 
 // Tag and warning rules of the epic graph lint (spec/1.3.0.md §4).
