@@ -50,3 +50,17 @@ func TestEpicBoundFiles_TrackedAndUntrackedFoundIgnoredNot(t *testing.T) {
 	assert.ElementsMatch(t, []string{tracked, untracked}, got["b"])
 }
 
+// TestEpicBoundFiles_IndexedByEpicUnboundInNone: each file lands under the
+// epic it names and no other, and a file with no epic is in no epic's list —
+// neither under its own key nor under the empty one.
+func TestEpicBoundFiles_IndexedByEpicUnboundInNone(t *testing.T) {
+	root := boundFilesRepo(t)
+	a := writeBoundTaskFile(t, root, "a.tasks.json", "a")
+	b1 := writeBoundTaskFile(t, root, "spec/b1.tasks.json", "b")
+	b2 := writeBoundTaskFile(t, root, "spec/b2.tasks.json", "b")
+	writeBoundTaskFile(t, root, "spec/free.tasks.json", "")
+
+	got := EpicBoundFiles(root)
+
+	assert.Equal(t, map[string][]string{"a": {a}, "b": {b1, b2}}, got)
+}
