@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.5.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-09T15:39:13.421632Z",
+  "updated_at": "2026-11-09T15:48:13.996581Z",
   "workflow": {
     "review_max_rounds": 4,
     "audit_max_rounds": 5
@@ -857,7 +857,7 @@
       "id": "docs-reference-epic-progress",
       "title": "Document the v1.5.0 rules in REFERENCE",
       "description": "REFERENCE epic section: new schema keys, the status table, gate defaults, green and open, conditions, the export contract and the exit-code table rows.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -870,11 +870,18 @@
         "## 8. Schema",
         "## 3. Status"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-09T15:40:18.514512Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-09T15:48:13.986665Z",
+      "closed_reason": "- the graph file's schema table lists epics[].condition, estimate_minutes, claimed, done, gates.\u003cmilestone\u003e.threshold, met and a task file's epic (TestReferenceCarriesTheEpicProgressSchema)\n- the tp epic exit table covers claim, done, gate --met, condition=true, binding, add/bulk/set-gates record payloads, TP_UNATTENDED fences and absent gate/status milestones (TestReferenceCoversTheEpicProgressRefusals); gate green",
+      "gate_passed_at": "2026-11-09T15:48:13.986665Z",
+      "commit_sha": "a6efb101",
+      "commit_shas": [
+        "a6efb101"
+      ],
+      "commit_files": [
+        "internal/cli/epic_docs_test.go"
+      ]
     },
     {
       "id": "docs-readme-epic-progress",
