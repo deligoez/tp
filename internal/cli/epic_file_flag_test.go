@@ -1,6 +1,8 @@
 package cli_test
 
 import (
+	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -56,4 +58,43 @@ func TestEpicFlag_TheOnlyBoundFileIsUsed(t *testing.T) {
 	stdout, stderr, code := runTP(t, dir, "ready", "--epic", "b", "--ids")
 	require.Equal(t, 0, code, "stderr: %s", stderr)
 	assert.Contains(t, stdout, "t1")
+}
+
+// releaseEpicFile brings <base>.tasks.json, whose tasks are done, to the
+// release phase: two clean review and two clean audit rounds on its spec.
+func releaseEpicFile(t *testing.T, dir, base string) {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(dir, base+".md"))
+	require.NoError(t, err)
+	hash := fmt.Sprintf("sha256:%x", sha256.Sum256(data))
+	rounds := []map[string]any{}
+	for i := range 2 {
+		rounds = append(rounds, map[string]any{"round": i + 1, "clean": true, "spec_hash": hash, "recorded_at": "2026-01-01T00:00:00Z"})
+	}
+	stateDir := filepath.Join(dir, ".tp-review", base)
+	require.NoError(t, os.MkdirAll(stateDir, 0o755))
+	out, err := json.Marshal(map[string]any{"spec": base + ".md", "review_rounds": rounds, "audit_rounds": rounds})
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(stateDir, "state.json"), out, 0o600))
+}
+
+// TestEpicFlag_TheOnlyFileNotAtReleaseIsUsed is F8: b1 is at release, so tp
+// resume --epic b resumes b2, the only bound file still in flight.
+func TestEpicFlag_TheOnlyFileNotAtReleaseIsUsed(t *testing.T) {
+	t.Parallel()
+	dir := epicFileRepo(t)
+	writeEpicFile(t, dir, "b1", "b", "done")
+	releaseEpicFile(t, dir, "b1")
+	writeEpicFile(t, dir, "b2", "b", "open")
+	initGitRepo(t, dir)
+
+	stdout, stderr, code := runTP(t, dir, "resume", "--epic", "b")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var res struct {
+		Phase string `json:"phase"`
+		Spec  string `json:"spec"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &res), "stdout: %s", stdout)
+	assert.Equal(t, "implement", res.Phase)
+	assert.Equal(t, "b2.md", filepath.Base(res.Spec))
 }
