@@ -23,6 +23,7 @@ type epicImportResult struct {
 	File     string                   `json:"file"`
 	Epics    int                      `json:"epics"`
 	Findings []engine.EpicLintFinding `json:"findings"`
+	Revision string                   `json:"revision"`
 }
 
 func newEpicImportCmd() *cobra.Command {
@@ -33,6 +34,7 @@ func newEpicImportCmd() *cobra.Command {
 		RunE:  runEpicImport,
 	}
 	cmd.Flags().Bool("force", false, "replace a graph file that already holds epics")
+	epicIfRevisionFlag(cmd)
 	return cmd
 }
 
@@ -42,13 +44,17 @@ func runEpicImport(cmd *cobra.Command, args []string) error {
 	fenceEpicWrite("tp epic import")
 	force, _ := cmd.Flags().GetBool("force")
 	g := readEpicImportPayload(args[0])
-	path, findings, err := engine.ImportEpicGraph(engine.ProjectConfigDir("."), g, force)
+	out, findings, err := engine.ImportEpicGraph(engine.ProjectConfigDir("."), g, force, epicIfRevision(cmd))
 	var refused *engine.EpicImportRefusedError
+	var stale *engine.EpicStaleRevisionError
 	var mce *engine.MalformedConfigError
 	var lockErr *engine.LockTimeoutError
 	switch {
 	case errors.As(err, &lockErr):
 		output.Error(ExitState, lockErr.Error(), lockErr.Hint())
+		os.Exit(ExitState)
+	case errors.As(err, &stale):
+		output.Error(ExitState, stale.Error(), epicStaleRevisionHint)
 		os.Exit(ExitState)
 	case errors.As(err, &refused):
 		output.Error(ExitValidation, refused.Error(), epicImportRefusedHint)
@@ -60,7 +66,7 @@ func runEpicImport(cmd *cobra.Command, args []string) error {
 		output.Error(ExitFile, err.Error(), epicGraphWriteHint)
 		os.Exit(ExitFile)
 	}
-	result := epicImportResult{File: path, Epics: len(g.Epics), Findings: findings}
+	result := epicImportResult{File: out.Path, Epics: len(g.Epics), Findings: findings, Revision: out.Revision}
 	if result.Findings == nil {
 		result.Findings = []engine.EpicLintFinding{}
 	}
