@@ -20,8 +20,15 @@ type EpicDownstream struct {
 	// DependentsOpen is the part of Dependents in an open milestone.
 	DependentsOpen int
 	// DependentsByMilestone is Dependents per milestone, listing only
-	// milestones with at least one.
-	DependentsByMilestone map[string]int
+	// milestones with at least one: tracks in graph order, milestones in track
+	// order, then any milestone no track lists in graph order.
+	DependentsByMilestone []MilestoneDependents
+}
+
+// MilestoneDependents is one milestone's part of an epic's dependents.
+type MilestoneDependents struct {
+	Milestone  string
+	Dependents int
 }
 
 // EpicDownstreams returns the downstream of each of ids that names a not-done
@@ -30,22 +37,53 @@ type EpicDownstream struct {
 // edges, so a large graph is walked once, not once per id.
 func EpicDownstreams(g *model.EpicGraph, states map[string]EpicState, gates map[string]MilestoneGate, ids []string) map[string]EpicDownstream {
 	w := newDownstreamWalk(g, states)
+	order := milestoneOrder(g)
 	out := make(map[string]EpicDownstream, len(ids))
 	for _, id := range ids {
 		i, ok := w.index[id]
 		if !ok || !w.undone(i) {
 			continue
 		}
-		d := EpicDownstream{LongestChain: w.longest(i), DependentsByMilestone: map[string]int{}}
+		d := EpicDownstream{LongestChain: w.longest(i)}
+		byMilestone := map[string]int{}
 		for _, j := range w.reach(i).members() {
 			e := &g.Epics[j]
 			d.Dependents++
-			d.DependentsByMilestone[e.Milestone]++
+			byMilestone[e.Milestone]++
 			if gates[e.Milestone].Open {
 				d.DependentsOpen++
 			}
 		}
+		d.DependentsByMilestone = []MilestoneDependents{}
+		for _, m := range order {
+			if n := byMilestone[m]; n > 0 {
+				d.DependentsByMilestone = append(d.DependentsByMilestone, MilestoneDependents{Milestone: m, Dependents: n})
+			}
+		}
 		out[id] = d
+	}
+	return out
+}
+
+// milestoneOrder lists every milestone once: tracks in graph order and each
+// track's milestones in order, then the milestones of epics no track lists,
+// in graph order.
+func milestoneOrder(g *model.EpicGraph) []string {
+	out := []string{}
+	seen := map[string]bool{}
+	add := func(m string) {
+		if !seen[m] {
+			seen[m] = true
+			out = append(out, m)
+		}
+	}
+	for _, track := range g.Milestones {
+		for _, m := range track {
+			add(m)
+		}
+	}
+	for i := range g.Epics {
+		add(g.Epics[i].Milestone)
 	}
 	return out
 }

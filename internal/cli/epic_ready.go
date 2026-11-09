@@ -33,10 +33,25 @@ type epicReadyItem struct {
 
 // epicDownstreamCounts is engine.EpicDownstream's payload.
 type epicDownstreamCounts struct {
-	LongestChain          int            `json:"longest_chain"`
-	Dependents            int            `json:"dependents"`
-	DependentsOpen        int            `json:"dependents_open"`
-	DependentsByMilestone map[string]int `json:"dependents_by_milestone"`
+	LongestChain          int                       `json:"longest_chain"`
+	Dependents            int                       `json:"dependents"`
+	DependentsOpen        int                       `json:"dependents_open"`
+	DependentsByMilestone []epicMilestoneDependents `json:"dependents_by_milestone"`
+}
+
+// epicMilestoneDependents is engine.MilestoneDependents' payload.
+type epicMilestoneDependents struct {
+	Milestone  string `json:"milestone"`
+	Dependents int    `json:"dependents"`
+}
+
+// epicDownstreamPayload converts d to its payload.
+func epicDownstreamPayload(d engine.EpicDownstream) epicDownstreamCounts {
+	by := make([]epicMilestoneDependents, 0, len(d.DependentsByMilestone))
+	for _, m := range d.DependentsByMilestone {
+		by = append(by, epicMilestoneDependents(m))
+	}
+	return epicDownstreamCounts{LongestChain: d.LongestChain, Dependents: d.Dependents, DependentsOpen: d.DependentsOpen, DependentsByMilestone: by}
 }
 
 // epicClaimedEpic is an epic that would be ready but for its claim, with the
@@ -101,7 +116,7 @@ func epicReadyReport(g *model.EpicGraph, r *engine.EpicReadiness) epicReadyResul
 		Operator: epicOperatorWait{Conditions: make([]epicReadyEpic, 0, len(r.Conditions)), Gates: make([]epicThresholdWait, 0, len(r.Gates))},
 	}
 	for _, id := range r.Ready {
-		result.Ready = append(result.Ready, epicReadyItem{epicReadyEpic: entry(id), Downstream: epicDownstreamCounts(r.Downstream[id])})
+		result.Ready = append(result.Ready, epicReadyItem{epicReadyEpic: entry(id), Downstream: epicDownstreamPayload(r.Downstream[id])})
 	}
 	for _, id := range r.Claimed {
 		c := byID[id].Claimed
