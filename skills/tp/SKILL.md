@@ -643,7 +643,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp plan --compact` | Stripped plan: no description, source_lines, tags (~40% fewer) |
 | `tp plan --from <id>` | Start plan from a specific task onward |
 | `tp plan --level 0,1` | Filter by parallelism levels (multi-agent) |
-| `tp commit <id> [reason]` | Stage + structured commit + record SHA |
+| `tp commit <id> [reason]` | Stage + structured commit + record SHA; on a bound file whose epic is blocked it commits a `wip` task and refuses an `open` one at exit 1 with `blocked_by_epics` |
 | `tp commit <id> --files "*.go"` | Selective file staging |
 | `tp done <id> "reason"` | Single close with implicit claim + verification; runs the quality gate. On a bound file whose epic is blocked it closes a `wip` task and refuses any other at exit 1 with `blocked_by_epics`; the next-task counts leave the blocked tasks out |
 | `tp done <id> --skip-gate "why"` | Skip gate execution, record `gate_skipped_reason` (needs user approval) |
