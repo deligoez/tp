@@ -33,6 +33,15 @@ func epicBlockedUnderLock(tf, pre *model.TaskFile, taskFilePath string) []string
 // epicBlockedNoticing is epicBlockedBy, printing an ignored binding's notice
 // only when notice is set.
 func epicBlockedNoticing(tf *model.TaskFile, taskFilePath string, notice bool) []string {
+	if block := epicBlockNoticing(tf, taskFilePath, notice); block != nil {
+		return block.BlockedBy
+	}
+	return nil
+}
+
+// epicBlockNoticing is epicBlockedNoticing's block itself, nil when it blocks
+// nothing.
+func epicBlockNoticing(tf *model.TaskFile, taskFilePath string, notice bool) *engine.EpicBlock {
 	block, err := engine.EpicBlockFor(tf, taskFilePath)
 	if err != nil {
 		output.Error(ExitFile, err.Error(), epicBoundFileHint)
@@ -47,7 +56,7 @@ func epicBlockedNoticing(tf *model.TaskFile, taskFilePath string, notice bool) [
 	if len(block.BlockedBy) == 0 {
 		return nil
 	}
-	return block.BlockedBy
+	return block
 }
 
 // epicBlockedMessage says why no task of tf can start.
@@ -57,21 +66,27 @@ func epicBlockedMessage(tf *model.TaskFile, blocked []string) string {
 
 // exitIfNextBlocked is tp next's and tp next --peek's block: while tf's epic
 // is blocked it reports no task to start, carrying blocked_by_epics, and
-// exits 4 as when no task is ready. A file with no open task has nothing to
-// start, so its normal answer (all tasks complete) stands.
+// exits 4 as when no task is ready. When every blocker is a condition it
+// carries operator, the operator's decision and record of each. A file with
+// no open task has nothing to start, so its normal answer (all tasks
+// complete) stands.
 func exitIfNextBlocked(tf *model.TaskFile, taskFilePath string) {
 	if !engine.HasOpenTasks(tf) {
 		return
 	}
-	blocked := epicBlockedBy(tf, taskFilePath)
-	if blocked == nil {
+	block := epicBlockNoticing(tf, taskFilePath, true)
+	if block == nil {
 		return
 	}
-	printResultOrExit(map[string]any{
+	result := map[string]any{
 		"done":             false,
-		"message":          "No task to start: " + epicBlockedMessage(tf, blocked) + ".",
-		"blocked_by_epics": blocked,
-	})
+		"message":          "No task to start: " + epicBlockedMessage(tf, block.BlockedBy) + ".",
+		"blocked_by_epics": block.BlockedBy,
+	}
+	if op := block.OperatorAction(); op != nil {
+		result["operator"] = op
+	}
+	printResultOrExit(result)
 	os.Exit(ExitState)
 }
 

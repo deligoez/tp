@@ -18,6 +18,29 @@ type EpicBlock struct {
 	Epic      string
 	BlockedBy []string
 	Notice    string
+	// Conditions are the entries of BlockedBy that are conditions.
+	Conditions []string
+}
+
+// EpicOperatorAction is what clears a block whose every blocker is a
+// condition: no agent finishes one, so it names the operator's decision
+// (the escalation tp run records) and the record of each condition.
+type EpicOperatorAction struct {
+	Decision string   `json:"decision"`
+	Commands []string `json:"commands"`
+}
+
+// OperatorAction returns the operator's action when every blocker of b is a
+// condition, nil when b blocks nothing or some blocker is work.
+func (b *EpicBlock) OperatorAction() *EpicOperatorAction {
+	if len(b.BlockedBy) == 0 || len(b.Conditions) != len(b.BlockedBy) {
+		return nil
+	}
+	commands := make([]string, 0, len(b.Conditions))
+	for _, id := range b.Conditions {
+		commands = append(commands, "tp epic done "+id+" --evidence <evidence>")
+	}
+	return &EpicOperatorAction{Decision: EscalateEpicDone, Commands: commands}
 }
 
 // EpicBlockFor returns the epic block of tf, read from taskFilePath. An
@@ -58,6 +81,9 @@ func EpicBlockFor(tf *model.TaskFile, taskFilePath string) (*EpicBlock, error) {
 		}
 		if !done {
 			block.BlockedBy = append(block.BlockedBy, d.ID)
+			if j := epicIndex(g, d.ID); j >= 0 && g.Epics[j].Condition {
+				block.Conditions = append(block.Conditions, d.ID)
+			}
 		}
 	}
 	return block, nil
