@@ -184,8 +184,8 @@ func (p *epicPlan) milestone(m string) (epicMilestoneReport, error) {
 
 // counts returns m's epics counted by derived status, every status present,
 // and the share done, rounded to two places; 0 for a milestone with no epic.
-func (p *epicPlan) counts(m string) (map[string]int, float64) {
-	counts := map[string]int{
+func (p *epicPlan) counts(m string) (counts map[string]int, shareDone float64) {
+	counts = map[string]int{
 		engine.EpicStatusPlanned: 0, engine.EpicStatusClaimed: 0, engine.EpicStatusSpecced: 0,
 		engine.EpicStatusInProgress: 0, engine.EpicStatusDone: 0,
 	}
