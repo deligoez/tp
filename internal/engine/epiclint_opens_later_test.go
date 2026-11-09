@@ -122,3 +122,24 @@ func TestLintEpicGraph_DependencyOpensLaterLeavesTrackOrderToLaterMilestoneDepen
 	assert.Equal(t, EpicSeverityError, found[0].Severity)
 	assert.Contains(t, found[0].Message, "a -> x -> b")
 }
+
+// TestLintEpicGraph_DependencyOpensLaterFindsALongerWaitCycle: on tracks
+// [[A, B], [C, D]], member a of A depends on d in D, which opens after C, and
+// member c of C on b in B, which opens after A. No milestone pair waits on
+// itself, yet the four wait in one cycle: one error, found from either of its
+// two reach edges, in canonical rotation, naming each edge's path.
+func TestLintEpicGraph_DependencyOpensLaterFindsALongerWaitCycle(t *testing.T) {
+	g := &model.EpicGraph{
+		Version:    1,
+		Milestones: [][]string{{"A", "B"}, {"C", "D"}},
+		Epics:      []model.Epic{dependsOn("a", "A", "d"), dependsOn("b", "B"), dependsOn("c", "C", "b"), dependsOn("d", "D")},
+	}
+	found := findingsOf(t, LintEpicGraph(g, nil), EpicRuleDependencyOpensLater)
+	require.Len(t, found, 1, "%v", found)
+	assert.Equal(t, EpicSeverityError, found[0].Severity)
+	assert.Equal(t, []string{"a", "b", "c", "d"}, found[0].Epics)
+	assert.Equal(t, []string{"A", "B", "C", "D"}, found[0].Names)
+	assert.Contains(t, found[0].Message, `"A" -> "D" -> "C" -> "B" -> "A"`)
+	assert.Contains(t, found[0].Message, "a -> d")
+	assert.Contains(t, found[0].Message, "c -> b")
+}
