@@ -79,8 +79,9 @@ func TestEpicStatus_ReportsEachMilestone(t *testing.T) {
 	a, b := r.Milestones[0], r.Milestones[1]
 	assert.Equal(t, "A", a.Milestone)
 	assert.True(t, a.Open)
-	assert.Equal(t, map[string]int{"planned": 3, "claimed": 0, "specced": 0, "in_progress": 0, "done": 1}, a.Counts)
-	assert.InDelta(t, 0.25, a.ShareDone, 1e-9)
+	assert.Equal(t, map[string]int{"planned": 2, "claimed": 0, "specced": 0, "in_progress": 0, "done": 1, "conditions_done": 0}, a.Counts,
+		"the condition go is not a work epic (spec/1.6.0.md B2)")
+	assert.InDelta(t, 0.33, a.ShareDone, 1e-9)
 	assert.False(t, a.Gate.Green, "z and y are not done")
 	require.Len(t, a.Ready, 1)
 	assert.Equal(t, "z", a.Ready[0].ID)
