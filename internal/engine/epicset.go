@@ -117,7 +117,7 @@ func parseGateFieldSet(rest, value string) (func(*model.EpicGraph) error, error)
 	}
 	return func(g *model.EpicGraph) error {
 		if _, tracked := milestonePositions(g)[milestone]; !tracked {
-			return &EpicMilestoneNotFoundError{Name: milestone}
+			return NewEpicMilestoneNotFoundError(g, milestone)
 		}
 		gate := g.Gates[milestone]
 		if gate.Members == nil {

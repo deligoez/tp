@@ -3,6 +3,7 @@ package engine
 import (
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/deligoez/tp/internal/model"
 )
@@ -18,14 +19,24 @@ func (e *EpicMilestoneExistsError) Error() string {
 	return fmt.Sprintf("milestone %q is already in a track", e.Name)
 }
 
-// EpicMilestoneNotFoundError reports an insert anchored on a milestone no
-// track holds.
+// EpicMilestoneNotFoundError reports a milestone no track holds, named by an
+// insert's anchor, a gate field set or a --met. Known lists the milestones
+// the tracks do hold, in track order, so the refusal answers what to name.
 type EpicMilestoneNotFoundError struct {
-	Name string
+	Name  string
+	Known []string
+}
+
+// NewEpicMilestoneNotFoundError is the refusal of name over g's tracks.
+func NewEpicMilestoneNotFoundError(g *model.EpicGraph, name string) *EpicMilestoneNotFoundError {
+	return &EpicMilestoneNotFoundError{Name: name, Known: milestoneUnion(g, g)}
 }
 
 func (e *EpicMilestoneNotFoundError) Error() string {
-	return fmt.Sprintf("milestone %q is in no track", e.Name)
+	if len(e.Known) == 0 {
+		return fmt.Sprintf("milestone %q is in no track; the tracks hold none", e.Name)
+	}
+	return fmt.Sprintf("milestone %q is in no track; the tracks hold %s", e.Name, strings.Join(e.Known, ", "))
 }
 
 // EpicMilestonePlace is where tp epic milestone add puts a name: right after
@@ -56,6 +67,6 @@ func InsertMilestone(name string, place EpicMilestonePlace) func(*model.EpicGrap
 				return nil
 			}
 		}
-		return &EpicMilestoneNotFoundError{Name: anchor}
+		return NewEpicMilestoneNotFoundError(g, anchor)
 	}
 }

@@ -12,8 +12,9 @@ import (
 // epicMilestonePlaceHint answers a milestone add with no position or two.
 const epicMilestonePlaceHint = "pass exactly one of --after <m>, --before <m> or --new-track"
 
-// epicMilestoneNotFoundHint answers an insert anchored on no milestone.
-const epicMilestoneNotFoundHint = "tp epic export --md shows the tracks and their milestones in order"
+// epicMilestoneNotFoundHint answers a milestone no track holds; the message
+// lists the ones they do.
+const epicMilestoneNotFoundHint = "name one of the milestones the message lists, or add it to a track first (tp epic milestone add)"
 
 // epicMilestoneExistsHint answers an insert of a name a track holds.
 const epicMilestoneExistsHint = "a milestone name appears once across all tracks; pick another name, or move it with tp epic set milestones=<json>"

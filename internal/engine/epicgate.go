@@ -155,7 +155,7 @@ func (e *GateMetRefusedError) Error() string {
 // measured after the work. states is DeriveEpicStates' result.
 func RecordGateMet(g *model.EpicGraph, milestone, evidence string, states map[string]EpicState, at time.Time) error {
 	if _, tracked := MilestoneGates(g, states)[milestone]; !tracked {
-		return &EpicMilestoneNotFoundError{Name: milestone}
+		return NewEpicMilestoneNotFoundError(g, milestone)
 	}
 	gate := g.Gates[milestone]
 	if gate.Threshold == "" {

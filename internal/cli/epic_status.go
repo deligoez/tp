@@ -91,7 +91,7 @@ func runEpicStatus(cmd *cobra.Command, _ []string) error {
 	milestones := trackedMilestones(g)
 	if only != "" {
 		if !slices.Contains(milestones, only) {
-			output.Error(ExitState, "milestone "+only+" is in no track of .tp/epics.json", epicMilestoneNotFoundHint)
+			output.Error(ExitState, engine.NewEpicMilestoneNotFoundError(g, only).Error(), epicMilestoneNotFoundHint)
 			os.Exit(ExitState)
 		}
 		milestones = []string{only}

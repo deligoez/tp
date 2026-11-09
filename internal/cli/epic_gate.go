@@ -98,7 +98,7 @@ func runEpicGate(cmd *cobra.Command, args []string) error {
 	m := args[0]
 	verdict, tracked := engine.MilestoneGates(g, states)[m]
 	if !tracked {
-		output.Error(ExitState, "milestone "+m+" is in no track of .tp/epics.json", epicMilestoneNotFoundHint)
+		output.Error(ExitState, engine.NewEpicMilestoneNotFoundError(g, m).Error(), epicMilestoneNotFoundHint)
 		os.Exit(ExitState)
 	}
 	result := epicGateReport(g, m, states)
