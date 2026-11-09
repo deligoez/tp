@@ -143,3 +143,22 @@ func TestLintEpicGraph_DependencyOpensLaterFindsALongerWaitCycle(t *testing.T) {
 	assert.Contains(t, found[0].Message, "a -> d")
 	assert.Contains(t, found[0].Message, "c -> b")
 }
+
+// TestLintEpicGraph_DependencyOpensLaterStopsAtADoneRecord: reach runs
+// through epics without a done record only, so a done epic on the path, a
+// done target and a done member each leave the plan clean.
+func TestLintEpicGraph_DependencyOpensLaterStopsAtADoneRecord(t *testing.T) {
+	done := &model.EpicDone{Evidence: "shipped"}
+	through := opensLaterGraph(dependsOn("a", "A", "c"), dependsOn("c", "A", "b"), dependsOn("b", "B"))
+	through.Gates = map[string]model.EpicGate{"A": {Members: []string{"a"}}}
+	through.Epics[1].Done = done
+	assert.Empty(t, findingsOf(t, LintEpicGraph(through, nil), EpicRuleDependencyOpensLater), "a done epic on the path cuts it")
+
+	target := opensLaterGraph(dependsOn("a", "A", "b"), dependsOn("b", "B"))
+	target.Epics[1].Done = done
+	assert.Empty(t, findingsOf(t, LintEpicGraph(target, nil), EpicRuleDependencyOpensLater), "a done target is no wait")
+
+	member := opensLaterGraph(dependsOn("a", "A", "b"), dependsOn("b", "B"))
+	member.Epics[0].Done = done
+	assert.Empty(t, findingsOf(t, LintEpicGraph(member, nil), EpicRuleDependencyOpensLater), "a done member holds no gate")
+}
