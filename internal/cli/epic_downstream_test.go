@@ -144,3 +144,19 @@ func TestEpicReady_OrdersReadyItemsByLongestChainThenDependents(t *testing.T) {
 	assert.Equal(t, []string{"r1", "r3", "r2", "r4"}, r.ids(), "equal chain and dependents keep graph order")
 }
 
+// TestEpicReady_ADoneEpicCutsTheDownstream is C1.2: with a2 done, r1's chain
+// is a1 alone, and a2 plus a3 and a4, reachable only through it, leave
+// dependents; a5, also depending on r1 directly, still counts.
+func TestEpicReady_ADoneEpicCutsTheDownstream(t *testing.T) {
+	t.Parallel()
+	epics := downstreamEpics(10)
+	for i := range epics {
+		if epics[i].ID == "a2" {
+			epics[i].Done = &downstreamDone{At: "2026-01-02T03:04:05Z", Evidence: "e"}
+		}
+	}
+	chain, dependents, _, _ := readyDownstream(t, downstreamDir(t, epics, nil)).item(t, "r1")
+	assert.Equal(t, 1, chain)
+	assert.Equal(t, 2, dependents, "a1 and a5")
+}
+
