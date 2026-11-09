@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.5.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-09T14:22:00.335918Z",
+  "updated_at": "2026-11-09T14:25:56.946804Z",
   "workflow": {
     "review_max_rounds": 4,
     "audit_max_rounds": 5
@@ -415,7 +415,7 @@
       "id": "epic-done-command",
       "title": "Record a taskless epic done with evidence",
       "description": "tp epic done \u003cid\u003e --evidence writes done {at, evidence} on an epic with no bound file; refused on a bound epic and on a condition with an empty acceptance; --undo removes the record. §10 rows 4 and 5.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "conditions"
@@ -429,11 +429,18 @@
         "## 5. Conditions",
         "## 10. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-09T14:22:09.981683Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-09T14:25:56.937621Z",
+      "closed_reason": "- §10 row 4: TestEpicDone_RecordsATasklessEpicRefusesABoundOneAndUndoes (done c records c; done b with b.tasks.json bound exits 1, file byte-identical; --undo removes c's record)\n- §10 row 5: TestEpicDone_ConditionNeedsItsAcceptance (empty acceptance exits 1 and writes nothing; accepted once acceptance is set); gate green",
+      "gate_passed_at": "2026-11-09T14:25:56.937621Z",
+      "commit_sha": "145df3a28d2a8fff528f67d4897f118141395f4d",
+      "commit_shas": [
+        "145df3a28d2a8fff528f67d4897f118141395f4d"
+      ],
+      "commit_files": [
+        "internal/cli/epic_done_test.go"
+      ]
     },
     {
       "id": "epic-block-compute",
