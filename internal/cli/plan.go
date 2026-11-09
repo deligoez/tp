@@ -84,6 +84,8 @@ func runPlan(_ *cobra.Command, _ []string) error {
 		return nil
 	}
 
+	exitIfNoTasks(tf, taskFilePath)
+
 	// Get sorted execution order
 	sorted := engine.TopoSort(tf.Tasks)
 

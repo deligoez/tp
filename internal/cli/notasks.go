@@ -19,10 +19,10 @@ func noTasksYet(tf *model.TaskFile, taskFilePath string) *engine.NoTasksYet {
 	return &n
 }
 
-// exitIfNoTasks is tp next's and tp next --peek's answer on a file holding no
-// task: done false, rather than all tasks complete, with the phase tp resume
-// reports, its next step as hint and command, and exit 4 as tp next's other
-// no-task answers.
+// exitIfNoTasks is tp next's, tp next --peek's, tp brief's and tp plan's
+// answer on a file holding no task: done false, rather than all tasks
+// complete, with the phase tp resume reports, its next step as hint and
+// command, and exit 4 as their other no-task answers.
 func exitIfNoTasks(tf *model.TaskFile, taskFilePath string) {
 	n := noTasksYet(tf, taskFilePath)
 	if n == nil {
