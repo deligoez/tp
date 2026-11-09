@@ -62,5 +62,5 @@ func TestEpicLink_ADependencyOpensLaterGetsItsOwnHint(t *testing.T) {
 	_, stderr, code := runTP(t, dir, "epic", "link", "a", "b", "a extends b's model")
 	require.Equal(t, 1, code, "stderr: %s", stderr)
 	assert.Contains(t, stderr, "dependency-opens-later")
-	assert.Contains(t, stderr, `move the epic of \"B\" the message names to a milestone that opens no later than \"A\", or drop the dependency, or make the member deferrable`)
+	assert.Contains(t, stderr, `move b to a milestone that opens no later than \"A\", or drop the dependency, or make the member deferrable`)
 }
