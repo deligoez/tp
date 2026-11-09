@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -200,7 +201,11 @@ func loadEpicReviewRun(key engine.EpicSliceKey) epicReviewRun {
 	}
 	slice, err := engine.EpicReviewSlice(g, key)
 	if err != nil {
-		output.Error(ExitState, err.Error(), epicNotFoundHint)
+		hint := epicNotFoundHint
+		if errors.As(err, new(*engine.EpicMilestoneNotFoundError)) {
+			hint = epicMilestoneNotFoundHint
+		}
+		output.Error(ExitState, err.Error(), hint)
 		os.Exit(ExitState)
 	}
 	stateDir := engine.EpicReviewStateDir(tpDir, key)
