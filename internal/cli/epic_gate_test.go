@@ -152,3 +152,35 @@ func TestEpicGateMet_RefusedUntilMembersDoneAndThresholdSet(t *testing.T) {
 	assert.Equal(t, 0, code)
 	assert.True(t, out.Green, "with every member done and the threshold met the gate is green")
 }
+
+// TestEpicGateMet_CopiesThresholdAndAnEditShowsChanged: the met record copies
+// the threshold it was judged against, so a threshold edited afterwards shows
+// as changed in tp epic gate while the record stands.
+func TestEpicGateMet_CopiesThresholdAndAnEditShowsChanged(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicGateMetGraph("p95 under 200ms", "a"))
+
+	_, stderr, code := runTP(t, dir, "epic", "gate", "A", "--met", "--evidence", "https://dash.example/p95")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var graph struct {
+		Gates map[string]struct {
+			Threshold string `json:"threshold"`
+			Met       struct {
+				At        string `json:"at"`
+				Evidence  string `json:"evidence"`
+				Threshold string `json:"threshold"`
+			} `json:"met"`
+		} `json:"gates"`
+	}
+	require.NoError(t, json.Unmarshal(readEpicGraphFile(t, dir), &graph))
+	met := graph.Gates["A"].Met
+	assert.NotEmpty(t, met.At)
+	assert.Equal(t, "https://dash.example/p95", met.Evidence)
+	assert.Equal(t, "p95 under 200ms", met.Threshold, "the met record copies the threshold")
+
+	_, stderr, code = runTP(t, dir, "epic", "set", `gates={"A": {"members": [], "threshold": "p95 under 150ms"}}`)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	out, code := runEpicGate(t, dir, "A")
+	assert.Equal(t, 0, code, "the met record stands")
+	assert.True(t, out.ThresholdChanged, "a threshold edited after its met record shows as changed")
+}
