@@ -207,9 +207,7 @@ func claimBatch(tf *model.TaskFile, taskFilePath string, ids []string) error {
 		"file":    taskFileLabel(taskFilePath),
 	}
 
-	if jsonErr := output.JSON(result); jsonErr != nil {
-		output.Error(ExitFile, jsonErr.Error())
-	}
+	printResultOrExit(result)
 
 	if len(claimed) == 0 {
 		os.Exit(ExitState)
