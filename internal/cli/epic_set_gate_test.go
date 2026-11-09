@@ -81,3 +81,22 @@ func TestEpicSet_GateDeferrableCreatesTheEntryAndAnEmptyValueClearsIt(t *testing
 	assert.Empty(t, gatesOnFile(t, dir)["A"].Deferrable)
 }
 
+// TestEpicSet_GateMembersSetsAnExplicitListAndAnEmptyValueMakesItImplicit:
+// members names the gate's epics; an empty value writes [], the milestone's
+// work epics, and keeps the deferrable list.
+func TestEpicSet_GateMembersSetsAnExplicitListAndAnEmptyValueMakesItImplicit(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicGateFieldGraph(`{"A": {"members": [], "deferrable": ["a2"]}}`))
+	setGateField(t, dir, "gates.A.members=a1")
+	gate := gatesOnFile(t, dir)["A"]
+	require.NotNil(t, gate.Members)
+	assert.Equal(t, []string{"a1"}, *gate.Members)
+	assert.Equal(t, []string{"a2"}, gate.Deferrable)
+
+	setGateField(t, dir, "gates.A.members=")
+	gate = gatesOnFile(t, dir)["A"]
+	require.NotNil(t, gate.Members)
+	assert.Empty(t, *gate.Members)
+	assert.Equal(t, []string{"a2"}, gate.Deferrable)
+}
+
