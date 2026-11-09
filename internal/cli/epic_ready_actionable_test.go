@@ -112,6 +112,22 @@ func TestEpicReady_C3_6_ConditionsThatAloneHoldAnEpicAreBothActionable(t *testin
 	assert.Equal(t, map[string]bool{"c1": true, "c2": true}, operatorConditions(t, dir))
 }
 
+// TestEpicReady_AConditionHoldingAnOpenGateIsActionable is the deadlock F3
+// used to leave: c is an explicit member of M's gate, and its only dependent
+// w is in N, which opens after M, with no bound file. Unless c is actionable
+// M never goes green, N never opens and nothing moves.
+func TestEpicReady_AConditionHoldingAnOpenGateIsActionable(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{"version": 1, "milestones": [["M", "N"]],
+  "gates": {"M": {"members": ["m", "c"]}},
+  "epics": [
+    {"id": "m", "title": "M work", "milestone": "M", "root": true, "done": {"at": "2026-01-02T03:04:05Z", "evidence": "shipped"}},
+    {"id": "c", "title": "C", "milestone": "M", "root": true, "condition": true, "acceptance": "the board says yes"},
+    {"id": "w", "title": "W", "milestone": "N", "depends_on": [{"id": "c", "why": "w ships once the board agrees"}]}
+  ]}`)
+	assert.Equal(t, map[string]bool{"c": true}, operatorConditions(t, dir))
+}
+
 // TestEpicReady_C3_7_ADoneConditionIsListedInNeitherMode is C3.7.
 func TestEpicReady_C3_7_ADoneConditionIsListedInNeitherMode(t *testing.T) {
 	t.Parallel()
