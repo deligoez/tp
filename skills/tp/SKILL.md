@@ -526,7 +526,12 @@ table a prose document embeds. Build it one topic at a time, each topic through 
    fixed only non-blocking findings and left nothing open runs the regression role alone, which reads
    each change — shown before and after, with the epics it hands work to — at a quarter of a panel's
    cost. The default `review_converge_on: blocking` lets a slice finish with medium and low findings
-   open (`--status` lists them under `open`); `all` makes every finding hold the slice open.
+   open (`--status` lists them under `open`); `all` makes every finding hold the slice open. **Stop
+   rule:** when the finding count has not fallen for two rounds and the new findings ask design
+   questions an edge cannot settle (how an operator decision is built, not which epic owns it), stop
+   the loop rather than raise the cap — a larger cap will not converge it. Resolve those findings
+   `wontfix` with a pointer to where the design is taken up, or leave them open, and decide outside
+   the graph.
 
 Then take the next topic. Every writer (`add`, `set`, `remove`, `import`) and `--record` exits 2
 under `TP_UNATTENDED`: changing the plan is the operator's, so a unit that finds the need records it
