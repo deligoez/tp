@@ -38,3 +38,14 @@ func TestEpicSet_AGatesKeyNamingNoMilestoneGetsItsOwnHint(t *testing.T) {
 	assert.Contains(t, stderr, "key a gate by a milestone a track lists")
 	assert.NotContains(t, stderr, "drop the edge")
 }
+
+// TestEpicSet_ATagCheckProviderNamingNoEpicGetsItsOwnHint: provided_by is
+// not an edge either, so its refusal says to point it at a known epic.
+func TestEpicSet_ATagCheckProviderNamingNoEpicGetsItsOwnHint(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, refusalHintGraph)
+	_, stderr, code := runTP(t, dir, "epic", "set", `tag_checks={"ui":{"provided_by":"zz"}}`)
+	require.Equal(t, 1, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "point provided_by at an epic the graph holds")
+	assert.NotContains(t, stderr, "drop the edge")
+}
