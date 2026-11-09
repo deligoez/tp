@@ -67,3 +67,25 @@ func TestNext_AnEmptyEpicBoundFileAnswersNoTasksYet(t *testing.T) {
 	initGitRepo(t, dir)
 	assertNoTasksYet(t, dir, "next", "--epic", "b")
 }
+
+// TestReadyAndClaimAllReady_AnEmptyTaskFileSaysNoTasksYet: tp ready keeps its
+// empty list and exit 0 but says why on stderr; tp ready --first and tp claim
+// --all-ready exit 4 as with no ready task, saying the file has no tasks yet
+// and naming tp resume's phase.
+func TestReadyAndClaimAllReady_AnEmptyTaskFileSaysNoTasksYet(t *testing.T) {
+	t.Parallel()
+	dir := emptyTaskFileDir(t)
+
+	stdout, stderr, code := runTP(t, dir, "ready")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.JSONEq(t, "[]", stdout)
+	assert.Contains(t, stderr, "no tasks yet")
+
+	for _, args := range [][]string{{"ready", "--first"}, {"claim", "--all-ready"}} {
+		_, stderr, code := runTP(t, dir, args...)
+		assert.Equal(t, 4, code, "%v stderr: %s", args, stderr)
+		assert.Contains(t, stderr, "no tasks yet", "%v", args)
+		assert.Contains(t, stderr, "phase review", "%v", args)
+		assert.Contains(t, stderr, "tp review", "%v", args)
+	}
+}
