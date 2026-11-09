@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.5.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-09T14:42:41.656928Z",
+  "updated_at": "2026-11-09T14:48:21.556471Z",
   "workflow": {
     "review_max_rounds": 4,
     "audit_max_rounds": 5
@@ -538,7 +538,7 @@
       "id": "resume-epic-blocker",
       "title": "Report an epic block from tp resume",
       "description": "With no wip task, tp resume on a blocked bound file reports the block as a blocker and offers no implement unit; with a wip task it offers that task's unit as today. §10 row 3 (resume half).",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "resume"
@@ -552,11 +552,18 @@
         "## 6. The graph gates the work",
         "## 10. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-09T14:42:47.036897Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-09T14:48:21.545858Z",
+      "closed_reason": "- §10 row 3: TestResume_ReportsAnEpicBlockerAndNoImplementUnit shows tp resume on b's file with c not done and no wip task reports the escalate epic-blocked blocker (data.blocked_by_epics [c]) and empty next_units, so tp run stops on no units\n- TestResume_OffersTheWipTaskUnitWhileBlocked shows a wip task's implement unit is offered as today (red against a mutant ignoring wip); gate green",
+      "gate_passed_at": "2026-11-09T14:48:21.545858Z",
+      "commit_sha": "eb30094b",
+      "commit_shas": [
+        "eb30094b"
+      ],
+      "commit_files": [
+        "internal/cli/epic_block_test.go"
+      ]
     },
     {
       "id": "epic-ready-command",
