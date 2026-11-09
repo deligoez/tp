@@ -2,6 +2,8 @@ package cli_test
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -39,6 +41,20 @@ func TestDoneMulti_AResultItCannotWriteExitsThree(t *testing.T) {
 	dir := blockDir(t, "", "open", "open")
 
 	stderr, code := runTPUnwritableStdout(t, dir, "done", "t1", "t2", "tested by the fixture")
+	assert.Equal(t, 3, code, "stderr: %s", stderr)
+	assert.Equal(t, 3, envelopeCode(t, stderr), "stderr: %s", stderr)
+}
+
+// TestDoneBatch_AResultItCannotWriteExitsThree: tp done --batch whose stdout
+// cannot be written exits 3, as tp done of several ids does. A batch that only
+// reported the write error exits 0 having printed nothing, and fails.
+func TestDoneBatch_AResultItCannotWriteExitsThree(t *testing.T) {
+	t.Parallel()
+	dir := blockDir(t, "", "open", "open")
+	batch := filepath.Join(dir, "batch.ndjson")
+	require.NoError(t, os.WriteFile(batch, []byte(`{"id":"t1","reason":"tested by the fixture"}`+"\n"), 0o600))
+
+	stderr, code := runTPUnwritableStdout(t, dir, "done", "--batch", batch)
 	assert.Equal(t, 3, code, "stderr: %s", stderr)
 	assert.Equal(t, 3, envelopeCode(t, stderr), "stderr: %s", stderr)
 }
