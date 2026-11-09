@@ -7,24 +7,27 @@ import "strings"
 // error is identified by its rule, its sorted epic ids and the milestone,
 // gate or key names it involves, counted as a multiset; a cycle whose
 // component is a subset of a before-state component is not new, so a write
-// that shrinks a cycle passes.
+// that shrinks a cycle passes, an epic cycle or an opens_after one.
 func NewEpicErrors(before, after []EpicLintFinding) []EpicLintFinding {
 	held := map[string]int{}
-	var cycles [][]string
+	var cycles, milestoneCycles [][]string
 	for i := range before {
 		f := &before[i]
 		if f.Severity != EpicSeverityError {
 			continue
 		}
 		held[epicErrorKey(f)]++
-		if f.Rule == EpicRuleCycle {
+		switch f.Rule {
+		case EpicRuleCycle:
 			cycles = append(cycles, f.Epics)
+		case EpicRuleOpensAfterCycle:
+			milestoneCycles = append(milestoneCycles, f.Names)
 		}
 	}
 	var out []EpicLintFinding
 	for i := range after {
 		f := &after[i]
-		if f.Severity != EpicSeverityError || f.Rule == EpicRuleCycle && withinAnyComponent(f.Epics, cycles) {
+		if f.Severity != EpicSeverityError || shrunkCycle(f, cycles, milestoneCycles) {
 			continue
 		}
 		if key := epicErrorKey(f); held[key] > 0 {
@@ -34,6 +37,18 @@ func NewEpicErrors(before, after []EpicLintFinding) []EpicLintFinding {
 		out = append(out, *f)
 	}
 	return out
+}
+
+// shrunkCycle reports whether f is a cycle, of epics or of opens_after
+// milestones, lying within one cycle of the same kind the before-state held.
+func shrunkCycle(f *EpicLintFinding, cycles, milestoneCycles [][]string) bool {
+	switch f.Rule {
+	case EpicRuleCycle:
+		return withinAnyComponent(f.Epics, cycles)
+	case EpicRuleOpensAfterCycle:
+		return withinAnyComponent(f.Names, milestoneCycles)
+	}
+	return false
 }
 
 func epicErrorKey(f *EpicLintFinding) string {
