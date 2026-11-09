@@ -70,3 +70,16 @@ func TestCriticalPath_EstimateChainChosenApartFromCount(t *testing.T) {
 	assert.Equal(t, 35, path.EstimateMinutes)
 }
 
+// TestCriticalPath_EstimateChainOmittedWhenAnEpicHasNone: when one epic on
+// any chain ending at a gate member has no estimate, no estimate chain is
+// reported, even when that epic is not on the heaviest chain. A check that
+// read only the heaviest chain's epics would report [y m].
+func TestCriticalPath_EstimateChainOmittedWhenAnEpicHasNone(t *testing.T) {
+	estimates := map[string]int{"m": 5, "x": 1, "y": 30}
+
+	path := criticalPathOf(t, estimateGraph(), estimates)
+
+	assert.Equal(t, []string{"x2", "x", "m"}, path.ByCount)
+	assert.Nil(t, path.ByEstimate)
+	assert.Zero(t, path.EstimateMinutes)
+}
