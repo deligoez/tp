@@ -29,7 +29,7 @@ func buildEpicReviewPrompts(run *epicReviewRun, roles []model.Role) []epicReview
 	if len(run.slice.Units) == 0 {
 		return []epicReviewPrompt{}
 	}
-	asked := epicAskedText(run)
+	asked := epicAskedText(run) + epicDecidedText(run)
 	prompts := make([]epicReviewPrompt, 0, len(roles)+1)
 	for i := range roles {
 		role := &roles[i]
@@ -90,6 +90,26 @@ func epicAskedText(run *epicReviewRun) string {
 		b.WriteString("---\n" + u.Block)
 	}
 	b.WriteString("---\n")
+	return b.String()
+}
+
+// epicDecidedText lists the earlier rounds' findings on an asked unit that
+// were accepted wontfix or duplicate, each with its location and the
+// decision's evidence; with none it is empty.
+func epicDecidedText(run *epicReviewRun) string {
+	if len(run.carry.Decided) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("\nAlready decided — do not raise these again unless the cause they name changed:\n")
+	for _, row := range run.carry.Decided {
+		loc, _ := row["location"].(string)
+		finding, _ := row["finding"].(string)
+		resolved, _ := row["resolved"].(map[string]any)
+		status, _ := resolved["status"].(string)
+		evidence, _ := resolved["evidence"].(string)
+		fmt.Fprintf(&b, "- %s: %s — %s: %s\n", loc, finding, status, evidence)
+	}
 	return b.String()
 }
 
