@@ -1413,6 +1413,7 @@ reports one finding per offending item.
 | `unknown-milestone` | error | an epic's `milestone` is absent or in no track, or an `opens_after` key or value names a milestone in no track |
 | `later-milestone-dependency` | error | an epic depends on one in a later milestone of the same track; edges across tracks are free; `opens_after` does not change it |
 | `gate-member-outside-milestone` | error | a gate member or deferrable epic is not in that milestone |
+| `gate-member-deferrable` | error | a gate lists an epic both in `members` and in `deferrable`; a deferrable epic never holds a gate (v1.6.0) |
 | `unprovided-tag-check` | error | an epic carries a tag whose `provided_by` is not in its transitive dependencies; the provider itself is exempt |
 | `opens-after-cycle` | error | `opens_after`, track defaults applied, has a cycle, a self-reference included |
 | `no-dependencies` | warning | an epic outside the first milestone of its track has no dependencies and is neither marked `root: true` nor a condition |
