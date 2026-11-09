@@ -658,6 +658,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp done <id> --reason-file reason.md` | Read the closure reason from a file instead of an argument |
 | `tp done <id> --stdin` | Read the closure reason from stdin |
 | `tp resume [spec]` | Report phase + next action from durable state (reset-native, read-only; `--compact`); a bound file whose epic is blocked and holds no `wip` task reports the `epic-blocked` blocker and no implement unit |
+| `tp resume --epic <id>` | Work on the epic's bound task file, as `--file` would: its only one, or the only one not at `release`; otherwise exit 4 naming them (none bound included); with `--file` exit 2. `tp next` and `tp ready` take it too |
 | `tp brief [id]` | The unit brief (read-only): identity + scope fence + prior work + the task + the close recipe; claims nothing |
 | `tp brief <id> --prior <n>` | Override the prior-work recency cap (0-20; 0 = dependency entries only) |
 | `tp run [spec]` | Drive the cycle unattended, one unit at a time |
@@ -673,6 +674,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp next --minimal` | Minimal output: {id, acceptance} only |
 | `tp next --peek` | Preview the next ready task without claiming; unlike plain `tp next` it ignores WIP |
 | `tp next --brief` | Claim the task and return its brief (identity, scope, prior work, close recipe); `--brief` + `--minimal` exit 2 |
+| `tp next --epic <id>` | The same on the epic's bound task file (as `tp resume --epic`) |
 
 ### Task state
 | Command | Purpose |
@@ -700,6 +702,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 |---------|---------|
 | `tp list` | All tasks (--status, --tag, --ids, --compact) |
 | `tp ready` | Deps-satisfied tasks (--first, --count, --ids); on a bound file whose epic is blocked every mode prints `{ready: [], blocked_by_epics}` and `--first` exits 4 |
+| `tp ready --epic <id>` | The same on the epic's bound task file (as `tp resume --epic`) |
 | `tp show <id>` | Full details + spec_excerpt + blocks |
 | `tp status` | Progress summary (open/wip/done counts) |
 | `tp report` | Per-task duration + estimation accuracy |
