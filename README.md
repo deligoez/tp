@@ -547,7 +547,8 @@ owns the spec written for it; the graph is designed and reviewed the way a spec 
 - **Conditions.** An external precondition is an epic with `condition: true`, its `acceptance`
   saying what it waits for: no task file, no claim, done only by an evidenced record. Work that must
   wait for it depends on it like any edge. The operator is asked for a condition only once it is
-  `actionable`, when some epic waits on it and on nothing else undone.
+  `actionable`: it holds an open milestone's gate, or some epic waits on it and on nothing else
+  undone; otherwise `not_actionable` says why.
 - **The graph gates the work.** While a bound file's epic has a dependency not done, `tp next`,
   `tp ready` and `tp claim` offer no task and name `blocked_by_epics`, and `tp resume` reports
   `epic-blocked`, so `tp run` stops instead of driving a unit that cannot move; a `wip` task still
