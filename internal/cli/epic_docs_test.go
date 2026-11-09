@@ -66,6 +66,19 @@ func TestSkillCarriesWorkflowE(t *testing.T) {
 	}
 }
 
+// TestReferenceDerivesEpicStatus pins spec/1.5.0.md §2-§3 to REFERENCE.md: a
+// row per derived status, done_at, and where bound files are found.
+func TestReferenceDerivesEpicStatus(t *testing.T) {
+	t.Parallel()
+	body := docSectionBody(t, readRepoDoc(t, "skills/tp/REFERENCE.md"), "### Binding and status (v1.5.0)")
+	for _, term := range []string{
+		"| `planned` |", "| `claimed` |", "| `specced` |", "| `in_progress` |", "| `done` |",
+		"`done_at`", "`release`", "*.tasks.json", "ignored",
+	} {
+		assert.Contains(t, body, term, "the binding and status section names %q", term)
+	}
+}
+
 // TestSkillWorkflowETracksProgress pins spec/1.5.0.md's half of Workflow E:
 // binding, reading the plan, claiming, gates with thresholds, conditions, the
 // epic block on the task commands, deferrable trigger work, long-lead epics
