@@ -149,3 +149,22 @@ func TestEpicReview_RegressionWithoutFixesSaysSo(t *testing.T) {
 	assert.Contains(t, regression, "No finding was resolved fixed since round 1")
 	assert.NotContains(t, regression, "each fixed finding below")
 }
+
+// TestEpicReview_RegressionSeesOnlyNewlyNamedHandoffs: b already named d
+// before this round's edit, which changed only b's title; d is an old hand-off,
+// not one the change introduced, so regression is not shown its block.
+// Showing every epic the text names would turn each round into an audit of
+// pre-existing ownership.
+func TestEpicReview_RegressionSeesOnlyNewlyNamedHandoffs(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, strings.Replace(epicChain,
+		`{"id": "b", "title": "B", "milestone": "A",`,
+		`{"id": "b", "title": "B", "milestone": "A", "acceptance": "b hands its export run to d",`, 1))
+	r1 := runEpicReview(t, dir, "--epic", "b")
+	writeEpicRound(t, dir, &r1, "")
+	editEpicGraph(t, dir, `"title": "B", "milestone": "A", "acceptance"`, `"title": "B export", "milestone": "A", "acceptance"`)
+	r2 := runEpicReview(t, dir, "--epic", "b")
+	for _, p := range r2.Prompts {
+		assert.NotContains(t, p.Prompt, "epic: d\n", "%s: d was named before the change", p.Role)
+	}
+}
