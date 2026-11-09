@@ -94,3 +94,12 @@ func TestEpicGate_ExitsZeroOnlyWhenGreen(t *testing.T) {
 	assert.True(t, out.ThresholdChanged, "a threshold edited after its met record shows as changed")
 }
 
+// TestEpicGate_AbsentMilestoneExits4: a milestone no track lists has no gate
+// to report.
+func TestEpicGate_AbsentMilestoneExits4(t *testing.T) {
+	dir := epicGraphDir(t, `{"version": 1, "milestones": [["A"]], "epics": [{"id": "a", "title": "A", "milestone": "A", "root": true}]}`)
+
+	_, code := runEpicGate(t, dir, "Z")
+
+	assert.Equal(t, 4, code)
+}
