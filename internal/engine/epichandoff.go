@@ -6,11 +6,14 @@ import (
 	"github.com/deligoez/tp/internal/model"
 )
 
-// EpicHandoffContext returns the block of every epic named, as a whole word,
-// in the title or acceptance of an asked epic whose own block changed since
-// the round before (carry.Before), unless it is asked or already context.
-// A fix that hands work to a neighbour is the change the regression role has
-// to check the neighbour takes, so it needs the neighbour's block in view.
+// EpicHandoffContext returns the block of every epic the round's change newly
+// names: named, as a whole word, in the title or acceptance of an asked epic
+// whose own block changed since the round before (carry.Before), and not named
+// in that epic's block as the round before read it; unless it is asked or
+// already context. A fix that hands work to a neighbour is the change the
+// regression role has to check the neighbour takes. An old hand-off is left
+// out: showing every name the text holds turns each round into an audit of
+// ownership the change did not touch.
 func EpicHandoffContext(g *model.EpicGraph, carry *EpicCarry, context []EpicContextBlock) []EpicContextBlock {
 	skip := map[string]bool{}
 	for _, u := range carry.Asked {
@@ -21,22 +24,28 @@ func EpicHandoffContext(g *model.EpicGraph, carry *EpicCarry, context []EpicCont
 	for _, c := range context {
 		skip[c.ID] = true
 	}
-	var texts []string
-	for key := range carry.Before {
+	type change struct{ now, before string }
+	var changes []change
+	for key, before := range carry.Before {
 		if id, ok := epicUnitID(key); ok {
 			if i := epicIndex(g, id); i >= 0 {
-				texts = append(texts, g.Epics[i].Title+"\n"+g.Epics[i].Acceptance)
+				changes = append(changes, change{now: g.Epics[i].Title + "\n" + g.Epics[i].Acceptance, before: before})
 			}
 		}
 	}
 	var out []EpicContextBlock
 	for i := range g.Epics {
 		e := &g.Epics[i]
-		if skip[e.ID] || !namedInAny(e.ID, texts) {
+		if skip[e.ID] {
 			continue
 		}
-		skip[e.ID] = true
-		out = append(out, EpicContextBlock{ID: e.ID, Block: epicBlock(e)})
+		for _, c := range changes {
+			if namedInAny(e.ID, []string{c.now}) && !namedInAny(e.ID, []string{c.before}) {
+				skip[e.ID] = true
+				out = append(out, EpicContextBlock{ID: e.ID, Block: epicBlock(e)})
+				break
+			}
+		}
 	}
 	return out
 }
