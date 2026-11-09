@@ -175,3 +175,17 @@ func RecordGateMet(g *model.EpicGraph, milestone, evidence string, states map[st
 	g.Gates[milestone] = gate
 	return nil
 }
+
+// MilestoneWaitingOn returns the milestones of after, in its order, that are
+// not open or whose gate is not green: what still holds a milestone opening
+// after them (spec/1.6.0.md §1), empty once it is open. gates is
+// MilestoneGates' result; never nil.
+func MilestoneWaitingOn(after []string, gates map[string]MilestoneGate) []string {
+	out := []string{}
+	for _, m := range after {
+		if v := gates[m]; !v.Open || !v.Green {
+			out = append(out, m)
+		}
+	}
+	return out
+}

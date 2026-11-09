@@ -24,6 +24,8 @@ type epicPlanResult struct {
 type epicMilestoneReport struct {
 	Milestone    string            `json:"milestone"`
 	Open         bool              `json:"open"`
+	OpensAfter   []string          `json:"opens_after"`
+	WaitingOn    []string          `json:"waiting_on"`
 	Counts       map[string]int    `json:"counts"`
 	ShareDone    float64           `json:"share_done"`
 	Gate         epicGateResult    `json:"gate"`
@@ -121,6 +123,7 @@ type epicPlan struct {
 	states    map[string]engine.EpicState
 	bound     map[string][]string
 	gates     map[string]engine.MilestoneGate
+	after     map[string][]string
 	ready     epicReadyResult
 	estimates map[string]int
 	compact   bool
@@ -131,7 +134,7 @@ type epicPlan struct {
 // error.
 func epicPlanStatus(g *model.EpicGraph, states map[string]engine.EpicState, bound map[string][]string, milestones []string, compact bool) (epicPlanResult, error) {
 	readiness := engine.EpicReady(g, states, bound, false)
-	p := epicPlan{g: g, states: states, bound: bound, gates: engine.MilestoneGates(g, states), ready: epicReadyReport(g, &readiness), compact: compact}
+	p := epicPlan{g: g, states: states, bound: bound, gates: engine.MilestoneGates(g, states), after: engine.EffectiveOpensAfter(g), ready: epicReadyReport(g, &readiness), compact: compact}
 	if !compact {
 		estimates, err := engine.EpicEstimates(g, bound)
 		if err != nil {
@@ -158,10 +161,12 @@ func (p *epicPlan) milestone(m string) (epicMilestoneReport, error) {
 	gate := epicGateReport(p.g, m, p.states)
 	gate.Green = p.gates[m].Green
 	rep := epicMilestoneReport{
-		Milestone: m,
-		Open:      p.gates[m].Open,
-		Gate:      gate,
-		Ready:     inMilestone(p.ready.Ready, m, func(e epicReadyItem) string { return e.Milestone }),
+		Milestone:  m,
+		Open:       p.gates[m].Open,
+		OpensAfter: p.after[m],
+		WaitingOn:  engine.MilestoneWaitingOn(p.after[m], p.gates),
+		Gate:       gate,
+		Ready:      inMilestone(p.ready.Ready, m, func(e epicReadyItem) string { return e.Milestone }),
 		Operator: epicOperatorWait{
 			Conditions: inMilestone(p.ready.Operator.Conditions, m, func(e epicReadyEpic) string { return e.Milestone }),
 			Gates:      inMilestone(p.ready.Operator.Gates, m, func(w epicThresholdWait) string { return w.Milestone }),
