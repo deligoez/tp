@@ -307,3 +307,16 @@ func TestLintEpicGraph_ARootIsNotWarnedForHavingNoDependencies(t *testing.T) {
 	assert.Equal(t, []string{"r"}, stale[0].Epics)
 	assert.Equal(t, EpicSeverityWarning, stale[0].Severity)
 }
+
+// TestLintEpicGraph_AConditionIsNotWarnedForHavingNoDependencies pins
+// spec/1.6.0.md F4: a condition is the operator's precondition, not work, so a
+// later-milestone condition with no dependencies does not warn; the plain epic
+// beside it still does.
+func TestLintEpicGraph_AConditionIsNotWarnedForHavingNoDependencies(t *testing.T) {
+	g := warningGraph()
+	g.Epics = append(g.Epics,
+		model.Epic{ID: "k", Title: "Keys issued", Milestone: "B", Condition: true})
+	noDeps := findingsOf(t, LintEpicGraph(g, nil), EpicRuleNoDependencies)
+	require.Len(t, noDeps, 1)
+	assert.Equal(t, []string{"b"}, noDeps[0].Epics, "the condition k is not warned")
+}
