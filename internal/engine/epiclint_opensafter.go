@@ -98,9 +98,13 @@ func lintEpicPartialParallel(g *model.EpicGraph) []EpicLintFinding {
 // the earlier milestone it does not open after, naming ids: info when m's
 // opens_after entry is written, a warning otherwise.
 func partialParallelFinding(g *model.EpicGraph, m, earlier string, ids []string) EpicLintFinding {
+	verb, them := "depend", "them"
+	if len(ids) == 1 {
+		verb, them = "depends", "it"
+	}
 	f := epicWarning(EpicRulePartialParallel, fmt.Sprintf(
-		"milestone %q does not open after the earlier %q, yet %s depend on its epics; the epic block still makes them wait",
-		m, earlier, strings.Join(ids, ", ")), ids...)
+		"milestone %q does not open after the earlier %q, yet %s %s on its epics; the epic block still makes %s wait",
+		m, earlier, strings.Join(ids, ", "), verb, them), ids...)
 	if _, chosen := g.OpensAfter[m]; chosen {
 		f.Severity = EpicSeverityInfo
 	}
