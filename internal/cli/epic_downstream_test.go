@@ -185,3 +185,18 @@ func TestEpicReady_ADeferrableDependentCountsAndALeafConditionDoesNot(t *testing
 	assert.Equal(t, map[string]int{"M2": 1}, byMilestone)
 }
 
+// TestEpicStatus_ReportsTheWholeGraphCriticalPath is C1.5: the top-level
+// critical_path is r1's chain, six epics crossing from M1 into M2, longer
+// than any milestone's own.
+func TestEpicStatus_ReportsTheWholeGraphCriticalPath(t *testing.T) {
+	t.Parallel()
+	stdout := runEpicStatus(t, downstreamDir(t, downstreamEpics(10), nil))
+	var r struct {
+		CriticalPath *struct {
+			ByCount []string `json:"by_count"`
+		} `json:"critical_path"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &r), "stdout: %s", stdout)
+	require.NotNil(t, r.CriticalPath, "status carries a top-level critical_path")
+	assert.Equal(t, []string{"r1", "a1", "a2", "a3", "a4", "a5"}, r.CriticalPath.ByCount)
+}
