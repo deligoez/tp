@@ -118,3 +118,23 @@ func TestDeriveEpicStates_SpecEditedAfterReleaseFallsBack(t *testing.T) {
 	require.NoError(t, os.WriteFile(spec, []byte("# Spec\n\nEdited.\n"), 0o600))
 	assert.Equal(t, EpicStatusInProgress, epicStatusIn(t, g, root, "b"))
 }
+
+// epicDoneAtIn derives every epic of g against the files bound under root and
+// returns id's done_at, nil when it has none.
+func epicDoneAtIn(t *testing.T, g *model.EpicGraph, root, id string) *time.Time {
+	t.Helper()
+	states, err := DeriveEpicStates(g, EpicBoundFiles(root))
+	require.NoError(t, err)
+	return states[id].DoneAt
+}
+
+// TestDeriveEpicStates_TasklessDoneAtIsRecordTime: an epic with no bound file
+// is done at its done record's time (spec/1.5.0.md §3); one not done has none.
+func TestDeriveEpicStates_TasklessDoneAtIsRecordTime(t *testing.T) {
+	root := boundFilesRepo(t)
+	g := statusChain()
+	at := epicDoneAtIn(t, g, root, "c")
+	require.NotNil(t, at)
+	assert.True(t, g.Epics[2].Done.At.Equal(*at))
+	assert.Nil(t, epicDoneAtIn(t, g, root, "a"))
+}
