@@ -11,6 +11,7 @@ import (
 // exportEpicItem is one tp epic export epics[] item as F9 shapes it.
 type exportEpicItem struct {
 	ID         string           `json:"id"`
+	Title      string           `json:"title"`
 	Status     string           `json:"status"`
 	Milestone  string           `json:"milestone"`
 	Condition  bool             `json:"condition"`
@@ -49,11 +50,13 @@ func exportF9Epics() []downstreamEpic {
 	r.Done = &downstreamDone{At: "2026-01-02T03:04:05Z", Evidence: "e"}
 	k := dsEpic("k", "M1", "r")
 	k.Condition, k.Acceptance = true, "keys issued"
-	return []downstreamEpic{r, k, dsEpic("w", "M1", "k", "r"), dsEpic("x", "M1", "w"), dsEpic("y", "M2", "x")}
+	w := dsEpic("w", "M1", "k", "r")
+	w.Title = "Wire the keys"
+	return []downstreamEpic{r, k, w, dsEpic("x", "M1", "w"), dsEpic("y", "M2", "x")}
 }
 
 // TestEpicExport_EpicItemsCarryMilestoneConditionDownstreamAndWaits is F9:
-// each item repeats milestone and condition; w is held by the condition k
+// each item repeats title, milestone and condition; w is held by the condition k
 // alone, which also blocks it, while r is done and blocks nothing; x is
 // blocked by w and held by nothing; k is an actionable condition; the
 // downstream counts are F1's without dependents_by_milestone.
@@ -62,6 +65,7 @@ func TestEpicExport_EpicItemsCarryMilestoneConditionDownstreamAndWaits(t *testin
 	items, raw := exportEpicItems(t, downstreamDir(t, exportF9Epics(), nil))
 
 	w := items["w"]
+	assert.Equal(t, "Wire the keys", w.Title, "the item carries the graph's title")
 	assert.Equal(t, "M1", w.Milestone)
 	assert.False(t, w.Condition)
 	assert.Equal(t, []string{"k"}, w.HeldBy)
