@@ -65,6 +65,8 @@ epic export: md
 epic import: force if-revision
 epic link: if-revision
 epic lint:
+epic milestone:
+epic milestone add: after before if-revision new-track
 epic remove: force if-revision
 epic review: check epic force milestone record resolve resolve-all role status
 epic set: if-revision
