@@ -500,14 +500,18 @@ them keeps that plan in **`.tp/epics.json`**: ordered milestone tracks, each mil
 and epics whose `depends_on` edges each carry a required `why`. One epic is one node of the plan and
 owns the spec written for it; the graph is designed and reviewed the way a spec is.
 
-- **Written only through tp.** `tp epic add|set|remove|import` lock the file and refuse a write that
-  adds a lint error the file did not already hold, so the graph is never left broken by a write; the
-  plugin's write-deny hook fences the file against direct edits.
+- **Written only through tp.** `tp epic add|set|remove|import`, `link|unlink` for one edge and
+  `milestone add` lock the file and refuse a write that adds a lint error the file did not already
+  hold, so the graph is never left broken by a write; the plugin's write-deny hook fences the file
+  against direct edits. Every writer prints the file's revision (the SHA-256 of its bytes) and takes
+  `--if-revision`, so an edit made from a stale read is refused instead of reverting another.
 - **Linted.** `tp epic lint` checks the structure (cycles, dangling ids, an epic depending on a later
   milestone, a gate member outside its milestone) and the one semantic gap with a structure: an epic
   tagged for a checker it does not transitively depend on. Warnings flag a `why` that only restates
-  its target and an epic outside a track's first milestone with no dependencies.
-- **Reviewed in slices.** `tp epic review --milestone <m>` or `--epic <id>` emits one prompt per
+  its target and an epic outside a track's first milestone with no dependencies, unless it is marked
+  `root: true`.
+- **Reviewed in slices.** `tp epic review --milestone <m>`, `--epic <id>` or `--epics <ids> --name
+  <topic>` (a topic across milestones, one slice as it grows) emits one prompt per
   graph role over the asked epics, with their neighbours as context, and runs the spec loop's rules:
   record, carry unchanged units, converge, cap. The built-in roles ask whether an epic's definition of
   done names a capability none of its dependencies provides (`dod-satisfiability`), whether each
