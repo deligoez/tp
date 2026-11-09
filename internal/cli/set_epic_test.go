@@ -84,3 +84,10 @@ func TestSetEpic_AbsentIDIsRefusedAndWritesNothing(t *testing.T) {
 	assertBindingRefused(t, "z", "not in the graph")
 }
 
+// TestSetEpic_ConditionIsRefusedAndWritesNothing is §10 row 1: a condition
+// is decided by the operator, so no task file builds it.
+func TestSetEpic_ConditionIsRefusedAndWritesNothing(t *testing.T) {
+	t.Parallel()
+	assertBindingRefused(t, "c", "condition")
+}
+
