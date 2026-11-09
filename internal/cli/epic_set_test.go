@@ -214,3 +214,30 @@ func TestEpicSet_ConditionOnABoundEpicIsRefusedAndWritesNothing(t *testing.T) {
 	assert.Contains(t, stderr, "b.tasks.json")
 	assert.Equal(t, before, readEpicGraphFile(t, dir), "a refused set writes nothing")
 }
+
+// TestEpicSet_OpensAfterReplacesTheWholeMap is spec/1.6.0.md §1: tp epic set
+// opens_after=<json> replaces the whole map, and one closing a cycle is
+// refused and writes nothing.
+func TestEpicSet_OpensAfterReplacesTheWholeMap(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{
+  "version": 1,
+  "milestones": [["A", "B", "C"]],
+  "opens_after": {"B": []},
+  "epics": [{"id": "a", "title": "A", "milestone": "A", "root": true}]
+}
+`)
+	_, stderr, code := runTP(t, dir, "epic", "set", `opens_after={"C": ["A"]}`)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var g struct {
+		OpensAfter map[string][]string `json:"opens_after"`
+	}
+	require.NoError(t, json.Unmarshal(readEpicGraphFile(t, dir), &g))
+	assert.Equal(t, map[string][]string{"C": {"A"}}, g.OpensAfter)
+
+	before := readEpicGraphFile(t, dir)
+	_, stderr, code = runTP(t, dir, "epic", "set", `opens_after={"A": ["C"]}`)
+	require.Equal(t, 1, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "opens-after-cycle")
+	assert.Equal(t, before, readEpicGraphFile(t, dir), "a refused set writes nothing")
+}
