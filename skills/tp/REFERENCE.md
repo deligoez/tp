@@ -1411,7 +1411,7 @@ its own, so the set may grow without changing directory. `--status` names it as
 
 | File | Written by | Content |
 |------|------------|---------|
-| `snapshot-round-<N>.json` | emission | each unit's hash as round N read it; a unit's hash covers its own block and, for an epic, the blocks of its direct dependencies |
+| `snapshot-round-<N>.json` | emission | each unit's hash and block text as round N read it; a unit's hash covers its own block and, for an epic, the blocks of its direct dependencies |
 | `round-<N>.ndjson` | `--record` | the round's findings, each with `severity`, `finding`, `location` (`epic:<id>` or `gate:<m>`) and `evidence`; `--resolve` writes dispositions into the last one |
 
 From round 2 a unit whose hash equals the round before's and that holds no open finding is carried
@@ -1427,8 +1427,9 @@ With no `.tp/epic-reviewers/` the three built-in graph roles run (`dod-satisfiab
 
 Each prompt reads, in order: the role's instructions, the asked units (and, when none is a gate, a
 line saying gate questions do not apply), the earlier rounds'
-`wontfix`/`duplicate` decisions on them with their evidence, the role's focus questions and any
-round input (regression's fixed findings), the output contract and the file to write, then
+`wontfix`/`duplicate` decisions on them with their round and evidence, the role's focus questions
+and any round input (regression's fixed findings, and each asked unit whose own block changed shown
+as the round before read it and as it reads now), the output contract and the file to write, then
 the context, and a last line repeating the row keys and the file. A role file's optional `context`
 key scopes that context: `neighbours` (the default) shows every epic one edge away in either
 direction, `dependencies` only the epics an asked unit depends on; `dod-satisfiability` and
