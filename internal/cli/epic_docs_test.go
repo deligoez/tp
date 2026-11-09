@@ -170,3 +170,18 @@ func TestReferenceListsEveryEscalationDecision(t *testing.T) {
 		assert.Contains(t, body, "`"+decision+"`", "the escalate section lists the %q decision", decision)
 	}
 }
+
+// TestReadmeEpicGraphTracksProgress pins spec/1.5.0.md §1 to README.md's Epic
+// Graph section: binding, derived status, gates opening milestones,
+// conditions, the epic block and the export contract.
+func TestReadmeEpicGraphTracksProgress(t *testing.T) {
+	t.Parallel()
+	body := docSectionBody(t, readRepoDoc(t, "README.md"), "## Epic Graph")
+	for _, term := range []string{
+		"tp init <spec> --epic <id>", "tp set --epic", "`planned`", "`in_progress`", "`release`",
+		"**Gates open milestones.**", "`threshold`", "--met", "`condition: true`", "`blocked_by_epics`",
+		"`epic-blocked`", "tp epic ready", "tp epic status", "versioned JSON",
+	} {
+		assert.Contains(t, body, term, "the Epic Graph section names %q", term)
+	}
+}
