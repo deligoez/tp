@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -12,6 +13,9 @@ import (
 type EpicBoundFileError struct {
 	Epic  string
 	Files []string
+	// Unknown is set when the graph does not hold Epic (or there is no
+	// graph), so no binding could make the call work.
+	Unknown bool
 }
 
 func (e *EpicBoundFileError) Error() string {
@@ -20,6 +24,9 @@ func (e *EpicBoundFileError) Error() string {
 
 // Message renders the refusal with files as the caller names them.
 func (e *EpicBoundFileError) Message(files []string) string {
+	if e.Unknown {
+		return fmt.Sprintf("epic %q is not in the graph", e.Epic)
+	}
 	if len(files) == 0 {
 		return fmt.Sprintf("epic %q has no bound task file", e.Epic)
 	}
@@ -36,7 +43,14 @@ func EpicBoundFile(start, id string) (string, error) {
 		return "", err
 	}
 	files := bound[id]
-	if len(files) == 1 {
+	switch len(files) {
+	case 0:
+		known, err := epicInGraph(start, id)
+		if err != nil {
+			return "", err
+		}
+		return "", &EpicBoundFileError{Epic: id, Unknown: !known}
+	case 1:
 		return files[0], nil
 	}
 	var open []string
@@ -57,4 +71,22 @@ func EpicBoundFile(start, id string) (string, error) {
 	default:
 		return "", &EpicBoundFileError{Epic: id, Files: open}
 	}
+}
+
+// epicInGraph reports whether the graph discovered from start holds epic id;
+// no .tp/ directory or no graph file holds none. An unreadable graph is its
+// load error.
+func epicInGraph(start, id string) (bool, error) {
+	tpDir := DiscoverTPDir(start)
+	if tpDir == "" {
+		return false, nil
+	}
+	g, _, err := LoadEpicGraph(tpDir)
+	if errors.Is(err, ErrEpicGraphNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return epicIndex(g, id) >= 0, nil
 }

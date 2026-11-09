@@ -17,6 +17,28 @@ var flagEpicFile string
 // epicFileFlagHint answers an --epic that resolves to no single file.
 const epicFileFlagHint = "pass --file with the task file to work on, or bind one to the epic (tp set --epic, tp init --epic)"
 
+// epicFileFlagUnknownHint answers an --epic naming an id the graph lacks.
+const epicFileFlagUnknownHint = "name an epic the graph holds (tp epic status lists them), or pass --file"
+
+// refuseEpicFileFlag exits 4 on --epic's refusal. Several candidates ride as
+// a "candidates" array of --file arguments, the error naming them too.
+func refuseEpicFileFlag(refused *engine.EpicBoundFileError) {
+	if refused.Unknown {
+		output.Error(ExitState, refused.Message(nil), epicFileFlagUnknownHint)
+		os.Exit(ExitState)
+	}
+	labels := make([]string, 0, len(refused.Files))
+	for _, f := range refused.Files {
+		labels = append(labels, taskFileLabel(f))
+	}
+	if len(labels) == 0 {
+		output.Error(ExitState, refused.Message(labels), epicFileFlagHint)
+	} else {
+		output.ErrorExtras(ExitState, refused.Message(labels), map[string]any{"candidates": labels}, epicFileFlagHint)
+	}
+	os.Exit(ExitState)
+}
+
 // addEpicFileFlag registers --epic on cmd.
 func addEpicFileFlag(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&flagEpicFile, "epic", "",
@@ -37,12 +59,7 @@ func applyEpicFileFlag() {
 	path, err := engine.EpicBoundFile(".", flagEpicFile)
 	var refused *engine.EpicBoundFileError
 	if errors.As(err, &refused) {
-		labels := make([]string, 0, len(refused.Files))
-		for _, f := range refused.Files {
-			labels = append(labels, taskFileLabel(f))
-		}
-		output.Error(ExitState, refused.Message(labels), epicFileFlagHint)
-		os.Exit(ExitState)
+		refuseEpicFileFlag(refused)
 	}
 	if err != nil {
 		// task-file-hint: an unreadable task file or review state
