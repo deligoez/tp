@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.5.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-09T15:48:13.996581Z",
+  "updated_at": "2026-11-09T15:51:39.588348Z",
   "workflow": {
     "review_max_rounds": 4,
     "audit_max_rounds": 5
@@ -887,7 +887,7 @@
       "id": "docs-readme-epic-progress",
       "title": "Index the v1.5.0 commands in README",
       "description": "README command index rows for the new commands and the Epic Graph section's progress tracking, gates and conditions.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -899,11 +899,18 @@
       "source_sections": [
         "## 1. Decision"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-09T15:48:24.59855Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-09T15:51:39.577354Z",
+      "closed_reason": "- the command index lists every tp epic subcommand (claim, done, gate, ready, status, export among them) plus tp set --epic and tp init --epic; TestReadmeIndexListsEveryEpicSubcommand passes\n- the Epic Graph section describes binding, derived status, gates opening milestones, conditions, the epic block and the export contract, and the lifecycle diagram gains the progress side (TestReadmeEpicGraphTracksProgress); gate green",
+      "gate_passed_at": "2026-11-09T15:51:39.577354Z",
+      "commit_sha": "a3011124",
+      "commit_shas": [
+        "a3011124"
+      ],
+      "commit_files": [
+        "internal/cli/epic_docs_test.go"
+      ]
     }
   ]
 }
