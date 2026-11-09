@@ -55,8 +55,8 @@ func buildEpicReviewPrompts(run *epicReviewRun, roles []model.Role) []epicReview
 // epicRegressionInstructions frame the built-in regression role over a graph.
 const epicRegressionInstructions = "You guard an epic graph against regressions from the round before. " +
 	"An asked unit changed since that round or carried a finding that was resolved fixed. " +
-	"Check that each change kept what the unit's acceptance, edges and whys needed, and that each fixed finding below " +
-	"is resolved in the current text without breaking a neighbour. Report only what a change lost or broke; " +
+	"Check that each change kept what the unit's acceptance, edges and whys needed and broke no neighbour, " +
+	"and that each fixed finding listed is resolved in the current text. Report only what a change lost or broke; " +
 	"finding nothing is a normal result.\n\n"
 
 // epicRegressionPrompt renders the regression role's prompt: the asked units,
@@ -73,7 +73,9 @@ func epicRegressionPrompt(run *epicReviewRun, asked string) epicReviewPrompt {
 		}
 		b.WriteString("---\n")
 	}
-	if len(run.carry.Fixed) > 0 {
+	if len(run.carry.Fixed) == 0 {
+		fmt.Fprintf(&b, "\nNo finding was resolved fixed since round %d: the change is an edit, so check each changed unit against its neighbours.\n", run.round-1)
+	} else {
 		fmt.Fprintf(&b, "\nFindings round %d resolved fixed — confirm each fix holds:\n", run.round-1)
 		for _, row := range run.carry.Fixed {
 			loc, _ := row["location"].(string)
