@@ -1,6 +1,11 @@
 package engine
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io/fs"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -33,4 +38,62 @@ func epicSliceKeyText(key EpicSliceKey) string {
 		return "milestone\x00" + key.Milestone
 	}
 	return "epic\x00" + key.Epic
+}
+
+// epicSliceKeyFile names the file in a slice's state directory that records
+// the slice's key, so the slices can be listed without inverting the hash.
+const epicSliceKeyFile = "key.json"
+
+// EpicSliceKeyRecord is a slice's key as its state directory records it
+// (spec/1.5.0.md §7): a milestone or an epic by kind and value, a set by
+// kind "epics" with its sorted, de-duplicated ids and its name when it has one.
+type EpicSliceKeyRecord struct {
+	Kind  string   `json:"kind"`
+	Value string   `json:"value,omitempty"`
+	IDs   []string `json:"ids,omitempty"`
+	Name  string   `json:"name,omitempty"`
+}
+
+// epicSliceKeyRecord renders key as its state directory records it.
+func epicSliceKeyRecord(key EpicSliceKey) EpicSliceKeyRecord {
+	switch {
+	case len(key.Epics) > 0:
+		ids := slices.Compact(slices.Sorted(slices.Values(key.Epics)))
+		return EpicSliceKeyRecord{Kind: "epics", IDs: ids, Name: key.Name}
+	case key.Milestone != "":
+		return EpicSliceKeyRecord{Kind: "milestone", Value: key.Milestone}
+	default:
+		return EpicSliceKeyRecord{Kind: "epic", Value: key.Epic}
+	}
+}
+
+// WriteEpicSliceKey records key in stateDir, creating the directory, through
+// an atomic rename. Each emission writes it, so a slice recorded before
+// v1.5.0 gains its key on its next emission.
+func WriteEpicSliceKey(stateDir string, key EpicSliceKey) error {
+	data, err := json.MarshalIndent(epicSliceKeyRecord(key), "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(stateDir, 0o755); err != nil {
+		return err
+	}
+	return writeFileAtomic(filepath.Join(stateDir, epicSliceKeyFile), append(data, '\n'))
+}
+
+// ReadEpicSliceKey returns the key stateDir records, nil when the slice has
+// no key file: one recorded before v1.5.0, whose key is unknown.
+func ReadEpicSliceKey(stateDir string) (*EpicSliceKeyRecord, error) {
+	data, err := os.ReadFile(filepath.Join(stateDir, epicSliceKeyFile))
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var rec EpicSliceKeyRecord
+	if err := json.Unmarshal(data, &rec); err != nil {
+		return nil, fmt.Errorf("%s: %w", filepath.Join(stateDir, epicSliceKeyFile), err)
+	}
+	return &rec, nil
 }
