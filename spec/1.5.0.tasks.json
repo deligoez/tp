@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.5.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-09T14:36:31.654417Z",
+  "updated_at": "2026-11-09T14:42:41.656928Z",
   "workflow": {
     "review_max_rounds": 4,
     "audit_max_rounds": 5
@@ -507,7 +507,7 @@
       "id": "done-gating",
       "title": "Gate tp done on a blocked file",
       "description": "tp done refuses a task that is not already wip in a blocked file; the next-task counts tp done reports leave blocked tasks out.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "gating"
@@ -521,11 +521,18 @@
         "## 6. The graph gates the work",
         "## 10. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-09T14:37:47.028471Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-09T14:42:41.64793Z",
+      "closed_reason": "- §10 row 3: TestDone_RefusesAnOpenTaskOnABlockedFile shows tp done on an open task of a blocked file exits 1 with blocked_by_epics [c] and writes nothing (multi-id and --batch refuse it too); TestDone_ClosesAWipTaskOnABlockedFileAndCountsNoNext closes a wip task\n- has_next false and remaining.ready 0 for the blocked file's open task (TestDone_ClosesAWipTaskOnABlockedFileAndCountsNoNext); gate green",
+      "gate_passed_at": "2026-11-09T14:42:41.64793Z",
+      "commit_sha": "2a3e91d9",
+      "commit_shas": [
+        "2a3e91d9"
+      ],
+      "commit_files": [
+        "internal/cli/epic_block_test.go"
+      ]
     },
     {
       "id": "resume-epic-blocker",
