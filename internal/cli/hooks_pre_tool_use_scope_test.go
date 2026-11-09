@@ -42,3 +42,29 @@ func TestPreToolUseHookAllowsReadsOfTpState(t *testing.T) {
 		}
 	}
 }
+
+// TestPreToolUseHookFencesOnlyTheSessionRepository: the fence guards the
+// repository the session works in, so a fixture an auditor writes into a
+// mktemp -d directory outside it is not tp's own state, whatever it is named.
+// Matched by name alone, a *.tasks.json fixture under a temp directory was
+// refused as a hand-edit of the session's task file.
+func TestPreToolUseHookFencesOnlyTheSessionRepository(t *testing.T) {
+	t.Parallel()
+	scratch := t.TempDir()
+	outside := []string{
+		filepath.Join(scratch, "spec.tasks.json"),
+		filepath.Join(scratch, ".tp", "config.json"),
+		filepath.Join(scratch, "spec", ".tp-review", "1.0.0", "state.json"),
+	}
+	writers := map[string]string{"Write": "file_path", "mcp__codedbpro__create": "file"}
+	for tool, key := range writers {
+		for _, path := range outside {
+			t.Run(tool+" "+path, func(t *testing.T) {
+				t.Parallel()
+				run := runPreToolUseHook(t, tool, map[string]any{key: path, "content": "{}"})
+				assert.Zero(t, run.exitCode, "%s is outside the session's repository; stderr=%q", path, run.stderr)
+				assert.Empty(t, run.stderr)
+			})
+		}
+	}
+}
