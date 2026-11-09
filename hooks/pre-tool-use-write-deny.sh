@@ -93,6 +93,68 @@ denied() {
 	return 1
 }
 
+# The fence guards the repository the session works in, not every file that
+# happens to carry a fenced name: an auditor that writes a *.tasks.json fixture
+# into a mktemp -d directory is writing a fixture, not hand-editing this
+# project's task file, and was refused as one while the fence matched names
+# alone. The repository is git's top level from the session's project
+# directory - $CLAUDE_PROJECT_DIR, which Claude Code sets for every hook, else
+# the hook's working directory - or that directory itself outside git.
+#
+# A path is inside when either its spelling or its physical form - the nearest
+# existing ancestor resolved through symlinks, the rest appended unchanged, as
+# the role allowlist's physical_path does - lies under the root in either of
+# its forms. Both forms are needed and neither widens what passes: git names
+# the top level physically while $PWD and the agent may use a symlinked
+# spelling (/tmp is /private/tmp on macOS), and a path reaching the repository
+# through a symlink elsewhere is still the repository's file. Only a path that
+# is outside in every form leaves the fence. The climb is bounded for the
+# reason physical_path gives: each step is a subshell, and a hook killed at its
+# timeout fails open.
+physical() {
+	ph_dir=$1
+	ph_rest=''
+	ph_climb=0
+	while [ "$ph_climb" -le 8 ]; do
+		if ph_real=$(cd "$ph_dir" 2>/dev/null && pwd -P); then
+			printf '%s%s\n' "$ph_real" "$ph_rest"
+			return
+		fi
+		case $ph_dir in / | '') break ;; esac
+		ph_rest="/${ph_dir##*/}$ph_rest"
+		ph_dir=${ph_dir%/*}
+		[ -n "$ph_dir" ] || ph_dir=/
+		ph_climb=$((ph_climb + 1))
+	done
+	printf '%s\n' "$1"
+}
+
+# repo_roots prints the session repository's root in both forms, normalized.
+repo_roots() {
+	rr_from=${CLAUDE_PROJECT_DIR:-$PWD}
+	rr_top=$(git -C "$rr_from" rev-parse --show-toplevel 2>/dev/null) || rr_top=''
+	[ -n "$rr_top" ] || rr_top=$rr_from
+	normalize "$rr_top"
+	normalize "$(physical "$rr_top")"
+}
+
+# in_repo reports whether one path lies inside the session's repository. A
+# root of / holds every path.
+in_repo() {
+	case $1 in
+	/*) ir_abs=$1 ;;
+	*) ir_abs=$PWD/$1 ;;
+	esac
+	ir_text=$(normalize "$ir_abs")
+	ir_phys=$(normalize "$(physical "$ir_abs")")
+	for ir_root in $roots; do
+		case $ir_root in /) return 0 ;; esac
+		case $ir_text/ in "$ir_root"/*) return 0 ;; esac
+		case $ir_phys/ in "$ir_root"/*) return 0 ;; esac
+	done
+	return 1
+}
+
 # A codedbpro batch is judged op by op, each as the same call made alone would
 # be: drop-batch-reads.awk, beside this script and shared with the role
 # allowlist, cuts every read op out of the payload, and the extraction below
@@ -175,6 +237,8 @@ for path in $paths; do
 		;;
 	esac
 	denied "$path" || continue
+	[ -n "${roots+set}" ] || roots=$(repo_roots)
+	in_repo "$path" || continue
 	printf '%s\n' \
 		"tp scope fence: $path is tp's own state and must not be hand-edited (v0.35.0 §6.2)." \
 		'Change it with the tp command that owns it: task files through tp done / tp set / tp import / tp remove,' \
