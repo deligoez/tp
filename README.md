@@ -530,12 +530,32 @@ owns the spec written for it; the graph is designed and reviewed the way a spec 
   done names a capability none of its dependencies provides (`dod-satisfiability`), whether each
   `why` is a reason (`why-auditor`), and whether an epic sits where the plan needs it
   (`phase-economist`); `regression` joins a round that follows a change.
-- **Exported for people.** `tp epic export --md` prints one table per milestone; tp renders no map.
+- **Bound to the work.** A task file names its epic (`tp init <spec> --epic <id>`, `tp set --epic
+  <id>`), and the epic's status is derived from its bound files whenever it is read: `planned`,
+  `claimed`, `specced`, `in_progress`, and `done` once every bound file reaches `release`. Nothing is
+  stored that the task layer could contradict; an epic finished outside tp, with no file, is closed
+  by `tp epic done <id> --evidence`.
+- **Gates open milestones.** A milestone is open when every earlier milestone of its track has a
+  green gate: every member done and, when the gate carries a `threshold`, the operator's evidenced
+  `tp epic gate <m> --met` record. Only an open milestone's epics are ready, and `deferrable` epics
+  never hold a gate.
+- **Conditions.** An external precondition is an epic with `condition: true`, its `acceptance`
+  saying what it waits for: no task file, no claim, done only by an evidenced record. Work that must
+  wait for it depends on it like any edge.
+- **The graph gates the work.** While a bound file's epic has a dependency not done, `tp next`,
+  `tp ready` and `tp claim` offer no task and name `blocked_by_epics`, and `tp resume` reports
+  `epic-blocked`, so `tp run` stops instead of driving a unit that cannot move; a `wip` task still
+  finishes.
+- **Read as one contract.** `tp epic ready` says what can start and who holds a claim; `tp epic
+  status` adds, per milestone, the gate, the blocked list, the critical path, throughput and the
+  estimate roll-up; `tp epic export` prints all of it as versioned JSON, with each bound file's phase
+  and loop states and every review slice, so a view of the plan never parses tp's state files.
+  `--md` keeps the tables; tp renders no map.
 
 The loop is Workflow E in [SKILL.md](skills/tp/SKILL.md); the file, the lint rules, the prompt
-shape and the state directory are in [REFERENCE.md](skills/tp/REFERENCE.md). Binding a task file to
-its epic, deriving an epic's status from it, and asking the graph what is ready next come in a later
-release.
+shape, the state directory, the status table and the payloads are in
+[REFERENCE.md](skills/tp/REFERENCE.md). tp measures nothing to decide any of it: a threshold is met
+when the operator records it.
 
 ## AX (Agent Experience)
 
