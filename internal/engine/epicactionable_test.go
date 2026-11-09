@@ -43,3 +43,10 @@ func TestConditionsActionable_ADoneDependentDoesNotCount(t *testing.T) {
 	assert.False(t, conditionActionableOf(g, nil, "w"))
 }
 
+// TestConditionsActionable_ADependentInAClosedMilestoneWithoutABoundFileDoesNotCount:
+// w waits on c alone, but B is closed and w has no bound file, so nothing can
+// start once c is decided.
+func TestConditionsActionable_ADependentInAClosedMilestoneWithoutABoundFileDoesNotCount(t *testing.T) {
+	assert.False(t, conditionActionableOf(closedDependentGraph(), nil))
+}
+
