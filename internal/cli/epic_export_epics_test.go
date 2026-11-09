@@ -131,3 +131,41 @@ func TestEpicStatus_BlockedItemsCarryHeldBy(t *testing.T) {
 	}
 	assert.Equal(t, map[string][]string{"w": {"k"}, "x": {}, "y": {}}, held)
 }
+
+// conditionBehindWorkGraph is C3.3's track [A]: the condition c depends on the
+// undone x, and w depends on c alone.
+const conditionBehindWorkGraph = `{"version": 1, "milestones": [["A"]], "epics": [
+    {"id": "x", "title": "X", "milestone": "A", "root": true},
+    {"id": "c", "title": "C", "milestone": "A", "condition": true, "acceptance": "the board says yes", "depends_on": [{"id": "x", "why": "the board reads x's report"}]},
+    {"id": "w", "title": "W", "milestone": "A", "depends_on": [{"id": "c", "why": "w ships once the board agrees"}]}
+  ]}`
+
+// TestEpicStatus_BlockedConditionsCarryNotActionable: status lists the
+// condition c, held by its own undone dependency, among the blocked with
+// not_actionable naming why; the work epic w carries no such key, and
+// neither carries waiting_on.
+func TestEpicStatus_BlockedConditionsCarryNotActionable(t *testing.T) {
+	t.Parallel()
+	var status struct {
+		Milestones []struct {
+			Blocked []map[string]json.RawMessage `json:"blocked"`
+		} `json:"milestones"`
+	}
+	stdout := runEpicStatus(t, epicGraphDir(t, conditionBehindWorkGraph))
+	require.NoError(t, json.Unmarshal([]byte(stdout), &status), "stdout: %s", stdout)
+	rows := map[string]map[string]json.RawMessage{}
+	for _, m := range status.Milestones {
+		for _, b := range m.Blocked {
+			var id string
+			require.NoError(t, json.Unmarshal(b["id"], &id))
+			rows[id] = b
+		}
+	}
+	require.Contains(t, rows, "c", "stdout: %s", stdout)
+	require.Contains(t, rows["c"], "not_actionable", "stdout: %s", stdout)
+	assert.JSONEq(t, `["dependencies"]`, string(rows["c"]["not_actionable"]))
+	assert.NotContains(t, rows["w"], "not_actionable", "a work epic carries no not_actionable")
+	for id, row := range rows {
+		assert.NotContains(t, row, "waiting_on", "%s carries no waiting_on", id)
+	}
+}
