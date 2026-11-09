@@ -34,7 +34,7 @@ func findingsOf(t *testing.T, findings []EpicLintFinding, rule string) []EpicLin
 	var out []EpicLintFinding
 	for _, f := range findings {
 		assert.NotEmpty(t, f.Rule)
-		assert.Contains(t, []string{EpicSeverityError, EpicSeverityWarning}, f.Severity)
+		assert.Contains(t, []string{EpicSeverityError, EpicSeverityWarning, EpicSeverityInfo}, f.Severity)
 		assert.NotEmpty(t, f.Message)
 		require.NotNil(t, f.Epics, "epics is an array, never null")
 		assert.True(t, sort.StringsAreSorted(f.Epics), "epics are sorted: %v", f.Epics)

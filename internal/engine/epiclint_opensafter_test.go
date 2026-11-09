@@ -86,12 +86,13 @@ func partialParallelGraph(qEdges bool) *model.EpicGraph {
 
 // TestLintEpicGraph_PartialParallelNamesThePairAndItsEpics is C2.5: R does
 // not open after the earlier Q, yet r1 and r2 depend directly on Q epics, so
-// exactly one partial-parallel warning names (R, Q) and lists r1 and r2, not
-// r4, which reaches Q only through r1. With no R→Q edge there is none.
+// exactly one partial-parallel finding names (R, Q) and lists r1 and r2, not
+// r4, which reaches Q only through r1. R's entry is explicit and leaves Q out,
+// so the operator chose it: severity info. With no R→Q edge there is none.
 func TestLintEpicGraph_PartialParallelNamesThePairAndItsEpics(t *testing.T) {
 	warnings := findingsOf(t, LintEpicGraph(partialParallelGraph(true), nil), EpicRulePartialParallel)
 	require.Len(t, warnings, 1)
-	assert.Equal(t, EpicSeverityWarning, warnings[0].Severity)
+	assert.Equal(t, EpicSeverityInfo, warnings[0].Severity)
 	assert.Equal(t, []string{"Q", "R"}, warnings[0].Names)
 	assert.Equal(t, []string{"r1", "r2"}, warnings[0].Epics)
 	assert.Contains(t, warnings[0].Message, `"R"`)
