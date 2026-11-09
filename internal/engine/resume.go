@@ -77,22 +77,10 @@ func AssembleResume(start, taskFilePath, specPath string, tf *model.TaskFile) (R
 		guidance = "run each task in a fresh subagent/context; keep the orchestrator context clean"
 	}
 
-	blockers := BuildBlockers(&BlockerInputs{
-		Phase:           phase,
-		SpecPath:        specPath,
-		Changes:         changes,
-		TaskFile:        tf,
-		ReviewRounds:    len(loops.reviewRounds),
-		ReviewMaxRounds: wf.EffectiveReviewMaxRounds(),
-		ReviewConverged: loops.reviewDone.Done,
-		AuditRounds:     len(loops.auditRounds),
-		AuditMaxRounds:  wf.EffectiveAuditMaxRounds(),
-		AuditConverged:  loops.auditDone.Done,
-		ReviewStale:     loops.reviewStale,
-
-		ReviewBlockingFixedAtCap: loops.reviewDone.BlockingFixedAtCap,
-		AuditBlockingFixedAtCap:  loops.auditDone.BlockingFixedAtCap,
-	})
+	blockers, err := resumeBlockers(taskFilePath, specPath, changes, tf, &loops)
+	if err != nil {
+		return ResumeResult{}, err
+	}
 
 	// The units come after the blockers because an escalate blocker is what
 	// empties them (§4.1), and next_action is rendered from the first unit so
@@ -128,6 +116,39 @@ type resumeLoops struct {
 	auditDone    LoopDone
 	reviewStale  bool
 	phase        string
+}
+
+// resumeBlockers derives tp resume's blockers from the loops read for a task
+// file. Only the implement phase reads the epic graph, since a blocked epic
+// stops starting a task and nothing else (spec/1.5.0.md §6); an unbound file
+// reads nothing. A graph or bound file that cannot be read is an error.
+func resumeBlockers(taskFilePath, specPath string, changes []string, tf *model.TaskFile, loops *resumeLoops) ([]Blocker, error) {
+	var epicBlock *EpicBlock
+	if loops.phase == PhaseImplement {
+		block, err := EpicBlockFor(tf, taskFilePath)
+		if err != nil {
+			return nil, err
+		}
+		epicBlock = block
+	}
+	wf := &loops.wf
+	return BuildBlockers(&BlockerInputs{
+		Phase:           loops.phase,
+		SpecPath:        specPath,
+		Changes:         changes,
+		TaskFile:        tf,
+		ReviewRounds:    len(loops.reviewRounds),
+		ReviewMaxRounds: wf.EffectiveReviewMaxRounds(),
+		ReviewConverged: loops.reviewDone.Done,
+		AuditRounds:     len(loops.auditRounds),
+		AuditMaxRounds:  wf.EffectiveAuditMaxRounds(),
+		AuditConverged:  loops.auditDone.Done,
+		ReviewStale:     loops.reviewStale,
+		EpicBlock:       epicBlock,
+
+		ReviewBlockingFixedAtCap: loops.reviewDone.BlockingFixedAtCap,
+		AuditBlockingFixedAtCap:  loops.auditDone.BlockingFixedAtCap,
+	}), nil
 }
 
 // readResumeLoops derives a task file's lifecycle phase the one way tp resume
