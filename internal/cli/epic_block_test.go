@@ -400,3 +400,23 @@ func TestNextAndEpicStatus_AnUnparsableTaskFileExitsThree(t *testing.T) {
 	}
 	assert.Equal(t, before, taskFileBytes(t, dir), "tp next claims nothing")
 }
+
+// TestClaim_AnAllDoneFileAnswersAsUnboundWhileBlocked is spec/1.5.0.md §6:
+// the block only stops starting a task, so on a file whose tasks are all done
+// tp claim --all-ready and tp claim t1 answer exactly as on an unbound file —
+// exit 4, no ready task or t1 not open — with no blocked_by_epics. A claim
+// that judged the block first exits 1 naming c and fails.
+func TestClaim_AnAllDoneFileAnswersAsUnboundWhileBlocked(t *testing.T) {
+	t.Parallel()
+	blocked := blockDir(t, "b", "done", "done")
+	unbound := blockDir(t, "", "done", "done")
+
+	for _, args := range [][]string{{"claim", "--all-ready"}, {"claim", "t1"}} {
+		_, wantStderr, wantCode := runTP(t, unbound, args...)
+		require.Equal(t, 4, wantCode, "%v on the unbound file: %s", args, wantStderr)
+		stdout, stderr, code := runTP(t, blocked, args...)
+		assert.Equal(t, wantCode, code, "%v stdout: %s stderr: %s", args, stdout, stderr)
+		assert.Equal(t, wantStderr, stderr, "%v", args)
+		assert.NotContains(t, stderr, "blocked_by_epics", "%v", args)
+	}
+}
