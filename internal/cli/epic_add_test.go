@@ -107,6 +107,32 @@ func TestEpicAdd_BulkRowWithAnExistingIDReplacesIt(t *testing.T) {
 	assert.Equal(t, "Second", g.Epics[0].Title)
 }
 
+// TestEpicAdd_BulkRowNamingARecordIsAUsageErrorAndWritesNothing is §8: claimed
+// and done are written by their commands, so a row naming either exits 2
+// before any write, naming the line.
+func TestEpicAdd_BulkRowNamingARecordIsAUsageErrorAndWritesNothing(t *testing.T) {
+	t.Parallel()
+	for name, row := range map[string]string{
+		"claimed": `{"id": "a", "title": "A", "milestone": "A", "claimed": {"at": "2026-02-02T03:04:05Z", "by": "bob"}}`,
+		"done":    `{"id": "a", "title": "A", "milestone": "A", "done": {"at": "2026-02-02T03:04:05Z", "evidence": "faked"}}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			dir := epicGraphDir(t, epicGraphWithRecords)
+			before := readEpicGraphFile(t, dir)
+			bulk := filepath.Join(dir, "rows.ndjson")
+			body := `{"id": "n", "title": "N", "milestone": "A"}` + "\n" + row + "\n"
+			require.NoError(t, os.WriteFile(bulk, []byte(body), 0o600))
+
+			_, stderr, code := runTP(t, dir, "epic", "add", "--bulk", bulk)
+			require.Equal(t, 2, code, "stderr: %s", stderr)
+			assert.Contains(t, stderr, "line 2")
+			assert.Contains(t, stderr, name)
+			assert.Equal(t, before, readEpicGraphFile(t, dir), "a refused add writes nothing")
+		})
+	}
+}
+
 // TestEpicAdd_NamesTheKeysItDropped: a writer carries only the schema into the
 // file it writes, so the keys outside it it leaves behind are named in its
 // payload; one that dropped them silently would print no dropped_keys.
