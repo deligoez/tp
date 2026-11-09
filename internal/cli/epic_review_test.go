@@ -161,3 +161,21 @@ func TestEpicReview_RoleNarrowsTheEmissionToOnePrompt(t *testing.T) {
 	_, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A", "--role", "no-such-role")
 	assert.Equal(t, 2, code, "stderr: %s", stderr)
 }
+
+// TestEpicReview_AnEmissionRecordsTheSliceKey is spec/1.5.0.md §7: every
+// emission writes its slice's key into the slice's state directory, so a
+// reader can list the slices without inverting the directory's hash.
+func TestEpicReview_AnEmissionRecordsTheSliceKey(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChain)
+
+	out := runEpicReview(t, dir, "--epics", "c,a", "--name", "pair")
+	data, err := os.ReadFile(filepath.Join(dir, out.StateDir, "key.json"))
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"kind": "epics", "ids": ["a", "c"], "name": "pair"}`, string(data))
+
+	out = runEpicReview(t, dir, "--milestone", "A")
+	data, err = os.ReadFile(filepath.Join(dir, out.StateDir, "key.json"))
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"kind": "milestone", "value": "A"}`, string(data))
+}
