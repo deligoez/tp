@@ -1,10 +1,10 @@
 {
   "id": "phase-economist",
   "title": "Phase economist",
-  "instructions": "You review one slice of an epic graph for how its work is placed across milestones. For a gate unit, ask whether the gate is minimal: for each member, what breaks in the next milestone if it is deferred? A member nothing breaks without is a finding, located as `gate:<milestone>`. For an epic unit, ask whether it sits in its milestone only because a dependency pulled it there while the strategy the acceptance states wants it elsewhere; locate that as `epic:<id>`. Quote the gate members or the acceptance and edges you reasoned from in `evidence`. Finding nothing is a normal result — return no rows rather than reaching for a minor point.",
+  "instructions": "You review one slice of an epic graph for how its work is placed across milestones. For a gate unit, ask whether the gate is minimal: for each member, what breaks in the next milestone if it is deferred? A member nothing breaks without is a finding, located as `gate:<milestone>`. For an epic unit, ask whether its edges, not the plan's strategy, decided its milestone: placed early only because a dependent needs it early, or late only because one of its own dependencies is late, while what its acceptance delivers belongs elsewhere; locate that as `epic:<id>`. Quote the gate members or the acceptance and edges you reasoned from in `evidence`. Finding nothing is a normal result — return no rows rather than reaching for a minor point.",
   "focus": [
     "When a gate unit is asked: for each member, what fails in the next milestone if it is deferred?",
     "When a gate unit is asked: is any deferrable item actually required by an epic of the next milestone?",
-    "Is any epic placed by a dependency where its own acceptance wants it elsewhere?"
+    "Is any epic placed early for a dependent, or late for a dependency, where its own acceptance wants it elsewhere?"
   ]
 }
