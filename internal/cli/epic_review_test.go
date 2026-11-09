@@ -149,6 +149,34 @@ func TestEpicReview_LintErrorsAreMechanicalChecksWithheldFromThePrompts(t *testi
 	}
 }
 
+// TestEpicReview_OpensAfterCycleIsAMechanicalCheck: opens-after-cycle is an
+// error rule, so an emission over a graph holding one reports its check
+// failing and withholds the class from every prompt.
+func TestEpicReview_OpensAfterCycleIsAMechanicalCheck(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{
+  "version": 1,
+  "milestones": [["A", "B"]],
+  "opens_after": {"A": ["B"]},
+  "epics": [
+    {"id": "a", "title": "A", "milestone": "A", "root": true},
+    {"id": "b", "title": "B", "milestone": "B", "root": true}
+  ]
+}
+`)
+	out := runEpicReview(t, dir, "--epic", "a")
+	passed := map[string]bool{}
+	for _, c := range out.MechanicalChecks {
+		passed[c.Class] = c.Passed
+	}
+	require.Contains(t, passed, "opens-after-cycle")
+	assert.False(t, passed["opens-after-cycle"], "A opens after B, which opens after A by track order")
+	assert.Contains(t, out.MechanizedClasses, "opens-after-cycle")
+	for _, p := range out.Prompts {
+		assert.Contains(t, p.Prompt, "opens-after-cycle", "%s withholds opens-after-cycle", p.Role)
+	}
+}
+
 // TestEpicReview_RoleNarrowsTheEmissionToOnePrompt is §5's --role: the name of
 // an emitted role keeps its prompt alone, and a name tp knows nowhere exits 2.
 func TestEpicReview_RoleNarrowsTheEmissionToOnePrompt(t *testing.T) {
