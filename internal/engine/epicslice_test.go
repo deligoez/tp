@@ -171,3 +171,33 @@ func TestEpicReviewSlice_EditingOpensAfterChangesTheGateHash(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, s.Units[4].Block, "opens_after: []\n")
 }
+
+// TestEpicReviewSlice_EveryMilestoneOfTheSliceHasAGateUnit: every milestone
+// has a gate, implicit when gates names none, so a milestone slice asks it
+// with its effective members and effective opens_after, and a set slice asks
+// the gate of each milestone whose every epic it lists.
+func TestEpicReviewSlice_EveryMilestoneOfTheSliceHasAGateUnit(t *testing.T) {
+	g := epicChainGraph()
+	g.Epics[3].Condition = true
+	s, err := EpicReviewSlice(g, EpicSliceKey{Milestone: "A"})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"epic:a", "epic:b", "epic:c", "epic:d", "gate:A"}, unitKeys(s.Units))
+	assert.Equal(t, "gate: A\nmembers: a, b, c\nopens_after: []\n", s.Units[4].Block,
+		"the implicit gate's members leave the condition out")
+
+	s, err = EpicReviewSlice(g, EpicSliceKey{Milestone: "B"})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"gate:B"}, unitKeys(s.Units))
+	assert.Equal(t, "gate: B\nmembers: \nopens_after: A\n", s.Units[0].Block, "B opens after A by default")
+
+	s, err = EpicReviewSlice(g, EpicSliceKey{Epics: []string{"a", "b", "c", "d"}})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"epic:a", "epic:b", "epic:c", "epic:d", "gate:A"}, unitKeys(s.Units))
+
+	g.Gates = map[string]model.EpicGate{"A": {Members: []string{"a"}}}
+	g.OpensAfter = map[string][]string{"A": {"L1"}}
+	s, err = EpicReviewSlice(g, EpicSliceKey{Milestone: "A"})
+	require.NoError(t, err)
+	assert.Equal(t, "gate: A\nmembers: a\nopens_after: L1\n", s.Units[4].Block,
+		"a gates entry with members and an opens_after entry keeps its 1.6.0 block")
+}
