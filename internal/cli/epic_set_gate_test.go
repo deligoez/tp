@@ -65,3 +65,19 @@ func TestEpicSet_GateThresholdEditsOneGateAndKeepsItsMet(t *testing.T) {
 	assert.Equal(t, "ships", gates["B"].Threshold)
 }
 
+// TestEpicSet_GateDeferrableCreatesTheEntryAndAnEmptyValueClearsIt: a gate
+// with no entry gains one holding only the deferrable list; an empty value
+// removes the list again.
+func TestEpicSet_GateDeferrableCreatesTheEntryAndAnEmptyValueClearsIt(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicGateFieldGraph(""))
+	setGateField(t, dir, "gates.A.deferrable=a2,a1")
+	gate := gatesOnFile(t, dir)["A"]
+	assert.Equal(t, []string{"a2", "a1"}, gate.Deferrable)
+	require.NotNil(t, gate.Members, "a created entry writes members: [], the implicit list")
+	assert.Empty(t, *gate.Members)
+
+	setGateField(t, dir, "gates.A.deferrable=")
+	assert.Empty(t, gatesOnFile(t, dir)["A"].Deferrable)
+}
+
