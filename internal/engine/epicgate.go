@@ -1,7 +1,10 @@
 package engine
 
 import (
+	"fmt"
 	"slices"
+	"strings"
+	"time"
 
 	"github.com/deligoez/tp/internal/model"
 )
@@ -70,4 +73,44 @@ func GateGreen(g *model.EpicGraph, milestone string, states map[string]EpicState
 		}
 	}
 	return true
+}
+
+// GateMetRefusedError reports a met record refused on a milestone's gate
+// (spec/1.5.0.md §4); nothing was written.
+type GateMetRefusedError struct {
+	Milestone string
+	Reason    string
+}
+
+func (e *GateMetRefusedError) Error() string {
+	return fmt.Sprintf("the gate of milestone %q cannot record met: %s", e.Milestone, e.Reason)
+}
+
+// RecordGateMet writes milestone's met record at at, copying the threshold it
+// is judged against (spec/1.5.0.md §4). It returns an
+// *EpicMilestoneNotFoundError for a milestone no track lists, and a
+// *GateMetRefusedError while the threshold is empty, since a threshold is
+// written before the measurement, or while a member is not done, since it is
+// measured after the work. states is DeriveEpicStates' result.
+func RecordGateMet(g *model.EpicGraph, milestone, evidence string, states map[string]EpicState, at time.Time) error {
+	if _, tracked := MilestoneGates(g, states)[milestone]; !tracked {
+		return &EpicMilestoneNotFoundError{Name: milestone}
+	}
+	gate := g.Gates[milestone]
+	if gate.Threshold == "" {
+		return &GateMetRefusedError{Milestone: milestone, Reason: "the gate has no threshold"}
+	}
+	members, _ := GateMembers(g, milestone)
+	var notDone []string
+	for _, id := range members {
+		if states[id].Status != EpicStatusDone {
+			notDone = append(notDone, fmt.Sprintf("%q", id))
+		}
+	}
+	if len(notDone) > 0 {
+		return &GateMetRefusedError{Milestone: milestone, Reason: "members not done: " + strings.Join(notDone, ", ")}
+	}
+	gate.Met = &model.GateMet{At: at.UTC(), Evidence: evidence, Threshold: gate.Threshold}
+	g.Gates[milestone] = gate
+	return nil
 }

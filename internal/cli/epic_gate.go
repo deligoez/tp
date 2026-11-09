@@ -2,6 +2,7 @@ package cli
 
 import (
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -37,19 +38,57 @@ type epicGateEpic struct {
 	Status string `json:"status"`
 }
 
+// epicGateMetUsageHint answers a malformed tp epic gate --met call.
+const epicGateMetUsageHint = "tp epic gate <milestone> --met --evidence \"<text or URL>\" [--if-revision <rev>]"
+
+// epicGateMetRefusedHint answers a met record refused on a gate.
+const epicGateMetRefusedHint = "a threshold is written before the measurement and measured after the work: set it with tp epic set gates=<json>, and finish every member first"
+
 func newEpicGateCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "gate <milestone>",
-		Short: "Report a milestone's gate: each member green or red, the deferrable epics apart, the threshold and its met record; exit 0 only when green",
+		Short: "Report a milestone's gate: each member green or red, the deferrable epics apart, the threshold and its met record; exit 0 only when green. --met --evidence records the threshold met",
 		Args:  cobra.ExactArgs(1),
 		RunE:  runEpicGate,
 	}
+	cmd.Flags().Bool("met", false, "record the gate's threshold as met, copying it; refused while a member is not done or the threshold is empty")
+	cmd.Flags().String("evidence", "", "what shows the threshold met, a text or a URL (with --met)")
+	epicIfRevisionFlag(cmd)
+	return cmd
+}
+
+// runEpicGateMet writes m's met record under the graph file's lock: exit 1
+// while a member is not done or the threshold is empty, 4 for a milestone no
+// track lists, and the shared write's codes otherwise.
+func runEpicGateMet(cmd *cobra.Command, m string) {
+	evidence, _ := cmd.Flags().GetString("evidence")
+	if evidence == "" {
+		output.Error(ExitUsage, "--met needs --evidence", epicGateMetUsageHint)
+		os.Exit(ExitUsage)
+	}
+	opts := epicWriteOpts{ifRevision: epicIfRevision(cmd)}
+	writeEpicGraphWith(opts, func(g *model.EpicGraph) error {
+		states, err := engine.DeriveEpicStates(g, engine.EpicBoundFiles("."))
+		if err != nil {
+			return err
+		}
+		return engine.RecordGateMet(g, m, evidence, states, time.Now())
+	})
 }
 
 // runEpicGate reads the graph and its bound files, writes nothing, and exits
 // 0 when the milestone's gate is green, 1 when it is red, 3 with no readable
-// graph or bound file, and 4 for a milestone no track lists.
-func runEpicGate(_ *cobra.Command, args []string) error {
+// graph or bound file, and 4 for a milestone no track lists. With --met it
+// writes the gate's met record instead.
+func runEpicGate(cmd *cobra.Command, args []string) error {
+	if met, _ := cmd.Flags().GetBool("met"); met {
+		runEpicGateMet(cmd, args[0])
+		return nil
+	}
+	if cmd.Flags().Changed("evidence") || cmd.Flags().Changed("if-revision") {
+		output.Error(ExitUsage, "--evidence and --if-revision write a met record and need --met", epicGateMetUsageHint)
+		os.Exit(ExitUsage)
+	}
 	tpDir := engine.DiscoverTPDir(".")
 	if tpDir == "" {
 		output.Error(ExitFile, "epic graph not found: no .tp/ directory up to the git boundary", epicGraphFileHint)
