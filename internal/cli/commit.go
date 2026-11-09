@@ -297,12 +297,12 @@ func runGit(args ...string) error {
 // any .tp-review/ or .tp/ state tp wrote in the same invocation).
 func foldClosureCommit(dir, taskID, implSHA string, writtenPaths []string) error {
 	if canAmendClosure(dir, implSHA, writtenPaths) {
-		stageClosureOrExit(dir, taskID, writtenPaths)
+		stageClosureOrExit(dir, taskID, implSHA, writtenPaths, "git commit --amend --no-edit")
 		if err := runGitDir(dir, "commit", "--amend", "--no-edit"); err == nil {
 			return nil
 		}
 	}
-	return followUpClosureCommit(dir, taskID, writtenPaths)
+	return followUpClosureCommit(dir, taskID, implSHA, writtenPaths)
 }
 
 // canAmendClosure reports whether both §5.1b guards hold:
@@ -336,20 +336,26 @@ func canAmendClosure(dir, implSHA string, writtenPaths []string) bool {
 
 // followUpClosureCommit creates a separate follow-up commit chore(tp): record
 // <id> closure carrying the closed task file (§5.1d), leaving C1 as commit_sha.
-func followUpClosureCommit(dir, taskID string, paths []string) error {
-	stageClosureOrExit(dir, taskID, paths)
+func followUpClosureCommit(dir, taskID, implSHA string, paths []string) error {
 	msg := fmt.Sprintf("chore(tp): record %s closure", taskID)
+	stageClosureOrExit(dir, taskID, implSHA, paths, fmt.Sprintf("git commit -m %q", msg))
 	return runGitDir(dir, "commit", "-m", msg)
 }
 
 // stageClosureOrExit stages the paths tp wrote for taskID's closure. The
-// implementation commit has already landed, so a failed add leaves the
+// implementation commit implSHA has already landed, so a failed add leaves the
 // closure on disk and in no commit; amending or committing past it would
-// hide that, so it exits 3 with git's message on stderr.
-func stageClosureOrExit(dir, taskID string, paths []string) {
+// hide that, so it exits 3 with git's message on stderr. The envelope carries
+// implSHA as commit_sha and a hint naming the exact recovery — stage the paths,
+// then commitCmd — because re-running tp would make a second commit and
+// overwrite commit_sha, losing implSHA.
+func stageClosureOrExit(dir, taskID, implSHA string, paths []string, commitCmd string) {
 	for _, p := range paths {
 		if err := runGitDir(dir, "add", "--", p); err != nil {
-			output.Error(ExitFile, fmt.Sprintf("git add of %s failed: %v; task %s's closure is on disk but in no commit", p, err, taskID), gitIndexHint)
+			hint := fmt.Sprintf("application commit %s already landed; recover with `git add %s && %s`; do not re-run tp commit or tp done for %s, which would make a second commit and overwrite commit_sha. %s",
+				implSHA, strings.Join(paths, " "), commitCmd, taskID, gitIndexHint)
+			output.ErrorExtras(ExitFile, fmt.Sprintf("git add of %s failed: %v; task %s's closure is on disk but in no commit", p, err, taskID),
+				map[string]any{"commit_sha": implSHA}, hint)
 			os.Exit(ExitFile)
 		}
 	}
