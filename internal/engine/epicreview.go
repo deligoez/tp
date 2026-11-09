@@ -81,18 +81,21 @@ func EpicReviewLastRoundPath(stateDir string) (path string, round int) {
 
 // epicSnapshot is the file an emission writes: each unit's hash, by key.
 type epicSnapshot struct {
-	Round int               `json:"round"`
-	Units map[string]string `json:"units"`
+	Round  int               `json:"round"`
+	Units  map[string]string `json:"units"`
+	Blocks map[string]string `json:"blocks,omitempty"`
 }
 
 // WriteEpicReviewSnapshot records the unit hashes of round's emission in
 // stateDir, creating the directory, through an atomic rename so a partial
-// snapshot is never left on disk. The hashes stay in the state directory and
-// are never printed (§5).
+// snapshot is never left on disk. Each unit's block text is kept beside its
+// hash, so a later round can show what changed. The snapshot stays in the
+// state directory and is never printed (§5).
 func WriteEpicReviewSnapshot(stateDir string, round int, units []EpicReviewUnit) error {
-	snap := epicSnapshot{Round: round, Units: make(map[string]string, len(units))}
+	snap := epicSnapshot{Round: round, Units: make(map[string]string, len(units)), Blocks: make(map[string]string, len(units))}
 	for _, u := range units {
 		snap.Units[u.Key] = u.Hash
+		snap.Blocks[u.Key] = u.Block
 	}
 	data, err := json.MarshalIndent(snap, "", "  ")
 	if err != nil {

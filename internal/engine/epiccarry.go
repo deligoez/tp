@@ -15,13 +15,23 @@ import (
 // in slice order. Changed is true when a unit's hash differs from the round
 // before's or has none recorded (D7); Fixed holds the round before's rows
 // resolved fixed. Either one appends the regression role (D2). Decided holds
-// every earlier round's rows accepted wontfix or duplicate on an asked unit.
+// every earlier round's rows accepted wontfix or duplicate on an asked unit,
+// each with its round. Before holds, for each asked unit whose own block
+// changed, the block the round before read.
 type EpicCarry struct {
 	Asked   []EpicReviewUnit
 	Carried []EpicReviewUnit
 	Changed bool
 	Fixed   []map[string]any
-	Decided []map[string]any
+	Decided []EpicDecision
+	Before  map[string]string
+}
+
+// EpicDecision is one earlier row accepted wontfix or duplicate, and the
+// round that recorded it.
+type EpicDecision struct {
+	Round int
+	Row   map[string]any
 }
 
 // Regression reports whether the round appends the built-in regression role.
@@ -38,23 +48,26 @@ func EpicReviewCarry(stateDir string, round int, units []EpicReviewUnit) (EpicCa
 	if round < 2 {
 		return EpicCarry{Asked: units}, nil
 	}
-	prev, err := readEpicSnapshot(stateDir, round-1)
+	prev, err := readEpicSnapshotFile(stateDir, round-1)
 	if err != nil {
 		return EpicCarry{}, err
 	}
-	var c EpicCarry
+	c := EpicCarry{Before: map[string]string{}}
 	reask, err := c.readPriorRows(filepath.Join(stateDir, epicRoundFile(round-1)))
 	if err != nil {
 		return EpicCarry{}, err
 	}
 	for _, u := range units {
-		hash, ok := prev[u.Key]
+		hash, ok := prev.Units[u.Key]
 		changed := !ok || hash != u.Hash
 		c.Changed = c.Changed || changed
-		if changed || reask[u.Key] {
-			c.Asked = append(c.Asked, u)
-		} else {
+		if !changed && !reask[u.Key] {
 			c.Carried = append(c.Carried, u)
+			continue
+		}
+		c.Asked = append(c.Asked, u)
+		if before, had := prev.Blocks[u.Key]; had && before != u.Block {
+			c.Before[u.Key] = before
 		}
 	}
 	if err := c.readDecided(stateDir, round); err != nil {
@@ -83,7 +96,7 @@ func (c *EpicCarry) readDecided(stateDir string, round int) error {
 		for _, row := range rows {
 			loc, _ := row["location"].(string)
 			if asked[loc] && RowAccepted(row) {
-				c.Decided = append(c.Decided, row)
+				c.Decided = append(c.Decided, EpicDecision{Round: r, Row: row})
 			}
 		}
 	}
@@ -113,18 +126,25 @@ func (c *EpicCarry) readPriorRows(path string) (map[string]bool, error) {
 // readEpicSnapshot returns the unit hashes snapshotted at round's emission;
 // an absent snapshot records no hash, so every unit counts as changed (D7).
 func readEpicSnapshot(stateDir string, round int) (map[string]string, error) {
+	snap, err := readEpicSnapshotFile(stateDir, round)
+	return snap.Units, err
+}
+
+// readEpicSnapshotFile returns round's snapshot, hashes and blocks; an absent
+// one is empty. A snapshot written before blocks were kept has none.
+func readEpicSnapshotFile(stateDir string, round int) (epicSnapshot, error) {
 	data, err := os.ReadFile(filepath.Join(stateDir, epicSnapshotFile(round)))
 	if os.IsNotExist(err) {
-		return map[string]string{}, nil
+		return epicSnapshot{Units: map[string]string{}}, nil
 	}
 	if err != nil {
-		return nil, err
+		return epicSnapshot{}, err
 	}
 	var snap epicSnapshot
 	if err := json.Unmarshal(data, &snap); err != nil {
-		return nil, fmt.Errorf("epic review snapshot of round %d: %w", round, err)
+		return epicSnapshot{}, fmt.Errorf("epic review snapshot of round %d: %w", round, err)
 	}
-	return snap.Units, nil
+	return snap, nil
 }
 
 // EpicCarriedContext returns the context of an emission asking only asked:
