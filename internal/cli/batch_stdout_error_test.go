@@ -30,3 +30,15 @@ func TestClaimBatch_AResultItCannotWriteExitsThree(t *testing.T) {
 	assert.Equal(t, 3, code, "stderr: %s", stderr)
 	assert.Equal(t, 3, envelopeCode(t, stderr), "stderr: %s", stderr)
 }
+
+// TestDoneMulti_AResultItCannotWriteExitsThree: tp done of several ids whose
+// stdout cannot be written exits 3, as tp claim's batch does. A tp done that
+// only reported the write error exits 0 having printed nothing, and fails.
+func TestDoneMulti_AResultItCannotWriteExitsThree(t *testing.T) {
+	t.Parallel()
+	dir := blockDir(t, "", "open", "open")
+
+	stderr, code := runTPUnwritableStdout(t, dir, "done", "t1", "t2", "tested by the fixture")
+	assert.Equal(t, 3, code, "stderr: %s", stderr)
+	assert.Equal(t, 3, envelopeCode(t, stderr), "stderr: %s", stderr)
+}
