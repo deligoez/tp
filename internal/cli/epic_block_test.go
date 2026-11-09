@@ -534,3 +534,22 @@ func TestNext_BlockedOnlyByAConditionNamesTheOperatorsRecord(t *testing.T) {
 	assert.Equal(t, "epic-done", p.Operator.Decision)
 	assert.Equal(t, []string{epicDoneCommand}, p.Operator.Commands)
 }
+
+// TestResume_BlockedOnlyByAConditionNamesTheOperatorsRecord: the
+// epic-blocked blocker says the decision is the operator's and names its
+// command in the message, which next_action's summary carries, and in data.
+func TestResume_BlockedOnlyByAConditionNamesTheOperatorsRecord(t *testing.T) {
+	t.Parallel()
+	res := resumeResult(t, conditionBlockDir(t))
+	b := blockerByCode(res, "epic-blocked")
+	require.NotNil(t, b, "blockers: %v", res["blockers"])
+	assert.Contains(t, b["message"], epicDoneCommand)
+	assert.Contains(t, b["message"], "operator")
+	op, _ := b["data"].(map[string]any)["operator"].(map[string]any)
+	require.NotNil(t, op, "data: %v", b["data"])
+	assert.Equal(t, "epic-done", op["decision"])
+	assert.Equal(t, []string{epicDoneCommand}, jsonStrings(op["commands"]))
+	na := res["next_action"].(map[string]any)
+	assert.Nil(t, na["command"], "the operator's record is no agent command")
+	assert.Contains(t, na["summary"], epicDoneCommand)
+}
