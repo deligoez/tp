@@ -61,6 +61,7 @@ config: dry-run extract force resolved
 done: auto-commit batch commit covered-by files gate-passed reason-file skip-gate stdin
 epic:
 epic add: bulk if-revision stdin
+epic claim: by if-revision release
 epic done: evidence if-revision undo
 epic export: md
 epic gate: evidence if-revision met
