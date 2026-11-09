@@ -61,6 +61,13 @@ const (
 	// open after an earlier milestone of its track while some of its epics
 	// depend directly on that milestone's epics.
 	EpicRulePartialParallel = "partial-parallel"
+	// EpicRuleDependencyOpensLater is the error on a gate member of a
+	// milestone that an epic's milestone opens after, when the member reaches
+	// that epic through depends_on: the gate can never go green before the
+	// epic's milestone opens. It is the warning when only an epic outside the
+	// gate's members reaches it, which can still finish once that milestone
+	// opens.
+	EpicRuleDependencyOpensLater = "dependency-opens-later"
 )
 
 // EpicLintFinding is one lint result. Epics holds the sorted, distinct ids the
@@ -69,7 +76,8 @@ const (
 // involves: part of its identity across a write (NewEpicErrors), not of the
 // payload, where the message carries them. Gate is the milestone whose gate
 // list (members or deferrable) holds the id a dangling-reference finding
-// names, "" for any other finding: it tells a gate list apart from an edge.
+// names, or whose gate a dependency-opens-later error can never turn green,
+// "" for any other finding: it tells a gate list apart from an edge.
 // Origin tells the other dangling-reference shapes that are not edges apart:
 // DanglingGateKey or DanglingTagCheck, "" otherwise.
 type EpicLintFinding struct {
@@ -115,6 +123,7 @@ func LintEpicGraph(g *model.EpicGraph, unknown []EpicGraphUnknownKey) []EpicLint
 	out = append(out, lintEpicThinWhy(g)...)
 	out = append(out, lintEpicRootWithDependencies(g)...)
 	out = append(out, lintEpicPartialParallel(g)...)
+	out = append(out, lintEpicDependencyOpensLater(g)...)
 	return out
 }
 
