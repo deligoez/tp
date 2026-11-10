@@ -118,6 +118,7 @@ const (
 func LintEpicGraph(g *model.EpicGraph, unknown []EpicGraphUnknownKey) []EpicLintFinding {
 	var out []EpicLintFinding
 	out = append(out, lintEpicCycles(g)...)
+	out = append(out, lintEpicAnyOfShape(g)...)
 	out = append(out, lintEpicDangling(g)...)
 	out = append(out, lintEpicDuplicates(g)...)
 	out = append(out, lintEpicUnknownKeys(unknown)...)
