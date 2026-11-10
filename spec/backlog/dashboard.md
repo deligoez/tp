@@ -1,7 +1,8 @@
 # tp dashboard — one view of the plan, the specs and every loop
 
-> Decision candidate, rewritten against the v1.6.0 export as shipped. Nothing here is decided until
-> the operator answers §6. v1.7.0 moved the export to `version: 2`, which this candidate reads: a
+> Decision candidate, rewritten against the v1.6.0 export as shipped and updated for v1.7.0. The
+> operator answered §6's questions 1, 6 and 12; §4 records a web research pass on graph rendering
+> and dashboard design. v1.7.0 moved the export to `version: 2`, which this candidate reads: a
 > `depends_on` entry may be `{any_of, why}`, and `epics[]` add `blocked_by_any_of`,
 > `held_by_any_of`, `blocked`, `held` and `moot` (spec/1.7.0.md §7).
 
@@ -81,21 +82,49 @@ keeping the last good map greyed.
 
 ## 4. Map layout
 
+**tp computes the layout; the page only draws it.** The graph is already layered — tracks are
+lanes, milestones are columns, dependency depth orders epics inside a milestone — so no general
+graph-layout library is needed, and computing it in Go keeps it deterministic, testable and in line
+with the non-goal "no second derivation in JS". The export gains an additive per-epic `layout`
+(`lane`, `column`, `order`), `order` from one barycenter pass per column to cut edge crossings (the
+Sugiyama step that matters). Rendering is SVG; edges move to a canvas only if a field graph proves
+SVG slow. Rejected: deck.gl (a WebGL engine for millions of points whose graph layers are in a
+reboot and ship a force layout, wrong for a layered DAG; WebGL pays off past roughly ten thousand
+nodes, the field graph has ~530) and ELK.js/dagre (layout engines for graphs without layers; tp's
+layers are given, and either would be the page's one dependency).
+
 - **Swimlane per track**, milestones as boxes along it. x-position = opening depth (longest
   `opens_after` chain to the milestone), so cross-track `opens_after` reads left to right and
   `[]` siblings share a column. Closed milestones dimmed, with `waiting_on` on hover.
-- **Epics as nodes** inside their milestone box, ordered by `downstream.longest_chain`; colour by
-  status (planned, claimed, specced, in_progress, done); conditions a distinct shape, actionable
-  ones outlined as "operator".
-- **Edges** drawn on hover/selection by default (530×3 always-on edges is noise); the selected
-  epic's upstream and downstream highlighted; `why` on edge hover.
+- **Epics as nodes** inside their milestone box, placed by `layout`; status by colour AND shape or
+  icon (done ✓, ready ●, blocked ⊘, held ⏸, moot ◌), never colour alone; conditions a distinct
+  shape, actionable ones outlined as "operator".
+- **Edges** drawn on hover/selection by default (530×3 always-on edges is a hairball); the selected
+  epic's upstream and downstream highlighted and the rest dimmed; `why` on edge hover; an any-of
+  group drawn as one forked edge labelled "one of".
 - **Gate** as a bar at the right edge of each milestone box: green/red, member count, threshold.
-- **Critical path** toggle: thick line through `critical_path.by_count`.
-- **Filters:** open milestones only, one track, one tag, status, "ready now".
+- **Critical path** always drawn as a thick line through `critical_path.by_count`.
+- **Filters:** open milestones only, one track, one tag, status, "ready now"; each active filter a
+  removable chip, the filter state in the URL.
 - **Detail panel:** epic (title, status, deps with whys, downstream, held_by) → bound files (path,
   phase, tasks bar) → loops (ground/review/audit round + state) → tasks (gap 1) → slices naming it.
-- **KPI strip:** share done (graph and per milestone), throughput sparkline, estimate vs actual,
-  critical-path length, ready count, operator queue (conditions, gates awaiting `--met`).
+- **Live change:** an epic whose fields changed in the last push glows briefly.
+
+### Views besides the map
+
+Overview first, then zoom and filter, then details on demand: the map is not the first thing read.
+
+- **KPI strip** (top): share done, ready count, critical-path length, blocked/held counts, operator
+  queue (conditions, gates awaiting `--met`), open review loops, throughput sparkline, estimate vs
+  actual.
+- **"Now" lists**, before the map: ready in `tp epic ready`'s order; operator decisions
+  (actionable conditions, `choices` of any-of groups); held and blocked epics with what each waits
+  on. These answer "what moves next", the question a dependency map answers worst.
+- **Milestone matrix:** milestone × milestone heat map of edge counts. Readability studies favour a
+  matrix over node-link for most tasks past ~20 nodes and node-link only for following a path, so
+  the matrix answers "which milestone loads which" and the map stays for paths.
+- **Review loops:** one row per slice, as `tp epic review --status --all` prints it (state, round,
+  open counts, grantable).
 
 ## 5. Scope
 
@@ -110,20 +139,26 @@ No writes, buttons or claims from the page. No second derivation in JS (it rende
 fields; it computes nothing a tp command reports). No remote access, auth or multi-user. No reading
 of round files, run logs or state directories. No JS dependency or CDN.
 
-## 6. Open questions for the morning (recommended answer in bold)
+## 6. Questions, answered
 
-1. Web page now, TUI later? **Web only in v1.**
+The operator decided 1, 6 and 12; the rest take the recommended answer unless the decision note's
+review changes them.
+
+1. Web page now, TUI later? **Web only in v1** (operator).
 2. How does the page learn of change? **B: in-process re-export on a 2 s tick, SSE on hash change.**
 3. Per-task detail in v1? **No in v1's spec, but add `--tasks` to the export first if the detail
    panel without tasks reads as empty to the field.**
 4. Loop history in v1? **No; `{round, state}` suffices; history is gap 2, later.**
 5. `tp run` units live in v1? **Only `tp run --status` per bound file, read in-process; no new stream.**
-6. What does a repo with no graph show (tp's own)? **Exit 3 in v1 with a hint; project-wide export later.**
-7. Add `revision`/`generated_at` to the export? **Yes, additive, `version` stays 1.**
+6. What does a repo with no graph show (tp's own)? **Exit 3 in v1 with a hint; project-wide export
+   later** (operator).
+7. Add `revision`/`generated_at` to the export? **Yes, additive within `version: 2`.**
 8. Trim `milestones`' duplication for the page? **No; 0.8 MB on localhost is fine; don't fork the contract.**
 9. Port: fixed default or random? **Fixed default (e.g. 7377) with `--port`; exit 1 naming it if taken.**
 10. Edges always drawn or on demand? **On demand + critical path; a toggle for all.**
 11. Under `TP_UNATTENDED`? **Refuse (exit 2): a long-running server is not a unit's job.**
-12. Does the field project's own drawing retire at v1? **Yes, once its layout lessons are checked
-    against §4 before the spec is written.**
-13. Track: decision or full? **Decision track: build the page in a clone first, 2 roles, 2 rounds.**
+12. Does the field project's own drawing retire at v1? **Yes: tp takes the map over entirely; the
+    field artifact retires once `tp dashboard` ships, after its layout lessons are checked against
+    §4** (operator).
+13. Track: decision or full? **Decision track: build the page in a clone first, 2 roles, 2 rounds;
+    a clickable prototype on synthetic data the field graph's size comes before the note.**
