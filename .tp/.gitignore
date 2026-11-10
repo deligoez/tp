@@ -4,3 +4,4 @@ run-*.json
 runs/
 rounds/
 last_failure-*.json
+epic-review/*/inbox/
