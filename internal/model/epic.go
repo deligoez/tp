@@ -42,9 +42,12 @@ type GateMet struct {
 	Threshold string    `json:"threshold"`
 }
 
-// EpicTagCheck names the epic that provides a tag's check.
+// EpicTagCheck names the epic that provides a tag's check. Direct asks every
+// carrier for a plain direct edge to the provider rather than any path to it
+// (spec/1.7.0.md §3); written only when true.
 type EpicTagCheck struct {
 	ProvidedBy string `json:"provided_by"`
+	Direct     bool   `json:"direct,omitempty"`
 }
 
 // Epic is one node of the graph. ID is opaque: a project's own naming, spaces
