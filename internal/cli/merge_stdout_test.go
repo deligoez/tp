@@ -67,3 +67,37 @@ func TestAuditMerge_DashOutputSplitsRowsAndSummary(t *testing.T) {
 	assert.NoFileExists(t, dir+"/-", "`-o -` is not a file named -")
 }
 
+// TestMerge_RefusedDashOutputWritesNothingToStdout pins §2's refusal half: an
+// empty stream is how a converged round reports itself, so a merge that exits
+// non-zero under `-o -` writes no byte to stdout, in either merge. The summary
+// still reaches stderr, ahead of the failure envelope on stderr's last line.
+func TestMerge_RefusedDashOutputWritesNothingToStdout(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		command string
+		dropped string
+		legal   string
+	}{
+		{"review", `{"role":"implementer","severity":"high","finding":"missing bound","evidence":"read the cited section"}`, goodFinding2},
+		{"audit", `{"role":"go-safety","item_id":"a"}`, goodAuditRow2},
+	}
+	for _, tc := range cases {
+		t.Run(tc.command, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			dropped := writeFindingsFile(t, dir, "dropped.ndjson", []string{tc.dropped})
+			legal := writeFindingsFile(t, dir, "legal.ndjson", []string{tc.legal})
+
+			stdout, stderr, code := runTPMerge(t, dir, tc.command, "--merge", "--json", dropped, legal, "-o", "-")
+			require.Equal(t, 1, code, "the dropped input refuses the merge: %s", stderr)
+			assert.Empty(t, stdout, "a refused merge writes nothing to stdout")
+
+			lines := strings.Split(strings.TrimRight(stderr, "\n"), "\n")
+			var envelope map[string]any
+			require.NoError(t, json.Unmarshal([]byte(lines[len(lines)-1]), &envelope), "the envelope is stderr's last line: %s", stderr)
+			assert.Equal(t, float64(1), envelope["code"])
+			assert.Contains(t, stderr, `"merged_count"`, "the summary still reaches stderr")
+			assert.NotContains(t, stderr, `"output_path"`, "no rows were written, so the summary names no output path")
+		})
+	}
+}
