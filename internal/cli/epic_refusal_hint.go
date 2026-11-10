@@ -10,6 +10,7 @@ import (
 // epicRuleRefusedHints answers a write refused for adding an error of the
 // rule: what to change so the write adds none.
 var epicRuleRefusedHints = map[string]string{
+	engine.EpicRuleAnyOfShape:                 "give each depends_on entry either an id or an any_of of two or more distinct members, never both; drop a plain edge to a member of a group, and a second group with the same members",
 	engine.EpicRuleCycle:                      "drop or redirect one depends_on edge of the cycle the message names",
 	engine.EpicRuleDanglingReference:          "depend only on epics the graph holds (tp epic add adds one), or drop the edge",
 	engine.EpicRuleDuplicateName:              "give each epic id and each milestone name one place: rename or remove the duplicate",
