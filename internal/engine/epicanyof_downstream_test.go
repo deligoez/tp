@@ -53,3 +53,22 @@ func TestEpicDownstreams_AMootEpicLeavesEveryCount(t *testing.T) {
 	assert.Equal(t, EpicDownstream{DependentsByMilestone: []MilestoneDependents{}}, got["r"])
 	assert.NotContains(t, got, "b")
 }
+
+// TestGraphCriticalPath_GoesThroughTheGroupMemberWithTheShortestChain is
+// spec/1.7.0.md §7: v depends on w, and w on one of {a, b2}, b2 on b. a's
+// chain is one epic and b2's two, so the path takes a, though the longer
+// chain through b2 is heavier; on a tie, as for y on one of {c, d}, the
+// first listed member. A walk that read a group as an edge to "" never
+// joins w to a member; one that maximised over members goes through b2.
+func TestGraphCriticalPath_GoesThroughTheGroupMemberWithTheShortestChain(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"P"}}, Epics: []model.Epic{
+		dependsOn("b", "P"), dependsOn("b2", "P", "b"), dependsOn("a", "P"),
+		withAnyOf(dependsOn("w", "P"), "a", "b2"), dependsOn("v", "P", "w"),
+	}}
+	assert.Equal(t, []string{"a", "w", "v"}, GraphCriticalPath(g, anyOfStates(g)))
+
+	g = &model.EpicGraph{Version: 1, Milestones: [][]string{{"P"}}, Epics: []model.Epic{
+		dependsOn("c", "P"), dependsOn("d", "P"), withAnyOf(dependsOn("y", "P"), "d", "c"),
+	}}
+	assert.Equal(t, []string{"d", "y"}, GraphCriticalPath(g, anyOfStates(g)))
+}
