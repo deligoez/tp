@@ -32,7 +32,8 @@ type epicBatchStatusResult struct {
 // directory under .tp/epic-review/, under --milestones each listed milestone.
 // With check it exits 1 unless every slice's own --status --check would exit
 // 0: its loop done and every mechanical check passing. A slice the graph no
-// longer holds gets a row and fails the check, as its own --status exits 4.
+// longer holds gets a row; it fails the check unless it is done, since a done
+// one is a legacy slice tp reports needs no action.
 func runEpicReviewBatchStatus(scope epicBatchScope, check bool) {
 	eg := loadEpicReviewGraph()
 	policy := epicReviewPolicy(eg.tpDir)
@@ -98,7 +99,7 @@ func sortEpicSliceDirsByTrack(dirs []engine.EpicSliceDir, g *model.EpicGraph) {
 // An unreadable recorded round exits 3, as a one-slice --status does.
 func epicBatchStatusRowOf(eg *epicReviewGraph, policy engine.EpicReviewPolicy, d engine.EpicSliceDir, checksPass bool) (epicBatchStatusRow, bool) {
 	if d.Key == nil {
-		return epicUnheldSliceRow(eg, d, policy, "the slice directory .tp/epic-review/"+d.Name+" records no key and its rounds name none"), false
+		return epicUnheldSliceRow(eg, d, policy, "the slice directory .tp/epic-review/"+d.Name+" records no key and its rounds name none")
 	}
 	key := d.Key.SliceKey()
 	run, rerr := prepareEpicReviewRun(eg, key)
@@ -106,7 +107,7 @@ func epicBatchStatusRowOf(eg *epicReviewGraph, policy engine.EpicReviewPolicy, d
 		exitEpicRunError(rerr)
 	}
 	if rerr != nil {
-		return epicUnheldSliceRow(eg, d, policy, rerr.msg), false
+		return epicUnheldSliceRow(eg, d, policy, rerr.msg)
 	}
 	st := epicBatchLoop(run.stateDir, run.all, policy)
 	return epicBatchStatusRow{
@@ -122,8 +123,9 @@ func epicBatchStatusRowOf(eg *epicReviewGraph, policy engine.EpicReviewPolicy, d
 // epicUnheldSliceRow is the row of a slice whose units cannot be derived: its
 // key is unknown or names what the graph no longer holds. It is graded
 // without its staleness, as tp epic export grades it, and nothing runs on it;
-// a done one is a legacy slice whose directory is safe to delete.
-func epicUnheldSliceRow(eg *epicReviewGraph, d engine.EpicSliceDir, policy engine.EpicReviewPolicy, why string) epicBatchStatusRow {
+// a done one is a legacy slice whose directory is safe to delete, and counts
+// as done for the batch --check (v1.7.0 §5), which the second result reports.
+func epicUnheldSliceRow(eg *epicReviewGraph, d engine.EpicSliceDir, policy engine.EpicReviewPolicy, why string) (epicBatchStatusRow, bool) {
 	st := epicBatchLoop(d.Path, nil, policy)
 	next := why + ": nothing runs on this slice until the graph holds it"
 	if st.Done {
@@ -139,7 +141,7 @@ func epicUnheldSliceRow(eg *epicReviewGraph, d engine.EpicSliceDir, policy engin
 		State:      engine.EpicSliceLoop(&st, false).State,
 		Open:       st.Open,
 		NextAction: next,
-	}
+	}, st.Done
 }
 
 // epicBatchLoop reads one slice's loop verdict, exiting 3 on unreadable state.
