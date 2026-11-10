@@ -176,6 +176,22 @@ func TestEpicReviewGrant_TakesNoOtherMode(t *testing.T) {
 	assert.Empty(t, epicGrantFiles(t, dir))
 }
 
+// TestEpicReviewGrant_RefusesTheBatchFlags is §8 beside §5: a grant is given
+// one slice at a time (the non-goals), so --grant-round beside --milestones or
+// --all exits 2 naming the batch flag and writes no grant. A batch flag the
+// command rejects as unknown exits 2 too, so the message is what fails it.
+func TestEpicReviewGrant_RefusesTheBatchFlags(t *testing.T) {
+	t.Parallel()
+	dir := cappedStaleEpicSlice(t)
+	for _, extra := range [][]string{{"--milestones", "A"}, {"--all"}} {
+		args := append([]string{"epic", "review", "--epic", "b", "--grant-round"}, extra...)
+		_, stderr, code := runTP(t, dir, args...)
+		require.Equal(t, 2, code, "%v: stderr: %s", extra, stderr)
+		assert.Contains(t, stderr, "--grant-round takes no "+extra[0], "the refusal names the batch flag beside the grant")
+	}
+	assert.Empty(t, epicGrantFiles(t, dir))
+}
+
 // TestEpicExport_SliceLoopReportsGrantable is §8's export half: the slice
 // loop of tp epic export reports grantable as --status does, true on the
 // stale capped slice and false once the grant is given.
