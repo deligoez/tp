@@ -602,7 +602,7 @@ A repo-root `.tp/` directory holds workflow policy shared across every spec, so 
 |------|----------|-------|
 | `.tp/config.json` | commit to VCS | workflow **defaults** (same fields as the table above) |
 | `.tp/local.json` | git-ignored (auto) | `active` task-file pointer + CLI flag `defaults` |
-| `.tp/.gitignore` | commit (auto-written) | ignores `local.json`, `locks/` and the run artifacts (`run-*.json`, `runs/`, `rounds/`, `last_failure-*.json`); tracks `config.json` |
+| `.tp/.gitignore` | commit (auto-written) | ignores `local.json`, `locks/`, the run artifacts (`run-*.json`, `runs/`, `rounds/`, `last_failure-*.json`) and the epic review inboxes (`epic-review/*/inbox/`, v1.7.0); tracks `config.json` |
 
 **Discovery**: walk up from the CWD to the first `.git` boundary; the `.tp/` there is the project config (single deterministic anchor).
 
@@ -1094,7 +1094,7 @@ When a task has `source_sections` and no `source_lines`, `spec_excerpt` is the c
 
 - The task-file lock lives at `.tp/locks/<base>-<hash>.lock` (covered by `.tp/.gitignore`), not the sibling `<base>.tasks.json.lock`; a stale sibling lock is removed on first write. tp never stages a path under `.tp/locks/`, and `tp commit`/`--auto-commit` refuse any `--files` path ending in `.tasks.json.lock`. When they drop an accidentally-staged lock they untrack **only** `.tp/locks/**` and `*.tasks.json.lock` — a bare `*.lock` pathspec matches across directories, and until v0.33.0 it recorded `yarn.lock`, `Gemfile.lock` and every other lock file in the repo as deleted.
 - **The lock file persists after the lock is released, by design — do not delete it while tp may be running.** flock is held on an inode, so unlinking the file lets the next waiter open the same path, get a fresh inode, lock that, and enter the critical section concurrently; that cost 4 silently lost rounds per 100 four-way concurrent `tp audit --record` runs before v0.33.0. The file is a zero-byte, git-ignored marker; one per locked target, never more.
-- `tp init` creates `.tp/.gitignore` (it covers `local.json`, `locks/`, and `tp run`'s artifacts: `run-*.json`, `runs/`, `rounds/`, `last_failure-*.json`), and since v0.33.0 so does any locked write, so a project that never ran `tp init` does not accumulate an untracked `.tp/locks/`. Entries you add yourself are preserved: the file is only written when one of the required lines is missing.
+- `tp init` creates `.tp/.gitignore` (it covers `local.json`, `locks/`, `tp run`'s artifacts: `run-*.json`, `runs/`, `rounds/`, `last_failure-*.json`, and since v1.7.0 the epic review inboxes, `epic-review/*/inbox/`), and since v0.33.0 so does any locked write, so a project that never ran `tp init` does not accumulate an untracked `.tp/locks/`. Entries you add yourself are preserved: the file is only written when one of the required lines is missing.
 - Write-lock acquisition retries with backoff until `lock_timeout_seconds` (default 5, range 1-60) elapses, so two concurrent writes both succeed. On timeout tp exits **4** (state) with a hint naming the lock path and the elapsed wait.
 
 ### Exit-code conformance (§13)
@@ -1479,9 +1479,15 @@ the context, and a last line repeating the row keys and the file. A role file's 
 key scopes that context: `neighbours` (the default) shows every epic one edge away in either
 direction, `dependencies` only the epics an asked unit depends on; `dod-satisfiability` and
 `why-auditor` ship with `dependencies`. A carried gate's block is shown read-only in the context of
-every prompt. Each prompt's `output_path` (`epic-review-<hash prefix>-r<N>-<role>.ndjson`) is
-relative to the directory `tp epic review` ran in, as review's is; inside a `tp run` unit it is the
-`$TP_ROUND_DIR` path instead.
+every prompt. Each prompt's `output_path` is the absolute `<state dir>/inbox/<role>-r<N>.ndjson`
+in the slice's inbox (v1.7.0; until then a cwd-relative `epic-review-<hash prefix>-r<N>-<role>.ndjson`),
+the same path the prompt names; inside a `tp run` unit it is the `$TP_ROUND_DIR` path instead.
+The emission creates the inbox and removes nothing in it, so re-emitting and per-role emission keep
+a file a role already wrote. `.tp/.gitignore` ignores every inbox (`epic-review/*/inbox/`), and the
+plugin's write-deny hook lets exactly that name through, for any writer, when the path's physical
+form (symlinks resolved; a `..` segment or a symlink at the name is refused) is that name too;
+every other path under the state directory stays refused. Spec review's and audit's output paths
+keep their relative form.
 
 ### Binding and status (v1.5.0)
 
