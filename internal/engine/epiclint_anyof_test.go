@@ -88,3 +88,15 @@ func TestLintEpicGraph_MissingWhyAsksOneWhyPerGroup(t *testing.T) {
 	assert.Equal(t, []string{"a", "x", "y"}, missing[0].Epics)
 	assert.Contains(t, missing[0].Message, "one of {x, y}")
 }
+
+// TestLintEpicGraph_ThinWhyDoesNotApplyToAGroup: a group's why that
+// restates a member's title is no thin-why, while the same why on a plain
+// edge to that member is.
+func TestLintEpicGraph_ThinWhyDoesNotApplyToAGroup(t *testing.T) {
+	g := anyOfLintGraph()
+	g.Epics[0].DependsOn[0] = model.EpicDep{ID: "x", AnyOf: []string{"x", "y"}, Why: "X"}
+	assert.Empty(t, findingsOf(t, LintEpicGraph(g, nil), EpicRuleThinWhy), "an entry carrying any_of is judged as a group")
+
+	g.Epics[0].DependsOn[0] = model.EpicDep{ID: "x", Why: "X"}
+	assert.Len(t, findingsOf(t, LintEpicGraph(g, nil), EpicRuleThinWhy), 1)
+}
