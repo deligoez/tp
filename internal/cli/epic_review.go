@@ -66,8 +66,9 @@ func newEpicReviewCmd() *cobra.Command {
 	cmd.Flags().String("epic", "", "Review this one epic")
 	cmd.Flags().StringSlice("epics", nil, "Review this set of epics, comma-separated CSV (quote an id holding a comma); repeatable")
 	cmd.Flags().String("name", "", "With --epics: key the set's state by this name, so the set may grow between rounds")
-	cmd.Flags().StringSlice("milestones", nil, "Emit each of these milestones' rounds in one payload, comma-separated; with --status, read each slice")
-	cmd.Flags().Bool("all", false, "Emit every tracked milestone's round in one payload; with --status, read every slice directory under .tp/epic-review/")
+	cmd.Flags().StringSlice("milestones", nil, "Emit each of these milestones' rounds in one payload, comma-separated; with --status or --report, read each one's slice")
+	cmd.Flags().Bool("all", false, "Emit every tracked milestone's round in one payload; with --status or --report, read every slice directory under .tp/epic-review/")
+	cmd.Flags().Bool("report", false, "With --all or --milestones: list each finding class with the slices, rounds and distinct epics it was raised on")
 	cmd.Flags().String("role", "", "Emit only this role's prompt")
 	cmd.Flags().String("record", "", "Record this NDJSON findings file as the slice's next round")
 	cmd.Flags().Bool("status", false, "Print the slice's convergence status")
@@ -101,6 +102,7 @@ func runEpicReview(cmd *cobra.Command, args []string) error {
 		runEpicReviewBatch(cmd, scope)
 		return nil
 	}
+	refuseEpicReportOutsideBatch(cmd)
 	key := epicReviewSliceKey(cmd)
 	if runEpicReviewDisposition(cmd, key, args) {
 		return nil
