@@ -134,3 +134,25 @@ func TestEpicReviewBatchStatus_AllListsMilestoneSlicesInTrackOrder(t *testing.T)
 	}
 	assert.Len(t, others, 3)
 }
+
+// TestEpicReviewBatchStatus_ADoneOrphanSliceIsSafeToDelete: a done slice
+// whose key names an epic the graph no longer holds is a legacy slice with
+// nothing left to do, so its next_action says so and names the directory to
+// delete; an orphan slice that is not done keeps the wait-for-the-graph text.
+func TestEpicReviewBatchStatus_ADoneOrphanSliceIsSafeToDelete(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicThreeMilestones)
+	writeEpicProjectConfig(t, dir, `{"review_clean_rounds": 1}`)
+	done := runEpicReview(t, dir, "--epic", "d")
+	recordEpicRound(t, dir, "", "--epic", "d")
+	runEpicReview(t, dir, "--epic", "c")
+	editEpicGraph(t, dir, `,
+    {"id": "c", "title": "C", "milestone": "B", "depends_on": [{"id": "b", "why": "c needs b"}]},
+    {"id": "d", "title": "D", "milestone": "L1"}`, "")
+
+	rows := epicRowsByValue(t, runEpicBatchStatus(t, dir, "--all"))
+	require.Len(t, rows, 2)
+	assert.Equal(t, "done", rows["d"].State)
+	assert.Equal(t, "legacy slice, done; no action (safe to delete "+done.StateDir+")", rows["d"].NextAction)
+	assert.Contains(t, rows["c"].NextAction, "nothing runs on this slice until the graph holds it", "an orphan not done keeps the old text")
+}
