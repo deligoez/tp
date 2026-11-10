@@ -49,10 +49,14 @@ type epicMilestoneReport struct {
 // spec/1.7.0.md §7), moot: true in its place.
 type epicBlockedEpic struct {
 	epicReadyEpic
-	HeldBy        []string `json:"held_by"`
-	BlockedBy     []string `json:"blocked_by"`
-	NotActionable []string `json:"not_actionable,omitempty"`
-	Moot          bool     `json:"moot,omitempty"`
+	HeldBy    []string `json:"held_by"`
+	BlockedBy []string `json:"blocked_by"`
+	// HeldByAnyOf and BlockedByAnyOf are the export's group lists
+	// (epicWaits, spec/1.7.0.md §7).
+	HeldByAnyOf    [][]string `json:"held_by_any_of"`
+	BlockedByAnyOf [][]string `json:"blocked_by_any_of"`
+	NotActionable  []string   `json:"not_actionable,omitempty"`
+	Moot           bool       `json:"moot,omitempty"`
 }
 
 // epicPathReport is the milestone's critical path: the longest chain by
@@ -284,7 +288,8 @@ func (p *epicPlan) claimedAndBlocked(m string) (claimed []epicClaimedEpic, block
 			continue
 		}
 		if w := epicUndoneDeps(e, p.states, p.conditions); w.blocked() {
-			blocked = append(blocked, epicBlockedEpic{epicReadyEpic: entry, HeldBy: w.HeldBy, BlockedBy: w.BlockedBy, NotActionable: p.notActionable[e.ID],
+			blocked = append(blocked, epicBlockedEpic{epicReadyEpic: entry, HeldBy: w.HeldBy, BlockedBy: w.BlockedBy,
+				HeldByAnyOf: w.HeldByAnyOf, BlockedByAnyOf: w.BlockedByAnyOf, NotActionable: p.notActionable[e.ID],
 				Moot: e.Condition && p.moot[e.ID]})
 		}
 	}
