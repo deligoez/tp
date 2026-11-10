@@ -230,3 +230,23 @@ func TestLintEpicGraph_DependencyOpensLaterGroupWaitsThroughAnotherGate(t *testi
 	assert.Equal(t, "M1", found[0].Gate)
 	assert.Contains(t, found[0].Message, "one of {a, b}")
 }
+
+// TestLintEpicGraph_DependencyOpensLaterGroupWhoseMembersWaitOnEachOther is
+// the shrunk progress seed 3278: on tracks [[A1, A2], [B1, B2]], x in B1
+// depends on {p, q}, p in B2 and q in A2, and y in A1 depends on x. p waits
+// on B1's gate, which waits on x; q waits on A1's gate, which waits on y and
+// so on x. Neither member can be done first, though neither waits on a gate
+// without the other: one error.
+func TestLintEpicGraph_DependencyOpensLaterGroupWhoseMembersWaitOnEachOther(t *testing.T) {
+	x := dependsOn("x", "B1")
+	x.Root, x.DependsOn = false, []model.EpicDep{{AnyOf: []string{"p", "q"}, Why: "either serves x"}}
+	g := &model.EpicGraph{
+		Version:    1,
+		Milestones: [][]string{{"A1", "A2"}, {"B1", "B2"}},
+		Epics:      []model.Epic{x, dependsOn("p", "B2"), dependsOn("q", "A2"), dependsOn("y", "A1", "x")},
+	}
+	found := findingsOf(t, LintEpicGraph(g, nil), EpicRuleDependencyOpensLater)
+	require.Len(t, found, 1, "%v", found)
+	assert.Equal(t, EpicSeverityError, found[0].Severity)
+	assert.Contains(t, found[0].Message, "one of {p, q}")
+}
