@@ -25,11 +25,6 @@ fix needs a design choice leaves this file for a decision note.
   resolve the project layer from the task file's directory — changes documented resolution precedence,
   so it is a decision.
 
-- **`tp init --commit-strategy` accepts an unknown value and writes it.** The mistake surfaces only at
-  use, as a stderr warning (`unrecognized commit_strategy "tp"; using builtin`), so the file silently
-  runs a different strategy than the one typed. Refuse it at init and at every setter, exit 2, listing
-  the valid values. Repro: `tp init spec.md --commit-strategy tp`.
-
 ## Wrong or missing guidance
 
 - **Two specs with the same base in different directories share the ground scratch file** when
