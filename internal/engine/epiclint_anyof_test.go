@@ -119,3 +119,39 @@ func TestLintEpicGraph_AGroupIsADependencyForRootWithDependencies(t *testing.T) 
 	require.Len(t, root, 1)
 	assert.Equal(t, []string{"a"}, root[0].Epics)
 }
+
+// tagGroupGraph is track [A]: p provides tag ui, q depends on p, r on
+// nothing, and the ui carrier s depends on the group {p, q}.
+func tagGroupGraph() *model.EpicGraph {
+	return &model.EpicGraph{
+		Version:    1,
+		Milestones: [][]string{{"A"}},
+		TagChecks:  map[string]model.EpicTagCheck{"ui": {ProvidedBy: "p"}},
+		Epics: []model.Epic{
+			{ID: "p", Title: "Provider", Milestone: "A", Root: true},
+			{ID: "q", Title: "Q", Milestone: "A", DependsOn: []model.EpicDep{{ID: "p", Why: "q calls the checker"}}},
+			{ID: "r", Title: "R", Milestone: "A", Root: true},
+			{ID: "s", Title: "Screen", Milestone: "A", Tags: []string{"ui"}, DependsOn: []model.EpicDep{{AnyOf: []string{"p", "q"}, Why: "either serves the screen"}}},
+		},
+	}
+}
+
+// TestLintEpicGraph_ATagProviderCountsThroughAGroupOnlyWhenEveryMemberReachesIt:
+// {p, q} provides the tag, since p is the provider and q depends on it; a
+// member that reaches the provider only through another group counts by the
+// same rule; {p, r} does not, since r may be done instead.
+func TestLintEpicGraph_ATagProviderCountsThroughAGroupOnlyWhenEveryMemberReachesIt(t *testing.T) {
+	assert.Empty(t, findingsOf(t, LintEpicGraph(tagGroupGraph(), nil), EpicRuleUnprovidedTagCheck))
+
+	g := tagGroupGraph()
+	g.Epics[2].Root = false
+	g.Epics[2].DependsOn = []model.EpicDep{{AnyOf: []string{"p", "q"}, Why: "r reads either"}}
+	g.Epics[3].DependsOn[0].AnyOf = []string{"q", "r"}
+	assert.Empty(t, findingsOf(t, LintEpicGraph(g, nil), EpicRuleUnprovidedTagCheck), "r reaches p through its own group")
+
+	g = tagGroupGraph()
+	g.Epics[3].DependsOn[0].AnyOf = []string{"p", "r"}
+	unprovided := findingsOf(t, LintEpicGraph(g, nil), EpicRuleUnprovidedTagCheck)
+	require.Len(t, unprovided, 1)
+	assert.Equal(t, []string{"s"}, unprovided[0].Epics)
+}
