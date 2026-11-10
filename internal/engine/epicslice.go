@@ -202,7 +202,8 @@ func epicSliceContext(g *model.EpicGraph, asked map[string]bool) []EpicContextBl
 }
 
 // epicDependentBrief renders a dependent of the asked epics by its id, title
-// and milestone and its edges into them, each with its why: a placement
+// and milestone and its edges into them, each with its why, a group naming
+// one of them whole (spec/1.7.0.md §7): a placement
 // reader's view of what needs the asked units, without the acceptance text
 // that makes a full block the bulk of a large slice's prompt.
 func epicDependentBrief(e *model.Epic, asked map[string]bool) string {
@@ -210,8 +211,8 @@ func epicDependentBrief(e *model.Epic, asked map[string]bool) string {
 	b.WriteString("epic: " + e.ID + "\ntitle: " + e.Title + "\nmilestone: " + e.Milestone + "\n")
 	b.WriteString("depends_on (its edges into the asked units only):\n")
 	for _, d := range e.DependsOn {
-		if asked[d.ID] {
-			b.WriteString("- " + d.ID + ": " + d.Why + "\n")
+		if slices.ContainsFunc(d.Names(), func(id string) bool { return asked[id] }) {
+			b.WriteString("- " + epicDepName(d) + ": " + d.Why + "\n")
 		}
 	}
 	return b.String()
