@@ -161,3 +161,18 @@ func TestEpicReviewGrant_UnattendedExitsTwoNamingGrantRound(t *testing.T) {
 	assert.Empty(t, epicGrantFiles(t, dir))
 }
 
+// TestEpicReviewGrant_TakesNoOtherMode is §8's one slice at a time: the grant
+// is its own mode, so --grant-round beside --status or --record is a usage
+// error that writes no grant.
+func TestEpicReviewGrant_TakesNoOtherMode(t *testing.T) {
+	t.Parallel()
+	dir := cappedStaleEpicSlice(t)
+	for _, extra := range [][]string{{"--status"}, {"--record", epicRecordFile(t, dir, "")}} {
+		args := append([]string{"epic", "review", "--epic", "b", "--grant-round"}, extra...)
+		_, stderr, code := runTP(t, dir, args...)
+		require.Equal(t, 2, code, "%v: stderr: %s", extra, stderr)
+		assert.Contains(t, stderr, "--grant-round takes no "+extra[0], "the refusal names the flag beside the grant")
+	}
+	assert.Empty(t, epicGrantFiles(t, dir))
+}
+
