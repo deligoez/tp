@@ -40,3 +40,18 @@ func TestEpicReady_OneDoneMemberSatisfiesAGroup(t *testing.T) {
 	assert.NotContains(t, EpicReady(g, anyOfStates(g), nil, false).Ready, "w")
 	assert.Contains(t, EpicReady(g, anyOfStates(g, "a"), nil, false).Ready, "w")
 }
+
+// TestConditionsActionable_AGroupWithAnOpenConditionMemberCountsAsACondition
+// is spec/1.7.0.md §7: x, a gate member of the open M1, depends on one of
+// {c, b}, the condition c in M1 and the work b in the closed M2. c has its
+// milestone open and its dependencies done, so the group counts as a
+// condition and x waits on conditions alone: c is actionable. A group read
+// as work leaves c with no dependent that waits on conditions alone.
+func TestConditionsActionable_AGroupWithAnOpenConditionMemberCountsAsACondition(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"M1", "M2"}}, Epics: []model.Epic{
+		{ID: "x", Title: "X", Milestone: "M1", DependsOn: []model.EpicDep{{AnyOf: []string{"c", "b"}, Why: "either opens the API"}}},
+		{ID: "c", Title: "C", Milestone: "M1", Root: true, Condition: true, Acceptance: "the board says yes"},
+		{ID: "b", Title: "B", Milestone: "M2", Root: true},
+	}}
+	assert.True(t, actionableOf(g, "c"))
+}
