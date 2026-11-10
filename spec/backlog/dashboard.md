@@ -143,6 +143,58 @@ Overview first, then zoom and filter, then details on demand: the map is not the
 - **Review loops:** one row per slice, as `tp epic review --status --all` prints it (state, round,
   open counts, grantable).
 
+### Prototypes 2 and 3: the plan, and one spec at a time
+
+The operator read prototype 1 and asked for the following, and read prototype 2 and narrowed the
+work side to one spec. Prototype 3 has all of it, on synthetic data, every panel whose data no
+command gathers yet tagged so:
+
+- **A spec and its tasks beside the epics, one spec at a time.** Two tabs: *Epics* (the plan) and
+  *Spec*. The Spec tab shows one spec, chosen from a picker (grouped by phase, filterable, escalations
+  marked) or reached from an epic's bound specs or an operator row. Prototype 2 put every spec on one
+  board and every task on one map; the operator found that unneeded: the tab is about the spec in hand.
+- **Reading the spec is the tab's centre.** The spec's text, in its numbered sections, beside its
+  task graph and task list. Every section and paragraph carries a stable anchor (`§3 ¶2`), because
+  feedback on the spec comes next and attaches to one. A task names the sections it comes from
+  (`source_sections`): hovering a task lights them, and a section's task count lights its tasks.
+- **Every label names its unit** ("ready epics", "ready tasks"): "Ready now" read as either.
+- **An ⓘ on every panel and figure:** what it lists, in a sentence or two, and where its data comes from.
+- **Details in a drawer, never a scroll jump.** An epic opens its chain and bound specs; a task its
+  source sections, acceptance, dependencies and command. A click moves the page only when that is
+  what it asked for: "show on the map", or a jump to a section.
+- **The map leaves the page's scroll alone.** A plain wheel scrolls the page and shows a hint; ⌘ or
+  Ctrl + wheel, or a trackpad pinch, zooms; a full-screen button gives the map the window, where the
+  wheel zooms and a two-finger scroll pans. Zoom eases toward its target rather than jumping.
+- **Larger type**, a 15.5 px base.
+- **The milestone matrix stays**, coloured by how far each pair's dependencies are done (green all,
+  amber some, red none) and its diagonal by the milestone's own share done.
+- **Review loops are tp's real loop.** The Spec tab shows the spec's own: the phase `tp resume`
+  reports, the ground, review and audit rounds as dots, the next step and any escalation. The epic
+  review slices stay on the Epics tab as "Plan review", and a spec's escalation joins its operator list.
+
+### What the Spec tab needs from tp
+
+Needs first, development last. The link needs nothing new: a task file binds to one epic through its
+top-level `epic` (v1.5.0), and `epics[].files` already carries each bound file's phase, task counts
+and `{round, state}` per loop. What is missing is one read of a single spec, and a list to pick from:
+
+| Need | Held by tp today | Gap |
+|---|---|---|
+| Every task file, bound or not: path, title, phase, task counts, escalation | the binding scan over `*.tasks.json` (only bound files reach the export); the spec's first heading | unbound files (gap 4), the title |
+| The spec's text in numbered sections, each part with a stable anchor | the spec file; sections for `source_sections` and `spec_excerpt`; `tp ground --units`, whose floor units carry an identity (`text_sha`, ordinal) that a later round matches | rendering it, and choosing the anchor feedback will use |
+| Each task: id, title, status, `depends_on`, estimate, acceptance, `source_sections`, `started_at`, `closed_at`, commit | the task file | gap 1 |
+| Each task's state: ready, waits on a task, waits on its epic | `tp ready`/`tp next`, the epic block | derived |
+| Each loop's rounds: findings or FAIL count, clean, cap, clean rounds needed, streak | review/audit `state.json` entries (`findings`, `clean`, `recorded_at`), `--status` | gap 2, counts only |
+| Next step, blockers and escalations | `tp resume` (`next_action`, `blockers`); `tp run` escalation records | none: the file's own `tp resume` |
+
+Not held, so not shown: who holds a `wip` task (tp records no claimant).
+
+So the Spec tab is one new read model, a task file with its spec text, tasks, loops and `tp resume`
+view, plus the list to pick from, built in Go from code tp already has, with no change to the task
+file or the graph schema. Whether it is an export key or a command of its own is the decision
+note's question. **Feedback on the spec is later and its own decision** (who writes it, where it is
+stored, how a round reads it); v1 only leaves the anchors for it.
+
 ## 5. Scope
 
 **v1:** `tp dashboard`, option B, map + filters + detail panel down to file/loop level + KPI strip,
