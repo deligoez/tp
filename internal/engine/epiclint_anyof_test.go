@@ -59,3 +59,21 @@ func TestLintEpicGraph_DanglingReferenceNamesEachMissingMember(t *testing.T) {
 	assert.Equal(t, []string{"a", "ghost"}, dangling[0].Epics)
 	assert.Equal(t, []string{"a", "phantom"}, dangling[1].Epics)
 }
+
+// TestLintEpicGraph_AnEdgeToAnyMemberClosesACycle: a loop through one
+// member of a group is a cycle though the other member could be done first,
+// and a group naming its own epic is a self-loop.
+func TestLintEpicGraph_AnEdgeToAnyMemberClosesACycle(t *testing.T) {
+	g := anyOfLintGraph()
+	g.Epics[2].Root, g.Epics[2].Milestone = false, "B"
+	g.Epics[2].DependsOn = []model.EpicDep{{ID: "a", Why: "y extends a"}}
+	cycles := findingsOf(t, LintEpicGraph(g, nil), EpicRuleCycle)
+	require.Len(t, cycles, 1)
+	assert.Equal(t, []string{"a", "y"}, cycles[0].Epics)
+
+	g = anyOfLintGraph()
+	g.Epics[0].DependsOn[0].AnyOf = []string{"a", "x"}
+	cycles = findingsOf(t, LintEpicGraph(g, nil), EpicRuleCycle)
+	require.Len(t, cycles, 1)
+	assert.Equal(t, []string{"a"}, cycles[0].Epics)
+}
