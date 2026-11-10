@@ -20,6 +20,7 @@ func TestEpicSliceKey_EachKindReadsBackAsWritten(t *testing.T) {
 		{EpicSliceKey{Milestone: "A"}, EpicSliceKeyRecord{Kind: "milestone", Value: "A"}},
 		{EpicSliceKey{Epic: "b"}, EpicSliceKeyRecord{Kind: "epic", Value: "b"}},
 		{EpicSliceKey{Epics: []string{"c", "a", "c"}}, EpicSliceKeyRecord{Kind: "epics", IDs: []string{"a", "c"}}},
+		{EpicSliceKey{Epics: []string{"a"}}, EpicSliceKeyRecord{Kind: "epics", IDs: []string{"a"}}},
 		{EpicSliceKey{Epics: []string{"b", "a"}, Name: "pair"}, EpicSliceKeyRecord{Kind: "epics", IDs: []string{"a", "b"}, Name: "pair"}},
 	} {
 		stateDir := filepath.Join(t.TempDir(), "slice")
