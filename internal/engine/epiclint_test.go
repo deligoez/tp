@@ -187,6 +187,22 @@ func TestLintEpicGraph_UnprovidedTagCheckFollowsTransitiveDependencies(t *testin
 	assert.Equal(t, EpicSeverityError, unprovided[0].Severity)
 }
 
+// TestLintEpicGraph_DirectTagCheckWantsAPlainDirectEdge (spec/1.7.0.md §3):
+// under "direct": true the transitive path screen → x → p no longer provides
+// the tag, while a plain edge screen → p does, and the provider stays exempt.
+func TestLintEpicGraph_DirectTagCheckWantsAPlainDirectEdge(t *testing.T) {
+	g := providerGraph()
+	g.TagChecks["ui"] = model.EpicTagCheck{ProvidedBy: "p", Direct: true}
+	unprovided := findingsOf(t, LintEpicGraph(g, nil), EpicRuleUnprovidedTagCheck)
+	require.Len(t, unprovided, 1, "the transitive carrier fires, the provider does not")
+	assert.Equal(t, []string{"screen"}, unprovided[0].Epics)
+	assert.Equal(t, EpicSeverityError, unprovided[0].Severity)
+	assert.Contains(t, unprovided[0].Message, "direct")
+
+	g.Epics[2].DependsOn = append(g.Epics[2].DependsOn, model.EpicDep{ID: "p", Why: "calls the checker itself"})
+	assert.Empty(t, LintEpicGraph(g, nil), "a plain direct edge provides a direct check")
+}
+
 // severityCount counts the findings at the given severity.
 func severityCount(findings []EpicLintFinding, severity string) int {
 	n := 0
