@@ -213,6 +213,26 @@ func TestLoadLocalConfig_UnknownTopLevelKeyWarns(t *testing.T) {
 	assert.Equal(t, []string{"unknown top-level key: bogus"}, warns)
 }
 
+// TestLoadLocalConfig_KeepUncommittedKeepsItsEntries: a keep list in
+// local.json loads as written, and only an absent or null list becomes the
+// empty one — a non-empty list must never be swapped for an empty one.
+func TestLoadLocalConfig_KeepUncommittedKeepsItsEntries(t *testing.T) {
+	tp := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tp, "local.json"),
+		[]byte(`{"keep_uncommitted":[{"path":"notes.md","reason":"scratch"}]}`), 0o600))
+	lc, warns, err := LoadLocalConfig(tp)
+	require.NoError(t, err)
+	assert.Empty(t, warns)
+	require.NotNil(t, lc.KeepUncommitted)
+	assert.Equal(t, []model.KeepEntry{{Path: "notes.md", Reason: "scratch"}}, *lc.KeepUncommitted)
+
+	require.NoError(t, os.WriteFile(filepath.Join(tp, "local.json"), []byte(`{"keep_uncommitted":null}`), 0o600))
+	lc, _, err = LoadLocalConfig(tp)
+	require.NoError(t, err)
+	require.NotNil(t, lc.KeepUncommitted)
+	assert.Equal(t, []model.KeepEntry{}, *lc.KeepUncommitted)
+}
+
 func TestLoadProjectConfig_OutOfRangeFallsBack(t *testing.T) {
 	tp := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(tp, "config.json"),
