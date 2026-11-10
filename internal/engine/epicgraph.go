@@ -33,7 +33,7 @@ var (
 	}
 	knownEpicGateKeys     = map[string]bool{"members": true, "deferrable": true, "threshold": true, "met": true}
 	knownEpicTagCheckKeys = map[string]bool{"provided_by": true, "direct": true}
-	knownEpicDepKeys      = map[string]bool{"id": true, "why": true}
+	knownEpicDepKeys      = map[string]bool{"id": true, "any_of": true, "why": true}
 )
 
 // EpicGraphUnknownKey is a key outside the schema. Path locates it
