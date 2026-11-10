@@ -1592,7 +1592,9 @@ epics never hold it. Every milestone therefore has a gate.
   `tp epic done <id> --evidence`, which also records an unbound work epic done.
 
 The epic block reads direct dependencies only: an epic's own `depends_on`, a done record counting as
-done whatever lies behind it. While one of a bound file's epic's dependencies is not `done`:
+done whatever lies behind it. An any-of group is satisfied once one member is done by the same rule
+(v1.7.0). While one of a bound file's epic's dependencies is not `done`, or one of its groups is not
+satisfied:
 
 | command | behaviour |
 |---|---|
@@ -1602,6 +1604,15 @@ done whatever lies behind it. While one of a bound file's epic's dependencies is
 | `tp done` | refuses a task that is not `wip`: by id at exit 1, by several ids and by `--batch` as a failed row carrying `blocked_by_epics`, exit 1 when the block refuses every row; a `wip` task closes, and the next-task counts leave blocked tasks out. The block is judged on the file read under the lock, after the quality gate ran |
 | `tp commit` | its implicit claim would start an `open` task, so it exits 1 with `blocked_by_epics`, staging and writing nothing; a `wip` task commits |
 | `tp resume` | with no `wip` task, the `epic-blocked` blocker and no implement unit |
+
+`blocked_by_epics` lists the plain dependencies not done (`[]` when only groups block). Every payload
+above that carries it adds `blocked_by_any_of` while a group is unsatisfied, one list of member ids
+per group in `depends_on` order, and the message names each group `one of {A, B}`, as in `epic w is
+blocked by c, one of {a, b}` (v1.7.0). The operator action exists when every plain blocker is a
+condition and every group has a condition member whose milestone is open and whose own dependencies
+are done, the members the operator can record now; it adds `choices: [["tp epic done <a> --evidence
+<evidence>", ...]]`, one list per group of those members' records, any one of which satisfies it
+(`commands` is then `[]` when no plain condition blocks).
 
 A file with no `open` task has nothing to start, so `tp next`, `tp ready` and `tp claim` answer it as
 they answer an unbound file (`tp claim` exits 4) and carry no `blocked_by_epics`. A `*.tasks.json`
