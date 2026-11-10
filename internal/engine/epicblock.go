@@ -147,6 +147,35 @@ func (b *EpicBlock) judge(g *model.EpicGraph, e *model.Epic, bound *boundIndex) 
 			}
 		}
 	}
+	return b.recordableGroups(g, bound)
+}
+
+// recordableGroups fills b.AnyOfConditions, one list per unsatisfied group:
+// its condition members whose milestone is open and whose own dependencies
+// are done, judged over every epic's derived state. It reads nothing more
+// when no group blocks.
+func (b *EpicBlock) recordableGroups(g *model.EpicGraph, bound *boundIndex) error {
+	if len(b.BlockedByAnyOf) == 0 {
+		return nil
+	}
+	index, err := bound.all()
+	if err != nil {
+		return err
+	}
+	states, err := DeriveEpicStates(g, index)
+	if err != nil {
+		return err
+	}
+	gates, byID := MilestoneGates(g, states), epicsByID(g)
+	for _, members := range b.BlockedByAnyOf {
+		ids := []string{}
+		for _, id := range members {
+			if m, ok := byID[id]; ok && m.Condition && gates[m.Milestone].Open && epicDepsDone(m, states) {
+				ids = append(ids, id)
+			}
+		}
+		b.AnyOfConditions = append(b.AnyOfConditions, ids)
+	}
 	return nil
 }
 
