@@ -42,18 +42,41 @@ func RemoveEpic(id string, force bool) func(*model.EpicGraph) error {
 		if len(refused.TagChecks) > 0 || (len(refused.Dependents) > 0 && !force) {
 			return refused
 		}
-		done := g.Epics[i].Done != nil
-		g.Epics = slices.Delete(g.Epics, i, i+1)
-		for j := range g.Epics {
-			e := &g.Epics[j]
+		removeEpicAt(g, i, true)
+		return nil
+	}
+}
+
+// RemoveEpicRow returns the mutation a tp epic apply remove row makes
+// (spec/1.7.0.md §6): only an absent id fails at the row. It removes epic id
+// and its gate memberships, and with force also the edges into it and its
+// groups, as RemoveEpic does; what it leaves naming the epic, an edge
+// without force or a tag_checks provider, waits for the write's lint.
+func RemoveEpicRow(id string, force bool) func(*model.EpicGraph) error {
+	return func(g *model.EpicGraph) error {
+		i := epicIndex(g, id)
+		if i < 0 {
+			return &EpicNotFoundError{ID: id}
+		}
+		removeEpicAt(g, i, force)
+		return nil
+	}
+}
+
+// removeEpicAt removes g's i-th epic and its gate memberships and, with
+// dropEdges, the edges into it and its groups as dropEpicFromDeps does.
+func removeEpicAt(g *model.EpicGraph, i int, dropEdges bool) {
+	id, done := g.Epics[i].ID, g.Epics[i].Done != nil
+	g.Epics = slices.Delete(g.Epics, i, i+1)
+	for j := range g.Epics {
+		if e := &g.Epics[j]; dropEdges {
 			e.DependsOn = dropEpicFromDeps(e.DependsOn, id, done)
 		}
-		for name, gate := range g.Gates {
-			gate.Members = slices.DeleteFunc(gate.Members, func(m string) bool { return m == id })
-			gate.Deferrable = slices.DeleteFunc(gate.Deferrable, func(m string) bool { return m == id })
-			g.Gates[name] = gate
-		}
-		return nil
+	}
+	for name, gate := range g.Gates {
+		gate.Members = slices.DeleteFunc(gate.Members, func(m string) bool { return m == id })
+		gate.Deferrable = slices.DeleteFunc(gate.Deferrable, func(m string) bool { return m == id })
+		g.Gates[name] = gate
 	}
 }
 
