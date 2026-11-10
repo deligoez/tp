@@ -129,6 +129,32 @@ func TestEpicSet_GatesAndTagChecksReplaceTheWholeObject(t *testing.T) {
 	assert.Equal(t, "b", g.TagChecks["ui"].ProvidedBy)
 }
 
+// TestEpicSet_TagChecksTakeDirect (spec/1.7.0.md §3): tag_checks= writes a
+// check's "direct", and a direct check a carrier reaches only through another
+// epic is a lint error the write refuses.
+func TestEpicSet_TagChecksTakeDirect(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{
+  "version": 1,
+  "milestones": [["A"]],
+  "epics": [
+    {"id": "p", "title": "Provider", "milestone": "A"},
+    {"id": "x", "title": "Middle", "milestone": "A", "depends_on": [{"id": "p", "why": "needs the checker"}]},
+    {"id": "s", "title": "Screen", "milestone": "A", "tags": ["ui"], "depends_on": [{"id": "x", "why": "renders its data"}]}
+  ]
+}
+`)
+	before := readEpicGraphFile(t, dir)
+	_, stderr, code := runTP(t, dir, "epic", "set", `tag_checks={"ui": {"provided_by": "p", "direct": true}}`)
+	assert.Equal(t, 1, code, "s reaches p only through x: stderr: %s", stderr)
+	assert.Contains(t, stderr, "direct")
+	assert.Equal(t, before, readEpicGraphFile(t, dir), "a refused set writes nothing")
+
+	_, stderr, code = runTP(t, dir, "epic", "set", `tag_checks={"ui": {"provided_by": "x", "direct": true}}`)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.Contains(t, string(readEpicGraphFile(t, dir)), `"direct": true`)
+}
+
 // TestEpicSet_ConditionOnAFreeEpicIsWritten: the refusal is for a bound or
 // claimed epic only, so one with neither becomes a condition and back.
 func TestEpicSet_ConditionOnAFreeEpicIsWritten(t *testing.T) {
