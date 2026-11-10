@@ -1644,7 +1644,11 @@ The read commands write nothing and list epics in graph order, every list `[]` w
   those in an open milestone (every open track head included). `dependents_by_milestone` lists
   milestones with at least one, tracks in graph order, each in track order, then untracked ones.
   On a dependency cycle (a lint error) its members depend on each other: each counts the others,
-  and they share one chain, whatever the order of the epics. `--compact` leaves
+  and they share one chain, whatever the order of the epics. v1.7.0: while an any-of group is
+  unsatisfied, each member reaches the group's epic and what depends on it; once one member is
+  done, the others no longer do. A moot epic counts in no downstream and has none of its own.
+  `dependents` counts an epic once however many members or groups lead to it, so summing the
+  downstreams of a group's members double-counts by design. `--compact` leaves
   `dependents_by_milestone` out of every ready item, on `tp epic ready` and `tp epic status`.
 - **`actionable`** (v1.6.0): a condition is actionable when it is not done, every direct
   dependency is done, its milestone is open, and at least one of: it is a member of an open
