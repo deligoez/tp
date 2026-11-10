@@ -178,7 +178,9 @@ func sortedMapKeys[V any](m map[string]V) []string {
 }
 
 // lintEpicCycles reports each strongly connected component that holds a
-// cycle: two or more epics, or one epic depending on itself.
+// cycle: two or more epics, or one epic depending on itself. An edge to any
+// member of an any-of group counts, so a loop through one member is a cycle
+// though another member could be done first.
 func lintEpicCycles(g *model.EpicGraph) []EpicLintFinding {
 	ids := epicIDs(g)
 	adj := map[string][]string{}
@@ -190,8 +192,10 @@ func lintEpicCycles(g *model.EpicGraph) []EpicLintFinding {
 			adj[e.ID] = nil
 		}
 		for _, d := range e.DependsOn {
-			if ids[d.ID] {
-				adj[e.ID] = append(adj[e.ID], d.ID)
+			for _, id := range d.Names() {
+				if ids[id] {
+					adj[e.ID] = append(adj[e.ID], id)
+				}
 			}
 		}
 	}
