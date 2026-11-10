@@ -201,3 +201,18 @@ func TestEpicReviewSlice_EveryMilestoneOfTheSliceHasAGateUnit(t *testing.T) {
 	assert.Equal(t, "gate: A\nmembers: a\nopens_after: L1\n", s.Units[4].Block,
 		"a gates entry with members and an opens_after entry keeps its 1.6.0 block")
 }
+
+// TestEpicReviewSlice_ASetOfOneAsksItsMilestonesGateAndAnEpicSliceNone: l is
+// the only epic of L1. The set {l} lists every epic of L1, so it asks L1's
+// gate too; the epic slice of l asks l alone.
+func TestEpicReviewSlice_ASetOfOneAsksItsMilestonesGateAndAnEpicSliceNone(t *testing.T) {
+	g := epicChainGraph()
+	g.Epics = append(g.Epics, model.Epic{ID: "l", Title: "L step", Milestone: "L1"})
+	s, err := EpicReviewSlice(g, EpicSliceKey{Epics: []string{"l"}})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"epic:l", "gate:L1"}, unitKeys(s.Units))
+
+	s, err = EpicReviewSlice(g, EpicSliceKey{Epic: "l"})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"epic:l"}, unitKeys(s.Units))
+}
