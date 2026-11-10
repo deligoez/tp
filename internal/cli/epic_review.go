@@ -129,12 +129,21 @@ func runEpicReview(cmd *cobra.Command, args []string) error {
 }
 
 // writeEpicReviewEmission records an emission in the slice's state directory:
-// the round's unit snapshot and the slice's key (spec/1.5.0.md §7).
+// the round's unit snapshot and the slice's key (spec/1.5.0.md §7), and makes
+// the inbox the prompts name (spec/1.7.0.md §1), with the .tp/.gitignore entry
+// that keeps it untracked. It removes nothing there, so a role that already
+// wrote its file keeps it through a re-emission.
 func writeEpicReviewEmission(run *epicReviewRun) error {
 	if err := engine.WriteEpicReviewSnapshot(run.stateDir, run.round, run.all); err != nil {
 		return err
 	}
-	return engine.WriteEpicSliceKey(run.stateDir, run.key)
+	if err := engine.WriteEpicSliceKey(run.stateDir, run.key); err != nil {
+		return err
+	}
+	if err := engine.EnsureTPGitignore(run.tpDir); err != nil {
+		return err
+	}
+	return os.MkdirAll(engine.EpicReviewInboxDir(run.stateDir), 0o755)
 }
 
 // runEpicReviewDisposition runs --resolve or --resolve-all when either is set

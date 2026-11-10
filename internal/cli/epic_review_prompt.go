@@ -232,14 +232,14 @@ func epicSliceLabel(key engine.EpicSliceKey) string {
 }
 
 // epicRoleOutputPath is the file one role writes its rows to. Under a run it
-// is the role's part file in the round directory; by hand it is cwd-relative
-// and carries the start of the state directory's hash, so two slices reviewed
-// from one directory never name one file.
+// is the role's part file in the round directory; by hand it is the absolute
+// <state dir>/inbox/<role>-r<N>.ndjson (spec/1.7.0.md §1), so it resolves the
+// same from any cwd and two slices never name one file.
 func epicRoleOutputPath(run *epicReviewRun, role string) string {
 	if roundDir := os.Getenv(engine.EnvRoundDir); roundDir != "" {
 		return engine.RoleFindingsPartPath(roundDir, role)
 	}
-	return fmt.Sprintf("epic-review-%s-r%d-%s.ndjson", filepath.Base(run.stateDir)[:12], run.round, role)
+	return engine.EpicReviewInboxPath(run.stateDir, role, run.round)
 }
 
 // epicReviewStateDirOut renders the slice's state directory relative to the
