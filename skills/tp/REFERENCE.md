@@ -1658,6 +1658,13 @@ The read commands write nothing and list epics in graph order, every list `[]` w
   of its own is not done), `dependents` (no open milestone's gate holds it and no dependent that can
   move waits on it and on conditions alone). Absent on an actionable condition; a condition never
   carries `waiting_on`, which is a milestone's key.
+- **moot** (v1.7.0): an undone epic is moot when no gate holds it (a member of any milestone's
+  gate), at least one `depends_on` entry names it, every any-of group naming it is satisfied, and
+  every plain edge naming it comes from a moot epic, so what only a lost alternative needed is moot
+  too. It is derived on every read: a new plain edge from an epic that is not moot makes it count
+  again. A moot epic is in neither `ready`, `claimed` nor `operator.conditions`, `--all` included,
+  and in `tp epic status`'s `blocked` a moot condition carries `moot: true` in place of
+  `not_actionable`. An epic a gate holds is never moot: it stays the operator's to defer or remove.
 - **`tp epic ready [--all]`**: `{ready: [{id, title, milestone, downstream}], claimed: [{id, title,
   milestone, by, at}], operator: {conditions: [{id, title, milestone, actionable, not_actionable?}],
   gates: [{milestone, threshold}]}}`. `ready` is sorted by `longest_chain`, then `dependents`, both
