@@ -148,3 +148,24 @@ func TestEpicApply_AFinalStateErrorIsRefusedNamingItsPayloadLines(t *testing.T) 
 	assert.Equal(t, before, readEpicGraphFile(t, dir), "a refused apply writes nothing")
 }
 
+// TestEpicApply_ARemoveWithoutForceLeavesItsDependentsToTheLint: removing b,
+// which a depends on, fails no row; the edge a -> b it leaves dangling
+// refuses the write, unless a later row unlinks it.
+func TestEpicApply_ARemoveWithoutForceLeavesItsDependentsToTheLint(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChainWithGate)
+	before := readEpicGraphFile(t, dir)
+	_, stderr, code := runTP(t, dir, "epic", "apply", applyPayload(t, dir, `{"op":"remove","id":"b"}`))
+	require.Equal(t, 1, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "dangling-reference [a, b]")
+	assert.Contains(t, stderr, "payload line 1")
+	assert.Equal(t, before, readEpicGraphFile(t, dir))
+
+	payload := applyPayload(t, dir, `{"op":"remove","id":"b"}`, `{"op":"unlink","from":"a","to":"b"}`)
+	_, stderr, code = runTP(t, dir, "epic", "apply", payload)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	g := loadAppliedGraph(t, dir)
+	assert.Len(t, g.Epics, 3)
+	assert.Equal(t, []string{"a"}, g.Gates["A"].Members, "the removal drops b's gate membership")
+}
+
