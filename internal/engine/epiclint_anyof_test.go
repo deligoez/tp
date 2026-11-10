@@ -48,3 +48,14 @@ func TestLintEpicGraph_AnyOfShapeFlagsEachMalformedEntry(t *testing.T) {
 	}
 }
 
+// TestLintEpicGraph_DanglingReferenceNamesEachMissingMember: a group member
+// that names no epic is a dangling-reference of its own, and the members the
+// graph holds are none.
+func TestLintEpicGraph_DanglingReferenceNamesEachMissingMember(t *testing.T) {
+	g := anyOfLintGraph()
+	g.Epics[0].DependsOn[0].AnyOf = []string{"x", "ghost", "phantom"}
+	dangling := findingsOf(t, LintEpicGraph(g, nil), EpicRuleDanglingReference)
+	require.Len(t, dangling, 2)
+	assert.Equal(t, []string{"a", "ghost"}, dangling[0].Epics)
+	assert.Equal(t, []string{"a", "phantom"}, dangling[1].Epics)
+}
