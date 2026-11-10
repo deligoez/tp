@@ -30,8 +30,8 @@ const (
 // through a plain edge or a group naming it, and an unsatisfied group counts
 // as a condition when groupCountsAsCondition says so (spec/1.7.0.md §7). The
 // first keeps a condition that holds a gate from waiting on a dependent in
-// the milestone that gate opens. states is DeriveEpicStates' result, gates MilestoneGates'
-// and bound EpicBoundFiles'. A condition of a milestone no track lists has a
+// the milestone that gate opens. states is DeriveEpicStates' result, gates
+// MilestoneGates' and bound EpicBoundFiles'. A condition of a milestone no track lists has a
 // closed milestone. tp epic ready, status and the export read this one answer.
 func ConditionsNotActionable(g *model.EpicGraph, states map[string]EpicState, gates map[string]MilestoneGate, bound map[string][]string) map[string][]string {
 	a := actionability{byID: epicsByID(g), states: states, gates: gates, bound: bound,
