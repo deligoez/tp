@@ -1643,12 +1643,13 @@ The read commands write nothing and list epics in graph order, every list `[]` w
     `tp resume`'s, each loop `{round, state}`. Review and audit count recorded rounds, `state`
     `none`, `done`, `stale` (review only), `cap_reached` or `open`; ground counts emitted rounds,
     `state` `none`, `complete` or `open`.
-  - `slices`: each `.tp/epic-review/` directory in name order, `{dir, key, round, state}`. `key` is
+  - `slices`: each `.tp/epic-review/` directory in name order, `{dir, key, round, state, grantable}`. `key` is
     its `key.json` record; without one, the key whose hash equals the directory name among the
     units its recorded rounds name (read-only, nothing is written), else `null`; `state` is `done`,
     `in_flight` (emitted, not recorded), `none`, `stale`, `cap_reached` or `open`, graded as
-    `tp epic review --status` does. A null-key slice, or one naming an epic or milestone the graph
-    no longer holds, is graded without staleness.
+    `tp epic review --status` does, `grantable` too (v1.7.0). A null-key slice, or one naming an
+    epic or milestone the graph no longer holds, is graded without staleness, so it is never
+    grantable.
 
 ### `--epic` on `tp resume`, `tp next`, `tp ready` (v1.6.0)
 
