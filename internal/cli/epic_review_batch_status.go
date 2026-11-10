@@ -3,6 +3,7 @@ package cli
 import (
 	"cmp"
 	"os"
+	"path/filepath"
 	"slices"
 
 	"github.com/deligoez/tp/internal/engine"
@@ -97,7 +98,7 @@ func sortEpicSliceDirsByTrack(dirs []engine.EpicSliceDir, g *model.EpicGraph) {
 // An unreadable recorded round exits 3, as a one-slice --status does.
 func epicBatchStatusRowOf(eg *epicReviewGraph, policy engine.EpicReviewPolicy, d engine.EpicSliceDir, checksPass bool) (epicBatchStatusRow, bool) {
 	if d.Key == nil {
-		return epicUnheldSliceRow(d, policy, "the slice directory .tp/epic-review/"+d.Name+" records no key and its rounds name none"), false
+		return epicUnheldSliceRow(eg, d, policy, "the slice directory .tp/epic-review/"+d.Name+" records no key and its rounds name none"), false
 	}
 	key := d.Key.SliceKey()
 	run, rerr := prepareEpicReviewRun(eg, key)
@@ -105,7 +106,7 @@ func epicBatchStatusRowOf(eg *epicReviewGraph, policy engine.EpicReviewPolicy, d
 		exitEpicRunError(rerr)
 	}
 	if rerr != nil {
-		return epicUnheldSliceRow(d, policy, rerr.msg), false
+		return epicUnheldSliceRow(eg, d, policy, rerr.msg), false
 	}
 	st := epicBatchLoop(run.stateDir, run.all, policy)
 	return epicBatchStatusRow{
@@ -120,15 +121,24 @@ func epicBatchStatusRowOf(eg *epicReviewGraph, policy engine.EpicReviewPolicy, d
 
 // epicUnheldSliceRow is the row of a slice whose units cannot be derived: its
 // key is unknown or names what the graph no longer holds. It is graded
-// without its staleness, as tp epic export grades it, and nothing runs on it.
-func epicUnheldSliceRow(d engine.EpicSliceDir, policy engine.EpicReviewPolicy, why string) epicBatchStatusRow {
+// without its staleness, as tp epic export grades it, and nothing runs on it;
+// a done one is a legacy slice whose directory is safe to delete.
+func epicUnheldSliceRow(eg *epicReviewGraph, d engine.EpicSliceDir, policy engine.EpicReviewPolicy, why string) epicBatchStatusRow {
 	st := epicBatchLoop(d.Path, nil, policy)
+	next := why + ": nothing runs on this slice until the graph holds it"
+	if st.Done {
+		path := d.Path
+		if rel, err := filepath.Rel(filepath.Dir(eg.tpDir), d.Path); err == nil {
+			path = rel
+		}
+		next = "legacy slice, done; no action (safe to delete " + path + ")"
+	}
 	return epicBatchStatusRow{
 		Key:        d.Key,
 		Round:      st.Round,
 		State:      engine.EpicSliceLoop(&st, false).State,
 		Open:       st.Open,
-		NextAction: why + ": nothing runs on this slice until the graph holds it",
+		NextAction: next,
 	}
 }
 
