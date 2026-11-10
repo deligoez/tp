@@ -129,3 +129,22 @@ func TestEpicApply_AnErrorOnlyAnIntermediateStateHoldsIsNotRefused(t *testing.T)
 	assert.JSONEq(t, string(before), string(readEpicGraphFile(t, dir)))
 }
 
+// TestEpicApply_AFinalStateErrorIsRefusedNamingItsPayloadLines: an edge to
+// an epic no row adds is a dangling-reference of the after-state; the
+// refusal names the lines of both rows naming e, and nothing is written.
+func TestEpicApply_AFinalStateErrorIsRefusedNamingItsPayloadLines(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChainWithGate)
+	before := readEpicGraphFile(t, dir)
+	payload := applyPayload(t, dir,
+		`{"op":"set","id":"a","field":"title","value":"A2"}`,
+		`{"op":"add","epic":{"id":"e","title":"E","milestone":"A"}}`,
+		`{"op":"link","from":"e","to":"ghost","why":"e reads ghost"}`,
+	)
+	_, stderr, code := runTP(t, dir, "epic", "apply", payload)
+	require.Equal(t, 1, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "dangling-reference")
+	assert.Contains(t, stderr, "payload lines 2, 3", "the error names e (lines 2 and 3) and ghost (line 3)")
+	assert.Equal(t, before, readEpicGraphFile(t, dir), "a refused apply writes nothing")
+}
+
