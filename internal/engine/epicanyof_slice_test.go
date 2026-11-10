@@ -28,3 +28,16 @@ func TestEpicReviewSlice_AnEpicBlockRendersAGroupLine(t *testing.T) {
 	require.Len(t, s.Units, 1)
 	assert.Contains(t, s.Units[0].Block, "depends_on:\n- one of {a, b}: either opens the API\n")
 }
+
+// TestEpicReviewSlice_AUnitHashCoversItsGroupMembersBlocks is spec/1.7.0.md
+// §7: a group's members are w's dependencies, so editing b's title re-asks
+// w as editing a plain dependency does. A hash that read a group's id
+// covers no member's block.
+func TestEpicReviewSlice_AUnitHashCoversItsGroupMembersBlocks(t *testing.T) {
+	before := unitHashes(t, anyOfSliceGraph())
+	g := anyOfSliceGraph()
+	g.Epics[1].Title = "B step, renamed"
+	after := unitHashes(t, g)
+	assert.NotEqual(t, before["epic:w"], after["epic:w"])
+	assert.Equal(t, before["epic:a"], after["epic:a"])
+}
