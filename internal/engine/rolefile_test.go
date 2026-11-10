@@ -65,6 +65,19 @@ func TestParseRoleBytes_ReservedID(t *testing.T) {
 	assert.Contains(t, err.Error(), "reserved")
 }
 
+// TestParseRoleBytes_NeighboursBriefIsAContext: spec/1.7.0.md §4 adds
+// neighbours-brief to a graph role's context values, and the refusal of an
+// unknown value names it among the allowed ones.
+func TestParseRoleBytes_NeighboursBriefIsAContext(t *testing.T) {
+	role, err := ParseRoleBytes([]byte(`{"id":"r","title":"T","instructions":"I","context":"neighbours-brief"}`), "r")
+	require.NoError(t, err)
+	assert.Equal(t, "neighbours-brief", role.Context)
+
+	_, err = ParseRoleBytes([]byte(`{"id":"r","title":"T","instructions":"I","context":"sideways"}`), "r")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "neighbours-brief")
+}
+
 // TestParseRoleBytes_UnknownKey rejects any top-level key outside §3.3, naming it.
 func TestParseRoleBytes_UnknownKey(t *testing.T) {
 	// An attempt to declare an output field is an unknown key.
