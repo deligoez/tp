@@ -97,3 +97,19 @@ func TestEpicApply_TheLastOfAnUnlinkAndALinkOfOneEdgeStands(t *testing.T) {
 	assert.Empty(t, appliedEpic(t, &g, "d").DependsOn)
 }
 
+// TestEpicApply_AForwardReferenceIsJudgedOnlyByTheFinalLint: a link to an
+// epic a later row adds is a reference inside a row, so it waits for the one
+// lint of the after-state, which holds the epic.
+func TestEpicApply_AForwardReferenceIsJudgedOnlyByTheFinalLint(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChainWithGate)
+	payload := applyPayload(t, dir,
+		`{"op":"link","from":"d","to":"e","why":"d reads e"}`,
+		`{"op":"add","epic":{"id":"e","title":"E","milestone":"A"}}`,
+	)
+	_, stderr, code := runTP(t, dir, "epic", "apply", payload)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	g := loadAppliedGraph(t, dir)
+	assert.Equal(t, []model.EpicDep{{ID: "e", Why: "d reads e"}}, appliedEpic(t, &g, "d").DependsOn)
+}
+
