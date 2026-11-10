@@ -113,3 +113,21 @@ func TestEpicReady_ALostAlternativeIsMoot(t *testing.T) {
 	assert.True(t, r.Moot["c2"])
 	assert.Contains(t, r.Ready, "w")
 }
+
+// TestMootEpics_WhatOnlyALostAlternativeNeedsIsMootToo is spec/1.7.0.md §7:
+// w depends on one of {a, b} and a is done, so b is moot; b's plain edge
+// to the condition c, which no gate holds, makes c moot too, though c comes
+// first in the graph. A rule that judged each epic once, in graph order,
+// leaves c unmoot; c then stays among the operator's conditions.
+func TestMootEpics_WhatOnlyALostAlternativeNeedsIsMootToo(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"M"}}, Epics: []model.Epic{
+		{ID: "c", Title: "C", Milestone: "M", Root: true, Condition: true, Acceptance: "the vendor says yes"},
+		{ID: "w", Title: "W", Milestone: "M", DependsOn: []model.EpicDep{{AnyOf: []string{"a", "b"}, Why: "either opens the API"}}},
+		{ID: "a", Title: "A", Milestone: "M", Root: true},
+		{ID: "b", Title: "B", Milestone: "M", DependsOn: []model.EpicDep{{ID: "c", Why: "b runs on the vendor's API"}}},
+	}}
+	g.Gates = map[string]model.EpicGate{"M": {Members: []string{"w", "a"}}}
+	states := anyOfStates(g, "a")
+	assert.Equal(t, map[string]bool{"b": true, "c": true}, MootEpics(g, states))
+	assert.NotContains(t, EpicReady(g, states, nil, true).Conditions, "c")
+}
