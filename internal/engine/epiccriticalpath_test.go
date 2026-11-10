@@ -101,6 +101,21 @@ func TestCriticalPath_ATieGoesToTheEarlierGateMember(t *testing.T) {
 	assert.Equal(t, []string{"p"}, path.ByEstimate)
 }
 
+// TestCriticalPath_ATieGoesToTheEarlierDependency is §7's second tie rule:
+// m, A's gate member, depends on x and then y, two chains of one, so the
+// path runs through x. A walk that let the later dependency of equal weight
+// win would run through y.
+func TestCriticalPath_ATieGoesToTheEarlierDependency(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"B", "A"}}, Epics: []model.Epic{
+		dependsOn("m", "A", "x", "y"), dependsOn("x", "B"), dependsOn("y", "B"),
+	}}
+
+	path := criticalPathOf(t, g, map[string]int{"m": 5, "x": 5, "y": 5})
+
+	assert.Equal(t, []string{"x", "m"}, path.ByCount)
+	assert.Equal(t, []string{"x", "m"}, path.ByEstimate)
+}
+
 // writeEstimateTaskFile writes a task file under dir holding one task per
 // estimate given and returns its path.
 func writeEstimateTaskFile(t *testing.T, dir, name string, estimates ...int) string {
