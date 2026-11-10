@@ -8,10 +8,12 @@ import (
 	"github.com/deligoez/tp/internal/model"
 )
 
-// withAnyOf returns e depending also on the any-of group of members.
-func withAnyOf(e model.Epic, members ...string) model.Epic {
+// anyOfEpic is epic id of milestone m depending on the epics of plain and on
+// the any-of group of members.
+func anyOfEpic(members []string, id, m string, plain ...string) model.Epic {
+	e := dependsOn(id, m, plain...)
 	e.Root = false
-	e.DependsOn = append(e.DependsOn, model.EpicDep{AnyOf: members, Why: e.ID + " needs one of them"})
+	e.DependsOn = append(e.DependsOn, model.EpicDep{AnyOf: members, Why: id + " needs one of them"})
 	return e
 }
 
@@ -25,8 +27,8 @@ func withAnyOf(e model.Epic, members ...string) model.Epic {
 func TestEpicDownstreams_AGroupCountsInEachMembersDownstreamUntilSatisfied(t *testing.T) {
 	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"P"}}, Epics: []model.Epic{
 		dependsOn("a", "P"), dependsOn("b", "P"), dependsOn("c", "P"),
-		withAnyOf(dependsOn("w", "P"), "a", "b"),
-		withAnyOf(dependsOn("v", "P", "w"), "a", "c"),
+		anyOfEpic([]string{"a", "b"}, "w", "P"),
+		anyOfEpic([]string{"a", "c"}, "v", "P", "w"),
 	}}
 	in := func(n int) []MilestoneDependents { return []MilestoneDependents{{Milestone: "P", Dependents: n}} }
 	got := EpicDownstreams(g, anyOfStates(g), map[string]MilestoneGate{}, []string{"a", "b", "c"})
@@ -46,7 +48,7 @@ func TestEpicDownstreams_AGroupCountsInEachMembersDownstreamUntilSatisfied(t *te
 func TestEpicDownstreams_AMootEpicLeavesEveryCount(t *testing.T) {
 	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"P"}}, Epics: []model.Epic{
 		dependsOn("r", "P"), dependsOn("a", "P"), dependsOn("b", "P", "r"),
-		withAnyOf(dependsOn("w", "P"), "a", "b"),
+		anyOfEpic([]string{"a", "b"}, "w", "P"),
 	}}
 	g.Gates = map[string]model.EpicGate{"P": {Members: []string{"r", "a", "w"}}}
 	got := EpicDownstreams(g, anyOfStates(g, "a"), map[string]MilestoneGate{}, []string{"r", "b"})
@@ -63,12 +65,12 @@ func TestEpicDownstreams_AMootEpicLeavesEveryCount(t *testing.T) {
 func TestGraphCriticalPath_GoesThroughTheGroupMemberWithTheShortestChain(t *testing.T) {
 	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"P"}}, Epics: []model.Epic{
 		dependsOn("b", "P"), dependsOn("b2", "P", "b"), dependsOn("a", "P"),
-		withAnyOf(dependsOn("w", "P"), "a", "b2"), dependsOn("v", "P", "w"),
+		anyOfEpic([]string{"a", "b2"}, "w", "P"), dependsOn("v", "P", "w"),
 	}}
 	assert.Equal(t, []string{"a", "w", "v"}, GraphCriticalPath(g, anyOfStates(g)))
 
 	g = &model.EpicGraph{Version: 1, Milestones: [][]string{{"P"}}, Epics: []model.Epic{
-		dependsOn("c", "P"), dependsOn("d", "P"), withAnyOf(dependsOn("y", "P"), "d", "c"),
+		dependsOn("c", "P"), dependsOn("d", "P"), anyOfEpic([]string{"d", "c"}, "y", "P"),
 	}}
 	assert.Equal(t, []string{"d", "y"}, GraphCriticalPath(g, anyOfStates(g)))
 }
@@ -79,7 +81,7 @@ func TestGraphCriticalPath_GoesThroughTheGroupMemberWithTheShortestChain(t *test
 func TestGraphCriticalPath_LeavesAMootEpicOut(t *testing.T) {
 	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"P"}}, Epics: []model.Epic{
 		dependsOn("r", "P"), dependsOn("a", "P"), dependsOn("b", "P", "r"),
-		withAnyOf(dependsOn("w", "P"), "a", "b"),
+		anyOfEpic([]string{"a", "b"}, "w", "P"),
 	}}
 	g.Gates = map[string]model.EpicGate{"P": {Members: []string{"r", "a", "w"}}}
 	assert.Equal(t, []string{"r"}, GraphCriticalPath(g, anyOfStates(g, "a")))
@@ -93,7 +95,7 @@ func TestGraphCriticalPath_LeavesAMootEpicOut(t *testing.T) {
 // and y by estimate.
 func TestCriticalPath_GoesThroughTheGroupMemberWithTheShortestChain(t *testing.T) {
 	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"A"}, {"B"}}, Epics: []model.Epic{
-		withAnyOf(dependsOn("m", "A"), "x", "y"), dependsOn("x", "A", "x2"), dependsOn("x2", "B"), dependsOn("y", "B"),
+		anyOfEpic([]string{"x", "y"}, "m", "A"), dependsOn("x", "A", "x2"), dependsOn("x2", "B"), dependsOn("y", "B"),
 	}, Gates: map[string]model.EpicGate{"A": {Members: []string{"m"}}}}
 	path := CriticalPath(g, anyOfStates(g), map[string]int{"m": 5, "x": 10, "x2": 10, "y": 50}, "A")
 	assert.Equal(t, EpicCriticalPath{ByCount: []string{"y", "m"}, ByEstimate: []string{"x2", "x", "m"}, EstimateMinutes: 25}, path)
@@ -104,7 +106,7 @@ func TestCriticalPath_GoesThroughTheGroupMemberWithTheShortestChain(t *testing.T
 // first listed. A walk that kept the last tied member goes through x.
 func TestCriticalPath_TakesTheFirstListedMemberOnATie(t *testing.T) {
 	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"A"}}, Epics: []model.Epic{
-		withAnyOf(dependsOn("m", "A"), "y", "x"), dependsOn("x", "A"), dependsOn("y", "A"),
+		anyOfEpic([]string{"y", "x"}, "m", "A"), dependsOn("x", "A"), dependsOn("y", "A"),
 	}, Gates: map[string]model.EpicGate{"A": {Members: []string{"m"}}}}
 	path := CriticalPath(g, anyOfStates(g), map[string]int{"m": 5, "x": 10, "y": 10}, "A")
 	assert.Equal(t, EpicCriticalPath{ByCount: []string{"y", "m"}, ByEstimate: []string{"y", "m"}, EstimateMinutes: 15}, path)
