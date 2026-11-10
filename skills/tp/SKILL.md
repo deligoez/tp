@@ -804,8 +804,10 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp epic import <file> --if-revision <hex>` | The same guard on `import` |
 | `tp epic link <from> <to> <why>` | Add the edge `from -> to` with its `why`, or replace the `why` of that edge when it exists; prints the writers' payload plus `action` (`added` or `replaced`). An absent `<from>` exits 4; an absent `<to>` or an empty `why` is a new lint error (exit 1, writes nothing) |
 | `tp epic link <from> <to> <why> --if-revision <hex>` | The same guard on `link` |
+| `tp epic link <from> --any-of <csv> <why>` | Add the any-of group of the listed members to `<from>` with its `why`, or replace the `why` of the group `<from>` already has with that member set, in any order; a different set is a new group. Prints the writers' payload with `action`. A one-member group, a group beside a plain edge to a member, or a second group with one member set is `any-of-shape` (exit 1, writes nothing) |
 | `tp epic unlink <from> <to>` | Remove the edge `from -> to`; prints the writers' payload with `action: removed`. An absent `<from>` or an edge the graph does not hold exits 4 |
 | `tp epic unlink <from> <to> --if-revision <hex>` | The same guard on `unlink` |
+| `tp epic unlink <from> --any-of <csv>` | Remove `<from>`'s group with exactly that member set, in any order; no such group exits 4. A plain `unlink` of an id that is only a group member exits 4, its hint naming the group's `unlink --any-of` |
 | `tp epic milestone add <name> --after <m>` / `--before <m>` | Insert one milestone right after or right before `<m>`, in `<m>`'s track, instead of rewriting every track with `set milestones`; prints the writers' payload with `action: added`. Exactly one of `--after`, `--before` and `--new-track` (else exit 2); an absent `<m>` exits 4; a name a track already holds exits 1 |
 | `tp epic milestone add <name> --new-track` | Open a new track holding only `<name>`, creating an absent file |
 | `tp epic milestone add <name> --if-revision <hex>` | The same guard on `milestone add` |
