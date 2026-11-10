@@ -110,9 +110,26 @@ layers are given, and either would be the page's one dependency).
   phase, tasks bar) → loops (ground/review/audit round + state) → tasks (gap 1) → slices naming it.
 - **Live change:** an epic whose fields changed in the last push glows briefly.
 
+### What the field artifact taught
+
+The field project's own map (about 500 epics, ~2,200 edges, one self-contained page with the graph
+inline) had four views; answers came from the list and the dependency tree, and the map was the
+showpiece. Its lessons, in shape: depth bands read well, and an epic with no dependencies belongs
+next to its first dependent, not with the other roots (else the first band fills with unrelated
+roots); everything drawn at once at 500+ nodes is a hairball, and bands that cross milestones lose
+milestone identity; edges off by default, the selection lighting its upstream and downstream; the
+question asked most was "what does this wait on, what waits on it, and why", the second "which
+epics block the most work". It never had gates, conditions, progress state, review findings, a diff
+between two graph revisions, or a one-milestone-plus-neighbours filter. So: tp computes the ranks,
+the map stays an overview, and the chain view below is a primary view, not a panel.
+
 ### Views besides the map
 
 Overview first, then zoom and filter, then details on demand: the map is not the first thing read.
+
+- **Chain** (primary): the selected epic — by default the most waited-on — with its upstream and
+  downstream as collapsible outlines, each edge with its why, a name re-centring the chain; beside
+  it, the most waited-on epics.
 
 - **KPI strip** (top): share done, ready count, critical-path length, blocked/held counts, operator
   queue (conditions, gates awaiting `--met`), open review loops, throughput sparkline, estimate vs
