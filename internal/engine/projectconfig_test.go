@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -8,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/deligoez/tp/internal/model"
 )
 
 func evalLink(t *testing.T, p string) string {
@@ -235,4 +238,37 @@ func TestLoadProjectConfig_EmptyObjectIsValid(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, warns)
 	assert.True(t, pc.Workflow.IsEmpty())
+}
+
+// TestClampWorkflowRanges_KeepsEachDocumentedBoundAndDropsOnePast pins
+// REFERENCE.md's ranges at their edges: lock_timeout_seconds 1-60,
+// audit_clean_rounds 1-10, review_max_rounds and audit_max_rounds 0-50. A
+// bound itself is kept without a warning; one past it falls back to the
+// built-in default with a warning naming the range. A value far outside, the
+// only kind other tests use, cannot tell a bound moved by one.
+func TestClampWorkflowRanges_KeepsEachDocumentedBoundAndDropsOnePast(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		field  func(wo *model.WorkflowOverride) **int
+		lo, hi int
+	}{
+		{"lock_timeout_seconds", func(wo *model.WorkflowOverride) **int { return &wo.LockTimeoutSeconds }, 1, 60},
+		{"audit_clean_rounds", func(wo *model.WorkflowOverride) **int { return &wo.AuditCleanRounds }, 1, 10},
+		{"review_max_rounds", func(wo *model.WorkflowOverride) **int { return &wo.ReviewMaxRounds }, 0, 50},
+		{"audit_max_rounds", func(wo *model.WorkflowOverride) **int { return &wo.AuditMaxRounds }, 0, 50},
+	} {
+		for _, v := range []int{tc.lo, tc.hi} {
+			var wo model.WorkflowOverride
+			*tc.field(&wo) = ptr(v)
+			assert.Empty(t, clampWorkflowRanges(&wo), "%s=%d is in range", tc.name, v)
+			assert.NotNil(t, *tc.field(&wo), "%s=%d is kept", tc.name, v)
+		}
+		for _, v := range []int{tc.lo - 1, tc.hi + 1} {
+			var wo model.WorkflowOverride
+			*tc.field(&wo) = ptr(v)
+			want := fmt.Sprintf("workflow.%s: %d is out of range [%d,%d], using the built-in default", tc.name, v, tc.lo, tc.hi)
+			assert.Equal(t, []string{want}, clampWorkflowRanges(&wo), "%s=%d", tc.name, v)
+			assert.Nil(t, *tc.field(&wo), "%s=%d falls back", tc.name, v)
+		}
+	}
 }
