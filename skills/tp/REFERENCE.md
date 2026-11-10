@@ -1683,7 +1683,7 @@ The read commands write nothing and list epics in graph order, every list `[]` w
   `--open` and `--compact`. Each tracked milestone once, in track order: `{milestone, open,
   opens_after, waiting_on, counts: {planned, claimed, specced, in_progress, done, conditions_done},
   share_done, gate, ready, claimed, blocked: [{id, title, milestone, held_by, blocked_by,
-  not_actionable?}], operator,
+  not_actionable?, moot?}], operator,
   critical_path: {by_count, by_estimate: {chain, estimate_minutes}}, throughput: [{week, done}],
   rollup: [{epic, estimate_minutes, actual_minutes, tracked, estimate_total}]}`. `opens_after` is
   the effective list, defaults applied; `waiting_on` those of it not open or not green, `[]` once
@@ -1694,7 +1694,7 @@ The read commands write nothing and list epics in graph order, every list `[]` w
   `share_done` is `done` over the milestone's work epics to two places, 0 with none, and a done
   condition counts in `conditions_done` alone. `blocked` is each not-done epic with a dependency not
   done: `blocked_by` every such dependency once, `held_by` the conditions among them (v1.6.0), as
-  export's epics, and on a condition `not_actionable`. `by_count` runs in work order, the gate member last, `[]` when every member is done; ties go
+  export's epics, and on a condition `not_actionable`, or `moot: true` on a moot one (v1.7.0). `by_count` runs in work order, the gate member last, `[]` when every member is done; ties go
   to the earlier gate member, then the earlier dependency. `by_estimate.chain` is `null` when an
   epic on a chain has no estimate. `throughput` lists only weeks with a done work epic, ascending, as
   UTC ISO weeks (`2026-W45`), counting epics `done` now. `rollup` has a row per bound epic, summing
