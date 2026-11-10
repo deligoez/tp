@@ -107,3 +107,32 @@ func TestPreToolUseHookRefusesEveryOtherEpicStatePath(t *testing.T) {
 	}
 }
 
+// TestPreToolUseHookRefusesASymlinkedInboxName is the physical half: the name
+// passes only when the physical path is that name too. A symlink at the inbox
+// name pointing at a fenced file, and an inbox directory that is a symlink to
+// the state directory, both spell the inbox name and write elsewhere. The
+// plain file beside them is the control that shows the fixture's inbox passes.
+func TestPreToolUseHookRefusesASymlinkedInboxName(t *testing.T) {
+	t.Parallel()
+	project := t.TempDir()
+	state := filepath.Join(project, filepath.FromSlash(epicInboxStateDir))
+	inbox := filepath.Join(state, "inbox")
+	require.NoError(t, os.MkdirAll(inbox, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(project, ".tp", "config.json"), []byte("{}\n"), 0o600))
+	require.NoError(t, os.Symlink(filepath.Join(project, ".tp", "config.json"), filepath.Join(inbox, "why-auditor-r1.ndjson")))
+
+	other := filepath.Join(project, ".tp", "epic-review", strings.Repeat("fedcba9876543210", 4))
+	require.NoError(t, os.MkdirAll(other, 0o755))
+	require.NoError(t, os.Symlink(other, filepath.Join(other, "inbox")))
+
+	control := runWriteDenyHookIn(t, project, nil, filepath.Join(inbox, "phase-economist-r1.ndjson"))
+	require.Zero(t, control.exitCode, "the plain inbox name passes; stderr=%q", control.stderr)
+
+	for _, path := range []string{
+		filepath.Join(inbox, "why-auditor-r1.ndjson"),
+		filepath.Join(other, "inbox", "why-auditor-r1.ndjson"),
+	} {
+		run := runWriteDenyHookIn(t, project, nil, path)
+		assert.True(t, run.denied(), "%s writes elsewhere and must be refused; exit=%d stderr=%q", path, run.exitCode, run.stderr)
+	}
+}
