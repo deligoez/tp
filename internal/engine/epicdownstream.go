@@ -11,7 +11,10 @@ import (
 // EpicDownstream is what waits on one not-done epic (spec/1.6.0.md F1). Only
 // not-done epics reached over not-done epics count: a done epic cuts every
 // path through it. A condition is passed through but never counted, since it
-// is the operator's precondition, not work.
+// is the operator's precondition, not work. An unsatisfied any-of group
+// leads from each member to its epic, a satisfied one from none; a moot epic
+// counts nowhere (spec/1.7.0.md §7). Dependents is a set: an epic counts once
+// however many paths lead to it.
 type EpicDownstream struct {
 	// LongestChain is the most work epics on one path of epics depending on
 	// the epic, transitively, the epic itself excluded.
@@ -130,8 +133,11 @@ func GraphCriticalPath(g *model.EpicGraph, states map[string]EpicState) []string
 type downstreamWalk struct {
 	g          *model.EpicGraph
 	states     map[string]EpicState
+	moot       map[string]bool
 	index      map[string]int
 	dependents [][]int
+	// deps holds each epic's holdingDeps.
+	deps       [][][]int
 	waits      []bool
 	comp       []int
 	comps      [][]int
@@ -146,8 +152,8 @@ type downstreamWalk struct {
 // their strongly connected components.
 func newDownstreamWalk(g *model.EpicGraph, states map[string]EpicState) *downstreamWalk {
 	n := len(g.Epics)
-	w := &downstreamWalk{g: g, states: states, index: make(map[string]int, n),
-		dependents: make([][]int, n), waits: make([]bool, n), comp: make([]int, n)}
+	w := &downstreamWalk{g: g, states: states, moot: MootEpics(g, states), index: make(map[string]int, n),
+		dependents: make([][]int, n), deps: make([][][]int, n), waits: make([]bool, n), comp: make([]int, n)}
 	for i := range g.Epics {
 		if _, ok := w.index[g.Epics[i].ID]; !ok {
 			w.index[g.Epics[i].ID] = i
@@ -157,15 +163,47 @@ func newDownstreamWalk(g *model.EpicGraph, states map[string]EpicState) *downstr
 		if w.index[g.Epics[j].ID] != j || !w.undone(j) {
 			continue
 		}
-		for _, dep := range g.Epics[j].DependsOn {
-			if i, ok := w.index[dep.ID]; ok && w.undone(i) {
-				w.dependents[i] = append(w.dependents[i], j)
+		w.deps[j] = w.holdingDeps(j)
+		for _, entry := range w.deps[j] {
+			for _, i := range entry {
+				// j's entries are read together, so a repeat is the last one.
+				if k := len(w.dependents[i]); k == 0 || w.dependents[i][k-1] != j {
+					w.dependents[i] = append(w.dependents[i], j)
+				}
 				w.waits[j] = true
 			}
 		}
 	}
 	w.condense()
 	return w
+}
+
+// holdingDeps returns, for each depends_on entry of the epic at j that still
+// holds it, the positions of the not-done epics it names, in stored order: a
+// plain edge's epic, or an unsatisfied group's members (spec/1.7.0.md §7).
+// A satisfied group, a done epic and an id the graph does not hold name
+// none.
+func (w *downstreamWalk) holdingDeps(j int) [][]int {
+	var out [][]int
+	for _, dep := range w.g.Epics[j].DependsOn {
+		if dep.IsGroup() && epicDepSatisfied(dep, w.states) {
+			continue
+		}
+		names := []string{dep.ID}
+		if dep.IsGroup() {
+			names = dep.Members()
+		}
+		entry := []int{}
+		for _, id := range names {
+			if i, ok := w.index[id]; ok && w.undone(i) {
+				entry = append(entry, i)
+			}
+		}
+		if len(entry) > 0 {
+			out = append(out, entry)
+		}
+	}
+	return out
 }
 
 // condense groups the epics into strongly connected components over the
@@ -216,9 +254,11 @@ func (w *downstreamWalk) workOf(members []int) epicBits {
 	return set
 }
 
-// undone reports whether the epic at i is not done.
+// undone reports whether the epic at i is not done and not moot: a moot epic
+// leaves every count and chain as a done one does (spec/1.7.0.md §7).
 func (w *downstreamWalk) undone(i int) bool {
-	return w.states[w.g.Epics[i].ID].Status != EpicStatusDone
+	id := w.g.Epics[i].ID
+	return w.states[id].Status != EpicStatusDone && !w.moot[id]
 }
 
 // weight is what the epic at i adds to a count: 1 for work, 0 for a condition.
