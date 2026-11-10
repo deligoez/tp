@@ -98,3 +98,14 @@ func TestCriticalPath_GoesThroughTheGroupMemberWithTheShortestChain(t *testing.T
 	path := CriticalPath(g, anyOfStates(g), map[string]int{"m": 5, "x": 10, "x2": 10, "y": 50}, "A")
 	assert.Equal(t, EpicCriticalPath{ByCount: []string{"y", "m"}, ByEstimate: []string{"x2", "x", "m"}, EstimateMinutes: 25}, path)
 }
+
+// TestCriticalPath_TakesTheFirstListedMemberOnATie: m depends on one of
+// {y, x}, each one epic of 10 minutes, so both chains go through y, the
+// first listed. A walk that kept the last tied member goes through x.
+func TestCriticalPath_TakesTheFirstListedMemberOnATie(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"A"}}, Epics: []model.Epic{
+		withAnyOf(dependsOn("m", "A"), "y", "x"), dependsOn("x", "A"), dependsOn("y", "A"),
+	}, Gates: map[string]model.EpicGate{"A": {Members: []string{"m"}}}}
+	path := CriticalPath(g, anyOfStates(g), map[string]int{"m": 5, "x": 10, "y": 10}, "A")
+	assert.Equal(t, EpicCriticalPath{ByCount: []string{"y", "m"}, ByEstimate: []string{"y", "m"}, EstimateMinutes: 15}, path)
+}
