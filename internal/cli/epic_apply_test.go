@@ -221,3 +221,20 @@ func TestEpicApply_ARemoveAndALaterAddOfOneIDAreRefused(t *testing.T) {
 	assert.Equal(t, before, readEpicGraphFile(t, dir))
 }
 
+// TestEpicApply_AnAddRowCarryingARecordIsRefused: records are not rows, so an
+// add naming done is refused as --bulk refuses it, naming the line.
+func TestEpicApply_AnAddRowCarryingARecordIsRefused(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChainWithGate)
+	before := readEpicGraphFile(t, dir)
+	payload := applyPayload(t, dir,
+		`{"op":"set","id":"a","field":"title","value":"A2"}`,
+		`{"op":"add","epic":{"id":"e","title":"E","milestone":"A","done":{"at":"2026-01-01T00:00:00Z","evidence":"x"}}}`,
+	)
+	_, stderr, code := runTP(t, dir, "epic", "apply", payload)
+	require.Equal(t, 2, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "payload line 2")
+	assert.Contains(t, stderr, "names done")
+	assert.Equal(t, before, readEpicGraphFile(t, dir))
+}
+
