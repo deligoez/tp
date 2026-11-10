@@ -86,6 +86,21 @@ func TestCriticalPath_EstimateChainOmittedWhenAnEpicHasNone(t *testing.T) {
 	assert.Zero(t, path.EstimateMinutes)
 }
 
+// TestCriticalPath_ATieGoesToTheEarlierGateMember is §7's first tie rule:
+// A's gate holds p and q, each a chain of one, so the path is p's, by count
+// and by estimate alike. A walk that let a later chain of equal weight win
+// would report q.
+func TestCriticalPath_ATieGoesToTheEarlierGateMember(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"A"}}, Epics: []model.Epic{
+		dependsOn("p", "A"), dependsOn("q", "A"),
+	}}
+
+	path := criticalPathOf(t, g, map[string]int{"p": 5, "q": 5})
+
+	assert.Equal(t, []string{"p"}, path.ByCount)
+	assert.Equal(t, []string{"p"}, path.ByEstimate)
+}
+
 // writeEstimateTaskFile writes a task file under dir holding one task per
 // estimate given and returns its path.
 func writeEstimateTaskFile(t *testing.T, dir, name string, estimates ...int) string {
