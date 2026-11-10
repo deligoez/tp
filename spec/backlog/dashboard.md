@@ -1,7 +1,9 @@
 # tp dashboard — one view of the plan, the specs and every loop
 
 > Decision candidate, rewritten against the v1.6.0 export as shipped. Nothing here is decided until
-> the operator answers §6.
+> the operator answers §6. v1.7.0 moved the export to `version: 2`, which this candidate reads: a
+> `depends_on` entry may be `{any_of, why}`, and `epics[]` add `blocked_by_any_of`,
+> `held_by_any_of`, `blocked`, `held` and `moot` (spec/1.7.0.md §7).
 
 ## Decision (proposed)
 
