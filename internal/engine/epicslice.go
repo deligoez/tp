@@ -214,15 +214,18 @@ func epicDependentBrief(e *model.Epic, asked map[string]bool) string {
 	return b.String()
 }
 
-// epicUnit builds an epic's unit; a dependency the graph does not hold adds
-// nothing to the hash.
+// epicUnit builds an epic's unit, hashing its block and the block of each
+// epic its entries name, a group's members included (spec/1.7.0.md §7); a
+// dependency the graph does not hold adds nothing to the hash.
 func epicUnit(e *model.Epic, byID map[string]*model.Epic) EpicReviewUnit {
 	block := epicBlock(e)
 	var hashed strings.Builder
 	hashed.WriteString(block)
 	for _, d := range e.DependsOn {
-		if dep, ok := byID[d.ID]; ok {
-			hashed.WriteString("\x00" + epicBlock(dep))
+		for _, id := range d.Names() {
+			if dep, ok := byID[id]; ok {
+				hashed.WriteString("\x00" + epicBlock(dep))
+			}
 		}
 	}
 	return EpicReviewUnit{Key: "epic:" + e.ID, Block: block, Hash: epicHash(hashed.String())}
