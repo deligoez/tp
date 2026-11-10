@@ -1468,7 +1468,7 @@ its own, so the set may grow without changing directory. `--status` names it as
 
 | File | Written by | Content |
 |------|------------|---------|
-| `snapshot-round-<N>.json` | emission | each unit's hash and block text as round N read it; a unit's hash covers its own block and, for an epic, the blocks of its direct dependencies |
+| `snapshot-round-<N>.json` | emission | each unit's hash and block text as round N read it; a unit's hash covers its own block and, for an epic, the blocks of its direct dependencies, an any-of group's members included (v1.7.0) |
 | `round-<N>.ndjson` | `--record` | the round's findings, each with `severity`, `finding`, `location` (`epic:<id>` or `gate:<m>`) and `evidence`; `--resolve` writes dispositions into the last one |
 | `key.json` | emission (v1.5.0) | the slice's key, `{kind, value?, ids?, name?}` with `kind` one of `epic`, `milestone`, `epics`; `tp epic export` lists it |
 | `grant.json` | `--grant-round` (v1.7.0) | `{round}`, the one round past the cap the operator granted; recording that round spends it |
@@ -1504,6 +1504,9 @@ each dependency's full block and each dependent as its id, title, milestone and 
 asked units with their whys, in a round that appends no regression role (one that does keeps every
 neighbour in full); `dod-satisfiability` and `why-auditor` ship with `dependencies`, and
 `phase-economist` with `neighbours-brief` (an ejected copy keeps the value it was ejected with).
+An any-of group's every member is one edge away from its epic (v1.7.0): asking the epic shows the
+members as dependencies, asking a member shows the epic as a dependent, its brief listing the group
+as `one of {A, B}: <why>`.
 A carried gate's block is shown read-only in the context of
 every prompt. Each prompt's `output_path` is the absolute `<state dir>/inbox/<role>-r<N>.ndjson`
 in the slice's inbox (v1.7.0; until then a cwd-relative `epic-review-<hash prefix>-r<N>-<role>.ndjson`),
