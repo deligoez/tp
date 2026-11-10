@@ -129,6 +129,34 @@ physical() {
 	printf '%s\n' "$1"
 }
 
+# inbox_name reports whether a normalized path ends in the one name an epic
+# review role writes by hand, .tp/epic-review/<state dir>/inbox/<role>-r<N>.ndjson
+# (spec/1.7.0.md section 1): a state directory is a SHA-256 in hex, a role id
+# is lowercase words joined by hyphens, a round is 1 or more.
+inbox_name() {
+	printf '%s\n' "$1" |
+		grep -Eq '(^|/)\.tp/epic-review/[0-9a-f]{64}/inbox/[a-z0-9]+(-[a-z0-9]+)*-r[1-9][0-9]*\.ndjson$'
+}
+
+# inbox_allowed reports whether a write may pass the fence as an epic review
+# inbox file: whoever writes it, it passes only when both its spelling and its
+# physical form are that name. Every other path under the state directory -
+# the round files above all - stays refused, so they never become
+# hand-editable. A spelling with a `..` segment is refused outright: the kernel
+# resolves `link/..` through the link while the spelling resolves it away, so
+# the two can name different files. So is a symlink at the name, which would
+# write wherever it points.
+inbox_allowed() {
+	case $1 in
+	.. | ../* | */.. | */../*) return 1 ;;
+	/*) ia_abs=$1 ;;
+	*) ia_abs=$PWD/$1 ;;
+	esac
+	inbox_name "$(normalize "$ia_abs")" || return 1
+	[ -L "$ia_abs" ] && return 1
+	inbox_name "$(normalize "$(physical "$ia_abs")")"
+}
+
 # repo_roots prints the session repository's root in both forms, normalized.
 repo_roots() {
 	rr_from=${CLAUDE_PROJECT_DIR:-$PWD}
@@ -236,6 +264,7 @@ for path in $paths; do
 		exit 2
 		;;
 	esac
+	inbox_allowed "$path" && continue
 	denied "$path" || continue
 	[ -n "${roots+set}" ] || roots=$(repo_roots)
 	in_repo "$path" || continue
