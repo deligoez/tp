@@ -115,8 +115,10 @@ holds the rest. The epic layer's deferred pilot items are in `spec/1.3.0-measure
 10. **Measurement traps**: from a non-TTY child use `git -c diff.external= diff --no-ext-diff`;
     `tp review`/`tp audit` write round state even without `--record`, so probe in a `git clone`,
     never the repo; confirm a zero-match search with one that must match.
-11. **Mutation testing** (`gremlins`) runs before a release only, in a fresh `rsync` copy, with
-    `--workers` pinned and never `--test-cpu`; only the first run in a directory counts.
+11. **Mutation testing** runs before a release only, through `./scripts/mutation.sh` (go-mutesting
+    `--per-test`, the Go files changed since the last tag, a fresh copy, reports under
+    `~/.cache/tp-mut`). One run at a time, nothing else heavy beside it; classify survivors from the
+    run's `go-mutesting-agentic.json`, never by re-running the suite per mutant in parallel.
 12. **Plugin content**: any change under `skills/`, `agents/`, `hooks/` or `.claude-plugin/` after a
     tag needs a `plugin.json` version bump, and the guard reads committed history — run it after
     committing.
