@@ -34,8 +34,9 @@ type epicExportResult struct {
 
 // epicExportEpic is one epic's title, place, derived state and bound files, and
 // what it waits on and what waits on it (spec/1.6.0.md F9). Downstream is
-// absent on a done epic, which nothing waits on; Actionable is a condition's
-// key alone, false once the condition is done, and NotActionable names why an
+// absent on a done or moot epic, which nothing waits on; Actionable is a
+// condition's key alone, absent on a moot one, false once the condition is
+// done, and NotActionable names why an
 // undone condition is not actionable (engine.ConditionsNotActionable), absent
 // otherwise. HeldBy lists the undone conditions among its direct
 // dependencies, BlockedBy every undone direct dependency, both in depends_on
@@ -59,6 +60,9 @@ type epicExportEpic struct {
 	BlockedByAnyOf [][]string `json:"blocked_by_any_of"`
 	Blocked        bool       `json:"blocked"`
 	Held           bool       `json:"held"`
+	// Moot marks a moot epic (engine.MootEpics), which carries it in place
+	// of actionable and not_actionable.
+	Moot bool `json:"moot,omitempty"`
 }
 
 // epicExportDownstream is F1's downstream without dependents_by_milestone.
@@ -145,6 +149,7 @@ func epicExportEpics(g *model.EpicGraph, states map[string]engine.EpicState, bou
 	}
 	downs := engine.EpicDownstreams(g, states, gates, ids)
 	notActionable := engine.ConditionsNotActionable(g, states, gates, bound)
+	moot := engine.MootEpics(g, states)
 	conditions := map[string]bool{}
 	for i := range g.Epics {
 		conditions[g.Epics[i].ID] = g.Epics[i].Condition
@@ -160,7 +165,10 @@ func epicExportEpics(g *model.EpicGraph, states map[string]engine.EpicState, bou
 		if d, ok := downs[e.ID]; ok {
 			item.Downstream = &epicExportDownstream{LongestChain: d.LongestChain, Dependents: d.Dependents, DependentsOpen: d.DependentsOpen}
 		}
-		if e.Condition {
+		switch {
+		case moot[e.ID]:
+			item.Moot = true
+		case e.Condition:
 			reasons, undone := notActionable[e.ID]
 			yes := undone && len(reasons) == 0
 			item.Actionable, item.NotActionable = &yes, reasons
