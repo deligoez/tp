@@ -135,13 +135,16 @@ func lintEpicRootWithDependencies(g *model.EpicGraph) []EpicLintFinding {
 // lintEpicThinWhy warns on each edge whose why, case-folded and split into
 // words, appears as a run of whole words in the target epic's id or title. An
 // empty why is missing-why's finding and a dangling target is
-// dangling-reference's.
+// dangling-reference's. An any-of group has no one target, so it is skipped.
 func lintEpicThinWhy(g *model.EpicGraph) []EpicLintFinding {
 	byID := epicsByID(g)
 	var out []EpicLintFinding
 	for i := range g.Epics {
 		e := &g.Epics[i]
 		for _, d := range e.DependsOn {
+			if d.IsGroup() {
+				continue
+			}
 			target, ok := byID[d.ID]
 			why := epicWords(d.Why)
 			if !ok || len(why) == 0 {
