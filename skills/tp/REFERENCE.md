@@ -1649,7 +1649,10 @@ The read commands write nothing and list epics in graph order, every list `[]` w
   deciding it can turn that gate green; nothing depends on it; or some not-done dependent, in an
   open milestone or with a bound file, has only conditions among its undone direct dependencies.
   The first keeps a condition that holds a gate from waiting on a dependent in the milestone that
-  gate opens, which would never open.
+  gate opens, which would never open. v1.7.0: an epic depends on a condition through a plain edge
+  or an any-of group naming it; an unsatisfied group counts as a condition when one of its
+  condition members has its milestone open and its own dependencies done, and once a group is
+  satisfied its epic leaves the other members' actionability.
 - **`not_actionable`** (v1.6.0): on every undone condition that is not actionable, every reason that
   holds, in this order: `milestone` (its milestone is not open), `dependencies` (a direct dependency
   of its own is not done), `dependents` (no open milestone's gate holds it and no dependent that can
