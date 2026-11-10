@@ -84,3 +84,17 @@ func TestGraphCriticalPath_LeavesAMootEpicOut(t *testing.T) {
 	g.Gates = map[string]model.EpicGate{"P": {Members: []string{"r", "a", "w"}}}
 	assert.Equal(t, []string{"r"}, GraphCriticalPath(g, anyOfStates(g, "a")))
 }
+
+// TestCriticalPath_GoesThroughTheGroupMemberWithTheShortestChain is
+// spec/1.7.0.md §7: m, A's gate, depends on one of {x, y}, x on x2. By count
+// the path takes y, one epic against x's two; by estimate it takes x, 20
+// minutes against y's 50, the lightest. A walk that read a group as an edge
+// to "" stops at m; one that maximised over members goes through x by count
+// and y by estimate.
+func TestCriticalPath_GoesThroughTheGroupMemberWithTheShortestChain(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"A"}, {"B"}}, Epics: []model.Epic{
+		withAnyOf(dependsOn("m", "A"), "x", "y"), dependsOn("x", "A", "x2"), dependsOn("x2", "B"), dependsOn("y", "B"),
+	}, Gates: map[string]model.EpicGate{"A": {Members: []string{"m"}}}}
+	path := CriticalPath(g, anyOfStates(g), map[string]int{"m": 5, "x": 10, "x2": 10, "y": 50}, "A")
+	assert.Equal(t, EpicCriticalPath{ByCount: []string{"y", "m"}, ByEstimate: []string{"x2", "x", "m"}, EstimateMinutes: 25}, path)
+}
