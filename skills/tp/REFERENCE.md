@@ -112,7 +112,7 @@ Blocker vocabulary (fixed order): `unexplained-changes` (**agent-clearable**, `{
 
 ### `commit_strategy` — `builtin` / `auto` / `hc`
 
-Resolves task override > `.tp/config.json` > built-in default `auto`. A present unrecognized value → `builtin` (with a stderr warning); an absent value → `auto`.
+Resolves task override > `.tp/config.json` > built-in default `auto`. A present unrecognized value → `builtin` (with a stderr warning); an absent value → `auto`. Neither writer stores one: `tp init --commit-strategy` refuses it with exit 2 and `tp set --workflow --project commit_strategy=` with exit 1, both naming the valid values, so an unrecognized value only reaches a file edited by hand.
 
 Under effective `hc`, `tp commit`, `tp done --auto-commit`, a bare `tp done`, and `tp close` are rejected with exit 2 and the hint `commit_strategy is hc: commit with hc, then tp done --commit <sha>`. A `tp done --batch` row with neither `commit_shas` nor `covered_by` is a failed row. No commit-strategy path returns exit 4.
 
