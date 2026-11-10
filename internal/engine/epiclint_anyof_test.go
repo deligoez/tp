@@ -211,3 +211,46 @@ func TestLintEpicGraph_AGroupDependsIntoAMilestoneOnlyWhenEveryMemberIsInIt(t *t
 	g.Epics[3].DependsOn[0].AnyOf = []string{"p1", "q"}
 	assert.Empty(t, findingsOf(t, LintEpicGraph(g, nil), EpicRulePartialParallel))
 }
+
+// gateHeldGroupGraph is track [P, Q, A]: a, the member of A's gate, depends
+// on w in A, which depends on the group {c1, c2} of undone conditions in P
+// and Q.
+func gateHeldGroupGraph() *model.EpicGraph {
+	cond := func(id, m string) model.Epic {
+		e := dependsOn(id, m)
+		e.Condition, e.Acceptance = true, "the operator decides"
+		return e
+	}
+	w := dependsOn("w", "A")
+	w.Root, w.DependsOn = false, []model.EpicDep{{AnyOf: []string{"c1", "c2"}, Why: "either decision opens w"}}
+	return &model.EpicGraph{
+		Version:    1,
+		Milestones: [][]string{{"P", "Q", "A"}},
+		Gates:      map[string]model.EpicGate{"A": {Members: []string{"a"}}},
+		Epics:      []model.Epic{dependsOn("a", "A", "w"), w, cond("c1", "P"), cond("c2", "Q")},
+	}
+}
+
+// TestLintEpicGraph_GateHeldByConditionNamesAGroupOnlyWhenEveryMemberIsAnUndoneCondition:
+// a waits through w on one of {c1, c2}, both undone conditions outside A, so
+// one info finding names the group; a done c2, a c2 in A itself and a c2 that
+// is work each leave a way that is not the operator's decision, so none.
+func TestLintEpicGraph_GateHeldByConditionNamesAGroupOnlyWhenEveryMemberIsAnUndoneCondition(t *testing.T) {
+	found := findingsOf(t, LintEpicGraph(gateHeldGroupGraph(), nil), EpicRuleGateHeldByCondition)
+	require.Len(t, found, 1, "%v", found)
+	assert.Equal(t, EpicSeverityInfo, found[0].Severity)
+	assert.Equal(t, []string{"a", "c1", "c2"}, found[0].Epics)
+	assert.Equal(t, []string{"A"}, found[0].Names)
+	assert.Contains(t, found[0].Message, "one of {c1, c2}")
+	assert.Contains(t, found[0].Message, "a -> w")
+
+	for name, change := range map[string]func(e *model.Epic){
+		"a done member":         func(e *model.Epic) { e.Done = epicDoneRecord() },
+		"in the gate's own one": func(e *model.Epic) { e.Milestone = "A" },
+		"work":                  func(e *model.Epic) { e.Condition, e.Acceptance = false, "" },
+	} {
+		g := gateHeldGroupGraph()
+		change(&g.Epics[3])
+		assert.Empty(t, findingsOf(t, LintEpicGraph(g, nil), EpicRuleGateHeldByCondition), name)
+	}
+}
