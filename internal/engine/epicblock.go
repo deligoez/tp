@@ -76,6 +76,16 @@ func (b *EpicBlock) OperatorAction() *EpicOperatorAction {
 	return op
 }
 
+// Steps words op for a message: every command, then each group's choices
+// joined by "or", all separated by "; ".
+func (op *EpicOperatorAction) Steps() string {
+	steps := slices.Clone(op.Commands)
+	for _, alternatives := range op.Choices {
+		steps = append(steps, strings.Join(alternatives, " or "))
+	}
+	return strings.Join(steps, "; ")
+}
+
 // epicDoneCommands returns the operator's record of each condition of ids.
 func epicDoneCommands(ids []string) []string {
 	commands := make([]string, 0, len(ids))
