@@ -193,6 +193,15 @@ type boundIndex struct {
 }
 
 func (b *boundIndex) files(id string) ([]string, error) {
+	index, err := b.all()
+	if err != nil {
+		return nil, err
+	}
+	return index[id], nil
+}
+
+// all returns the whole index, walking it on first need.
+func (b *boundIndex) all() (map[string][]string, error) {
 	if b.index == nil {
 		index, err := EpicBoundFiles(b.dir)
 		if err != nil {
@@ -200,7 +209,7 @@ func (b *boundIndex) files(id string) ([]string, error) {
 		}
 		b.index = index
 	}
-	return b.index[id], nil
+	return b.index, nil
 }
 
 // unboundNotice says a file bound to epic behaves as unbound, and why.
