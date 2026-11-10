@@ -27,47 +27,76 @@ func epicsByID(g *model.EpicGraph) map[string]*model.Epic {
 	return byID
 }
 
-// transitiveDeps returns every epic id reachable from e over depends_on
-// edges, e itself excluded unless a cycle leads back to it. Dangling targets
-// are not followed.
-func transitiveDeps(e *model.Epic, byID map[string]*model.Epic) map[string]bool {
-	seen := map[string]bool{}
-	stack := []*model.Epic{e}
-	for len(stack) > 0 {
-		cur := stack[len(stack)-1]
-		stack = stack[:len(stack)-1]
-		for _, d := range cur.DependsOn {
-			if next, ok := byID[d.ID]; ok && !seen[d.ID] {
-				seen[d.ID] = true
-				stack = append(stack, next)
-			}
-		}
-	}
-	return seen
+// providerReach answers whether an epic depends on one provider
+// (spec/1.7.0.md §7): through a plain edge to the provider or to an epic that
+// depends on it, or through a group every member of which is the provider or
+// depends on it, by the same rule at every level. Dangling ids are not
+// followed, and a loop back to an epic being asked counts as not reaching:
+// the loop is cycle's finding.
+type providerReach struct {
+	byID     map[string]*model.Epic
+	provider string
+	memo     map[string]bool
+	visiting map[string]bool
 }
 
-// lintEpicTagChecks reports each epic carrying a checked tag whose provider
-// is not among its transitive dependencies, or, for a direct check, not a
-// plain direct dependency (spec/1.7.0.md §3). The provider is exempt, and a
-// provider naming no epic is dangling-reference's finding.
+func newProviderReach(byID map[string]*model.Epic, provider string) *providerReach {
+	return &providerReach{byID: byID, provider: provider, memo: map[string]bool{}, visiting: map[string]bool{}}
+}
+
+// dependsOn reports whether epic id depends on the provider.
+func (r *providerReach) dependsOn(id string) bool {
+	if got, ok := r.memo[id]; ok {
+		return got
+	}
+	e, ok := r.byID[id]
+	if !ok || r.visiting[id] {
+		return false
+	}
+	r.visiting[id] = true
+	got := slices.ContainsFunc(e.DependsOn, r.entryReaches)
+	delete(r.visiting, id)
+	r.memo[id] = got
+	return got
+}
+
+// isOrDependsOn reports whether id is the provider or depends on it.
+func (r *providerReach) isOrDependsOn(id string) bool {
+	return id == r.provider || r.dependsOn(id)
+}
+
+// entryReaches reports whether one depends_on entry leads to the provider: a
+// plain edge through its target, a group only through every member.
+func (r *providerReach) entryReaches(d model.EpicDep) bool {
+	if !d.IsGroup() {
+		return d.ID != "" && r.isOrDependsOn(d.ID)
+	}
+	members := d.Members()
+	return len(members) > 0 && !slices.ContainsFunc(members, func(m string) bool { return !r.isOrDependsOn(m) })
+}
+
+// lintEpicTagChecks reports each epic carrying a checked tag that does not
+// depend on its provider, or, for a direct check, has no plain direct edge
+// to it (spec/1.7.0.md §3). The provider is exempt, and a provider naming no
+// epic is dangling-reference's finding.
 func lintEpicTagChecks(g *model.EpicGraph) []EpicLintFinding {
 	if len(g.TagChecks) == 0 {
 		return nil
 	}
 	byID := epicsByID(g)
+	reach := map[string]*providerReach{}
 	var out []EpicLintFinding
 	for i := range g.Epics {
 		e := &g.Epics[i]
-		var deps map[string]bool
 		for _, tag := range e.Tags {
 			check, ok := g.TagChecks[tag]
 			if _, exists := byID[check.ProvidedBy]; !ok || !exists || check.ProvidedBy == e.ID {
 				continue
 			}
-			if !check.Direct && deps == nil {
-				deps = transitiveDeps(e, byID)
+			if reach[check.ProvidedBy] == nil {
+				reach[check.ProvidedBy] = newProviderReach(byID, check.ProvidedBy)
 			}
-			if msg := unprovidedTagMessage(e, tag, check, deps); msg != "" {
+			if msg := unprovidedTagMessage(e, tag, check, reach[check.ProvidedBy]); msg != "" {
 				out = append(out, epicNamedError(EpicRuleUnprovidedTagCheck, msg, []string{tag}, e.ID))
 			}
 		}
@@ -76,13 +105,13 @@ func lintEpicTagChecks(g *model.EpicGraph) []EpicLintFinding {
 }
 
 // unprovidedTagMessage words e's tag check finding, or returns "" when the
-// check is provided: a direct check by a plain direct edge, any other by the
-// provider among deps, e's transitive dependencies.
-func unprovidedTagMessage(e *model.Epic, tag string, check model.EpicTagCheck, deps map[string]bool) string {
+// check is provided: a direct check by a plain direct edge, any other by e
+// depending on the provider as reach judges it.
+func unprovidedTagMessage(e *model.Epic, tag string, check model.EpicTagCheck, reach *providerReach) string {
 	switch {
 	case check.Direct && !dependsDirectlyOn(e, check.ProvidedBy):
 		return fmt.Sprintf("epic %q carries tag %q, whose check is direct, but has no direct edge to its provider %q", e.ID, tag, check.ProvidedBy)
-	case !check.Direct && !deps[check.ProvidedBy]:
+	case !check.Direct && !reach.dependsOn(e.ID):
 		return fmt.Sprintf("epic %q carries tag %q but does not depend on its provider %q", e.ID, tag, check.ProvidedBy)
 	}
 	return ""
