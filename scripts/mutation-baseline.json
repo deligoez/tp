@@ -2,27 +2,81 @@
   "version": 1,
   "mutants": [
     {
-      "id": "82d8fb72712c3249387c2e21571b2e96",
-      "file": "internal/engine/epicdownstream.go",
-      "mutator": "arithmetic/base",
-      "line": 304
+      "id": "0baa267af8b4a10ad555accff3900cb2",
+      "file": "internal/engine/epicblock.go",
+      "mutator": "numbers/decrementer",
+      "line": 168
     },
     {
-      "id": "a54b0900e195915e17cf1310c41022fa",
-      "file": "internal/engine/epicdownstream.go",
-      "mutator": "arithmetic/negate",
+      "id": "e144b738c2d83511d57787332fa53fb1",
+      "file": "internal/engine/epiccriticalpath.go",
+      "mutator": "numbers/incrementer",
+      "line": 37
+    },
+    {
+      "id": "2f270137afe6ab23e4138ccb91996b66",
+      "file": "internal/engine/epiccriticalpath.go",
+      "mutator": "numbers/decrementer",
+      "line": 194
+    },
+    {
+      "id": "d7dff70a59011280e42f713147887dac",
+      "file": "internal/engine/epiccriticalpath.go",
+      "mutator": "numbers/incrementer",
+      "line": 194
+    },
+    {
+      "id": "de0c827aec9a1888c53f8ce421301b13",
+      "file": "internal/engine/epiccriticalpath.go",
+      "mutator": "numbers/decrementer",
       "line": 198
     },
     {
-      "id": "3b9011a863642bb44a052598d8c453fa",
+      "id": "fb9c2f5f6c615e45f529f5f9b4538312",
+      "file": "internal/engine/epiccriticalpath.go",
+      "mutator": "numbers/incrementer",
+      "line": 198
+    },
+    {
+      "id": "3ce60745eca9773af50d652e12681f9a",
       "file": "internal/engine/epicdownstream.go",
-      "mutator": "expression/comparison",
-      "line": 243
+      "mutator": "numbers/incrementer",
+      "line": 101
+    },
+    {
+      "id": "c00e69cbe071226e86d3f991d224d93f",
+      "file": "internal/engine/epicdownstream.go",
+      "mutator": "numbers/incrementer",
+      "line": 109
+    },
+    {
+      "id": "12864a137d7e3da1db2d6a246ec2408e",
+      "file": "internal/engine/epicdownstream.go",
+      "mutator": "numbers/incrementer",
+      "line": 144
+    },
+    {
+      "id": "42d0115392721b2493ae033adcca4a83",
+      "file": "internal/engine/epicdownstream.go",
+      "mutator": "numbers/incrementer",
+      "line": 197
     },
     {
       "id": "1921f48b952225c3e732af1a3b223229",
       "file": "internal/engine/epicdownstream.go",
       "mutator": "numbers/decrementer",
+      "line": 198
+    },
+    {
+      "id": "1aca83f7600d91f4b16c983ab5959bf5",
+      "file": "internal/engine/epicdownstream.go",
+      "mutator": "numbers/incrementer",
+      "line": 198
+    },
+    {
+      "id": "a54b0900e195915e17cf1310c41022fa",
+      "file": "internal/engine/epicdownstream.go",
+      "mutator": "arithmetic/negate",
       "line": 198
     },
     {
@@ -32,28 +86,46 @@
       "line": 207
     },
     {
-      "id": "0301d98cb3d06b966a6d50c05555018c",
+      "id": "0d10d5bf8ab170fab038a211103e4fe8",
       "file": "internal/engine/epicdownstream.go",
       "mutator": "numbers/decrementer",
-      "line": 263
+      "line": 226
     },
     {
-      "id": "3ce60745eca9773af50d652e12681f9a",
+      "id": "c22c15454fe16d5d3b3d2e732f0eb437",
       "file": "internal/engine/epicdownstream.go",
-      "mutator": "numbers/incrementer",
-      "line": 101
+      "mutator": "expression/comparison",
+      "line": 226
     },
     {
-      "id": "42d0115392721b2493ae033adcca4a83",
+      "id": "8d358719e8b4902448ab99057463d750",
       "file": "internal/engine/epicdownstream.go",
-      "mutator": "numbers/incrementer",
-      "line": 197
+      "mutator": "expression/comparison",
+      "line": 239
     },
     {
-      "id": "1aca83f7600d91f4b16c983ab5959bf5",
+      "id": "dfac54eab761a4db9f5f721801e1049f",
       "file": "internal/engine/epicdownstream.go",
       "mutator": "numbers/incrementer",
-      "line": 198
+      "line": 239
+    },
+    {
+      "id": "83607feaa88fd257c8ff290a3980074b",
+      "file": "internal/engine/epicdownstream.go",
+      "mutator": "numbers/incrementer",
+      "line": 242
+    },
+    {
+      "id": "bdc015138240920f54d7a76e0ab74549",
+      "file": "internal/engine/epicdownstream.go",
+      "mutator": "numbers/incrementer",
+      "line": 242
+    },
+    {
+      "id": "3b9011a863642bb44a052598d8c453fa",
+      "file": "internal/engine/epicdownstream.go",
+      "mutator": "expression/comparison",
+      "line": 243
     },
     {
       "id": "6475edee39993fec600930971ad94066",
@@ -68,10 +140,52 @@
       "line": 246
     },
     {
-      "id": "c43a4353306c126abbef95915d561585",
-      "file": "internal/engine/epiclint_gateheld.go",
-      "mutator": "expression/comparison",
-      "line": 77
+      "id": "0388dee0c60b0e288c33328a185d9335",
+      "file": "internal/engine/epicdownstream.go",
+      "mutator": "numbers/incrementer",
+      "line": 259
+    },
+    {
+      "id": "bd7f20cccf7cca5f40201a209961625a",
+      "file": "internal/engine/epicdownstream.go",
+      "mutator": "numbers/incrementer",
+      "line": 259
+    },
+    {
+      "id": "f95dd0c4724d17756a896b7f8ffc17ae",
+      "file": "internal/engine/epicdownstream.go",
+      "mutator": "numbers/decrementer",
+      "line": 259
+    },
+    {
+      "id": "0301d98cb3d06b966a6d50c05555018c",
+      "file": "internal/engine/epicdownstream.go",
+      "mutator": "numbers/decrementer",
+      "line": 263
+    },
+    {
+      "id": "34a2f049ab32eb9d9f138ff1074a1e27",
+      "file": "internal/engine/epicdownstream.go",
+      "mutator": "numbers/incrementer",
+      "line": 263
+    },
+    {
+      "id": "7329e350904b33248e6ab665c1dcaf4b",
+      "file": "internal/engine/epicdownstream.go",
+      "mutator": "numbers/decrementer",
+      "line": 263
+    },
+    {
+      "id": "784dc05fa0ab8dc04431d6f95540360a",
+      "file": "internal/engine/epicdownstream.go",
+      "mutator": "numbers/incrementer",
+      "line": 263
+    },
+    {
+      "id": "82d8fb72712c3249387c2e21571b2e96",
+      "file": "internal/engine/epicdownstream.go",
+      "mutator": "arithmetic/base",
+      "line": 304
     },
     {
       "id": "350129b5ec6b1f2d0178df011ffd5f5b",
@@ -80,16 +194,22 @@
       "line": 77
     },
     {
+      "id": "c43a4353306c126abbef95915d561585",
+      "file": "internal/engine/epiclint_gateheld.go",
+      "mutator": "expression/comparison",
+      "line": 77
+    },
+    {
+      "id": "21454e30878e0378324860017f7afe3a",
+      "file": "internal/engine/epiclint_gateheld.go",
+      "mutator": "numbers/decrementer",
+      "line": 100
+    },
+    {
       "id": "60b69e7f38124ae3070f70b69f43b57a",
       "file": "internal/engine/epiclint_opens_later.go",
       "mutator": "expression/comparison",
       "line": 66
-    },
-    {
-      "id": "90c2e3c253c5213a2f6881355c737a24",
-      "file": "internal/engine/epiclint_opens_later.go",
-      "mutator": "expression/comparison",
-      "line": 283
     },
     {
       "id": "a0720ba6a2cfc54a0ef9e086b9cbde94",
@@ -98,10 +218,82 @@
       "line": 276
     },
     {
+      "id": "90c2e3c253c5213a2f6881355c737a24",
+      "file": "internal/engine/epiclint_opens_later.go",
+      "mutator": "expression/comparison",
+      "line": 283
+    },
+    {
+      "id": "79ffee1409c2084221e08c1fb706fc90",
+      "file": "internal/engine/epiclint_opensafter.go",
+      "mutator": "expression/comparison",
+      "line": 170
+    },
+    {
+      "id": "c8e59364b7e3168da4bd2ac15bc66498",
+      "file": "internal/engine/epiclint_opensafter.go",
+      "mutator": "numbers/decrementer",
+      "line": 170
+    },
+    {
+      "id": "feb6362e977906d7b178e2b9ca008405",
+      "file": "internal/engine/epiclint_opensafter.go",
+      "mutator": "numbers/incrementer",
+      "line": 170
+    },
+    {
+      "id": "515304715087d682e4f41658765f9338",
+      "file": "internal/engine/epicstatedir.go",
+      "mutator": "numbers/decrementer",
+      "line": 143
+    },
+    {
+      "id": "d5dd5d1aee5038c6a79ef818f59cafc0",
+      "file": "internal/engine/epicstatedir.go",
+      "mutator": "numbers/incrementer",
+      "line": 143
+    },
+    {
       "id": "3f39b42adba59aab59c5982aea1fbf2e",
       "file": "internal/engine/epicthroughput.go",
       "mutator": "expression/comparison",
       "line": 39
+    },
+    {
+      "id": "600083866107f2d940891a09d1899e62",
+      "file": "internal/engine/escalation.go",
+      "mutator": "numbers/decrementer",
+      "line": 199
+    },
+    {
+      "id": "c0be8aea962c6e66c6f232318d11ed2b",
+      "file": "internal/engine/escalation.go",
+      "mutator": "numbers/incrementer",
+      "line": 199
+    },
+    {
+      "id": "38d0b2ff8b7b0d7716cd3ff416a95f55",
+      "file": "internal/engine/projectconfig.go",
+      "mutator": "numbers/incrementer",
+      "line": 418
+    },
+    {
+      "id": "e5da9d864624da16a17d2ff9c4146530",
+      "file": "internal/engine/projectconfig.go",
+      "mutator": "numbers/decrementer",
+      "line": 418
+    },
+    {
+      "id": "4793bc8f3615275b5a6a69cb78b3c908",
+      "file": "internal/engine/projectconfig.go",
+      "mutator": "numbers/decrementer",
+      "line": 444
+    },
+    {
+      "id": "fc8554d70b9884562e25b3fa3632e5ee",
+      "file": "internal/engine/projectconfig.go",
+      "mutator": "numbers/incrementer",
+      "line": 444
     }
   ]
 }
