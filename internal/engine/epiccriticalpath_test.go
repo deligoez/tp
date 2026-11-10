@@ -155,3 +155,19 @@ func TestEpicEstimates_OwnElseEveryBoundTaskElseNone(t *testing.T) {
 	_, err = EpicEstimates(g, bound)
 	assert.Error(t, err, "an unreadable bound file is an error")
 }
+
+// TestEpicEstimates_OneMinuteIsAnEstimate: the smallest estimate counts, in
+// both of §7's places. a's own estimate_minutes of 1 is a's estimate, and b's
+// one bound task of 1 minute is b's, though b has a single task to sum. A
+// rule that read 1 as no estimate, or wanted two tasks, would leave either
+// absent.
+func TestEpicEstimates_OneMinuteIsAnEstimate(t *testing.T) {
+	g := epicChainGraph()
+	g.Epics[0].EstimateMinutes = 1
+	bound := map[string][]string{"b": {writeEstimateTaskFile(t, t.TempDir(), "b", 1)}}
+
+	estimates, err := EpicEstimates(g, bound)
+
+	require.NoError(t, err)
+	assert.Equal(t, map[string]int{"a": 1, "b": 1}, estimates)
+}
