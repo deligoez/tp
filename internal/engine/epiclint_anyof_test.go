@@ -190,3 +190,24 @@ func TestLintEpicGraph_AGroupIsALaterMilestoneDependencyOnlyWhenEveryMemberIsLat
 	g.Epics[0].DependsOn[0].AnyOf = []string{"b", "l"}
 	assert.Empty(t, findingsOf(t, LintEpicGraph(g, nil), EpicRuleLaterMilestoneDependency))
 }
+
+// TestLintEpicGraph_AGroupDependsIntoAMilestoneOnlyWhenEveryMemberIsInIt: on
+// track [P, Q, R] with Q opening after nothing, R opens after Q alone, so r
+// depending on {p1, p2}, both in P, is one partial-parallel on (R, P) naming
+// r; {p1, q} is none, since r can start once q in Q is done.
+func TestLintEpicGraph_AGroupDependsIntoAMilestoneOnlyWhenEveryMemberIsInIt(t *testing.T) {
+	g := opensAfterGraph([][]string{{"P", "Q", "R"}}, map[string][]string{"Q": {}})
+	g.Epics = []model.Epic{
+		{ID: "p1", Title: "p1", Milestone: "P", Root: true},
+		{ID: "p2", Title: "p2", Milestone: "P", Root: true},
+		{ID: "q", Title: "q", Milestone: "Q", Root: true},
+		{ID: "r", Title: "r", Milestone: "R", DependsOn: []model.EpicDep{{AnyOf: []string{"p1", "p2"}, Why: "either serves r"}}},
+	}
+	found := findingsOf(t, LintEpicGraph(g, nil), EpicRulePartialParallel)
+	require.Len(t, found, 1, "%v", found)
+	assert.Equal(t, []string{"P", "R"}, found[0].Names)
+	assert.Equal(t, []string{"r"}, found[0].Epics)
+
+	g.Epics[3].DependsOn[0].AnyOf = []string{"p1", "q"}
+	assert.Empty(t, findingsOf(t, LintEpicGraph(g, nil), EpicRulePartialParallel))
+}
