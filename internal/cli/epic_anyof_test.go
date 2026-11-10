@@ -85,3 +85,23 @@ func TestEpicAdd_BulkTakesAnAnyOfGroup(t *testing.T) {
 	assert.Equal(t, []map[string]any{anyOfEntry("either opens the API", "u", "x")}, storedDeps(t, dir, "v"))
 }
 
+// TestEpicImport_TakesAnAnyOfGroup: tp epic import's strict decode accepts a
+// group entry and writes it as the payload holds it.
+func TestEpicImport_TakesAnAnyOfGroup(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, "")
+	payload := epicImportPayload(t, `{
+  "version": 1,
+  "milestones": [["A"]],
+  "epics": [
+    {"id": "v", "title": "V", "milestone": "A", "depends_on": [{"any_of": ["x", "y"], "why": "either opens the API"}]},
+    {"id": "x", "title": "X", "milestone": "A", "root": true},
+    {"id": "y", "title": "Y", "milestone": "A", "root": true}
+  ]
+}
+`)
+	_, stderr, code := runTP(t, dir, "epic", "import", payload)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.Equal(t, []map[string]any{anyOfEntry("either opens the API", "x", "y")}, storedDeps(t, dir, "v"))
+}
+
