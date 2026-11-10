@@ -603,7 +603,11 @@ from a done record.
    `actionable`: its dependencies done, its milestone open, and it is an explicit member of an open
    milestone's gate, or nothing depends on it, or some undone dependent, in an open milestone or with
    a bound file, waits on conditions alone; `--all` lists the rest with `actionable: false` and
-   `not_actionable`, every reason in the order `milestone`, `dependencies`, `dependents`.
+   `not_actionable`, every reason in the order `milestone`, `dependencies`, `dependents`. An
+   unsatisfied any-of group counts as a condition when one of its condition members could be
+   decided now. An epic only a lost alternative needs is moot (no gate holds it, every group naming
+   it is satisfied, every plain edge to it comes from a moot epic): `ready` lists it nowhere, and
+   status marks it `moot: true`; it counts again once something live depends on it.
    `gate-held-by-condition` (info) names, per gate and condition outside the gate's own milestone, the
    members waiting on it, with one path.
 7. **Long-lead epics.** Place an epic that takes long in the earliest milestone where it can start,
