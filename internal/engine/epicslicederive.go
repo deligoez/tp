@@ -18,7 +18,7 @@ func deriveEpicSliceKey(stateDir string, g *model.EpicGraph) *EpicSliceKeyRecord
 	want := filepath.Base(stateDir)
 	for _, key := range epicSliceKeyCandidates(g, epicRecordedUnitKeys(stateDir)) {
 		if epicHash(epicSliceKeyText(key)) == want {
-			rec := epicSliceKeyRecord(key)
+			rec := EpicSliceKeyRecordOf(key)
 			return &rec
 		}
 	}

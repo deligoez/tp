@@ -67,8 +67,8 @@ type EpicSliceKeyRecord struct {
 	Name  string   `json:"name,omitempty"`
 }
 
-// epicSliceKeyRecord renders key as its state directory records it.
-func epicSliceKeyRecord(key EpicSliceKey) EpicSliceKeyRecord {
+// EpicSliceKeyRecordOf renders key as its state directory records it.
+func EpicSliceKeyRecordOf(key EpicSliceKey) EpicSliceKeyRecord {
 	switch {
 	case len(key.Epics) > 0:
 		ids := slices.Compact(slices.Sorted(slices.Values(key.Epics)))
@@ -84,7 +84,7 @@ func epicSliceKeyRecord(key EpicSliceKey) EpicSliceKeyRecord {
 // an atomic rename. Each emission writes it, so a slice recorded before
 // v1.5.0 gains its key on its next emission.
 func WriteEpicSliceKey(stateDir string, key EpicSliceKey) error {
-	data, err := json.MarshalIndent(epicSliceKeyRecord(key), "", "  ")
+	data, err := json.MarshalIndent(EpicSliceKeyRecordOf(key), "", "  ")
 	if err != nil {
 		return err
 	}
