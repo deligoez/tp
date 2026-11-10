@@ -35,15 +35,7 @@ const (
 // closed milestone. tp epic ready, status and the export read this one answer.
 func ConditionsNotActionable(g *model.EpicGraph, states map[string]EpicState, gates map[string]MilestoneGate, bound map[string][]string) map[string][]string {
 	a := actionability{byID: epicsByID(g), states: states, gates: gates, bound: bound,
-		dependents: map[string][]*model.Epic{}, gated: openGateMembers(g, gates)}
-	for i := range g.Epics {
-		e := &g.Epics[i]
-		for _, d := range e.DependsOn {
-			for _, id := range d.Names() {
-				a.dependents[id] = append(a.dependents[id], e)
-			}
-		}
-	}
+		dependents: actionDependents(g, states), gated: openGateMembers(g, gates)}
 	out := map[string][]string{}
 	for i := range g.Epics {
 		c := &g.Epics[i]
@@ -51,6 +43,26 @@ func ConditionsNotActionable(g *model.EpicGraph, states map[string]EpicState, ga
 			continue
 		}
 		out[c.ID] = a.reasons(c)
+	}
+	return out
+}
+
+// actionDependents indexes, for each id, the epics whose depends_on entries
+// name it, a plain edge or a group membership. A satisfied group is left
+// out: once one member is done its epic leaves the other members'
+// actionability (spec/1.7.0.md §7).
+func actionDependents(g *model.EpicGraph, states map[string]EpicState) map[string][]*model.Epic {
+	out := map[string][]*model.Epic{}
+	for i := range g.Epics {
+		e := &g.Epics[i]
+		for _, d := range e.DependsOn {
+			if d.IsGroup() && epicDepSatisfied(d, states) {
+				continue
+			}
+			for _, id := range d.Names() {
+				out[id] = append(out[id], e)
+			}
+		}
 	}
 	return out
 }
