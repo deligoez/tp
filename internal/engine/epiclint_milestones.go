@@ -76,24 +76,58 @@ func lintEpicMilestones(g *model.EpicGraph) []EpicLintFinding {
 }
 
 // lintLaterMilestoneEdges reports e's edges to an epic in a later milestone
-// of e's own track. Edges across tracks are free, and an edge an unknown
-// milestone or a dangling target leaves unordered is not compared.
+// of e's own track, and each group of e whose every member is in one. Edges
+// across tracks are free, and an edge an unknown milestone or a dangling
+// target leaves unordered is not compared.
 func lintLaterMilestoneEdges(e *model.Epic, pos map[string]milestonePos, byID map[string]string) []EpicLintFinding {
 	from, ok := pos[e.Milestone]
 	if !ok {
 		return nil
 	}
+	later := func(id string) (string, bool) {
+		m, known := byID[id]
+		to, placed := pos[m]
+		return m, known && placed && to.track == from.track && to.index > from.index
+	}
 	var out []EpicLintFinding
 	for _, d := range e.DependsOn {
-		m, known := byID[d.ID]
-		to, placed := pos[m]
-		if known && placed && to.track == from.track && to.index > from.index {
+		if d.IsGroup() {
+			out = append(out, laterMilestoneGroup(e, d, later)...)
+			continue
+		}
+		if m, isLater := later(d.ID); isLater {
 			out = append(out, epicNamedError(EpicRuleLaterMilestoneDependency,
 				fmt.Sprintf("epic %q in %q depends on %q in the later milestone %q", e.ID, e.Milestone, d.ID, m),
 				[]string{e.Milestone, m}, e.ID, d.ID))
 		}
 	}
 	return out
+}
+
+// laterMilestoneGroup is the later-milestone-dependency finding on e's group
+// d when every member is in a later milestone of e's track (spec/1.7.0.md
+// §7), as later tells; none when one member can be done first.
+func laterMilestoneGroup(e *model.Epic, d model.EpicDep, later func(id string) (string, bool)) []EpicLintFinding {
+	members := d.Members()
+	if len(members) == 0 {
+		return nil
+	}
+	names := []string{e.Milestone}
+	where := make([]string, 0, len(members))
+	for _, id := range members {
+		m, isLater := later(id)
+		if !isLater {
+			return nil
+		}
+		names = append(names, m)
+		where = append(where, fmt.Sprintf("%s in %q", id, m))
+	}
+	f := epicNamedError(EpicRuleLaterMilestoneDependency,
+		fmt.Sprintf("epic %q in %q depends on %s, and every member is in a later milestone: %s",
+			e.ID, e.Milestone, epicDepLabel(d), strings.Join(where, ", ")),
+		names, append([]string{e.ID}, members...)...)
+	f.Names = slices.Compact(f.Names)
+	return []EpicLintFinding{f}
 }
 
 // lintEpicGateMembers reports each gate member whose epic is in another
