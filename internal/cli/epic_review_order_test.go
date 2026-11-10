@@ -103,6 +103,22 @@ func TestEpicReview_PhaseEconomistSeesDependentsInBrief(t *testing.T) {
 	assert.NotContains(t, prompt, "a also needs d", "no dependent edge outside the asked units")
 }
 
+// TestEpicReview_RegressionRoundsKeepTheFullNeighbourContext: a round that
+// appends the regression role asks only changed units, and there
+// neighbours-brief is not applied (spec/1.7.0.md non-goals), so the
+// phase-economist reads the dependent in full again.
+func TestEpicReview_RegressionRoundsKeepTheFullNeighbourContext(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicBriefChain)
+	r1 := runEpicReview(t, dir, "--epic", "b")
+	writeEpicRound(t, dir, &r1, "")
+
+	editEpicGraph(t, dir, "b needs c", "b needs c's parser")
+	r2 := runEpicReview(t, dir, "--epic", "b")
+	require.Contains(t, promptRoles(&r2), "regression")
+	assert.Contains(t, epicRolePrompt(t, &r2, "phase-economist"), "a ships the report")
+}
+
 // TestEpicReview_ACarriedGateStaysVisible: a carried gate is not asked, but its
 // deferrable list is what a placement reader needs to see, so its block stays
 // in the prompt as read-only context.
