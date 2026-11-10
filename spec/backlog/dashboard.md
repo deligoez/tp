@@ -223,8 +223,9 @@ review changes them.
 4. Loop history in v1? **Round counts and clean per round, yes (the loop dots); severity and
    resolution per finding stay later.**
 5. `tp run` units live in v1? **Only `tp run --status` per bound file, read in-process; no new stream.**
-6. What does a repo with no graph show (tp's own)? **Exit 3 in v1 with a hint; project-wide export
-   later** (operator).
+6. What does a repo with no graph show (tp's own)? Was **exit 3 with a hint** (operator). Reopened by
+   the Spec tab: such a repo has specs and tasks to show. **Proposed: open on the Spec tab, the
+   Epics tab saying there is no graph; the operator confirms.**
 7. Add `revision`/`generated_at` to the export? **Yes, additive within `version: 2`.**
 8. Trim `milestones`' duplication for the page? **No; 0.8 MB on localhost is fine; don't fork the contract.**
 9. Port: fixed default or random? **Fixed default (e.g. 7377) with `--port`; exit 1 naming it if taken.**
