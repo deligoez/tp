@@ -155,3 +155,13 @@ func TestLintEpicGraph_ATagProviderCountsThroughAGroupOnlyWhenEveryMemberReaches
 	require.Len(t, unprovided, 1)
 	assert.Equal(t, []string{"s"}, unprovided[0].Epics)
 }
+
+// TestLintEpicGraph_ADirectTagCheckIgnoresAGroupHoldingTheProvider
+// (spec/1.7.0.md §3): only a plain direct edge provides a direct check, so
+// an entry carrying any_of does not, even when its id is the provider.
+func TestLintEpicGraph_ADirectTagCheckIgnoresAGroupHoldingTheProvider(t *testing.T) {
+	g := tagGroupGraph()
+	g.TagChecks["ui"] = model.EpicTagCheck{ProvidedBy: "p", Direct: true}
+	g.Epics[3].DependsOn[0].ID = "p"
+	assert.Len(t, findingsOf(t, LintEpicGraph(g, nil), EpicRuleUnprovidedTagCheck), 1)
+}
