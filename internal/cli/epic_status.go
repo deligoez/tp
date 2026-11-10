@@ -45,12 +45,14 @@ type epicMilestoneReport struct {
 // naming each such dependency, and the conditions among them, as export's
 // epics do: held_by alone tells a wait on the operator from one on work. A
 // blocked condition also carries not_actionable, why it is not actionable
-// (engine.ConditionsNotActionable).
+// (engine.ConditionsNotActionable), or, when it is moot (engine.MootEpics,
+// spec/1.7.0.md §7), moot: true in its place.
 type epicBlockedEpic struct {
 	epicReadyEpic
 	HeldBy        []string `json:"held_by"`
 	BlockedBy     []string `json:"blocked_by"`
 	NotActionable []string `json:"not_actionable,omitempty"`
+	Moot          bool     `json:"moot,omitempty"`
 }
 
 // epicPathReport is the milestone's critical path: the longest chain by
@@ -158,7 +160,9 @@ type epicPlan struct {
 	// notActionable holds each undone condition's reasons it is not
 	// actionable, empty for an actionable one.
 	notActionable map[string][]string
-	compact       bool
+	// moot marks each moot epic (engine.MootEpics).
+	moot    map[string]bool
+	compact bool
 }
 
 // epicPlanStatus reports each of milestones over states, DeriveEpicStates'
@@ -166,7 +170,7 @@ type epicPlan struct {
 // error.
 func epicPlanStatus(g *model.EpicGraph, states map[string]engine.EpicState, bound map[string][]string, milestones []string, compact bool) (epicPlanResult, error) {
 	readiness := engine.EpicReady(g, states, bound, false)
-	p := epicPlan{g: g, states: states, bound: bound, gates: engine.MilestoneGates(g, states), after: engine.EffectiveOpensAfter(g), ready: epicReadyReport(g, &readiness, compact), conditions: map[string]bool{}, notActionable: readiness.NotActionable, compact: compact}
+	p := epicPlan{g: g, states: states, bound: bound, gates: engine.MilestoneGates(g, states), after: engine.EffectiveOpensAfter(g), ready: epicReadyReport(g, &readiness, compact), conditions: map[string]bool{}, notActionable: readiness.NotActionable, moot: readiness.Moot, compact: compact}
 	for i := range g.Epics {
 		p.conditions[g.Epics[i].ID] = g.Epics[i].Condition
 	}
@@ -280,7 +284,8 @@ func (p *epicPlan) claimedAndBlocked(m string) (claimed []epicClaimedEpic, block
 			continue
 		}
 		if by, held := epicUndoneDeps(e, p.states, p.conditions); len(by) > 0 {
-			blocked = append(blocked, epicBlockedEpic{epicReadyEpic: entry, HeldBy: held, BlockedBy: by, NotActionable: p.notActionable[e.ID]})
+			blocked = append(blocked, epicBlockedEpic{epicReadyEpic: entry, HeldBy: held, BlockedBy: by, NotActionable: p.notActionable[e.ID],
+				Moot: e.Condition && p.moot[e.ID]})
 		}
 	}
 	return claimed, blocked
