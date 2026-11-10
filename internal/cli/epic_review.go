@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/deligoez/tp/internal/engine"
+	"github.com/deligoez/tp/internal/model"
 	"github.com/deligoez/tp/internal/output"
 )
 
@@ -203,7 +204,32 @@ const epicRoundFileHint = "the file the message names is a recorded epic review 
 
 // loadEpicReviewRun reads the graph and derives the slice and its round. It
 // writes nothing: an absent graph exits 3, a slice the graph does not hold 4.
-func loadEpicReviewRun(key engine.EpicSliceKey) epicReviewRun {
+// epicReviewGraph is what every slice of one tp epic review call is prepared
+// from: the graph, read once, and its mechanical checks, which lint the whole
+// graph and so are the same for every slice.
+type epicReviewGraph struct {
+	tpDir  string
+	g      *model.EpicGraph
+	checks []engine.EpicMechanicalCheck
+}
+
+// epicRunError is a slice that cannot be prepared, with the exit code and
+// hint a one-slice call exits with.
+type epicRunError struct {
+	code int
+	msg  string
+	hint string
+}
+
+// exitEpicRunError exits with err's code and hint.
+func exitEpicRunError(err *epicRunError) {
+	output.Error(err.code, err.msg, err.hint)
+	os.Exit(err.code)
+}
+
+// loadEpicReviewGraph reads the graph and lints it. It writes nothing: an
+// absent or unreadable graph exits 3.
+func loadEpicReviewGraph() epicReviewGraph {
 	tpDir := engine.DiscoverTPDir(".")
 	if tpDir == "" {
 		output.Error(ExitFile, "epic graph not found: no .tp/ directory up to the git boundary", epicGraphFileHint)
@@ -214,27 +240,43 @@ func loadEpicReviewRun(key engine.EpicSliceKey) epicReviewRun {
 		output.Error(ExitFile, err.Error(), epicGraphFileHint)
 		os.Exit(ExitFile)
 	}
-	slice, err := engine.EpicReviewSlice(g, key)
+	return epicReviewGraph{tpDir: tpDir, g: g, checks: engine.EpicMechanicalChecks(engine.LintEpicGraph(g, unknown))}
+}
+
+// prepareEpicReviewRun derives key's slice over eg and its round, writing
+// nothing: a slice the graph does not hold is an exit-4 error, a recorded
+// round tp cannot read back an exit-3 one.
+func prepareEpicReviewRun(eg *epicReviewGraph, key engine.EpicSliceKey) (epicReviewRun, *epicRunError) {
+	slice, err := engine.EpicReviewSlice(eg.g, key)
 	if err != nil {
 		hint := epicNotFoundHint
 		if errors.As(err, new(*engine.EpicMilestoneNotFoundError)) {
 			hint = epicMilestoneNotFoundHint
 		}
-		output.Error(ExitState, err.Error(), hint)
-		os.Exit(ExitState)
+		return epicReviewRun{}, &epicRunError{code: ExitState, msg: err.Error(), hint: hint}
 	}
-	stateDir := engine.EpicReviewStateDir(tpDir, key)
+	stateDir := engine.EpicReviewStateDir(eg.tpDir, key)
 	round := engine.EpicReviewNextRound(stateDir)
 	carry, err := engine.EpicReviewCarry(stateDir, round, slice.Units)
 	if err != nil {
-		output.Error(ExitFile, err.Error(), epicRoundFileHint)
-		os.Exit(ExitFile)
+		return epicReviewRun{}, &epicRunError{code: ExitFile, msg: err.Error(), hint: epicRoundFileHint}
 	}
-	context := engine.EpicCarriedContext(g, carry.Asked)
+	context := engine.EpicCarriedContext(eg.g, carry.Asked)
 	return epicReviewRun{
-		key: key, tpDir: tpDir, stateDir: stateDir, round: round, all: slice.Units, carry: carry,
+		key: key, tpDir: eg.tpDir, stateDir: stateDir, round: round, all: slice.Units, carry: carry,
 		slice:   engine.EpicSlice{Units: carry.Asked, Context: context},
-		checks:  engine.EpicMechanicalChecks(engine.LintEpicGraph(g, unknown)),
-		handoff: engine.EpicHandoffContext(g, &carry, context),
+		checks:  eg.checks,
+		handoff: engine.EpicHandoffContext(eg.g, &carry, context),
+	}, nil
+}
+
+// loadEpicReviewRun reads the graph and derives the slice and its round. It
+// writes nothing: an absent graph exits 3, a slice the graph does not hold 4.
+func loadEpicReviewRun(key engine.EpicSliceKey) epicReviewRun {
+	eg := loadEpicReviewGraph()
+	run, err := prepareEpicReviewRun(&eg, key)
+	if err != nil {
+		exitEpicRunError(err)
 	}
+	return run
 }
