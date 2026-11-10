@@ -58,7 +58,7 @@ func RemoveEpic(id string, force bool) func(*model.EpicGraph) error {
 func epicDependents(g *model.EpicGraph, id string) []string {
 	var out []string
 	for i := range g.Epics {
-		if slices.ContainsFunc(g.Epics[i].DependsOn, func(d model.EpicDep) bool { return d.ID == id }) {
+		if slices.ContainsFunc(g.Epics[i].DependsOn, func(d model.EpicDep) bool { return slices.Contains(d.Names(), id) }) {
 			out = append(out, g.Epics[i].ID)
 		}
 	}
