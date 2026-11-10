@@ -8,7 +8,8 @@ import (
 
 // EpicGraphMarkdown renders the graph as one Markdown table per milestone, in
 // track order (spec/1.3.0.md §6): one row per epic with its id, title, tags and
-// every dependency with its why. Rows keep the file's epic order. A milestone
+// every dependency with its why, an any-of group as one of {A, B}
+// (spec/1.7.0.md §7). Rows keep the file's epic order. A milestone
 // named twice gets one table, and epics whose milestone is in no track follow
 // in tables of their own, so every epic is in exactly one row.
 func EpicGraphMarkdown(g *model.EpicGraph) string {
@@ -50,7 +51,11 @@ func writeMilestoneTable(b *strings.Builder, name string, epics []model.Epic) {
 		e := &epics[k]
 		deps := make([]string, 0, len(e.DependsOn))
 		for _, d := range e.DependsOn {
-			deps = append(deps, d.ID+": "+d.Why)
+			name := d.ID
+			if d.IsGroup() {
+				name = epicDepLabel(d)
+			}
+			deps = append(deps, name+": "+d.Why)
 		}
 		cells := []string{e.ID, e.Title, strings.Join(e.Tags, ", "), strings.Join(deps, "; ")}
 		for i := range cells {
