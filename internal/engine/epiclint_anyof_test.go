@@ -165,3 +165,28 @@ func TestLintEpicGraph_ADirectTagCheckIgnoresAGroupHoldingTheProvider(t *testing
 	g.Epics[3].DependsOn[0].ID = "p"
 	assert.Len(t, findingsOf(t, LintEpicGraph(g, nil), EpicRuleUnprovidedTagCheck), 1)
 }
+
+// TestLintEpicGraph_AGroupIsALaterMilestoneDependencyOnlyWhenEveryMemberIsLater:
+// on tracks [[A, B, C], [L]], a in A depending on {b, c}, both in later
+// milestones of its track, is one later-milestone-dependency naming a, b and
+// c; {b, l} is none, since l in another track can be done first.
+func TestLintEpicGraph_AGroupIsALaterMilestoneDependencyOnlyWhenEveryMemberIsLater(t *testing.T) {
+	g := &model.EpicGraph{
+		Version:    1,
+		Milestones: [][]string{{"A", "B", "C"}, {"L"}},
+		Epics: []model.Epic{
+			{ID: "a", Title: "A", Milestone: "A", DependsOn: []model.EpicDep{{AnyOf: []string{"b", "c"}, Why: "either serves a"}}},
+			{ID: "b", Title: "B", Milestone: "B", Root: true},
+			{ID: "c", Title: "C", Milestone: "C", Root: true},
+			{ID: "l", Title: "L", Milestone: "L", Root: true},
+		},
+	}
+	later := findingsOf(t, LintEpicGraph(g, nil), EpicRuleLaterMilestoneDependency)
+	require.Len(t, later, 1, "%v", later)
+	assert.Equal(t, []string{"a", "b", "c"}, later[0].Epics)
+	assert.Equal(t, []string{"A", "B", "C"}, later[0].Names)
+	assert.Contains(t, later[0].Message, "one of {b, c}")
+
+	g.Epics[0].DependsOn[0].AnyOf = []string{"b", "l"}
+	assert.Empty(t, findingsOf(t, LintEpicGraph(g, nil), EpicRuleLaterMilestoneDependency))
+}
