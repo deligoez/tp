@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"slices"
+
 	"github.com/deligoez/tp/internal/model"
 )
 
@@ -130,11 +132,22 @@ func heldOnlyByConditions(w *model.Epic, byID map[string]*model.Epic, states map
 }
 
 // epicDepsDone reports whether every direct dependency of e is done.
+// epicDepsDone reports whether every direct dependency of e is satisfied.
 func epicDepsDone(e *model.Epic, states map[string]EpicState) bool {
 	for _, dep := range e.DependsOn {
-		if states[dep.ID].Status != EpicStatusDone {
+		if !epicDepSatisfied(dep, states) {
 			return false
 		}
 	}
 	return true
+}
+
+// epicDepSatisfied reports whether the depends_on entry d holds its epic no
+// longer: a plain edge once its epic is done, a group once one member is
+// (spec/1.7.0.md §7).
+func epicDepSatisfied(d model.EpicDep, states map[string]EpicState) bool {
+	if d.IsGroup() {
+		return slices.ContainsFunc(d.Members(), func(m string) bool { return states[m].Status == EpicStatusDone })
+	}
+	return states[d.ID].Status == EpicStatusDone
 }
