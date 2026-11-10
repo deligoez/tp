@@ -47,3 +47,23 @@ func TestReviewMerge_DashOutputSplitsRowsAndSummary(t *testing.T) {
 	assert.NoFileExists(t, dir+"/-", "`-o -` is not a file named -")
 }
 
+// TestAuditMerge_DashOutputSplitsRowsAndSummary is §2 for the audit merge,
+// which shares the rule.
+func TestAuditMerge_DashOutputSplitsRowsAndSummary(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	f1 := writeFindingsFile(t, dir, "a1.ndjson", []string{goodAuditRow1, goodAuditRow2})
+	f2 := writeFindingsFile(t, dir, "a2.ndjson", []string{goodAuditRow3})
+
+	stdout, stderr, code := runTPMerge(t, dir, "audit", "--merge", f1, f2, "-o", "-")
+	require.Equal(t, 0, code, "a clean merge exits 0: %s", stderr)
+
+	rows := ndjsonLines(t, stdout)
+	assert.Len(t, rows, 3, "stdout carries the merged rows and nothing else")
+
+	var summary map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stderr), &summary), "stderr carries the JSON summary: %s", stderr)
+	assert.Equal(t, "stdout", summary["output_path"], "the summary names where the rows went")
+	assert.NoFileExists(t, dir+"/-", "`-o -` is not a file named -")
+}
+
