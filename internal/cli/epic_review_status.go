@@ -122,8 +122,8 @@ func epicStatusNextAction(key engine.EpicSliceKey, st *engine.EpicReviewStatus, 
 		return "the slice's loop is done but a mechanical check fails: fix the errors tp epic lint reports"
 	case st.Done:
 		return "the slice's loop is done by " + st.DoneBy + ": nothing to run"
-	case st.CapReached && st.Stale:
-		return "the graph changed after the round cap: a verification round needs the operator to raise review_max_rounds (tp set --workflow --project review_max_rounds=<N>, .tp/config.json)"
+	case st.Grantable:
+		return "the graph changed after the round cap: " + epicGrantHint(key)
 	case st.CapReached:
 		return "the round cap is reached: " + epicBudgetHint(key)
 	case st.InFlightRound > 0:
