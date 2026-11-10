@@ -88,3 +88,32 @@ func TestEpicReviewGrant_StatusMarksAStaleCappedSliceGrantable(t *testing.T) {
 	assert.Contains(t, stderr, "--grant-round", "the cap refusal of a grantable slice names the grant")
 }
 
+// TestEpicReviewGrant_TheGrantedRoundEmitsRecordsAndIsSpent is §8's grant: on
+// a stale slice at its cap --grant-round exits 0 naming round 2, round 2 emits
+// with the ordinary carry (b asked again, nothing special in it) and records,
+// and the recorded round spends the grant, so a third emission exits 4 again.
+func TestEpicReviewGrant_TheGrantedRoundEmitsRecordsAndIsSpent(t *testing.T) {
+	t.Parallel()
+	dir := cappedStaleEpicSlice(t)
+
+	stdout, stderr, code := grantRound(t, dir)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var granted epicGrantPayload
+	require.NoError(t, json.Unmarshal([]byte(stdout), &granted), "stdout: %s", stdout)
+	assert.Equal(t, 2, granted.Round)
+	assert.Contains(t, granted.NextAction, "tp epic review --epic b")
+	st := epicGrantStatus(t, dir)
+	assert.False(t, *st.Grantable, "a granted slice is not grantable again")
+	assert.Contains(t, st.NextAction, "emit round 2")
+
+	r2 := runEpicReview(t, dir, "--epic", "b")
+	assert.Equal(t, 2, r2.Round)
+	assert.Equal(t, []string{"epic:b"}, r2.Units, "the granted round carries as any round does")
+	recordEpicRound(t, dir, `{"severity":"high","finding":"f2","location":"epic:b","evidence":"b"}`+"\n", "--epic", "b")
+	assert.Len(t, epicRoundFiles(t, dir), 2)
+
+	_, stderr, code = runTP(t, dir, "epic", "review", "--epic", "b")
+	require.Equal(t, 4, code, "the recorded round spent the grant; stderr: %s", stderr)
+	assert.False(t, *epicGrantStatus(t, dir).Grantable, "the slice read its change and is not stale")
+}
+
