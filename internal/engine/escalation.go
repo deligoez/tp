@@ -44,7 +44,11 @@ const (
 	EscalateEpicDone    = "epic-done"
 	EscalateGateMet     = "gate-met"
 	EscalateEpicBinding = "epic-binding"
-	EscalateOther       = "other"
+	// EscalateGrantRound is spec/1.7.0.md §8's grant of one epic review round
+	// past review_max_rounds to a stale slice: the cap is the operator's, so
+	// lifting it for a round is too.
+	EscalateGrantRound = "grant-round"
+	EscalateOther      = "other"
 )
 
 // escalationDecisions is the closed set in the order §5.2 writes it, which is
@@ -60,6 +64,7 @@ var escalationDecisions = []string{
 	EscalateEpicDone,
 	EscalateGateMet,
 	EscalateEpicBinding,
+	EscalateGrantRound,
 	EscalateOther,
 }
 
