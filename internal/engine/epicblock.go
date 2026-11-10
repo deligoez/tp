@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"slices"
+	"strings"
 
 	"github.com/deligoez/tp/internal/model"
 )
@@ -29,6 +31,16 @@ type EpicBlock struct {
 // group is not satisfied.
 func (b *EpicBlock) Blocks() bool {
 	return len(b.BlockedBy) > 0 || len(b.BlockedByAnyOf) > 0
+}
+
+// Describe names what blocks b, as a message says it: each plain blocker by
+// id, then each group as one of {A, B} (epicDepLabel's wording).
+func (b *EpicBlock) Describe() string {
+	parts := slices.Clone(b.BlockedBy)
+	for _, members := range b.BlockedByAnyOf {
+		parts = append(parts, "one of {"+strings.Join(members, ", ")+"}")
+	}
+	return strings.Join(parts, ", ")
 }
 
 // EpicOperatorAction is what clears a block whose every blocker is a
