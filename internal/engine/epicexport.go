@@ -51,11 +51,7 @@ func writeMilestoneTable(b *strings.Builder, name string, epics []model.Epic) {
 		e := &epics[k]
 		deps := make([]string, 0, len(e.DependsOn))
 		for _, d := range e.DependsOn {
-			name := d.ID
-			if d.IsGroup() {
-				name = epicDepLabel(d)
-			}
-			deps = append(deps, name+": "+d.Why)
+			deps = append(deps, epicDepName(d)+": "+d.Why)
 		}
 		cells := []string{e.ID, e.Title, strings.Join(e.Tags, ", "), strings.Join(deps, "; ")}
 		for i := range cells {
