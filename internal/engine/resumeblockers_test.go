@@ -141,3 +141,25 @@ func TestBuildBlockers_EpicBlockedNeedsTheImplementPhaseAndAnUndoneDependency(t 
 	assert.Empty(t, BuildBlockers(&BlockerInputs{Phase: PhaseImplement, TaskFile: tf, EpicBlock: unblocked}), "nothing undone")
 	assert.Empty(t, BuildBlockers(&BlockerInputs{Phase: PhaseReview, TaskFile: tf, EpicBlock: blocked}), "not implementing")
 }
+
+// TestBuildBlockers_AGroupAloneBlocksAndOffersTheOperatorsChoices is
+// spec/1.7.0.md §7: an epic held only by the group one of {c1, c2} is
+// epic-blocked, its message names the group, its data carries
+// blocked_by_any_of beside an empty blocked_by_epics, and the operator
+// action offers the group's records as alternatives. A blocker that judged
+// BlockedBy alone reports nothing.
+func TestBuildBlockers_AGroupAloneBlocksAndOffersTheOperatorsChoices(t *testing.T) {
+	tf := &model.TaskFile{Tasks: []model.Task{{ID: "t", Status: model.StatusOpen}}}
+	blk := &EpicBlock{Epic: "w", BlockedBy: []string{}, BlockedByAnyOf: [][]string{{"c1", "c2"}}, AnyOfConditions: [][]string{{"c1", "c2"}}}
+
+	bs := BuildBlockers(&BlockerInputs{Phase: PhaseImplement, TaskFile: tf, EpicBlock: blk})
+	require.Len(t, bs, 1)
+	assert.Equal(t, "epic-blocked", bs[0].Code)
+	assert.Equal(t, []string{}, bs[0].Data["blocked_by_epics"])
+	assert.Equal(t, [][]string{{"c1", "c2"}}, bs[0].Data["blocked_by_any_of"])
+	assert.Contains(t, bs[0].Message, "one of {c1, c2}")
+	assert.Contains(t, bs[0].Message, "tp epic done c1 --evidence <evidence> or tp epic done c2 --evidence <evidence>")
+	op, ok := bs[0].Data["operator"].(*EpicOperatorAction)
+	require.True(t, ok)
+	assert.Len(t, op.Choices, 1)
+}
