@@ -47,7 +47,8 @@ func transitiveDeps(e *model.Epic, byID map[string]*model.Epic) map[string]bool 
 }
 
 // lintEpicTagChecks reports each epic carrying a checked tag whose provider
-// is not among its transitive dependencies. The provider is exempt, and a
+// is not among its transitive dependencies, or, for a direct check, not a
+// plain direct dependency (spec/1.7.0.md §3). The provider is exempt, and a
 // provider naming no epic is dangling-reference's finding.
 func lintEpicTagChecks(g *model.EpicGraph) []EpicLintFinding {
 	if len(g.TagChecks) == 0 {
@@ -63,17 +64,41 @@ func lintEpicTagChecks(g *model.EpicGraph) []EpicLintFinding {
 			if _, exists := byID[check.ProvidedBy]; !ok || !exists || check.ProvidedBy == e.ID {
 				continue
 			}
-			if deps == nil {
+			if !check.Direct && deps == nil {
 				deps = transitiveDeps(e, byID)
 			}
-			if !deps[check.ProvidedBy] {
-				out = append(out, epicNamedError(EpicRuleUnprovidedTagCheck,
-					fmt.Sprintf("epic %q carries tag %q but does not depend on its provider %q", e.ID, tag, check.ProvidedBy),
-					[]string{tag}, e.ID))
+			if msg := unprovidedTagMessage(e, tag, check, deps); msg != "" {
+				out = append(out, epicNamedError(EpicRuleUnprovidedTagCheck, msg, []string{tag}, e.ID))
 			}
 		}
 	}
 	return out
+}
+
+// unprovidedTagMessage words e's tag check finding, or returns "" when the
+// check is provided: a direct check by a plain direct edge, any other by the
+// provider among deps, e's transitive dependencies.
+func unprovidedTagMessage(e *model.Epic, tag string, check model.EpicTagCheck, deps map[string]bool) string {
+	switch {
+	case check.Direct && !dependsDirectlyOn(e, check.ProvidedBy):
+		return fmt.Sprintf("epic %q carries tag %q, whose check is direct, but has no direct edge to its provider %q", e.ID, tag, check.ProvidedBy)
+	case !check.Direct && !deps[check.ProvidedBy]:
+		return fmt.Sprintf("epic %q carries tag %q but does not depend on its provider %q", e.ID, tag, check.ProvidedBy)
+	}
+	return ""
+}
+
+// dependsDirectlyOn reports whether e has a plain edge to provider: the only
+// edge a direct tag check accepts. A path through other epics never counts,
+// and neither will an any-of group, even one holding the provider — when
+// depends_on gains groups, this is the one place that must skip them.
+func dependsDirectlyOn(e *model.Epic, provider string) bool {
+	for _, d := range e.DependsOn {
+		if d.ID == provider {
+			return true
+		}
+	}
+	return false
 }
 
 // lintEpicNoDependencies warns on each epic outside the first milestone of
