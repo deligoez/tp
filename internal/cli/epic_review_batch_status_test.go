@@ -101,3 +101,36 @@ func TestEpicReviewBatchStatus_CheckExitsZeroOnlyWhenEverySliceWould(t *testing.
 	assert.Equal(t, 1, epicCheckCode(t, dir, "--milestones", "L1,B"))
 	assert.Equal(t, 1, epicCheckCode(t, dir, "--all"))
 }
+
+// TestEpicReviewBatchStatus_AllListsMilestoneSlicesInTrackOrder: --status
+// --all lists the milestone slices in the graph's track order (A, B, L1),
+// then every other slice in a stable order — the slice directory name's —
+// whatever order the hashed directory names sort in.
+func TestEpicReviewBatchStatus_AllListsMilestoneSlicesInTrackOrder(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicThreeMilestones)
+	for _, args := range [][]string{
+		{"--epic", "d"}, {"--milestone", "L1"}, {"--epics", "a,b"}, {"--milestone", "B"}, {"--milestone", "A"}, {"--epic", "c"},
+	} {
+		runEpicReview(t, dir, args...)
+	}
+
+	rows := runEpicBatchStatus(t, dir, "--all")
+	require.Len(t, rows, 6)
+	var milestones, others []string
+	for _, r := range rows {
+		require.NotNil(t, r.Key)
+		if r.Key.Kind == "milestone" {
+			require.Empty(t, others, "every milestone slice comes before the others: %v", rows)
+			milestones = append(milestones, r.Key.Value)
+			continue
+		}
+		others = append(others, r.Key.Kind+":"+r.Key.Value)
+	}
+	assert.Equal(t, []string{"A", "B", "L1"}, milestones, "track order")
+	again := runEpicBatchStatus(t, dir, "--all")
+	for i := range rows {
+		assert.Equal(t, *rows[i].Key, *again[i].Key, "a stable order")
+	}
+	assert.Len(t, others, 3)
+}
