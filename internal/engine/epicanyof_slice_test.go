@@ -41,3 +41,26 @@ func TestEpicReviewSlice_AUnitHashCoversItsGroupMembersBlocks(t *testing.T) {
 	assert.NotEqual(t, before["epic:w"], after["epic:w"])
 	assert.Equal(t, before["epic:a"], after["epic:a"])
 }
+
+// contextOf returns the context of epic id's slice of g by id.
+func contextOf(t *testing.T, g *model.EpicGraph, id string) map[string]EpicContextBlock {
+	t.Helper()
+	s, err := EpicReviewSlice(g, EpicSliceKey{Epic: id})
+	require.NoError(t, err)
+	out := map[string]EpicContextBlock{}
+	for _, c := range s.Context {
+		out[c.ID] = c
+	}
+	return out
+}
+
+// TestEpicReviewSlice_AGroupsMembersAreDependencyContext is spec/1.7.0.md
+// §7: asking w shows both members of its group as dependencies. A context
+// that read a group's id shows neither.
+func TestEpicReviewSlice_AGroupsMembersAreDependencyContext(t *testing.T) {
+	ctx := contextOf(t, anyOfSliceGraph(), "w")
+	require.Contains(t, ctx, "a")
+	require.Contains(t, ctx, "b")
+	assert.True(t, ctx["a"].Dependency)
+	assert.True(t, ctx["b"].Dependency)
+}
