@@ -25,6 +25,11 @@ type EpicBlock struct {
 	Notice         string
 	// Conditions are the entries of BlockedBy that are conditions.
 	Conditions []string
+	// AnyOfConditions holds, for each group of BlockedByAnyOf, its members
+	// the operator can record now: conditions whose milestone is open and
+	// whose own dependencies are done, as actionability counts a group as a
+	// condition (spec/1.7.0.md §7).
+	AnyOfConditions [][]string
 }
 
 // Blocks reports whether b holds the file's tasks: a plain dependency or a
@@ -46,22 +51,38 @@ func (b *EpicBlock) Describe() string {
 // EpicOperatorAction is what clears a block whose every blocker is a
 // condition: no agent finishes one, so it names the operator's decision
 // (the escalation tp run records) and the record of each condition.
+// Choices holds one list per group, its records as alternatives: any one
+// satisfies the group (spec/1.7.0.md decision 3).
 type EpicOperatorAction struct {
-	Decision string   `json:"decision"`
-	Commands []string `json:"commands"`
+	Decision string     `json:"decision"`
+	Commands []string   `json:"commands"`
+	Choices  [][]string `json:"choices,omitempty"`
 }
 
 // OperatorAction returns the operator's action when every blocker of b is a
-// condition, nil when b blocks nothing or some blocker is work.
+// condition and every group has a member the operator can record now
+// (AnyOfConditions), nil when b blocks nothing or some blocker needs work.
 func (b *EpicBlock) OperatorAction() *EpicOperatorAction {
-	if len(b.BlockedBy) == 0 || len(b.Conditions) != len(b.BlockedBy) {
+	if !b.Blocks() || len(b.Conditions) != len(b.BlockedBy) || len(b.AnyOfConditions) != len(b.BlockedByAnyOf) {
 		return nil
 	}
-	commands := make([]string, 0, len(b.Conditions))
-	for _, id := range b.Conditions {
+	op := &EpicOperatorAction{Decision: EscalateEpicDone, Commands: epicDoneCommands(b.Conditions)}
+	for _, ids := range b.AnyOfConditions {
+		if len(ids) == 0 {
+			return nil
+		}
+		op.Choices = append(op.Choices, epicDoneCommands(ids))
+	}
+	return op
+}
+
+// epicDoneCommands returns the operator's record of each condition of ids.
+func epicDoneCommands(ids []string) []string {
+	commands := make([]string, 0, len(ids))
+	for _, id := range ids {
 		commands = append(commands, "tp epic done "+id+" --evidence <evidence>")
 	}
-	return &EpicOperatorAction{Decision: EscalateEpicDone, Commands: commands}
+	return commands
 }
 
 // EpicBlockFor returns the epic block of tf, read from taskFilePath. An
