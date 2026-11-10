@@ -94,6 +94,12 @@ func TestGraphCriticalPath_FollowsTheLongestChainFromItsHead(t *testing.T) {
 		{"a tie between dependents", &model.EpicGraph{Epics: []model.Epic{
 			dependsOn("r", "P"), dependsOn("a", "P", "r"), dependsOn("b", "P", "r"),
 		}}, []string{"r", "a"}},
+		{"the longer dependency first, at the graph's first epic", &model.EpicGraph{Epics: []model.Epic{
+			dependsOn("l", "P", "l2"), dependsOn("l2", "P"), dependsOn("s", "P"), dependsOn("m", "P", "l", "s"),
+		}}, []string{"l2", "l", "m"}},
+		{"a tie between dependencies", &model.EpicGraph{Epics: []model.Epic{
+			dependsOn("p", "P"), dependsOn("q", "P"), dependsOn("m", "P", "p", "q"),
+		}}, []string{"p", "m"}},
 		{"a cycle on the chain", cycleDownstreamGraph("r", "a", "b"), []string{"r", "a", "b"}},
 	} {
 		assert.Equal(t, tc.chain, GraphCriticalPath(tc.g, map[string]EpicState{}), tc.name)
