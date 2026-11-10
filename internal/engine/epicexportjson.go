@@ -139,6 +139,9 @@ type EpicSliceState struct {
 	Dir string              `json:"dir"`
 	Key *EpicSliceKeyRecord `json:"key"`
 	EpicLoop
+	// Grantable is tp epic review --status's: the slice is at its cap and
+	// stale, so the operator may grant it one round (spec/1.7.0.md §8).
+	Grantable bool `json:"grantable"`
 }
 
 // EpicReviewSlices lists every slice state directory under tpDir, in name
@@ -172,7 +175,7 @@ func EpicReviewSlices(tpDir string, g *model.EpicGraph, p EpicReviewPolicy) ([]E
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, EpicSliceState{Dir: entry.Name(), Key: key, EpicLoop: sliceLoop(&st, known)})
+		out = append(out, EpicSliceState{Dir: entry.Name(), Key: key, EpicLoop: sliceLoop(&st, known), Grantable: known && st.Grantable})
 	}
 	return out, nil
 }
