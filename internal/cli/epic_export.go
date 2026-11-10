@@ -14,8 +14,10 @@ import (
 
 // epicExportVersion is the schema version of tp epic export's JSON, the
 // contract a view of the plan reads (spec/1.5.0.md §7). Renaming, removing or
-// retyping a key bumps it; adding one does not.
-const epicExportVersion = 1
+// retyping a key bumps it; adding one does not. Version 2: a depends_on
+// entry may carry any_of in place of id (spec/1.7.0.md §7). The graph keeps
+// its own version, the graph file's.
+const epicExportVersion = 2
 
 // epicExportResult is tp epic export's JSON: the graph as stored, and every
 // field tp derives from it and from the bound files' and slices' state,
