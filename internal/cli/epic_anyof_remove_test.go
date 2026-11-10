@@ -66,3 +66,11 @@ func TestEpicRemove_ForceOnAnUndoneMemberLeavesTheGroup(t *testing.T) {
 		removeX(t, `[{"any_of": ["x", "y", "z"], "why": "any opens the API"}]`, false))
 }
 
+// TestEpicRemove_ForceTurnsAOneMemberGroupIntoAPlainEdge: {x, y} left with
+// y alone becomes the plain edge w -> y, keeping the group's why.
+func TestEpicRemove_ForceTurnsAOneMemberGroupIntoAPlainEdge(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, []map[string]any{{"id": "y", "why": "either opens the API"}},
+		removeX(t, `[{"any_of": ["x", "y"], "why": "either opens the API"}]`, false))
+}
+
