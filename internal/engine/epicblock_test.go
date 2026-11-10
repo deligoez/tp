@@ -89,3 +89,28 @@ func TestEpicBlockFor_UnboundFileReadsNoGraph(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, block)
 }
+
+// TestEpicBlockFor_ADependencyWithoutADoneRecordIsDoneOnceItsFilesAre is
+// spec/1.5.0.md §6: a, the graph's first epic, is blocked by b, which has no
+// done record, until b's bound file converges its audit; b then derives done
+// and clears the block. A block that read only done records, or skipped the
+// first epic of the graph, fails.
+func TestEpicBlockFor_ADependencyWithoutADoneRecordIsDoneOnceItsFilesAre(t *testing.T) {
+	root := boundFilesRepo(t)
+	writeBlockGraph(t, root, statusChain())
+	path := filepath.Join(root, "a.tasks.json")
+	tf := &model.TaskFile{Epic: "a"}
+	spec := writeStatusFile(t, root, "b", model.StatusDone)
+
+	block, err := EpicBlockFor(tf, path)
+	require.NoError(t, err)
+	require.NotNil(t, block)
+	assert.Empty(t, block.Notice)
+	assert.Equal(t, []string{"b"}, block.BlockedBy, "b's audit has not converged")
+
+	recordRounds(t, spec, 0, 2, true)
+	block, err = EpicBlockFor(tf, path)
+	require.NoError(t, err)
+	require.NotNil(t, block)
+	assert.Empty(t, block.BlockedBy, "b derives done from its bound file")
+}
