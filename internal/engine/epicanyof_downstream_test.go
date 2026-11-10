@@ -72,3 +72,15 @@ func TestGraphCriticalPath_GoesThroughTheGroupMemberWithTheShortestChain(t *test
 	}}
 	assert.Equal(t, []string{"d", "y"}, GraphCriticalPath(g, anyOfStates(g)))
 }
+
+// TestGraphCriticalPath_LeavesAMootEpicOut is spec/1.7.0.md §7: b, which
+// depends on r, lost w's group to the done a and no gate holds it, so it is
+// moot and the path is r alone. A path that judged only done runs r -> b.
+func TestGraphCriticalPath_LeavesAMootEpicOut(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"P"}}, Epics: []model.Epic{
+		dependsOn("r", "P"), dependsOn("a", "P"), dependsOn("b", "P", "r"),
+		withAnyOf(dependsOn("w", "P"), "a", "b"),
+	}}
+	g.Gates = map[string]model.EpicGate{"P": {Members: []string{"r", "a", "w"}}}
+	assert.Equal(t, []string{"r"}, GraphCriticalPath(g, anyOfStates(g, "a")))
+}
