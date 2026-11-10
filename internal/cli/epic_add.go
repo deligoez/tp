@@ -266,6 +266,10 @@ func classifyEpicWriteError(err error, opts *epicWriteOpts) (code int, message, 
 	if errors.As(err, &lockErr) {
 		return ExitState, lockErr.Error(), lockErr.Hint()
 	}
+	var edge *engine.EpicEdgeNotFoundError
+	if errors.As(err, &edge) {
+		return ExitState, edge.Error(), epicEdgeNotFoundHintOf(edge)
+	}
 	var refused *engine.EpicWriteRefusedError
 	if errors.As(err, &refused) {
 		if opts.bulkLines != nil {
@@ -285,7 +289,6 @@ func classifyEpicWriteError(err error, opts *epicWriteOpts) (code int, message, 
 		{new(*engine.EpicDoneRefusedError), ExitValidation, epicDoneRefusedHint},
 		{new(*engine.EpicClaimRefusedError), ExitValidation, epicClaimRefusedHint},
 		{new(*engine.EpicNotFoundError), ExitState, epicNotFoundHint},
-		{new(*engine.EpicEdgeNotFoundError), ExitState, epicEdgeNotFoundHint},
 		{new(*engine.EpicMilestoneNotFoundError), ExitState, epicMilestoneNotFoundHint},
 		{new(*engine.EpicMilestoneExistsError), ExitValidation, epicMilestoneExistsHint},
 		{new(*engine.MalformedConfigError), ExitFile, epicGraphFileHint},
