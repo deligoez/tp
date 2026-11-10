@@ -107,8 +107,9 @@ holds the rest. The epic layer's deferred pilot items are in `spec/1.3.0-measure
 9. **Operator decisions are never the agent's own**: `--skip-gate`, `tp import --force`, raising
    `review_max_rounds`/`audit_max_rounds` (default 3; an explicit 0 is uncapped) or any `run_max_*`,
    `audit_converge_on: blocking`, changing `quality_gate`, accepting a critical/high review finding
-   or any audit finding without a change (`accept-finding`), and `--force` over an unrecorded
-   emission (`discard-emission`). Under `tp run`
+   or any audit finding without a change (`accept-finding`), `--force` over an unrecorded
+   emission (`discard-emission`), and granting a stale epic review slice one round past its cap
+   (`tp epic review <slice> --grant-round`, `grant-round`). Under `tp run`
    each exits 2; the unit records it with `tp escalate --decision <name>` (the closed set is
    `engine.EscalationDecisions`) and the run stops for the operator. Policy: SKILL.md's "Gate, Budget
    & Escalation Policy".
