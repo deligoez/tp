@@ -55,3 +55,23 @@ func TestConditionsActionable_AGroupWithAnOpenConditionMemberCountsAsACondition(
 	}}
 	assert.True(t, actionableOf(g, "c"))
 }
+
+// TestConditionsActionable_AGroupWhoseConditionMembersAreClosedIsNoCondition
+// is spec/1.7.0.md §7: x in the open M1 depends on c2, an open condition in
+// M1, and on one of {c, b}, the condition c and the work b both in the
+// closed M2. No condition member of the group can be decided now, so x does
+// not wait on conditions alone and c2 is not actionable on its account. A
+// group counted as a condition for any condition member makes c2 actionable.
+func TestConditionsActionable_AGroupWhoseConditionMembersAreClosedIsNoCondition(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"M1", "M2"}}, Epics: []model.Epic{
+		{ID: "x", Title: "X", Milestone: "M1", DependsOn: []model.EpicDep{
+			{ID: "c2", Why: "x needs the budget"},
+			{AnyOf: []string{"c", "b"}, Why: "either opens the API"},
+		}},
+		{ID: "c2", Title: "C2", Milestone: "M1", Root: true, Condition: true, Acceptance: "the budget is approved"},
+		{ID: "c", Title: "C", Milestone: "M2", Root: true, Condition: true, Acceptance: "the board says yes"},
+		{ID: "b", Title: "B", Milestone: "M2", Root: true},
+	}}
+	g.Gates = map[string]model.EpicGate{"M1": {Members: []string{"x"}}}
+	assert.False(t, actionableOf(g, "c2"))
+}
