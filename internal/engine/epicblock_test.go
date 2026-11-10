@@ -216,3 +216,43 @@ func TestEpicBlock_DescribeNamesEachBlockerAndEachGroup(t *testing.T) {
 	b = &EpicBlock{Epic: "w", BlockedBy: []string{"c", "d"}}
 	assert.Equal(t, "c, d", b.Describe())
 }
+
+// TestEpicBlock_OperatorActionOffersEachGroupsRecordsAsChoices is
+// spec/1.7.0.md §7 and its decision 3: a group the operator can satisfy
+// adds its records as one list of alternatives under choices, beside the
+// plain conditions' commands. A group with no condition the operator can
+// record now, or any work blocker, gives no action.
+func TestEpicBlock_OperatorActionOffersEachGroupsRecordsAsChoices(t *testing.T) {
+	t.Parallel()
+	record := func(id string) string { return "tp epic done " + id + " --evidence <evidence>" }
+	cases := []struct {
+		name       string
+		block      EpicBlock
+		commands   []string
+		choices    [][]string
+		noOperator bool
+	}{
+		{"a group alone", EpicBlock{BlockedBy: []string{}, BlockedByAnyOf: [][]string{{"c1", "c2"}}, AnyOfConditions: [][]string{{"c1", "c2"}}},
+			[]string{}, [][]string{{record("c1"), record("c2")}}, false},
+		{"a condition and a group", EpicBlock{BlockedBy: []string{"c"}, Conditions: []string{"c"}, BlockedByAnyOf: [][]string{{"c1", "w"}}, AnyOfConditions: [][]string{{"c1"}}},
+			[]string{record("c")}, [][]string{{record("c1")}}, false},
+		{"a group with no condition to record", EpicBlock{BlockedBy: []string{}, BlockedByAnyOf: [][]string{{"w1", "w2"}}, AnyOfConditions: [][]string{{}}},
+			nil, nil, true},
+		{"work beside a group", EpicBlock{BlockedBy: []string{"w"}, BlockedByAnyOf: [][]string{{"c1", "c2"}}, AnyOfConditions: [][]string{{"c1", "c2"}}},
+			nil, nil, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			op := tc.block.OperatorAction()
+			if tc.noOperator {
+				assert.Nil(t, op)
+				return
+			}
+			require.NotNil(t, op)
+			assert.Equal(t, EscalateEpicDone, op.Decision)
+			assert.Equal(t, tc.commands, op.Commands)
+			assert.Equal(t, tc.choices, op.Choices)
+		})
+	}
+}
