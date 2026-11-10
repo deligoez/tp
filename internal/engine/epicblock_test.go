@@ -256,3 +256,33 @@ func TestEpicBlock_OperatorActionOffersEachGroupsRecordsAsChoices(t *testing.T) 
 		})
 	}
 }
+
+// TestEpicBlockFor_AGroupsRecordableConditionsAreTheOperatorsChoices is
+// spec/1.7.0.md §7: w depends on one of {c1, c2, b}; c1 is a condition of
+// the open A, c2 one of the closed B, b work. Only c1 can be recorded now,
+// so the operator action offers it alone as the group's choice. Once c1
+// leaves the group, nothing the operator records satisfies it: no action.
+func TestEpicBlockFor_AGroupsRecordableConditionsAreTheOperatorsChoices(t *testing.T) {
+	root := boundFilesRepo(t)
+	path := filepath.Join(root, "w.tasks.json")
+	tf := &model.TaskFile{Epic: "w"}
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"A", "B"}}, Epics: []model.Epic{
+		{ID: "w", Title: "W", Milestone: "A", DependsOn: []model.EpicDep{{AnyOf: []string{"c1", "c2", "b"}, Why: "any opens the API"}}},
+		{ID: "c1", Title: "C1", Milestone: "A", Root: true, Condition: true, Acceptance: "the board says yes"},
+		{ID: "c2", Title: "C2", Milestone: "B", Root: true, Condition: true, Acceptance: "the vendor says yes"},
+		{ID: "b", Title: "B", Milestone: "B", Root: true},
+	}}
+	writeBlockGraph(t, root, g)
+	block, err := EpicBlockFor(tf, path)
+	require.NoError(t, err)
+	assert.Equal(t, [][]string{{"c1"}}, block.AnyOfConditions)
+	op := block.OperatorAction()
+	require.NotNil(t, op)
+	assert.Equal(t, [][]string{{"tp epic done c1 --evidence <evidence>"}}, op.Choices)
+
+	g.Epics[0].DependsOn[0].AnyOf = []string{"c2", "b"}
+	writeBlockGraph(t, root, g)
+	block, err = EpicBlockFor(tf, path)
+	require.NoError(t, err)
+	assert.Nil(t, block.OperatorAction())
+}
