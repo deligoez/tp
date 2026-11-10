@@ -122,3 +122,16 @@ func TestEpicReviewBatch_MilestonesSkipAnUnknownOneAndApplyRoleToEach(t *testing
 	assert.Contains(t, reasons["Z"], `milestone "Z" is in no track`)
 }
 
+// TestEpicReviewBatch_AnUnknownRoleWritesNoSlice is §5's preparation before
+// writes as far as a call can observe it: a --role no slice resolves exits 2,
+// as a one-slice emission does, and no slice has written state. Filtering the
+// roles after a slice's write would leave A's directory behind.
+func TestEpicReviewBatch_AnUnknownRoleWritesNoSlice(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicThreeMilestones)
+	_, stderr, code := runTP(t, dir, "epic", "review", "--all", "--role", "no-such-role")
+	require.Equal(t, 2, code, "stderr: %s", stderr)
+	_, err := os.Stat(filepath.Join(dir, ".tp", "epic-review"))
+	assert.True(t, os.IsNotExist(err), "a refused batch writes no slice's state")
+}
+
