@@ -391,7 +391,8 @@ func WriteLocalConfig(tpDir string, lc model.LocalConfig) error {
 // "locks/", and §3.5's four run artifacts — the per-cycle run state
 // ("run-*.json"), the per-run log and escalation directory ("runs/"), the
 // per-cycle round directory ("rounds/") and the last-failure record
-// ("last_failure-*.json"). They stay git-ignored even when the .tp/ directory
+// ("last_failure-*.json") — and every epic review slice's inbox
+// ("epic-review/*/inbox/", spec/1.7.0.md §1). They stay git-ignored even when the .tp/ directory
 // was created by hand rather than by tp. It creates the file when absent and
 // appends each missing entry when the file exists without it.
 //
@@ -410,7 +411,7 @@ func WriteLocalConfig(tpDir string, lc model.LocalConfig) error {
 // are the first one and the one-time upgrade that adds a missing entry.
 func EnsureTPGitignore(tpDir string) error {
 	path := filepath.Join(tpDir, ".gitignore")
-	want := []string{"local.json", "locks/", "run-*.json", "runs/", "rounds/", "last_failure-*.json"}
+	want := []string{"local.json", "locks/", "run-*.json", "runs/", "rounds/", "last_failure-*.json", "epic-review/*/inbox/"}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
