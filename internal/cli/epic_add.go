@@ -151,35 +151,43 @@ const epicBulkLineTooLongHint = "a --bulk line exceeded the 1MB NDJSON read cap 
 // the whole add, naming it. lines maps each id to the 1-based physical lines
 // that hold it, so a refused write can point back into the payload.
 func readBulkEpics(path string) (epics []model.Epic, lines map[string][]int) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		output.Error(ExitFile, err.Error(), epicBulkFileHint)
-		os.Exit(ExitFile)
-	}
-	scanner := bufio.NewScanner(bytes.NewReader(data))
-	scanner.Buffer(make([]byte, 0, 64*1024), ndjsonLineCap)
 	lines = map[string][]int{}
-	for lineNum := 1; scanner.Scan(); lineNum++ {
-		if strings.TrimSpace(scanner.Text()) == "" {
-			continue
-		}
-		e, err := decodeEpic(scanner.Bytes())
+	scanNDJSONFile(path, epicBulkFileHint, epicBulkLineTooLongHint, func(lineNum int, line []byte) {
+		e, err := decodeEpic(line)
 		if err != nil {
 			output.Error(ExitUsage, fmt.Sprintf("line %d: invalid epic JSON", lineNum), err.Error())
 			os.Exit(ExitUsage)
 		}
 		epics = append(epics, e)
 		lines[e.ID] = append(lines[e.ID], lineNum)
+	})
+	return epics, lines
+}
+
+// scanNDJSONFile calls each with the 1-based number and bytes of every
+// non-blank line of the NDJSON file at path; an unreadable file or a line
+// over ndjsonLineCap exits 3 with fileHint or tooLongHint.
+func scanNDJSONFile(path, fileHint, tooLongHint string, each func(lineNum int, line []byte)) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		output.Error(ExitFile, err.Error(), fileHint)
+		os.Exit(ExitFile)
+	}
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	scanner.Buffer(make([]byte, 0, 64*1024), ndjsonLineCap)
+	for lineNum := 1; scanner.Scan(); lineNum++ {
+		if strings.TrimSpace(scanner.Text()) != "" {
+			each(lineNum, scanner.Bytes())
+		}
 	}
 	if err := scanner.Err(); err != nil {
-		hint := epicBulkFileHint
+		hint := fileHint
 		if errors.Is(err, bufio.ErrTooLong) {
-			hint = epicBulkLineTooLongHint
+			hint = tooLongHint
 		}
 		output.Error(ExitFile, fmt.Sprintf("cannot read %s: %v", path, err), hint)
 		os.Exit(ExitFile)
 	}
-	return epics, lines
 }
 
 // epicIfRevisionFlag registers --if-revision on a graph writer.
