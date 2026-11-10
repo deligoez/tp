@@ -206,3 +206,13 @@ func TestEpicBlockFor_AGroupBlocksUntilOneMemberIsDone(t *testing.T) {
 	assert.Empty(t, block.BlockedBy)
 	assert.Empty(t, block.BlockedByAnyOf)
 }
+
+// TestEpicBlock_DescribeNamesEachBlockerAndEachGroup is spec/1.7.0.md §7's
+// wording: plain blockers by id, then each group as one of {A, B}.
+func TestEpicBlock_DescribeNamesEachBlockerAndEachGroup(t *testing.T) {
+	t.Parallel()
+	b := &EpicBlock{Epic: "w", BlockedBy: []string{"c"}, BlockedByAnyOf: [][]string{{"a", "b"}}}
+	assert.Equal(t, "c, one of {a, b}", b.Describe())
+	b = &EpicBlock{Epic: "w", BlockedBy: []string{"c", "d"}}
+	assert.Equal(t, "c, d", b.Describe())
+}
