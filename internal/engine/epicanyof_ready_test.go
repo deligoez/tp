@@ -152,3 +152,16 @@ func TestMootEpics_APlainEdgeFromAnEpicThatIsNotMootUnmootsIt(t *testing.T) {
 	assert.False(t, MootEpics(g, states)["c2"])
 	assert.Contains(t, EpicReady(g, states, nil, false).Conditions, "c2")
 }
+
+// TestMootEpics_AnEpicAGateHoldsIsNeverMoot is spec/1.7.0.md §7: b lost to a
+// in w's group, but b is a member of M's default gate, so it is not moot
+// and stays the operator's to defer or remove. A rule that skipped the gate
+// check makes b moot.
+func TestMootEpics_AnEpicAGateHoldsIsNeverMoot(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"M"}}, Epics: []model.Epic{
+		{ID: "w", Title: "W", Milestone: "M", DependsOn: []model.EpicDep{{AnyOf: []string{"a", "b"}, Why: "either opens the API"}}},
+		{ID: "a", Title: "A", Milestone: "M", Root: true},
+		{ID: "b", Title: "B", Milestone: "M", Root: true},
+	}}
+	assert.Empty(t, MootEpics(g, anyOfStates(g, "a")))
+}
