@@ -73,6 +73,13 @@ func TestGraphCriticalPath_GoesThroughTheGroupMemberWithTheShortestChain(t *test
 		dependsOn("c", "P"), dependsOn("d", "P"), anyOfEpic([]string{"d", "c"}, "y", "P"),
 	}}
 	assert.Equal(t, []string{"d", "y"}, GraphCriticalPath(g, anyOfStates(g)))
+
+	g = &model.EpicGraph{Version: 1, Milestones: [][]string{{"P"}}, Epics: []model.Epic{
+		dependsOn("s", "P"), dependsOn("l2", "P"), dependsOn("l", "P", "l2"),
+		anyOfEpic([]string{"s", "l"}, "w", "P"), dependsOn("v", "P", "w"),
+	}}
+	assert.Equal(t, []string{"s", "w", "v"}, GraphCriticalPath(g, anyOfStates(g)),
+		"the shortest member is kept when it is the graph's first epic")
 }
 
 // TestGraphCriticalPath_LeavesAMootEpicOut is spec/1.7.0.md §7: b, which
