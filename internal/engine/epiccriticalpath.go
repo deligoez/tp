@@ -25,7 +25,12 @@ type EpicCriticalPath struct {
 // the milestone's gate (GateMembers); a done epic cuts it, and it may cross
 // milestones and tracks. states is DeriveEpicStates' result and estimates
 // EpicEstimates'. Ties go to the earlier gate member in GateMembers order and
-// then to the earlier dependency in the epic's depends_on order.
+// then to the earlier dependency in the epic's depends_on order. An
+// unsatisfied any-of group counts as its member with the shortest chain, the
+// lightest for ByEstimate, the first listed on a tie; a satisfied one leads
+// nowhere (spec/1.7.0.md §7). A moot epic is on no chain without a check of
+// its own: a gate holds no moot epic, only a moot epic has a plain edge to
+// one, and a satisfied group is not walked.
 func CriticalPath(g *model.EpicGraph, states map[string]EpicState, estimates map[string]int, milestone string) EpicCriticalPath {
 	w := chainWalk{epics: epicsByID(g), states: states}
 	members, _ := GateMembers(g, milestone)
@@ -71,8 +76,9 @@ func (w *chainWalk) best(members []string, weight func(string) int) chain {
 	return top
 }
 
-// heaviestTo returns the heaviest chain ending at id, an epic assumed open.
-// A dependency cycle, which lint reports, cuts the chain where it closes.
+// heaviestTo returns the heaviest chain ending at id, an epic assumed open,
+// the earlier entry in depends_on order on a tie. A dependency cycle, which
+// lint reports, cuts the chain where it closes.
 func (w *chainWalk) heaviestTo(id string, weight func(string) int, memo map[string]chain, visiting map[string]bool) chain {
 	if c, ok := memo[id]; ok {
 		return c
@@ -80,10 +86,7 @@ func (w *chainWalk) heaviestTo(id string, weight func(string) int, memo map[stri
 	visiting[id] = true
 	var prev chain
 	for _, dep := range w.epics[id].DependsOn {
-		if !w.open(dep.ID) || visiting[dep.ID] {
-			continue
-		}
-		if c := w.heaviestTo(dep.ID, weight, memo, visiting); c.weight > prev.weight {
+		if c, ok := w.lightestMember(dep, weight, memo, visiting); ok && c.weight > prev.weight {
 			prev = c
 		}
 	}
@@ -91,6 +94,43 @@ func (w *chainWalk) heaviestTo(id string, weight func(string) int, memo map[stri
 	c := chain{path: append(append([]string{}, prev.path...), id), weight: prev.weight + weight(id)}
 	memo[id] = c
 	return c
+}
+
+// lightestMember returns the chain one depends_on entry of an epic on the
+// walk leads to: a plain edge's, or an unsatisfied group's lightest member's,
+// the first listed on a tie (spec/1.7.0.md §7). ok is false for an entry
+// that holds nothing, and for one a member of which closes a cycle, which
+// cuts the chain there.
+func (w *chainWalk) lightestMember(dep model.EpicDep, weight func(string) int, memo map[string]chain, visiting map[string]bool) (best chain, ok bool) {
+	for _, m := range w.holding(dep) {
+		if visiting[m] {
+			return chain{}, false
+		}
+		if c := w.heaviestTo(m, weight, memo, visiting); !ok || c.weight < best.weight {
+			best, ok = c, true
+		}
+	}
+	return best, ok
+}
+
+// holding returns the not-done epics a depends_on entry names while it holds
+// its epic: a plain edge's, or an unsatisfied group's members in stored
+// order; none for a satisfied group.
+func (w *chainWalk) holding(dep model.EpicDep) []string {
+	if dep.IsGroup() && epicDepSatisfied(dep, w.states) {
+		return nil
+	}
+	names := []string{dep.ID}
+	if dep.IsGroup() {
+		names = dep.Members()
+	}
+	out := []string{}
+	for _, id := range names {
+		if w.open(id) {
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 // allEstimated reports whether every epic on every chain ending at a
@@ -114,9 +154,7 @@ func (w *chainWalk) allEstimated(members []string, estimates map[string]int) boo
 			return false
 		}
 		for _, dep := range w.epics[id].DependsOn {
-			if w.open(dep.ID) {
-				stack = append(stack, dep.ID)
-			}
+			stack = append(stack, w.holding(dep)...)
 		}
 	}
 	return true
