@@ -83,3 +83,17 @@ func TestEpicReviewReport_AllListsEachClassWithItsSlicesRoundsAndEpics(t *testin
 	assert.Equal(t, []int{1}, vague.Slices[0].Rounds)
 }
 
+// TestEpicReviewReport_MilestonesReadOnlyTheirSlices is §3's --milestones:
+// the report reads the listed milestones' slices only, so --epic a's round
+// is not in it.
+func TestEpicReviewReport_MilestonesReadOnlyTheirSlices(t *testing.T) {
+	t.Parallel()
+	dir := epicReportFixture(t)
+
+	classes, _ := runEpicReport(t, dir, "--milestones", "A")
+	require.Len(t, classes, 2)
+	require.Len(t, classes[0].Slices, 1, "only milestone A's slice")
+	assert.Equal(t, "A", classes[0].Slices[0].Key.Value)
+	assert.Equal(t, []int{1, 2}, classes[0].Slices[0].Rounds)
+}
+
