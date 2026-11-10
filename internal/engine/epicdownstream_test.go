@@ -36,3 +36,24 @@ func TestEpicDownstreams_CycleMembersCountEachOtherWhateverTheOrder(t *testing.T
 		}
 	}
 }
+
+// TestEpicDownstreams_CountsWorkPerMilestoneAndPassesConditionsThrough is
+// spec/1.6.0.md F1 on track [P, Q, R, S]: r has the work dependent a in P,
+// the chain k -> b -> c through the condition k in Q, and the cycle e <-> m
+// in S, m a condition. Only a, b, c and e count; the chain through k is two
+// long; Q, which holds only the condition, is not listed.
+func TestEpicDownstreams_CountsWorkPerMilestoneAndPassesConditionsThrough(t *testing.T) {
+	cond := func(id, m string, deps ...string) model.Epic {
+		e := dependsOn(id, m, deps...)
+		e.Condition, e.Acceptance = true, "the operator decides"
+		return e
+	}
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"P", "Q", "R", "S"}}, Epics: []model.Epic{
+		dependsOn("r", "P"), dependsOn("a", "P", "r"), cond("k", "Q", "r"), dependsOn("b", "R", "k"),
+		dependsOn("c", "R", "b"), dependsOn("e", "S", "r", "m"), cond("m", "S", "e"),
+	}}
+	got := EpicDownstreams(g, map[string]EpicState{}, map[string]MilestoneGate{"P": {Open: true}}, []string{"r"})
+	assert.Equal(t, EpicDownstream{LongestChain: 2, Dependents: 4, DependentsOpen: 1, DependentsByMilestone: []MilestoneDependents{
+		{Milestone: "P", Dependents: 1}, {Milestone: "R", Dependents: 2}, {Milestone: "S", Dependents: 1},
+	}}, got["r"])
+}
