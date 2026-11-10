@@ -131,3 +131,24 @@ func TestMootEpics_WhatOnlyALostAlternativeNeedsIsMootToo(t *testing.T) {
 	assert.Equal(t, map[string]bool{"b": true, "c": true}, MootEpics(g, states))
 	assert.NotContains(t, EpicReady(g, states, nil, true).Conditions, "c")
 }
+
+// TestMootEpics_APlainEdgeFromAnEpicThatIsNotMootUnmootsIt is spec/1.7.0.md
+// §7: c2 is moot while only the satisfied group of w names it, and stops
+// being moot once y, which is not moot, gains a plain edge to it: moot is
+// derived on every read, and c2 is back among the operator's conditions. A
+// rule that ignored plain edges keeps c2 moot.
+func TestMootEpics_APlainEdgeFromAnEpicThatIsNotMootUnmootsIt(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"M"}}, Epics: []model.Epic{
+		{ID: "w", Title: "W", Milestone: "M", DependsOn: []model.EpicDep{{AnyOf: []string{"c1", "c2"}, Why: "either opens the API"}}},
+		{ID: "c1", Title: "C1", Milestone: "M", Root: true, Condition: true, Acceptance: "the board says yes"},
+		{ID: "c2", Title: "C2", Milestone: "M", Root: true, Condition: true, Acceptance: "the vendor says yes"},
+		{ID: "y", Title: "Y", Milestone: "M", Root: true},
+	}}
+	assert.True(t, MootEpics(g, anyOfStates(g, "c1"))["c2"])
+
+	g.Epics[3].Root = false
+	g.Epics[3].DependsOn = []model.EpicDep{{ID: "c2", Why: "y reads the vendor's terms"}}
+	states := anyOfStates(g, "c1")
+	assert.False(t, MootEpics(g, states)["c2"])
+	assert.Contains(t, EpicReady(g, states, nil, false).Conditions, "c2")
+}
