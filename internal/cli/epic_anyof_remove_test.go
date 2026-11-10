@@ -58,3 +58,11 @@ func TestEpicRemove_ForceOnADoneMemberDropsItsGroup(t *testing.T) {
 	assert.Empty(t, removeX(t, `[{"any_of": ["x", "y", "z"], "why": "any opens the API"}]`, true))
 }
 
+// TestEpicRemove_ForceOnAnUndoneMemberLeavesTheGroup: an undone x leaves the
+// group, which keeps its other members and its why.
+func TestEpicRemove_ForceOnAnUndoneMemberLeavesTheGroup(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, []map[string]any{anyOfEntry("any opens the API", "y", "z")},
+		removeX(t, `[{"any_of": ["x", "y", "z"], "why": "any opens the API"}]`, false))
+}
+
