@@ -87,6 +87,30 @@ Test efficacy: 100.00%
 ```
 
 So `Lived: 0` next to `Not covered: 6` is honestly reachable, and the "stronger" signature has exactly the false positive the weaker one was rejected for — the paragraph recorded that rejection and then repeated the mistake one sentence later. **The condition is necessary under corruption and not sufficient**: treat it as a prompt, never as a verdict. **And the argv does not settle it either — this file said it did, one correction ago, and a run refutes that too.** Measured in **four** independent `rsync` copies of `HEAD` (three by a grounding unit, one independently, same conclusion): the **first** `gremlins unleash ./internal/model --workers 4` in a fresh directory returns `Killed 50, Lived 5, Not covered 26, Timed out 0, 90.91%`, and **every later run in that same directory — byte-identical argv, no `--test-cpu` anywhere — returns `Killed 2, Lived 0, Not covered 26, Timed out 53, 100.00%`**: the corruption signature with the flag absent. Four clean first runs, six corrupt subsequent ones. Priming the test cache first (`go test ./internal/model` twice before gremlins ever ran) does not prevent it, so the cache is not the mechanism. So `--test-cpu` is **sufficient** for the signature and **not necessary**, and reading the argv proves nothing in either direction. What is left is procedural rather than diagnostic: **run in a fresh copy nothing has touched, and treat any run after the first in that directory as evidence of nothing.** The mechanism is unknown and was not chased past ruling out the cache; the fact is reproducible, which is what a rule needs. The *symptom* is machine-dependent too — a peer measured survivors becoming `KILLED` where this workspace sees `TIMED OUT` — so trust the signature, not the mechanism. And note which direction this fails in: it manufactures exactly the number someone would be pleased by, in a repo whose own rule is that the survivor count is not a score to drive down. **`-D, --diff <branch|commit>` does not work in v0.6.0 — narrow by PACKAGE instead.** It was recorded here as the untried idea most likely to turn "an hour before the tag" into something runnable per task. The experiment has now been run and it fails: on a clean tree, `-D <the current branch>` — an empty diff, which must yield zero mutants — produced all **80**, the unrestricted set. Upstream has three open bugs on it (#278, #296, #301). Narrowing by package name is the replacement and is an EXACT substitute rather than an approximation: in default mode gremlins runs only the mutated package's own tests (`--integration` inverts this), so an unchanged package's mutants cannot change verdict. The same fact has a corollary worth knowing before reading any efficacy number here — a package driven only by another package's tests scores as undetected, so the figure understates detection. What it is worth: the files v0.34.0's manual sweep examined score 96–100% efficacy, the files it did not sit at 25–78%, so the manual work was real — and `internal/engine/validate.go` at **25% with 46 survivors** is the standing backlog. The two decision points, named here so they are not re-derived each cycle and do not die with the orchestrator's context: **when a version's new engine surface is complete, before its audit loop opens**, and **before the release tag** — never while task gates are running, for the load reason above. the mutation-score release is where this becomes a documented gate entry instead of a rule in this file.
+- **Since v1.6.2 the mutation run is `scripts/mutation.sh`: go-mutesting with `--per-test`, over the
+  files changed since the last tag.** The gremlins paragraph above stays as history. What drove the
+  switch, measured 2026-11-10 on the 26 engine source files changed between v1.5.0 and HEAD, 4
+  workers, same machine, one run at a time:
+
+  | run | mutants | wall | killed / survived |
+  |---|---|---|---|
+  | gremlins (default mutators) | 308 run | 20 min 52 s | 259 / 45 (4 timed out) |
+  | go-mutesting, whole package per mutant | 362 | 26 min 10 s | 256 / 86 |
+  | go-mutesting `--per-test` | 362 | 8 min 9 s | 256 / 86 |
+  | go-mutesting `--per-test`, same directory again | 362 | 5 min 58 s | 256 / 86 |
+
+  The three go-mutesting runs escaped the **same 86 mutant ids**, so per-test selection changed no
+  verdict, and a second run in a used directory is as good as the first — gremlins' first-run-only
+  trap does not apply. The survivor counts differ from gremlins' because the mutator sets are not
+  identical (go-mutesting's numeric mutators change literals); compare go-mutesting runs with each
+  other, not with the old gremlins figures. The night before, a full `./internal/engine` gremlins
+  run took 2 h 16 min, and three agents classifying its survivors by re-running the whole module per
+  mutant in parallel filled the machine with tp processes until it rebooted, and the run's report
+  under `/tmp` went with it. Hence the script's three other choices: survivors come with their diff
+  and a kill hint in `go-mutesting-agentic.json`, so classification reads instead of re-running;
+  reports live under `~/.cache/tp-mut`; and `scripts/mutation-baseline.json`, once classified
+  survivors are written to it with `--update-baseline`, makes a later run report only new ones
+  (checked: a baseline written from a run turns `--fail-on-escaped` from failing to exit 0).
 - **Force a commitment in the brief, or the round returns a reading it cannot use.** Six instances
   across two repositories, three of them this repo's own v0.36.0 audit, all recorded. The pattern is
   one sentence, and in every case the reading was already available to the role — what the sentence
