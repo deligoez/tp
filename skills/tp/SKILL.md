@@ -706,7 +706,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 ### Incremental
 | Command | Purpose |
 |---------|---------|
-| `tp next` | Resume WIP or claim next ready; on a bound file whose epic has a dependency not done it returns a `wip` task, else exits 4 with `{done: false, message, blocked_by_epics}` (`--peek` too), plus `operator: {decision, commands}` when every blocker is a condition; on a file with no task yet it exits 4 with `{done: false, message, phase, hint, command}`, `phase` the one `tp resume` reports |
+| `tp next` | Resume WIP or claim next ready; on a bound file whose epic has a dependency not done it returns a `wip` task, else exits 4 with `{done: false, message, blocked_by_epics}` (`--peek` too), plus `operator: {decision, commands}` when every blocker is a condition; an unsatisfied any-of group adds `blocked_by_any_of` and the operator's `choices`; on a file with no task yet it exits 4 with `{done: false, message, phase, hint, command}`, `phase` the one `tp resume` reports |
 | `tp next --minimal` | Minimal output: {id, acceptance} only |
 | `tp next --peek` | Preview the next ready task without claiming; unlike plain `tp next` it ignores WIP |
 | `tp next --brief` | Claim the task and return its brief (identity, scope, prior work, close recipe); `--brief` + `--minimal` exit 2 |
