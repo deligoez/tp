@@ -176,3 +176,29 @@ func TestEpicReviewGrant_TakesNoOtherMode(t *testing.T) {
 	assert.Empty(t, epicGrantFiles(t, dir))
 }
 
+// TestEpicExport_SliceLoopReportsGrantable is §8's export half: the slice
+// loop of tp epic export reports grantable as --status does, true on the
+// stale capped slice and false once the grant is given.
+func TestEpicExport_SliceLoopReportsGrantable(t *testing.T) {
+	t.Parallel()
+	dir := cappedStaleEpicSlice(t)
+	grantable := func() bool {
+		stdout, stderr, code := runTP(t, dir, "epic", "export")
+		require.Equal(t, 0, code, "stderr: %s", stderr)
+		var p struct {
+			Slices []struct {
+				Grantable *bool `json:"grantable"`
+			} `json:"slices"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(stdout), &p), "stdout: %s", stdout)
+		require.Len(t, p.Slices, 1)
+		require.NotNil(t, p.Slices[0].Grantable, "every slice carries grantable")
+		return *p.Slices[0].Grantable
+	}
+	assert.True(t, grantable())
+	_, stderr, code := grantRound(t, dir)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.False(t, grantable())
+	_, err := os.Stat(epicGrantFiles(t, dir)[0])
+	require.NoError(t, err)
+}
