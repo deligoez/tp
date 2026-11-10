@@ -9,17 +9,26 @@ import (
 )
 
 // EpicBlock is what a bound task file's epic does to starting its tasks
-// (spec/1.5.0.md §6). BlockedBy names the epic's direct dependencies that are
-// not done, in depends_on order; while it is not empty no task of the file
-// may start. Notice is set when the binding is ignored because the graph does
-// not hold the epic or there is no graph file: the file then behaves as
-// unbound, and the caller says so.
+// (spec/1.5.0.md §6). BlockedBy names the epic's plain dependencies that are
+// not done, in depends_on order; BlockedByAnyOf holds each unsatisfied any-of
+// group's members, one list per group in depends_on order (spec/1.7.0.md
+// §7). While either is not empty (Blocks) no task of the file may start.
+// Notice is set when the binding is ignored because the graph does not hold
+// the epic or there is no graph file: the file then behaves as unbound, and
+// the caller says so.
 type EpicBlock struct {
-	Epic      string
-	BlockedBy []string
-	Notice    string
+	Epic           string
+	BlockedBy      []string
+	BlockedByAnyOf [][]string
+	Notice         string
 	// Conditions are the entries of BlockedBy that are conditions.
 	Conditions []string
+}
+
+// Blocks reports whether b holds the file's tasks: a plain dependency or a
+// group is not satisfied.
+func (b *EpicBlock) Blocks() bool {
+	return len(b.BlockedBy) > 0 || len(b.BlockedByAnyOf) > 0
 }
 
 // EpicOperatorAction is what clears a block whose every blocker is a
@@ -47,8 +56,9 @@ func (b *EpicBlock) OperatorAction() *EpicOperatorAction {
 // unbound file has none: it returns nil and reads nothing, so it behaves as it
 // did at v1.4.2. A bound file reads the graph of the .tp/ directory above it;
 // a dependency's done record counts as done whatever its own dependencies
-// are, and a dependency without one is derived from its bound files. A graph
-// or bound file that cannot be read is an error.
+// are, and a dependency without one is derived from its bound files; a group
+// is satisfied once one member is done by the same rule. A graph or bound
+// file that cannot be read is an error.
 func EpicBlockFor(tf *model.TaskFile, taskFilePath string) (*EpicBlock, error) {
 	if tf.Epic == "" {
 		return nil, nil
@@ -73,20 +83,50 @@ func EpicBlockFor(tf *model.TaskFile, taskFilePath string) (*EpicBlock, error) {
 		block.Notice = unboundNotice(tf.Epic, ".tp/"+EpicGraphFile+" does not hold it")
 		return block, nil
 	}
-	bound := &boundIndex{dir: dir}
-	for _, d := range g.Epics[i].DependsOn {
+	if err := block.judge(g, &g.Epics[i], &boundIndex{dir: dir}); err != nil {
+		return nil, err
+	}
+	return block, nil
+}
+
+// judge fills b from e's depends_on entries: each plain dependency that is
+// not done, and each group none of whose members is.
+func (b *EpicBlock) judge(g *model.EpicGraph, e *model.Epic, bound *boundIndex) error {
+	for _, d := range e.DependsOn {
+		if d.IsGroup() {
+			satisfied, err := epicGroupDone(g, d, bound)
+			if err != nil {
+				return err
+			}
+			if !satisfied {
+				b.BlockedByAnyOf = append(b.BlockedByAnyOf, d.Members())
+			}
+			continue
+		}
 		done, err := epicDepDone(g, d.ID, bound)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if !done {
-			block.BlockedBy = append(block.BlockedBy, d.ID)
+			b.BlockedBy = append(b.BlockedBy, d.ID)
 			if j := epicIndex(g, d.ID); j >= 0 && g.Epics[j].Condition {
-				block.Conditions = append(block.Conditions, d.ID)
+				b.Conditions = append(b.Conditions, d.ID)
 			}
 		}
 	}
-	return block, nil
+	return nil
+}
+
+// epicGroupDone reports whether one member of the group d is done
+// (epicDepDone).
+func epicGroupDone(g *model.EpicGraph, d model.EpicDep, bound *boundIndex) (bool, error) {
+	for _, m := range d.Members() {
+		done, err := epicDepDone(g, m, bound)
+		if err != nil || done {
+			return done, err
+		}
+	}
+	return false, nil
 }
 
 // epicDepDone reports whether dependency id of g is done: by its done record,
