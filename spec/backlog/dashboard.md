@@ -218,9 +218,10 @@ review changes them.
 
 1. Web page now, TUI later? **Web only in v1** (operator).
 2. How does the page learn of change? **B: in-process re-export on a 2 s tick, SSE on hash change.**
-3. Per-task detail in v1? **No in v1's spec, but add `--tasks` to the export first if the detail
-   panel without tasks reads as empty to the field.**
-4. Loop history in v1? **No; `{round, state}` suffices; history is gap 2, later.**
+3. Per-task detail in v1? **Yes, since the operator's review of prototype 1: the Spec tab shows each
+   of the spec's tasks with its dependencies** (operator; the needs are §4's "What the Spec tab needs").
+4. Loop history in v1? **Round counts and clean per round, yes (the loop dots); severity and
+   resolution per finding stay later.**
 5. `tp run` units live in v1? **Only `tp run --status` per bound file, read in-process; no new stream.**
 6. What does a repo with no graph show (tp's own)? **Exit 3 in v1 with a hint; project-wide export
    later** (operator).
