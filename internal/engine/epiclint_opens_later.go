@@ -104,6 +104,10 @@ type opensLaterScan struct {
 	from       map[string][]*waitEdge
 	warns      []*opensLaterHit
 	at         map[string]*opensLaterHit
+	epics      map[string]*model.Epic
+	groups     []*groupWait
+	groupAt    map[string]*groupWait
+	waitsAt    map[string]map[string]string
 }
 
 // lintEpicDependencyOpensLater reports each cycle of the milestone wait
@@ -113,19 +117,23 @@ type opensLaterScan struct {
 // milestone B when an effective member of the gate reaches an undone epic of
 // B through depends_on and epics without a done record, a condition like any
 // epic. A cycle is an error: no gate on it can go green. One finding per
-// cycle, in canonical rotation. When an epic of such a milestone outside its
-// gate's members reaches an epic of a milestone opening after it and no
-// error names that epic, it is a warning: it can still finish once that
-// milestone opens. An edge later-milestone-dependency reports, to a later
-// milestone of the same track, is that rule's and is not followed.
+// cycle, in canonical rotation. An unsatisfied any-of group a gate member
+// reaches is one error per gate and group when every member waits on that
+// gate (gateWaits), so no member can be done first (spec/1.7.0.md §7). When
+// an epic of such a milestone outside its gate's members reaches an epic of
+// a milestone opening after it and no error names that epic, it is a
+// warning: it can still finish once that milestone opens. A plain edge
+// later-milestone-dependency reports, to a later milestone of the same
+// track, is that rule's and is not followed.
 func lintEpicDependencyOpensLater(g *model.EpicGraph) []EpicLintFinding {
 	s := &opensLaterScan{
 		g: g, pos: milestonePositions(g), byID: epicMilestones(g), after: EffectiveOpensAfter(g),
 		anc: map[string]map[string]bool{}, members: map[string]map[string]bool{},
 		from: map[string][]*waitEdge{}, at: map[string]*opensLaterHit{},
+		epics: epicsByID(g), groupAt: map[string]*groupWait{}, waitsAt: map[string]map[string]string{},
 	}
 	s.milestones = trackedMilestones(g)
-	epics := epicsByID(g)
+	epics := s.epics
 	undone := func(id string) bool { return epics[id].Done == nil }
 	adj := depEdges(g, s.keepEdge)
 	for i := range g.Epics {
@@ -139,6 +147,7 @@ func lintEpicDependencyOpensLater(g *model.EpicGraph) []EpicLintFinding {
 				s.record(e, b, parent)
 			}
 		}
+		s.noteGroups(e, order, parent)
 	}
 	return s.findings()
 }
@@ -308,6 +317,7 @@ func (s *opensLaterScan) findings() []EpicLintFinding {
 		}
 		out = append(out, waitCycleFinding(cycle))
 	}
+	out = append(out, s.groupWaitFindings(held)...)
 	for _, h := range s.warns {
 		if held[h.target] {
 			continue
