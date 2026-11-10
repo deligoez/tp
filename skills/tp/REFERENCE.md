@@ -1457,6 +1457,7 @@ its own, so the set may grow without changing directory. `--status` names it as
 | `snapshot-round-<N>.json` | emission | each unit's hash and block text as round N read it; a unit's hash covers its own block and, for an epic, the blocks of its direct dependencies |
 | `round-<N>.ndjson` | `--record` | the round's findings, each with `severity`, `finding`, `location` (`epic:<id>` or `gate:<m>`) and `evidence`; `--resolve` writes dispositions into the last one |
 | `key.json` | emission (v1.5.0) | the slice's key, `{kind, value?, ids?, name?}` with `kind` one of `epic`, `milestone`, `epics`; `tp epic export` lists it |
+| `grant.json` | `--grant-round` (v1.7.0) | `{round}`, the one round past the cap the operator granted; recording that round spends it |
 
 From round 2 a unit whose hash equals the round before's and that holds no open finding is carried
 and not asked; a unit with no recorded hash is asked and makes the slice stale. Convergence and the
@@ -1464,6 +1465,11 @@ cap resolve `review_clean_rounds`, `review_converge_on` and `review_max_rounds` 
 layer over the built-in default, with no task file layer. A round counts as clean when none of its
 rows is open and blocking, as in `tp review`: a row resolved `wontfix` or `duplicate` is closed, and
 one resolved `fixed` changed the graph, so the slice is stale until a later round reads the change.
+A slice at its cap that is stale is `grantable` (v1.7.0): `tp epic review <slice> --grant-round`, the
+operator's decision, lets it emit and record one more round with the ordinary carry and no special
+prompt, and recording that round spends the grant. It prints `{state_dir, round, next_action}`; a
+slice below its cap, unchanged since its last round, done, or already granted exits 4 and writes
+nothing, and it takes one slice at a time, no other mode beside it (exit 2).
 With no `.tp/epic-reviewers/` the three built-in graph roles run (`dod-satisfiability`,
 `why-auditor`, `phase-economist`); a populated directory replaces them. From round 2 the built-in
 `regression` role is appended whenever an asked unit changed or the round before resolved a finding
