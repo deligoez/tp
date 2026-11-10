@@ -1478,8 +1478,12 @@ acceptance newly names, the work the change hands on; a name the unit's text alr
 shown), the output contract and the file to write, then
 the context, and a last line repeating the row keys and the file. A role file's optional `context`
 key scopes that context: `neighbours` (the default) shows every epic one edge away in either
-direction, `dependencies` only the epics an asked unit depends on; `dod-satisfiability` and
-`why-auditor` ship with `dependencies`. A carried gate's block is shown read-only in the context of
+direction, `dependencies` only the epics an asked unit depends on, and `neighbours-brief` (v1.7.0)
+each dependency's full block and each dependent as its id, title, milestone and its edges into the
+asked units with their whys, in a round that appends no regression role (one that does keeps every
+neighbour in full); `dod-satisfiability` and `why-auditor` ship with `dependencies`, and
+`phase-economist` with `neighbours-brief` (an ejected copy keeps the value it was ejected with).
+A carried gate's block is shown read-only in the context of
 every prompt. Each prompt's `output_path` is the absolute `<state dir>/inbox/<role>-r<N>.ndjson`
 in the slice's inbox (v1.7.0; until then a cwd-relative `epic-review-<hash prefix>-r<N>-<role>.ndjson`),
 the same path the prompt names; inside a `tp run` unit it is the `$TP_ROUND_DIR` path instead.
