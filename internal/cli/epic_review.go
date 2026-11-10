@@ -66,6 +66,8 @@ func newEpicReviewCmd() *cobra.Command {
 	cmd.Flags().String("epic", "", "Review this one epic")
 	cmd.Flags().StringSlice("epics", nil, "Review this set of epics, comma-separated CSV (quote an id holding a comma); repeatable")
 	cmd.Flags().String("name", "", "With --epics: key the set's state by this name, so the set may grow between rounds")
+	cmd.Flags().StringSlice("milestones", nil, "Emit each of these milestones' rounds in one payload, comma-separated; with --status, read each slice")
+	cmd.Flags().Bool("all", false, "Emit every tracked milestone's round in one payload; with --status, read every slice directory under .tp/epic-review/")
 	cmd.Flags().String("role", "", "Emit only this role's prompt")
 	cmd.Flags().String("record", "", "Record this NDJSON findings file as the slice's next round")
 	cmd.Flags().Bool("status", false, "Print the slice's convergence status")
@@ -93,6 +95,10 @@ func runEpicReview(cmd *cobra.Command, args []string) error {
 	if grant, _ := cmd.Flags().GetBool("grant-round"); grant {
 		refuseEpicGrantBeside(cmd)
 		runEpicReviewGrant(epicReviewSliceKey(cmd))
+		return nil
+	}
+	if scope, batch := epicBatchFlags(cmd); batch {
+		runEpicReviewBatch(cmd, scope)
 		return nil
 	}
 	key := epicReviewSliceKey(cmd)
