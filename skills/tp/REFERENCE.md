@@ -1714,18 +1714,25 @@ The read commands write nothing and list epics in graph order, every list `[]` w
   status, the other figures closed tasks only. `--compact` leaves each milestone's `critical_path`
   (v1.6.0: the top-level one carries the chain), `throughput` and `rollup` out.
 - **`tp epic export`**: JSON, `{version, critical_path, graph, milestones, epics, slices}`, every key
-  always present; `critical_path` is `tp epic status`'s top-level one (v1.6.0); `--md` prints the per-milestone tables instead, and `--compact` is ignored. `version` is
-  1; renaming, removing or retyping a key bumps it, adding one does not.
+  always present; `critical_path` is `tp epic status`'s top-level one (v1.6.0); `--md` prints the
+  per-milestone tables instead, a group as `one of {A, B}: <why>`, and `--compact` is ignored.
+  `version` is 2 (v1.7.0, since a `depends_on` entry may carry `any_of` in place of `id`; 1
+  before); renaming, removing or retyping a key bumps it, adding one does not. The graph file keeps
+  its own `version: 1`.
   - `graph` is `.tp/epics.json` as stored; `milestones` is `tp epic status`'s `milestones`,
     uncompacted.
   - `epics`: `{id, title, milestone, condition, status, done_at, files, downstream?, actionable?,
-    not_actionable?, held_by, blocked_by}`, `done_at` RFC 3339 or `null`. `downstream` is the one
-    above without `dependents_by_milestone`, absent on a done epic; `actionable` is present on
-    conditions only, `false` once done; `not_actionable` on an undone condition that is not
-    actionable. `blocked_by` lists the undone direct dependencies, `held_by` the conditions
-    among them, both in `depends_on` order. `files` is `[]` when unbound, else each `{path, phase,
-    tasks: {open, wip, done}, review, audit, ground}`: `path` relative to the git toplevel, `phase`
-    `tp resume`'s, each loop `{round, state}`. Review and audit count recorded rounds, `state`
+    not_actionable?, moot?, held_by, blocked_by, held_by_any_of, blocked_by_any_of, blocked,
+    held}`, `done_at` RFC 3339 or `null`. `downstream` is the one above without
+    `dependents_by_milestone`, absent on a done or moot epic; `actionable` is present on conditions
+    only, `false` once done; `not_actionable` on an undone condition that is not actionable;
+    `moot: true` on a moot epic, in place of both (v1.7.0). `blocked_by` lists the undone plain
+    dependencies, `held_by` the conditions among them, both epic ids in `depends_on` order;
+    `blocked_by_any_of` holds one member list per unsatisfied any-of group, `held_by_any_of` those
+    whose every member is a condition (v1.7.0); `blocked` and `held` say whether a list of their
+    kind is not empty, so no reader combines them. `files` is `[]` when unbound, else each `{path,
+    phase, tasks: {open, wip, done}, review, audit, ground}`: `path` relative to the git toplevel,
+    `phase` `tp resume`'s, each loop `{round, state}`. Review and audit count recorded rounds, `state`
     `none`, `done`, `stale` (review only), `cap_reached` or `open`; ground counts emitted rounds,
     `state` `none`, `complete` or `open`.
   - `slices`: each `.tp/epic-review/` directory in name order, `{dir, key, round, state, grantable}`. `key` is
