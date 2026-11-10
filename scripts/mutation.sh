@@ -7,7 +7,9 @@
 #   ./scripts/mutation.sh --all           # every non-test file in the target packages
 #
 # Env: TP_MUT_PKGS (default "internal/engine"), TP_MUT_WORKERS (default 4),
-#      TP_MUT_OUT (default ~/.cache/tp-mut).
+#      TP_MUT_OUT (default ~/.cache/tp-mut),
+#      TP_MUT_UPDATE_BASELINE=1 writes this run's survivors to scripts/mutation-baseline.json
+#      (only after every survivor is classified equivalent or undocumented; see docs/lessons.md).
 #
 # Why this shape (docs/lessons.md, "Mutation testing"):
 # - --per-test runs each mutant against only the tests whose coverage reaches it; on the
@@ -57,13 +59,16 @@ for m in $("$gm" --list-mutators); do
   case " $keep " in *" $m "*) ;; *) disable+=(--disable="$m") ;; esac
 done
 
+update=()
+[ "${TP_MUT_UPDATE_BASELINE:-}" = 1 ] && update+=(--update-baseline)
+
 echo "mutating ${#files[@]} files since $base -> $run"
 cd "$run/tree"
 start=$(date +%s)
 set +e
 "$gm" --per-test --coverage --workers="$workers" --timeout-coefficient=3 --no-diffs --quiet \
   --logger-agentic-json --logger-summary-json --baseline="$repo/scripts/mutation-baseline.json" \
-  "${disable[@]}" "${files[@]}" > "$run/run.log" 2>&1
+  ${update[@]+"${update[@]}"} "${disable[@]}" "${files[@]}" > "$run/run.log" 2>&1
 code=$?
 set -e
 echo "exit $code wall $(( $(date +%s) - start ))s" >> "$run/run.log"
