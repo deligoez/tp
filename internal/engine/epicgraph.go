@@ -32,7 +32,7 @@ var (
 		"condition": true, "estimate_minutes": true, "claimed": true, "done": true,
 	}
 	knownEpicGateKeys     = map[string]bool{"members": true, "deferrable": true, "threshold": true, "met": true}
-	knownEpicTagCheckKeys = map[string]bool{"provided_by": true}
+	knownEpicTagCheckKeys = map[string]bool{"provided_by": true, "direct": true}
 	knownEpicDepKeys      = map[string]bool{"id": true, "why": true}
 )
 
