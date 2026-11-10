@@ -1,0 +1,90 @@
+package cli_test
+
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// epicGrantHigh is a high finding on b: it keeps a capped --epic b slice from
+// being done at its cap, so only the graph's change is left to decide.
+const epicGrantHigh = `{"severity":"high","finding":"b's acceptance names no checker","location":"epic:b","evidence":"b","resolved":{"status":"wontfix","evidence":"the checker ships later"}}` + "\n"
+
+// epicGrantPayload is the part of tp epic review --grant-round's payload and
+// of --status these tests read.
+type epicGrantPayload struct {
+	StateDir   string `json:"state_dir"`
+	Round      int    `json:"round"`
+	Grantable  *bool  `json:"grantable"`
+	NextAction string `json:"next_action"`
+}
+
+// cappedStaleEpicSlice returns a project with review_max_rounds 1 whose
+// --epic b slice recorded its one round and whose b changed after it.
+func cappedStaleEpicSlice(t *testing.T) string {
+	t.Helper()
+	dir := epicGraphDir(t, epicChain)
+	writeEpicProjectConfig(t, dir, `{"review_max_rounds": 1}`)
+	runEpicReview(t, dir, "--epic", "b")
+	recordEpicRound(t, dir, epicGrantHigh, "--epic", "b")
+	editEpicGraph(t, dir, `"title": "B"`, `"title": "B renamed"`)
+	return dir
+}
+
+// epicGrantStatus runs tp epic review --epic b --status and decodes it.
+func epicGrantStatus(t *testing.T, dir string) epicGrantPayload {
+	t.Helper()
+	stdout, stderr, code := runTP(t, dir, "epic", "review", "--epic", "b", "--status")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var out epicGrantPayload
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out), "stdout: %s", stdout)
+	return out
+}
+
+// grantRound runs tp epic review --epic b --grant-round.
+func grantRound(t *testing.T, dir string, env ...string) (stdout, stderr string, code int) {
+	t.Helper()
+	return runTPEnv(t, dir, env, "epic", "review", "--epic", "b", "--grant-round")
+}
+
+// epicGrantFiles lists the grant files under dir's epic review state.
+func epicGrantFiles(t *testing.T, dir string) []string {
+	t.Helper()
+	files, err := filepath.Glob(filepath.Join(dir, ".tp", "epic-review", "*", "grant.json"))
+	require.NoError(t, err)
+	return files
+}
+
+// TestEpicReviewGrant_StatusMarksAStaleCappedSliceGrantable is spec/1.7.0.md
+// §8's status half: a slice at its cap whose graph changed reads
+// grantable: true, and its next_action names --grant-round before the project
+// cap. A next_action that leads with review_max_rounds, or a grantable left
+// false, fails it; an unchanged capped slice stays grantable: false.
+func TestEpicReviewGrant_StatusMarksAStaleCappedSliceGrantable(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChain)
+	writeEpicProjectConfig(t, dir, `{"review_max_rounds": 1}`)
+	runEpicReview(t, dir, "--epic", "b")
+	recordEpicRound(t, dir, `{"severity":"high","finding":"f","location":"epic:b","evidence":"b"}`+"\n", "--epic", "b")
+	fresh := epicGrantStatus(t, dir)
+	require.NotNil(t, fresh.Grantable, "--status always carries grantable")
+	assert.False(t, *fresh.Grantable, "an unchanged slice at its cap has nothing for one more round to read")
+
+	editEpicGraph(t, dir, `"title": "B"`, `"title": "B renamed"`)
+	st := epicGrantStatus(t, dir)
+	require.NotNil(t, st.Grantable)
+	assert.True(t, *st.Grantable)
+	grant := strings.Index(st.NextAction, "tp epic review --epic b --grant-round")
+	require.GreaterOrEqual(t, grant, 0, "next_action names the grant: %s", st.NextAction)
+	assert.Less(t, grant, strings.Index(st.NextAction, "review_max_rounds"), "the grant comes before the project cap")
+
+	_, stderr, code := runTP(t, dir, "epic", "review", "--epic", "b")
+	require.Equal(t, 4, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "--grant-round", "the cap refusal of a grantable slice names the grant")
+}
+
