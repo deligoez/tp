@@ -95,3 +95,21 @@ func TestConditionsActionable_ASatisfiedGroupLeavesItsOtherMembers(t *testing.T)
 	}}
 	assert.False(t, actionableOf(g, "c2", "c1"))
 }
+
+// TestEpicReady_ALostAlternativeIsMoot is spec/1.7.0.md §7: w depends on one
+// of {c1, c2} and c1 is recorded, so c2 is moot: it is in neither the
+// operator's conditions, even with all, nor ConditionsNotActionable's
+// answer. A moot epic left in the answer lists c2 as actionable, since
+// nothing unsatisfied depends on it.
+func TestEpicReady_ALostAlternativeIsMoot(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"M"}}, Epics: []model.Epic{
+		{ID: "w", Title: "W", Milestone: "M", DependsOn: []model.EpicDep{{AnyOf: []string{"c1", "c2"}, Why: "either opens the API"}}},
+		{ID: "c1", Title: "C1", Milestone: "M", Root: true, Condition: true, Acceptance: "the board says yes"},
+		{ID: "c2", Title: "C2", Milestone: "M", Root: true, Condition: true, Acceptance: "the vendor says yes"},
+	}}
+	r := EpicReady(g, anyOfStates(g, "c1"), nil, true)
+	assert.NotContains(t, r.Conditions, "c2")
+	assert.NotContains(t, r.NotActionable, "c2")
+	assert.True(t, r.Moot["c2"])
+	assert.Contains(t, r.Ready, "w")
+}
