@@ -88,3 +88,16 @@ func TestEpicReviewBatchStatus_MilestonesReadEachInTheOrderGiven(t *testing.T) {
 	assert.Equal(t, "emit round 1: tp epic review --milestone A", rows[1].NextAction)
 }
 
+// TestEpicReviewBatchStatus_CheckExitsZeroOnlyWhenEverySliceWould is §5's
+// --check: the batch exits 0 only when every slice's own --status --check
+// exits 0 — L1 alone passes, L1 with the capped B fails, and so does --all.
+func TestEpicReviewBatchStatus_CheckExitsZeroOnlyWhenEverySliceWould(t *testing.T) {
+	t.Parallel()
+	dir := epicBatchFixture(t)
+	require.Equal(t, 0, epicCheckCode(t, dir, "--milestone", "L1"), "L1's own check passes")
+	require.Equal(t, 1, epicCheckCode(t, dir, "--milestone", "B"), "B's own check fails")
+
+	assert.Equal(t, 0, epicCheckCode(t, dir, "--milestones", "L1"))
+	assert.Equal(t, 1, epicCheckCode(t, dir, "--milestones", "L1,B"))
+	assert.Equal(t, 1, epicCheckCode(t, dir, "--all"))
+}
