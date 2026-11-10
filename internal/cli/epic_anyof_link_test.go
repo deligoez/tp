@@ -57,3 +57,20 @@ func TestEpicUnlink_AnyOfRemovesOnlyTheExactSet(t *testing.T) {
 	assert.Equal(t, []map[string]any{anyOfEntry("either feeds the report", "x", "z")}, storedDeps(t, dir, "w"))
 }
 
+// TestEpicUnlink_APlainUnlinkOfAGroupMemberNamesTheGroup: x appears only
+// inside w's group, so unlink w x finds no edge (exit 4) and its hint names
+// the group and the unlink that removes it.
+func TestEpicUnlink_APlainUnlinkOfAGroupMemberNamesTheGroup(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, anyOfGraph)
+	_, stderr, code := runTP(t, dir, "epic", "link", "w", "--any-of", "x,y", "either opens the API")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	before := readEpicGraphFile(t, dir)
+
+	_, stderr, code = runTP(t, dir, "epic", "unlink", "w", "x")
+	require.Equal(t, 4, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "one of {x, y}")
+	assert.Contains(t, stderr, "tp epic unlink w --any-of x,y")
+	assert.Equal(t, before, readEpicGraphFile(t, dir))
+}
+
