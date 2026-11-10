@@ -1379,7 +1379,7 @@ so it changes only through the `tp epic` writers.
 | `epics[].id` | non-empty string | opaque and unique in the file; spaces and non-ASCII stay as written |
 | `epics[].milestone` | milestone name | required; names one of `milestones` |
 | `epics[].tags` | list of strings | opaque to tp, read only by `tag_checks` |
-| `epics[].depends_on` | list of `{id, why}` | `why` is required and is content, like `title` and `acceptance` |
+| `epics[].depends_on` | list of `{id, why}` or `{any_of, why}` (v1.7.0) | a plain edge to one epic, or an any-of group of alternative epics, conditions or work; exactly one of `id` and `any_of`, the group with two or more distinct members and one `why`; `why` is required and is content, like `title` and `acceptance` |
 | `epics[].root` | boolean, written only when `true` | the epic has no dependency on purpose; `no-dependencies` does not fire on it |
 | `epics[].condition` | boolean, written only when `true` | a precondition the operator decides: no bound file, no claim, done only by a done record; refused on an epic with either |
 | `epics[].estimate_minutes` | integer, written only when set | the epic's estimate; with none, the sum of its bound tasks' estimates when every one has one |
@@ -1400,6 +1400,19 @@ the one it read. `tp epic set opens_after=` and `milestones=`, `tp epic mileston
 changed, in the new graph's track order and then milestones only the old graph listed; `lost` in
 the old order, `gained` in the new; `[]` when none moved. A milestone the write adds is not
 listed, so a first write of `milestones`, or an import into a project without a graph, prints `[]`.
+
+**Any-of groups** (v1.7.0). `{"any_of": ["A", "B"], "why": "…"}` is stored with no `id`. A group's
+identity is its member set, in any order. `tp epic link <from> --any-of <csv> <why>` adds a group, or replaces the `why` of the
+group with that member set (`action: replaced`); a different set is a new group, the members stored
+distinct in the order given. `tp epic unlink <from> --any-of <csv>` removes the group with exactly
+that set, else exits 4; a plain `unlink` of an id that is only a group member exits 4 with a hint
+naming the group and its `unlink --any-of`. `tp epic set <id> depends_on=`, `tp epic add`, its
+`--bulk` rows and `tp epic import` take group entries under the same strict decode. A group
+membership makes the member a dependency of its epic for `tp epic remove`, which without `--force`
+refuses and names the dependent; with `--force` a done member drops its whole group (it was
+satisfied), an undone member leaves it, a group left with one member becomes a plain edge keeping
+its `why`, and a group that then names a member the epic has a plain edge to, or repeats another
+group's member set, is dropped as implied. Done there is the removed epic's own `done` record.
 
 `claimed`, `done` and `met` are written by their commands and by `tp epic import`, the migration; a
 writer that replaces a whole object (`add`, a `--bulk` row, `set gates=`) carries them over and
