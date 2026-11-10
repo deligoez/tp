@@ -27,9 +27,12 @@ var allowedRoleKeys = map[string]bool{
 }
 
 // roleContextValues are the values a role's context key may take: absent or
-// "neighbours" shows every neighbour, "dependencies" only what the asked
-// units depend on. Only tp epic review reads the key.
-var roleContextValues = map[string]bool{"": true, model.RoleContextNeighbours: true, model.RoleContextDependencies: true}
+// "neighbours" shows every neighbour, "neighbours-brief" every dependency in
+// full and every dependent in brief, "dependencies" only what the asked units
+// depend on. Only tp epic review reads the key.
+var roleContextValues = map[string]bool{
+	"": true, model.RoleContextNeighbours: true, model.RoleContextNeighboursBrief: true, model.RoleContextDependencies: true,
+}
 
 // RoleStem returns a role file's id-defining stem: the basename without its
 // .json extension (security.json -> "security").
@@ -111,8 +114,8 @@ func validateRole(role *model.Role, stem string) error {
 		return fmt.Errorf("role %q is missing required field \"instructions\"", role.ID)
 	}
 	if !roleContextValues[role.Context] {
-		return fmt.Errorf("role %q field \"context\" is %q (allowed: %s, %s)", role.ID, role.Context,
-			model.RoleContextNeighbours, model.RoleContextDependencies)
+		return fmt.Errorf("role %q field \"context\" is %q (allowed: %s, %s, %s)", role.ID, role.Context,
+			model.RoleContextNeighbours, model.RoleContextNeighboursBrief, model.RoleContextDependencies)
 	}
 	return nil
 }
