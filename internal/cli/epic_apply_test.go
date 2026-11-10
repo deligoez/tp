@@ -1,0 +1,74 @@
+package cli_test
+
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/deligoez/tp/internal/model"
+)
+
+// applyPayload writes rows as one NDJSON payload in dir and returns its path.
+func applyPayload(t *testing.T, dir string, rows ...string) string {
+	t.Helper()
+	path := filepath.Join(dir, "rows.ndjson")
+	require.NoError(t, os.WriteFile(path, []byte(strings.Join(rows, "\n")+"\n"), 0o600))
+	return path
+}
+
+// loadAppliedGraph decodes dir's .tp/epics.json.
+func loadAppliedGraph(t *testing.T, dir string) model.EpicGraph {
+	t.Helper()
+	var g model.EpicGraph
+	require.NoError(t, json.Unmarshal(readEpicGraphFile(t, dir), &g))
+	return g
+}
+
+// appliedEpic returns the epic id of g, failing when g holds none.
+func appliedEpic(t *testing.T, g *model.EpicGraph, id string) model.Epic {
+	t.Helper()
+	for i := range g.Epics {
+		if g.Epics[i].ID == id {
+			return g.Epics[i]
+		}
+	}
+	require.Failf(t, "epic not found", "the graph holds no epic %q", id)
+	return model.Epic{}
+}
+
+// TestEpicApply_AppliesEveryRowKindInOneWrite (spec/1.7.0.md §6): an add, a
+// group link, an unlink, an epic field set, a graph key set and a remove land
+// in one write, whose payload carries ancestry_changed.
+func TestEpicApply_AppliesEveryRowKindInOneWrite(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChainWithGate)
+	payload := applyPayload(t, dir,
+		`{"op":"add","epic":{"id":"e","title":"E","milestone":"A","depends_on":[{"id":"d","why":"e needs d"}]}}`,
+		`{"op":"link","from":"e","any_of":["b","c"],"why":"either feeds e"}`,
+		`{"op":"unlink","from":"a","to":"b"}`,
+		`{"op":"set","id":"b","field":"title","value":"Renamed"}`,
+		`{"op":"set","field":"gates.A.threshold","value":"ships"}`,
+		`{"op":"remove","id":"a","force":false}`,
+	)
+
+	stdout, stderr, code := runTP(t, dir, "epic", "apply", payload)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var out map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+	assert.InDelta(t, 4, out["epics"], 0)
+	assert.Contains(t, out, "ancestry_changed")
+	assert.NotContains(t, out, "rows", "only --dry-run lists the rows")
+
+	g := loadAppliedGraph(t, dir)
+	assert.Len(t, g.Epics, 4)
+	assert.Equal(t, []model.EpicDep{{ID: "d", Why: "e needs d"}, {AnyOf: []string{"b", "c"}, Why: "either feeds e"}},
+		appliedEpic(t, &g, "e").DependsOn)
+	assert.Equal(t, "Renamed", appliedEpic(t, &g, "b").Title)
+	assert.Equal(t, model.EpicGate{Members: []string{"b"}, Threshold: "ships"}, g.Gates["A"])
+}
+
