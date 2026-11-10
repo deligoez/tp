@@ -100,3 +100,12 @@ func TestLintEpicGraph_ThinWhyDoesNotApplyToAGroup(t *testing.T) {
 	g.Epics[0].DependsOn[0] = model.EpicDep{ID: "x", Why: "X"}
 	assert.Len(t, findingsOf(t, LintEpicGraph(g, nil), EpicRuleThinWhy), 1)
 }
+
+// TestLintEpicGraph_AGroupIsADependencyForNoDependencies: a in B depends on
+// nothing but a group, so no-dependencies does not fire on it.
+func TestLintEpicGraph_AGroupIsADependencyForNoDependencies(t *testing.T) {
+	g := anyOfLintGraph()
+	assert.Empty(t, findingsOf(t, LintEpicGraph(g, nil), EpicRuleNoDependencies))
+	g.Epics[0].DependsOn = nil
+	assert.Len(t, findingsOf(t, LintEpicGraph(g, nil), EpicRuleNoDependencies), 1)
+}
