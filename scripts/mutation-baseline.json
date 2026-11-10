@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "mutants": [
+    {
+      "id": "82d8fb72712c3249387c2e21571b2e96",
+      "file": "internal/engine/epicdownstream.go",
+      "mutator": "arithmetic/base",
+      "line": 304
+    },
+    {
+      "id": "a54b0900e195915e17cf1310c41022fa",
+      "file": "internal/engine/epicdownstream.go",
+      "mutator": "arithmetic/negate",
+      "line": 198
+    },
+    {
+      "id": "3b9011a863642bb44a052598d8c453fa",
+      "file": "internal/engine/epicdownstream.go",
+      "mutator": "expression/comparison",
+      "line": 243
+    },
+    {
+      "id": "1921f48b952225c3e732af1a3b223229",
+      "file": "internal/engine/epicdownstream.go",
+      "mutator": "numbers/decrementer",
+      "line": 198
+    },
+    {
+      "id": "6350c18adf1470a5fb66e28c23d56e48",
+      "file": "internal/engine/epicdownstream.go",
+      "mutator": "numbers/decrementer",
+      "line": 207
+    },
+    {
+      "id": "0301d98cb3d06b966a6d50c05555018c",
+      "file": "internal/engine/epicdownstream.go",
+      "mutator": "numbers/decrementer",
+      "line": 263
+    },
+    {
+      "id": "3ce60745eca9773af50d652e12681f9a",
+      "file": "internal/engine/epicdownstream.go",
+      "mutator": "numbers/incrementer",
+      "line": 101
+    },
+    {
+      "id": "42d0115392721b2493ae033adcca4a83",
+      "file": "internal/engine/epicdownstream.go",
+      "mutator": "numbers/incrementer",
+      "line": 197
+    },
+    {
+      "id": "1aca83f7600d91f4b16c983ab5959bf5",
+      "file": "internal/engine/epicdownstream.go",
+      "mutator": "numbers/incrementer",
+      "line": 198
+    },
+    {
+      "id": "6475edee39993fec600930971ad94066",
+      "file": "internal/engine/epicdownstream.go",
+      "mutator": "numbers/incrementer",
+      "line": 243
+    },
+    {
+      "id": "6684a3c024a690c4994c210e105caebc",
+      "file": "internal/engine/epicdownstream.go",
+      "mutator": "numbers/incrementer",
+      "line": 246
+    },
+    {
+      "id": "c43a4353306c126abbef95915d561585",
+      "file": "internal/engine/epiclint_gateheld.go",
+      "mutator": "expression/comparison",
+      "line": 77
+    },
+    {
+      "id": "350129b5ec6b1f2d0178df011ffd5f5b",
+      "file": "internal/engine/epiclint_gateheld.go",
+      "mutator": "numbers/decrementer",
+      "line": 77
+    },
+    {
+      "id": "60b69e7f38124ae3070f70b69f43b57a",
+      "file": "internal/engine/epiclint_opens_later.go",
+      "mutator": "expression/comparison",
+      "line": 66
+    },
+    {
+      "id": "90c2e3c253c5213a2f6881355c737a24",
+      "file": "internal/engine/epiclint_opens_later.go",
+      "mutator": "expression/comparison",
+      "line": 283
+    },
+    {
+      "id": "a0720ba6a2cfc54a0ef9e086b9cbde94",
+      "file": "internal/engine/epiclint_opens_later.go",
+      "mutator": "numbers/incrementer",
+      "line": 276
+    },
+    {
+      "id": "3f39b42adba59aab59c5982aea1fbf2e",
+      "file": "internal/engine/epicthroughput.go",
+      "mutator": "expression/comparison",
+      "line": 39
+    }
+  ]
+}
