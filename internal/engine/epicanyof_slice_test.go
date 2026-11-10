@@ -64,3 +64,14 @@ func TestEpicReviewSlice_AGroupsMembersAreDependencyContext(t *testing.T) {
 	assert.True(t, ctx["a"].Dependency)
 	assert.True(t, ctx["b"].Dependency)
 }
+
+// TestEpicReviewSlice_AnEpicWithAGroupIntoAnAskedOneIsADependent is
+// spec/1.7.0.md §7: asking a shows w, whose group names a, as a dependent,
+// and its neighbours-brief shows that group with its why. A brief that
+// matched a group's id shows no edge into a.
+func TestEpicReviewSlice_AnEpicWithAGroupIntoAnAskedOneIsADependent(t *testing.T) {
+	ctx := contextOf(t, anyOfSliceGraph(), "a")
+	require.Contains(t, ctx, "w")
+	assert.False(t, ctx["w"].Dependency)
+	assert.Contains(t, ctx["w"].Brief, "depends_on (its edges into the asked units only):\n- one of {a, b}: either opens the API\n")
+}
