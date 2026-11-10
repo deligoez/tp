@@ -3,7 +3,6 @@ package engine
 import (
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/deligoez/tp/internal/model"
 )
@@ -134,7 +133,7 @@ func BuildBlockers(in *BlockerInputs) []Blocker {
 // name the operator's decision and record of each.
 func epicBlockedBlocker(in *BlockerInputs) *Blocker {
 	blk := in.EpicBlock
-	if in.Phase != PhaseImplement || blk == nil || len(blk.BlockedBy) == 0 {
+	if in.Phase != PhaseImplement || blk == nil || !blk.Blocks() {
 		return nil
 	}
 	if _, wip, _ := ImplementPreview(in.TaskFile); wip {
@@ -143,12 +142,15 @@ func epicBlockedBlocker(in *BlockerInputs) *Blocker {
 	b := &Blocker{
 		Code:    "epic-blocked",
 		Class:   ClassEscalate,
-		Message: fmt.Sprintf("no task can start: epic %s is blocked by %s; finish those epics first", blk.Epic, strings.Join(blk.BlockedBy, ", ")),
+		Message: fmt.Sprintf("no task can start: epic %s is blocked by %s; finish those epics first", blk.Epic, blk.Describe()),
 		Data:    map[string]any{"epic": blk.Epic, "blocked_by_epics": blk.BlockedBy},
+	}
+	if len(blk.BlockedByAnyOf) > 0 {
+		b.Data["blocked_by_any_of"] = blk.BlockedByAnyOf
 	}
 	if op := blk.OperatorAction(); op != nil {
 		b.Message = fmt.Sprintf("no task can start: epic %s is blocked by the condition(s) %s, the operator's decision (%s): %s",
-			blk.Epic, strings.Join(blk.BlockedBy, ", "), op.Decision, strings.Join(op.Commands, "; "))
+			blk.Epic, blk.Describe(), op.Decision, op.Steps())
 		b.Data["operator"] = op
 	}
 	return b
