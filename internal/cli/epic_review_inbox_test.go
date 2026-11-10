@@ -16,9 +16,9 @@ import (
 // temporary directory either side used (/var is /private/var on macOS).
 func physicalPath(t *testing.T, path string) string {
 	t.Helper()
-	real, err := filepath.EvalSymlinks(path)
+	resolved, err := filepath.EvalSymlinks(path)
 	require.NoError(t, err, "%s must exist", path)
-	return real
+	return resolved
 }
 
 // TestEpicReview_RoleOutputPathIsTheSliceInbox is v1.7.0 §1: outside a run a
