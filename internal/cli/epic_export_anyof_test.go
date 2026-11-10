@@ -79,3 +79,32 @@ func TestEpicExport_AMootEpicCarriesMootInPlaceOfActionable(t *testing.T) {
 	assert.NotContains(t, raw["c1"], "moot")
 	assert.Contains(t, raw["c1"], "actionable")
 }
+
+// TestEpicStatus_BlockedListsEachUnsatisfiedGroup is spec/1.7.0.md §7:
+// status's blocked items add the export's two group lists, so y, which only
+// the group {w, r} blocks, lists it under blocked_by_any_of, and x lists
+// the all-condition {c1, c2} under held_by_any_of too. A status that kept
+// plain edges alone gives neither key.
+func TestEpicStatus_BlockedListsEachUnsatisfiedGroup(t *testing.T) {
+	t.Parallel()
+	var status struct {
+		Milestones []struct {
+			Blocked []struct {
+				ID string `json:"id"`
+				exportAnyOfWaits
+			} `json:"blocked"`
+		} `json:"milestones"`
+	}
+	stdout := runEpicStatus(t, epicGraphDir(t, exportAnyOfGraph))
+	require.NoError(t, json.Unmarshal([]byte(stdout), &status), "stdout: %s", stdout)
+	require.Len(t, status.Milestones, 1, "stdout: %s", stdout)
+	rows := map[string]exportAnyOfWaits{}
+	for _, b := range status.Milestones[0].Blocked {
+		rows[b.ID] = b.exportAnyOfWaits
+	}
+	assert.Equal(t, exportAnyOfWaits{BlockedBy: []string{"r"}, HeldBy: []string{},
+		BlockedByAnyOf: [][]string{{"c1", "c2"}, {"w", "c1"}}, HeldByAnyOf: [][]string{{"c1", "c2"}}}, rows["x"])
+	assert.Equal(t, exportAnyOfWaits{BlockedBy: []string{}, HeldBy: []string{},
+		BlockedByAnyOf: [][]string{{"w", "r"}}, HeldByAnyOf: [][]string{}}, rows["y"])
+	assert.NotContains(t, rows, "z", "a satisfied group blocks nothing")
+}
