@@ -131,12 +131,12 @@ func epicExport() (*epicExportResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	slices, err := engine.EpicReviewSlices(tpDir, g, epicReviewPolicy(tpDir))
+	reviewSlices, err := engine.EpicReviewSlices(tpDir, g, epicReviewPolicy(tpDir))
 	if err != nil {
 		return nil, err
 	}
 	epics := epicExportEpics(g, states, bound, files)
-	return &epicExportResult{Version: epicExportVersion, CriticalPath: plan.CriticalPath, Graph: g, Milestones: plan.Milestones, Epics: epics, Slices: slices}, nil
+	return &epicExportResult{Version: epicExportVersion, CriticalPath: plan.CriticalPath, Graph: g, Milestones: plan.Milestones, Epics: epics, Slices: reviewSlices}, nil
 }
 
 // epicExportEpics builds every epic's item from one openness verdict, one
