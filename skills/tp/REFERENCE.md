@@ -1562,8 +1562,13 @@ listed twice is one slice.
 | Call | Reads | Payload |
 |------|-------|---------|
 | emission | each listed milestone; `--all`: every milestone the tracks hold, in track order | `{slices: [{key, <emission>...}...], skipped: [{key, reason}]}` |
-| `--status [--check]` | each listed milestone; `--all`: every slice directory, in name order | `{slices: [{key, round, state, open, grantable, next_action}]}` |
-| `--report` | each listed milestone; `--all`: every slice directory, in name order | `{classes: [{class, epics, slices: [{key, rounds}]}]}` |
+| `--status [--check]` | each listed milestone; `--all`: every slice directory, in track order | `{slices: [{key, round, state, open, grantable, next_action}]}` |
+| `--report` | each listed milestone; `--all`: every slice directory, in track order | `{classes: [{class, epics, slices: [{key, rounds}]}]}` |
+
+`--milestones` keeps the order given. Under `--all`, track order lists each milestone slice where
+the graph's `milestones` tracks list its milestone, then every other slice — an `--epic` or
+`--epics` slice, a milestone no track holds, a directory with no key — in slice directory name
+order; a report's `slices` follow the same order.
 
 `key` is the slice's key as `key.json` records it, `null` for a directory that records none and
 whose rounds name none. An emission's entries are each slice's one-slice emission, `--role`
