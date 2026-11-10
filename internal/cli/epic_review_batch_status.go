@@ -1,9 +1,12 @@
 package cli
 
 import (
+	"cmp"
 	"os"
+	"slices"
 
 	"github.com/deligoez/tp/internal/engine"
+	"github.com/deligoez/tp/internal/model"
 	"github.com/deligoez/tp/internal/output"
 )
 
@@ -51,7 +54,8 @@ func runEpicReviewBatchStatus(scope epicBatchScope, check bool) {
 }
 
 // epicBatchStatusDirs names the slices a batch --status or --report reads:
-// every slice directory under --all, each listed milestone's otherwise.
+// every slice directory under --all, in track order, each listed
+// milestone's otherwise.
 func epicBatchStatusDirs(eg *epicReviewGraph, scope epicBatchScope) []engine.EpicSliceDir {
 	if scope.all {
 		dirs, err := engine.EpicReviewSliceDirs(eg.tpDir, eg.g)
@@ -59,6 +63,7 @@ func epicBatchStatusDirs(eg *epicReviewGraph, scope epicBatchScope) []engine.Epi
 			output.Error(ExitFile, err.Error(), epicRoundFileHint)
 			os.Exit(ExitFile)
 		}
+		sortEpicSliceDirsByTrack(dirs, eg.g)
 		return dirs
 	}
 	names := epicBatchMilestones(eg, scope)
@@ -69,6 +74,23 @@ func epicBatchStatusDirs(eg *epicReviewGraph, scope epicBatchScope) []engine.Epi
 		dirs = append(dirs, engine.EpicSliceDir{Path: engine.EpicReviewStateDir(eg.tpDir, key), Key: &rec})
 	}
 	return dirs
+}
+
+// sortEpicSliceDirsByTrack orders dirs as the graph's tracks list their
+// milestones: each milestone slice at its milestone's place, then every
+// other slice (an epic or epics slice, a milestone no track holds, a
+// directory with no key) in the name order it arrived in.
+func sortEpicSliceDirsByTrack(dirs []engine.EpicSliceDir, g *model.EpicGraph) {
+	order := slices.Concat(g.Milestones...)
+	rank := func(d engine.EpicSliceDir) int {
+		if d.Key != nil && d.Key.Kind == "milestone" {
+			if i := slices.Index(order, d.Key.Value); i >= 0 {
+				return i
+			}
+		}
+		return len(order)
+	}
+	slices.SortStableFunc(dirs, func(a, b engine.EpicSliceDir) int { return cmp.Compare(rank(a), rank(b)) })
 }
 
 // epicBatchStatusRowOf grades one slice and reports whether its loop is done.
