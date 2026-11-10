@@ -1,6 +1,9 @@
 package model
 
-import "time"
+import (
+	"slices"
+	"time"
+)
 
 // EpicGraph models the committed .tp/epics.json file: the epic graph a project
 // plans against. The file is primary — the one tp lints, reviews and writes —
@@ -84,8 +87,60 @@ type EpicDone struct {
 	Evidence string    `json:"evidence"`
 }
 
-// EpicDep is one dependency edge; Why is required by the schema.
+// EpicDep is one depends_on entry: a plain edge to the epic ID, or an any-of
+// group whose AnyOf members satisfy it when one is done (spec/1.7.0.md §7).
+// Exactly one of the two is set; Why is required by the schema either way.
 type EpicDep struct {
-	ID  string `json:"id"`
-	Why string `json:"why"`
+	ID    string   `json:"id,omitempty"`
+	AnyOf []string `json:"any_of,omitempty"`
+	Why   string   `json:"why"`
+}
+
+// IsGroup reports whether d is an any-of group: it carries an any_of list,
+// an empty one included, whatever its id (any-of-shape judges the shape).
+func (d EpicDep) IsGroup() bool {
+	return d.AnyOf != nil
+}
+
+// Members returns a group's distinct members in stored order; nil for a
+// plain edge.
+func (d EpicDep) Members() []string {
+	if !d.IsGroup() {
+		return nil
+	}
+	out := make([]string, 0, len(d.AnyOf))
+	for _, m := range d.AnyOf {
+		if !slices.Contains(out, m) {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+// MemberSet is a group's identity: its distinct members, sorted. Two groups
+// with one member set are one group; nil for a plain edge.
+func (d EpicDep) MemberSet() []string {
+	set := d.Members()
+	slices.Sort(set)
+	return set
+}
+
+// SameGroup reports whether d and o are groups with one member set.
+func (d EpicDep) SameGroup(o EpicDep) bool {
+	return d.IsGroup() && o.IsGroup() && slices.Equal(d.MemberSet(), o.MemberSet())
+}
+
+// Names returns every epic id d names, distinct: a plain edge's id, a
+// group's members, and both for an entry that wrongly carries both.
+func (d EpicDep) Names() []string {
+	var out []string
+	if d.ID != "" {
+		out = append(out, d.ID)
+	}
+	for _, m := range d.Members() {
+		if !slices.Contains(out, m) {
+			out = append(out, m)
+		}
+	}
+	return out
 }
