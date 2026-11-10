@@ -113,3 +113,16 @@ func TestGraphCriticalPath_EmptyWhenOnlyConditionsAreLeft(t *testing.T) {
 
 	assert.Equal(t, []string{}, GraphCriticalPath(g, anyOfStates(g, "w")))
 }
+
+// TestGraphCriticalPath_StartsAtTheConditionItPassesThrough: the path starts
+// at a not-done epic with no not-done dependency, and a condition adds no
+// work but is passed through, so w waiting on the condition c runs [c w]. A
+// walk that took a dependency only when it added work would start at w.
+func TestGraphCriticalPath_StartsAtTheConditionItPassesThrough(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"P"}}, Epics: []model.Epic{
+		dependsOn("c", "P"), dependsOn("w", "P", "c"),
+	}}
+	g.Epics[0].Condition = true
+
+	assert.Equal(t, []string{"c", "w"}, GraphCriticalPath(g, anyOfStates(g)))
+}
