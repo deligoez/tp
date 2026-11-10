@@ -572,8 +572,11 @@ from a done record.
    resumable and closable. With no `wip` task, `tp resume` reports the `epic-blocked` blocker and
    offers no implement unit: stop and report it. When every blocker is a condition, `tp next` adds
    `operator: {decision: "epic-done", commands}` and the blocker names `tp epic done <c> --evidence`:
-   that record is the operator's decision, never yours. A milestone not yet open does not hold a
-   bound file back.
+   that record is the operator's decision, never yours. An any-of group holds the file until one
+   member is done: the payloads add `blocked_by_any_of`, one member list per unsatisfied group, the
+   message names it `one of {A, B}`, and `operator` adds `choices`, the group's records as
+   alternatives, any one of which satisfies it. A milestone not yet open does not hold a bound file
+   back.
 5. **Gates and thresholds.** A milestone opens when every milestone it opens after is open and has a
    green gate: every member done and, when the gate carries a `threshold` (the exit condition in the
    operator's words, written before the work), a met record. A gate naming no `members` holds every
