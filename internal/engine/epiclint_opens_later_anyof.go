@@ -14,8 +14,8 @@ import (
 // holder the epic whose entry it is.
 type groupWait struct {
 	gate, path, holder string
-	d          model.EpicDep
-	members    []string
+	d                  model.EpicDep
+	members            []string
 }
 
 // noteGroups notes each unsatisfied group that src, an undone epic, reaches
@@ -183,7 +183,7 @@ func (s *opensLaterScan) entriesCanBeMet(e *model.Epic, can map[string]bool) boo
 // waits on: its own when that opening cannot open, else that of the first
 // kept plain edge or the first member of the first group that cannot be
 // met; "" when the walk only comes back to an epic seen.
-func (s *opensLaterScan) waitWitness(e *model.Epic, can, green map[string]bool, seen map[string]bool) string {
+func (s *opensLaterScan) waitWitness(e *model.Epic, can, green, seen map[string]bool) string {
 	if !s.openingCanOpen(e, green) {
 		return e.Milestone
 	}
