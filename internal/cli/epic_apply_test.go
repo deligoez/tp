@@ -279,3 +279,16 @@ func TestEpicApply_DryRunPrintsEachRowsActionAndWritesNothing(t *testing.T) {
 	assert.Equal(t, 7, out.Rows[6].Line)
 }
 
+// TestEpicApply_IfRevisionRefusesAMovedGraph: a stale --if-revision exits 4
+// and writes nothing.
+func TestEpicApply_IfRevisionRefusesAMovedGraph(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChainWithGate)
+	before := readEpicGraphFile(t, dir)
+	payload := applyPayload(t, dir, `{"op":"set","id":"a","field":"title","value":"A2"}`)
+	_, stderr, code := runTP(t, dir, "epic", "apply", payload, "--if-revision", "0000000000000000")
+	require.Equal(t, 4, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "revision")
+	assert.Equal(t, before, readEpicGraphFile(t, dir))
+}
+
