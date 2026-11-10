@@ -74,3 +74,18 @@ func TestEpicUnlink_APlainUnlinkOfAGroupMemberNamesTheGroup(t *testing.T) {
 	assert.Equal(t, before, readEpicGraphFile(t, dir))
 }
 
+// TestEpicLink_AnyOfBesideAPlainEdgeToAMemberIsRefused: w already depends on
+// x, so a group holding x is an any-of-shape error and the link writes
+// nothing.
+func TestEpicLink_AnyOfBesideAPlainEdgeToAMemberIsRefused(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, anyOfGraph)
+	_, stderr, code := runTP(t, dir, "epic", "link", "w", "x", "w reads x")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	before := readEpicGraphFile(t, dir)
+
+	_, stderr, code = runTP(t, dir, "epic", "link", "w", "--any-of", "x,y", "either opens the API")
+	require.Equal(t, 1, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "any-of-shape")
+	assert.Equal(t, before, readEpicGraphFile(t, dir))
+}
