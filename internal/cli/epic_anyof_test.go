@@ -105,3 +105,16 @@ func TestEpicImport_TakesAnAnyOfGroup(t *testing.T) {
 	assert.Equal(t, []map[string]any{anyOfEntry("either opens the API", "x", "y")}, storedDeps(t, dir, "v"))
 }
 
+// TestEpicSet_AOneMemberGroupIsRefusedWithItsOwnHint: a writer refuses an
+// any-of-shape error rather than storing it, and the refusal says how to
+// shape the entry.
+func TestEpicSet_AOneMemberGroupIsRefusedWithItsOwnHint(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, anyOfGraph)
+	before := readEpicGraphFile(t, dir)
+	_, stderr, code := runTP(t, dir, "epic", "set", "w", `depends_on=[{"any_of": ["x"], "why": "x opens the API"}]`)
+	require.Equal(t, 1, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "any-of-shape")
+	assert.Contains(t, stderr, "an any_of of two or more distinct members")
+	assert.Equal(t, before, readEpicGraphFile(t, dir), "a refused set writes nothing")
+}
