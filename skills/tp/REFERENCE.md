@@ -1582,7 +1582,8 @@ prepare (a milestone no track lists, an unreadable round), or failing to write i
 A `--status` row is the one-slice `--status` cut to those keys, `state` one of `tp epic export`'s
 loop states (`none`, `open`, `in_flight`, `stale`, `cap_reached`, `done`). A slice whose key is
 unknown or names what the graph no longer holds gets a row graded without its staleness and a
-`next_action` saying nothing runs on it. `--check` exits 0 only when every slice's own
+`next_action` saying nothing runs on it; when such a slice is done, `next_action` reads
+`legacy slice, done; no action (safe to delete <state dir>)`. `--check` exits 0 only when every slice's own
 `--status --check` would — its loop done and every mechanical check passing — so such a row fails
 it, as its own `--status` exits 4; else exit 1. A round file tp cannot read exits 3.
 
