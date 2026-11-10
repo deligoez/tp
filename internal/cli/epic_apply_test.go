@@ -292,3 +292,18 @@ func TestEpicApply_IfRevisionRefusesAMovedGraph(t *testing.T) {
 	assert.Equal(t, before, readEpicGraphFile(t, dir))
 }
 
+// TestEpicApply_UnattendedEscalatesAsOther: under TP_UNATTENDED the apply is
+// fenced like every graph writer, and the same payload applies attended.
+func TestEpicApply_UnattendedEscalatesAsOther(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChainWithGate)
+	before := readEpicGraphFile(t, dir)
+	payload := applyPayload(t, dir, `{"op":"set","id":"a","field":"title","value":"A2"}`)
+	_, stderr, code := runTPFence(t, dir, true, "epic", "apply", payload)
+	require.Equal(t, 2, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "tp escalate --decision other")
+	assert.Equal(t, before, readEpicGraphFile(t, dir))
+
+	_, stderr, code = runTPFence(t, dir, false, "epic", "apply", payload)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+}
