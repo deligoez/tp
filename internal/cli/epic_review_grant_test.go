@@ -149,3 +149,15 @@ func TestEpicReviewGrant_RefusedUnlessAtTheCapAndStale(t *testing.T) {
 	assert.Contains(t, stderr, "already granted")
 }
 
+// TestEpicReviewGrant_UnattendedExitsTwoNamingGrantRound is §8 under tp run:
+// the grant is the operator's, so under TP_UNATTENDED it exits 2 with a hint
+// naming tp escalate --decision grant-round and writes no grant.
+func TestEpicReviewGrant_UnattendedExitsTwoNamingGrantRound(t *testing.T) {
+	t.Parallel()
+	dir := cappedStaleEpicSlice(t)
+	_, stderr, code := grantRound(t, dir, unattendedOn)
+	require.Equal(t, 2, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "tp escalate --decision grant-round")
+	assert.Empty(t, epicGrantFiles(t, dir))
+}
+
