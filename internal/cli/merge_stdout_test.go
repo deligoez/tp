@@ -13,7 +13,7 @@ import (
 func ndjsonLines(t *testing.T, stream string) []map[string]any {
 	t.Helper()
 	var rows []map[string]any
-	for _, line := range strings.Split(strings.TrimRight(stream, "\n"), "\n") {
+	for line := range strings.SplitSeq(strings.TrimRight(stream, "\n"), "\n") {
 		if line == "" {
 			continue
 		}

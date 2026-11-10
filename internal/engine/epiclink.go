@@ -3,6 +3,7 @@ package engine
 import (
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/deligoez/tp/internal/model"
 )
@@ -28,11 +29,12 @@ func (e *EpicEdgeNotFoundError) Error() string {
 	if e.AnyOf != nil {
 		return fmt.Sprintf("epic %q has no any_of group %s", e.From, epicDepLabel(model.EpicDep{AnyOf: e.AnyOf}))
 	}
-	msg := fmt.Sprintf("epic %q has no edge to %q", e.From, e.To)
+	var msg strings.Builder
+	fmt.Fprintf(&msg, "epic %q has no edge to %q", e.From, e.To)
 	for _, members := range e.Groups {
-		msg += fmt.Sprintf("; %q is a member of its group %s", e.To, epicDepLabel(model.EpicDep{AnyOf: members}))
+		fmt.Fprintf(&msg, "; %q is a member of its group %s", e.To, epicDepLabel(model.EpicDep{AnyOf: members}))
 	}
-	return msg
+	return msg.String()
 }
 
 // LinkEpic returns the mutation that adds the edge from -> to with why, or

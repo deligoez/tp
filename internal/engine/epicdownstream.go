@@ -2,6 +2,7 @@ package engine
 
 import (
 	"math/bits"
+	"slices"
 	"sort"
 	"strconv"
 
@@ -125,8 +126,7 @@ func GraphCriticalPath(g *model.EpicGraph, states map[string]EpicState) []string
 		i = w.compPrev[c]
 	}
 	path := []string{}
-	for k := len(stops) - 1; k >= 0; k-- {
-		i := stops[k]
+	for _, i := range slices.Backward(stops) {
 		path = append(path, g.Epics[i].ID)
 		for _, j := range w.comps[w.comp[i]] {
 			if j != i {
