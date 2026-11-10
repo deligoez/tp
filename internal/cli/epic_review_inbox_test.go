@@ -65,3 +65,24 @@ func TestEpicReview_EmissionIgnoresTheInbox(t *testing.T) {
 	assert.NoError(t, check.Run(), "git ignores the role's inbox file")
 }
 
+// TestEpicReview_EmittingRemovesNoInboxFile is §1's second half: emitting
+// removes nothing, so a role that already wrote its file keeps it through a
+// re-emission and through another role's per-role emission.
+func TestEpicReview_EmittingRemovesNoInboxFile(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChain)
+
+	out := runEpicReview(t, dir, "--epic", "b", "--role", "why-auditor")
+	require.Len(t, out.Prompts, 1)
+	written := out.Prompts[0].OutputPath
+	require.True(t, filepath.IsAbs(written), "the output path is absolute, so this write cannot land in the test's own cwd: %s", written)
+	const row = `{"severity":"low","finding":"f","location":"epic:b","evidence":"e"}` + "\n"
+	require.NoError(t, os.WriteFile(written, []byte(row), 0o600))
+
+	runEpicReview(t, dir, "--epic", "b")
+	runEpicReview(t, dir, "--epic", "b", "--role", "phase-economist")
+
+	data, err := os.ReadFile(written)
+	require.NoError(t, err, "an emission removed the inbox file a role had written")
+	assert.Equal(t, row, string(data), "an emission leaves the inbox file byte-identical")
+}
