@@ -38,3 +38,18 @@ func TestEpicDownstreams_AGroupCountsInEachMembersDownstreamUntilSatisfied(t *te
 	assert.Equal(t, EpicDownstream{LongestChain: 1, Dependents: 1, DependentsByMilestone: in(1)}, got["a"])
 	assert.NotContains(t, got, "b")
 }
+
+// TestEpicDownstreams_AMootEpicLeavesEveryCount is spec/1.7.0.md §7: w
+// depends on one of {a, b}, a is done and b, which depends on r, lost; no
+// gate holds b, so it is moot. It leaves r's downstream and has none of its
+// own. A walk that judged only done counts b in r's dependents.
+func TestEpicDownstreams_AMootEpicLeavesEveryCount(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"P"}}, Epics: []model.Epic{
+		dependsOn("r", "P"), dependsOn("a", "P"), dependsOn("b", "P", "r"),
+		withAnyOf(dependsOn("w", "P"), "a", "b"),
+	}}
+	g.Gates = map[string]model.EpicGate{"P": {Members: []string{"r", "a", "w"}}}
+	got := EpicDownstreams(g, anyOfStates(g, "a"), map[string]MilestoneGate{}, []string{"r", "b"})
+	assert.Equal(t, EpicDownstream{DependentsByMilestone: []MilestoneDependents{}}, got["r"])
+	assert.NotContains(t, got, "b")
+}
