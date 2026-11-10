@@ -55,12 +55,47 @@ func trackPlace(tracks [][]string) map[string][2]int {
 	return out
 }
 
+// admissible reports whether an epic of milestone ep may depend on one of
+// milestone dp without a later-milestone-dependency: another track, or no
+// later place in the same one.
+func admissible(dp, ep [2]int) bool {
+	return dp[0] != ep[0] || dp[1] <= ep[1]
+}
+
+// drawGroup draws an any-of group of two or three distinct earlier epics e
+// has no plain edge to. A member may sit in a later milestone of e's track
+// only when another member is admissible, as later-milestone-dependency
+// allows (spec/1.7.0.md §7); false when no such group can be drawn.
+func drawGroup(r *rand.Rand, earlier []model.Epic, e *model.Epic, place map[string][2]int) (model.EpicDep, bool) {
+	var pool []string
+	for j := range earlier {
+		if !slices.ContainsFunc(e.DependsOn, func(d model.EpicDep) bool { return d.ID == earlier[j].ID }) {
+			pool = append(pool, earlier[j].ID)
+		}
+	}
+	k := 2 + r.IntN(2)
+	if len(pool) < k {
+		return model.EpicDep{}, false
+	}
+	r.Shuffle(len(pool), func(a, b int) { pool[a], pool[b] = pool[b], pool[a] })
+	members := pool[:k]
+	ep := place[e.Milestone]
+	byID := map[string]string{}
+	for j := range earlier {
+		byID[earlier[j].ID] = earlier[j].Milestone
+	}
+	if !slices.ContainsFunc(members, func(id string) bool { return admissible(place[byID[id]], ep) }) {
+		return model.EpicDep{}, false
+	}
+	return model.EpicDep{AnyOf: slices.Clone(members), Why: "either one serves the dependent"}, true
+}
+
 // generateProgressGraph draws a plan from seed: random tracks, milestones and
 // opens_after, two to twelve epics with a quarter of them conditions, edges
 // only to earlier epics and never to a later milestone of the same track,
-// explicit gate members (conditions included) on some milestones, done
-// records on some epics, and bound files on a few work epics, each in
-// progress or done.
+// any-of groups of two or three earlier epics on some (drawGroup), explicit
+// gate members (conditions included) on some milestones, done records on
+// some epics, and bound files on a few work epics, each in progress or done.
 func generateProgressGraph(seed uint64) progressGraph {
 	r := rand.New(rand.NewPCG(seed, seed^0x9e3779b97f4a7c15))
 	tracks, after, order := progressMilestones(r)
@@ -76,9 +111,13 @@ func generateProgressGraph(seed uint64) progressGraph {
 		}
 		for j := range i {
 			dep := &g.Epics[j]
-			dp, ep := place[dep.Milestone], place[e.Milestone]
-			if r.IntN(3) == 0 && (dp[0] != ep[0] || dp[1] <= ep[1]) {
+			if r.IntN(3) == 0 && admissible(place[dep.Milestone], place[e.Milestone]) {
 				e.DependsOn = append(e.DependsOn, model.EpicDep{ID: dep.ID, Why: "it reads the dependency's output"})
+			}
+		}
+		if r.IntN(3) == 0 {
+			if d, ok := drawGroup(r, g.Epics, &e, place); ok {
+				e.DependsOn = append(e.DependsOn, d)
 			}
 		}
 		e.Root = len(e.DependsOn) == 0
@@ -112,10 +151,34 @@ func generateProgressGraph(seed uint64) progressGraph {
 	return progressGraph{g: g, states: states, bound: bound}
 }
 
+// fieldShapePlan is the field shape any-of exists for: one track [P, Q],
+// both opening after nothing, conditions a in P and b in Q, work x in P
+// depending on {a, b}, and z in Q depending on x, nothing done.
+func fieldShapePlan() progressGraph {
+	cond := func(id, m string) model.Epic {
+		return model.Epic{ID: id, Title: id, Milestone: m, Root: true, Condition: true, Acceptance: "the operator decides"}
+	}
+	g := &model.EpicGraph{
+		Version:    1,
+		Milestones: [][]string{{"P", "Q"}},
+		OpensAfter: map[string][]string{"P": {}, "Q": {}},
+		Epics: []model.Epic{
+			cond("a", "P"), cond("b", "Q"),
+			{ID: "x", Title: "x", Milestone: "P", DependsOn: []model.EpicDep{{AnyOf: []string{"a", "b"}, Why: "either decision opens x"}}},
+			{ID: "z", Title: "z", Milestone: "Q", DependsOn: []model.EpicDep{{ID: "x", Why: "z reads x"}}},
+		},
+	}
+	states := map[string]EpicState{}
+	for i := range g.Epics {
+		states[g.Epics[i].ID] = EpicState{Status: EpicStatusPlanned}
+	}
+	return progressGraph{g: g, states: states, bound: map[string][]string{}}
+}
+
 // progressMoves returns what can move in p: the ready work epics, the
 // actionable conditions, and the bound epics that are not done and whose
-// direct dependencies are all done, so their task files can be worked and
-// closed.
+// direct dependencies are all satisfied, a group once one member is done,
+// so their task files can be worked and closed.
 func progressMoves(p *progressGraph) []string {
 	r := EpicReady(p.g, p.states, p.bound, false)
 	moves := slices.Clone(r.Ready)
@@ -130,6 +193,21 @@ func progressMoves(p *progressGraph) []string {
 	return moves
 }
 
+// undoneLive lists, in graph order, the work epics of p that are neither
+// done nor moot (MootEpics): the work a plan still owes. A condition is
+// owed only through the work that needs it.
+func undoneLive(p *progressGraph) []string {
+	moot := MootEpics(p.g, p.states)
+	var out []string
+	for i := range p.g.Epics {
+		id := p.g.Epics[i].ID
+		if !p.g.Epics[i].Condition && p.states[id].Status != EpicStatusDone && !moot[id] {
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
 // hasLintError reports whether g carries an error-severity lint finding: a
 // graph the lint refuses is no plan to make progress on.
 func hasLintError(g *model.EpicGraph) bool {
@@ -141,32 +219,59 @@ func hasLintError(g *model.EpicGraph) bool {
 	return false
 }
 
+// stuckPlan words why p is a counterexample to the progress invariant, or
+// returns "" when p is no counterexample: the lint refuses it, nothing
+// undone and not moot is left, or something can move.
+func stuckPlan(p *progressGraph) string {
+	if hasLintError(p.g) {
+		return ""
+	}
+	live := undoneLive(p)
+	if len(live) == 0 || len(progressMoves(p)) > 0 {
+		return ""
+	}
+	data, _ := json.Marshal(p.g)
+	return fmt.Sprintf("%v are undone and not moot but nothing can move\nstates: %v\nbound: %v\ngraph: %s", live, p.states, p.bound, data)
+}
+
 // TestEpicProgress_SomethingCanAlwaysMove is the progress invariant over
-// generated plans: every lint-clean plan can always make progress. Whenever
-// the whole graph's critical path holds an undone epic, some ready or claimed
-// epic, actionable condition or workable bound epic exists, so tp epic ready
-// never leaves an unfinished plan with nothing to do. A plan the lint reports
-// an error on is left out: dependency-opens-later is the error on a plan
-// whose own shape waits on itself.
+// generated plans, any-of groups included: every lint-clean plan can always
+// make progress. Whenever a work epic is neither done nor moot, some ready or
+// claimed epic, actionable condition or workable bound epic exists, so tp
+// epic ready never leaves an unfinished plan with nothing to do. A plan the
+// lint reports an error on is left out: dependency-opens-later is the error
+// on a plan whose own shape waits on itself.
 func TestEpicProgress_SomethingCanAlwaysMove(t *testing.T) {
 	t.Parallel()
 	const seeds = 1000
-	checked := 0
+	field := fieldShapePlan()
+	if hasLintError(field.g) {
+		t.Fatalf("the field shape fails the lint: %v", LintEpicGraph(field.g, nil))
+	}
+	if msg := stuckPlan(&field); msg != "" {
+		t.Errorf("the field shape: %s", msg)
+	}
+	checked, grouped := 0, 0
 	for seed := range uint64(seeds) {
 		p := generateProgressGraph(seed)
 		if hasLintError(p.g) {
 			continue
 		}
 		checked++
-		if len(GraphCriticalPath(p.g, p.states)) == 0 || len(progressMoves(&p)) > 0 {
-			continue
+		if slices.ContainsFunc(p.g.Epics, func(e model.Epic) bool {
+			return slices.ContainsFunc(e.DependsOn, model.EpicDep.IsGroup)
+		}) {
+			grouped++
 		}
-		data, _ := json.Marshal(p.g)
-		t.Errorf("seed %d: the critical path %v is undone but nothing can move\nstates: %v\nbound: %v\ngraph: %s",
-			seed, GraphCriticalPath(p.g, p.states), p.states, p.bound, data)
+		if msg := stuckPlan(&p); msg != "" {
+			t.Errorf("seed %d: %s", seed, msg)
+		}
 	}
 	if checked < seeds/2 {
 		t.Fatalf("only %d of %d generated graphs passed the lint", checked, seeds)
 	}
-	t.Logf("%d lint-clean plans checked", checked)
+	if grouped < checked/10 {
+		t.Fatalf("only %d of %d lint-clean plans carry an any-of group", grouped, checked)
+	}
+	t.Logf("%d lint-clean plans checked, %d with an any-of group", checked, grouped)
 }
