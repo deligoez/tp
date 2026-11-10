@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -135,8 +136,13 @@ func opensAfterClosure(after map[string][]string, m string) map[string]bool {
 }
 
 // epicsDependingInto lists, in graph order and once each, the epics of
-// milestone m with a direct dependency on an epic of milestone target.
+// milestone m with a direct dependency on an epic of milestone target, or a
+// group whose every member is one.
 func epicsDependingInto(g *model.EpicGraph, m, target string, byID map[string]string) []string {
+	in := func(id string) bool {
+		dm, ok := byID[id]
+		return ok && dm == target
+	}
 	var ids []string
 	for i := range g.Epics {
 		e := &g.Epics[i]
@@ -144,11 +150,22 @@ func epicsDependingInto(g *model.EpicGraph, m, target string, byID map[string]st
 			continue
 		}
 		for _, d := range e.DependsOn {
-			if dm, ok := byID[d.ID]; ok && dm == target {
+			if dependsInto(d, in) {
 				ids = append(ids, e.ID)
 				break
 			}
 		}
 	}
 	return ids
+}
+
+// dependsInto reports whether the entry d depends into the milestone in
+// tells membership of: a plain edge when its epic is in it, a group only
+// when every member is (spec/1.7.0.md §7).
+func dependsInto(d model.EpicDep, in func(id string) bool) bool {
+	if !d.IsGroup() {
+		return in(d.ID)
+	}
+	members := d.Members()
+	return len(members) > 0 && !slices.ContainsFunc(members, func(id string) bool { return !in(id) })
 }
