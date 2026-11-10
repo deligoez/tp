@@ -48,6 +48,21 @@ func TestBuildBlockers_BudgetZeroNeverFires(t *testing.T) {
 	assert.Empty(t, bs)
 }
 
+// TestBuildBlockers_AuditBudgetExhaustedFiresAtTheAuditCap: the audit loop's
+// blocker fires once its round count reaches the cap, in the audit phase
+// only, and names the cap in its data.
+func TestBuildBlockers_AuditBudgetExhaustedFiresAtTheAuditCap(t *testing.T) {
+	tf := &model.TaskFile{Tasks: []model.Task{{ID: "t", Status: model.StatusDone}}}
+	bs := BuildBlockers(&BlockerInputs{Phase: PhaseAudit, AuditRounds: 3, AuditMaxRounds: 3, TaskFile: tf})
+	require.Len(t, bs, 1)
+	assert.Equal(t, "audit-budget-exhausted", bs[0].Code)
+	assert.Equal(t, ClassEscalate, bs[0].Class)
+	assert.Equal(t, 3, bs[0].Data["cap"])
+
+	bs = BuildBlockers(&BlockerInputs{Phase: PhaseReview, AuditRounds: 3, AuditMaxRounds: 3, TaskFile: tf})
+	assert.Empty(t, bs, "the audit cap does not stop the review phase")
+}
+
 func TestBuildBlockers_SpecStaleEscalate(t *testing.T) {
 	tf := &model.TaskFile{Tasks: []model.Task{{ID: "t", Status: model.StatusWIP}}}
 	bs := BuildBlockers(&BlockerInputs{Phase: PhaseImplement, ReviewStale: true, SpecPath: "spec.md", TaskFile: tf})
