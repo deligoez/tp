@@ -63,3 +63,19 @@ func TestEpicExport_EpicItemsListEachUnsatisfiedGroupAndSayBlockedAndHeld(t *tes
 	assert.Equal(t, exportAnyOfWaits{BlockedBy: []string{}, HeldBy: []string{},
 		BlockedByAnyOf: [][]string{}, HeldByAnyOf: [][]string{}}, got["z"])
 }
+
+// TestEpicExport_AMootEpicCarriesMootInPlaceOfActionable is spec/1.7.0.md
+// §7: z's group is satisfied by the done d, so the condition m is moot; its
+// item carries moot: true and neither actionable nor not_actionable, and
+// an epic that is not moot carries no moot key. An export that judged m
+// like any condition gives it actionable: false.
+func TestEpicExport_AMootEpicCarriesMootInPlaceOfActionable(t *testing.T) {
+	t.Parallel()
+	_, raw := exportEpicItems(t, epicGraphDir(t, exportAnyOfGraph))
+	require.Contains(t, raw, "m")
+	assert.JSONEq(t, `true`, string(raw["m"]["moot"]))
+	assert.NotContains(t, raw["m"], "actionable")
+	assert.NotContains(t, raw["m"], "not_actionable")
+	assert.NotContains(t, raw["c1"], "moot")
+	assert.Contains(t, raw["c1"], "actionable")
+}
