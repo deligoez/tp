@@ -44,7 +44,7 @@ func buildEpicReviewPrompts(run *epicReviewRun, roles []model.Role) []epicReview
 		b.WriteString(role.Instructions + "\n\n")
 		b.WriteString(asked)
 		writeEpicFocus(&b, role.Focus)
-		prompts = append(prompts, epicPromptWithTail(run, role.ID, &b, epicContextText(run, role.Context)))
+		prompts = append(prompts, epicPromptWithTail(run, role.ID, &b, epicContextText(run, epicRoleContext(run, role.Context))))
 	}
 	if run.round >= 2 && run.carry.Regression() {
 		prompts = append(prompts, epicRegressionPrompt(run, asked))
@@ -153,22 +153,38 @@ func epicChangedText(run *epicReviewRun) string {
 	return b.String()
 }
 
+// epicRoleContext is the context scope a role reads this round: its own,
+// except that a round appending the regression role asks only changed units
+// and keeps every neighbour in full, so neighbours-brief reads as neighbours
+// there (spec/1.7.0.md non-goals).
+func epicRoleContext(run *epicReviewRun, scope string) string {
+	if scope == model.RoleContextNeighboursBrief && run.round >= 2 && run.carry.Regression() {
+		return model.RoleContextNeighbours
+	}
+	return scope
+}
+
 // epicContextText renders the context blocks a role is shown — every
-// neighbour, or only the asked units' dependencies under
-// model.RoleContextDependencies — then each carried gate's block, read only,
-// and the carried units no block shows, by key.
+// neighbour, only the asked units' dependencies under
+// model.RoleContextDependencies, or the dependencies in full and the
+// dependents in brief under model.RoleContextNeighboursBrief — then each
+// carried gate's block, read only, and the carried units no block shows, by
+// key.
 func epicContextText(run *epicReviewRun, scope string) string {
 	var b strings.Builder
-	var blocks []engine.EpicContextBlock
+	var blocks []string
 	for _, c := range run.slice.Context {
-		if c.Dependency || scope != model.RoleContextDependencies {
-			blocks = append(blocks, c)
+		switch {
+		case c.Dependency || scope == model.RoleContextNeighbours || scope == "":
+			blocks = append(blocks, c.Block)
+		case scope == model.RoleContextNeighboursBrief:
+			blocks = append(blocks, c.Brief)
 		}
 	}
 	if len(blocks) > 0 {
 		b.WriteString("\nContext — the epics one edge away; read them, do not review them:\n")
-		for _, c := range blocks {
-			b.WriteString("---\n" + c.Block)
+		for _, block := range blocks {
+			b.WriteString("---\n" + block)
 		}
 		b.WriteString("---\n")
 	}
