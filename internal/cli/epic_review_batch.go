@@ -170,7 +170,7 @@ func loadEpicBatchSetup(cmd *cobra.Command) epicBatchSetup {
 // prepareEpicBatchItem prepares key's emission without writing it, or says
 // why the slice cannot emit: it fails to prepare, its loop is done, or it is
 // at its cap.
-func prepareEpicBatchItem(setup *epicBatchSetup, key engine.EpicSliceKey) (epicBatchItem, string) {
+func prepareEpicBatchItem(setup *epicBatchSetup, key engine.EpicSliceKey) (item epicBatchItem, skipReason string) {
 	run, rerr := prepareEpicReviewRun(&setup.graph, key)
 	if rerr != nil {
 		return epicBatchItem{}, rerr.msg
