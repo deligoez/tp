@@ -143,6 +143,22 @@ func TestEpicGraph_NestedUnknownKeysCarryTheirPaths(t *testing.T) {
 	}, unknown)
 }
 
+// TestEpicGraph_DirectIsAKnownTagCheckKey: a tag check's "direct" is schema
+// (spec/1.7.0.md §3), so it loads into the check and is no unknown-key.
+func TestEpicGraph_DirectIsAKnownTagCheckKey(t *testing.T) {
+	tpDir := epicGraphDir(t, `{
+  "version": 1,
+  "milestones": [["A"]],
+  "tag_checks": {"ui": {"provided_by": "a", "direct": true}},
+  "epics": [{"id": "a", "title": "A", "milestone": "A"}]
+}`)
+
+	g, unknown, err := LoadEpicGraph(tpDir)
+	require.NoError(t, err)
+	assert.Empty(t, unknown)
+	assert.True(t, g.TagChecks["ui"].Direct)
+}
+
 func TestEpicGraph_MissingFileIsNotAParseError(t *testing.T) {
 	_, _, err := LoadEpicGraph(epicGraphDir(t, ""))
 	require.Error(t, err)
