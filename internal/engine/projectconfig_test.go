@@ -198,6 +198,21 @@ func TestLoadLocalConfig_UnknownDefaultsKeyWarns(t *testing.T) {
 	assert.Contains(t, warns, "unknown defaults key: bogus")
 }
 
+// TestLoadLocalConfig_UnknownTopLevelKeyWarns: REFERENCE.md says unknown keys
+// of .tp/local.json warn and fall back. Every key local.json knows is
+// accepted silently and an unknown one is named, so a check that warned on
+// the wrong side of keep_uncommitted would warn about it and stay silent on
+// bogus.
+func TestLoadLocalConfig_UnknownTopLevelKeyWarns(t *testing.T) {
+	tp := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tp, "local.json"),
+		[]byte(`{"active":"a.tasks.json","defaults":{},"keep_uncommitted":[],"notify_cmd":"say","bogus":1}`), 0o600))
+	lc, warns, err := LoadLocalConfig(tp)
+	require.NoError(t, err)
+	require.NotNil(t, lc.KeepUncommitted, "a known key is still parsed")
+	assert.Equal(t, []string{"unknown top-level key: bogus"}, warns)
+}
+
 func TestLoadProjectConfig_OutOfRangeFallsBack(t *testing.T) {
 	tp := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(tp, "config.json"),
