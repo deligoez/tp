@@ -13,7 +13,10 @@ import (
 // epicExportPayload is the part of tp epic export's JSON these tests read.
 type epicExportPayload struct {
 	Version int `json:"version"`
-	Epics   []struct {
+	Graph   struct {
+		Version int `json:"version"`
+	} `json:"graph"`
+	Epics []struct {
 		ID     string `json:"id"`
 		Status string `json:"status"`
 		Files  []struct {
@@ -52,14 +55,15 @@ func runEpicExportJSON(t *testing.T, dir string) *epicExportPayload {
 }
 
 // TestEpicExport_JSONCarriesVersionBoundFileAndSliceKey is §10 row 13: with
-// no format flag the export is JSON with a version, b's bound file with its
-// phase, and the recorded --epic b slice with its key. A slice listed without
-// its key turns it red.
+// no format flag the export is JSON with a version, 2 beside the graph's own
+// 1 (spec/1.7.0.md §7), b's bound file with its phase, and the recorded
+// --epic b slice with its key. A slice listed without its key turns it red.
 func TestEpicExport_JSONCarriesVersionBoundFileAndSliceKey(t *testing.T) {
 	t.Parallel()
 	p := runEpicExportJSON(t, exportWithBRecorded(t))
 
-	assert.Equal(t, 1, p.Version)
+	assert.Equal(t, 2, p.Version, "a depends_on entry may carry no id since spec/1.7.0.md §7")
+	assert.Equal(t, 1, p.Graph.Version, "the graph file keeps its own version")
 	require.Len(t, p.Epics, 4)
 	b := p.Epics[1]
 	assert.Equal(t, "b", b.ID)
