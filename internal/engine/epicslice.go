@@ -31,11 +31,13 @@ type EpicReviewUnit struct {
 
 // EpicContextBlock is the block of an epic shown below the units as context.
 // Dependency is true when an asked epic depends on it; false, it only depends
-// on an asked epic.
+// on an asked epic, and Brief holds what a neighbours-brief role is shown of
+// it instead of Block (spec/1.7.0.md §4).
 type EpicContextBlock struct {
 	ID         string
 	Block      string
 	Dependency bool
+	Brief      string
 }
 
 // EpicSlice is a slice's units in file order, the gate units last, and the
@@ -186,10 +188,30 @@ func epicSliceContext(g *model.EpicGraph, asked map[string]bool) []EpicContextBl
 		e := &g.Epics[i]
 		if near[e.ID] && !asked[e.ID] && !seen[e.ID] {
 			seen[e.ID] = true
-			ctx = append(ctx, EpicContextBlock{ID: e.ID, Block: epicBlock(e), Dependency: dependency[e.ID]})
+			c := EpicContextBlock{ID: e.ID, Block: epicBlock(e), Dependency: dependency[e.ID]}
+			if !c.Dependency {
+				c.Brief = epicDependentBrief(e, asked)
+			}
+			ctx = append(ctx, c)
 		}
 	}
 	return ctx
+}
+
+// epicDependentBrief renders a dependent of the asked epics by its id, title
+// and milestone and its edges into them, each with its why: a placement
+// reader's view of what needs the asked units, without the acceptance text
+// that makes a full block the bulk of a large slice's prompt.
+func epicDependentBrief(e *model.Epic, asked map[string]bool) string {
+	var b strings.Builder
+	b.WriteString("epic: " + e.ID + "\ntitle: " + e.Title + "\nmilestone: " + e.Milestone + "\n")
+	b.WriteString("depends_on (its edges into the asked units only):\n")
+	for _, d := range e.DependsOn {
+		if asked[d.ID] {
+			b.WriteString("- " + d.ID + ": " + d.Why + "\n")
+		}
+	}
+	return b.String()
 }
 
 // epicUnit builds an epic's unit; a dependency the graph does not hold adds
