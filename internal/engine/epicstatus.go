@@ -28,6 +28,12 @@ type EpicReviewStatus struct {
 	InFlightRound    int
 	CapReached       bool
 	Undisposed       int
+	// GrantedRound is the round an operator's grant lets the slice emit and
+	// record past its cap while that round is not yet recorded (0: none), and
+	// Grantable says the slice is at its cap and stale with no grant open, so
+	// tp epic review --grant-round would give one (spec/1.7.0.md §8).
+	GrantedRound int
+	Grantable    bool
 	// Open counts the last recorded round's findings that carry no
 	// disposition, by severity, every severity present, so a slice done under
 	// review_converge_on blocking still shows what it left open. A finding
@@ -42,6 +48,7 @@ type EpicReviewStatus struct {
 // none (D7), and a stale slice is neither converged nor done, at the cap too
 // (D1). At the cap the loop is done when every finding of the last round is
 // dispositioned and no blocking one is merely marked fixed, as in tp review.
+// An open grant lifts the cap for the one round it names (spec/1.7.0.md §8).
 func EpicReviewLoopStatus(stateDir string, units []EpicReviewUnit, p EpicReviewPolicy) (EpicReviewStatus, error) {
 	st := EpicReviewStatus{Round: EpicReviewNextRound(stateDir) - 1}
 	rounds := make([][]map[string]any, 0, st.Round)
@@ -71,18 +78,33 @@ func EpicReviewLoopStatus(stateDir string, units []EpicReviewUnit, p EpicReviewP
 	if _, err := os.Stat(filepath.Join(stateDir, epicSnapshotFile(st.Round+1))); err == nil {
 		st.InFlightRound = st.Round + 1
 	}
+	granted, err := readEpicReviewGrant(stateDir)
+	if err != nil {
+		return EpicReviewStatus{}, err
+	}
+	if granted == st.Round+1 {
+		st.GrantedRound = granted
+	}
 	switch {
 	case st.Converged:
 		st.Done, st.DoneBy = true, DoneByConverged
-	case p.MaxRounds > 0 && st.Round >= p.MaxRounds:
-		st.CapReached = true
-		blockingFixed := 0
-		st.Undisposed, blockingFixed = epicCapUndisposed(rounds[len(rounds)-1], p.ConvergeOn)
-		if st.Undisposed == 0 && blockingFixed == 0 && !st.Stale {
-			st.Done, st.DoneBy = true, DoneByCap
-		}
+	case p.MaxRounds > 0 && st.Round >= p.MaxRounds && st.GrantedRound == 0:
+		epicGradeCap(&st, rounds[len(rounds)-1], p.ConvergeOn)
 	}
 	return st, nil
+}
+
+// epicGradeCap grades a slice at its cap with no grant open: done when its
+// last round is wholly dispositioned and it is not stale, grantable when it is
+// stale, since only a changed graph gives one more round something to read.
+func epicGradeCap(st *EpicReviewStatus, last []map[string]any, convergeOn string) {
+	st.CapReached = true
+	blockingFixed := 0
+	st.Undisposed, blockingFixed = epicCapUndisposed(last, convergeOn)
+	if st.Undisposed == 0 && blockingFixed == 0 && !st.Stale {
+		st.Done, st.DoneBy = true, DoneByCap
+	}
+	st.Grantable = st.Stale
 }
 
 // epicRowBlocking reports whether an open row holds its round open.
