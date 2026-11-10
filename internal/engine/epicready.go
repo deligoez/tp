@@ -27,6 +27,9 @@ type EpicReadiness struct {
 	// NotActionable holds ConditionsNotActionable's reasons for every
 	// condition that is not done, empty for an actionable one.
 	NotActionable map[string][]string
+	// Moot holds MootEpics' answer: the undone epics only a lost alternative
+	// needs, listed nowhere else.
+	Moot map[string]bool
 	// Gates holds the milestones whose gate members are done and whose
 	// threshold has no met record.
 	Gates []string
@@ -39,10 +42,12 @@ type EpicReadiness struct {
 // done; it is ready when it has no bound file, or claimed when it carries a
 // claim. A condition waits on the operator when it is actionable
 // (spec/1.6.0.md F3), or with all whenever it is not done. An epic whose
-// milestone is in no track is never listed.
+// milestone is in no track is never listed, nor is a moot one (MootEpics,
+// spec/1.7.0.md §7), with all or without.
 func EpicReady(g *model.EpicGraph, states map[string]EpicState, bound map[string][]string, all bool) EpicReadiness {
 	gates := MilestoneGates(g, states)
 	r := EpicReadiness{Ready: []string{}, Claimed: []string{}, Conditions: []string{}, Gates: []string{}}
+	r.Moot = MootEpics(g, states)
 	r.NotActionable = ConditionsNotActionable(g, states, gates, bound)
 	r.Actionable = make(map[string]bool, len(r.NotActionable))
 	for id, reasons := range r.NotActionable {
@@ -56,7 +61,7 @@ func EpicReady(g *model.EpicGraph, states map[string]EpicState, bound map[string
 			}
 			continue
 		}
-		if !epicCandidate(e, gates, states, all) {
+		if !epicCandidate(e, gates, states, all) || r.Moot[e.ID] {
 			continue
 		}
 		switch {
