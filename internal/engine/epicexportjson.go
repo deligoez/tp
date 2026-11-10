@@ -3,8 +3,6 @@ package engine
 import (
 	"errors"
 	"fmt"
-	"io/fs"
-	"os"
 	"path/filepath"
 
 	"github.com/deligoez/tp/internal/model"
@@ -149,33 +147,18 @@ type EpicSliceState struct {
 // key is unknown, or names what the graph no longer holds, is graded without
 // its staleness, which needs the slice's current units.
 func EpicReviewSlices(tpDir string, g *model.EpicGraph, p EpicReviewPolicy) ([]EpicSliceState, error) {
-	root := filepath.Join(tpDir, EpicReviewStateRoot)
-	entries, err := os.ReadDir(root)
-	if errors.Is(err, fs.ErrNotExist) {
-		return []EpicSliceState{}, nil
-	}
+	dirs, err := EpicReviewSliceDirs(tpDir, g)
 	if err != nil {
 		return nil, err
 	}
 	out := []EpicSliceState{}
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		dir := filepath.Join(root, entry.Name())
-		key, err := ReadEpicSliceKey(dir)
+	for _, d := range dirs {
+		units, known := epicSliceUnits(g, d.Key)
+		st, err := EpicReviewLoopStatus(d.Path, units, p)
 		if err != nil {
 			return nil, err
 		}
-		if key == nil {
-			key = deriveEpicSliceKey(dir, g)
-		}
-		units, known := epicSliceUnits(g, key)
-		st, err := EpicReviewLoopStatus(dir, units, p)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, EpicSliceState{Dir: entry.Name(), Key: key, EpicLoop: sliceLoop(&st, known), Grantable: known && st.Grantable})
+		out = append(out, EpicSliceState{Dir: d.Name, Key: d.Key, EpicLoop: EpicSliceLoop(&st, known), Grantable: known && st.Grantable})
 	}
 	return out, nil
 }
@@ -186,22 +169,15 @@ func epicSliceUnits(g *model.EpicGraph, key *EpicSliceKeyRecord) ([]EpicReviewUn
 	if key == nil {
 		return nil, false
 	}
-	k := EpicSliceKey{Epic: key.Value}
-	switch key.Kind {
-	case "epics":
-		k = EpicSliceKey{Epics: key.IDs, Name: key.Name}
-	case "milestone":
-		k = EpicSliceKey{Milestone: key.Value}
-	}
-	slice, err := EpicReviewSlice(g, k)
+	slice, err := EpicReviewSlice(g, key.SliceKey())
 	if err != nil {
 		return nil, false
 	}
 	return slice.Units, true
 }
 
-// sliceLoop names a slice's loop state; staleness counts only when known.
-func sliceLoop(st *EpicReviewStatus, known bool) EpicLoop {
+// EpicSliceLoop names a slice's loop state; staleness counts only when known.
+func EpicSliceLoop(st *EpicReviewStatus, known bool) EpicLoop {
 	l := EpicLoop{Round: st.Round}
 	switch {
 	case st.Done:

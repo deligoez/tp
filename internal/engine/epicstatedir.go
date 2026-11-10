@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/deligoez/tp/internal/model"
 )
 
 // EpicReviewStateRoot is the directory under .tp/ that holds one state
@@ -78,6 +80,56 @@ func EpicSliceKeyRecordOf(key EpicSliceKey) EpicSliceKeyRecord {
 	default:
 		return EpicSliceKeyRecord{Kind: "epic", Value: key.Epic}
 	}
+}
+
+// SliceKey is the slice key the record names, as EpicSliceKeyRecordOf
+// rendered it.
+func (r *EpicSliceKeyRecord) SliceKey() EpicSliceKey {
+	switch r.Kind {
+	case "epics":
+		return EpicSliceKey{Epics: r.IDs, Name: r.Name}
+	case "milestone":
+		return EpicSliceKey{Milestone: r.Value}
+	}
+	return EpicSliceKey{Epic: r.Value}
+}
+
+// EpicSliceDir is one slice state directory under .tp/epic-review/: its name,
+// its path, and its key (key.json's, else the one its recorded rounds name;
+// nil when neither says).
+type EpicSliceDir struct {
+	Name string
+	Path string
+	Key  *EpicSliceKeyRecord
+}
+
+// EpicReviewSliceDirs lists every slice state directory under tpDir, in name
+// order, each with its key; no directory lists none.
+func EpicReviewSliceDirs(tpDir string, g *model.EpicGraph) ([]EpicSliceDir, error) {
+	root := filepath.Join(tpDir, EpicReviewStateRoot)
+	entries, err := os.ReadDir(root)
+	if errors.Is(err, fs.ErrNotExist) {
+		return []EpicSliceDir{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	out := []EpicSliceDir{}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		dir := filepath.Join(root, entry.Name())
+		key, err := ReadEpicSliceKey(dir)
+		if err != nil {
+			return nil, err
+		}
+		if key == nil {
+			key = deriveEpicSliceKey(dir, g)
+		}
+		out = append(out, EpicSliceDir{Name: entry.Name(), Path: dir, Key: key})
+	}
+	return out, nil
 }
 
 // WriteEpicSliceKey records key in stateDir, creating the directory, through
