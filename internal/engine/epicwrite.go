@@ -75,33 +75,54 @@ func updateEpicGraph(tpDir string, ifRevision *string, mutate func(*model.EpicGr
 		return out, fmt.Errorf("create %s: %w", tpDir, err)
 	}
 	err := WithFileLock(out.Path, func() error {
-		if err := checkEpicRevision(tpDir, ifRevision); err != nil {
-			return err
-		}
-		g, unknown, err := LoadEpicGraph(tpDir)
-		if errors.Is(err, ErrEpicGraphNotFound) {
-			g, err = &model.EpicGraph{Version: 1, Milestones: [][]string{}, Epics: []model.Epic{}}, nil
-		}
+		g, unknown, err := mutateEpicGraph(tpDir, ifRevision, mutate, refuse)
 		if err != nil {
 			return err
-		}
-		before := LintEpicGraph(g, unknown)
-		if err := mutate(g); err != nil {
-			return err
-		}
-		if added := NewEpicErrors(before, LintEpicGraph(g, nil)); refuse && len(added) > 0 {
-			return &EpicWriteRefusedError{New: added}
 		}
 		if err := WriteEpicGraph(tpDir, g); err != nil {
 			return err
 		}
-		for _, k := range unknown {
-			out.Dropped = append(out.Dropped, k.Path)
-		}
+		out.Dropped = unknownKeyPaths(unknown)
 		out.Revision, err = EpicGraphRevision(tpDir)
 		return err
 	})
 	return out, err
+}
+
+// mutateEpicGraph loads the graph tpDir holds after checking ifRevision, an
+// absent file as an empty version-1 graph, and applies mutate to it; with
+// refuse, an after-state holding a lint error the before-state did not is an
+// *EpicWriteRefusedError. It returns the after-state and the keys outside
+// the schema the file held, which the after-state is linted without.
+func mutateEpicGraph(tpDir string, ifRevision *string, mutate func(*model.EpicGraph) error, refuse bool) (*model.EpicGraph, []EpicGraphUnknownKey, error) {
+	if err := checkEpicRevision(tpDir, ifRevision); err != nil {
+		return nil, nil, err
+	}
+	g, unknown, err := LoadEpicGraph(tpDir)
+	if errors.Is(err, ErrEpicGraphNotFound) {
+		g, err = &model.EpicGraph{Version: 1, Milestones: [][]string{}, Epics: []model.Epic{}}, nil
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	before := LintEpicGraph(g, unknown)
+	if err := mutate(g); err != nil {
+		return nil, nil, err
+	}
+	if added := NewEpicErrors(before, LintEpicGraph(g, nil)); refuse && len(added) > 0 {
+		return nil, nil, &EpicWriteRefusedError{New: added}
+	}
+	return g, unknown, nil
+}
+
+// unknownKeyPaths returns the path of each of unknown, an empty list when
+// there is none.
+func unknownKeyPaths(unknown []EpicGraphUnknownKey) []string {
+	paths := []string{}
+	for _, k := range unknown {
+		paths = append(paths, k.Path)
+	}
+	return paths
 }
 
 // AddEpics appends epics to g in order. With replace, an epic whose id g
