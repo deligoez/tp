@@ -106,9 +106,17 @@ func TestEnsureTPGitignore_IgnoresTheEpicReviewInboxes(t *testing.T) {
 }
 
 // TestShippedTPGitignore_IgnoresTheEpicReviewInboxes is the same property on
-// tp's own committed .tp/.gitignore.
+// tp's own committed .tp/.gitignore. The file is judged in a throwaway
+// repository, so the test needs no git checkout around the source tree (a
+// mutation run's copy has none).
 func TestShippedTPGitignore_IgnoresTheEpicReviewInboxes(t *testing.T) {
-	root := locateRepoRoot(t)
+	shipped, err := os.ReadFile(filepath.Join(locateRepoRoot(t), ".tp", ".gitignore"))
+	require.NoError(t, err, "the repo ships a .tp/.gitignore")
+	root := t.TempDir()
+	gitInTempRepo(t, root, "init")
+	require.NoError(t, os.MkdirAll(filepath.Join(root, ".tp"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".tp", ".gitignore"), shipped, 0o600))
+
 	assert.True(t, gitIgnores(t, root, epicInboxFile), "the shipped .tp/.gitignore must ignore %s", epicInboxFile)
 	for _, path := range epicStateKept {
 		assert.False(t, gitIgnores(t, root, path), "%s must stay committable", path)
