@@ -50,3 +50,11 @@ func TestEpicRemove_AGroupMemberIsADependencyNeedingForce(t *testing.T) {
 	assert.Equal(t, before, readEpicGraphFile(t, dir))
 }
 
+// TestEpicRemove_ForceOnADoneMemberDropsItsGroup: a done x satisfied the
+// group, so removing it drops the whole group rather than leaving w waiting
+// on y.
+func TestEpicRemove_ForceOnADoneMemberDropsItsGroup(t *testing.T) {
+	t.Parallel()
+	assert.Empty(t, removeX(t, `[{"any_of": ["x", "y", "z"], "why": "any opens the API"}]`, true))
+}
+
