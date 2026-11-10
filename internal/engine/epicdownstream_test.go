@@ -76,3 +76,26 @@ func TestEpicDownstreams_ReadsEpicsPastTheFirst64(t *testing.T) {
 	assert.Equal(t, EpicDownstream{LongestChain: 1, Dependents: 1, DependentsByMilestone: in("R")}, got["a"])
 	assert.Equal(t, EpicDownstream{LongestChain: 1, Dependents: 1, DependentsByMilestone: in("Q")}, got["b"])
 }
+
+// TestGraphCriticalPath_FollowsTheLongestChainFromItsHead: the path starts at
+// the head with the most work behind it, wherever it sits in the graph, even
+// alone; a tie on the way goes to the earlier epic in graph order; a cycle is
+// listed whole where the chain enters it.
+func TestGraphCriticalPath_FollowsTheLongestChainFromItsHead(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		g     *model.EpicGraph
+		chain []string
+	}{
+		{"a lone epic", &model.EpicGraph{Epics: []model.Epic{dependsOn("x", "P")}}, []string{"x"}},
+		{"the longest head first in the graph", &model.EpicGraph{Epics: []model.Epic{
+			dependsOn("r", "P"), dependsOn("x", "P"), dependsOn("a", "P", "r"), dependsOn("b", "P", "a"),
+		}}, []string{"r", "a", "b"}},
+		{"a tie between dependents", &model.EpicGraph{Epics: []model.Epic{
+			dependsOn("r", "P"), dependsOn("a", "P", "r"), dependsOn("b", "P", "r"),
+		}}, []string{"r", "a"}},
+		{"a cycle on the chain", cycleDownstreamGraph("r", "a", "b"), []string{"r", "a", "b"}},
+	} {
+		assert.Equal(t, tc.chain, GraphCriticalPath(tc.g, map[string]EpicState{}), tc.name)
+	}
+}
