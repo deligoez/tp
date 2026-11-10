@@ -2,18 +2,20 @@
 
 > Decision candidate, rewritten against the v1.6.0 export as shipped and updated for v1.7.0. The
 > operator answered §6's questions 1, 6 and 12; §4 records a web research pass on graph rendering
-> and dashboard design. v1.7.0 moved the export to `version: 2`, which this candidate reads: a
-> `depends_on` entry may be `{any_of, why}`, and `epics[]` add `blocked_by_any_of`,
-> `held_by_any_of`, `blocked`, `held` and `moot` (spec/1.7.0.md §7).
+> and dashboard design, and the operator's reviews of prototypes 1 and 2, which add a Spec tab: one
+> spec at a time, read beside its tasks. v1.7.0 moved the export to `version: 2`, which this
+> candidate reads: a `depends_on` entry may be `{any_of, why}`, and `epics[]` add
+> `blocked_by_any_of`, `held_by_any_of`, `blocked`, `held` and `moot` (spec/1.7.0.md §7).
 
 ## Decision (proposed)
 
-`tp dashboard [--port N]` serves one static page, embedded in the binary, on `127.0.0.1`. Its only
-data is `tp epic export`'s JSON, produced in-process by the same code the command uses, re-derived
-when tp's files change and pushed to the page. It draws the map (tracks, milestones, epics, edges,
-gates, conditions, critical path) and a detail panel (epic → bound file → phase → loops → tasks),
-and a KPI strip. It writes nothing and exposes no write endpoint. Stdlib only (`net/http`, `embed`,
-Server-Sent Events); no JS framework or CDN.
+`tp dashboard [--port N]` serves one static page, embedded in the binary, on `127.0.0.1`. Its data
+is `tp epic export`'s JSON and a read model of one spec (its text, tasks, loops and `tp resume` view,
+with the list of task files to pick from, §4), both produced in-process by the code the commands
+use, re-derived when tp's files change and pushed to the page. Two tabs: Epics draws the plan (map,
+chain, lists, matrix, plan review); Spec shows one spec at a time, its text read beside its tasks.
+Every detail opens in one drawer. It writes nothing and exposes no write endpoint. Stdlib only
+(`net/http`, `embed`, Server-Sent Events); no JS framework or CDN.
 
 **Measured on v1.6.0 (built from `main`, synthetic graphs made with tp's own writers):**
 
@@ -197,10 +199,11 @@ stored, how a round reads it); v1 only leaves the anchors for it.
 
 ## 5. Scope
 
-**v1:** `tp dashboard`, option B, map + filters + detail panel down to file/loop level + KPI strip,
-all from today's export; additive export keys only if a gap blocks the page (5 is cheap).
-**Later:** per-task and per-round detail (gaps 1–2), `tp run` units live (3), unbound-spec
-projects (4), a TUI summary, a `--md`/static snapshot for sharing.
+**v1:** `tp dashboard`, option B, two tabs. Epics: map + filters + chain + KPI strip + "Now" lists +
+matrix + plan review, from today's export plus `revision`/`generated_at` (gap 5) and `layout`. Spec:
+picker, loop, reader, task graph and task list, from the spec read model (§4).
+**Later:** feedback on the spec, per-finding detail (severity, resolution), `tp run` units live (3),
+a TUI summary, a `--md`/static snapshot for sharing.
 
 ## Non-goals
 
