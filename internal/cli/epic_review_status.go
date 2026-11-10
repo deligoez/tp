@@ -22,6 +22,7 @@ type epicStatusResult struct {
 	MechanicalChecks []engine.EpicMechanicalCheck `json:"mechanical_checks"`
 	ConvergeOn       string                       `json:"converge_on"`
 	Open             map[string]int               `json:"open"`
+	Grantable        bool                         `json:"grantable"`
 	NextAction       string                       `json:"next_action"`
 }
 
@@ -85,6 +86,7 @@ func runEpicReviewStatus(key engine.EpicSliceKey, check bool) {
 		MechanicalChecks: run.checks,
 		ConvergeOn:       epicReviewPolicy(run.tpDir).ConvergeOn,
 		Open:             st.Open,
+		Grantable:        st.Grantable,
 		NextAction:       epicStatusNextAction(key, &st, checksPass),
 	}
 	if st.Done {
