@@ -385,3 +385,24 @@ func finishMerge(encodeErr error, dropped []mergeInputCounts, rule mergeRowRule)
 	os.Exit(ExitValidation)
 	return nil
 }
+
+// mergeStdoutPath is the `-o` value that sends a merge's rows to stdout
+// (v1.7.0 §2).
+const mergeStdoutPath = "-"
+
+// emitMergeToStdout is `-o -`: the merged NDJSON on stdout and the summary,
+// the payload `-o <file>` prints on stdout, as JSON on stderr whatever the
+// terminal, so stdout holds rows alone. A merge about to exit non-zero writes
+// no byte to stdout: an empty stream is how a converged round reports itself,
+// so a refused merge piped onward would read as a clean round.
+func emitMergeToStdout(ndjson string, summary map[string]any, dropped []mergeInputCounts) error {
+	if len(dropped) == 0 {
+		if _, err := os.Stdout.WriteString(ndjson); err != nil {
+			return err
+		}
+		summary["output_path"] = "stdout"
+	}
+	enc := json.NewEncoder(os.Stderr)
+	enc.SetIndent("", "  ")
+	return enc.Encode(summary)
+}

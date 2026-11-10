@@ -264,7 +264,7 @@ Use --findings to also verify review findings were addressed.`,
 	cmd.Flags().BoolVar(&resolveMode, "resolve", false, "Dispose one audit row as fixed/wontfix/duplicate (selector: 0-based index or role:item_id; results NDJSON is the positional)")
 	cmd.Flags().BoolVar(&resolveAllMode, "resolve-all", false, "Dispose every undisposed audit row with a status (results NDJSON is the positional)")
 	cmd.Flags().BoolVar(&forceFlag, "force", false, "With --resolve/--resolve-all: re-resolve rows that already carry a disposition; on an emission: discard an unrecorded round's emission when the spec changed since it")
-	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "Output file path (for --merge)")
+	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "Output file path (for --merge; - writes the rows to stdout)")
 
 	return cmd
 }

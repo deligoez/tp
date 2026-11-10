@@ -448,7 +448,7 @@ Modes (mutually exclusive):
 	cmd.Flags().BoolVar(&resolveAllMode, "resolve-all", false, "Mark all unresolved findings with a status (findings NDJSON is the positional)")
 	cmd.Flags().BoolVar(&verifyMode, "verify", false, "Generate lightweight verification prompt")
 	cmd.Flags().BoolVar(&reportMode, "report", false, "Generate cross-round convergence report")
-	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "Output file path (for --merge)")
+	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "Output file path (for --merge; - writes the rows to stdout)")
 	cmd.Flags().StringVar(&diffFrom, "diff-from", "", "Baseline spec for diff-based review (requires --round >= 2)")
 	cmd.Flags().BoolVar(&specInline, "spec-inline", false, "Embed full spec content inline (default: reference by path)")
 	cmd.Flags().BoolVar(&forceFlag, "force", false, "With --resolve/--resolve-all: re-resolve already resolved findings; on an emission: discard an unrecorded round's emission when the spec changed since it")

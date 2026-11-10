@@ -117,6 +117,9 @@ func runAuditMerge(args []string, outputPath string) error {
 		summary["overlap_report"] = computeAuditOverlapReport(unique)
 	}
 
+	if outputPath == mergeStdoutPath {
+		return finishMerge(emitMergeToStdout(ndjson, summary, dropped), dropped, auditMergeRule)
+	}
 	if outputPath != "" {
 		// §5 row 10, as the review merge applies it: a merge about to exit
 		// non-zero writes nothing at `-o`, because the zero-byte file it used

@@ -97,6 +97,9 @@ func runReviewMerge(args []string, outputPath string) error {
 	}
 
 	// Write output based on mode
+	if outputPath == mergeStdoutPath {
+		return finishMerge(emitMergeToStdout(ndjsonOutput, summary, dropped), dropped, reviewMergeRule)
+	}
 	if outputPath != "" {
 		// -o: NDJSON to file, JSON summary to stdout. §5 row 10: a merge that is
 		// about to exit non-zero writes nothing at that path, so output_path is
