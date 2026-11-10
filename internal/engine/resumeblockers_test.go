@@ -123,3 +123,21 @@ func TestBudgetBlockerMessage_NamesTheOperatorOnlyForABlockingFixed(t *testing.T
 	assert.Contains(t, one, "marked fixed")
 	assert.NotContains(t, one, "disposition the remaining findings")
 }
+
+// TestBuildBlockers_EpicBlockedNeedsTheImplementPhaseAndAnUndoneDependency is
+// spec/1.5.0.md §6: a bound file whose epic waits on one undone dependency
+// and holds no wip task reports epic-blocked in the implement phase; an epic
+// block naming no dependency, or any other phase, reports none.
+func TestBuildBlockers_EpicBlockedNeedsTheImplementPhaseAndAnUndoneDependency(t *testing.T) {
+	tf := &model.TaskFile{Tasks: []model.Task{{ID: "t", Status: model.StatusOpen}}}
+	blocked := &EpicBlock{Epic: "b", BlockedBy: []string{"c"}}
+
+	bs := BuildBlockers(&BlockerInputs{Phase: PhaseImplement, TaskFile: tf, EpicBlock: blocked})
+	require.Len(t, bs, 1)
+	assert.Equal(t, "epic-blocked", bs[0].Code)
+	assert.Equal(t, []string{"c"}, bs[0].Data["blocked_by_epics"])
+
+	unblocked := &EpicBlock{Epic: "b", BlockedBy: []string{}}
+	assert.Empty(t, BuildBlockers(&BlockerInputs{Phase: PhaseImplement, TaskFile: tf, EpicBlock: unblocked}), "nothing undone")
+	assert.Empty(t, BuildBlockers(&BlockerInputs{Phase: PhaseReview, TaskFile: tf, EpicBlock: blocked}), "not implementing")
+}
