@@ -41,6 +41,32 @@ func TestLintEpicGraph_DependencyOpensLaterMemberIsAnError(t *testing.T) {
 	assert.Contains(t, found[0].Message, "a -> b")
 }
 
+// TestLintEpicGraph_DependencyOpensLaterGroupWhoseEveryMemberWaitsOnTheGateIsAnError:
+// on tracks [[M1, M2], [N1]] with N1 opening after M1, x, the member of
+// M1's gate, depends on {a, b}, a in M2 and b in N1. Both open after M1, so
+// neither can be done before M1's gate goes green: one error naming the gate
+// and the group. With N1 opening after nothing, b can be done first: clean.
+func TestLintEpicGraph_DependencyOpensLaterGroupWhoseEveryMemberWaitsOnTheGateIsAnError(t *testing.T) {
+	x := dependsOn("x", "M1")
+	x.Root, x.DependsOn = false, []model.EpicDep{{AnyOf: []string{"a", "b"}, Why: "either serves x"}}
+	g := &model.EpicGraph{
+		Version:    1,
+		Milestones: [][]string{{"M1", "M2"}, {"N1"}},
+		OpensAfter: map[string][]string{"N1": {"M1"}},
+		Epics:      []model.Epic{x, dependsOn("a", "M2"), dependsOn("b", "N1")},
+	}
+	found := findingsOf(t, LintEpicGraph(g, nil), EpicRuleDependencyOpensLater)
+	require.Len(t, found, 1, "%v", found)
+	assert.Equal(t, EpicSeverityError, found[0].Severity)
+	assert.Equal(t, []string{"a", "b", "x"}, found[0].Epics)
+	assert.Equal(t, "M1", found[0].Gate)
+	assert.Equal(t, "a", found[0].Target())
+	assert.Contains(t, found[0].Message, "one of {a, b}")
+
+	g.OpensAfter["N1"] = []string{}
+	assert.Empty(t, findingsOf(t, LintEpicGraph(g, nil), EpicRuleDependencyOpensLater))
+}
+
 // TestLintEpicGraph_DependencyOpensLaterThroughADeferrableIsAnError is
 // fixture (ii): the member a reaches b through c, a deferrable epic of A, so
 // A's gate still waits on B: one error with the path, and no warning for c.
