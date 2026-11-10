@@ -60,3 +60,14 @@ func TestEpicSet_DependsOnTakesAnAnyOfGroup(t *testing.T) {
 	assert.Equal(t, []map[string]any{anyOfEntry("either opens the API", "x", "y")}, storedDeps(t, dir, "w"))
 }
 
+// TestEpicAdd_TakesAnAnyOfGroup: tp epic add decodes a group entry strictly
+// and stores it as given.
+func TestEpicAdd_TakesAnAnyOfGroup(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, anyOfGraph)
+	_, stderr, code := runTP(t, dir, "epic", "add",
+		`{"id": "v", "title": "V", "milestone": "A", "depends_on": [{"any_of": ["x", "y"], "why": "either opens the API"}]}`)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.Equal(t, []map[string]any{anyOfEntry("either opens the API", "x", "y")}, storedDeps(t, dir, "v"))
+}
+
