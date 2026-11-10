@@ -161,3 +161,26 @@ func TestEpicReviewBatch_RefusesAMixedOrBatchWriteCall(t *testing.T) {
 	_, err := os.Stat(filepath.Join(dir, ".tp", "epic-review"))
 	assert.True(t, os.IsNotExist(err), "a refused call writes no state")
 }
+
+// TestEpicReviewBatch_EachEmittedSliceCarriesItsKey: a batch emission's slice
+// entry carries the key --status --all prints for it, so a reader maps an
+// emission to its row without reading the state directory's hash.
+func TestEpicReviewBatch_EachEmittedSliceCarriesItsKey(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicThreeMilestones)
+	stdout, stderr, code := runTP(t, dir, "epic", "review", "--milestones", "B,A")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var out struct {
+		Slices []struct {
+			Key *epicSliceKeyPayload `json:"key"`
+		} `json:"slices"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out), "stdout: %s", stdout)
+	require.Len(t, out.Slices, 2)
+	for i, want := range []string{"B", "A"} {
+		require.NotNil(t, out.Slices[i].Key, "slice %d names its key", i)
+		assert.Equal(t, epicSliceKeyPayload{Kind: "milestone", Value: want}, *out.Slices[i].Key)
+	}
+	rows := epicRowsByValue(t, runEpicBatchStatus(t, dir, "--all"))
+	assert.Equal(t, *rows["B"].Key, *out.Slices[0].Key, "the key --status --all prints")
+}
