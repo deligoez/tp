@@ -516,9 +516,13 @@ table a prose document embeds. Build it one topic at a time, each topic through 
 5. **`tp epic review --milestone <m>` (or `--epic <id>`) over the touched slice** — a milestone
    slice asks every epic in it, not only the topic's, and its gate, so a topic spread over several
    milestones costs a round per milestone; for a topic, review the topic itself with
-   `tp epic review --epics <ids> --name <topic>`, which keeps one slice as the topic grows. Spawn one
+   `tp epic review --epics <ids> --name <topic>`, which keeps one slice as the topic grows. Several
+   milestones emit in one call with `--milestones <m,m,...>` (or `--all`), each slice still recorded
+   on its own, and `--all --status --check` reads every slice at once. Spawn one
    sub-agent per role prompt, merge their rows into one file, `--record` it, fix the graph or
    `--resolve` each finding, and repeat until `tp epic review <slice> --status --check` exits 0.
+   A class raised across slices (`tp epic review --report --all`) points at a lint rule or a
+   `direct` tag check, the operator's to add.
    Unchanged units carry from round to round, so a round after a small edit asks only what moved,
    and a re-asked unit's prompt lists its earlier `wontfix`/`duplicate` decisions so they are not
    raised again. Every round that resolves a finding `fixed` makes one more round necessary, so a cap
