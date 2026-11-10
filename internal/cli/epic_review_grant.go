@@ -23,7 +23,7 @@ type epicGrantResult struct {
 // given one slice at a time (§8, non-goals). A flag the command does not
 // define yet is skipped, so the batch flags are refused from the release that
 // adds them without this list changing.
-var epicGrantRoundAlone = []string{"record", "status", "check", "resolve", "resolve-all", "force", "role", "milestones", "all"}
+var epicGrantRoundAlone = []string{"record", "status", "check", "resolve", "resolve-all", "force", "role", "milestones", "all", "report"}
 
 // refuseEpicGrantBeside exits 2 when --grant-round comes with another mode or
 // a batch flag.
