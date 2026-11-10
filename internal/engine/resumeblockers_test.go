@@ -142,6 +142,20 @@ func TestBuildBlockers_EpicBlockedNeedsTheImplementPhaseAndAnUndoneDependency(t 
 	assert.Empty(t, BuildBlockers(&BlockerInputs{Phase: PhaseReview, TaskFile: tf, EpicBlock: blocked}), "not implementing")
 }
 
+// TestBuildBlockers_APlainDependencyAddsNoAnyOfKey: REFERENCE.md's
+// epic-blocked data is {epic, blocked_by_epics}, and blocked_by_any_of is
+// added only while a group is unsatisfied, so an epic held by a plain
+// dependency alone carries no such key, not even an empty one.
+func TestBuildBlockers_APlainDependencyAddsNoAnyOfKey(t *testing.T) {
+	tf := &model.TaskFile{Tasks: []model.Task{{ID: "t", Status: model.StatusOpen}}}
+	blk := &EpicBlock{Epic: "b", BlockedBy: []string{"c"}}
+
+	bs := BuildBlockers(&BlockerInputs{Phase: PhaseImplement, TaskFile: tf, EpicBlock: blk})
+
+	require.Len(t, bs, 1)
+	assert.NotContains(t, bs[0].Data, "blocked_by_any_of")
+}
+
 // TestBuildBlockers_AGroupAloneBlocksAndOffersTheOperatorsChoices is
 // spec/1.7.0.md §7: an epic held only by the group one of {c1, c2} is
 // epic-blocked, its message names the group, its data carries
