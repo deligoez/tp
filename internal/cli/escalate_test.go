@@ -177,6 +177,7 @@ func TestEscalateAcceptsTheDocumentedDecisions(t *testing.T) {
 		"epic-done",
 		"gate-met",
 		"epic-binding",
+		"grant-round",
 		"other",
 	}
 	assert.Equal(t, documented, engine.EscalationDecisions(),
