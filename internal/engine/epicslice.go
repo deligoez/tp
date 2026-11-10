@@ -229,7 +229,7 @@ func epicUnit(e *model.Epic, byID map[string]*model.Epic) EpicReviewUnit {
 }
 
 // epicBlock renders an epic's id, title, milestone, condition when true, tags,
-// acceptance and each outgoing edge with its why.
+// acceptance and each outgoing edge with its why, a group as one line.
 func epicBlock(e *model.Epic) string {
 	var b strings.Builder
 	b.WriteString("epic: " + e.ID + "\n")
@@ -247,10 +247,19 @@ func epicBlock(e *model.Epic) string {
 	if len(e.DependsOn) > 0 {
 		b.WriteString("depends_on:\n")
 		for _, d := range e.DependsOn {
-			b.WriteString("- " + d.ID + ": " + d.Why + "\n")
+			b.WriteString("- " + epicDepName(d) + ": " + d.Why + "\n")
 		}
 	}
 	return b.String()
+}
+
+// epicDepName names a depends_on entry in a block or a table: a plain edge
+// by its id, a group as one of {A, B} (spec/1.7.0.md §7).
+func epicDepName(d model.EpicDep) string {
+	if d.IsGroup() {
+		return epicDepLabel(d)
+	}
+	return d.ID
 }
 
 // epicGateBlock renders a milestone's gate, implicit when gates names none:
