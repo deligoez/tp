@@ -101,3 +101,24 @@ func TestEpicReviewBatch_AllEmitsEveryMilestoneAndSkipsWhatCannotEmit(t *testing
 	require.NoError(t, err, "the emitted slice wrote its round's snapshot")
 }
 
+// TestEpicReviewBatch_MilestonesSkipAnUnknownOneAndApplyRoleToEach is §5's
+// --milestones with --role: the listed milestones emit, a milestone no track
+// lists is skipped with the reason a one-slice call exits with, and --role
+// keeps the one role in every slice. A refusal of the whole list for Z, or a
+// slice carrying every role, fails it.
+func TestEpicReviewBatch_MilestonesSkipAnUnknownOneAndApplyRoleToEach(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicThreeMilestones)
+
+	out := runEpicBatch(t, dir, "--milestones", "A,Z,B", "--role", "why-auditor")
+	require.Len(t, out.Slices, 2)
+	for _, s := range out.Slices {
+		assert.Equal(t, []string{"why-auditor"}, promptRoles(&s), "--role applies to each slice")
+	}
+	assert.Contains(t, out.Slices[0].Units, "epic:a")
+	assert.Contains(t, out.Slices[1].Units, "epic:c")
+	reasons := epicSkippedReasons(&out)
+	require.Len(t, reasons, 1)
+	assert.Contains(t, reasons["Z"], `milestone "Z" is in no track`)
+}
+
