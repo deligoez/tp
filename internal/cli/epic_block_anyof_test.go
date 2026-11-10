@@ -62,3 +62,33 @@ func TestNext_BlockedByAGroupNamesItAndTheOperatorsChoices(t *testing.T) {
 	assert.Equal(t, [][]string{{"tp epic done c1 --evidence <evidence>", "tp epic done c2 --evidence <evidence>"}}, p.Operator.Choices)
 	assert.Equal(t, before, taskFileBytes(t, dir), "a blocked tp next claims nothing")
 }
+
+// TestClaimAndDone_ABlockingGroupIsCarriedInTheirRefusals is spec/1.7.0.md
+// §7: tp claim, tp done by id and a tp done --batch row, refused on a file
+// whose epic waits on one of {c1, c2}, each exit 1 carrying
+// blocked_by_any_of, the field the hint names. A refusal that carried
+// blocked_by_epics alone leaves the group out.
+func TestClaimAndDone_ABlockingGroupIsCarriedInTheirRefusals(t *testing.T) {
+	t.Parallel()
+	dir := groupBlockDir(t)
+	group := [][]string{{"c1", "c2"}}
+
+	for _, args := range [][]string{{"claim", "t1"}, {"done", "t1", "tested by the fixture"}} {
+		_, stderr, code := runTP(t, dir, args...)
+		require.Equal(t, 1, code, "%v stderr: %s", args, stderr)
+		var p groupBlockPayload
+		require.NoError(t, json.Unmarshal([]byte(stderr), &p), "%v stderr: %s", args, stderr)
+		assert.Equal(t, group, p.BlockedByAnyOf, "%v", args)
+	}
+
+	batch := filepath.Join(dir, "batch.ndjson")
+	require.NoError(t, os.WriteFile(batch, []byte(`{"id":"t1","reason":"tested by the fixture"}`+"\n"), 0o600))
+	stdout, stderr, code := runTP(t, dir, "done", "--batch", batch)
+	require.Equal(t, 1, code, "stdout: %s stderr: %s", stdout, stderr)
+	var p struct {
+		Failures []groupBlockPayload `json:"failures"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &p), "stdout: %s", stdout)
+	require.Len(t, p.Failures, 1, "stdout: %s", stdout)
+	assert.Equal(t, group, p.Failures[0].BlockedByAnyOf)
+}
