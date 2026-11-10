@@ -210,3 +210,23 @@ func TestLintEpicGraph_DependencyOpensLaterStopsAtADoneRecord(t *testing.T) {
 	member.Epics[0].Done = done
 	assert.Empty(t, findingsOf(t, LintEpicGraph(member, nil), EpicRuleDependencyOpensLater), "a done member holds no gate")
 }
+
+// TestLintEpicGraph_DependencyOpensLaterGroupWaitsThroughAnotherGate: x, the
+// member of M1's gate, depends on {a, b}. a is in M2, which opens after M1;
+// b is in N1, which opens after K1, whose member y depends on a2 in M2. So b
+// too waits on M1's gate, through K1's: one error.
+func TestLintEpicGraph_DependencyOpensLaterGroupWaitsThroughAnotherGate(t *testing.T) {
+	x := dependsOn("x", "M1")
+	x.Root, x.DependsOn = false, []model.EpicDep{{AnyOf: []string{"a", "b"}, Why: "either serves x"}}
+	g := &model.EpicGraph{
+		Version:    1,
+		Milestones: [][]string{{"M1", "M2"}, {"N1"}, {"K1"}},
+		OpensAfter: map[string][]string{"N1": {"K1"}},
+		Epics:      []model.Epic{x, dependsOn("a", "M2"), dependsOn("a2", "M2"), dependsOn("b", "N1"), dependsOn("y", "K1", "a2")},
+	}
+	found := findingsOf(t, LintEpicGraph(g, nil), EpicRuleDependencyOpensLater)
+	require.Len(t, found, 1, "%v", found)
+	assert.Equal(t, EpicSeverityError, found[0].Severity)
+	assert.Equal(t, "M1", found[0].Gate)
+	assert.Contains(t, found[0].Message, "one of {a, b}")
+}
