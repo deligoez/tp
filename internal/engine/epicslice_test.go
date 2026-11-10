@@ -216,3 +216,16 @@ func TestEpicReviewSlice_ASetOfOneAsksItsMilestonesGateAndAnEpicSliceNone(t *tes
 	require.NoError(t, err)
 	assert.Equal(t, []string{"epic:l"}, unitKeys(s.Units))
 }
+
+// TestEpicReviewSlice_ABlockShowsASingleTagAndNoEmptyLists: spec/1.3.0.md §5
+// puts an epic's tags in its block, so b's one tag shows; like acceptance, an
+// epic without tags prints no tags line, and the root d no depends_on line.
+func TestEpicReviewSlice_ABlockShowsASingleTagAndNoEmptyLists(t *testing.T) {
+	g := epicChainGraph()
+	g.Epics[1].Tags = []string{"ui"}
+	s, err := EpicReviewSlice(g, EpicSliceKey{Milestone: "A"})
+	require.NoError(t, err)
+	assert.Contains(t, s.Units[1].Block, "tags: ui\n")
+	assert.NotContains(t, s.Units[0].Block, "tags:", "a has no tags")
+	assert.NotContains(t, s.Units[3].Block, "depends_on:", "d depends on nothing")
+}
