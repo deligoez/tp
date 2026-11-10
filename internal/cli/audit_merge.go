@@ -117,18 +117,11 @@ func runAuditMerge(args []string, outputPath string) error {
 		summary["overlap_report"] = computeAuditOverlapReport(unique)
 	}
 
-	if outputPath == mergeStdoutPath {
-		return finishMerge(emitMergeToStdout(ndjson, summary, dropped), dropped, auditMergeRule)
-	}
-	if outputPath != "" {
-		// §5 row 10, as the review merge applies it: a merge about to exit
-		// non-zero writes nothing at `-o`, because the zero-byte file it used
-		// to leave chained into `tp audit <spec> --record` as a clean round.
-		// output_path is named only when a file is there to name.
-		if writeMergeOutput(outputPath, ndjson, dropped) {
-			summary["output_path"] = outputPath
-		}
-		return finishMerge(output.JSON(summary), dropped, auditMergeRule)
+	// §5 row 10, as the review merge applies it: a merge about to exit
+	// non-zero writes nothing at `-o`, because the zero-byte file it used to
+	// leave chained into `tp audit <spec> --record` as a clean round.
+	if handled, err := emitMergeToOutput(outputPath, ndjson, summary, dropped, auditMergeRule); handled {
+		return err
 	}
 
 	if IsJSONOutput() {

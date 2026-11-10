@@ -390,6 +390,24 @@ func finishMerge(encodeErr error, dropped []mergeInputCounts, rule mergeRowRule)
 // (v1.7.0 §2).
 const mergeStdoutPath = "-"
 
+// emitMergeToOutput is both merges' `-o` handling, and reports false when no
+// `-o` was given. `-o <file>` writes the NDJSON there and the summary to
+// stdout; §5 row 10: a merge about to exit non-zero writes nothing at that
+// path, so output_path is named only when a file is there to name. `-o -` is
+// emitMergeToStdout.
+func emitMergeToOutput(outputPath, ndjson string, summary map[string]any, dropped []mergeInputCounts, rule mergeRowRule) (bool, error) {
+	switch outputPath {
+	case "":
+		return false, nil
+	case mergeStdoutPath:
+		return true, finishMerge(emitMergeToStdout(ndjson, summary, dropped), dropped, rule)
+	}
+	if writeMergeOutput(outputPath, ndjson, dropped) {
+		summary["output_path"] = outputPath
+	}
+	return true, finishMerge(output.JSON(summary), dropped, rule)
+}
+
 // emitMergeToStdout is `-o -`: the merged NDJSON on stdout and the summary,
 // the payload `-o <file>` prints on stdout, as JSON on stderr whatever the
 // terminal, so stdout holds rows alone. A merge about to exit non-zero writes
