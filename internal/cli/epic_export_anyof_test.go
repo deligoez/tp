@@ -108,3 +108,14 @@ func TestEpicStatus_BlockedListsEachUnsatisfiedGroup(t *testing.T) {
 		BlockedByAnyOf: [][]string{{"w", "r"}}, HeldByAnyOf: [][]string{}}, rows["y"])
 	assert.NotContains(t, rows, "z", "a satisfied group blocks nothing")
 }
+
+// TestEpicExport_MarkdownRendersAGroupAsOneOf is spec/1.7.0.md §7: --md
+// renders a group as one of {A, B} with its why, beside the plain edges. A
+// table that read a group's id renders ": either key opens the API".
+func TestEpicExport_MarkdownRendersAGroupAsOneOf(t *testing.T) {
+	t.Parallel()
+	stdout, stderr, code := runTP(t, epicGraphDir(t, exportAnyOfGraph), "epic", "export", "--md")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.Contains(t, stdout,
+		"| x | X |  | r: x builds on r; one of {c1, c2}: either key opens the API; one of {w, c1}: either serves x |\n")
+}
