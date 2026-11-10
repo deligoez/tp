@@ -146,45 +146,6 @@ func filled(n int) []int {
 	return out
 }
 
-// chainTo returns the most work epics on one chain of components ending at
-// component c, c included, built backwards: 1 + the longest over its plain
-// dependencies, a group counting as its member with the shortest chain, the
-// first listed on a tie (spec/1.7.0.md §7). It records the epic of c whose
-// entry the chain takes and the epic it reaches there.
-func (w *downstreamWalk) chainTo(c int) int {
-	if w.compLen[c] >= 0 {
-		return w.compLen[c]
-	}
-	best, entry, prev := 0, -1, -1
-	for _, i := range w.comps[c] {
-		for _, dep := range w.deps[i] {
-			if n, m := w.shortestMember(c, dep); m >= 0 && (prev < 0 || n > best) {
-				best, entry, prev = n, i, m
-			}
-		}
-	}
-	w.compLen[c], w.compEntry[c], w.compPrev[c] = w.compWeight[c]+best, entry, prev
-	return w.compLen[c]
-}
-
-// shortestMember returns the shortest chain among the epics of one
-// depends_on entry of component c and the epic ending it, the first listed
-// on a tie; -1 when a member is in c itself, which closes a cycle and adds
-// nothing.
-func (w *downstreamWalk) shortestMember(c int, entry []int) (length, epic int) {
-	length, epic = 0, -1
-	for _, m := range entry {
-		d := w.comp[m]
-		if d == c {
-			return 0, -1
-		}
-		if n := w.chainTo(d); epic < 0 || n < length {
-			length, epic = n, m
-		}
-	}
-	return length, epic
-}
-
 // downstreamWalk walks depends_on edges forwards, from an epic to the
 // not-done epics depending on it. Epics are addressed by graph position; a
 // repeated id keeps its first. A dependency cycle, which lint reports, is
@@ -267,6 +228,45 @@ func (w *downstreamWalk) holdingDeps(j int) [][]int {
 		}
 	}
 	return out
+}
+
+// chainTo returns the most work epics on one chain of components ending at
+// component c, c included, built backwards: 1 + the longest over its plain
+// dependencies, a group counting as its member with the shortest chain, the
+// first listed on a tie (spec/1.7.0.md §7). It records the epic of c whose
+// entry the chain takes and the epic it reaches there.
+func (w *downstreamWalk) chainTo(c int) int {
+	if w.compLen[c] >= 0 {
+		return w.compLen[c]
+	}
+	best, entry, prev := 0, -1, -1
+	for _, i := range w.comps[c] {
+		for _, dep := range w.deps[i] {
+			if n, m := w.shortestMember(c, dep); m >= 0 && (prev < 0 || n > best) {
+				best, entry, prev = n, i, m
+			}
+		}
+	}
+	w.compLen[c], w.compEntry[c], w.compPrev[c] = w.compWeight[c]+best, entry, prev
+	return w.compLen[c]
+}
+
+// shortestMember returns the shortest chain among the epics of one
+// depends_on entry of component c and the epic ending it, the first listed
+// on a tie; -1 when a member is in c itself, which closes a cycle and adds
+// nothing.
+func (w *downstreamWalk) shortestMember(c int, entry []int) (length, epic int) {
+	length, epic = 0, -1
+	for _, m := range entry {
+		d := w.comp[m]
+		if d == c {
+			return 0, -1
+		}
+		if n := w.chainTo(d); epic < 0 || n < length {
+			length, epic = n, m
+		}
+	}
+	return length, epic
 }
 
 // condense groups the epics into strongly connected components over the
