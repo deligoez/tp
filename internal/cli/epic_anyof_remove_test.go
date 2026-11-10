@@ -74,3 +74,13 @@ func TestEpicRemove_ForceTurnsAOneMemberGroupIntoAPlainEdge(t *testing.T) {
 		removeX(t, `[{"any_of": ["x", "y"], "why": "either opens the API"}]`, false))
 }
 
+// TestEpicRemove_ForceDropsAGroupLeftImplied: once x leaves, {x, y} is the
+// plain edge w -> y, so the group {y, z} beside it is implied and dropped;
+// {x, z, y} narrowed to {z, y} repeats the group {y, z} and is dropped too.
+func TestEpicRemove_ForceDropsAGroupLeftImplied(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, []map[string]any{{"id": "y", "why": "either opens the API"}},
+		removeX(t, `[{"any_of": ["x", "y"], "why": "either opens the API"}, {"any_of": ["y", "z"], "why": "either feeds it"}]`, false))
+	assert.Equal(t, []map[string]any{anyOfEntry("either feeds it", "y", "z")},
+		removeX(t, `[{"any_of": ["y", "z"], "why": "either feeds it"}, {"any_of": ["x", "z", "y"], "why": "any feeds it"}]`, false))
+}
