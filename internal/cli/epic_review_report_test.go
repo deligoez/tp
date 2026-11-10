@@ -97,3 +97,19 @@ func TestEpicReviewReport_MilestonesReadOnlyTheirSlices(t *testing.T) {
 	assert.Equal(t, []int{1, 2}, classes[0].Slices[0].Rounds)
 }
 
+// TestEpicReviewReport_TakesABatchScopeAlone is §3's form: --report takes
+// --all or --milestones, so it alone, beside one slice, or beside --status
+// exits 2.
+func TestEpicReviewReport_TakesABatchScopeAlone(t *testing.T) {
+	t.Parallel()
+	dir := epicReportFixture(t)
+	for _, args := range [][]string{
+		{"--report"},
+		{"--report", "--milestone", "A"},
+		{"--report", "--all", "--status"},
+	} {
+		_, stderr, code := runTP(t, dir, append([]string{"epic", "review"}, args...)...)
+		assert.Equal(t, 2, code, "%v: stderr: %s", args, stderr)
+		assert.Contains(t, stderr, "--report", "%v names --report", args)
+	}
+}
