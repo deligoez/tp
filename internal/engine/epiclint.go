@@ -261,17 +261,19 @@ func (t *tarjan) visit(n string) {
 	t.comps = append(t.comps, comp)
 }
 
-// lintEpicDangling reports each reference that names no epic, and each gates
-// key that names no milestone.
+// lintEpicDangling reports each reference that names no epic, each member of
+// an any-of group included, and each gates key that names no milestone.
 func lintEpicDangling(g *model.EpicGraph) []EpicLintFinding {
 	ids := epicIDs(g)
 	var out []EpicLintFinding
 	for i := range g.Epics {
 		e := &g.Epics[i]
 		for _, d := range e.DependsOn {
-			if !ids[d.ID] {
-				out = append(out, epicError(EpicRuleDanglingReference,
-					fmt.Sprintf("epic %q depends on %q, which names no epic", e.ID, d.ID), e.ID, d.ID))
+			for _, id := range d.Names() {
+				if !ids[id] {
+					out = append(out, epicError(EpicRuleDanglingReference,
+						fmt.Sprintf("epic %q depends on %q, which names no epic", e.ID, id), e.ID, id))
+				}
 			}
 		}
 	}
