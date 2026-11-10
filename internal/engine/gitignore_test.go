@@ -78,6 +78,43 @@ func TestShippedTPGitignore_CoversTheRunArtifacts(t *testing.T) {
 	}
 }
 
+// epicInboxFile and epicStateKept are paths under one epic review state directory: the
+// inbox file a role writes (v1.7.0 §1) and the slice state beside it, which is
+// committed. The state directory's name is a SHA-256 in hex.
+var (
+	epicInboxFile = ".tp/epic-review/" + strings.Repeat("0123456789abcdef", 4) + "/inbox/why-auditor-r1.ndjson"
+	epicStateKept = []string{
+		".tp/epic-review/" + strings.Repeat("0123456789abcdef", 4) + "/round-1.ndjson",
+		".tp/epic-review/" + strings.Repeat("0123456789abcdef", 4) + "/snapshot-round-1.json",
+	}
+)
+
+// TestEnsureTPGitignore_IgnoresTheEpicReviewInboxes is §1's `.tp/.gitignore`
+// sentence: the .gitignore tp writes ignores every slice's inbox and nothing
+// else of the slice's state, which git, not the entry string, decides.
+func TestEnsureTPGitignore_IgnoresTheEpicReviewInboxes(t *testing.T) {
+	root := t.TempDir()
+	gitInTempRepo(t, root, "init")
+	tpDir := filepath.Join(root, ".tp")
+	require.NoError(t, os.MkdirAll(tpDir, 0o755))
+	require.NoError(t, EnsureTPGitignore(tpDir))
+
+	assert.True(t, gitIgnores(t, root, epicInboxFile), "%s must be git-ignored", epicInboxFile)
+	for _, path := range epicStateKept {
+		assert.False(t, gitIgnores(t, root, path), "%s must stay committable", path)
+	}
+}
+
+// TestShippedTPGitignore_IgnoresTheEpicReviewInboxes is the same property on
+// tp's own committed .tp/.gitignore.
+func TestShippedTPGitignore_IgnoresTheEpicReviewInboxes(t *testing.T) {
+	root := locateRepoRoot(t)
+	assert.True(t, gitIgnores(t, root, epicInboxFile), "the shipped .tp/.gitignore must ignore %s", epicInboxFile)
+	for _, path := range epicStateKept {
+		assert.False(t, gitIgnores(t, root, path), "%s must stay committable", path)
+	}
+}
+
 // gitInTempRepo runs a git command in a throwaway repository and fails the test
 // on any error.
 func gitInTempRepo(t *testing.T, dir string, args ...string) {
