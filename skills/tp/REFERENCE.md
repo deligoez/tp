@@ -1535,8 +1535,8 @@ the context, and a last line repeating the row keys and the file. A role file's 
 key scopes that context: `neighbours` (the default) shows every epic one edge away in either
 direction, `dependencies` only the epics an asked unit depends on, and `neighbours-brief` (v1.7.0)
 each dependency's full block and each dependent as its id, title, milestone and its edges into the
-asked units with their whys, in a round that appends no regression role (one that does keeps every
-neighbour in full); `dod-satisfiability` and `why-auditor` ship with `dependencies`, and
+asked units with their whys, in every round (the regression role's own prompt keeps every neighbour
+in full); `dod-satisfiability` and `why-auditor` ship with `dependencies`, and
 `phase-economist` with `neighbours-brief` (an ejected copy keeps the value it was ejected with).
 An any-of group's every member is one edge away from its epic (v1.7.0): asking the epic shows the
 members as dependencies, asking a member shows the epic as a dependent, its brief listing the group
