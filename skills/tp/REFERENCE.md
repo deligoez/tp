@@ -1434,22 +1434,23 @@ two cycle rules reports one finding per offending item.
 
 | Rule | Severity | Fires when |
 |------|----------|------------|
-| `cycle` | error | the dependency graph has a cycle; one finding per strongly connected component |
-| `dangling-reference` | error | a `depends_on` id, a gate member or deferrable, or a `provided_by` names no epic; a `gates` key names no milestone |
+| `any-of-shape` | error | a `depends_on` entry carries both or neither of `id` and `any_of`, a group has fewer than two distinct members, a group sits beside a plain edge to one of its members, or two groups of one epic have one member set (v1.7.0) |
+| `cycle` | error | the dependency graph has a cycle, an edge to any member of a group counting (a group naming its own epic is a self-loop); one finding per strongly connected component |
+| `dangling-reference` | error | a `depends_on` id or group member, a gate member or deferrable, or a `provided_by` names no epic; a `gates` key names no milestone |
 | `duplicate-name` | error | an epic id or a milestone name appears twice |
 | `unknown-key` | error | a key outside the graph file's schema |
-| `missing-why` | error | an edge has no `why`, or one that is empty once trimmed |
+| `missing-why` | error | an edge or an any-of group has no `why`, or one that is empty once trimmed; a group needs one `why` |
 | `unknown-milestone` | error | an epic's `milestone` is absent or in no track, or an `opens_after` key or value names a milestone in no track |
 | `later-milestone-dependency` | error | an epic depends on one in a later milestone of the same track; edges across tracks are free; `opens_after` does not change it |
 | `gate-member-outside-milestone` | error | a gate member or deferrable epic is not in that milestone |
 | `gate-member-deferrable` | error | a gate lists an epic both in `members` and in `deferrable`; a deferrable epic never holds a gate (v1.6.0) |
-| `unprovided-tag-check` | error | an epic carries a tag whose `provided_by` is not in its transitive dependencies, or, under `"direct": true`, not a plain direct dependency; the provider itself is exempt |
+| `unprovided-tag-check` | error | an epic carries a tag whose `provided_by` is not in its transitive dependencies, or, under `"direct": true`, not a plain direct dependency; the provider itself is exempt. A provider counts through an any-of group only when every member is the provider or depends on it, by the same rule at every level; under `direct` a group never counts, even one holding the provider |
 | `opens-after-cycle` | error | `opens_after`, track defaults applied, has a cycle, a self-reference included |
 | `opens-after-not-list` | error | an `opens_after` value is null or not a list, which only a hand edit writes: `tp epic set` and `tp epic import` refuse it, and every other reader than `tp epic lint` exits 3 on a non-list value (v1.6.0) |
 | `dependency-opens-later` | error, or warning when no gate member reaches the epic | a cycle of the milestone wait graph over the tracked milestones: a milestone's opening waits on the gate of each milestone it opens after, transitively over the effective `opens_after`, and a gate waits on the opening of each other milestone an undone epic of which an effective member reaches through `depends_on` and epics without a done record, a condition like any epic. No gate on the cycle can go green; one finding per cycle, in canonical rotation, its message naming the milestones in order and, per gate-to-opening edge, the members, the epic they reach and the path; `epics` those members and epics. The refusal hint names one edge: `move <epic> to a milestone that opens no later than "<gate>"`. Reach runs through not-done epics only, so a plan's progress never adds a cycle: a graph write can, and is refused, and a `tp epic done --undo` can, which is written and then reported. With no member reaching an epic of a milestone opening after the gate's, each other epic of such a milestone reaching it is a warning, one per epic and target: it can finish once that milestone opens. An edge `later-milestone-dependency` reports is left to that rule and not followed (v1.6.0) |
-| `no-dependencies` | warning | an epic outside the first milestone of its track has no dependencies and is neither marked `root: true` nor a condition |
-| `root-with-dependencies` | warning | an epic marked `root: true` has dependencies |
-| `thin-why` | warning | a `why`, case-folded and split into words, is non-empty and occurs as a run of whole words in the target epic's id or title |
+| `no-dependencies` | warning | an epic outside the first milestone of its track has no dependencies, an any-of group counting as one, and is neither marked `root: true` nor a condition |
+| `root-with-dependencies` | warning | an epic marked `root: true` has dependencies, an any-of group counting as one |
+| `thin-why` | warning | a plain edge's `why`, case-folded and split into words, is non-empty and occurs as a run of whole words in the target epic's id or title; an any-of group has no one target and is not checked |
 | `partial-parallel` | warning, or info when the milestone has an `opens_after` entry | a milestone does not open after an earlier milestone of its track, even transitively, yet some of its epics depend directly on that milestone's epics; one finding per pair, `epics` those dependents |
 | `gate-held-by-condition` | info | effective gate members reach an undone condition of another milestone through epics without a done record; one finding per gate milestone and condition, `epics` the condition and every member reaching it, one example path in the message. A condition in the gate's own milestone, the trigger of a trigger-led milestone, is not reported (v1.6.0) |
 
