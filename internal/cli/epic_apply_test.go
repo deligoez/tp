@@ -113,3 +113,19 @@ func TestEpicApply_AForwardReferenceIsJudgedOnlyByTheFinalLint(t *testing.T) {
 	assert.Equal(t, []model.EpicDep{{ID: "e", Why: "d reads e"}}, appliedEpic(t, &g, "d").DependsOn)
 }
 
+// TestEpicApply_AnErrorOnlyAnIntermediateStateHoldsIsNotRefused: the link
+// d -> a closes the cycle a -> b -> c -> d -> a, and the next row unlinks it;
+// only the after-state is linted, and it holds no cycle.
+func TestEpicApply_AnErrorOnlyAnIntermediateStateHoldsIsNotRefused(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChainWithGate)
+	before := readEpicGraphFile(t, dir)
+	payload := applyPayload(t, dir,
+		`{"op":"link","from":"d","to":"a","why":"closes a cycle"}`,
+		`{"op":"unlink","from":"d","to":"a"}`,
+	)
+	_, stderr, code := runTP(t, dir, "epic", "apply", payload)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.JSONEq(t, string(before), string(readEpicGraphFile(t, dir)))
+}
+
