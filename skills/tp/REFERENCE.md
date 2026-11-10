@@ -1669,9 +1669,10 @@ The read commands write nothing and list epics in graph order, every list `[]` w
   milestone, by, at}], operator: {conditions: [{id, title, milestone, actionable, not_actionable?}],
   gates: [{milestone, threshold}]}}`. `ready` is sorted by `longest_chain`, then `dependents`, both
   descending, then graph order; `claimed` holds the epics that would be ready but for their claim, in
-  graph order; a bound epic is in no list. `operator.conditions` holds the actionable conditions;
-  `--all` lists every not-done condition of a tracked milestone with `actionable` `true` or `false`,
-  and `not_actionable` on each `false` one.
+  graph order; a bound epic is in no list. A work epic is a candidate when every direct dependency
+  is done and every any-of group has a done member (v1.7.0). `operator.conditions` holds the
+  actionable conditions; `--all` lists every not-done condition of a tracked milestone that is not
+  moot with `actionable` `true` or `false`, and `not_actionable` on each `false` one.
   `operator.gates` names gates whose members are done and whose threshold has no `met`, open or not,
   in track order. `--all` lifts the open-milestone rule.
 - **`tp epic gate <m>`**: `{milestone, green, members: [{id, state, status}], deferrable: [{id,
