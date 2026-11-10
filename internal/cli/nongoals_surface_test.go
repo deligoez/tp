@@ -66,7 +66,7 @@ epic done: evidence if-revision undo
 epic export: md
 epic gate: evidence if-revision met
 epic import: force if-revision
-epic link: if-revision
+epic link: any-of if-revision
 epic lint:
 epic milestone:
 epic milestone add: after before if-revision new-track
@@ -75,7 +75,7 @@ epic remove: force if-revision
 epic review: all check epic epics force grant-round milestone milestones name record report resolve resolve-all role status
 epic set: if-revision
 epic status: milestone open
-epic unlink: if-revision
+epic unlink: any-of if-revision
 escalate: decision evidence option
 graph: from tag
 ground: check force record status units
