@@ -82,7 +82,7 @@ func newEpicApplyCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE:  runEpicApply,
 	}
-	cmd.Flags().Bool("dry-run", false, "print the payload and each row's action without writing")
+	cmd.Flags().Bool("dry-run", false, "print the write's payload (file, epics, dropped_keys, revision, ancestry_changed) and each row's action, writing nothing")
 	epicIfRevisionFlag(cmd)
 	return cmd
 }
