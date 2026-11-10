@@ -103,11 +103,11 @@ func TestEpicReview_PhaseEconomistSeesDependentsInBrief(t *testing.T) {
 	assert.NotContains(t, prompt, "a also needs d", "no dependent edge outside the asked units")
 }
 
-// TestEpicReview_RegressionRoundsKeepTheFullNeighbourContext: a round that
-// appends the regression role asks only changed units, and there
-// neighbours-brief is not applied (spec/1.7.0.md non-goals), so the
-// phase-economist reads the dependent in full again.
-func TestEpicReview_RegressionRoundsKeepTheFullNeighbourContext(t *testing.T) {
+// TestEpicReview_RegressionRoundsKeepThePhaseEconomistBrief (spec/1.7.0.md
+// §4): a round that appends the regression role still gives the
+// phase-economist its dependents in brief; only the regression role's own
+// prompt reads every neighbour in full.
+func TestEpicReview_RegressionRoundsKeepThePhaseEconomistBrief(t *testing.T) {
 	t.Parallel()
 	dir := epicGraphDir(t, epicBriefChain)
 	r1 := runEpicReview(t, dir, "--epic", "b")
@@ -116,7 +116,10 @@ func TestEpicReview_RegressionRoundsKeepTheFullNeighbourContext(t *testing.T) {
 	editEpicGraph(t, dir, "b needs c", "b needs c's parser")
 	r2 := runEpicReview(t, dir, "--epic", "b")
 	require.Contains(t, promptRoles(&r2), "regression")
-	assert.Contains(t, epicRolePrompt(t, &r2, "phase-economist"), "a ships the report")
+	economist := epicRolePrompt(t, &r2, "phase-economist")
+	assert.Contains(t, economist, "- b: a needs b\n", "the dependent's edge, in brief")
+	assert.NotContains(t, economist, "a ships the report", "no dependent acceptance in a regression round either")
+	assert.Contains(t, epicRolePrompt(t, &r2, "regression"), "a ships the report", "the regression role keeps the full neighbours")
 }
 
 // TestEpicReview_ACarriedGateStaysVisible: a carried gate is not asked, but its
