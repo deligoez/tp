@@ -138,10 +138,10 @@ func gateFieldSetter(field, value string) (func(*model.EpicGate), error) {
 	case "threshold":
 		return func(gate *model.EpicGate) { gate.Threshold = value }, nil
 	case "deferrable":
-		ids := splitGateIDs(value)
+		ids := SplitEpicIDs(value)
 		return func(gate *model.EpicGate) { gate.Deferrable = ids }, nil
 	case "members":
-		ids := splitGateIDs(value)
+		ids := SplitEpicIDs(value)
 		if ids == nil {
 			ids = []string{}
 		}
@@ -150,9 +150,10 @@ func gateFieldSetter(field, value string) (func(*model.EpicGate), error) {
 	return nil, fmt.Errorf("unknown gate field %q: one of %v", field, EpicGateFieldSetKeys)
 }
 
-// splitGateIDs splits a comma-separated id list, trimming each id and
-// dropping empty ones; nil when none is left.
-func splitGateIDs(value string) []string {
+// SplitEpicIDs splits a comma-separated id list, trimming each id and
+// dropping empty ones; nil when none is left. Gate lists and --any-of share
+// it.
+func SplitEpicIDs(value string) []string {
 	var ids []string
 	for id := range strings.SplitSeq(value, ",") {
 		if id = strings.TrimSpace(id); id != "" {
