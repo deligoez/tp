@@ -193,17 +193,40 @@ func progressMoves(p *progressGraph) []string {
 	return moves
 }
 
-// undoneLive lists, in graph order, the work epics of p that are neither
-// done nor moot (MootEpics): the work a plan still owes. A condition is
-// owed only through the work that needs it.
+// undoneLive lists, in graph order, the epics of p that are neither done nor
+// moot (MootEpics), conditions included: what a plan still owes. The one
+// class left out is a condition that has dependents, every one of them done
+// or moot: no live work waits on it, so nothing has to record it, and
+// ConditionsNotActionable gives it no dependent to make it actionable. A moot
+// epic leaves every count, and a satisfied group holds no dependent, as
+// actionDependents reads it (spec/1.7.0.md §7).
 func undoneLive(p *progressGraph) []string {
 	moot := MootEpics(p.g, p.states)
+	dependents := map[string][]string{}
+	for i := range p.g.Epics {
+		e := &p.g.Epics[i]
+		for _, d := range e.DependsOn {
+			if d.IsGroup() && epicDepSatisfied(d, p.states) {
+				continue
+			}
+			for _, id := range d.Names() {
+				dependents[id] = append(dependents[id], e.ID)
+			}
+		}
+	}
+	allSettled := func(ids []string) bool {
+		return !slices.ContainsFunc(ids, func(id string) bool { return p.states[id].Status != EpicStatusDone && !moot[id] })
+	}
 	var out []string
 	for i := range p.g.Epics {
-		id := p.g.Epics[i].ID
-		if !p.g.Epics[i].Condition && p.states[id].Status != EpicStatusDone && !moot[id] {
-			out = append(out, id)
+		e := &p.g.Epics[i]
+		if p.states[e.ID].Status == EpicStatusDone || moot[e.ID] {
+			continue
 		}
+		if e.Condition && len(dependents[e.ID]) > 0 && allSettled(dependents[e.ID]) {
+			continue
+		}
+		out = append(out, e.ID)
 	}
 	return out
 }
@@ -236,11 +259,12 @@ func stuckPlan(p *progressGraph) string {
 
 // TestEpicProgress_SomethingCanAlwaysMove is the progress invariant over
 // generated plans, any-of groups included: every lint-clean plan can always
-// make progress. Whenever a work epic is neither done nor moot, some ready or
-// claimed epic, actionable condition or workable bound epic exists, so tp
-// epic ready never leaves an unfinished plan with nothing to do. A plan the
-// lint reports an error on is left out: dependency-opens-later is the error
-// on a plan whose own shape waits on itself.
+// make progress. Whenever an epic, work or condition, is neither done nor
+// moot (undoneLive), some ready or claimed epic, actionable condition or
+// workable bound epic exists, so tp epic ready never leaves an unfinished
+// plan with nothing to do; recording an actionable condition is a move. A
+// plan the lint reports an error on is left out: dependency-opens-later is
+// the error on a plan whose own shape waits on itself.
 func TestEpicProgress_SomethingCanAlwaysMove(t *testing.T) {
 	t.Parallel()
 	const seeds = 1000
@@ -251,7 +275,7 @@ func TestEpicProgress_SomethingCanAlwaysMove(t *testing.T) {
 	if msg := stuckPlan(&field); msg != "" {
 		t.Errorf("the field shape: %s", msg)
 	}
-	checked, grouped := 0, 0
+	checked, grouped, owing := 0, 0, 0
 	for seed := range uint64(seeds) {
 		p := generateProgressGraph(seed)
 		if hasLintError(p.g) {
@@ -263,6 +287,9 @@ func TestEpicProgress_SomethingCanAlwaysMove(t *testing.T) {
 		}) {
 			grouped++
 		}
+		if owesACondition(&p) {
+			owing++
+		}
 		if msg := stuckPlan(&p); msg != "" {
 			t.Errorf("seed %d: %s", seed, msg)
 		}
@@ -273,5 +300,11 @@ func TestEpicProgress_SomethingCanAlwaysMove(t *testing.T) {
 	if grouped < checked/10 {
 		t.Fatalf("only %d of %d lint-clean plans carry an any-of group", grouped, checked)
 	}
-	t.Logf("%d lint-clean plans checked, %d with an any-of group", checked, grouped)
+	t.Logf("%d lint-clean plans checked, %d with an any-of group, %d owing a condition", checked, grouped, owing)
+}
+
+// owesACondition reports whether undoneLive lists a condition of p.
+func owesACondition(p *progressGraph) bool {
+	byID := epicsByID(p.g)
+	return slices.ContainsFunc(undoneLive(p), func(id string) bool { return byID[id].Condition })
 }
