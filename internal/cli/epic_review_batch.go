@@ -59,6 +59,11 @@ func exitEpicBatchUsage(msg string) {
 
 // runEpicReviewBatch runs the batch mode the flags name.
 func runEpicReviewBatch(cmd *cobra.Command, scope epicBatchScope) {
+	if status, _ := cmd.Flags().GetBool("status"); status {
+		check, _ := cmd.Flags().GetBool("check")
+		runEpicReviewBatchStatus(scope, check)
+		return
+	}
 	runEpicReviewBatchEmit(cmd, scope)
 }
 
