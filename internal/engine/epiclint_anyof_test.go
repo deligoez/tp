@@ -254,3 +254,28 @@ func TestLintEpicGraph_GateHeldByConditionNamesAGroupOnlyWhenEveryMemberIsAnUndo
 		assert.Empty(t, findingsOf(t, LintEpicGraph(g, nil), EpicRuleGateHeldByCondition), name)
 	}
 }
+
+// TestLintEpicGraph_AGroupAcrossSiblingMilestonesIsClean is the field shape:
+// one track [P, Q], both opening after nothing, conditions a in P and b in
+// Q, work x in P depending on {a, b}, and z in Q depending on x. Either
+// decision opens x, so no later-milestone-dependency, no
+// dependency-opens-later and no gate-held-by-condition.
+func TestLintEpicGraph_AGroupAcrossSiblingMilestonesIsClean(t *testing.T) {
+	cond := func(id, m string) model.Epic {
+		e := dependsOn(id, m)
+		e.Condition, e.Acceptance = true, "the operator decides"
+		return e
+	}
+	x := dependsOn("x", "P")
+	x.Root, x.DependsOn = false, []model.EpicDep{{AnyOf: []string{"a", "b"}, Why: "either decision opens x"}}
+	g := &model.EpicGraph{
+		Version:    1,
+		Milestones: [][]string{{"P", "Q"}},
+		OpensAfter: map[string][]string{"P": {}, "Q": {}},
+		Epics:      []model.Epic{cond("a", "P"), cond("b", "Q"), x, dependsOn("z", "Q", "x")},
+	}
+	findings := LintEpicGraph(g, nil)
+	for _, rule := range []string{EpicRuleLaterMilestoneDependency, EpicRuleDependencyOpensLater, EpicRuleGateHeldByCondition} {
+		assert.Empty(t, findingsOf(t, findings, rule), rule)
+	}
+}
