@@ -61,6 +61,15 @@ func runInit(_ *cobra.Command, args []string) error {
 		fenceEpicOperatorWrite("tp init --epic", engine.EscalateEpicBinding)
 		exitOnEpicBindingRefusal(initEpic)
 	}
+	// An unrecognized strategy is refused before anything is written: stored,
+	// it would only surface later as a warning on the surfaces that read it.
+	switch initCommitStrategy {
+	case "", engine.CommitStrategyBuiltin, engine.CommitStrategyAuto, engine.CommitStrategyHC:
+	default:
+		output.Error(ExitUsage, fmt.Sprintf("--commit-strategy must be one of builtin, auto, hc; got %q", initCommitStrategy))
+		os.Exit(ExitUsage)
+		return nil
+	}
 
 	// Derive task file path
 	base := strings.TrimSuffix(filepath.Base(specPath), filepath.Ext(specPath))
