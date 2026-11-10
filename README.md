@@ -245,6 +245,7 @@ tp epic set <id> field=value   # Set an epic field, milestones|opens_after|gates
 tp epic remove <id>            # Remove an epic; one depended on needs --force, a tag_checks provider is refused
 tp epic link <from> <to> <why> # Add one edge, or reword its why
 tp epic unlink <from> <to>     # Remove one edge; every writer takes --if-revision <sha256 of the file> and prints revision
+tp epic apply <ndjson>         # add/link/unlink/set/remove rows in order as one write, linting only the end state (--dry-run)
 tp epic milestone add <name>   # Insert a milestone --after|--before <m>, or open a --new-track with it
 tp epic gate <m>               # A milestone's gate: members green or red, deferrable apart, threshold; exit 0 only when green
 tp epic done <id> --evidence e # Record an epic with no bound file done (--undo removes it); a condition needs its acceptance
