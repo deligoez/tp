@@ -29,3 +29,13 @@ func TestEpicDep_TheMemberSetIsAGroupsIdentity(t *testing.T) {
 	assert.False(t, g.SameGroup(EpicDep{ID: "a", Why: "w"}))
 	assert.False(t, EpicDep{ID: "a"}.SameGroup(EpicDep{ID: "a"}), "plain edges are no groups")
 }
+
+// TestEpicDep_NamesListsEveryIDTheEntryNames: a plain edge names its id, a
+// group its distinct members, and an entry that wrongly carries both names
+// the id and then each member once.
+func TestEpicDep_NamesListsEveryIDTheEntryNames(t *testing.T) {
+	assert.Equal(t, []string{"a"}, EpicDep{ID: "a"}.Names())
+	assert.Equal(t, []string{"b", "c"}, EpicDep{AnyOf: []string{"b", "c", "b"}}.Names())
+	assert.Equal(t, []string{"a", "b"}, EpicDep{ID: "a", AnyOf: []string{"a", "b"}}.Names())
+	assert.Empty(t, EpicDep{}.Names())
+}
