@@ -52,3 +52,14 @@ func TestEpicReviewStateDir_TwoSlicesOfOneKindNeverShare(t *testing.T) {
 	assert.NotEqual(t, EpicReviewStateDir(tpDir, EpicSliceKey{Epic: "a"}), EpicReviewStateDir(tpDir, EpicSliceKey{Epic: "b"}))
 	assert.NotEqual(t, EpicReviewStateDir(tpDir, EpicSliceKey{Milestone: "A"}), EpicReviewStateDir(tpDir, EpicSliceKey{Milestone: "B"}))
 }
+
+// TestEpicReviewStateDir_OneEpicSetsNeverShare: --epics takes a single id,
+// and a set is keyed by its ids, so --epics a and --epics b get directories
+// of their own, and neither is --epic a's. A key text that read a set of one
+// as no set would give every one-epic set one directory.
+func TestEpicReviewStateDir_OneEpicSetsNeverShare(t *testing.T) {
+	tpDir := filepath.Join(t.TempDir(), ".tp")
+	setA := EpicReviewStateDir(tpDir, EpicSliceKey{Epics: []string{"a"}})
+	assert.NotEqual(t, setA, EpicReviewStateDir(tpDir, EpicSliceKey{Epics: []string{"b"}}))
+	assert.NotEqual(t, setA, EpicReviewStateDir(tpDir, EpicSliceKey{Epic: "a"}))
+}
