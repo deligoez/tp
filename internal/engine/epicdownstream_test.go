@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -56,4 +57,22 @@ func TestEpicDownstreams_CountsWorkPerMilestoneAndPassesConditionsThrough(t *tes
 	assert.Equal(t, EpicDownstream{LongestChain: 2, Dependents: 4, DependentsOpen: 1, DependentsByMilestone: []MilestoneDependents{
 		{Milestone: "P", Dependents: 1}, {Milestone: "R", Dependents: 2}, {Milestone: "S", Dependents: 1},
 	}}, got["r"])
+}
+
+// TestEpicDownstreams_ReadsEpicsPastTheFirst64: on a graph of 65 epics the
+// cycle a <-> b sits at positions 63 and 64, across the first word of the
+// walk's position sets, downstream of r at position 0. r counts both, each
+// counts the other, each in its own milestone.
+func TestEpicDownstreams_ReadsEpicsPastTheFirst64(t *testing.T) {
+	epics := []model.Epic{dependsOn("r", "P")}
+	for i := 1; i < 63; i++ {
+		epics = append(epics, dependsOn(fmt.Sprintf("f%02d", i), "P"))
+	}
+	epics = append(epics, dependsOn("a", "Q", "r", "b"), dependsOn("b", "R", "a"))
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"P", "Q", "R"}}, Epics: epics}
+	got := EpicDownstreams(g, map[string]EpicState{}, map[string]MilestoneGate{}, []string{"r", "a", "b"})
+	in := func(m string) []MilestoneDependents { return []MilestoneDependents{{Milestone: m, Dependents: 1}} }
+	assert.Equal(t, EpicDownstream{LongestChain: 2, Dependents: 2, DependentsByMilestone: append(in("Q"), in("R")...)}, got["r"])
+	assert.Equal(t, EpicDownstream{LongestChain: 1, Dependents: 1, DependentsByMilestone: in("R")}, got["a"])
+	assert.Equal(t, EpicDownstream{LongestChain: 1, Dependents: 1, DependentsByMilestone: in("Q")}, got["b"])
 }
