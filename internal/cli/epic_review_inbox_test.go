@@ -42,3 +42,26 @@ func TestEpicReview_RoleOutputPathIsTheSliceInbox(t *testing.T) {
 	}
 }
 
+// TestEpicReview_EmissionIgnoresTheInbox: the emission that names the inbox
+// makes sure `.tp/.gitignore` ignores it, so a role's file never shows up as
+// untracked in a project whose .gitignore predates the entry or does not
+// exist. Without it this project, which has no .gitignore, reports the file.
+func TestEpicReview_EmissionIgnoresTheInbox(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	gitInit := exec.Command("git", "init", "-q")
+	gitInit.Dir = dir
+	require.NoError(t, gitInit.Run())
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".tp"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".tp", "epics.json"), []byte(epicChain), 0o600))
+
+	out := runEpicReview(t, dir, "--epic", "b", "--role", "why-auditor")
+	require.Len(t, out.Prompts, 1)
+	require.True(t, filepath.IsAbs(out.Prompts[0].OutputPath), "the output path is absolute: %s", out.Prompts[0].OutputPath)
+	require.NoError(t, os.WriteFile(out.Prompts[0].OutputPath, []byte("\n"), 0o600))
+
+	check := exec.Command("git", "check-ignore", "-q", out.Prompts[0].OutputPath)
+	check.Dir = dir
+	assert.NoError(t, check.Run(), "git ignores the role's inbox file")
+}
+
