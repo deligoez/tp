@@ -18,28 +18,30 @@ const (
 	NotActionableDependents = "dependents"
 )
 
-// ConditionsNotActionable returns, for every condition of g that is not done,
-// the reasons it is not actionable, in the order NotActionableMilestone,
-// NotActionableDependencies, NotActionableDependents; an empty, non-nil list
-// when it is actionable (spec/1.6.0.md F3). A condition is actionable when its
-// milestone is open, its direct dependencies are done, and at least one of:
-// it is a member (GateMembers) of the gate of an open milestone, so deciding
-// it can turn that gate green; nothing depends on it; or an epic depending on
-// it can move (not done, in an open milestone or with a bound file) and has
-// only conditions among its undone direct dependencies. An epic depends on c
-// through a plain edge or a group naming it, and an unsatisfied group counts
-// as a condition when groupCountsAsCondition says so (spec/1.7.0.md §7). The
-// first keeps a condition that holds a gate from waiting on a dependent in
-// the milestone that gate opens. states is DeriveEpicStates' result, gates
-// MilestoneGates' and bound EpicBoundFiles'. A condition of a milestone no track lists has a
+// ConditionsNotActionable returns, for every condition of g that is neither
+// done nor moot (MootEpics), the reasons it is not actionable, in the order
+// NotActionableMilestone, NotActionableDependencies, NotActionableDependents;
+// an empty, non-nil list when it is actionable (spec/1.6.0.md F3). A
+// condition is actionable when its milestone is open, its direct
+// dependencies are done, and at least one of: it is a member (GateMembers) of
+// the gate of an open milestone, so deciding it can turn that gate green;
+// nothing depends on it; or an epic depending on it can move (not done, in an
+// open milestone or with a bound file) and has only conditions among its
+// undone direct dependencies. An epic depends on c through a plain edge or a
+// group naming it, and an unsatisfied group counts as a condition when
+// groupCountsAsCondition says so (spec/1.7.0.md §7). The first keeps a
+// condition that holds a gate from waiting on a dependent in the milestone
+// that gate opens. states is DeriveEpicStates' result, gates MilestoneGates'
+// and bound EpicBoundFiles'. A condition of a milestone no track lists has a
 // closed milestone. tp epic ready, status and the export read this one answer.
 func ConditionsNotActionable(g *model.EpicGraph, states map[string]EpicState, gates map[string]MilestoneGate, bound map[string][]string) map[string][]string {
 	a := actionability{byID: epicsByID(g), states: states, gates: gates, bound: bound,
 		dependents: actionDependents(g, states), gated: openGateMembers(g, gates)}
+	moot := MootEpics(g, states)
 	out := map[string][]string{}
 	for i := range g.Epics {
 		c := &g.Epics[i]
-		if _, seen := out[c.ID]; seen || !c.Condition || states[c.ID].Status == EpicStatusDone {
+		if _, seen := out[c.ID]; seen || !c.Condition || states[c.ID].Status == EpicStatusDone || moot[c.ID] {
 			continue
 		}
 		out[c.ID] = a.reasons(c)
