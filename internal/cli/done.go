@@ -557,10 +557,12 @@ func runDoneMulti(taskFilePath string, taskIDs []string, reason string) error {
 // failure row or nil. As in checkBatchRow, validating before the implicit
 // claim is what keeps a refused open task open: the claim used to run first
 // and was written back.
-func checkMultiTarget(tf *model.TaskFile, task *model.Task, reason string, doneSet map[string]bool, blocked []string) map[string]any {
+func checkMultiTarget(tf *model.TaskFile, task *model.Task, reason string, doneSet map[string]bool, blocked *engine.EpicBlock) map[string]any {
 	id := task.ID
 	if msg := doneBlockedMessage(tf, id, blocked); msg != "" {
-		return map[string]any{"id": id, "error": msg, "blocked_by_epics": blocked, "hint": epicBlockHint}
+		row := epicBlockFields(blocked)
+		row["id"], row["error"], row["hint"] = id, msg, epicBlockHint
+		return row
 	}
 	if task.Status == model.StatusOpen {
 		for _, dep := range task.DependsOn {
@@ -660,8 +662,9 @@ type batchFailure struct {
 	ID             string   `json:"id"`
 	Error          string   `json:"error"`
 	Acceptance     string   `json:"acceptance,omitempty"`
-	BlockedByEpics []string `json:"blocked_by_epics,omitempty"`
-	Hint           string   `json:"hint,omitempty"`
+	BlockedByEpics []string   `json:"blocked_by_epics,omitempty"`
+	BlockedByAnyOf [][]string `json:"blocked_by_any_of,omitempty"`
+	Hint           string     `json:"hint,omitempty"`
 }
 
 // allRefusedBatchExit is the exit code of a batch whose every row failed: 1
@@ -686,7 +689,7 @@ type batchRefusalContext struct {
 	doneSet  map[string]bool
 	batchIDs map[string]bool
 	strategy string
-	blocked  []string
+	blocked  *engine.EpicBlock
 }
 
 // checkBatchRow runs every refusal a row can meet once the gate has settled —
@@ -733,7 +736,7 @@ func checkBatchRow(tf *model.TaskFile, task *model.Task, entry *batchEntry, rc b
 // its first dependency that is not done, or nil when none blocks it.
 func batchRowBlocker(tf *model.TaskFile, task *model.Task, rc batchRefusalContext) *batchFailure {
 	if msg := doneBlockedMessage(tf, task.ID, rc.blocked); msg != "" {
-		return &batchFailure{ID: task.ID, Error: msg, BlockedByEpics: rc.blocked, Hint: epicBlockHint}
+		return &batchFailure{ID: task.ID, Error: msg, BlockedByEpics: rc.blocked.BlockedBy, BlockedByAnyOf: rc.blocked.BlockedByAnyOf, Hint: epicBlockHint}
 	}
 	for _, dep := range task.DependsOn {
 		if rc.doneSet[dep] {

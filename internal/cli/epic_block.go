@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/deligoez/tp/internal/engine"
 	"github.com/deligoez/tp/internal/model"
@@ -11,14 +10,14 @@ import (
 )
 
 // epicBlockHint answers a task file whose epic is blocked (spec/1.5.0.md §6).
-const epicBlockHint = "finish the epics in blocked_by_epics first; a task already wip stays resumable and closable"
+const epicBlockHint = "finish the epics in blocked_by_epics, and one member of each group in blocked_by_any_of, first; a task already wip stays resumable and closable"
 
-// epicBlockedBy returns the dependencies of tf's epic that are not done, nil
-// when none blocks it. An unbound file reads nothing and returns nil; a
-// binding the graph ignores prints its notice and returns nil. An unreadable
-// graph or bound file exits 3.
-func epicBlockedBy(tf *model.TaskFile, taskFilePath string) []string {
-	return epicBlockedNoticing(tf, taskFilePath, true)
+// epicBlockedBy returns the block of tf's epic, nil when nothing blocks it:
+// no plain dependency that is not done and no unsatisfied group. An unbound
+// file reads nothing and returns nil; a binding the graph ignores prints its
+// notice and returns nil. An unreadable graph or bound file exits 3.
+func epicBlockedBy(tf *model.TaskFile, taskFilePath string) *engine.EpicBlock {
+	return epicBlockNoticing(tf, taskFilePath, true)
 }
 
 // epicBlockedUnderLock is epicBlockedBy for tf, the file re-read under the
@@ -26,21 +25,12 @@ func epicBlockedBy(tf *model.TaskFile, taskFilePath string) []string {
 // may have bound the file or changed the graph, so the block is judged again
 // on tf. The notice pre's check printed is not printed twice: only a binding
 // that changed says so again.
-func epicBlockedUnderLock(tf, pre *model.TaskFile, taskFilePath string) []string {
-	return epicBlockedNoticing(tf, taskFilePath, tf.Epic != pre.Epic)
+func epicBlockedUnderLock(tf, pre *model.TaskFile, taskFilePath string) *engine.EpicBlock {
+	return epicBlockNoticing(tf, taskFilePath, tf.Epic != pre.Epic)
 }
 
-// epicBlockedNoticing is epicBlockedBy, printing an ignored binding's notice
+// epicBlockNoticing is epicBlockedBy, printing an ignored binding's notice
 // only when notice is set.
-func epicBlockedNoticing(tf *model.TaskFile, taskFilePath string, notice bool) []string {
-	if block := epicBlockNoticing(tf, taskFilePath, notice); block != nil {
-		return block.BlockedBy
-	}
-	return nil
-}
-
-// epicBlockNoticing is epicBlockedNoticing's block itself, nil when it blocks
-// nothing.
 func epicBlockNoticing(tf *model.TaskFile, taskFilePath string, notice bool) *engine.EpicBlock {
 	block, err := engine.EpicBlockFor(tf, taskFilePath)
 	if err != nil {
@@ -53,22 +43,34 @@ func epicBlockNoticing(tf *model.TaskFile, taskFilePath string, notice bool) *en
 	if notice && block.Notice != "" {
 		output.Notice("notice: " + block.Notice)
 	}
-	if len(block.BlockedBy) == 0 {
+	if !block.Blocks() {
 		return nil
 	}
 	return block
 }
 
+// epicBlockFields are the fields every payload of a blocked file carries:
+// blocked_by_epics, and blocked_by_any_of while a group is unsatisfied
+// (spec/1.7.0.md §7).
+func epicBlockFields(block *engine.EpicBlock) map[string]any {
+	fields := map[string]any{"blocked_by_epics": block.BlockedBy}
+	if len(block.BlockedByAnyOf) > 0 {
+		fields["blocked_by_any_of"] = block.BlockedByAnyOf
+	}
+	return fields
+}
+
 // epicBlockedMessage says why no task of tf can start.
-func epicBlockedMessage(tf *model.TaskFile, blocked []string) string {
-	return fmt.Sprintf("epic %s is blocked by %s", tf.Epic, strings.Join(blocked, ", "))
+func epicBlockedMessage(tf *model.TaskFile, block *engine.EpicBlock) string {
+	return fmt.Sprintf("epic %s is blocked by %s", tf.Epic, block.Describe())
 }
 
 // exitIfNextBlocked is tp next's and tp next --peek's block: while tf's epic
-// is blocked it reports no task to start, carrying blocked_by_epics, and
-// exits 4 as when no task is ready. When every blocker is a condition it
-// carries operator, the operator's decision and record of each. A file with
-// no open task has nothing to start, so its normal answer (all tasks
+// is blocked it reports no task to start, carrying blocked_by_epics (and
+// blocked_by_any_of), and exits 4 as when no task is ready. When the
+// operator alone can clear it, it carries operator, the operator's decision,
+// the record of each condition and each group's records as choices. A file
+// with no open task has nothing to start, so its normal answer (all tasks
 // complete) stands.
 func exitIfNextBlocked(tf *model.TaskFile, taskFilePath string) {
 	if !engine.HasOpenTasks(tf) {
@@ -78,11 +80,9 @@ func exitIfNextBlocked(tf *model.TaskFile, taskFilePath string) {
 	if block == nil {
 		return
 	}
-	result := map[string]any{
-		"done":             false,
-		"message":          "No task to start: " + epicBlockedMessage(tf, block.BlockedBy) + ".",
-		"blocked_by_epics": block.BlockedBy,
-	}
+	result := epicBlockFields(block)
+	result["done"] = false
+	result["message"] = "No task to start: " + epicBlockedMessage(tf, block) + "."
 	if op := block.OperatorAction(); op != nil {
 		result["operator"] = op
 	}
@@ -115,7 +115,7 @@ func refuseBlockedClaim(tf *model.TaskFile, taskFilePath string, ids []string) {
 		return
 	}
 	output.ErrorExtras(ExitValidation, "cannot claim: "+epicBlockedMessage(tf, blocked),
-		map[string]any{"blocked_by_epics": blocked}, epicBlockHint)
+		epicBlockFields(blocked), epicBlockHint)
 	os.Exit(ExitValidation)
 }
 
@@ -145,7 +145,9 @@ func readyBlocked(tf *model.TaskFile, taskFilePath string) bool {
 	if blocked == nil {
 		return false
 	}
-	printResultOrExit(map[string]any{"ready": []model.Task{}, "blocked_by_epics": blocked})
+	result := epicBlockFields(blocked)
+	result["ready"] = []model.Task{}
+	printResultOrExit(result)
 	if readyFirst {
 		os.Exit(ExitState)
 	}
@@ -155,7 +157,7 @@ func readyBlocked(tf *model.TaskFile, taskFilePath string) bool {
 // doneBlockedMessage is why tp done refuses task id of tf while tf's epic is
 // blocked: closing a task that is not already wip would start it. It is ""
 // when blocked is nil, the task is not open, or tf does not hold it.
-func doneBlockedMessage(tf *model.TaskFile, id string, blocked []string) string {
+func doneBlockedMessage(tf *model.TaskFile, id string, blocked *engine.EpicBlock) string {
 	if blocked == nil {
 		return ""
 	}
@@ -169,12 +171,12 @@ func doneBlockedMessage(tf *model.TaskFile, id string, blocked []string) string 
 // refuseBlockedDone is tp done's block for one task: while tf's epic is
 // blocked it refuses a task that is not already wip, exits 1 and carries
 // blocked_by_epics.
-func refuseBlockedDone(tf *model.TaskFile, id string, blocked []string) {
+func refuseBlockedDone(tf *model.TaskFile, id string, blocked *engine.EpicBlock) {
 	msg := doneBlockedMessage(tf, id, blocked)
 	if msg == "" {
 		return
 	}
-	output.ErrorExtras(ExitValidation, msg, map[string]any{"blocked_by_epics": blocked}, epicBlockHint)
+	output.ErrorExtras(ExitValidation, msg, epicBlockFields(blocked), epicBlockHint)
 	os.Exit(ExitValidation)
 }
 
@@ -192,13 +194,13 @@ func refuseBlockedCommit(tf *model.TaskFile, task *model.Task, taskFilePath stri
 	}
 	output.ErrorExtras(ExitValidation,
 		fmt.Sprintf("cannot commit: task %s is not wip and %s", task.ID, epicBlockedMessage(tf, blocked)),
-		map[string]any{"blocked_by_epics": blocked}, epicBlockHint)
+		epicBlockFields(blocked), epicBlockHint)
 	os.Exit(ExitValidation)
 }
 
 // doneReadyCount is the ready count tp done reports: a blocked file offers
 // no task to start, so its open tasks are left out.
-func doneReadyCount(ready int, blocked []string) int {
+func doneReadyCount(ready int, blocked *engine.EpicBlock) int {
 	if blocked != nil {
 		return 0
 	}
