@@ -72,7 +72,7 @@ epic milestone:
 epic milestone add: after before if-revision new-track
 epic ready: all
 epic remove: force if-revision
-epic review: all check epic epics force grant-round milestone milestones name record resolve resolve-all role status
+epic review: all check epic epics force grant-round milestone milestones name record report resolve resolve-all role status
 epic set: if-revision
 epic status: milestone open
 epic unlink: if-revision
