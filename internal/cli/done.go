@@ -659,9 +659,9 @@ func hasSHA(list []string) bool {
 }
 
 type batchFailure struct {
-	ID             string   `json:"id"`
-	Error          string   `json:"error"`
-	Acceptance     string   `json:"acceptance,omitempty"`
+	ID             string     `json:"id"`
+	Error          string     `json:"error"`
+	Acceptance     string     `json:"acceptance,omitempty"`
 	BlockedByEpics []string   `json:"blocked_by_epics,omitempty"`
 	BlockedByAnyOf [][]string `json:"blocked_by_any_of,omitempty"`
 	Hint           string     `json:"hint,omitempty"`
