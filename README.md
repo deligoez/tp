@@ -276,7 +276,7 @@ an agent working across specs reads a single source of truth and cannot silently
 `.tp/local.json` carries per-checkout state — the active task-file pointer, CLI flag defaults, and
 `tp run`'s `notify_cmd`, which is per-operator rather than per-project — and is git-ignored
 automatically, along with the run artifacts (`run-*.json`, `runs/`, `rounds/`, `locks/`,
-`last_failure-*.json`). Effective values resolve at read time, so a task file's `workflow`
+`last_failure-*.json`) and the epic review inboxes (`epic-review/*/inbox/`). Effective values resolve at read time, so a task file's `workflow`
 block holds only explicit overrides.
 
 The layers, the `tp config` / `tp set --project` / `tp set --local` forms and the task-file discovery
