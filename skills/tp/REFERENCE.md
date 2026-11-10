@@ -1561,14 +1561,15 @@ listed twice is one slice.
 
 | Call | Reads | Payload |
 |------|-------|---------|
-| emission | each listed milestone; `--all`: every milestone the tracks hold, in track order | `{slices: [<emission>...], skipped: [{key, reason}]}` |
+| emission | each listed milestone; `--all`: every milestone the tracks hold, in track order | `{slices: [{key, <emission>...}...], skipped: [{key, reason}]}` |
 | `--status [--check]` | each listed milestone; `--all`: every slice directory, in name order | `{slices: [{key, round, state, open, grantable, next_action}]}` |
 | `--report` | each listed milestone; `--all`: every slice directory, in name order | `{classes: [{class, epics, slices: [{key, rounds}]}]}` |
 
 `key` is the slice's key as `key.json` records it, `null` for a directory that records none and
 whose rounds name none. An emission's entries are each slice's one-slice emission, `--role`
-applied to each. The graph, the policy and the role corpus are read once and every slice is
-prepared before any slice writes state, so an unknown `--role` exits 2 with no slice written. A
+applied to each, led by its `key`, the one `--status --all` prints for that slice. The graph, the
+policy and the role corpus are read once and every slice is prepared before any slice writes
+state, so an unknown `--role` exits 2 with no slice written. A
 slice that cannot emit is listed under `skipped`, in the order met, and the rest still emit: done
 (`reason` names `done_by`), at its cap (the one-slice refusal's message and hint), failing to
 prepare (a milestone no track lists, an unreadable round), or failing to write its state.
