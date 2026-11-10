@@ -66,6 +66,16 @@ func TestLintEpicGraph_SelfLoopIsACycle(t *testing.T) {
 	assert.Equal(t, []string{"c"}, cycles[0].Epics)
 }
 
+// TestLintEpicGraph_TwoEpicCycleIsACycle: c depending back on b closes the
+// shortest cycle of two epics, one finding naming both.
+func TestLintEpicGraph_TwoEpicCycleIsACycle(t *testing.T) {
+	g := cleanEpicGraph()
+	g.Epics[2].DependsOn = []model.EpicDep{{ID: "b", Why: "back to b"}}
+	cycles := findingsOf(t, LintEpicGraph(g, nil), EpicRuleCycle)
+	require.Len(t, cycles, 1)
+	assert.Equal(t, []string{"b", "c"}, cycles[0].Epics)
+}
+
 func TestLintEpicGraph_DanglingReferencesAreOneFindingEach(t *testing.T) {
 	g := cleanEpicGraph()
 	g.Epics[2].DependsOn = []model.EpicDep{{ID: "z", Why: "absent"}}
