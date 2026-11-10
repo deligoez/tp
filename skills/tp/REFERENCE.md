@@ -1374,6 +1374,7 @@ so it changes only through the `tp epic` writers.
 | `opens_after.<milestone>` | list of milestone names, `[]` allowed (v1.6.0) | the milestones it opens after, of any track; absent, the previous milestone of its track (none for a track's first); written after `milestones`, omitted when empty; `tp epic set opens_after=` replaces the whole map |
 | `gates.<milestone>` | `{members, deferrable, threshold, met}` | the milestone's **exit** gate, reviewed with it: keyed by the milestone whose epics it lists, not the one it opens; every member must be in that milestone. Every milestone has a gate unit in an epic review, its block listing the effective members, `deferrable`, `threshold` and effective `opens_after`, so editing any of them re-asks it; `tp epic set gates.<m>.<threshold\|deferrable\|members>=` edits one gate, carrying `met` |
 | `tag_checks.<tag>.provided_by` | epic id | every epic carrying the tag must depend on this epic, directly or transitively |
+| `tag_checks.<tag>.direct` | `true`, omitted when false (v1.7.0) | every carrier needs a plain direct edge to the provider; a path through other epics does not count |
 | `epics[].id` | non-empty string | opaque and unique in the file; spaces and non-ASCII stay as written |
 | `epics[].milestone` | milestone name | required; names one of `milestones` |
 | `epics[].tags` | list of strings | opaque to tp, read only by `tag_checks` |
