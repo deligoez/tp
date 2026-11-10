@@ -48,6 +48,16 @@ func TestLintEpicGraph_AnyOfShapeFlagsEachMalformedEntry(t *testing.T) {
 	}
 }
 
+// TestLintEpicGraph_AGroupBesideAPlainEdgeToANonMemberIsSound: README's
+// any-of-shape fires on a group beside a plain edge to one of its members,
+// so {x, y} beside a plain edge to z is no finding. A check that matched a
+// plain edge to any other epic would flag x and y here.
+func TestLintEpicGraph_AGroupBesideAPlainEdgeToANonMemberIsSound(t *testing.T) {
+	g := anyOfLintGraph()
+	g.Epics[0].DependsOn = append(g.Epics[0].DependsOn, model.EpicDep{ID: "z", Why: "a also reads z"})
+	assert.Empty(t, findingsOf(t, LintEpicGraph(g, nil), EpicRuleAnyOfShape))
+}
+
 // TestLintEpicGraph_DanglingReferenceNamesEachMissingMember: a group member
 // that names no epic is a dangling-reference of its own, and the members the
 // graph holds are none.
