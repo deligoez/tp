@@ -1501,6 +1501,43 @@ form (symlinks resolved; a `..` segment or a symlink at the name is refused) is 
 every other path under the state directory stays refused. Spec review's and audit's output paths
 keep their relative form.
 
+### Batch review and the class report (v1.7.0)
+
+`--milestones <m,m,...>` and `--all` exclude each other, every one-slice flag (`--milestone`,
+`--epic`, `--epics`, `--name`) and the writes kept one slice at a time (`--record`, `--resolve`,
+`--resolve-all`, `--force`, `--grant-round`); each such call exits 2 and writes nothing. A milestone
+listed twice is one slice.
+
+| Call | Reads | Payload |
+|------|-------|---------|
+| emission | each listed milestone; `--all`: every milestone the tracks hold, in track order | `{slices: [<emission>...], skipped: [{key, reason}]}` |
+| `--status [--check]` | each listed milestone; `--all`: every slice directory, in name order | `{slices: [{key, round, state, open, grantable, next_action}]}` |
+| `--report` | each listed milestone; `--all`: every slice directory, in name order | `{classes: [{class, epics, slices: [{key, rounds}]}]}` |
+
+`key` is the slice's key as `key.json` records it, `null` for a directory that records none and
+whose rounds name none. An emission's entries are each slice's one-slice emission, `--role`
+applied to each. The graph, the policy and the role corpus are read once and every slice is
+prepared before any slice writes state, so an unknown `--role` exits 2 with no slice written. A
+slice that cannot emit is listed under `skipped`, in the order met, and the rest still emit: done
+(`reason` names `done_by`), at its cap (the one-slice refusal's message and hint), failing to
+prepare (a milestone no track lists, an unreadable round), or failing to write its state.
+
+A `--status` row is the one-slice `--status` cut to those keys, `state` one of `tp epic export`'s
+loop states (`none`, `open`, `in_flight`, `stale`, `cap_reached`, `done`). A slice whose key is
+unknown or names what the graph no longer holds gets a row graded without its staleness and a
+`next_action` saying nothing runs on it. `--check` exits 0 only when every slice's own
+`--status --check` would — its loop done and every mechanical check passing — so such a row fails
+it, as its own `--status` exits 4; else exit 1. A round file tp cannot read exits 3.
+
+`--report` reads the recorded `round-<N>.ndjson` files and writes nothing. A class is a row's
+`class`; a row without one counts in no class. `epics` lists, sorted, the distinct epics the class's
+rows name by `location` (`epic:<id>`; a `gate:<m>` row names none), so an epic two overlapping
+slices raised it on is one epic; `slices` lists each slice that raised it with its rounds,
+ascending. Classes sort by the number of distinct epics, descending, then by name. It carries no
+`mechanize_candidates`: no registered check retires an epic review class, and a lint rule or a
+`direct` tag check is the operator's. Without `--all` or `--milestones`, or beside `--status`,
+`--check` or `--role`, it exits 2; a round file tp cannot read exits 3.
+
 ### Binding and status (v1.5.0)
 
 A task file names its epic in the top-level `epic` (schema above). An epic's bound files are every
