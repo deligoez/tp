@@ -169,3 +169,37 @@ func TestEpicApply_ARemoveWithoutForceLeavesItsDependentsToTheLint(t *testing.T)
 	assert.Equal(t, []string{"a"}, g.Gates["A"].Members, "the removal drops b's gate membership")
 }
 
+// TestEpicApply_AnAbsentSubjectOrUnlinkedEdgeFailsAtItsRow: the subject of a
+// link, unlink, set or remove, and the edge an unlink removes, must exist at
+// that row; the refusal names the row's line, exits 4 and writes nothing. A
+// subject a later row adds does not count (a remove and a later add of one
+// id are refused before any row runs, so remove names an id no row adds).
+func TestEpicApply_AnAbsentSubjectOrUnlinkedEdgeFailsAtItsRow(t *testing.T) {
+	t.Parallel()
+	add := `{"op":"add","epic":{"id":"e","title":"E","milestone":"A"}}`
+	cases := map[string]struct {
+		row, want string
+	}{
+		"link":   {`{"op":"link","from":"e","to":"a","why":"e reads a"}`, `epic "e" not found`},
+		"unlink": {`{"op":"unlink","from":"e","to":"a"}`, `epic "e" not found`},
+		"set":    {`{"op":"set","id":"e","field":"title","value":"E2"}`, `epic "e" not found`},
+		"remove": {`{"op":"remove","id":"f"}`, `epic "f" not found`},
+		"edge":   {`{"op":"unlink","from":"d","to":"a"}`, `epic "d" has no edge to "a"`},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			dir := epicGraphDir(t, epicChainWithGate)
+			before := readEpicGraphFile(t, dir)
+			_, stderr, code := runTP(t, dir, "epic", "apply", applyPayload(t, dir, `{"op":"set","id":"a","field":"title","value":"A2"}`, c.row, add))
+			require.Equal(t, 4, code, "stderr: %s", stderr)
+			var refusal struct {
+				Error string `json:"error"`
+			}
+			require.NoError(t, json.Unmarshal([]byte(stderr), &refusal))
+			assert.Equal(t, "payload line 2: "+c.want, refusal.Error)
+			assert.Equal(t, before, readEpicGraphFile(t, dir))
+		})
+	}
+}
+
