@@ -166,19 +166,22 @@ func milestoneDeclared(g *model.EpicGraph, name string) bool {
 // epicSliceContext returns the block of every epic one edge away, in either
 // direction, from an asked epic, unless it is asked itself. Dependency marks a
 // block that some asked epic depends on, as against one that only depends on
-// an asked epic.
+// an asked epic. A group's every member is one edge away from its epic
+// (spec/1.7.0.md §7).
 func epicSliceContext(g *model.EpicGraph, asked map[string]bool) []EpicContextBlock {
 	near := map[string]bool{}
 	dependency := map[string]bool{}
 	for i := range g.Epics {
 		e := &g.Epics[i]
 		for _, d := range e.DependsOn {
-			if asked[e.ID] {
-				near[d.ID] = true
-				dependency[d.ID] = true
-			}
-			if asked[d.ID] {
-				near[e.ID] = true
+			for _, id := range d.Names() {
+				if asked[e.ID] {
+					near[id] = true
+					dependency[id] = true
+				}
+				if asked[id] {
+					near[e.ID] = true
+				}
 			}
 		}
 	}
