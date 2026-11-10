@@ -156,3 +156,21 @@ func TestEpicReviewBatchStatus_ADoneOrphanSliceIsSafeToDelete(t *testing.T) {
 	assert.Equal(t, "legacy slice, done; no action (safe to delete "+done.StateDir+")", rows["d"].NextAction)
 	assert.Contains(t, rows["c"].NextAction, "nothing runs on this slice until the graph holds it", "an orphan not done keeps the old text")
 }
+
+// TestEpicReviewBatchStatus_ADoneOrphanSlicePassesTheBatchCheck is §5's
+// exception: a done slice whose key names nothing the graph holds counts as
+// done for the batch --check, since tp reports it needs no action; an orphan
+// that is not done still fails it.
+func TestEpicReviewBatchStatus_ADoneOrphanSlicePassesTheBatchCheck(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicThreeMilestones)
+	writeEpicProjectConfig(t, dir, `{"review_clean_rounds": 1}`)
+	runEpicReview(t, dir, "--epic", "d")
+	recordEpicRound(t, dir, "", "--epic", "d")
+	editEpicGraph(t, dir, `{"id": "d", "title": "D"`, `{"id": "d2", "title": "D"`)
+	require.Equal(t, 0, epicCheckCode(t, dir, "--all"), "a done orphan alone passes")
+
+	runEpicReview(t, dir, "--epic", "c")
+	editEpicGraph(t, dir, `{"id": "c", "title": "C"`, `{"id": "c2", "title": "C"`)
+	assert.Equal(t, 1, epicCheckCode(t, dir, "--all"), "an orphan that is not done still fails")
+}
