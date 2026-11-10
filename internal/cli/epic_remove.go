@@ -8,7 +8,7 @@ import (
 
 // epicRemoveRefusedHint answers a remove refused for its dependents or its
 // tag_checks entries.
-const epicRemoveRefusedHint = "--force drops the edges into the epic and its gate memberships; a tag_checks provider must be repointed with tp epic set tag_checks=<json> first"
+const epicRemoveRefusedHint = "--force drops the edges into the epic and its gate memberships, drops each any-of group it is a done member of and narrows the others; a tag_checks provider must be repointed with tp epic set tag_checks=<json> first"
 
 func newEpicRemoveCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -17,7 +17,7 @@ func newEpicRemoveCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE:  runEpicRemove,
 	}
-	cmd.Flags().Bool("force", false, "also drop the edges into the epic and its gate memberships")
+	cmd.Flags().Bool("force", false, "also drop the edges into the epic and its gate memberships, and drop or narrow its any-of groups")
 	epicIfRevisionFlag(cmd)
 	return cmd
 }
