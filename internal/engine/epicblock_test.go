@@ -141,3 +141,38 @@ func TestEpicBlockFor_ReadsEachDependencyWhereverTheGraphHoldsIt(t *testing.T) {
 	require.NotNil(t, block)
 	assert.Empty(t, block.BlockedBy)
 }
+
+// TestEpicBlock_OperatorActionOnlyWhenEveryBlockerIsACondition pins
+// OperatorAction's contract at its edges: nothing blocked and any work
+// blocker give no action; one condition or several give one record each.
+func TestEpicBlock_OperatorActionOnlyWhenEveryBlockerIsACondition(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name       string
+		blockedBy  []string
+		conditions []string
+		commands   []string
+	}{
+		{"nothing blocked", []string{}, []string{}, nil},
+		{"one work blocker", []string{"w"}, []string{}, nil},
+		{"a condition beside work", []string{"c", "w"}, []string{"c"}, nil},
+		{"one condition", []string{"c"}, []string{"c"}, []string{"tp epic done c --evidence <evidence>"}},
+		{"two conditions", []string{"c1", "c2"}, []string{"c1", "c2"}, []string{
+			"tp epic done c1 --evidence <evidence>", "tp epic done c2 --evidence <evidence>",
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			b := &EpicBlock{Epic: "e", BlockedBy: tc.blockedBy, Conditions: tc.conditions}
+			op := b.OperatorAction()
+			if tc.commands == nil {
+				assert.Nil(t, op)
+				return
+			}
+			require.NotNil(t, op)
+			assert.Equal(t, EscalateEpicDone, op.Decision)
+			assert.Equal(t, tc.commands, op.Commands)
+		})
+	}
+}
