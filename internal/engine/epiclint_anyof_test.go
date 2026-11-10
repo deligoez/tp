@@ -109,3 +109,13 @@ func TestLintEpicGraph_AGroupIsADependencyForNoDependencies(t *testing.T) {
 	g.Epics[0].DependsOn = nil
 	assert.Len(t, findingsOf(t, LintEpicGraph(g, nil), EpicRuleNoDependencies), 1)
 }
+
+// TestLintEpicGraph_AGroupIsADependencyForRootWithDependencies: an epic
+// marked root whose only entry is a group has a dependency to warn about.
+func TestLintEpicGraph_AGroupIsADependencyForRootWithDependencies(t *testing.T) {
+	g := anyOfLintGraph()
+	g.Epics[0].Root = true
+	root := findingsOf(t, LintEpicGraph(g, nil), EpicRuleRootWithDependencies)
+	require.Len(t, root, 1)
+	assert.Equal(t, []string{"a"}, root[0].Epics)
+}
