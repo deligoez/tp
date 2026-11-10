@@ -135,3 +135,29 @@ func TestEpicReviewBatch_AnUnknownRoleWritesNoSlice(t *testing.T) {
 	assert.True(t, os.IsNotExist(err), "a refused batch writes no slice's state")
 }
 
+// TestEpicReviewBatch_RefusesAMixedOrBatchWriteCall is §5's exclusivity and
+// the non-goals: --milestones and --all exclude each other and every
+// one-slice flag, and batch --record, --resolve and --resolve-all are refused;
+// each exits 2 and writes nothing.
+func TestEpicReviewBatch_RefusesAMixedOrBatchWriteCall(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicThreeMilestones)
+	record := epicRecordFile(t, dir, "")
+	for _, args := range [][]string{
+		{"--all", "--milestones", "A"},
+		{"--all", "--milestone", "A"},
+		{"--milestones", "A", "--epic", "a"},
+		{"--milestones", "A", "--epics", "a,b"},
+		{"--all", "--name", "n"},
+		{"--milestones", ""},
+		{"--milestones", "A,,B"},
+		{"--all", "--record", record},
+		{"--all", "--resolve", "0", "fixed"},
+		{"--milestones", "A", "--resolve-all", "fixed"},
+	} {
+		_, stderr, code := runTP(t, dir, append([]string{"epic", "review"}, args...)...)
+		assert.Equal(t, 2, code, "%v: stderr: %s", args, stderr)
+	}
+	_, err := os.Stat(filepath.Join(dir, ".tp", "epic-review"))
+	assert.True(t, os.IsNotExist(err), "a refused call writes no state")
+}
