@@ -10,7 +10,8 @@ codes and schemas.
 
 `-o`/`--output` belongs to `--merge` alone. On any other mode both `tp review` and `tp audit`
 reject it with exit 2 rather than accepting it and writing nothing there (v0.32.0); the payload
-goes to stdout, so redirect it.
+goes to stdout, so redirect it. `--merge … -o -` sends the merged rows to stdout and the summary to
+stderr (v1.7.0).
 
 ## Advisories an agent can see (v0.32.0)
 
@@ -827,11 +828,13 @@ carries the same pair as two counts rather than one sum: `rows` is what the oper
 can check against their own file, `carried` is what tp added, and folding them reports a number that
 matches neither artifact.
 
-**Two kinds of line reach stderr, and a driver must expect both.** `output.Notice` writes plain text
-and `--quiet` suppresses it; `output.Error` writes the failure envelope, `{error, code, hint?}` under
-`--json`. `output.Error` is terminal — checked over the whole tree at `93d89673`, every non-test call
-site is within a few lines of an `os.Exit`, with no exceptions — so when an envelope appears it is
-stderr's **last** line. Parse the last line for `code`; read anything above it as notices.
+**Three kinds of line reach stderr, and a driver must expect all of them.** `output.Notice` writes
+plain text and `--quiet` suppresses it; `output.Error` writes the failure envelope, `{error, code,
+hint?}` under `--json`; and `tp review --merge … -o -` / `tp audit --merge … -o -` write their
+summary there, a pretty-printed JSON object over several lines (v1.7.0), ahead of any envelope.
+`output.Error` is terminal — checked over the whole tree at `93d89673`, every non-test call site is
+within a few lines of an `os.Exit`, with no exceptions — so when an envelope appears it is stderr's
+**last** line. Parse the last line for `code`; read anything above it as notices or that summary.
 
 `by_verdict` carries all six verdicts, zeros included, and counts **every row the round recorded** —
 so it is larger than `dispositioned` alone, which counts only floor units. **The two sides count
@@ -1131,6 +1134,13 @@ the full payload — the surviving roles merge, only the exit code changes, and 
 unattended driver reads reaches stdout either way — and both decline the `-o` write: a refused merge
 creates no file at the `-o` path and leaves a file already there byte-identical, so it cannot be
 walked into `--record` as a round.
+
+**`-o -` (v1.7.0)** writes the merged NDJSON to stdout and the summary — the payload `-o <file>`
+prints on stdout, `output_path: "stdout"` — to stderr as JSON, whatever the terminal, so stdout holds
+rows alone. A merge that exits non-zero writes nothing to stdout and its summary, without
+`output_path`, still reaches stderr ahead of the failure envelope. It is for reading: an empty stream
+is how a converged round reports itself, so a refused merge piped into `--record` would record a
+clean round; `-o <file>` stays the only way to feed `--record`.
 
 `tp review --perspective code-audit --findings <file>` exits **2**: that perspective never reads the
 file, and previously accepted the flag while reporting `previous_findings: 0` about it. A
