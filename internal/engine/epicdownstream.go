@@ -95,33 +95,94 @@ func milestoneOrder(g *model.EpicGraph) []string {
 
 // GraphCriticalPath returns the longest chain of not-done epics in the whole
 // graph by count of work epics, in work order: it starts at a not-done epic
-// with no not-done dependency and may cross milestones and tracks. Ties go to
-// the earlier epic in graph order; empty when no work epic is left. A
-// dependency cycle on the chain is listed whole where the chain enters it,
-// its other members in graph order.
+// with no not-done dependency and may cross milestones and tracks. The chain
+// is built backwards from its last epic, the earlier in graph order on a
+// tie: one more than its longest dependency, the earlier in depends_on order
+// on a tie, where an unsatisfied any-of group counts as its member with the
+// shortest chain, the first listed on a tie (spec/1.7.0.md §7). A moot epic
+// is on no chain. Empty when no work epic is left. A dependency cycle on the
+// chain is listed whole where the chain enters it, its other members in
+// graph order.
 func GraphCriticalPath(g *model.EpicGraph, states map[string]EpicState) []string {
 	w := newDownstreamWalk(g, states)
-	head, best := -1, 0
+	w.compLen, w.compEntry, w.compPrev = filled(len(w.comps)), filled(len(w.comps)), filled(len(w.comps))
+	end, best := -1, 0
 	for i := range g.Epics {
-		if !w.undone(i) || w.waits[i] {
+		if !w.undone(i) {
 			continue
 		}
-		if c := w.weight(i) + w.longest(i); c > best {
-			head, best = i, c
+		if c := w.chainTo(w.comp[i]); c > best {
+			end, best = i, c
 		}
 	}
-	path := []string{}
-	for i := head; i >= 0; {
+	var stops []int
+	for i := end; i >= 0; {
 		c := w.comp[i]
+		if w.compEntry[c] >= 0 {
+			i = w.compEntry[c]
+		}
+		stops = append(stops, i)
+		i = w.compPrev[c]
+	}
+	path := []string{}
+	for k := len(stops) - 1; k >= 0; k-- {
+		i := stops[k]
 		path = append(path, g.Epics[i].ID)
-		for _, j := range w.comps[c] {
+		for _, j := range w.comps[w.comp[i]] {
 			if j != i {
 				path = append(path, g.Epics[j].ID)
 			}
 		}
-		i = w.compNext[c]
 	}
 	return path
+}
+
+// filled returns n entries of -1, a memo's "not yet".
+func filled(n int) []int {
+	out := make([]int, n)
+	for k := range out {
+		out[k] = -1
+	}
+	return out
+}
+
+// chainTo returns the most work epics on one chain of components ending at
+// component c, c included, built backwards: 1 + the longest over its plain
+// dependencies, a group counting as its member with the shortest chain, the
+// first listed on a tie (spec/1.7.0.md §7). It records the epic of c whose
+// entry the chain takes and the epic it reaches there.
+func (w *downstreamWalk) chainTo(c int) int {
+	if w.compLen[c] >= 0 {
+		return w.compLen[c]
+	}
+	best, entry, prev := 0, -1, -1
+	for _, i := range w.comps[c] {
+		for _, dep := range w.deps[i] {
+			if n, m := w.shortestMember(c, dep); m >= 0 && (prev < 0 || n > best) {
+				best, entry, prev = n, i, m
+			}
+		}
+	}
+	w.compLen[c], w.compEntry[c], w.compPrev[c] = w.compWeight[c]+best, entry, prev
+	return w.compLen[c]
+}
+
+// shortestMember returns the shortest chain among the epics of one
+// depends_on entry of component c and the epic ending it, the first listed
+// on a tie; -1 when a member is in c itself, which closes a cycle and adds
+// nothing.
+func (w *downstreamWalk) shortestMember(c int, entry []int) (length, epic int) {
+	length, epic = 0, -1
+	for _, m := range entry {
+		d := w.comp[m]
+		if d == c {
+			return 0, -1
+		}
+		if n := w.chainTo(d); epic < 0 || n < length {
+			length, epic = n, m
+		}
+	}
+	return length, epic
 }
 
 // downstreamWalk walks depends_on edges forwards, from an epic to the
@@ -138,14 +199,17 @@ type downstreamWalk struct {
 	dependents [][]int
 	// deps holds each epic's holdingDeps.
 	deps       [][][]int
-	waits      []bool
 	comp       []int
 	comps      [][]int
 	compWeight []int
 	compChain  []int
-	compNext   []int
-	compReach  []epicBits
-	compWork   []epicBits
+	// compLen, compEntry and compPrev are chainTo's memo, sized by
+	// GraphCriticalPath.
+	compLen   []int
+	compEntry []int
+	compPrev  []int
+	compReach []epicBits
+	compWork  []epicBits
 }
 
 // newDownstreamWalk indexes g's reverse edges between not-done epics and
@@ -153,7 +217,7 @@ type downstreamWalk struct {
 func newDownstreamWalk(g *model.EpicGraph, states map[string]EpicState) *downstreamWalk {
 	n := len(g.Epics)
 	w := &downstreamWalk{g: g, states: states, moot: MootEpics(g, states), index: make(map[string]int, n),
-		dependents: make([][]int, n), deps: make([][][]int, n), waits: make([]bool, n), comp: make([]int, n)}
+		dependents: make([][]int, n), deps: make([][][]int, n), comp: make([]int, n)}
 	for i := range g.Epics {
 		if _, ok := w.index[g.Epics[i].ID]; !ok {
 			w.index[g.Epics[i].ID] = i
@@ -170,7 +234,6 @@ func newDownstreamWalk(g *model.EpicGraph, states map[string]EpicState) *downstr
 				if k := len(w.dependents[i]); k == 0 || w.dependents[i][k-1] != j {
 					w.dependents[i] = append(w.dependents[i], j)
 				}
-				w.waits[j] = true
 			}
 		}
 	}
@@ -233,7 +296,6 @@ func (w *downstreamWalk) condense() {
 		w.compWork = append(w.compWork, w.workOf(members))
 		w.compWeight = append(w.compWeight, weight)
 		w.compChain = append(w.compChain, -1)
-		w.compNext = append(w.compNext, -1)
 		w.compReach = append(w.compReach, nil)
 	}
 }
@@ -283,17 +345,15 @@ func (w *downstreamWalk) chainFrom(c int) int {
 	if w.compChain[c] >= 0 {
 		return w.compChain[c]
 	}
-	best, next := 0, -1
+	best := 0
 	for _, i := range w.comps[c] {
 		for _, j := range w.dependents[i] {
 			if d := w.comp[j]; d != c {
-				if n := w.compWeight[d] + w.chainFrom(d); n > best {
-					best, next = n, j
-				}
+				best = max(best, w.compWeight[d]+w.chainFrom(d))
 			}
 		}
 	}
-	w.compChain[c], w.compNext[c] = best, next
+	w.compChain[c] = best
 	return best
 }
 
