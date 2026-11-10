@@ -72,3 +72,28 @@ func TestEpicApply_AppliesEveryRowKindInOneWrite(t *testing.T) {
 	assert.Equal(t, model.EpicGate{Members: []string{"b"}, Threshold: "ships"}, g.Gates["A"])
 }
 
+// TestEpicApply_TheLastOfAnUnlinkAndALinkOfOneEdgeStands: rows apply in file
+// order, so an unlink then a link of a -> b leaves the edge with the new why,
+// and a link then an unlink leaves none.
+func TestEpicApply_TheLastOfAnUnlinkAndALinkOfOneEdgeStands(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChainWithGate)
+	payload := applyPayload(t, dir,
+		`{"op":"unlink","from":"a","to":"b"}`,
+		`{"op":"link","from":"a","to":"b","why":"a needs b again"}`,
+	)
+	_, stderr, code := runTP(t, dir, "epic", "apply", payload)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	g := loadAppliedGraph(t, dir)
+	assert.Equal(t, []model.EpicDep{{ID: "b", Why: "a needs b again"}}, appliedEpic(t, &g, "a").DependsOn)
+
+	payload = applyPayload(t, dir,
+		`{"op":"link","from":"d","to":"c","why":"d reads c"}`,
+		`{"op":"unlink","from":"d","to":"c"}`,
+	)
+	_, stderr, code = runTP(t, dir, "epic", "apply", payload)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	g = loadAppliedGraph(t, dir)
+	assert.Empty(t, appliedEpic(t, &g, "d").DependsOn)
+}
+
