@@ -1686,11 +1686,13 @@ The read commands write nothing and list epics in graph order, every list `[]` w
   status}], threshold?, met?, threshold_changed?}`, `state` `green` or `red`.
 - **`tp epic status [--milestone <m>] [--open]`**: `{critical_path: {by_count}, milestones: [...]}`.
   The top-level `by_count` is the longest chain of not-done epics in the whole graph, in work order,
-  counted in work epics; ties go to the earlier epic in graph order; it ignores `--milestone`,
+  counted in work epics; ties go to the chain ending earlier in graph order; v1.7.0: at an
+  unsatisfied any-of group it goes through the member with the shortest remaining chain, the first
+  listed on a tie, and a moot epic is on no chain; it ignores `--milestone`,
   `--open` and `--compact`. Each tracked milestone once, in track order: `{milestone, open,
   opens_after, waiting_on, counts: {planned, claimed, specced, in_progress, done, conditions_done},
   share_done, gate, ready, claimed, blocked: [{id, title, milestone, held_by, blocked_by,
-  not_actionable?, moot?}], operator,
+  held_by_any_of, blocked_by_any_of, not_actionable?, moot?}], operator,
   critical_path: {by_count, by_estimate: {chain, estimate_minutes}}, throughput: [{week, done}],
   rollup: [{epic, estimate_minutes, actual_minutes, tracked, estimate_total}]}`. `opens_after` is
   the effective list, defaults applied; `waiting_on` those of it not open or not green, `[]` once
@@ -1701,8 +1703,11 @@ The read commands write nothing and list epics in graph order, every list `[]` w
   `share_done` is `done` over the milestone's work epics to two places, 0 with none, and a done
   condition counts in `conditions_done` alone. `blocked` is each not-done epic with a dependency not
   done: `blocked_by` every such dependency once, `held_by` the conditions among them (v1.6.0), as
-  export's epics, and on a condition `not_actionable`, or `moot: true` on a moot one (v1.7.0). `by_count` runs in work order, the gate member last, `[]` when every member is done; ties go
-  to the earlier gate member, then the earlier dependency. `by_estimate.chain` is `null` when an
+  export's epics, `blocked_by_any_of` and `held_by_any_of` the export's group lists (v1.7.0), and
+  on a condition `not_actionable`, or `moot: true` on a moot one (v1.7.0). `by_count` runs in work
+  order, the gate member last, `[]` when every member is done; ties go to the earlier gate member,
+  then the earlier dependency; at an unsatisfied any-of group the chain goes through the member with
+  the shortest remaining chain, `by_estimate` the lightest, the first listed on a tie (v1.7.0).
   epic on a chain has no estimate. `throughput` lists only weeks with a done work epic, ascending, as
   UTC ISO weeks (`2026-W45`), counting epics `done` now. `rollup` has a row per bound epic, summing
   `tp report`'s totals over its files; `estimate_total` sums every task's estimate whatever its
