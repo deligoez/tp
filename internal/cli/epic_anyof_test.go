@@ -71,3 +71,17 @@ func TestEpicAdd_TakesAnAnyOfGroup(t *testing.T) {
 	assert.Equal(t, []map[string]any{anyOfEntry("either opens the API", "x", "y")}, storedDeps(t, dir, "v"))
 }
 
+// TestEpicAdd_BulkTakesAnAnyOfGroup: a --bulk row may carry a group, its
+// members naming rows of the same payload.
+func TestEpicAdd_BulkTakesAnAnyOfGroup(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, anyOfGraph)
+	bulk := filepath.Join(dir, "rows.ndjson")
+	require.NoError(t, os.WriteFile(bulk, []byte(
+		`{"id": "v", "title": "V", "milestone": "A", "depends_on": [{"any_of": ["u", "x"], "why": "either opens the API"}]}`+"\n"+
+			`{"id": "u", "title": "U", "milestone": "A", "root": true}`+"\n"), 0o600))
+	_, stderr, code := runTP(t, dir, "epic", "add", "--bulk", bulk)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.Equal(t, []map[string]any{anyOfEntry("either opens the API", "u", "x")}, storedDeps(t, dir, "v"))
+}
+
