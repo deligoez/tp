@@ -33,3 +33,27 @@ func TestEpicLink_AnyOfAddsAGroupAndReplacesItsWhy(t *testing.T) {
 	}, storedDeps(t, dir, "w"))
 }
 
+// TestEpicUnlink_AnyOfRemovesOnlyTheExactSet: unlink --any-of removes the
+// group whose member set it names, in any order; a set no group has, even a
+// superset of one, exits 4 and writes nothing.
+func TestEpicUnlink_AnyOfRemovesOnlyTheExactSet(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, anyOfGraph)
+	for _, args := range [][]string{
+		{"epic", "link", "w", "--any-of", "x,y", "either opens the API"},
+		{"epic", "link", "w", "--any-of", "x,z", "either feeds the report"},
+	} {
+		_, stderr, code := runTP(t, dir, args...)
+		require.Equal(t, 0, code, "stderr: %s", stderr)
+	}
+	before := readEpicGraphFile(t, dir)
+	_, stderr, code := runTP(t, dir, "epic", "unlink", "w", "--any-of", "x,y,z")
+	require.Equal(t, 4, code, "stderr: %s", stderr)
+	assert.Equal(t, before, readEpicGraphFile(t, dir), "a refused unlink writes nothing")
+
+	stdout, stderr, code := runTP(t, dir, "epic", "unlink", "w", "--any-of", "y,x")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.Equal(t, "removed", epicActionOf(t, stdout))
+	assert.Equal(t, []map[string]any{anyOfEntry("either feeds the report", "x", "z")}, storedDeps(t, dir, "w"))
+}
+
