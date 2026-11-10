@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"slices"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -52,6 +53,12 @@ type epicExportEpic struct {
 	NotActionable []string               `json:"not_actionable,omitempty"`
 	HeldBy        []string               `json:"held_by"`
 	BlockedBy     []string               `json:"blocked_by"`
+	// HeldByAnyOf and BlockedByAnyOf are epicWaits' groups; Blocked and
+	// Held say whether anything holds the epic, so no reader combines lists.
+	HeldByAnyOf    [][]string `json:"held_by_any_of"`
+	BlockedByAnyOf [][]string `json:"blocked_by_any_of"`
+	Blocked        bool       `json:"blocked"`
+	Held           bool       `json:"held"`
 }
 
 // epicExportDownstream is F1's downstream without dependents_by_milestone.
@@ -158,27 +165,67 @@ func epicExportEpics(g *model.EpicGraph, states map[string]engine.EpicState, bou
 			yes := undone && len(reasons) == 0
 			item.Actionable, item.NotActionable = &yes, reasons
 		}
-		item.BlockedBy, item.HeldBy = epicUndoneDeps(e, states, conditions)
+		waits := epicUndoneDeps(e, states, conditions)
+		item.BlockedBy, item.HeldBy, item.BlockedByAnyOf, item.HeldByAnyOf = waits.BlockedBy, waits.HeldBy, waits.BlockedByAnyOf, waits.HeldByAnyOf
+		item.Blocked, item.Held = waits.blocked(), waits.held()
 		epics = append(epics, item)
 	}
 	return epics
 }
 
-// epicUndoneDeps returns e's undone direct dependencies, each once in
-// depends_on order, and the conditions among them. An id the graph does not
-// hold is not done.
-func epicUndoneDeps(e *model.Epic, states map[string]engine.EpicState, conditions map[string]bool) (blockedBy, heldBy []string) {
-	blockedBy, heldBy = []string{}, []string{}
+// epicUndoneDeps returns what e's direct dependencies hold it on: each
+// undone plain dependency once, in depends_on order, the conditions among
+// them, and each unsatisfied group. An id the graph does not hold is not
+// done.
+func epicUndoneDeps(e *model.Epic, states map[string]engine.EpicState, conditions map[string]bool) epicWaits {
+	w := epicWaits{BlockedBy: []string{}, HeldBy: []string{}, BlockedByAnyOf: [][]string{}, HeldByAnyOf: [][]string{}}
 	seen := map[string]bool{}
 	for _, d := range e.DependsOn {
+		if d.IsGroup() {
+			w.addGroup(d, states, conditions)
+			continue
+		}
 		if seen[d.ID] || states[d.ID].Status == engine.EpicStatusDone {
 			continue
 		}
 		seen[d.ID] = true
-		blockedBy = append(blockedBy, d.ID)
+		w.BlockedBy = append(w.BlockedBy, d.ID)
 		if conditions[d.ID] {
-			heldBy = append(heldBy, d.ID)
+			w.HeldBy = append(w.HeldBy, d.ID)
 		}
 	}
-	return blockedBy, heldBy
+	return w
+}
+
+// epicWaits is what an epic's direct depends_on entries hold it on
+// (spec/1.7.0.md §7): its undone plain dependencies and the conditions among
+// them, and each unsatisfied any-of group's members, in held when every
+// member is a condition. Every list is in depends_on order.
+type epicWaits struct {
+	BlockedBy      []string
+	HeldBy         []string
+	BlockedByAnyOf [][]string
+	HeldByAnyOf    [][]string
+}
+
+// addGroup adds the group d to w unless one of its members is done.
+func (w *epicWaits) addGroup(d model.EpicDep, states map[string]engine.EpicState, conditions map[string]bool) {
+	members := d.Members()
+	if slices.ContainsFunc(members, func(m string) bool { return states[m].Status == engine.EpicStatusDone }) {
+		return
+	}
+	w.BlockedByAnyOf = append(w.BlockedByAnyOf, members)
+	if !slices.ContainsFunc(members, func(m string) bool { return !conditions[m] }) {
+		w.HeldByAnyOf = append(w.HeldByAnyOf, members)
+	}
+}
+
+// blocked reports whether anything holds the epic.
+func (w *epicWaits) blocked() bool {
+	return len(w.BlockedBy) > 0 || len(w.BlockedByAnyOf) > 0
+}
+
+// held reports whether a condition, or a group of conditions, holds the epic.
+func (w *epicWaits) held() bool {
+	return len(w.HeldBy) > 0 || len(w.HeldByAnyOf) > 0
 }

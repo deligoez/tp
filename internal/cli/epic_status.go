@@ -283,8 +283,8 @@ func (p *epicPlan) claimedAndBlocked(m string) (claimed []epicClaimedEpic, block
 		if status == engine.EpicStatusDone {
 			continue
 		}
-		if by, held := epicUndoneDeps(e, p.states, p.conditions); len(by) > 0 {
-			blocked = append(blocked, epicBlockedEpic{epicReadyEpic: entry, HeldBy: held, BlockedBy: by, NotActionable: p.notActionable[e.ID],
+		if w := epicUndoneDeps(e, p.states, p.conditions); w.blocked() {
+			blocked = append(blocked, epicBlockedEpic{epicReadyEpic: entry, HeldBy: w.HeldBy, BlockedBy: w.BlockedBy, NotActionable: p.notActionable[e.ID],
 				Moot: e.Condition && p.moot[e.ID]})
 		}
 	}
