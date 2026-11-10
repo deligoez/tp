@@ -44,7 +44,7 @@ func buildEpicReviewPrompts(run *epicReviewRun, roles []model.Role) []epicReview
 		b.WriteString(role.Instructions + "\n\n")
 		b.WriteString(asked)
 		writeEpicFocus(&b, role.Focus)
-		prompts = append(prompts, epicPromptWithTail(run, role.ID, &b, epicContextText(run, epicRoleContext(run, role.Context))))
+		prompts = append(prompts, epicPromptWithTail(run, role.ID, &b, epicContextText(run, role.Context)))
 	}
 	if run.round >= 2 && run.carry.Regression() {
 		prompts = append(prompts, epicRegressionPrompt(run, asked))
@@ -151,17 +151,6 @@ func epicChangedText(run *epicReviewRun) string {
 		fmt.Fprintf(&b, "--- %s, round %d\n%s--- %s, now\n%s", u.Key, run.round-1, before, u.Key, u.Block)
 	}
 	return b.String()
-}
-
-// epicRoleContext is the context scope a role reads this round: its own,
-// except that a round appending the regression role asks only changed units
-// and keeps every neighbour in full, so neighbours-brief reads as neighbours
-// there (spec/1.7.0.md non-goals).
-func epicRoleContext(run *epicReviewRun, scope string) string {
-	if scope == model.RoleContextNeighboursBrief && run.round >= 2 && run.carry.Regression() {
-		return model.RoleContextNeighbours
-	}
-	return scope
 }
 
 // epicContextText renders the context blocks a role is shown — every
