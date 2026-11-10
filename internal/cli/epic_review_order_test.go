@@ -61,6 +61,48 @@ func TestEpicReview_DependencyScopedRolesSeeNoDependents(t *testing.T) {
 	assert.Contains(t, stderr, "context")
 }
 
+// epicBriefChain is epicChain with acceptance text and a second edge on the
+// dependent a, so a brief of a can be told from its full block.
+const epicBriefChain = `{
+  "version": 1,
+  "milestones": [["A", "B"]],
+  "epics": [
+    {"id": "a", "title": "A", "milestone": "A", "acceptance": "a ships the report",
+     "depends_on": [{"id": "b", "why": "a needs b"}, {"id": "d", "why": "a also needs d"}]},
+    {"id": "b", "title": "B", "milestone": "A", "depends_on": [{"id": "c", "why": "b needs c"}]},
+    {"id": "c", "title": "C", "milestone": "A", "acceptance": "c parses input"},
+    {"id": "d", "title": "D", "milestone": "A"}
+  ]
+}
+`
+
+// epicRolePrompt returns the prompt the named role was given.
+func epicRolePrompt(t *testing.T, out *epicReviewPayload, role string) string {
+	t.Helper()
+	for _, p := range out.Prompts {
+		if p.Role == role {
+			return p.Prompt
+		}
+	}
+	require.Failf(t, "no prompt", "role %s emitted no prompt", role)
+	return ""
+}
+
+// TestEpicReview_PhaseEconomistSeesDependentsInBrief (spec/1.7.0.md §4): the
+// shipped phase-economist reads each dependency's full block and each
+// dependent as its id, title, milestone and its edge into the asked unit —
+// not the dependent's acceptance or its other edges.
+func TestEpicReview_PhaseEconomistSeesDependentsInBrief(t *testing.T) {
+	t.Parallel()
+	out := runEpicReview(t, epicGraphDir(t, epicBriefChain), "--epic", "b")
+	prompt := epicRolePrompt(t, &out, "phase-economist")
+	assert.Contains(t, prompt, "epic: c\ntitle: C\nmilestone: A\nacceptance: c parses input\n", "the dependency in full")
+	assert.Contains(t, prompt, "epic: a\ntitle: A\nmilestone: A\n", "the dependent's id, title and milestone")
+	assert.Contains(t, prompt, "- b: a needs b\n", "the dependent's edge into the asked unit, with its why")
+	assert.NotContains(t, prompt, "a ships the report", "no dependent acceptance")
+	assert.NotContains(t, prompt, "a also needs d", "no dependent edge outside the asked units")
+}
+
 // TestEpicReview_ACarriedGateStaysVisible: a carried gate is not asked, but its
 // deferrable list is what a placement reader needs to see, so its block stays
 // in the prompt as read-only context.
