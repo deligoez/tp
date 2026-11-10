@@ -117,3 +117,35 @@ func TestEpicReviewGrant_TheGrantedRoundEmitsRecordsAndIsSpent(t *testing.T) {
 	assert.False(t, *epicGrantStatus(t, dir).Grantable, "the slice read its change and is not stale")
 }
 
+// TestEpicReviewGrant_RefusedUnlessAtTheCapAndStale is §8's refusal: below
+// the cap, at the cap with the graph unchanged, and with a grant already open,
+// --grant-round exits 4 — the cap refusal's code — and writes no grant.
+func TestEpicReviewGrant_RefusedUnlessAtTheCapAndStale(t *testing.T) {
+	t.Parallel()
+	below := epicGraphDir(t, epicChain)
+	writeEpicProjectConfig(t, below, `{"review_max_rounds": 2}`)
+	runEpicReview(t, below, "--epic", "b")
+	recordEpicRound(t, below, epicGrantHigh, "--epic", "b")
+	editEpicGraph(t, below, `"title": "B"`, `"title": "B renamed"`)
+	_, stderr, code := grantRound(t, below)
+	require.Equal(t, 4, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "review_max_rounds")
+	assert.Empty(t, epicGrantFiles(t, below))
+
+	unchanged := epicGraphDir(t, epicChain)
+	writeEpicProjectConfig(t, unchanged, `{"review_max_rounds": 1}`)
+	runEpicReview(t, unchanged, "--epic", "b")
+	recordEpicRound(t, unchanged, `{"severity":"high","finding":"f","location":"epic:b","evidence":"b"}`+"\n", "--epic", "b")
+	_, stderr, code = grantRound(t, unchanged)
+	require.Equal(t, 4, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "not changed")
+	assert.Empty(t, epicGrantFiles(t, unchanged))
+
+	open := cappedStaleEpicSlice(t)
+	_, stderr, code = grantRound(t, open)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	_, stderr, code = grantRound(t, open)
+	require.Equal(t, 4, code, "a second grant before the round records is refused; stderr: %s", stderr)
+	assert.Contains(t, stderr, "already granted")
+}
+
