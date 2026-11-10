@@ -9,7 +9,7 @@ func newEpicCmd() *cobra.Command {
 		Use:   "epic",
 		Short: "Epic graph commands over .tp/epics.json",
 	}
-	cmd.AddCommand(newEpicLintCmd(), newEpicExportCmd(), newEpicAddCmd(), newEpicSetCmd(), newEpicRemoveCmd(), newEpicImportCmd(), newEpicReviewCmd(),
+	cmd.AddCommand(newEpicLintCmd(), newEpicExportCmd(), newEpicAddCmd(), newEpicSetCmd(), newEpicRemoveCmd(), newEpicApplyCmd(), newEpicImportCmd(), newEpicReviewCmd(),
 		newEpicLinkCmd(), newEpicUnlinkCmd(), newEpicMilestoneCmd(), newEpicGateCmd(), newEpicDoneCmd(), newEpicClaimCmd(), newEpicReadyCmd(), newEpicStatusCmd())
 	return cmd
 }

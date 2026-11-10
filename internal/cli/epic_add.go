@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -36,6 +37,9 @@ type epicWriteResult struct {
 	// AncestryChanged is tp epic set opens_after= and milestones='s report of
 	// the milestones whose ancestry the write changed; absent elsewhere.
 	AncestryChanged *[]engine.AncestryChange `json:"ancestry_changed,omitempty"`
+	// Rows is tp epic apply --dry-run's report of what each payload row did;
+	// absent elsewhere.
+	Rows *[]epicApplyRowAction `json:"rows,omitempty"`
 }
 
 func newEpicAddCmd() *cobra.Command {
@@ -216,6 +220,11 @@ type epicWriteOpts struct {
 	action     *string
 	ancestry   *[]engine.AncestryChange
 	record     bool
+	// apply marks a tp epic apply write: bulkLines are its payload lines,
+	// rows its dry-run report, and dryRun writes nothing.
+	apply  bool
+	dryRun bool
+	rows   *[]epicApplyRowAction
 }
 
 // writeEpicGraph runs one locked, lint-checked write of .tp/epics.json with
@@ -241,17 +250,16 @@ func writeEpicGraphWith(opts epicWriteOpts, mutate func(*model.EpicGraph) error)
 		count = len(g.Epics)
 		return nil
 	}
-	update := engine.UpdateEpicGraph
-	if opts.record {
-		update = engine.UpdateEpicRecord
-	}
-	out, err := update(engine.ProjectConfigDir("."), opts.ifRevision, counted)
+	out, err := epicUpdater(&opts)(engine.ProjectConfigDir("."), opts.ifRevision, counted)
 	if err != nil {
 		exitEpicWriteError(err, &opts)
 	}
 	result := epicWriteResult{File: out.Path, Epics: count, DroppedKeys: out.Dropped, Revision: out.Revision, AncestryChanged: opts.ancestry}
 	if opts.action != nil {
 		result.Action = *opts.action
+	}
+	if opts.dryRun {
+		result.Rows = opts.rows
 	}
 	if err := output.JSON(result); err != nil {
 		output.Error(ExitFile, err.Error(), internalEncodeHint)
@@ -276,14 +284,12 @@ func classifyEpicWriteError(err error, opts *epicWriteOpts) (code int, message, 
 	}
 	var edge *engine.EpicEdgeNotFoundError
 	if errors.As(err, &edge) {
-		return ExitState, edge.Error(), epicEdgeNotFoundHintOf(edge)
+		return ExitState, err.Error(), epicEdgeNotFoundHintOf(edge)
 	}
 	var refused *engine.EpicWriteRefusedError
 	if errors.As(err, &refused) {
-		if opts.bulkLines != nil {
-			return ExitValidation, epicBulkRefusedMessage(refused, opts.bulkLines), epicBulkRefusedHint
-		}
-		return ExitValidation, refused.Error(), epicRefusedHint(refused)
+		message, hint = epicRefusal(refused, opts)
+		return ExitValidation, message, hint
 	}
 	for _, c := range []struct {
 		target any
@@ -322,7 +328,7 @@ const epicBulkRefusedHint = "fix the --bulk payload rows each error names; a row
 
 // epicBulkRefusedMessage is the refusal's message with, after each error, the
 // payload lines of the epics it names.
-func epicBulkRefusedMessage(refused *engine.EpicWriteRefusedError, bulkLines map[string][]int) string {
+func epicBulkRefusedMessage(refused *engine.EpicWriteRefusedError, bulkLines map[string][]int, label string) string {
 	parts := make([]string, 0, len(refused.New))
 	for i := range refused.New {
 		f := &refused.New[i]
@@ -331,19 +337,44 @@ func epicBulkRefusedMessage(refused *engine.EpicWriteRefusedError, bulkLines map
 		for _, id := range f.Epics {
 			nums = append(nums, bulkLines[id]...)
 		}
+		sort.Ints(nums)
+		nums = slices.Compact(nums)
 		if len(nums) > 0 {
-			sort.Ints(nums)
-			label := "--bulk line "
-			if len(nums) > 1 {
-				label = "--bulk lines "
-			}
 			strs := make([]string, len(nums))
 			for j, n := range nums {
 				strs[j] = strconv.Itoa(n)
 			}
-			part += " (" + label + strings.Join(strs, ", ") + ")"
+			plural := ""
+			if len(nums) > 1 {
+				plural = "s"
+			}
+			part += " (" + label + " line" + plural + " " + strings.Join(strs, ", ") + ")"
 		}
 		parts = append(parts, part)
 	}
 	return "write refused: it adds lint errors the file did not hold: " + strings.Join(parts, "; ")
+}
+
+// epicRefusal is the message and hint of a refused write: with payload lines,
+// each error followed by the lines of the epics it names.
+func epicRefusal(refused *engine.EpicWriteRefusedError, opts *epicWriteOpts) (message, hint string) {
+	switch {
+	case opts.apply:
+		return epicBulkRefusedMessage(refused, opts.bulkLines, "payload"), epicApplyRefusedHint
+	case opts.bulkLines != nil:
+		return epicBulkRefusedMessage(refused, opts.bulkLines, "--bulk"), epicBulkRefusedHint
+	}
+	return refused.Error(), epicRefusedHint(refused)
+}
+
+// epicUpdater is the engine write opts asks for: a dry run's preview, an
+// operator's record, or the lint-refused write.
+func epicUpdater(opts *epicWriteOpts) func(string, *string, func(*model.EpicGraph) error) (engine.EpicWriteOutcome, error) {
+	switch {
+	case opts.dryRun:
+		return engine.PreviewEpicGraph
+	case opts.record:
+		return engine.UpdateEpicRecord
+	}
+	return engine.UpdateEpicGraph
 }
