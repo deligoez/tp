@@ -167,7 +167,6 @@ func (a *actionability) groupCountsAsCondition(d model.EpicDep) bool {
 	})
 }
 
-// epicDepsDone reports whether every direct dependency of e is done.
 // epicDepsDone reports whether every direct dependency of e is satisfied.
 func epicDepsDone(e *model.Epic, states map[string]EpicState) bool {
 	for _, dep := range e.DependsOn {
