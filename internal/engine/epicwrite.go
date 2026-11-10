@@ -67,6 +67,22 @@ func UpdateEpicRecord(tpDir string, ifRevision *string, mutate func(*model.EpicG
 	return updateEpicGraph(tpDir, ifRevision, mutate, false)
 }
 
+// PreviewEpicGraph is UpdateEpicGraph without the write (tp epic apply
+// --dry-run, spec/1.7.0.md §6): it checks ifRevision, applies mutate to the
+// graph tpDir holds and refuses the same new lint errors, then writes
+// nothing. Like every read it takes no lock. The outcome's revision is the
+// file's current one, "" when it is absent.
+func PreviewEpicGraph(tpDir string, ifRevision *string, mutate func(*model.EpicGraph) error) (EpicWriteOutcome, error) {
+	out := EpicWriteOutcome{Path: filepath.Join(tpDir, EpicGraphFile), Dropped: []string{}}
+	_, unknown, err := mutateEpicGraph(tpDir, ifRevision, mutate, true)
+	if err != nil {
+		return out, err
+	}
+	out.Dropped = unknownKeyPaths(unknown)
+	out.Revision, err = EpicGraphRevision(tpDir)
+	return out, err
+}
+
 // updateEpicGraph is the locked write both share; refuse says whether new
 // lint errors refuse it.
 func updateEpicGraph(tpDir string, ifRevision *string, mutate func(*model.EpicGraph) error, refuse bool) (EpicWriteOutcome, error) {
