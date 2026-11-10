@@ -144,6 +144,28 @@ func TestLintEpicGraph_DependencyOpensLaterFindsALongerWaitCycle(t *testing.T) {
 	assert.Contains(t, found[0].Message, "c -> b")
 }
 
+// TestLintEpicGraph_DependencyOpensLaterNamesEachEdgeOfTheCycle: the cycle of
+// the longer wait fixture, found first from C's edge since c leads the graph,
+// still reads in canonical rotation from A. Each step names the milestone the
+// opening waits on next, and A's edge names both members a1 and a2 and the
+// first one's whole path, a1 -> x -> y -> d.
+func TestLintEpicGraph_DependencyOpensLaterNamesEachEdgeOfTheCycle(t *testing.T) {
+	g := &model.EpicGraph{
+		Version:    1,
+		Milestones: [][]string{{"A", "B"}, {"C", "D"}},
+		Gates:      map[string]model.EpicGate{"A": {Members: []string{"a1", "a2"}}},
+		Epics: []model.Epic{
+			dependsOn("c", "C", "b"), dependsOn("b", "B"), dependsOn("a1", "A", "x"), dependsOn("x", "A", "y"),
+			dependsOn("y", "A", "d"), dependsOn("a2", "A", "d"), dependsOn("d", "D"),
+		},
+	}
+	found := findingsOf(t, LintEpicGraph(g, nil), EpicRuleDependencyOpensLater)
+	require.Len(t, found, 1, "%v", found)
+	assert.Contains(t, found[0].Message, `"A" -> "D" -> "C" -> "B" -> "A"`)
+	assert.Contains(t, found[0].Message, `its members a1, a2 reaching d, a1 through a1 -> x -> y -> d; "D" opens after "C"`)
+	assert.Contains(t, found[0].Message, `c reaching b through c -> b; "B" opens after "A"`)
+}
+
 // TestLintEpicGraph_DependencyOpensLaterStopsAtADoneRecord: reach runs
 // through epics without a done record only, so a done epic on the path, a
 // done target and a done member each leave the plan clean.
