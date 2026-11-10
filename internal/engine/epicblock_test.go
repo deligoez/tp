@@ -176,3 +176,33 @@ func TestEpicBlock_OperatorActionOnlyWhenEveryBlockerIsACondition(t *testing.T) 
 		})
 	}
 }
+
+// TestEpicBlockFor_AGroupBlocksUntilOneMemberIsDone is spec/1.7.0.md §7: a
+// file bound to w, which depends on one of {a, b}, is blocked by the group,
+// its members in stored order beside an empty BlockedBy, until a's done
+// record satisfies it. A block that read a group as an edge names "" in
+// BlockedBy and never clears.
+func TestEpicBlockFor_AGroupBlocksUntilOneMemberIsDone(t *testing.T) {
+	root := boundFilesRepo(t)
+	path := filepath.Join(root, "w.tasks.json")
+	tf := &model.TaskFile{Epic: "w"}
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"M"}}, Epics: []model.Epic{
+		{ID: "w", Title: "W", Milestone: "M", DependsOn: []model.EpicDep{{AnyOf: []string{"b", "a"}, Why: "either opens the API"}}},
+		{ID: "a", Title: "A", Milestone: "M", Root: true},
+		{ID: "b", Title: "B", Milestone: "M", Root: true},
+	}}
+	writeBlockGraph(t, root, g)
+	block, err := EpicBlockFor(tf, path)
+	require.NoError(t, err)
+	require.NotNil(t, block)
+	assert.Empty(t, block.BlockedBy)
+	assert.Equal(t, [][]string{{"b", "a"}}, block.BlockedByAnyOf)
+
+	g.Epics[1].Done = &model.EpicDone{At: time.Date(2026, 1, 6, 9, 0, 0, 0, time.UTC), Evidence: "shipped"}
+	writeBlockGraph(t, root, g)
+	block, err = EpicBlockFor(tf, path)
+	require.NoError(t, err)
+	require.NotNil(t, block)
+	assert.Empty(t, block.BlockedBy)
+	assert.Empty(t, block.BlockedByAnyOf)
+}
