@@ -40,8 +40,8 @@ func epicMilestones(g *model.EpicGraph) map[string]string {
 	return byID
 }
 
-// lintEpicMissingWhy reports each edge whose why is absent or blank once
-// trimmed, whether or not its target exists.
+// lintEpicMissingWhy reports each edge, and each any-of group, whose one why
+// is absent or blank once trimmed, whether or not its targets exist.
 func lintEpicMissingWhy(g *model.EpicGraph) []EpicLintFinding {
 	var out []EpicLintFinding
 	for i := range g.Epics {
@@ -49,7 +49,7 @@ func lintEpicMissingWhy(g *model.EpicGraph) []EpicLintFinding {
 		for _, d := range e.DependsOn {
 			if strings.TrimSpace(d.Why) == "" {
 				out = append(out, epicError(EpicRuleMissingWhy,
-					fmt.Sprintf("edge %q -> %q has no why", e.ID, d.ID), e.ID, d.ID))
+					fmt.Sprintf("edge %q -> %s has no why", e.ID, epicDepLabel(d)), append([]string{e.ID}, d.Names()...)...))
 			}
 		}
 	}
