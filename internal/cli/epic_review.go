@@ -72,6 +72,7 @@ func newEpicReviewCmd() *cobra.Command {
 	cmd.Flags().Bool("resolve", false, "Mark one finding of the last recorded round fixed/wontfix/duplicate (positionals: 0-based index, status, evidence)")
 	cmd.Flags().Bool("resolve-all", false, "Mark every unresolved finding of the last recorded round with a status (positionals: status, evidence)")
 	cmd.Flags().Bool("force", false, "With --resolve or --resolve-all: re-resolve findings that already carry a disposition")
+	cmd.Flags().Bool("grant-round", false, "Grant a stale slice at review_max_rounds one more round to emit and record (the operator's decision)")
 	return cmd
 }
 
@@ -88,6 +89,11 @@ func epicReviewArgs(cmd *cobra.Command, args []string) error {
 // runEpicReview emits a round over the slice the flags name. Neither or both
 // slice flags is a usage error decided before anything is read or written.
 func runEpicReview(cmd *cobra.Command, args []string) error {
+	if grant, _ := cmd.Flags().GetBool("grant-round"); grant {
+		refuseEpicGrantBeside(cmd)
+		runEpicReviewGrant(epicReviewSliceKey(cmd))
+		return nil
+	}
 	key := epicReviewSliceKey(cmd)
 	if runEpicReviewDisposition(cmd, key, args) {
 		return nil
