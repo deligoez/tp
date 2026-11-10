@@ -77,3 +77,14 @@ func TestLintEpicGraph_AnEdgeToAnyMemberClosesACycle(t *testing.T) {
 	require.Len(t, cycles, 1)
 	assert.Equal(t, []string{"a"}, cycles[0].Epics)
 }
+
+// TestLintEpicGraph_MissingWhyAsksOneWhyPerGroup: a group without a why is
+// one missing-why naming the epic and every member, worded as the group.
+func TestLintEpicGraph_MissingWhyAsksOneWhyPerGroup(t *testing.T) {
+	g := anyOfLintGraph()
+	g.Epics[0].DependsOn[0].Why = " "
+	missing := findingsOf(t, LintEpicGraph(g, nil), EpicRuleMissingWhy)
+	require.Len(t, missing, 1)
+	assert.Equal(t, []string{"a", "x", "y"}, missing[0].Epics)
+	assert.Contains(t, missing[0].Message, "one of {x, y}")
+}
