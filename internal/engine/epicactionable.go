@@ -26,9 +26,11 @@ const (
 // it is a member (GateMembers) of the gate of an open milestone, so deciding
 // it can turn that gate green; nothing depends on it; or an epic depending on
 // it can move (not done, in an open milestone or with a bound file) and has
-// only conditions among its undone direct dependencies. The first keeps a
-// condition that holds a gate from waiting on a dependent in the milestone
-// that gate opens. states is DeriveEpicStates' result, gates MilestoneGates'
+// only conditions among its undone direct dependencies. An epic depends on c
+// through a plain edge or a group naming it, and an unsatisfied group counts
+// as a condition when groupCountsAsCondition says so (spec/1.7.0.md §7). The
+// first keeps a condition that holds a gate from waiting on a dependent in
+// the milestone that gate opens. states is DeriveEpicStates' result, gates MilestoneGates'
 // and bound EpicBoundFiles'. A condition of a milestone no track lists has a
 // closed milestone. tp epic ready, status and the export read this one answer.
 func ConditionsNotActionable(g *model.EpicGraph, states map[string]EpicState, gates map[string]MilestoneGate, bound map[string][]string) map[string][]string {
@@ -37,7 +39,9 @@ func ConditionsNotActionable(g *model.EpicGraph, states map[string]EpicState, ga
 	for i := range g.Epics {
 		e := &g.Epics[i]
 		for _, d := range e.DependsOn {
-			a.dependents[d.ID] = append(a.dependents[d.ID], e)
+			for _, id := range d.Names() {
+				a.dependents[id] = append(a.dependents[id], e)
+			}
 		}
 	}
 	out := map[string][]string{}
@@ -101,7 +105,7 @@ func (a *actionability) unblocksADependent(c *model.Epic) bool {
 		return true
 	}
 	for _, w := range dependents {
-		if dependentCanMove(w, a.states, a.gates, a.bound) && heldOnlyByConditions(w, a.byID, a.states) {
+		if dependentCanMove(w, a.states, a.gates, a.bound) && a.heldOnlyByConditions(w) {
 			return true
 		}
 	}
@@ -117,18 +121,36 @@ func dependentCanMove(w *model.Epic, states map[string]EpicState, gates map[stri
 	return gates[w.Milestone].Open || len(bound[w.ID]) > 0
 }
 
-// heldOnlyByConditions reports whether every undone direct dependency of w is
-// a condition.
-func heldOnlyByConditions(w *model.Epic, byID map[string]*model.Epic, states map[string]EpicState) bool {
+// heldOnlyByConditions reports whether every unsatisfied direct dependency
+// of w is a condition: a plain edge to one, or a group that counts as one
+// (groupCountsAsCondition).
+func (a *actionability) heldOnlyByConditions(w *model.Epic) bool {
 	for _, d := range w.DependsOn {
-		if states[d.ID].Status == EpicStatusDone {
+		if epicDepSatisfied(d, a.states) {
 			continue
 		}
-		if dep, ok := byID[d.ID]; !ok || !dep.Condition {
+		if d.IsGroup() {
+			if !a.groupCountsAsCondition(d) {
+				return false
+			}
+			continue
+		}
+		if dep, ok := a.byID[d.ID]; !ok || !dep.Condition {
 			return false
 		}
 	}
 	return true
+}
+
+// groupCountsAsCondition reports whether the unsatisfied group d counts as a
+// condition (spec/1.7.0.md §7): one of its condition members has its
+// milestone open and its own dependencies done, so the operator can satisfy
+// it now.
+func (a *actionability) groupCountsAsCondition(d model.EpicDep) bool {
+	return slices.ContainsFunc(d.Members(), func(id string) bool {
+		m, ok := a.byID[id]
+		return ok && m.Condition && a.gates[m.Milestone].Open && epicDepsDone(m, a.states)
+	})
 }
 
 // epicDepsDone reports whether every direct dependency of e is done.
