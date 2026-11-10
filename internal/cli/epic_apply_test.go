@@ -203,3 +203,21 @@ func TestEpicApply_AnAbsentSubjectOrUnlinkedEdgeFailsAtItsRow(t *testing.T) {
 	}
 }
 
+// TestEpicApply_ARemoveAndALaterAddOfOneIDAreRefused: add already replaces
+// by id, so a payload removing d and adding it again is refused before the
+// graph is read, naming both lines.
+func TestEpicApply_ARemoveAndALaterAddOfOneIDAreRefused(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChainWithGate)
+	before := readEpicGraphFile(t, dir)
+	payload := applyPayload(t, dir,
+		`{"op":"remove","id":"d","force":true}`,
+		`{"op":"add","epic":{"id":"d","title":"D again","milestone":"A"}}`,
+	)
+	_, stderr, code := runTP(t, dir, "epic", "apply", payload)
+	require.Equal(t, 2, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "payload line 2")
+	assert.Contains(t, stderr, "line 1")
+	assert.Equal(t, before, readEpicGraphFile(t, dir))
+}
+
