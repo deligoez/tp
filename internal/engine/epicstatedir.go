@@ -23,6 +23,19 @@ func EpicReviewStateDir(tpDir string, key EpicSliceKey) string {
 	return filepath.Join(tpDir, EpicReviewStateRoot, epicHash(epicSliceKeyText(key)))
 }
 
+// EpicReviewInboxDir is the slice's inbox under its state directory: where a
+// role of a hand-run round writes its rows (spec/1.7.0.md §1). It is
+// git-ignored, and the plugin's write-deny hook lets the inbox name through.
+func EpicReviewInboxDir(stateDir string) string {
+	return filepath.Join(stateDir, "inbox")
+}
+
+// EpicReviewInboxPath is one role's file of round in the slice's inbox,
+// <state dir>/inbox/<role>-r<N>.ndjson.
+func EpicReviewInboxPath(stateDir, role string, round int) string {
+	return filepath.Join(EpicReviewInboxDir(stateDir), fmt.Sprintf("%s-r%d.ndjson", role, round))
+}
+
 // epicSliceKeyText renders key with its kind and a NUL separator, which no
 // milestone or epic id can make ambiguous. A named set is keyed by its name,
 // an unnamed one by its sorted, de-duplicated ids, under two different kinds.
