@@ -70,3 +70,21 @@ func TestEpicReviewBatchStatus_AllReadsEverySliceDirectory(t *testing.T) {
 	assert.Contains(t, d.NextAction, "record round 1: tp epic review --epic d --record")
 }
 
+// TestEpicReviewBatchStatus_MilestonesReadEachInTheOrderGiven is §5's
+// --status --milestones: one row per listed milestone in the order given, an
+// unreviewed one included with round 0 and the next_action that emits it.
+func TestEpicReviewBatchStatus_MilestonesReadEachInTheOrderGiven(t *testing.T) {
+	t.Parallel()
+	dir := epicBatchFixture(t)
+
+	rows := runEpicBatchStatus(t, dir, "--milestones", "L1,A")
+	require.Len(t, rows, 2)
+	assert.Equal(t, "L1", rows[0].Key.Value)
+	assert.Equal(t, "done", rows[0].State)
+	assert.Equal(t, "A", rows[1].Key.Value)
+	assert.Equal(t, 0, rows[1].Round)
+	assert.Equal(t, "none", rows[1].State)
+	assert.Equal(t, map[string]int{"critical": 0, "high": 0, "medium": 0, "low": 0}, rows[1].Open)
+	assert.Equal(t, "emit round 1: tp epic review --milestone A", rows[1].NextAction)
+}
+
