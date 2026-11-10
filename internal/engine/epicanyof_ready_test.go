@@ -75,3 +75,23 @@ func TestConditionsActionable_AGroupWhoseConditionMembersAreClosedIsNoCondition(
 	g.Gates = map[string]model.EpicGate{"M1": {Members: []string{"x"}}}
 	assert.False(t, actionableOf(g, "c2"))
 }
+
+// TestConditionsActionable_ASatisfiedGroupLeavesItsOtherMembers is
+// spec/1.7.0.md §7: w in the open A depends on one of {c1, c2} and on the
+// condition c3; c1 is done, so the group is satisfied and w leaves c2's
+// actionability. c2's other dependent y sits in the closed B, so nothing
+// deciding c2 moves: it is not actionable. A satisfied group still counted
+// makes w, which waits on c3 alone, a dependent c2 unblocks.
+func TestConditionsActionable_ASatisfiedGroupLeavesItsOtherMembers(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"A", "B"}}, Epics: []model.Epic{
+		{ID: "w", Title: "W", Milestone: "A", DependsOn: []model.EpicDep{
+			{AnyOf: []string{"c1", "c2"}, Why: "either opens the API"},
+			{ID: "c3", Why: "w needs the budget"},
+		}},
+		{ID: "c1", Title: "C1", Milestone: "A", Root: true, Condition: true, Acceptance: "the board says yes"},
+		{ID: "c2", Title: "C2", Milestone: "A", Root: true, Condition: true, Acceptance: "the vendor says yes"},
+		{ID: "c3", Title: "C3", Milestone: "A", Root: true, Condition: true, Acceptance: "the budget is approved"},
+		{ID: "y", Title: "Y", Milestone: "B", DependsOn: []model.EpicDep{{ID: "c2", Why: "y reads the vendor's terms"}}},
+	}}
+	assert.False(t, actionableOf(g, "c2", "c1"))
+}
