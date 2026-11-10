@@ -114,3 +114,30 @@ func TestEpicBlockFor_ADependencyWithoutADoneRecordIsDoneOnceItsFilesAre(t *test
 	require.NotNil(t, block)
 	assert.Empty(t, block.BlockedBy, "b derives done from its bound file")
 }
+
+// TestEpicBlockFor_ReadsEachDependencyWhereverTheGraphHoldsIt: a dependency
+// is read at any position of the graph, the first included, and an id the
+// graph does not hold is not done. An undone condition at the head of the
+// graph is a blocker and a condition; a done dependency there blocks nothing.
+func TestEpicBlockFor_ReadsEachDependencyWhereverTheGraphHoldsIt(t *testing.T) {
+	root := boundFilesRepo(t)
+	path := filepath.Join(root, "b.tasks.json")
+	tf := &model.TaskFile{Epic: "b"}
+	dependent := model.Epic{ID: "b", Title: "B", Milestone: "M", DependsOn: []model.EpicDep{{ID: "c", Why: "c first"}, {ID: "ghost", Why: "never written"}}}
+
+	condition := model.Epic{ID: "c", Title: "C", Milestone: "M", Root: true, Condition: true, Acceptance: "the operator agrees"}
+	writeBlockGraph(t, root, &model.EpicGraph{Version: 1, Milestones: [][]string{{"M"}}, Epics: []model.Epic{condition, dependent}})
+	block, err := EpicBlockFor(tf, path)
+	require.NoError(t, err)
+	require.NotNil(t, block)
+	assert.Equal(t, []string{"c", "ghost"}, block.BlockedBy)
+	assert.Equal(t, []string{"c"}, block.Conditions)
+
+	done := model.Epic{ID: "c", Title: "C", Milestone: "M", Root: true, Done: &model.EpicDone{At: time.Date(2026, 1, 6, 9, 0, 0, 0, time.UTC), Evidence: "shipped"}}
+	dependent.DependsOn = dependent.DependsOn[:1]
+	writeBlockGraph(t, root, &model.EpicGraph{Version: 1, Milestones: [][]string{{"M"}}, Epics: []model.Epic{done, dependent}})
+	block, err = EpicBlockFor(tf, path)
+	require.NoError(t, err)
+	require.NotNil(t, block)
+	assert.Empty(t, block.BlockedBy)
+}
