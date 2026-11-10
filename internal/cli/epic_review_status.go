@@ -59,14 +59,19 @@ func epicBudgetHint(key engine.EpicSliceKey) string {
 
 // refuseEpicReviewAtCap exits 4 with the slice's budget hint when the
 // slice's recorded rounds reached review_max_rounds and it is not converged:
-// a reached cap refuses emission and record alike.
+// a reached cap refuses emission and record alike. A stale slice's hint names
+// the grant of one more round (spec/1.7.0.md §8) before the project cap.
 func refuseEpicReviewAtCap(run *epicReviewRun) {
 	st := epicReviewLoop(run)
 	if !st.CapReached {
 		return
 	}
+	hint := epicBudgetHint(run.key)
+	if st.Grantable {
+		hint = "the graph changed after the round cap: " + epicGrantHint(run.key)
+	}
 	output.Error(ExitState, fmt.Sprintf("epic review round budget exhausted: %d rounds recorded for %s and not converged",
-		st.Round, epicSliceLabel(run.key)), epicBudgetHint(run.key))
+		st.Round, epicSliceLabel(run.key)), hint)
 	os.Exit(ExitState)
 }
 
