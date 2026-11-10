@@ -407,22 +407,23 @@ Every rule identifier tp can put in a `findings[].rule` field, and the command t
 | `coverage` | `tp validate` | error/warning | Wrong `total_sections`, unmapped sections, coverage arithmetic that does not add up (error); spec missing or unparseable (warning) |
 | `section-anchor` | `tp validate` | warning | A `source_sections` entry that matches no heading, or is ambiguous between several |
 | `line-coverage` | `tp validate` | warning/info | Uncovered spec lines, unusable or invalid `source_lines` (warning); the "…and N more gap(s)" continuation (info) |
-| `cycle` | `tp epic lint` | error | The epic dependency graph has a cycle; one finding per strongly connected component |
-| `dangling-reference` | `tp epic lint` | error | A `depends_on` id, a gate member or deferrable, or a `provided_by` names no epic; a `gates` key names no milestone |
+| `any-of-shape` | `tp epic lint` | error | A `depends_on` entry carries both or neither of `id` and `any_of`, an any-of group has fewer than two distinct members or sits beside a plain edge to one of its members, or two groups of one epic have one member set |
+| `cycle` | `tp epic lint` | error | The epic dependency graph has a cycle, an edge to any member of an any-of group counting; one finding per strongly connected component |
+| `dangling-reference` | `tp epic lint` | error | A `depends_on` id or any-of member, a gate member or deferrable, or a `provided_by` names no epic; a `gates` key names no milestone |
 | `duplicate-name` | `tp epic lint` | error | An epic id or a milestone name appears twice |
 | `unknown-key` | `tp epic lint` | error | A key outside the epic graph file's schema |
-| `missing-why` | `tp epic lint` | error | An edge has no `why`, or one that is empty once trimmed |
+| `missing-why` | `tp epic lint` | error | An edge or an any-of group has no `why`, or one that is empty once trimmed |
 | `unknown-milestone` | `tp epic lint` | error | An epic's `milestone` is absent or in no track, or `opens_after` names a milestone in no track |
 | `later-milestone-dependency` | `tp epic lint` | error | An epic depends on one in a later milestone of the same track; edges across tracks are free |
 | `gate-member-outside-milestone` | `tp epic lint` | error | A gate member or deferrable epic is not in that milestone |
 | `gate-member-deferrable` | `tp epic lint` | error | A gate lists an epic both in `members` and in `deferrable` |
-| `unprovided-tag-check` | `tp epic lint` | error | An epic carries a tag whose `provided_by` is not in its transitive dependencies, or, under `"direct": true`, not a plain direct dependency; the provider itself is exempt |
+| `unprovided-tag-check` | `tp epic lint` | error | An epic carries a tag whose `provided_by` is not in its transitive dependencies, or, under `"direct": true`, not a plain direct dependency; the provider itself is exempt. A provider counts through an any-of group only when every member is it or depends on it, and never under `direct` |
 | `opens-after-cycle` | `tp epic lint` | error | The milestones' `opens_after`, track defaults applied, has a cycle (a self-reference too) |
 | `opens-after-not-list` | `tp epic lint` | error | An `opens_after` value is null or not a list, which only a hand edit writes (`tp epic set` and `tp epic import` refuse it) |
 | `dependency-opens-later` | `tp epic lint` | error, or warning when no gate member reaches the epic | Milestones wait on each other in a cycle: an opening waits on the gates of the milestones it opens after, transitively, and a gate on the opening of each milestone an undone epic of which an effective member reaches through not-done epics, so no gate on it can go green (error, one per cycle, naming the milestones in order and each reach's path); only an epic outside a gate's members reaches an epic of a milestone opening after it, and it can finish once that milestone opens (warning). An edge `later-milestone-dependency` reports is left to that rule |
-| `no-dependencies` | `tp epic lint` | warning | An epic outside the first milestone of its track has no dependencies and is neither marked `root: true` nor a condition |
-| `root-with-dependencies` | `tp epic lint` | warning | An epic marked `root: true` has dependencies |
-| `thin-why` | `tp epic lint` | warning | A `why`, case-folded and split into words, is non-empty and occurs as a run of whole words in the target epic's id or title |
+| `no-dependencies` | `tp epic lint` | warning | An epic outside the first milestone of its track has no dependencies, an any-of group counting as one, and is neither marked `root: true` nor a condition |
+| `root-with-dependencies` | `tp epic lint` | warning | An epic marked `root: true` has dependencies, an any-of group counting as one |
+| `thin-why` | `tp epic lint` | warning | A plain edge's `why`, case-folded and split into words, is non-empty and occurs as a run of whole words in the target epic's id or title; any-of groups are not checked |
 | `partial-parallel` | `tp epic lint` | warning, or info when the milestone's `opens_after` entry is written | A milestone does not open after an earlier milestone of its track, even transitively, yet some of its epics depend directly on that milestone's epics; one finding per pair, naming them |
 | `gate-held-by-condition` | `tp epic lint` | info | Effective gate members reach an undone condition of another milestone through epics without a done record; one finding per gate milestone and condition, naming every member that reaches it, with one path. A condition in the gate's own milestone is not reported |
 
