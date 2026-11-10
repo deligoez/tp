@@ -279,6 +279,31 @@ func TestEpicApply_DryRunPrintsEachRowsActionAndWritesNothing(t *testing.T) {
 	assert.Equal(t, 7, out.Rows[6].Line)
 }
 
+// TestEpicApply_DryRunPrintsTheWritersPayloadAndEachRow is spec/1.7.0.md §6's
+// "--dry-run prints it and each row's action": every key the write itself
+// prints, ancestry_changed included, beside rows — and the flag's help says
+// so, rather than a "payload" a reader takes for the input rows.
+func TestEpicApply_DryRunPrintsTheWritersPayloadAndEachRow(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChainWithGate)
+	payload := applyPayload(t, dir, `{"op":"set","id":"a","field":"title","value":"A2"}`)
+	decode := func(args ...string) map[string]json.RawMessage {
+		stdout, stderr, code := runTP(t, dir, append([]string{"epic", "apply", payload}, args...)...)
+		require.Equal(t, 0, code, "stderr: %s", stderr)
+		var out map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal([]byte(stdout), &out), "stdout: %s", stdout)
+		return out
+	}
+	dry := decode("--dry-run")
+	assert.Contains(t, dry, "rows")
+	for key := range decode() {
+		assert.Contains(t, dry, key, "--dry-run prints the write's %s", key)
+	}
+	help, _, code := runTP(t, dir, "epic", "apply", "--help")
+	require.Equal(t, 0, code)
+	assert.Contains(t, help, "print the write's payload (file, epics, dropped_keys, revision, ancestry_changed) and each row's action")
+}
+
 // TestEpicApply_IfRevisionRefusesAMovedGraph: a stale --if-revision exits 4
 // and writes nothing.
 func TestEpicApply_IfRevisionRefusesAMovedGraph(t *testing.T) {
