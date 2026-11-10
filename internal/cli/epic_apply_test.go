@@ -238,3 +238,44 @@ func TestEpicApply_AnAddRowCarryingARecordIsRefused(t *testing.T) {
 	assert.Equal(t, before, readEpicGraphFile(t, dir))
 }
 
+// TestEpicApply_DryRunPrintsEachRowsActionAndWritesNothing: --dry-run prints
+// the payload a write would, the file's current revision, and each row's
+// action, and leaves the file byte-identical.
+func TestEpicApply_DryRunPrintsEachRowsActionAndWritesNothing(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChainWithGate)
+	before := readEpicGraphFile(t, dir)
+	payload := applyPayload(t, dir,
+		`{"op":"add","epic":{"id":"e","title":"E","milestone":"A"}}`,
+		`{"op":"add","epic":{"id":"d","title":"D2","milestone":"A"}}`,
+		`{"op":"link","from":"e","to":"d","why":"e needs d"}`,
+		`{"op":"link","from":"a","to":"b","why":"a needs b, reworded"}`,
+		`{"op":"unlink","from":"c","to":"d"}`,
+		`{"op":"set","field":"milestones","value":[["A", "B"], ["L1"]]}`,
+		`{"op":"remove","id":"e","force":true}`,
+	)
+	stdout, stderr, code := runTP(t, dir, "epic", "apply", payload, "--dry-run")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.Equal(t, before, readEpicGraphFile(t, dir), "--dry-run writes nothing")
+	var out struct {
+		Epics    int    `json:"epics"`
+		Revision string `json:"revision"`
+		Rows     []struct {
+			Line   int    `json:"line"`
+			Op     string `json:"op"`
+			Action string `json:"action"`
+		} `json:"rows"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+	assert.Equal(t, 4, out.Epics)
+	lintOut, _, _ := runTP(t, dir, "epic", "lint")
+	require.NotEmpty(t, out.Revision)
+	assert.Contains(t, lintOut, out.Revision, "the revision is the unchanged file's")
+	var actions []string
+	for _, r := range out.Rows {
+		actions = append(actions, r.Op+":"+r.Action)
+	}
+	assert.Equal(t, []string{"add:added", "add:replaced", "link:added", "link:replaced", "unlink:removed", "set:set", "remove:removed"}, actions)
+	assert.Equal(t, 7, out.Rows[6].Line)
+}
+
