@@ -70,3 +70,13 @@ func TestConditionsActionable_EveryDependentDoneIsNotActionable(t *testing.T) {
 	}}
 	assert.False(t, conditionActionableOf(g, nil, "w1", "w2"))
 }
+
+// TestConditionsActionable_AConditionNothingDependsOnIsActionable is
+// spec/1.6.0.md F3: c's milestone is open and nothing depends on it, so it is
+// actionable though no gate holds it.
+func TestConditionsActionable_AConditionNothingDependsOnIsActionable(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"A"}}, Epics: []model.Epic{
+		{ID: "c", Title: "C", Milestone: "A", Root: true, Condition: true, Acceptance: "the board says yes"},
+	}}
+	assert.True(t, conditionActionableOf(g, nil))
+}
