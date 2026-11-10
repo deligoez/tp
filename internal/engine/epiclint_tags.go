@@ -90,15 +90,9 @@ func unprovidedTagMessage(e *model.Epic, tag string, check model.EpicTagCheck, d
 
 // dependsDirectlyOn reports whether e has a plain edge to provider: the only
 // edge a direct tag check accepts. A path through other epics never counts,
-// and neither will an any-of group, even one holding the provider — when
-// depends_on gains groups, this is the one place that must skip them.
+// and neither does an any-of group, even one holding the provider.
 func dependsDirectlyOn(e *model.Epic, provider string) bool {
-	for _, d := range e.DependsOn {
-		if d.ID == provider {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(e.DependsOn, func(d model.EpicDep) bool { return !d.IsGroup() && d.ID == provider })
 }
 
 // lintEpicNoDependencies warns on each epic outside the first milestone of
