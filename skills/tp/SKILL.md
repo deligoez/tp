@@ -523,7 +523,9 @@ table a prose document embeds. Build it one topic at a time, each topic through 
    and a re-asked unit's prompt lists its earlier `wontfix`/`duplicate` decisions so they are not
    raised again. Every round that resolves a finding `fixed` makes one more round necessary, so a cap
    of 3 leaves room for two repair rounds and one clean one; on a large slice the operator may choose
-   `review_max_rounds` 4–5 before round 1 (`tp set --workflow --project`). A round after one that
+   `review_max_rounds` 4–5 before round 1 (`tp set --workflow --project`); a slice whose graph changed
+   after its cap reads `grantable: true`, and the operator's `--grant-round` buys it one verification
+   round rather than a raised cap for every slice. A round after one that
    fixed only non-blocking findings and left nothing open runs the regression role alone, which reads
    each change — shown before and after, with the epics it hands work to — at a quarter of a panel's
    cost. The default `review_converge_on: blocking` lets a slice finish with medium and low findings
