@@ -77,3 +77,33 @@ func TestPreToolUseHookAllowsTheEpicReviewInbox(t *testing.T) {
 	}
 }
 
+// TestPreToolUseHookRefusesEveryOtherEpicStatePath is the allowance's other
+// edge: it lets exactly the inbox name through, so a round file, a `..` path,
+// a nested or misnamed file in the inbox, and a state directory that is not a
+// hash all stay refused.
+func TestPreToolUseHookRefusesEveryOtherEpicStatePath(t *testing.T) {
+	t.Parallel()
+	root := repoRoot(t)
+	inbox := epicInboxStateDir + "/inbox/"
+	refused := []string{
+		epicInboxStateDir + "/round-1.ndjson",
+		epicInboxStateDir + "/snapshot-round-1.json",
+		inbox + "../round-1.ndjson",
+		epicInboxStateDir + "/x/../inbox/why-auditor-r1.ndjson",
+		inbox + "sub/why-auditor-r1.ndjson",
+		inbox + "why-auditor-r1.ndjson.part",
+		inbox + "why-auditor-r0.ndjson",
+		inbox + "why-auditor.ndjson",
+		inbox + "Why_Auditor-r1.ndjson",
+		".tp/epic-review/b/inbox/why-auditor-r1.ndjson",
+		".tp/epics.json",
+	}
+	for _, path := range refused {
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+			run := runWriteDenyHookIn(t, root, nil, path)
+			assert.True(t, run.denied(), "%s must stay refused; exit=%d stderr=%q", path, run.exitCode, run.stderr)
+		})
+	}
+}
+
