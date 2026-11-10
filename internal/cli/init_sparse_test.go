@@ -22,8 +22,8 @@ func TestInit_SparseWorkflowBlock(t *testing.T) {
 	}{
 		{"no flags writes empty object", nil, map[string]any{}},
 		{"quality gate only", []string{"--quality-gate", "go test ./..."}, map[string]any{"quality_gate": "go test ./..."}},
-		{"commit strategy only", []string{"--commit-strategy", "squash"}, map[string]any{"commit_strategy": "squash"}},
-		{"both flags compose", []string{"--quality-gate", "go test ./...", "--commit-strategy", "squash"}, map[string]any{"quality_gate": "go test ./...", "commit_strategy": "squash"}},
+		{"commit strategy only", []string{"--commit-strategy", "hc"}, map[string]any{"commit_strategy": "hc"}},
+		{"both flags compose", []string{"--quality-gate", "go test ./...", "--commit-strategy", "hc"}, map[string]any{"quality_gate": "go test ./...", "commit_strategy": "hc"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
