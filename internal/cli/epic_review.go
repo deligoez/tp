@@ -30,6 +30,9 @@ type epicReviewPrompt struct {
 
 // epicReviewResult is tp epic review's emission payload (spec/1.3.0.md §5).
 type epicReviewResult struct {
+	// Key names the slice in a batch emission (spec/1.7.0.md §5), as --status
+	// --all prints it; a one-slice emission leaves it out.
+	Key               *engine.EpicSliceKeyRecord   `json:"key,omitempty"`
 	StateDir          string                       `json:"state_dir"`
 	Round             int                          `json:"round"`
 	Units             []string                     `json:"units"`

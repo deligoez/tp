@@ -189,6 +189,8 @@ func prepareEpicBatchItem(setup *epicBatchSetup, key engine.EpicSliceKey) (item 
 	prompts := buildEpicReviewPrompts(&run, setup.roles)
 	prompts, skipped := filterByRole(prompts, func(p *epicReviewPrompt) string { return p.Role }, setup.query, nil)
 	result := epicReviewPayload(&run, prompts)
+	rec := engine.EpicSliceKeyRecordOf(key)
+	result.Key = &rec
 	result.SkippedRoles = skippedRolesForPayload(setup.query.given, len(prompts), skipped)
 	return epicBatchItem{run: run, result: result}, ""
 }
