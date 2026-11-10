@@ -99,3 +99,17 @@ func TestGraphCriticalPath_FollowsTheLongestChainFromItsHead(t *testing.T) {
 		assert.Equal(t, tc.chain, GraphCriticalPath(tc.g, map[string]EpicState{}), tc.name)
 	}
 }
+
+// TestGraphCriticalPath_EmptyWhenOnlyConditionsAreLeft: the path counts work
+// epics and is empty when no work epic is left, so a graph whose undone
+// epics are all conditions has none, wherever they sit. A walk that took a
+// chain of no work for a chain, or started from a fixed position, would
+// list a condition.
+func TestGraphCriticalPath_EmptyWhenOnlyConditionsAreLeft(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"P"}}, Epics: []model.Epic{
+		dependsOn("c1", "P"), dependsOn("c2", "P"), dependsOn("w", "P"),
+	}}
+	g.Epics[0].Condition, g.Epics[1].Condition = true, true
+
+	assert.Equal(t, []string{}, GraphCriticalPath(g, anyOfStates(g, "w")))
+}
