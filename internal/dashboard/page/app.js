@@ -349,7 +349,11 @@
   const LANE_LABEL = { main: "Main", parallel: "Parallel", triggered: "Triggered" };
   const MARK_LABEL = { done: "done", ready: "can start", active: "claimed or under way", blocked: "blocked", held: "held by a condition", waiting: "milestone closed", moot: "moot" };
   const MARKS = ["done", "ready", "active", "blocked", "held", "waiting", "moot"];
-  const mapView = { selected: null, edges: false, tracks: new Set(), geo: null, deps: {}, dependents: {}, byId: {}, q: "" };
+  const mapView = { selected: null, edges: false, nb: false, tracks: new Set(), geo: null, deps: {}, dependents: {}, byId: {}, q: "" };
+  // NB_DIR names the two directions the neighbours filter marks an edge with:
+  // in, from an epic the selected one depends on; out, to an epic depending
+  // on it.
+  const NB_DIR = {"in": "Incoming", "out": "Outgoing"};
 
   // FOLD maps the letters the epic search folds before Unicode decomposition:
   // the Turkish dotless and dotted i, which decomposition and lower-casing do
@@ -362,7 +366,7 @@
   const fold = (s) => String(s).replace(FOLD_RE, (c) => FOLD[c]).normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
   // searchHit reports whether the epic's id or title holds the folded query.
   const searchHit = (e, q) => !q || fold(e.id).includes(q) || fold(e.title || "").includes(q);
-  INFO.map = "Lanes from the opening order: the main lane is the longest chain of milestone openings, parallel lanes the other chains, the triggered lane the milestones that open on a trigger. A milestone's column is its opening depth. tp computes every place (the export's layout); the page only draws it. Colour and shape both carry an epic's state; a diamond is a condition. The orange line is the critical path. The bar on a box's right edge is its gate's members done. Click an epic for its chain; All edges draws every edge. The search matches ids and titles ignoring case and accents, Turkish ı and İ included.";
+  INFO.map = "Lanes from the opening order: the main lane is the longest chain of milestone openings, parallel lanes the other chains, the triggered lane the milestones that open on a trigger. A milestone's column is its opening depth. tp computes every place (the export's layout); the page only draws it. Colour and shape both carry an epic's state; a diamond is a condition. The orange line is the critical path. The bar on a box's right edge is its gate's members done. Click an epic for its chain; All edges draws every edge. Neighbours keeps the selected epic, the epics it depends on and the epics that depend on it, marks each edge in or out, and shows an edge's why on hover. The search matches ids and titles ignoring case and accents, Turkish ı and İ included.";
 
   // mapGeometry turns the export's layout into boxes and points. Milestones
   // sharing a lane and a column (the triggered lane's) sit side by side in
@@ -452,7 +456,7 @@
       deps[e.id] = [];
       (e.depends_on || []).forEach((d) => {
         (d.any_of || [d.id]).forEach((x) => {
-          deps[e.id].push({ id: x, why: d.why, group: !!d.any_of });
+          deps[e.id].push({ id: x, why: d.why, group: d.any_of || null });
           (dependents[x] = dependents[x] || []).push(e.id);
         });
       });
@@ -472,6 +476,41 @@
     walk(id, mapView.deps);
     walk(id, mapView.dependents);
     return seen;
+  }
+
+  // neighboursOf is the selected epic, the epics it depends on and the epics
+  // that depend on it, one step each way.
+  function neighboursOf(id) {
+    const seen = new Set([id]);
+    (mapView.deps[id] || []).forEach((d) => seen.add(d.id));
+    (mapView.dependents[id] || []).forEach((y) => seen.add(y));
+    return seen;
+  }
+
+  // nbLabel writes an edge's direction at its middle; an edge inside one
+  // milestone's column bulges right over the ids, so its label goes left.
+  function nbLabel(p, q, dir) {
+    const same = Math.abs(q.x - p.x) < 1;
+    return '<text class="nbdir ' + dir + '" x="' + (same ? p.x - 9 : (p.x + q.x) / 2) + '" y="' + ((p.y + q.y) / 2 + (same ? 3 : -3)) + '" text-anchor="' + (same ? "end" : "middle") + '">' + dir + "</text>";
+  }
+
+  // neighbourEdges draws the selected epic's edges, each marked in or out and
+  // carrying its why, its two ends and its any-of group for the hover tip.
+  function neighbourEdges(id, pos) {
+    const out = [];
+    const draw = (from, to, d, dir) => {
+      const p = pos[from];
+      const q = pos[to];
+      if (!p || !q) return;
+      const path = edgePath(p, q);
+      out.push('<g class="nbedge" data-dir="' + dir + '" data-from="' + esc(from) + '" data-to="' + esc(to) + '" data-why="' + esc(d.why || "") + '"' +
+        (d.group ? ' data-group="' + esc(d.group.join(", ")) + '"' : "") + '><path class="hit" d="' + path + '"/>' +
+        '<path class="edge ' + dir + '" d="' + path + '"' + (d.group ? ' stroke-dasharray="3 2"' : "") + "/>" +
+        nbLabel(p, q, dir) + "</g>");
+    };
+    (mapView.deps[id] || []).forEach((d) => draw(d.id, id, d, "in"));
+    new Set(mapView.dependents[id] || []).forEach((y) => (mapView.deps[y] || []).filter((d) => d.id === id).forEach((d) => draw(id, y, d, "out")));
+    return out;
   }
 
   function edgePath(p, q) {
@@ -504,7 +543,8 @@
     geo.placed.forEach((e) => { mapView.byId[e.id] = e; });
     if (mapView.selected && !geo.pos[mapView.selected]) mapView.selected = null;
     const sel = mapView.selected;
-    const chain = sel ? chainOf(sel) : null;
+    const nb = sel && mapView.nb;
+    const chain = sel ? (nb ? neighboursOf(sel) : chainOf(sel)) : null;
     const trackOf = {};
     ((g.graph && g.graph.milestones) || []).forEach((t, i) => t.forEach((m) => { trackOf[m] = i; }));
     const q = fold(mapView.q.trim());
@@ -527,7 +567,7 @@
         esc(m.id + " gate: " + (st.members_done || 0) + " of " + (st.members || 0) + " members done") + "</title></rect></g>");
     });
     const edges = [];
-    if (mapView.edges || sel) {
+    if (!nb && (mapView.edges || sel)) {
       Object.keys(mapView.deps).forEach((id) => mapView.deps[id].forEach((d) => {
         const p = geo.pos[d.id];
         const q = geo.pos[id];
@@ -544,8 +584,11 @@
       out.push('<g class="node' + (shown(e) ? "" : " dim") + '" data-id="' + esc(e.id) + '">' +
         (e.id === sel ? '<circle cx="' + p.x + '" cy="' + p.y + '" r="10" fill="none" stroke="var(--accent)" stroke-width="2.2"/>' : "") +
         mark(e.condition, s, p.x, p.y, 4.8) + '<text class="eid" x="' + (p.x + 12) + '" y="' + (p.y + 4) + '">' + esc(clip(e.id, 19)) + "</text>" +
-        '<rect x="' + (p.x - 9) + '" y="' + (p.y - MAP.rowH / 2) + '" width="' + (MAP.boxW - 24) + '" height="' + MAP.rowH + '" fill="transparent"/></g>');
+        '<rect class="rowhit" x="' + (p.x - 9) + '" y="' + (p.y - MAP.rowH / 2) + '" width="' + (MAP.boxW - 24) + '" height="' + MAP.rowH + '" fill="transparent"/></g>');
     });
+    // The neighbour edges sit above the epics so their labels read; the hit
+    // test below still gives an epic's mark and id to the epic.
+    if (nb) out.push("<g>" + neighbourEdges(sel, geo.pos).join("") + "</g>");
     $("mapsvg").innerHTML = out.join("");
     mapPort.bounds(geo.W, geo.H);
   }
@@ -634,24 +677,43 @@
     };
   })();
 
-  const nodeAt = (ev) => {
-    const el = document.elementFromPoint(ev.clientX, ev.clientY);
-    return el && el.closest ? el.closest("#mapsvg .node") : null;
-  };
+  // mapHit reads everything under the pointer: an epic's mark or id wins,
+  // then a neighbour edge, then the rest of an epic's row, so an edge drawn
+  // across a row is still found and an epic under an edge still answers.
+  function mapHit(ev) {
+    const els = document.elementsFromPoint(ev.clientX, ev.clientY).filter((el) => el.closest && el.closest("#mapsvg"));
+    const nodeOf = (el) => el.closest("#mapsvg .node");
+    const mark = els.find((el) => nodeOf(el) && !el.classList.contains("rowhit"));
+    if (mark) return { node: nodeOf(mark) };
+    const edge = els.map((el) => el.closest("#mapsvg .nbedge")).find(Boolean);
+    if (edge) return { edge };
+    const row = els.find(nodeOf);
+    return { node: row ? nodeOf(row) : null };
+  }
+  // edgeTip is a neighbour edge's hover text: its direction, its two ends and
+  // the why the graph gives for it.
+  function edgeTip(d) {
+    return '<span class="tid">' + esc(NB_DIR[d.dir]) + ": " + esc(d.to) + " depends on " + esc(d.from) + "</span><br>" +
+      (d.why ? esc(d.why) : '<span class="tid">no why recorded</span>') + (d.group ? "<br>one of {" + esc(d.group) + "}" : "");
+  }
   function mapHover(ev) {
-    const n = nodeAt(ev);
+    const { node: n, edge } = mapHit(ev);
     const tip = $("tip");
     const e = n && mapView.byId[n.dataset.id];
-    if (!e) { tip.hidden = true; return; }
-    const s = markState(e, mapView.geo.byMs[e.milestone]);
-    tip.innerHTML = '<span class="tid">' + esc(e.id) + ", milestone " + esc(e.milestone) + (e.condition ? ", condition" : "") + "</span><br>" + esc(e.title) +
-      "<br>" + esc(MARK_LABEL[s]) + ", " + esc(e.status.replace("_", " "));
+    if (!e && !edge) { tip.hidden = true; return; }
+    if (edge) tip.innerHTML = edgeTip(edge.dataset);
+    else {
+      const s = markState(e, mapView.geo.byMs[e.milestone]);
+      tip.innerHTML = '<span class="tid">' + esc(e.id) + ", milestone " + esc(e.milestone) + (e.condition ? ", condition" : "") + "</span><br>" + esc(e.title) +
+        "<br>" + esc(MARK_LABEL[s]) + ", " + esc(e.status.replace("_", " "));
+    }
     tip.hidden = false;
     tip.style.left = Math.min(ev.clientX + 14, window.innerWidth - 310) + "px";
     tip.style.top = (ev.clientY + 14) + "px";
   }
   function mapClick(ev) {
-    const n = nodeAt(ev);
+    const { node: n, edge } = mapHit(ev);
+    if (edge) return;
     const id = n ? n.dataset.id : null;
     mapView.selected = id && id !== mapView.selected ? id : null;
     drawMap();
@@ -671,11 +733,18 @@
     $("f-edges").setAttribute("aria-pressed", String(mapView.edges));
     drawMap();
   });
+  $("f-nb").addEventListener("click", () => {
+    mapView.nb = !mapView.nb;
+    $("f-nb").setAttribute("aria-pressed", String(mapView.nb));
+    drawMap();
+  });
   $("maplegend").innerHTML = MARKS.map((s) => '<span><svg viewBox="0 0 15 15" aria-hidden="true">' + mark(false, s, 7.5, 7.5, 4.6) + "</svg>" + esc(MARK_LABEL[s]) + "</span>").join("") +
     '<span><svg viewBox="0 0 15 15" aria-hidden="true">' + mark(true, "ready", 7.5, 7.5, 4.4) + "</svg>condition</span>" +
     '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path d="M1 7.5H14" stroke="var(--crit)" stroke-width="2.6"/></svg>critical path</span>' +
     '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path d="M1 7.5H14" stroke="var(--accent)" stroke-dasharray="3 2"/></svg>one of a group</span>' +
-    '<span class="help">Click an epic for its chain, again to clear. Drag to pan; Ctrl or ⌘ with the wheel, or a pinch, zooms.</span>';
+    '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path class="edge in" d="M1 7.5H14"/></svg>in: what it depends on</span>' +
+    '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path class="edge out" d="M1 7.5H14"/></svg>out: what depends on it</span>' +
+    '<span class="help">Click an epic for its chain, again to clear; Neighbours narrows it to one step each way. Drag to pan; Ctrl or ⌘ with the wheel, or a pinch, zooms.</span>';
 
   // ---------- the Specs tab (§12) ----------
   // One row per task file, as tp export --list lists them: already in the
