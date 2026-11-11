@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T18:29:03.374688Z",
+  "updated_at": "2026-11-11T18:39:50.959933Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -1387,7 +1387,7 @@
       "id": "page-epics-kpi",
       "title": "Draw the Epics KPI strip with now lists",
       "description": "KPI strip, now lists (ready in tp epic ready's order, operator decisions, waiting epics, most waited-on), an info mark per panel and unit-named labels.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "page",
         "dashboard"
@@ -1402,11 +1402,27 @@
       "source_sections": [
         "## 4. The Epics tab"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T18:29:08.167649Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T18:39:50.924033Z",
+      "closed_reason": "- KPI strip (internal/dashboard/page/app.js, index.html, style.css): share of work epics done, ready epics, epics on the critical path, blocked epics, held epics, operator decisions waiting, open review loops, lint errors / warnings, epics done per week (sparkline); each KPI and each panel (Lifecycle, Ready epics, Operator decisions, Waiting epics, Most waited-on epics) carries an i button opening a note on what it lists and where it comes from. Figures arrive computed: new additive key plan on the dashboard's own summary payload (engine.DashboardPlan, internal/engine/dashplan.go): plan.figures {work, ready, blocked, held, done, share_done, critical_path, operator_queue, open_loops, throughput[{week,done}]} plus plan.ready, plan.operator_conditions, plan.waiting, plan.most_waited_on; with no graph an empty plan. Readings chosen: operator_queue = DashboardOperatorConditions over tp epic ready's actionable conditions + gates awaiting --met (WithoutPlaceholderGates) + placeholder rewrites (ThresholdRewrites); open_loops = epic review slices whose state is not done; throughput = EpicThroughput summed over every milestone per ISO week; critical_path = len(GraphCriticalPath); most_waited_on = not-done work epics with dependents, by dependents then longest chain then graph order. Summary shape test extended (TestDashboardSummary_ShapeIsPinned pins plan and figures keys).\n- Lint KPI reads the export's lint.errors and lint.warnings (SummarizeEpicLint, equal to tp epic lint's counts; browser check on a synthetic graph: 0 / 0 with tp epic lint errors 0 warnings 0). TestPage_ReadsTheKPIsFromThePayloads asserts app.js reads lint.errors, lint.warnings and every plan figure and list; mutant renaming lint.errors turns it red.\n- Now lists: plan.ready (tp epic ready's order), operator decisions (plan.operator_conditions with tp epic done, export milestones[].operator.gates with tp epic gate --met, threshold_rewrites with their command), waiting epics with export epics[].blocked_by, most waited-on (top 10) with downstream.dependents. Engine tests: TestDashboardPlan_FiguresAndNowListsCountNoCondition, _OperatorQueueCountsGatesToMeasureAndRewrite, _ThroughputCountsDoneWorkEpicsPerWeekAcrossMilestones, TestDashboardSummary_CarriesThePlanWithAGraph; mutants red: open loops counting every slice, most waited-on keeping conditions, queue omitting rewrites, summary skipping the plan. Gate passed.",
+      "gate_passed_at": "2026-11-11T18:39:50.924033Z",
+      "commit_sha": "5b8c4542",
+      "commit_shas": [
+        "5b8c4542",
+        "7b1c7bca",
+        "858c82bc",
+        "40be46b2",
+        "bc0c1ae4"
+      ],
+      "commit_files": [
+        "internal/dashboard/page/app.js",
+        "internal/dashboard/page/index.html",
+        "internal/dashboard/page/style.css",
+        "internal/engine/dashplan.go",
+        "internal/engine/dashsummary.go",
+        "internal/engine/dashsummary_test.go"
+      ]
     },
     {
       "id": "page-lifecycle-band",
