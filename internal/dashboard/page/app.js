@@ -114,6 +114,52 @@
       lane(byEpics ? "Epics by spec phase" : "Task files by phase", PHASES, band.phases || {});
   });
 
+  // Lifecycle over time (§17): the summary's series, one band per stage after
+  // planned, stacked from done up, and the unknown band for epics whose stage
+  // time tp did not record, drawn hatched so it never reads as a stage.
+  const CFD_BANDS = [["done", "done", "done"], ["in_progress", "active", "in progress"], ["specced", "ready", "specced"], ["claimed", "held", "claimed"], ["unknown", "waiting", "time not recorded"]];
+  const HATCH = '<pattern id="cfd-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="var(--waiting)"/><path d="M0 0V6" stroke="var(--muted)" stroke-width="1.4"/></pattern>';
+  const cfdFill = (k, v) => (k === "unknown" ? "url(#cfd-hatch)" : "var(--" + v + ")");
+  panel(["summary"], () => {
+    const sum = data("summary");
+    $("cfdcard").hidden = !state.graph || !sum;
+    if ($("cfdcard").hidden) return;
+    const days = sum.series || [];
+    if (!days.length) {
+      $("cfd").innerHTML = none("tp has recorded no claim, binding, task start or done time yet.");
+      return;
+    }
+    // Each day is a step of its own width: the counts hold for the whole day
+    // and change at its edge, so nothing is drawn between two recorded days.
+    const W = Math.max(480, $("cfd").clientWidth || 960);
+    const H = 180, L = 40, R = 8, T = 8, B = 24;
+    const top = Math.max(1, ...days.map((d) => CFD_BANDS.reduce((a, [k]) => a + (d[k] || 0), 0)));
+    const step = (W - L - R) / days.length;
+    const edges = (i) => [L + i * step, L + (i + 1) * step];
+    const y = (v) => H - B - (v / top) * (H - B - T);
+    const line = (vals) => vals.map((v, i) => edges(i).map((ex) => ex + "," + y(v)).join(" "));
+    let base = days.map(() => 0);
+    let areas = "";
+    CFD_BANDS.forEach(([k, v, l]) => {
+      const up = days.map((d, i) => base[i] + (d[k] || 0));
+      areas += '<polygon points="' + line(up).join(" ") + " " + line(base).reverse().map((p) => p.split(" ").reverse().join(" ")).join(" ") +
+        '" fill="' + cfdFill(k, v) + '" opacity=".8"><title>' + esc(l) + "</title></polygon>";
+      base = up;
+    });
+    const first = days[0].date;
+    const lastDay = days[days.length - 1];
+    const axis = '<line class="ax" x1="' + L + '" x2="' + (W - R) + '" y1="' + (H - B) + '" y2="' + (H - B) + '"/>' +
+      '<text x="' + (L - 6) + '" y="' + (T + 10) + '" text-anchor="end">' + top + '</text><text x="' + (L - 6) + '" y="' + (H - B) + '" text-anchor="end">0</text>' +
+      '<text x="' + L + '" y="' + (H - 6) + '">' + esc(first) + "</text>" +
+      (days.length > 1 ? '<text x="' + (W - R) + '" y="' + (H - 6) + '" text-anchor="end">' + esc(lastDay.date) + "</text>" : "");
+    const today = CFD_BANDS.map(([k, , l]) => (lastDay[k] || 0) + " " + l).join(", ");
+    const swatch = (k, v) => '<svg viewBox="0 0 14 14" aria-hidden="true"><rect width="14" height="14" rx="3" fill="' + cfdFill(k, v) + '"/></svg>';
+    $("cfd").innerHTML = '<svg class="cfd" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Work epics by stage per day from ' + esc(first) + " to " + esc(lastDay.date) +
+      "; on " + esc(lastDay.date) + ": " + esc(today) + '"><defs>' + HATCH + "</defs>" + areas + axis + "</svg>" +
+      '<div class="cfdkey">' + CFD_BANDS.map(([k, v, l]) => "<span>" + swatch(k, v) + esc(l) + ", " + esc(lastDay[k] || 0) + " on " + esc(lastDay.date) + "</span>").join("") +
+      "<span>planned, " + esc(lastDay.planned || 0) + " on " + esc(lastDay.date) + ", left out so the moving stages stay readable</span></div>";
+  });
+
   // What each panel and figure lists and where it comes from (§4).
   const INFO = {
     band: "Work epics per stage, and per spec phase at the earliest phase of their bound specs; with no graph the phases count task files. From the summary's band.",
@@ -128,6 +174,7 @@
     throughput: "Work epics done per ISO week across every milestone, from their done time. From the summary's plan.",
     waiting: "Work epics waiting on a dependency that is not done, each with what it waits on; deferrable gate members are left out.",
     most: "Not-done work epics other work epics depend on, transitively, most dependents first.",
+    cfd: "Work epics per stage per day, from the times tp records: claimed at the claim, specced at the earliest binding time of the bound specs, in progress at the earliest start of their tasks, done at the done record or the audit that released the last bound spec. An epic that reached a stage at a time tp did not record (a spec bound before tp recorded binding times) is counted as time not recorded, never on a guessed day. An epic's planning time is not recorded, so an epic added to the graph later counts as planned from the chart's first day. Planned epics are left out of the bands. From the summary's series.",
   };
 
   // The ⓘ buttons open one note at a time beside themselves.
