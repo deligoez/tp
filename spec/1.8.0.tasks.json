@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T20:12:07.582821Z",
+  "updated_at": "2026-11-11T20:17:06.874246Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -1652,7 +1652,7 @@
       "id": "page-map-search",
       "title": "Make the epic search accent-insensitive",
       "description": "Ids and titles matched ignoring case and diacritics, Turkish dotted and dotless i included.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "page",
         "dashboard"
@@ -1665,11 +1665,22 @@
       "source_sections": [
         "## 9. The map"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T20:12:17.165085Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T20:17:06.859695Z",
+      "closed_reason": "- internal/dashboard/page/app.js, index.html, style.css: the plan map's toolbar gains a search input (#map-q, with a match count #map-n); fold() maps the FOLD table (ı, İ, ş, ğ, ç, ö, ü and their capitals) then NFD-strips marks and lower-cases, and an epic whose folded id or title lacks the folded query is dimmed. Verified with agent-browser on a synthetic repo: searching isik leaves only IŞIK-1 lit (1 match), cay finds the epic titled Çay ocağı, an empty query dims nothing\n- internal/dashboard/dashboard_test.go TestPage_FoldsTurkishLettersInTheEpicSearch reads const FOLD from the served app.js and asserts ı, İ, ş, ğ, ç, ö and ü fold to i, i, s, g, c, o, u; seen red before the table existed; mutant (drop the ı entry) turns it red on 1 of 7 assertions, HEAD 0 of 7. Gate passed. Reading chosen: the search dims non-matching epics, like the track filter, rather than hiding them",
+      "gate_passed_at": "2026-11-11T20:17:06.859695Z",
+      "commit_sha": "45e0b29c",
+      "commit_shas": [
+        "45e0b29c",
+        "dd4b124d"
+      ],
+      "commit_files": [
+        "internal/dashboard/dashboard_test.go",
+        "internal/dashboard/page/app.js",
+        "internal/dashboard/page/index.html",
+        "internal/dashboard/page/style.css"
+      ]
     },
     {
       "id": "page-epic-drawer",
