@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T16:02:22.61055Z",
+  "updated_at": "2026-11-11T16:06:14.674167Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -1124,7 +1124,7 @@
       "id": "dashboard-request-guard",
       "title": "Serve GET requests from the bound host only",
       "description": "Only GET is served; a Host other than the bound address and port (or localhost with that port) is refused; no CORS header.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "dashboard",
@@ -1139,11 +1139,29 @@
         "## 1. The command",
         "## 18. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T16:02:32.930609Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T16:06:14.635581Z",
+      "closed_reason": "- dashboard.Handler(port) (internal/dashboard/dashboard.go) refuses a Host that is not 127.0.0.1:\u003cport\u003e or localhost:\u003cport\u003e (case-insensitive name, port required) with 403, then every method but GET with 405 and Allow: GET, before serving the embed; nothing sets a CORS header (status codes chosen). TestHandler_RefusesEveryMethodButGET (HEAD/POST/PUT/PATCH/DELETE/OPTIONS 405, no Access-Control-* even with an Origin) and TestHandler_RefusesAForeignHost (evil.example, wrong port, no port, 0.0.0.0, [::1] all 403); tp dashboard passes the bound port (internal/cli/dashboard.go)\n- §18 row 1 on a git repo with one task file: TestDashboard_GuardsTheServerOnARepoWithOneTaskFile (internal/cli/dashboard_test.go) — GET 200, POST 405, a rebound Host 403 with no CORS header, a second instance on the port exits 1 naming it, a dial to the host's non-loopback IPv4 is refused. Mutants: the handler serving any method turns both it and TestHandler_RefusesEveryMethodButGET red; listening on :\u003cport\u003e (all interfaces) turns it red\n- the page links style.css and app.js, all three under internal/dashboard/page/ embedded with go:embed; TestHandler_ServesThePageScriptAndStylesFromTheEmbed fetches each (text/css, javascript content types). Gate passed (suite -race, golangci-lint, deadcode, complexity)",
+      "gate_passed_at": "2026-11-11T16:06:14.635581Z",
+      "commit_sha": "8549e05a",
+      "commit_shas": [
+        "8549e05a",
+        "35213541",
+        "143970a9",
+        "7c197ca6",
+        "5865241c",
+        "ec85a681"
+      ],
+      "commit_files": [
+        "internal/cli/dashboard.go",
+        "internal/cli/dashboard_test.go",
+        "internal/dashboard/dashboard.go",
+        "internal/dashboard/dashboard_test.go",
+        "internal/dashboard/page/app.js",
+        "internal/dashboard/page/index.html",
+        "internal/dashboard/page/style.css"
+      ]
     },
     {
       "id": "dashboard-sse-push",
