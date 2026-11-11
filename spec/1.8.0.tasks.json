@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T16:06:14.674167Z",
+  "updated_at": "2026-11-11T16:10:35.927852Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -771,7 +771,7 @@
       "id": "epic-snapshot-diff",
       "title": "Diff two epic review snapshots",
       "description": "Engine: units added or removed, edges added or removed, whys and fields changed between two rounds' snapshots, or a snapshot and the current graph.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "history"
@@ -783,11 +783,22 @@
         "## 11. Graph history",
         "## 18. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T16:06:25.811519Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T16:10:35.901803Z",
+      "closed_reason": "- engine.EpicReviewRoundsDiff(stateDir, from, to) -\u003e EpicGraphDiff{units_added, units_removed, units_changed, edges_added, edges_removed [{unit, to, why}], whys_changed [{unit, to, before, after}], fields_changed [{unit, field, before, after}], hashes_only} (internal/engine/epicsnapshotdiff.go; names and shape chosen for the --history task to print; lists sorted by unit key, always non-null), parsing each kept block back (parseEpicBlock: field lines, depends_on '- \u003cto\u003e: \u003cwhy\u003e' lines, other lines continue the previous value). TestEpicSnapshotDiff_ListsUnitEdgeWhyAndFieldChanges: d added, c removed, edge b-\u003ed added, b-\u003ec removed, b-\u003ea why rewritten with both texts, b's title changed\n- §18 row 9: TestEpicSnapshotDiff_AWhyEditIsAWhyChangeWithBothTexts — one why edited between two recorded rounds is one why change (old why -\u003e new why) and nothing else; the mutant diffing hashes alone (HashesOnly always true) turns it and the first test red\n- a snapshot holding only hashes (no blocks, readEpicSnapshotFile) makes hashes_only true and leaves the edge, why and field lists empty while units added/removed/changed stay known: TestEpicSnapshotDiff_AHashOnlySnapshotCarriesNoTextAndSaysSo. Gate passed (suite -race, golangci-lint, deadcode, complexity)",
+      "gate_passed_at": "2026-11-11T16:10:35.901803Z",
+      "commit_sha": "16908059",
+      "commit_shas": [
+        "16908059",
+        "d6302c17",
+        "e6ebc61b",
+        "71446bb2"
+      ],
+      "commit_files": [
+        "internal/engine/epicsnapshotdiff.go",
+        "internal/engine/epicsnapshotdiff_test.go"
+      ]
     },
     {
       "id": "epic-review-history-cmd",
