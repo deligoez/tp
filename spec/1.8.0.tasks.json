@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T20:17:06.874246Z",
+  "updated_at": "2026-11-11T20:22:31.662171Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -1874,7 +1874,7 @@
       "id": "page-lifecycle-chart",
       "title": "Draw the lifecycle-over-time chart",
       "description": "Work epics per stage per day from the summary series.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "page",
         "dashboard"
@@ -1888,11 +1888,22 @@
       "source_sections": [
         "## 17. Lifecycle over time, and since you last looked"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T20:17:13.43267Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T20:22:31.642169Z",
+      "closed_reason": "- internal/dashboard/page/app.js, index.html, style.css: a 'Lifecycle over time' card under the lifecycle band stacks the summary's series per day as steps (one day one step, nothing drawn between recorded days) in CFD_BANDS order done, in progress, specced, claimed, then a hatched 'time not recorded' band for the series' unknown count, so an unknown binding time is never placed on a guessed day; planned is left out of the bands and named in the key; hidden with no graph, an empty-series note when tp recorded no time. Verified with agent-browser on a synthetic repo: an epic claimed 2026-11-01 and done 2026-11-05 sits in claimed then done on those days, an epic bound 2026-11-03 with a task started 2026-11-04 in specced then in progress, an epic bound without bound_at in time not recorded from the first day\n- its i note (INFO.cfd) says an epic's planning time is not recorded, so an epic added to the graph later counts as planned from the chart's first day. internal/dashboard/dashboard_test.go TestPage_DrawsTheLifecycleChartFromTheSeries reads sum.series, parses const CFD_BANDS and asserts the five bands and the note; seen red before the chart existed; mutant (drop the unknown band) turns it red, HEAD green. Gate passed",
+      "gate_passed_at": "2026-11-11T20:22:31.642169Z",
+      "commit_sha": "575749bb",
+      "commit_shas": [
+        "575749bb",
+        "e5b3f709"
+      ],
+      "commit_files": [
+        "internal/dashboard/dashboard_test.go",
+        "internal/dashboard/page/app.js",
+        "internal/dashboard/page/index.html",
+        "internal/dashboard/page/style.css"
+      ]
     },
     {
       "id": "page-since-last-looked",
