@@ -71,7 +71,14 @@
 
   <!-- Spec: one spec -->
   <section id="view-work" class="view" role="tabpanel" aria-labelledby="tab-work" hidden>
-    <div id="work-body" class="view"><p class="empty">Pick a spec on the Specs tab to read it and work its tasks.</p></div>
+    <p class="empty" id="work-none">Pick a spec on the Specs tab to read it and work its tasks.</p>
+    <div id="work-body" class="specmain" hidden>
+      <header class="panel spechead" id="spechead" aria-label="This spec"></header>
+      <nav class="subnav" id="subnav" role="tablist" aria-label="Spec view"></nav>
+      <article class="panel" id="sv-read" role="tabpanel" aria-label="The spec" hidden></article>
+      <section class="panel" id="sv-tasks" role="tabpanel" aria-label="Tasks" hidden></section>
+      <section class="panel" id="sv-history" role="tabpanel" aria-label="History" hidden></section>
+    </div>
   </section>
 </div>
 <div id="pop" class="pop" role="dialog" hidden></div>

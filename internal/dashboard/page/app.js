@@ -689,15 +689,177 @@
   }
   panel(["export-list"], drawSpecs);
 
-  // openSpec takes one task file to the Spec tab, which tp export draws.
+  // ---------- the Spec tab (§13) ----------
+  // One task file at a time, from tp export of that file: fetched when it is
+  // opened, and again each time tp pushes a changed list.
+  const work = { path: null, data: null, error: null, view: null, seq: 0 };
+  const VIEWS = [["read", "Read the spec"], ["tasks", "Tasks"], ["history", "History"]];
+  const STEPS = ["ground", "review", "decompose", "implement", "audit", "release"];
+  const CHECK = '<svg class="ic" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.5l3 3 6-7"/></svg>';
+  const capital = (s) => s[0].toUpperCase() + s.slice(1);
+  const listRow = (path) => ((data("export-list") || {}).files || []).find((x) => x.path === path) || null;
+  const escalations = (d) => ((d.resume && d.resume.blockers) || []).filter((b) => b.class === "escalate");
+  INFO.loop = "The loop tp runs a spec through: ground its claims, review, decompose into tasks, implement, audit, release. The marked step is the phase tp resume reports; a pause mark there is a decision only the operator takes. Each step's line comes from tp export's loops and tasks.";
+
+  // A spec in review or decompose opens on its text, one with tasks on them.
+  const defaultView = (d) => ((d.tasks || []).length && !["review", "decompose"].includes(d.resume.phase) ? "tasks" : "read");
+
+  // openSpec takes one task file to the Spec tab.
   function openSpec(path) {
-    const f = ((data("export-list") || {}).files || []).find((x) => x.path === path);
+    if (work.path !== path) Object.assign(work, { path, data: null, error: null, view: null });
     state.spec = path;
-    $("c-work").textContent = path;
-    $("work-body").innerHTML = '<section class="panel"><h2>' + esc((f && f.title) || path) + "</h2><code>" + esc(path) + "</code></section>";
     setTab("work");
     drawSpecs();
+    drawWork();
+    fetchSpec();
   }
+
+  async function fetchSpec() {
+    const path = work.path;
+    const seq = ++work.seq;
+    let body;
+    try {
+      const res = await fetch("/api/export?file=" + encodeURIComponent(path), { cache: "no-store" });
+      body = await res.json();
+    } catch (err) {
+      body = { error: "tp export --file " + path + " could not be fetched: " + err.message, hint: "check that tp dashboard is still running" };
+    }
+    if (seq !== work.seq) return;
+    if (isError(body)) {
+      work.error = body;
+    } else {
+      work.data = body;
+      work.error = null;
+      if (work.view === null) work.view = defaultView(body);
+    }
+    drawWork();
+  }
+
+  // stepLines says, per step, what happened in it or when it comes.
+  function stepLines(d, f) {
+    const L = d.loops || {};
+    const phase = d.resume.phase;
+    const past = (step) => STEPS.indexOf(phase) > STEPS.indexOf(step);
+    const last = (l) => (l && l.rounds && l.rounds.length ? l.rounds[l.rounds.length - 1] : null);
+    const loopLine = (l, r, step) => {
+      if (l.streak >= l.clean_rounds_needed) return "converged in round " + r.round;
+      if (past(step)) return "ended in round " + r.round;
+      return "round " + r.round + (l.cap ? " of " + l.cap : "") + ", " + l.streak + " of " + l.clean_rounds_needed + " clean";
+    };
+    const g = last(L.ground);
+    const r = last(L.review);
+    const a = last(L.audit);
+    const t = (f && f.tasks) || { open: 0, wip: 0, done: 0 };
+    const n = t.open + t.wip + t.done;
+    return {
+      ground: g ? (g.fails ? "round " + g.round + ": " + plural(g.fails, "FAIL", "FAILs") + " to repair" : "claims checked in round " + g.round) : "not run",
+      review: r ? loopLine(L.review, r, "review") : phase === "review" ? "round 1 next" : "no round recorded",
+      decompose: n ? plural(n, "task", "tasks") + " written" : phase === "decompose" ? "writing the tasks" : "after review",
+      implement: n ? t.done + " of " + n + " done" : "after decompose",
+      audit: a ? loopLine(L.audit, a, "audit") : phase === "audit" ? "round 1 next" : "after implement",
+      release: phase === "release" ? "released" : "after audit",
+    };
+  }
+
+  // stepper marks the phase tp resume reports; ground, which tp resume never
+  // reports, is skipped when it has no round.
+  function stepper(d, f) {
+    const lines = stepLines(d, f);
+    const cur = d.resume.phase === "release" ? STEPS.length : STEPS.indexOf(d.resume.phase);
+    const paused = escalations(d).length > 0;
+    return '<ol class="stepper">' + STEPS.map((p, i) => {
+      let st = i < cur ? "done" : i === cur ? "cur" : "todo";
+      if (p === "ground" && st === "done" && !(d.loops.ground.rounds || []).length) st = "skip";
+      const mark = st === "done" ? CHECK : st === "cur" && paused ? PAUSE : String(i + 1);
+      return '<li class="' + st + (st === "cur" && paused ? " op" : "") + '"' + (st === "cur" ? ' aria-current="step"' : "") + '><span class="sn">' + mark +
+        '</span><span class="sl">' + capital(p) + '</span><span class="sd">' + esc(lines[p]) + "</span></li>";
+    }).join("") + "</ol>";
+  }
+
+  // impactText says what releasing the spec does to the plan, from the
+  // summary's release_impact.
+  function impactText(d) {
+    if (d.resume.phase === "release") return "Released.";
+    if (!d.epic) return "Bound to no epic, so releasing it moves nothing in the plan.";
+    const sum = data("summary");
+    const imp = sum && sum.release_impact && sum.release_impact[d.path];
+    if (!imp) return "";
+    const code = (x) => "<code>" + esc(x) + "</code>";
+    const parts = [];
+    if (imp.frees.length) parts.push("frees " + imp.frees.map(code).join(", "));
+    imp.gates.forEach((gt) => parts.push("brings milestone " + code(gt.milestone) + "'s gate from " + esc(gt.members_done) + " to " + esc(gt.members_done_after) + " of " + esc(gt.members) + " members done"));
+    if (!parts.length) return "Releasing it alone frees no epic and moves no gate.";
+    return "Releasing it completes epic " + code(d.epic) + ", which " + parts.join(" and ") + ".";
+  }
+
+  function specHead(d, f) {
+    const na = d.resume.next_action || {};
+    const cmd = na.command || na.brief_command;
+    const epic = d.epic
+      ? '<span class="sh-epic">epic <code>' + esc(d.epic) + "</code>" + (f && f.epic_state ? " " + esc(STAGE_LABEL[f.epic_state] || f.epic_state) : "") + "</span>"
+      : '<span class="sh-epic">bound to no epic</span>';
+    return '<div class="sh-row"><h1>' + esc((f && f.title) || d.spec) + "</h1>" + epic + "</div>" +
+      '<div class="loophead"><h2>The loop</h2>' + info("loop", "the loop") + "</div>" + stepper(d, f) +
+      '<p class="impact">' + impactText(d) + "</p>" +
+      escalations(d).map((b) => '<div class="opnote"><span class="mk">' + PAUSE + "</span><div><b>" + esc(b.code) + "</b> waits on the operator: " + esc(b.message) + "</div></div>").join("") +
+      '<div class="cmdline"><span class="lab">Next, as <code>tp resume</code> says</span>' +
+      (cmd ? "<code>" + esc(cmd) + '</code><button type="button" class="key" data-copy="' + esc(cmd) + '">Copy</button>' : "") +
+      '<span class="sum">' + esc(na.summary || "") + "</span></div>";
+  }
+
+  function drawWork() {
+    $("work-none").hidden = !!work.path;
+    $("work-body").hidden = !work.path;
+    $("c-work").textContent = work.path || "";
+    if (!work.path) return;
+    const d = work.data;
+    const f = listRow(work.path);
+    const e = work.error;
+    const banner = e ? '<div class="banner"><b>tp export could not read ' + esc(work.path) + "</b><span>" + esc(e.error) + "</span>" +
+      (e.hint ? '<span class="hint">' + esc(e.hint) + "</span>" : "") + (d ? '<span class="kept">Showing the last good state.</span>' : "") + "</div>" : "";
+    const crumb = '<div class="crumb"><button type="button" class="link" id="crumb-specs">Specs</button><span aria-hidden="true">/</span><code>' + esc(work.path) + "</code></div>";
+    $("spechead").innerHTML = crumb + banner + (d ? specHead(d, f) : e ? "" : none("Reading " + work.path + " with tp export."));
+    const counts = {
+      read: d ? plural((d.sections || []).length, "section", "sections") : "",
+      tasks: f && f.tasks && f.tasks.open + f.tasks.wip + f.tasks.done ? f.tasks.done + " of " + (f.tasks.open + f.tasks.wip + f.tasks.done) + " done" : "none yet",
+      history: d ? plural(["ground", "review", "audit"].reduce((s, k) => s + ((d.loops[k] && d.loops[k].rounds) || []).length, 0), "round", "rounds") : "",
+    };
+    $("subnav").innerHTML = d ? VIEWS.map(([v, label]) => '<button type="button" role="tab" data-view="' + v + '" aria-controls="sv-' + v + '" aria-selected="' + (work.view === v) + '">' +
+      esc(label) + '<span class="muted num">' + esc(counts[v]) + "</span></button>").join("") : "";
+    VIEWS.forEach(([v]) => { $("sv-" + v).hidden = !d || work.view !== v; });
+  }
+
+  // The open spec follows tp: a pushed list re-reads its export, and a pushed
+  // summary redraws its release impact.
+  let seenList = null;
+  panel(["export-list", "summary"], () => {
+    const l = data("export-list");
+    if (l !== seenList) {
+      seenList = l;
+      if (work.path) fetchSpec();
+    }
+    drawWork();
+  });
+  $("subnav").addEventListener("click", (ev) => {
+    const b = ev.target.closest("[data-view]");
+    if (!b) return;
+    work.view = b.dataset.view;
+    drawWork();
+  });
+  $("spechead").addEventListener("click", (ev) => {
+    if (ev.target.closest("#crumb-specs")) {
+      setTab("specs");
+      return;
+    }
+    const b = ev.target.closest("[data-copy]");
+    if (!b) return;
+    const done = (text) => { b.textContent = text; setTimeout(() => { b.textContent = "Copy"; }, 1200); };
+    try {
+      navigator.clipboard.writeText(b.dataset.copy).then(() => done("Copied"), () => done("Copy failed"));
+    } catch (err) {
+      done("Copy failed");
+    }
+  });
   function openSpecs() {
     setTab("specs");
     $("specs-q").focus();
