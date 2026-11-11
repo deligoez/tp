@@ -189,3 +189,13 @@ func nonLoopbackIPv4(t *testing.T) string {
 	return ""
 }
 
+// TestDashboard_UnattendedExitsTwo is §1's second acceptance, first half: a
+// long-running server is not a unit's job.
+func TestDashboard_UnattendedExitsTwo(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChainWithGate)
+	stderr, code := runDashboardOnce(t, dir, true, "--port", strconv.Itoa(freePort(t)))
+	require.Equal(t, 2, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "TP_UNATTENDED")
+}
+
