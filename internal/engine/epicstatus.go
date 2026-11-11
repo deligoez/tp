@@ -34,6 +34,12 @@ type EpicReviewStatus struct {
 	// tp epic review --grant-round would give one (spec/1.7.0.md §8).
 	GrantedRound int
 	Grantable    bool
+	// MaxRounds is the cap the slice was graded under (0: uncapped), and
+	// GrantsSpent the rounds recorded past it, each of which only a grant
+	// lets a slice record, so round 4 under a cap of 3 reads one grant spent
+	// (spec/1.8.0.md §5).
+	MaxRounds   int
+	GrantsSpent int
 	// Open counts the last recorded round's findings that carry no
 	// disposition, by severity, every severity present, so a slice done under
 	// review_converge_on blocking still shows what it left open. A finding
@@ -85,6 +91,7 @@ func EpicReviewLoopStatus(stateDir string, units []EpicReviewUnit, p EpicReviewP
 	if granted == st.Round+1 {
 		st.GrantedRound = granted
 	}
+	st.MaxRounds, st.GrantsSpent = p.MaxRounds, epicGrantsSpent(st.Round, p.MaxRounds)
 	switch {
 	case st.Converged:
 		st.Done, st.DoneBy = true, DoneByConverged
@@ -105,6 +112,15 @@ func epicGradeCap(st *EpicReviewStatus, last []map[string]any, convergeOn string
 		st.Done, st.DoneBy = true, DoneByCap
 	}
 	st.Grantable = st.Stale
+}
+
+// epicGrantsSpent counts the recorded rounds past maxRounds, 0 when the slice
+// is uncapped or within its cap.
+func epicGrantsSpent(round, maxRounds int) int {
+	if maxRounds <= 0 || round <= maxRounds {
+		return 0
+	}
+	return round - maxRounds
 }
 
 // epicRowBlocking reports whether an open row holds its round open.
