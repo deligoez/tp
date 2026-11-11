@@ -20,14 +20,16 @@ const EpicGraphFile = "epics.json"
 // is distinct from a parse error, which is a *MalformedConfigError.
 var ErrEpicGraphNotFound = errors.New("epic graph not found")
 
-// knownEpicGraphKeys, knownEpicKeys, knownEpicGateKeys, knownEpicTagCheckKeys
-// and knownEpicDepKeys are this release's schema; any other key is returned
+// knownEpicGraphKeys, knownEpicForbiddenEdgeKeys, knownEpicKeys,
+// knownEpicGateKeys, knownEpicTagCheckKeys and knownEpicDepKeys are this
+// release's schema; any other key is returned
 // to the caller for the lint to report.
 var (
 	knownEpicGraphKeys = map[string]bool{
-		"version": true, "milestones": true, "opens_after": true, "gates": true, "tag_checks": true, "epics": true,
+		"version": true, "milestones": true, "opens_after": true, "gates": true, "tag_checks": true, "forbidden_edges": true, "epics": true,
 	}
-	knownEpicKeys = map[string]bool{
+	knownEpicForbiddenEdgeKeys = map[string]bool{"from": true, "to": true, "why": true}
+	knownEpicKeys              = map[string]bool{
 		"id": true, "title": true, "milestone": true, "tags": true, "depends_on": true, "acceptance": true, "root": true,
 		"condition": true, "estimate_minutes": true, "claimed": true, "done": true,
 	}
@@ -49,8 +51,9 @@ type EpicGraphUnknownKey struct {
 // LoadEpicGraph reads tpDir/epics.json. A missing file wraps
 // ErrEpicGraphNotFound; an unreadable or unparsable one is a
 // *MalformedConfigError. Unknown keys are returned with their paths: the top
-// level, then each gate and each tag check by sorted name, then each epic by
-// index with its edges after it, each object's keys sorted.
+// level, then each gate and each tag check by sorted name, then each
+// forbidden_edges rule by index, then each epic by index with its edges after
+// it, each object's keys sorted.
 func LoadEpicGraph(tpDir string) (*model.EpicGraph, []EpicGraphUnknownKey, error) {
 	return loadEpicGraph(tpDir, false)
 }
@@ -86,6 +89,11 @@ func loadEpicGraph(tpDir string, lenientOpensAfter bool) (*model.EpicGraph, []Ep
 	unknown := unknownKeys(top, knownEpicGraphKeys, "", "")
 	unknown = append(unknown, unknownNamedKeys(top["gates"], knownEpicGateKeys, "gates.")...)
 	unknown = append(unknown, unknownNamedKeys(top["tag_checks"], knownEpicTagCheckKeys, "tag_checks.")...)
+	var rules []map[string]json.RawMessage
+	_ = json.Unmarshal(top["forbidden_edges"], &rules)
+	for i, r := range rules {
+		unknown = append(unknown, unknownKeys(r, knownEpicForbiddenEdgeKeys, fmt.Sprintf("forbidden_edges[%d].", i), "")...)
+	}
 	var epics []map[string]json.RawMessage
 	_ = json.Unmarshal(top["epics"], &epics)
 	for i, e := range epics {
