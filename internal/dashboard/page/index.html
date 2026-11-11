@@ -28,7 +28,14 @@
       <h2>No epic graph</h2>
       <p>This repository has no epic graph, so the plan is empty and the lifecycle below counts task files. Start one with <code>tp epic</code>: <code>tp epic set milestones='[["M1"]]'</code>, then <code>tp epic add</code> for each epic. The graph appears here as soon as tp writes <code>.tp/epics.json</code>, with no restart.</p>
     </section>
-    <section class="card pipecard" aria-label="Lifecycle" data-src="summary"><h2>Lifecycle</h2><div id="band"></div></section>
+    <section class="kpis" id="kpis" aria-label="Plan figures" data-src="summary epic-export" hidden></section>
+    <section class="card pipecard" aria-label="Lifecycle" data-src="summary"><h2>Lifecycle <button class="info" type="button" data-info="band" aria-label="About the lifecycle" aria-expanded="false">i</button></h2><div id="band"></div></section>
+    <section class="now" id="now" aria-label="What moves now in the plan" data-src="summary epic-export" hidden>
+      <div class="card"><h2>Ready epics <button class="info" type="button" data-info="ready" aria-label="About ready epics" aria-expanded="false">i</button></h2><div class="list" id="now-ready"></div></div>
+      <div class="card"><h2>Operator decisions <button class="info" type="button" data-info="operator" aria-label="About operator decisions" aria-expanded="false">i</button></h2><div class="list" id="now-operator"></div></div>
+      <div class="card"><h2>Waiting epics <button class="info" type="button" data-info="waiting" aria-label="About waiting epics" aria-expanded="false">i</button></h2><div class="list" id="now-waiting"></div></div>
+      <div class="card"><h2>Most waited-on epics <button class="info" type="button" data-info="most" aria-label="About the most waited-on epics" aria-expanded="false">i</button></h2><div class="list" id="now-most"></div></div>
+    </section>
     <div id="epics-body" class="view" data-src="epic-export"></div>
   </section>
 
@@ -45,6 +52,7 @@
     <div id="work-body" class="view"><p class="empty">Pick a spec on the Specs tab to read it and work its tasks.</p></div>
   </section>
 </div>
+<div id="pop" class="pop" role="dialog" hidden></div>
 <script src="app.js"></script>
 </body>
 </html>
