@@ -146,7 +146,7 @@ func runEpicExportMarkdown() {
 func epicExport() (*epicExportResult, error) {
 	g, states, bound := loadEpicStates()
 	tpDir := engine.DiscoverTPDir(".")
-	matcher := epicPlaceholderMatcherOrExit(tpDir)
+	matcher := epicPlaceholderMatcher(tpDir)
 	plan, err := epicPlanStatus(g, states, bound, trackedMilestones(g), matcher, false)
 	if err != nil {
 		return nil, err

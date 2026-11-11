@@ -110,7 +110,7 @@ func runEpicStatus(cmd *cobra.Command, _ []string) error {
 	if open, _ := cmd.Flags().GetBool("open"); open {
 		milestones = openMilestonesOrExit(g, states, milestones, only)
 	}
-	matcher := epicPlaceholderMatcherOrExit(engine.DiscoverTPDir("."))
+	matcher := epicPlaceholderMatcher(engine.DiscoverTPDir("."))
 	result, err := epicPlanStatus(g, states, bound, milestones, matcher, flagCompact)
 	if err != nil {
 		// task-file-hint: an unreadable bound task file

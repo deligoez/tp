@@ -2,6 +2,7 @@ package cli
 
 import (
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -121,7 +122,7 @@ func newEpicReadyCmd() *cobra.Command {
 func runEpicReady(cmd *cobra.Command, _ []string) error {
 	all, _ := cmd.Flags().GetBool("all")
 	g, states, bound := loadEpicStates()
-	matcher := epicPlaceholderMatcherOrExit(engine.DiscoverTPDir("."))
+	matcher := epicPlaceholderMatcher(engine.DiscoverTPDir("."))
 	readiness := engine.EpicReady(g, states, bound, all)
 	if err := output.JSON(epicReadyReport(g, &readiness, matcher, flagCompact)); err != nil {
 		output.Error(ExitFile, err.Error(), internalEncodeHint)
@@ -130,15 +131,21 @@ func runEpicReady(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-// epicPlaceholderMatcherOrExit is the project's placeholder matcher; a
-// config that cannot be read, or a pattern that does not compile, exits 3.
-func epicPlaceholderMatcherOrExit(tpDir string) *engine.PlaceholderMatcher {
+// epicPlaceholderMatcher is the project's placeholder matcher. A read
+// command does not fail on a config that cannot be read or a pattern that
+// does not compile: it warns once naming epic.threshold_placeholder and
+// falls back to the default pattern. Only tp validate --project refuses it.
+func epicPlaceholderMatcher(tpDir string) *engine.PlaceholderMatcher {
 	matcher, err := engine.ProjectPlaceholderMatcher(tpDir)
-	if err != nil {
-		output.Error(ExitFile, err.Error(),
-			"write "+engine.ThresholdPlaceholderKey+" in .tp/config.json as a Go regular expression, or remove it to use the default pattern")
-		os.Exit(ExitFile)
+	if err == nil {
+		return matcher
 	}
+	msg := err.Error()
+	if !strings.HasPrefix(msg, engine.ThresholdPlaceholderKey) {
+		msg = engine.ThresholdPlaceholderKey + ": " + msg
+	}
+	output.Notice("warning: " + msg + "; using the default placeholder pattern (tp validate --project reports it)")
+	matcher, _ = engine.NewPlaceholderMatcher(engine.DefaultThresholdPlaceholder)
 	return matcher
 }
 
