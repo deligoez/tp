@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T14:56:32.745393Z",
+  "updated_at": "2026-11-11T15:02:57.539766Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -629,7 +629,7 @@
       "id": "forbidden-selector-lint",
       "title": "Lint forbidden_edges selectors for dangling references",
       "description": "Selector references: a missing epic or milestone is dangling-reference, an uncarried tag a warning, an empty why missing-why.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "lint"
@@ -642,11 +642,25 @@
       "source_sections": [
         "## 10. Forbidden dependencies"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T14:57:36.380596Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T15:02:57.508306Z",
+      "closed_reason": "- An epic, milestone or track_of selector of a forbidden_edges rule naming nothing the graph holds is a dangling-reference error, one per selector, message 'forbidden_edges[i].\u003cfrom|to\u003e \u003ckey\u003e \"\u003cv\u003e\" names no epic|milestone' (lintEpicForbiddenRules in internal/engine/epiclint_forbidden.go, run from LintEpicGraph; Origin DanglingForbiddenRule): TestLintEpicGraph_ForbiddenSelectorsNamingNothingAreDanglingReferences, red before the change; mutants dropping the lint call, or checking track_of against epic ids, turn it red. Writers refuse it like every new error: TestEpicGraph_RemovingAnEpicARuleNamesIsRefused (tp epic remove of the one epic a rule names exits 1, names the selector, carries the new forbidden_edges refusal hint, writes nothing)\n- A tag selector no epic carries is a dangling-reference warning (reading chosen: the same rule at warning severity, since the docs task adds no new lint-table row for it), so SummarizeEpicLint counts no error: TestLintEpicGraph_AForbiddenTagNoEpicCarriesIsAWarning, the mutant leaving it an error turns it red; a rule whose why is empty or blank is a missing-why error 'forbidden_edges[i] has no why': TestLintEpicGraph_AForbiddenRuleWithoutAWhyIsMissingWhy; gate passed",
+      "gate_passed_at": "2026-11-11T15:02:57.508306Z",
+      "commit_sha": "dd6eb05b",
+      "commit_shas": [
+        "dd6eb05b",
+        "4084660c",
+        "c3fe38c7",
+        "5af8dc35"
+      ],
+      "commit_files": [
+        "internal/cli/epic_forbidden_edges_test.go",
+        "internal/cli/epic_refusal_hint.go",
+        "internal/engine/epiclint.go",
+        "internal/engine/epiclint_forbidden.go",
+        "internal/engine/epiclint_forbidden_test.go"
+      ]
     },
     {
       "id": "lint-forbidden-dependency",
