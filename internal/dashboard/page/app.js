@@ -823,7 +823,7 @@
   // ---------- the Spec tab (§13) ----------
   // One task file at a time, from tp export of that file: fetched when it is
   // opened, and again each time tp pushes a changed list.
-  const work = { path: null, data: null, error: null, view: null, seq: 0 };
+  const work = { path: null, data: null, error: null, view: null, task: null, tview: "steps", seq: 0 };
   const VIEWS = [["read", "Read the spec"], ["tasks", "Tasks"], ["history", "History"]];
   const STEPS = ["ground", "review", "decompose", "implement", "audit", "release"];
   const CHECK = '<svg class="ic" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.5l3 3 6-7"/></svg>';
@@ -837,7 +837,7 @@
 
   // openSpec takes one task file to the Spec tab.
   function openSpec(path) {
-    if (work.path !== path) Object.assign(work, { path, data: null, error: null, view: null });
+    if (work.path !== path) Object.assign(work, { path, data: null, error: null, view: null, task: null });
     state.spec = path;
     setTab("work");
     drawSpecs();
@@ -958,7 +958,243 @@
     $("subnav").innerHTML = d ? VIEWS.map(([v, label]) => '<button type="button" role="tab" data-view="' + v + '" aria-controls="sv-' + v + '" aria-selected="' + (work.view === v) + '">' +
       esc(label) + '<span class="muted num">' + esc(counts[v]) + "</span></button>").join("") : "";
     VIEWS.forEach(([v]) => { $("sv-" + v).hidden = !d || work.view !== v; });
+    if (d && work.view === "tasks") drawTasks(d);
   }
+
+  // ---------- the Spec tab's Tasks view (§13) ----------
+  // BOARD is the Board's columns: key, label and the task states tp export
+  // reports that each one holds. Ready and waiting hold the open tasks, so the
+  // columns count what tp status counts as open, wip and done.
+  const BOARD = [["ready", "Ready", ["ready"]], ["wip", "In progress", ["wip"]], ["waiting", "Waiting", ["waits_on_task", "waits_on_epic"]], ["done", "Done", ["done"]]];
+  const TASK_LABEL = { ready: "ready", wip: "in progress", waits_on_task: "waits on a task", waits_on_epic: "waits on its epic", done: "done" };
+  const TASK_COLOR = { ready: "ready", wip: "active", waits_on_task: "moot", waits_on_epic: "held", done: "done" };
+  const WIP_MARK = '<svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 2.5a5.5 5.5 0 0 1 0 11z" fill="currentColor"/></svg>';
+  const TASK_MARK = { done: CHECK, wip: WIP_MARK, waits_on_epic: PAUSE, waits_on_task: "", ready: "" };
+  INFO.tasks = "This spec's tasks from tp export, two ways. Steps is the dependency tree: a task sits one step below the last task it waits on, so step 1 needs no other task, and lines join a task to what it waits on. Board is the same tasks by state: ready, in progress, waiting (on a task, or a pause mark when its epic is not ready, so tp next starts none), done; ready and waiting together are tp status's open count. Click a task for its detail, again to show progress.";
+  INFO.progress = "From the tasks tp export reports: their states, the estimates of the tasks not done, how long each task in progress has run against its estimate, and the closing times as a running count.";
+
+  // since says how long ago an RFC 3339 time was, in the largest whole unit.
+  function since(iso) {
+    const m = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000));
+    return m < 60 ? m + " min" : m < 2880 ? Math.round(m / 60) + " h" : Math.round(m / 1440) + " d";
+  }
+  const minutes = (m) => (m < 60 ? m + " min" : Math.round(m / 6) / 10 + " h");
+
+  // taskIndex holds this file's tasks by id and, for each, the tasks that
+  // depend on it.
+  function taskIndex(d) {
+    const by = {};
+    const dependents = {};
+    (d.tasks || []).forEach((t) => { by[t.id] = t; });
+    (d.tasks || []).forEach((t) => (t.depends_on || []).forEach((x) => { if (by[x]) (dependents[x] = dependents[x] || []).push(t.id); }));
+    return { by, dependents };
+  }
+
+  // stepsOf puts each task one step below the last task it waits on.
+  function stepsOf(d, ix) {
+    const depth = {};
+    const of = (id, trail) => {
+      if (depth[id] !== undefined) return depth[id];
+      if (trail.has(id)) return 0;
+      trail.add(id);
+      const ds = (ix.by[id].depends_on || []).filter((x) => ix.by[x]);
+      depth[id] = ds.length ? 1 + Math.max(...ds.map((x) => of(x, trail))) : 0;
+      return depth[id];
+    };
+    const steps = [];
+    (d.tasks || []).forEach((t) => { const k = of(t.id, new Set()); (steps[k] = steps[k] || []).push(t); });
+    return steps;
+  }
+
+  function taskMeta(t, ix) {
+    if (t.state === "done") return t.closed_at ? "closed " + since(t.closed_at) + " ago" : "done";
+    if (t.state === "wip") return t.started_at ? "started " + since(t.started_at) + " ago" : "in progress";
+    if (t.state === "waits_on_task" || t.state === "waits_on_epic") return "after " + (t.waits_on || []).join(", ");
+    const n = (ix.dependents[t.id] || []).length;
+    return n ? "unblocks " + n : "unblocks nothing";
+  }
+
+  function taskCard(t, ix) {
+    return '<button type="button" class="tcard" data-s="' + esc(t.state) + '" data-t="' + esc(t.id) + '" aria-pressed="' + (t.id === work.task) + '">' +
+      '<span class="tt">' + (TASK_MARK[t.state] || "") + "<span>" + esc(t.title) + '</span></span><code class="tid">' + esc(t.id) +
+      '</code><span class="tm">' + esc(taskMeta(t, ix)) + "</span></button>";
+  }
+
+  function stepsHTML(d, ix) {
+    return '<svg class="wires" id="wires" aria-hidden="true"></svg>' + stepsOf(d, ix).map((g, i) => '<div class="step"><div class="step-h"><b>Step ' + (i + 1) +
+      "</b><span>" + (i ? "after step " + i : "needs no other task") + '</span></div><div class="cards">' + g.map((t) => taskCard(t, ix)).join("") + "</div></div>").join("");
+  }
+
+  function boardHTML(d, ix) {
+    return BOARD.map(([key, label, states]) => {
+      const ts = (d.tasks || []).filter((t) => states.includes(t.state));
+      return '<section class="bcol" data-col="' + key + '" aria-label="' + esc(label) + '"><div class="step-h"><b>' + esc(label) + '</b><span class="num">' + ts.length + "</span></div>" +
+        '<div class="bcards">' + (ts.map((t) => taskCard(t, ix)).join("") || none("None")) + "</div></section>";
+    }).join("");
+  }
+
+  // drawWires joins each task in Steps to what it waits on, the picked task's
+  // own links drawn strong.
+  function drawWires(d) {
+    const svg = $("wires");
+    const box = $("stages");
+    if (!svg || !box) return;
+    const br = box.getBoundingClientRect();
+    const W = box.scrollWidth;
+    const H = box.scrollHeight;
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    svg.setAttribute("width", W);
+    svg.setAttribute("height", H);
+    const R = {};
+    box.querySelectorAll(".tcard").forEach((el) => {
+      const r = el.getBoundingClientRect();
+      R[el.dataset.t] = { x: r.left - br.left + box.scrollLeft, y: r.top - br.top + box.scrollTop, w: r.width, h: r.height };
+    });
+    const out = [];
+    (d.tasks || []).forEach((t) => (t.depends_on || []).forEach((x) => {
+      const a = R[x];
+      const b = R[t.id];
+      if (!a || !b) return;
+      const on = work.task && (work.task === x || work.task === t.id);
+      const p = { x: a.x + a.w / 2, y: a.y + a.h };
+      const q = { x: b.x + b.w / 2, y: b.y };
+      const dy = Math.max(12, (q.y - p.y) / 2);
+      out.push('<path class="' + (on ? "on" : "") + '" d="M' + p.x + " " + p.y + "C" + p.x + " " + (p.y + dy) + " " + q.x + " " + (q.y - dy) + " " + q.x + " " + q.y + '"/>');
+    }));
+    svg.innerHTML = out.join("");
+  }
+
+  // closedOverTime draws the running count of closed tasks per day, from the
+  // first close to today, against the dashed line where every task is done.
+  function closedOverTime(tasks) {
+    const closed = tasks.filter((t) => t.state === "done" && t.closed_at).map((t) => Date.parse(t.closed_at)).sort((a, b) => a - b);
+    if (!closed.length) return none("No task closed yet.");
+    const day = 86400000;
+    const first = Math.floor(closed[0] / day);
+    const days = Math.max(1, Math.floor(Date.now() / day) - first);
+    const W = 320;
+    const H = 72;
+    const pts = [];
+    for (let i = 0; i <= days; i++) pts.push(closed.filter((c) => Math.floor(c / day) <= first + i).length);
+    const xy = pts.map((v, i) => (i / days * W).toFixed(1) + "," + (H - 4 - v / tasks.length * (H - 8)).toFixed(1)).join(" ");
+    const date = (t) => new Date(t).toISOString().slice(0, 10);
+    return '<svg class="burn" viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none" role="img" aria-label="' + esc(closed.length + " of " + tasks.length + " tasks closed since " + date(closed[0])) + '">' +
+      '<line x1="0" x2="' + W + '" y1="4" y2="4" class="goal"/><polyline points="' + xy + '" class="line"/></svg>' +
+      '<div class="burnx"><span>' + esc(date(closed[0])) + "</span><span>all " + tasks.length + " done at the dashed line</span><span>today</span></div>";
+  }
+
+  // running says how long a task in progress has run against its estimate.
+  function running(t) {
+    if (!t.started_at) return "in progress";
+    const ran = Math.max(0, Math.round((Date.now() - Date.parse(t.started_at)) / 60000));
+    const over = t.estimate_minutes && ran > t.estimate_minutes;
+    return '<span class="' + (over ? "over" : "") + '">running ' + esc(minutes(ran)) + (t.estimate_minutes ? ", estimate " + esc(minutes(t.estimate_minutes)) : ", no estimate") + "</span>";
+  }
+
+  function progressHTML(d) {
+    const tasks = d.tasks || [];
+    if (!tasks.length) {
+      return '<div class="pv"><h3>No tasks yet</h3>' + none(d.resume.phase === "decompose" ? "Review is done; decomposing writes the tasks." : "The spec is still in review; its tasks are written once review is done.") + "</div>";
+    }
+    const count = (states) => tasks.filter((t) => states.includes(t.state)).length;
+    const seg = BOARD.map(([key, label, states]) => [key, label.toLowerCase(), count(states)]);
+    const color = { ready: "ready", wip: "active", waiting: "moot", done: "done" };
+    const order = ["done", "wip", "ready", "waiting"].map((k) => seg.find((s) => s[0] === k));
+    const left = tasks.filter((t) => t.state !== "done");
+    const est = left.reduce((s, t) => s + (t.estimate_minutes || 0), 0);
+    const noEst = left.filter((t) => !t.estimate_minutes).length;
+    const wip = tasks.filter((t) => t.state === "wip").map((t) => '<li><button class="link" type="button" data-t="' + esc(t.id) + '">' + esc(t.title) + "</button><small>" + running(t) + "</small></li>").join("");
+    return '<div class="pv"><div class="pv-h"><h3><span class="num">' + count(["done"]) + "</span> of " + tasks.length + " tasks done</h3>" + info("progress", "progress") + "</div>" +
+      '<div class="pbar" role="img" aria-label="' + esc(order.map((s) => s[2] + " " + s[1]).join(", ")) + '">' + order.map((s) => (s[2] ? '<i style="flex:' + s[2] + ";background:var(--" + color[s[0]] + ')"></i>' : "")).join("") + "</div>" +
+      '<div class="pkey">' + order.map((s) => '<span><i style="background:var(--' + color[s[0]] + ')"></i><b class="num">' + s[2] + "</b>&nbsp;" + esc(s[1]) + "</span>").join("") + "</div>" +
+      '<p class="note">' + (left.length ? "About " + esc(minutes(est)) + " of estimated work left" + (noEst ? ", " + plural(noEst, "task", "tasks") + " without an estimate" : "") + "." : "Every task is done.") + "</p>" +
+      (wip ? '<div><h4>In progress</h4><ul class="wiplist">' + wip + "</ul></div>" : "") +
+      "<div><h4>Closed over time</h4>" + closedOverTime(tasks) + "</div>" + '<p class="note">Click a task for its detail.</p></div>';
+  }
+
+  // sectionOf finds the export's section for one of a task's source_sections.
+  const sectionOf = (d, src) => (d.sections || []).find((s) => s.heading === String(src).replace(/^#+\s*/, "")) || null;
+
+  function taskDetail(d, t, ix) {
+    const link = (id) => '<button class="link" type="button" data-t="' + esc(id) + '">' + esc(id) + "</button>";
+    const deps = (t.depends_on || []).map((x) => {
+      const u = ix.by[x];
+      const ok = !u || u.state === "done";
+      return '<li><span class="mk" style="color:var(--' + (ok ? "done" : "blocked") + ')">' + (ok ? "✓" : "○") + "</span><span>" + (u ? link(x) + "<small>" + esc(u.title) + "</small>" : "<code>" + esc(x) + "</code>") + "</span></li>";
+    }).join("") || '<li class="empty">No dependencies</li>';
+    const needs = (ix.dependents[t.id] || []).map((x) => '<li><span class="mk">→</span><span>' + link(x) + "<small>" + esc(TASK_LABEL[ix.by[x].state] || ix.by[x].state) + "</small></span></li>").join("") ||
+      '<li class="empty">Nothing waits on it</li>';
+    const shas = t.commit_shas || (t.commit_sha ? [t.commit_sha] : []);
+    let time;
+    if (t.state === "done") {
+      time = "<dt>Closed</dt><dd>" + (t.closed_at ? esc(since(t.closed_at)) + " ago" : "done") + (shas.length ? ", " + (shas.length > 1 ? "commits " : "commit ") + shas.map((s) => "<code>" + esc(s) + "</code>").join(" ") : "") + "</dd>" +
+        '<dt>Evidence</dt><dd class="ev">' + esc(t.closed_reason || "none recorded") + "</dd>";
+    } else if (t.state === "wip") {
+      time = "<dt>Progress</dt><dd>" + running(t) + "</dd>";
+    } else {
+      time = "<dt>Estimate</dt><dd>" + (t.estimate_minutes ? esc(minutes(t.estimate_minutes)) : "none") + "</dd>" + (t.waits_on && t.waits_on.length ? "<dt>Waits on</dt><dd>" + esc(t.waits_on.join(", ")) + "</dd>" : "");
+    }
+    const cmd = t.state === "ready" ? "tp claim " + t.id : t.state === "wip" ? "tp done " + t.id + ' "<evidence>"' : "";
+    const acc = String(t.acceptance || "").split("\n").map((l) => l.replace(/^- /, "").trim()).filter(Boolean);
+    const src = (t.source_sections || []).map((s) => {
+      const sec = sectionOf(d, s);
+      const p = sec && sec.paragraphs && sec.paragraphs[0];
+      return '<figure class="excerpt"><figcaption>' + esc(sec ? sec.anchor + " " + sec.heading.replace(/^\d+\.\s*/, "") : String(s).replace(/^#+\s*/, "")) + "</figcaption>" +
+        (p ? "<blockquote>" + esc(p.text) + "</blockquote>" : "") + "</figure>";
+    }).join("");
+    return '<div class="td-head"><div><span class="stat" style="color:var(--' + (TASK_COLOR[t.state] || "muted") + ')">' + (TASK_MARK[t.state] || "") + esc(TASK_LABEL[t.state] || t.state) + "</span>" +
+      "<h3>" + esc(t.title) + '</h3><code class="tid">' + esc(t.id) + '</code></div><button type="button" class="key" data-tclose aria-label="Close the task detail and show progress">×</button></div>' +
+      "<dl>" + time + "</dl>" +
+      (cmd ? '<div class="cmdline"><code>' + esc(cmd) + '</code><button type="button" class="key" data-copy="' + esc(cmd) + '">Copy</button></div>' : "") +
+      (t.state === "waits_on_epic" ? '<p class="opnote">Its epic <b>' + esc(d.epic || "") + "</b> waits on a dependency, so <code>tp next</code> starts none of this file's tasks yet.</p>" : "") +
+      '<div><h4>Acceptance</h4><ul class="deps">' + acc.map((a) => '<li><span class="mk">–</span><span>' + esc(a) + "</span></li>").join("") + "</ul></div>" +
+      '<div class="two-col"><div><h4>Depends on</h4><ul class="deps">' + deps + '</ul></div><div><h4>Needed by</h4><ul class="deps">' + needs + "</ul></div></div>" +
+      (src ? "<div><h4>From the spec</h4>" + src + "</div>" : "");
+  }
+
+  function drawTasks(d) {
+    const ix = taskIndex(d);
+    if (work.task && !ix.by[work.task]) work.task = null;
+    const focused = document.activeElement && document.activeElement.closest && document.activeElement.closest("#sv-tasks [data-t]");
+    const tasks = d.tasks || [];
+    const tview = (v, label) => '<button type="button" data-tview="' + v + '" aria-pressed="' + (work.tview === v) + '">' + label + "</button>";
+    $("sv-tasks").innerHTML = '<section class="panel tpanel"><div class="toolbar"><h2>Tasks ' + info("tasks", "the tasks") + '</h2><span class="spacer"></span>' +
+      '<div class="seg" role="group" aria-label="Task view">' + tview("steps", "Steps") + tview("board", "Board") + "</div></div>" +
+      '<div class="stages' + (work.tview === "board" ? " board" : "") + '" id="stages">' + (tasks.length ? (work.tview === "board" ? boardHTML(d, ix) : stepsHTML(d, ix)) : none("No tasks yet.")) + "</div>" +
+      '<div class="legend">' + ["ready", "wip", "waits_on_task", "waits_on_epic", "done"].map((s) => '<span><i class="lg" data-s="' + s + '"></i>' + esc(TASK_LABEL[s]) + "</span>").join("") + "</div></section>" +
+      '<aside class="panel tside" id="tside" aria-label="Task detail and progress">' + (work.task ? taskDetail(d, ix.by[work.task], ix) : progressHTML(d)) + "</aside>";
+    if (work.tview === "steps") drawWires(d);
+    if (focused) {
+      const again = $("sv-tasks").querySelector('.tcard[data-t="' + CSS.escape(focused.dataset.t) + '"]');
+      if (again) again.focus();
+    }
+  }
+
+  // copyKey copies a command and says so on the key for a moment.
+  function copyKey(b) {
+    const done = (text) => { b.textContent = text; setTimeout(() => { b.textContent = "Copy"; }, 1200); };
+    try {
+      navigator.clipboard.writeText(b.dataset.copy).then(() => done("Copied"), () => done("Copy failed"));
+    } catch (err) {
+      done("Copy failed");
+    }
+  }
+
+  $("sv-tasks").addEventListener("click", (ev) => {
+    const v = ev.target.closest("[data-tview]");
+    const t = ev.target.closest("[data-t]");
+    const c = ev.target.closest("[data-copy]");
+    if (c) {
+      copyKey(c);
+      return;
+    }
+    if (v) work.tview = v.dataset.tview;
+    else if (ev.target.closest("[data-tclose]")) work.task = null;
+    else if (t) work.task = t.classList.contains("tcard") && work.task === t.dataset.t ? null : t.dataset.t;
+    else return;
+    drawWork();
+  });
+  window.addEventListener("resize", () => { if (work.data && work.view === "tasks" && work.tview === "steps") drawWires(work.data); });
 
   // The open spec follows tp: a pushed list re-reads its export, and a pushed
   // summary redraws its release impact.
@@ -983,13 +1219,7 @@
       return;
     }
     const b = ev.target.closest("[data-copy]");
-    if (!b) return;
-    const done = (text) => { b.textContent = text; setTimeout(() => { b.textContent = "Copy"; }, 1200); };
-    try {
-      navigator.clipboard.writeText(b.dataset.copy).then(() => done("Copied"), () => done("Copy failed"));
-    } catch (err) {
-      done("Copy failed");
-    }
+    if (b) copyKey(b);
   });
   function openSpecs() {
     setTab("specs");
