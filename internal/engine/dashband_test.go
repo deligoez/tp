@@ -46,3 +46,20 @@ func TestLifecycleBand_CountsWorkEpicsPerStageAndEarliestPhase(t *testing.T) {
 	assert.Equal(t, BandPhasesOfEpics, band.PhasesOf)
 }
 
+// TestLifecycleBand_WithNoGraphThePhasesCountTaskFiles is §6: with no graph
+// the phases count task files, and no epic stage counts anything.
+func TestLifecycleBand_WithNoGraphThePhasesCountTaskFiles(t *testing.T) {
+	t.Parallel()
+	for _, g := range []*model.EpicGraph{nil, {}} {
+		band := LifecycleBand(g, nil, nil, []string{PhaseReview, PhaseImplement, PhaseImplement})
+		assert.Equal(t, map[string]int{
+			PhaseReview: 1, PhaseDecompose: 0, PhaseImplement: 2, PhaseAudit: 0, PhaseRelease: 0,
+		}, band.Phases)
+		assert.Equal(t, map[string]int{
+			EpicStatusPlanned: 0, EpicStatusClaimed: 0, EpicStatusSpecced: 0,
+			EpicStatusInProgress: 0, EpicStatusDone: 0,
+		}, band.Stages)
+		assert.Equal(t, BandPhasesOfTaskFiles, band.PhasesOf)
+	}
+}
+
