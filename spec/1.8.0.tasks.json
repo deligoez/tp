@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T17:10:23.308295Z",
+  "updated_at": "2026-11-11T17:16:14.769882Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -1243,7 +1243,7 @@
       "id": "dashboard-sse-push",
       "title": "Push changed payloads over Server-Sent Events",
       "description": "A fixed tick re-derives the epic export (when a graph exists), tp export --list and the summary in-process, and pushes each only when its content, generated_at left out, changed.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "dashboard"
@@ -1260,11 +1260,25 @@
         "## 2. Live data, derived once",
         "## 18. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T17:10:30.013886Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T17:16:14.745438Z",
+      "closed_reason": "- GET /api/events (internal/dashboard/live.go: hub; wired in dashboard.Handler) streams three events, each derived in-process by dashboardAPI.Live (internal/cli/dashboard_api.go) on a 2 s tick (dashboard.Tick) while at least one page listens: epic-export (epicExport, now returning *epicRunError, while engine.DashboardSources finds a graph), export-list (engine.TaskFileListOf) and summary (engine.DashboardSummaryOf, over an empty graph when there is none). Each is pushed only when its JSON with a top-level generated_at removed differs from the last push; a connecting page first gets the cached current state. TestHub_PushesAPayloadOnlyWhenItsContentLessGeneratedAtChanges (internal/dashboard/live_test.go, under -race)\n- §18 row 3: TestDashboard_PushesOnlyChangesAndATpDoneReachesTheStream (internal/cli/dashboard_sse_test.go), subtests graph-with-one-unbound-task-file and task-file-no-graph: first state = {epic-export, export-list, summary} / {export-list, summary}; nothing over the next two ticks; tp done t1 pushes export-list with done 1; a reconnecting stream gets the full current state. Mutant comparing with generated_at kept: graph subtest red (pushes every tick); mutant pushing only when epic-export changed: both subtests red (tp done never reaches the stream)\n- TestDashboard_PushesAGraphAddedWhileRunningAndADerivationsError: a graph written after start is pushed as epic-export with no restart; rewriting it malformed pushes epic-export as {error, code 3, hint}. Readings chosen: event names epic-export/export-list/summary, data one line of JSON, an error pushed under the same event name with tp's {error, code, hint}; a page more than 32 events behind is dropped and reconnects; the loop stops when no page listens. Gate passed.",
+      "gate_passed_at": "2026-11-11T17:16:14.745438Z",
+      "commit_sha": "9b95f72e",
+      "commit_shas": [
+        "9b95f72e",
+        "a279d025",
+        "7d2b1aff"
+      ],
+      "commit_files": [
+        "internal/cli/dashboard_api.go",
+        "internal/cli/epic_export.go",
+        "internal/cli/epic_gate.go",
+        "internal/dashboard/api.go",
+        "internal/dashboard/dashboard.go",
+        "internal/dashboard/live.go"
+      ]
     },
     {
       "id": "dashboard-get-endpoints",
