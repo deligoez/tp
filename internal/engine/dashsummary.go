@@ -11,14 +11,15 @@ import (
 // prints (spec/1.8.0.md §2). Rounds holds §5's per-round finding counts, Band
 // §6's lifecycle band and ReleaseImpact §13's impact of releasing each spec,
 // keyed by its task file's repository path; Series §17's work epics per stage
-// per day; Plan is §4's KPI figures and now lists. Series and Plan are empty
-// with no graph.
+// per day; Plan is §4's KPI figures and now lists, and Matrix its milestone
+// matrix. Series, Plan and Matrix are empty with no graph.
 type DashboardSummary struct {
 	Rounds        map[string][]SliceRoundCount `json:"rounds"`
 	Band          DashboardBand                `json:"band"`
 	ReleaseImpact map[string]ReleaseImpact     `json:"release_impact"`
 	Series        []SeriesDay                  `json:"series"`
 	Plan          DashboardPlan                `json:"plan"`
+	Matrix        []MatrixCell                 `json:"matrix"`
 }
 
 // SliceRoundCount is one recorded round of a slice: its finding count, total
@@ -51,6 +52,7 @@ func DashboardSummaryOf(tpDir string, g *model.EpicGraph) (DashboardSummary, err
 		ReleaseImpact: repo.releaseImpacts(g),
 		Series:        []SeriesDay{},
 		Plan:          emptyDashboardPlan(),
+		Matrix:        MilestoneMatrix(g, repo.states),
 	}
 	for _, d := range dirs {
 		rounds, err := sliceRoundCounts(d.Path)
