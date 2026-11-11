@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T14:06:46.023165Z",
+  "updated_at": "2026-11-11T14:10:12.858052Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -418,7 +418,7 @@
       "id": "slice-open-by-role",
       "title": "Count each slice's open findings by role",
       "description": "tp epic review --status reports the last round's open findings counted by role, beside the severity counts.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "review"
@@ -431,11 +431,22 @@
       "source_sections": [
         "## 5. Plan review, per slice"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T14:06:51.029974Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T14:10:12.83291Z",
+      "closed_reason": "- tp epic review \u003cslice\u003e --status and each batch --status row print open_by_role, the last round's undisposed findings counted by role (engine epicCountOpen, the same loop as open by severity, so the counts sum to the open total; a row naming no role counts under \"\" as open does for severity): TestEpicReviewStatus_CountsOpenFindingsByRole asserts {why-auditor:1, phase-economist:1} and sum(open_by_role) == sum(open) == 2\n- a finding resolved wontfix is counted under no role (same test's fixture); mutant counting disposed rows by role turns it red (why-auditor 2, sum 3); gate passed",
+      "gate_passed_at": "2026-11-11T14:10:12.83291Z",
+      "commit_sha": "0c75dbb7",
+      "commit_shas": [
+        "0c75dbb7",
+        "c71f303d",
+        "67775daf"
+      ],
+      "commit_files": [
+        "internal/cli/epic_review_batch_status.go",
+        "internal/cli/epic_review_status.go",
+        "internal/engine/epicstatus.go"
+      ]
     },
     {
       "id": "export-slice-fields",
