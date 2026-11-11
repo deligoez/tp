@@ -80,7 +80,10 @@ func TestDashboardSummary_ShapeIsPinned(t *testing.T) {
 	require.NoError(t, json.Unmarshal(entry, &impact))
 	require.Len(t, impact.Gates, 1)
 	assert.Equal(t, []string{"members", "members_done", "members_done_after", "milestone"}, jsonKeys(t, impact.Gates[0]))
-	assert.JSONEq(t, `[]`, string(top.Series))
+	assert.JSONEq(t, `[]`, string(top.Series), "with no graph the series is empty")
+	day, err := json.Marshal(SeriesDay{})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"claimed", "date", "done", "in_progress", "planned", "specced", "unknown"}, jsonKeys(t, day))
 	assert.Equal(t, []string{"figures", "most_waited_on", "operator_conditions", "ready", "waiting"}, jsonKeys(t, raw["plan"]))
 	var plan struct {
 		Figures json.RawMessage `json:"figures"`
