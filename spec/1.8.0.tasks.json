@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T20:30:07.769196Z",
+  "updated_at": "2026-11-11T20:37:32.725632Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -1840,7 +1840,7 @@
       "id": "page-spec-tasks",
       "title": "Draw the Spec tab Tasks view",
       "description": "Steps and Board in one panel, beside a progress or task panel that never closes.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "page",
         "dashboard"
@@ -1853,11 +1853,23 @@
       "source_sections": [
         "## 13. The Spec tab"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T20:37:32.705027Z",
+      "duration_source": "implicit",
+      "closed_at": "2026-11-11T20:37:32.705118Z",
+      "closed_reason": "- Steps puts each task one step below the last task it waits on (stepsOf in internal/dashboard/page/app.js: depth 0 with no in-file dependency, else 1 + the deepest dependency), with wires to what it waits on; Board has Ready, In progress, Waiting, Done by const BOARD over the export's task states (ready; wip; waits_on_task + waits_on_epic; done). TestPage_BoardColumnsPartitionTheExportedTaskStates (internal/dashboard/dashboard_test.go) asserts every state lands in exactly one column with ready+waiting = open, seen red first; mutant dropping waits_on_epic from Waiting turns it red. agent-browser on a synthetic 5-task file: Board counts ready 2 + waiting 1 / wip 1 / done 1 equal tp status open 3, wip 1, done 1\n- With no task picked the side panel (progressHTML) shows tasks by state as a bar and key, estimated work left over the not-done tasks (naming those without an estimate), each running task against its estimate (red past it), and closed tasks as a running count per day from the first close to today\n- With a task picked (taskDetail) it shows the state, time against estimate or Closed with commits and closed_reason evidence, acceptance lines, depends on / needed by with links, the source section's anchor, heading and first paragraph from the export's sections, and its command (tp claim \u003cid\u003e when ready, tp done \u003cid\u003e when in progress); a task waiting on its epic says tp next starts none. Verified in agent-browser for done, wip and waits_on_epic tasks. Gate passed. Readings chosen: picking toggles on the same card and a x key closes; the Steps/Board choice is page state (work.tview), and the Copy handler is shared (copyKey)",
+      "gate_passed_at": "2026-11-11T20:37:32.705118Z",
+      "commit_sha": "32056dfa",
+      "commit_shas": [
+        "32056dfa",
+        "4550afaf",
+        "3d18851d"
+      ],
+      "commit_files": [
+        "internal/dashboard/dashboard_test.go",
+        "internal/dashboard/page/app.js",
+        "internal/dashboard/page/index.html",
+        "internal/dashboard/page/style.css"
+      ]
     },
     {
       "id": "page-spec-history",
