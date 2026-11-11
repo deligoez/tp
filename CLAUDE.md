@@ -78,8 +78,9 @@ A fix that turns out to need a design choice stops and becomes a decision. Repai
 its first round delete or narrow; they do not add requirements.
 
 Open work is `BUGS.md` (the fix track), then `spec/backlog/dashboard.md` (`tp dashboard`, reading the
-`tp epic export` contract v1.5.0 shipped and v1.6.0 extended), and the two decision candidates in
-`spec/backlog/` — `checklist-covers-what-changed.md`, then `reconcile.md`; `spec/backlog/ARCHIVE.md`
+`tp epic export` contract v1.5.0 shipped and v1.6.0 extended), and the three decision candidates in
+`spec/backlog/` — `checklist-covers-what-changed.md`, then `reconcile.md`, then
+`lifecycle-timestamps.md` (the two times the dashboard's history needs); `spec/backlog/ARCHIVE.md`
 holds the rest. The epic layer's deferred pilot items are in `spec/1.3.0-measurements.md`.
 
 ## Rules
