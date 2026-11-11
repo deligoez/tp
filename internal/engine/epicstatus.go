@@ -48,7 +48,7 @@ type EpicReviewStatus struct {
 	Open map[string]int
 	// OpenByRole counts the same findings by the role that raised them, so
 	// its counts sum to Open's (spec/1.8.0.md §5); a row naming no role is
-	// counted under "", as Open counts a row naming no severity.
+	// counted under EpicRoleUnattributed.
 	OpenByRole map[string]int
 }
 
@@ -114,6 +114,10 @@ func epicGradeCap(st *EpicReviewStatus, last []map[string]any, convergeOn string
 	st.Grantable = st.Stale
 }
 
+// EpicRoleUnattributed is the by-role bucket of a finding that names no role,
+// as audit's "unrecognised" is the bucket of an unreadable severity.
+const EpicRoleUnattributed = "unattributed"
+
 // epicCountOpen counts the last round's rows that carry no disposition into
 // st.Open by severity and st.OpenByRole by role.
 func epicCountOpen(st *EpicReviewStatus, last []map[string]any) {
@@ -123,6 +127,9 @@ func epicCountOpen(st *EpicReviewStatus, last []map[string]any) {
 		}
 		sev, _ := row["severity"].(string)
 		role, _ := row["role"].(string)
+		if role == "" {
+			role = EpicRoleUnattributed
+		}
 		st.Open[sev]++
 		st.OpenByRole[role]++
 	}
