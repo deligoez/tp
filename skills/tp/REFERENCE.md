@@ -1534,6 +1534,12 @@ operator's decision, lets it emit and record one more round with the ordinary ca
 prompt, and recording that round spends the grant. It prints `{state_dir, round, next_action}`; a
 slice below its cap, unchanged since its last round, done, or already granted exits 4 and writes
 nothing, and it takes one slice at a time, no other mode beside it (exit 2).
+`--status` (v1.8.0) also prints `stale_units`, the unit keys (`epic:<id>`, `gate:<m>`) whose hash
+differs from the last recorded round's snapshot, in slice order — `[]` on a fresh slice, every unit
+before a round is recorded; since a unit's hash covers its dependencies' blocks, editing an epic names
+every unit whose hash covers it — `open_by_role`, the last round's undisposed findings counted by role
+(`unattributed` for none), summing to the same total as `open`, `max_rounds`, the resolved cap or
+`null` uncapped, and `grants_spent`, the recorded rounds past the cap.
 With no `.tp/epic-reviewers/` the three built-in graph roles run (`dod-satisfiability`,
 `why-auditor`, `phase-economist`); a populated directory replaces them. From round 2 the built-in
 `regression` role is appended whenever an asked unit changed or the round before resolved a finding
@@ -1578,7 +1584,7 @@ listed twice is one slice.
 | Call | Reads | Payload |
 |------|-------|---------|
 | emission | each listed milestone; `--all`: every milestone the tracks hold, in track order | `{slices: [{key, <emission>...}...], skipped: [{key, reason}]}` |
-| `--status [--check]` | each listed milestone; `--all`: every slice directory, in track order | `{slices: [{key, round, state, open, grantable, next_action}]}` |
+| `--status [--check]` | each listed milestone; `--all`: every slice directory, in track order | `{slices: [{key, round, state, stale_units, open, open_by_role, grantable, max_rounds, grants_spent, next_action}]}` |
 | `--report` | each listed milestone; `--all`: every slice directory, in track order | `{classes: [{class, epics, slices: [{key, rounds}]}]}` |
 
 `--milestones` keeps the order given. Under `--all`, track order lists each milestone slice where
