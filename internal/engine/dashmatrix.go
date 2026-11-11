@@ -17,32 +17,7 @@ type MatrixCell struct {
 // edge joins, rows and columns in milestoneOrder; an edge inside one
 // milestone, or to an epic the graph does not hold, has no cell.
 func MilestoneMatrix(g *model.EpicGraph, states map[string]EpicState) []MatrixCell {
-	msOf := make(map[string]string, len(g.Epics))
-	for i := range g.Epics {
-		msOf[g.Epics[i].ID] = g.Epics[i].Milestone
-	}
-	cells := map[[2]string]*MatrixCell{}
-	for i := range g.Epics {
-		e := &g.Epics[i]
-		for _, d := range e.DependsOn {
-			for _, x := range depTargets(d) {
-				to, ok := msOf[x]
-				if !ok || to == e.Milestone {
-					continue
-				}
-				k := [2]string{e.Milestone, to}
-				c := cells[k]
-				if c == nil {
-					c = &MatrixCell{From: e.Milestone, To: to}
-					cells[k] = c
-				}
-				c.Edges++
-				if states[x].Status == EpicStatusDone {
-					c.Done++
-				}
-			}
-		}
-	}
+	cells := matrixCells(g, states)
 	order := milestoneOrder(g)
 	out := make([]MatrixCell, 0, len(cells))
 	for _, from := range order {
@@ -53,6 +28,39 @@ func MilestoneMatrix(g *model.EpicGraph, states map[string]EpicState) []MatrixCe
 		}
 	}
 	return out
+}
+
+// matrixCells counts g's edges between milestones by (from, to) pair.
+func matrixCells(g *model.EpicGraph, states map[string]EpicState) map[[2]string]*MatrixCell {
+	msOf := make(map[string]string, len(g.Epics))
+	for i := range g.Epics {
+		msOf[g.Epics[i].ID] = g.Epics[i].Milestone
+	}
+	cells := map[[2]string]*MatrixCell{}
+	count := func(from, x string) {
+		to, ok := msOf[x]
+		if !ok || to == from {
+			return
+		}
+		k := [2]string{from, to}
+		c := cells[k]
+		if c == nil {
+			c = &MatrixCell{From: from, To: to}
+			cells[k] = c
+		}
+		c.Edges++
+		if states[x].Status == EpicStatusDone {
+			c.Done++
+		}
+	}
+	for i := range g.Epics {
+		for _, d := range g.Epics[i].DependsOn {
+			for _, x := range depTargets(d) {
+				count(g.Epics[i].Milestone, x)
+			}
+		}
+	}
+	return cells
 }
 
 // depTargets is the epics one dependency names: its id, or each distinct
