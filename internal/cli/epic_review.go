@@ -120,13 +120,20 @@ func runEpicReview(cmd *cobra.Command, args []string) error {
 		runEpicReviewStatus(key, check)
 		return nil
 	}
+	runEpicReviewEmit(cmd, key)
+	return nil
+}
+
+// runEpicReviewEmit emits the slice's next round: its prompts, narrowed by
+// --role, and the emission's state.
+func runEpicReviewEmit(cmd *cobra.Command, key engine.EpicSliceKey) {
 	run := loadEpicReviewRun(key)
 	refuseEpicReviewAtCap(&run)
 	roles, err := engine.ResolveEpicRoleCorpus(filepath.Dir(run.tpDir))
 	if err != nil {
 		output.Error(ExitFile, err.Error(), "fix the role files under .tp/epic-reviewers/")
 		os.Exit(ExitFile)
-		return nil
+		return
 	}
 	prompts := buildEpicReviewPrompts(&run, roles)
 	roleName, _ := cmd.Flags().GetString("role")
@@ -135,7 +142,7 @@ func runEpicReview(cmd *cobra.Command, args []string) error {
 	if err := writeEpicReviewEmission(&run); err != nil {
 		output.Error(ExitFile, "cannot write the epic review state: "+err.Error(), epicReviewStateHint)
 		os.Exit(ExitFile)
-		return nil
+		return
 	}
 	result := epicReviewPayload(&run, prompts)
 	result.SkippedRoles = skippedRolesForPayload(q.given, len(prompts), skipped)
@@ -143,7 +150,6 @@ func runEpicReview(cmd *cobra.Command, args []string) error {
 		output.Error(ExitFile, err.Error(), internalEncodeHint)
 		os.Exit(ExitFile)
 	}
-	return nil
 }
 
 // writeEpicReviewEmission records an emission in the slice's state directory:
