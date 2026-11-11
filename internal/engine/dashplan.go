@@ -18,6 +18,9 @@ type DashboardPlan struct {
 	// OperatorConditions is DashboardOperatorConditions over tp epic
 	// ready's actionable conditions.
 	OperatorConditions []string `json:"operator_conditions"`
+	// OperatorGroups is DashboardOperatorGroups: the any-of groups of
+	// conditions the operator settles by choosing one.
+	OperatorGroups []DashboardChoice `json:"operator_groups"`
 	// Waiting is DashboardWaiting over the whole graph.
 	Waiting []string `json:"waiting"`
 	// MostWaitedOn holds the not-done work epics other work epics depend on,
@@ -27,8 +30,9 @@ type DashboardPlan struct {
 
 // DashboardFigures is the KPI strip: WorkFigures over the whole graph, the
 // length of tp epic status's top-level critical path, the operator queue's
-// length (the operator conditions, the gates whose written threshold awaits
-// --met and the placeholder thresholds to rewrite), the epic review slices
+// length (the operator conditions, the any-of groups to choose in, the gates
+// whose written threshold awaits --met, the placeholder thresholds to rewrite
+// and the slices that may take --grant-round), the epic review slices
 // whose loop is not done, and the graph-wide throughput per ISO week.
 type DashboardFigures struct {
 	Work          int             `json:"work"`
@@ -52,7 +56,7 @@ type DashboardWeek struct {
 // emptyDashboardPlan is the plan of a repository with no graph.
 func emptyDashboardPlan() DashboardPlan {
 	return DashboardPlan{Figures: DashboardFigures{Throughput: []DashboardWeek{}}, Ready: []string{},
-		OperatorConditions: []string{}, Waiting: []string{}, MostWaitedOn: []string{}}
+		OperatorConditions: []string{}, OperatorGroups: []DashboardChoice{}, Waiting: []string{}, MostWaitedOn: []string{}}
 }
 
 // DashboardPlanOf derives the plan from g, its derived states, its bound
@@ -63,12 +67,15 @@ func DashboardPlanOf(g *model.EpicGraph, states map[string]EpicState, bound map[
 	f := WorkFigures(g, states, r.Ready, "")
 	plan.Ready = append(plan.Ready, r.Ready...)
 	plan.OperatorConditions = DashboardOperatorConditions(g, states, r.Conditions)
+	plan.OperatorGroups = DashboardOperatorGroups(g, states)
 	plan.Waiting = DashboardWaiting(g, states, "")
 	plan.MostWaitedOn = mostWaitedOn(g, states)
+	queue := len(plan.OperatorConditions) + len(plan.OperatorGroups) + len(WithoutPlaceholderGates(g, r.Gates, matcher)) +
+		len(ThresholdRewrites(g, matcher)) + grantableSlices(reviewSlices)
 	plan.Figures = DashboardFigures{
 		Work: f.Work, Ready: f.Ready, Blocked: f.Blocked, Held: f.Held, Done: f.Done, ShareDone: f.ShareDone,
 		CriticalPath:  len(GraphCriticalPath(g, states)),
-		OperatorQueue: len(plan.OperatorConditions) + len(WithoutPlaceholderGates(g, r.Gates, matcher)) + len(ThresholdRewrites(g, matcher)),
+		OperatorQueue: queue,
 		OpenLoops:     openLoops(reviewSlices),
 		Throughput:    graphThroughput(g, states),
 	}
