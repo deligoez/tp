@@ -62,42 +62,71 @@ func LifecycleBand(g *model.EpicGraph, states map[string]EpicState, epicPhases m
 // none, every task file git sees. A task file that cannot be read is an
 // error.
 func DashboardBandOf(start string, g *model.EpicGraph) (DashboardBand, error) {
+	r, err := readDashRepo(start, g)
+	if err != nil {
+		return DashboardBand{}, err
+	}
+	return r.band(g), nil
+}
+
+// dashRepo is what the summary reads from the repository once: every task
+// file git sees and the phase tp resume reports for each, and, with a graph,
+// the files bound to each epic and the derived epic states.
+type dashRepo struct {
+	root   string
+	files  []string
+	phases map[string]string
+	bound  map[string][]string
+	states map[string]EpicState
+}
+
+// readDashRepo reads the repository holding start; outside one it holds no
+// file. A task file that cannot be read is an error.
+func readDashRepo(start string, g *model.EpicGraph) (*dashRepo, error) {
+	r := &dashRepo{root: gitToplevel(start), phases: map[string]string{}, bound: map[string][]string{}}
+	if r.root != "" {
+		r.files = repoTaskFiles(r.root)
+	}
+	phases, err := taskFilePhases(r.files)
+	if err != nil {
+		return nil, err
+	}
+	for i, f := range r.files {
+		r.phases[f] = phases[i]
+	}
 	if !bandHasGraph(g) {
-		phases, err := taskFilePhases(repoTaskFilesFrom(start))
-		if err != nil {
-			return DashboardBand{}, err
+		return r, nil
+	}
+	if r.bound, err = EpicBoundFiles(start); err != nil {
+		return nil, err
+	}
+	if r.states, err = DeriveEpicStates(g, r.bound); err != nil {
+		return nil, err
+	}
+	return r, nil
+}
+
+// band counts r's lifecycle band against g.
+func (r *dashRepo) band(g *model.EpicGraph) DashboardBand {
+	if !bandHasGraph(g) {
+		filePhases := make([]string, 0, len(r.files))
+		for _, f := range r.files {
+			filePhases = append(filePhases, r.phases[f])
 		}
-		return LifecycleBand(nil, nil, nil, phases), nil
+		return LifecycleBand(nil, nil, nil, filePhases)
 	}
-	bound, err := EpicBoundFiles(start)
-	if err != nil {
-		return DashboardBand{}, err
-	}
-	states, err := DeriveEpicStates(g, bound)
-	if err != nil {
-		return DashboardBand{}, err
-	}
-	epicPhases := make(map[string][]string, len(bound))
-	for id, files := range bound {
-		if epicPhases[id], err = taskFilePhases(files); err != nil {
-			return DashboardBand{}, err
+	epicPhases := make(map[string][]string, len(r.bound))
+	for id, files := range r.bound {
+		for _, f := range files {
+			epicPhases[id] = append(epicPhases[id], r.phases[f])
 		}
 	}
-	return LifecycleBand(g, states, epicPhases, nil), nil
+	return LifecycleBand(g, r.states, epicPhases, nil)
 }
 
 // bandHasGraph reports whether g is a graph holding epics.
 func bandHasGraph(g *model.EpicGraph) bool {
 	return g != nil && len(g.Epics) > 0
-}
-
-// repoTaskFilesFrom is repoTaskFiles of the repository holding start, none
-// outside one.
-func repoTaskFilesFrom(start string) []string {
-	if root := gitToplevel(start); root != "" {
-		return repoTaskFiles(root)
-	}
-	return nil
 }
 
 // taskFilePhases reads the phase tp resume reports for each task file.
