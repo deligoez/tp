@@ -51,3 +51,39 @@ func TestHub_PushesAPayloadOnlyWhenItsContentLessGeneratedAtChanges(t *testing.T
 	h.unsubscribe(late)
 	h.unsubscribe(ch)
 }
+
+// TestHub_GivesALatePageTheCurrentStateInDerivationOrder is the order a page
+// reads its first state in: an event first derived after the others, as the
+// graph's export is when a graph is added while the server runs, still
+// reaches a page connecting later in the order the derivation lists it, so
+// the page sees the graph's export before the task file list.
+func TestHub_GivesALatePageTheCurrentStateInDerivationOrder(t *testing.T) {
+	t.Parallel()
+	var tick atomic.Int64
+	h := newHub(func() []Payload {
+		if tick.Add(1) == 1 {
+			return []Payload{{Event: "b", Data: 1}, {Event: "c", Data: 1}}
+		}
+		return []Payload{{Event: "a", Data: 1}, {Event: "b", Data: 1}, {Event: "c", Data: 1}}
+	}, 10*time.Millisecond)
+
+	ch, _ := h.subscribe()
+	defer h.unsubscribe(ch)
+	deadline := time.After(time.Second)
+	for seen := 0; seen < 3; {
+		select {
+		case <-ch:
+			seen++
+		case <-deadline:
+			t.Fatalf("saw %d events", seen)
+		}
+	}
+
+	late, current := h.subscribe()
+	defer h.unsubscribe(late)
+	names := make([]string, 0, len(current))
+	for _, ev := range current {
+		names = append(names, ev.name)
+	}
+	assert.Equal(t, []string{"a", "b", "c"}, names)
+}
