@@ -63,3 +63,29 @@ func TestLifecycleBand_WithNoGraphThePhasesCountTaskFiles(t *testing.T) {
 	}
 }
 
+// TestDashboardBandOf_ReadsTheRepositorysTaskFiles: in a repository holding
+// b's bound file and an unbound one, both with an open task, the graph's band
+// counts b alone at implement; with no graph both files count.
+func TestDashboardBandOf_ReadsTheRepositorysTaskFiles(t *testing.T) {
+	t.Parallel()
+	root := boundFilesRepo(t)
+	writeStatusFile(t, root, "b", model.StatusOpen)
+	require.NoError(t, os.WriteFile(filepath.Join(root, "u.md"), []byte("# U\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "u.tasks.json"), []byte(`{"version":1,"spec":"u.md","tasks":[`+
+		`{"id":"t1","title":"T","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"a","source_sections":["x"]}]}`), 0o600))
+	g := statusChain()
+	g.Epics[0].Claimed = &model.EpicClaim{At: time.Now().UTC(), By: "agent"}
+
+	band, err := DashboardBandOf(root, g)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]int{
+		EpicStatusPlanned: 0, EpicStatusClaimed: 1, EpicStatusSpecced: 1,
+		EpicStatusInProgress: 0, EpicStatusDone: 2,
+	}, band.Stages)
+	assert.Equal(t, 1, band.Phases[PhaseImplement], "b alone; the unbound file is not counted")
+
+	band, err = DashboardBandOf(root, nil)
+	require.NoError(t, err)
+	assert.Equal(t, 2, band.Phases[PhaseImplement], "with no graph both task files count")
+	assert.Equal(t, BandPhasesOfTaskFiles, band.PhasesOf)
+}
