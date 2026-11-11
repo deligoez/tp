@@ -40,7 +40,7 @@ type hub struct {
 
 	mu      sync.Mutex
 	running bool
-	order   []string          // event names in first-derived order
+	order   []string          // event names in the latest derivation's order
 	data    map[string][]byte // the last pushed data per event
 	keys    map[string][]byte // its content without generated_at
 	subs    map[chan sseEvent]struct{}
@@ -95,7 +95,8 @@ func (h *hub) loop() {
 }
 
 // publish pushes every payload whose content changed since it was last
-// pushed, generated_at left out of the comparison.
+// pushed, generated_at left out of the comparison, and keeps the current
+// state in this derivation's order.
 func (h *hub) publish(payloads []Payload) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -106,9 +107,6 @@ func (h *hub) publish(payloads []Payload) {
 		}
 		if old, seen := h.keys[p.Event]; seen && bytes.Equal(old, key) {
 			continue
-		}
-		if _, seen := h.keys[p.Event]; !seen {
-			h.order = append(h.order, p.Event)
 		}
 		h.data[p.Event], h.keys[p.Event] = data, key
 		ev := sseEvent{name: p.Event, data: data}
@@ -121,6 +119,26 @@ func (h *hub) publish(payloads []Payload) {
 			}
 		}
 	}
+	h.order = derivationOrder(payloads, h.order)
+}
+
+// derivationOrder is the events of payloads in their order, followed by the
+// events of previous this derivation did not list.
+func derivationOrder(payloads []Payload, previous []string) []string {
+	order := make([]string, 0, len(payloads))
+	listed := map[string]bool{}
+	for _, p := range payloads {
+		if !listed[p.Event] {
+			listed[p.Event] = true
+			order = append(order, p.Event)
+		}
+	}
+	for _, name := range previous {
+		if !listed[name] {
+			order = append(order, name)
+		}
+	}
+	return order
 }
 
 // encodePayload is p's data as one line of JSON, and its comparison key: the
