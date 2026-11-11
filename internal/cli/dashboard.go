@@ -79,7 +79,7 @@ func runDashboard(cmd *cobra.Command, _ []string) error {
 func serveDashboard(parent context.Context, ln net.Listener) error {
 	ctx, stop := signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	srv := &http.Server{Handler: dashboard.Handler(ln.Addr().(*net.TCPAddr).Port), ReadHeaderTimeout: 10 * time.Second}
+	srv := &http.Server{Handler: dashboard.Handler(ln.Addr().(*net.TCPAddr).Port, dashboardAPI{}), ReadHeaderTimeout: 10 * time.Second}
 	go func() {
 		<-ctx.Done()
 		shutdown, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)

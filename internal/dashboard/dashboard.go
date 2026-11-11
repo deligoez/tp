@@ -25,13 +25,19 @@ const Host = "127.0.0.1"
 // address and port, or localhost with that port, and whose method is GET.
 // Every other request is refused, so the server exposes no write endpoint
 // and a rebound DNS name reaches nothing. No response carries a CORS header.
-func Handler(port int) http.Handler {
+// Handler serves the embedded page, and api's read models under /api/, to a
+// request whose Host is the bound address and port, or localhost with that
+// port, and whose method is GET. Every other request is refused, so the
+// server exposes no write endpoint and a rebound DNS name reaches nothing. No
+// response carries a CORS header.
+func Handler(port int, api API) http.Handler {
 	sub, err := fs.Sub(page, "page")
 	if err != nil {
 		// The embed directive names page, so the sub-tree always exists.
 		panic(err)
 	}
 	files := http.FileServerFS(sub)
+	endpoints := apiHandlers(api)
 	portText := strconv.Itoa(port)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !allowedHost(r.Host, portText) {
@@ -41,6 +47,10 @@ func Handler(port int) http.Handler {
 		if r.Method != http.MethodGet {
 			w.Header().Set("Allow", http.MethodGet)
 			http.Error(w, "method not allowed: the dashboard answers GET only", http.StatusMethodNotAllowed)
+			return
+		}
+		if handle, ok := endpoints[r.URL.Path]; ok {
+			serveAPI(w, r, handle)
 			return
 		}
 		files.ServeHTTP(w, r)
