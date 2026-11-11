@@ -65,6 +65,21 @@ func EpicReviewRoundsDiff(stateDir string, from, to int) (EpicGraphDiff, error) 
 	return diffEpicSnapshots(before, after), nil
 }
 
+// EpicReviewCurrentDiff is the difference between round's snapshot and the
+// slice's units as the graph now renders them.
+func EpicReviewCurrentDiff(stateDir string, round int, units []EpicReviewUnit) (EpicGraphDiff, error) {
+	before, err := readEpicSnapshotFile(stateDir, round)
+	if err != nil {
+		return EpicGraphDiff{}, err
+	}
+	now := epicSnapshot{Units: make(map[string]string, len(units)), Blocks: make(map[string]string, len(units))}
+	for _, u := range units {
+		now.Units[u.Key] = u.Hash
+		now.Blocks[u.Key] = u.Block
+	}
+	return diffEpicSnapshots(before, now), nil
+}
+
 // diffEpicSnapshots compares two snapshots unit by unit, and block by block
 // when both kept their blocks.
 func diffEpicSnapshots(before, after epicSnapshot) EpicGraphDiff {
