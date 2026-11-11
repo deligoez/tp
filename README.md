@@ -414,10 +414,11 @@ Every rule identifier tp can put in a `findings[].rule` field, and the command t
 | `line-coverage` | `tp validate` | warning/info | Uncovered spec lines, unusable or invalid `source_lines` (warning); the "…and N more gap(s)" continuation (info) |
 | `any-of-shape` | `tp epic lint` | error | A `depends_on` entry carries both or neither of `id` and `any_of`, an any-of group has fewer than two distinct members or sits beside a plain edge to one of its members, or two groups of one epic have one member set |
 | `cycle` | `tp epic lint` | error | The epic dependency graph has a cycle, an edge to any member of an any-of group counting; one finding per strongly connected component |
-| `dangling-reference` | `tp epic lint` | error | A `depends_on` id or any-of member, a gate member or deferrable, or a `provided_by` names no epic; a `gates` key names no milestone |
+| `dangling-reference` | `tp epic lint` | error, or warning for a `forbidden_edges` `tag` selector no epic carries | A `depends_on` id or any-of member, a gate member or deferrable, or a `provided_by` names no epic; a `gates` key names no milestone; a `forbidden_edges` `epic`, `milestone` or `track_of` selector names nothing the graph holds (error), or its `tag` selector names a tag no epic carries (warning) |
 | `duplicate-name` | `tp epic lint` | error | An epic id or a milestone name appears twice |
 | `unknown-key` | `tp epic lint` | error | A key outside the epic graph file's schema |
-| `missing-why` | `tp epic lint` | error | An edge or an any-of group has no `why`, or one that is empty once trimmed |
+| `missing-why` | `tp epic lint` | error | An edge, an any-of group or a `forbidden_edges` rule has no `why`, or one that is empty once trimmed |
+| `forbidden-dependency` | `tp epic lint` | error | A direct edge, or an any-of member, from an epic a `forbidden_edges` rule's `from` selects to one its `to` selects (selectors: `epic`, `milestone`, `tag`, or `track_of`, the track holding the named milestone); one finding per edge, naming both epics and the rule's `why`. Transitive paths are not checked |
 | `unknown-milestone` | `tp epic lint` | error | An epic's `milestone` is absent or in no track, or `opens_after` names a milestone in no track |
 | `later-milestone-dependency` | `tp epic lint` | error | An epic depends on one in a later milestone of the same track; edges across tracks are free. An `any_of` group is reported only when every member is in a later milestone of the track |
 | `gate-member-outside-milestone` | `tp epic lint` | error | A gate member or deferrable epic is not in that milestone |
