@@ -127,3 +127,15 @@ func TestPage_ReadsTheKPIsFromThePayloads(t *testing.T) {
 		assert.Contains(t, script, field)
 	}
 }
+
+// TestPage_DrawsPlanReviewFromTheSliceFields is §5's panel at the page: each
+// slice row reads the export's slices with their cap, grants spent, stale
+// unit ids and open findings by role, and the summary's per-round counts,
+// so the page derives no staleness cause and no count itself.
+func TestPage_DrawsPlanReviewFromTheSliceFields(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, field := range []string{".slices", ".max_rounds", ".grants_spent", ".stale_units", ".open_by_role", ".rounds[", ".total"} {
+		assert.Contains(t, script, field)
+	}
+}
