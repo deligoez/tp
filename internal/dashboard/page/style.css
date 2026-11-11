@@ -145,14 +145,15 @@ p { margin: 0; }
 .loops td { padding: var(--space-xs); border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; vertical-align: middle; }
 .loops td.k { font-family: var(--mono); font-size: var(--text-xs); overflow-wrap: anywhere; }
 .loops td.n { color: var(--muted); }
-.loops .st { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
-.loops .st::before { content: ""; width: 8px; height: 8px; border-radius: 50%; border: 2px solid var(--c, var(--muted)); }
-.loops .st[data-s="done"] { --c: var(--done); }
-.loops .st[data-s="done"]::before { background: var(--done); }
-.loops .st[data-s="open"], .loops .st[data-s="in_flight"] { --c: var(--active); }
-.loops .st[data-s="stale"] { --c: var(--held); cursor: help; text-decoration: underline dotted; }
-.loops .st[data-s="stale"]::before { border-radius: 1px; }
-.loops .st[data-s="cap_reached"] { --c: var(--blocked); }
+.st { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.st::before { content: ""; width: 8px; height: 8px; border-radius: 50%; border: 2px solid var(--c, var(--muted)); }
+.st[data-s="done"] { --c: var(--done); }
+.st[data-s="done"]::before { background: var(--done); }
+.st[data-s="open"], .st[data-s="in_flight"] { --c: var(--active); }
+.st[data-s="stale"] { --c: var(--held); }
+.loops .st[data-s="stale"] { cursor: help; text-decoration: underline dotted; }
+.st[data-s="stale"]::before { border-radius: 1px; }
+.st[data-s="cap_reached"] { --c: var(--blocked); }
 .curve { width: 96px; height: 24px; display: block; }
 .curve polyline { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-linejoin: round; }
 .curve circle { fill: var(--accent); }
