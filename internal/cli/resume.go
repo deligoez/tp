@@ -70,7 +70,7 @@ func resolveCycle(args []string) (taskFilePath, specPath string, tf *model.TaskF
 	if len(args) == 1 {
 		// A spec argument is authoritative: use its adjacent <base>.tasks.json,
 		// treating an absent adjacent file as an empty task set (§4.1).
-		specPath = args[0]
+		specPath = engine.ResolveSpecArg(args[0])
 		taskFilePath = engine.SpecAdjacentTaskFile(specPath)
 		if loaded, err := model.ReadTaskFile(taskFilePath); err == nil {
 			tf = loaded

@@ -241,13 +241,14 @@ Use --findings to also verify review findings were addressed.`,
 				os.Exit(ExitUsage)
 				return nil
 			}
+			specPath := engine.ResolveSpecArg(args[0])
 			if recordPath != "" {
-				return runAuditRecord(args[0], recordPath, harnessNote)
+				return runAuditRecord(specPath, recordPath, harnessNote)
 			}
 			if statusMode {
-				return runAuditStatus(args[0], checkFlag)
+				return runAuditStatus(specPath, checkFlag)
 			}
-			return runAudit(cmd, args[0], affectedFiles, base, findingsPath, roleFilter, cmd.Flags().Changed("role"), affectedFromTasks, forceFlag)
+			return runAudit(cmd, specPath, affectedFiles, base, findingsPath, roleFilter, cmd.Flags().Changed("role"), affectedFromTasks, forceFlag)
 		},
 	}
 

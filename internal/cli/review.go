@@ -388,7 +388,7 @@ Modes (mutually exclusive):
 					os.Exit(ExitUsage)
 					return nil
 				}
-				return runReview(cmd, args[0], round, findingsPath, perspective, docsPath, testPath, affectedFiles, finalRound, diffFrom, roleFilter, cmd.Flags().Changed("role"), specInline, noState)
+				return runReview(cmd, engine.ResolveSpecArg(args[0]), round, findingsPath, perspective, docsPath, testPath, affectedFiles, finalRound, diffFrom, roleFilter, cmd.Flags().Changed("role"), specInline, noState)
 			}
 			if err := validateModeFlags(mode, cmd.Flags().Changed("round"), findingsPath, affectedFiles, finalRound, diffFrom, specInline, perspective); err != nil {
 				output.Error(ExitUsage, err.Error())
@@ -417,7 +417,7 @@ Modes (mutually exclusive):
 					os.Exit(ExitUsage)
 					return nil
 				}
-				return runReviewRecord(args[0], recordPath, harnessNote)
+				return runReviewRecord(engine.ResolveSpecArg(args[0]), recordPath, harnessNote)
 			default:
 				// "status" is the only value that reaches here: detectReviewMode
 				// returns one of the seven mode names, and the two remaining
@@ -427,7 +427,7 @@ Modes (mutually exclusive):
 					os.Exit(ExitUsage)
 					return nil
 				}
-				return runReviewStatus(args[0], checkFlag)
+				return runReviewStatus(engine.ResolveSpecArg(args[0]), checkFlag)
 			}
 		},
 	}

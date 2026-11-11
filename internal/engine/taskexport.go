@@ -84,15 +84,40 @@ func TaskExportOf(start, taskFilePath string) (TaskExport, error) {
 }
 
 // repoRelative is path relative to start's git top level, slash-separated;
-// path itself when there is none.
+// path itself when there is none or path lies outside it. The top level git
+// prints has its symlinks resolved, so path's are resolved too before the two
+// are compared.
 func repoRelative(start, path string) string {
 	root := gitToplevel(start)
-	if abs, err := filepath.Abs(path); err == nil && root != "" {
-		if rel, err := filepath.Rel(root, abs); err == nil {
-			return filepath.ToSlash(rel)
+	abs, err := filepath.Abs(path)
+	if err != nil || root == "" {
+		return filepath.ToSlash(path)
+	}
+	if resolved, evalErr := filepath.EvalSymlinks(abs); evalErr == nil {
+		abs = resolved
+	}
+	rel, err := filepath.Rel(root, abs)
+	if slash := filepath.ToSlash(rel); err != nil || slash == ".." || strings.HasPrefix(slash, "../") {
+		return filepath.ToSlash(path)
+	}
+	return filepath.ToSlash(rel)
+}
+
+// ResolveSpecArg resolves a spec path given on the command line: as given
+// when it names a file from the working directory, else against the git top
+// level, so the repo-relative paths tp resume prints run from a subdirectory
+// too. An argument found by neither is returned unchanged, for the command to
+// report.
+func ResolveSpecArg(arg string) string {
+	if arg == "" || filepath.IsAbs(arg) || fileExists(arg) {
+		return arg
+	}
+	if root := gitToplevel("."); root != "" {
+		if candidate := filepath.Join(root, arg); fileExists(candidate) {
+			return candidate
 		}
 	}
-	return filepath.ToSlash(path)
+	return arg
 }
 
 // exportTasks gives each task of tf its state. Only an open task whose own
