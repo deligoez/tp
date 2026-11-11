@@ -79,3 +79,35 @@ func TestHandler_ServesThePageScriptAndStylesFromTheEmbed(t *testing.T) {
 		assert.Contains(t, resp.Header.Get("Content-Type"), kind, path)
 	}
 }
+
+// pageText is the page, its script and its styles as the handler serves them.
+func pageText(t *testing.T) (page, script string) {
+	t.Helper()
+	var all strings.Builder
+	for _, path := range []string{"/", "/app.js", "/style.css"} {
+		resp := serve(t, http.MethodGet, "127.0.0.1:7377", path)
+		require.Equal(t, http.StatusOK, resp.StatusCode, path)
+		body, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		all.Write(body)
+		if path == "/app.js" {
+			script = string(body)
+		}
+	}
+	return all.String(), script
+}
+
+// TestPage_ListensToTheEventStreamAndLoadsNothingRemote is §2 and §3 at the
+// page: its script subscribes to the event stream and to each of the three
+// payloads by its event name, and neither the page, the script nor the
+// styles reference a resource over http or https, so the page needs no
+// network beside the dashboard it came from.
+func TestPage_ListensToTheEventStreamAndLoadsNothingRemote(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	for _, name := range []string{`"/api/events"`, `"epic-export"`, `"export-list"`, `"summary"`} {
+		assert.Contains(t, script, name)
+	}
+	assert.NotContains(t, page, "http://")
+	assert.NotContains(t, page, "https://")
+}
