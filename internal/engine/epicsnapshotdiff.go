@@ -21,6 +21,9 @@ type EpicGraphDiff struct {
 	WhysChanged   []EpicWhyChange   `json:"whys_changed"`
 	FieldsChanged []EpicFieldChange `json:"fields_changed"`
 	HashesOnly    bool              `json:"hashes_only"`
+	// Unchanged is the context of the difference: the units in both
+	// snapshots under the same hash. A compact reader drops it.
+	Unchanged []string `json:"unchanged,omitempty"`
 }
 
 // EpicEdgeChange is one edge a unit gained or lost: To names the dependency
@@ -83,6 +86,8 @@ func diffEpicSnapshots(before, after epicSnapshot) EpicGraphDiff {
 			d.UnitsRemoved = append(d.UnitsRemoved, key)
 		case hash != before.Units[key]:
 			d.UnitsChanged = append(d.UnitsChanged, key)
+		default:
+			d.Unchanged = append(d.Unchanged, key)
 		}
 		if ok && !d.HashesOnly {
 			d.diffBlocks(key, parseEpicBlock(before.Blocks[key]), parseEpicBlock(after.Blocks[key]))
