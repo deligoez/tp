@@ -89,3 +89,28 @@ func TestSpecSections_ParsesNumberedSectionsWithParagraphAnchors(t *testing.T) {
 	assert.Equal(t, 7, sections[1].Paragraphs[0].Line, "a paragraph's line is its first line's")
 }
 
+// TestSpecSections_ALaterEditLeavesEveryEarlierAnchorUnchanged: adding a
+// paragraph to a later section, a new numbered section, and an unnumbered
+// heading that repeats an earlier one's slug changes no anchor before the
+// edit; the repeated slug takes the next free suffix.
+func TestSpecSections_ALaterEditLeavesEveryEarlierAnchorUnchanged(t *testing.T) {
+	t.Parallel()
+	before := paragraphAnchors(SpecSections([]byte(specSectionsFixture)))
+	edited := strings.Replace(specSectionsFixture, "S1\n", "S1\n\nS2 added\n", 1) +
+		"\n## 3. Third\n\nU1\n\n## Non-goals\n\nN2\n"
+	after := paragraphAnchors(SpecSections([]byte(edited)))
+
+	// every anchor up to and including §2 ¶1 is unchanged
+	require.GreaterOrEqual(t, len(after), 12)
+	assert.Equal(t, before[:12], after[:12])
+	assert.Equal(t, []string{
+		"§2 ¶2|S2 added",
+		"§2.1|# 2.1 Sub",
+		"§2.1 ¶1|T1",
+		"§3|# 3. Third",
+		"§3 ¶1|U1",
+		"§non-goals-2|# Non-goals",
+		"§non-goals-2 ¶1|N2",
+	}, after[12:])
+}
+
