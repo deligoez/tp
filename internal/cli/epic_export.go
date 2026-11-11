@@ -24,7 +24,10 @@ const epicExportVersion = 2
 // field tp derives from it and from the bound files' and slices' state,
 // tp epic status's whole-graph critical_path included.
 type epicExportResult struct {
-	Version      int                     `json:"version"`
+	Version int `json:"version"`
+	// GeneratedAt is when this export was derived, in UTC; two exports of an
+	// unchanged repository differ in it alone (spec/1.8.0.md §2).
+	GeneratedAt  time.Time               `json:"generated_at"`
 	CriticalPath epicPathReport          `json:"critical_path"`
 	Graph        *model.EpicGraph        `json:"graph"`
 	Milestones   []epicMilestoneReport   `json:"milestones"`
@@ -136,7 +139,7 @@ func epicExport() (*epicExportResult, error) {
 		return nil, err
 	}
 	epics := epicExportEpics(g, states, bound, files)
-	return &epicExportResult{Version: epicExportVersion, CriticalPath: plan.CriticalPath, Graph: g, Milestones: plan.Milestones, Epics: epics, Slices: reviewSlices}, nil
+	return &epicExportResult{Version: epicExportVersion, GeneratedAt: time.Now().UTC(), CriticalPath: plan.CriticalPath, Graph: g, Milestones: plan.Milestones, Epics: epics, Slices: reviewSlices}, nil
 }
 
 // epicExportEpics builds every epic's item from one openness verdict, one
