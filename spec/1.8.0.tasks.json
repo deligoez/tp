@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T14:27:59.511194Z",
+  "updated_at": "2026-11-11T14:49:03.120398Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -365,7 +365,7 @@
       "id": "deferrable-out-of-waiting",
       "title": "Drop deferrable members from every waiting list",
       "description": "A deferrable gate member is never listed as waiting: not in the operator list, the waiting list or a gate's count.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -378,11 +378,22 @@
         "## 7. Operator decisions",
         "## 18. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T14:45:31.541268Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T14:49:03.09846Z",
+      "closed_reason": "- Per the operator decision this lives at the dashboard layer: tp epic status, tp epic ready and tp epic export (milestone blocked lists, operator.conditions, counts) are unchanged. The one predicate is engine.IsDeferrableMember (internal/engine/dashwaiting.go), reused by deferrableEpics on the critical path. engine.DashboardWaiting(g, states, m) is the dashboard's waiting list (undone work epics blocked by an undone dependency, less deferrable members); engine.DashboardOperatorConditions(g, states, actionable) filters tp epic ready's actionable conditions, dropping a deferrable condition and a condition whose undone dependents are all deferrable members (reading chosen: a condition in an open milestone's gate, or with no undone dependent, stays). No gate count changes: GateMembers already excludes deferrable epics\n- Section 18 row 7 fixture deferrableGraph (one deferrable member f waiting on the condition c, plus a deferrable condition dc): TestDashboardWaiting_LeavesDeferrableMembersOut gives [v], not f; TestDashboardOperatorConditions_LeavesConditionsOnlyDeferrableWorkWaitsOn gives [free] from ready's [c free dc]; TestDashboardOperatorConditions_KeepsAConditionWorkWaitsOn and TestIsDeferrableMember. Mutants: dropping the deferrable filter from DashboardWaiting, and counting a deferrable dependent as waiting, each turn one test red; gate passed",
+      "gate_passed_at": "2026-11-11T14:49:03.09846Z",
+      "commit_sha": "2796b612",
+      "commit_shas": [
+        "2796b612",
+        "be9e0796",
+        "cad91ff7"
+      ],
+      "commit_files": [
+        "internal/engine/dashwaiting.go",
+        "internal/engine/dashwaiting_test.go",
+        "internal/engine/epicdownstream.go"
+      ]
     },
     {
       "id": "slice-cap-grants",
