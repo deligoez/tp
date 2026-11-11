@@ -114,11 +114,9 @@ func runEpicExport(cmd *cobra.Command, _ []string) error {
 		runEpicExportMarkdown()
 		return nil
 	}
-	result, err := epicExport()
-	if err != nil {
-		// task-file-hint: an unreadable bound task file or review state
-		output.Error(ExitFile, err.Error(), epicBoundFileHint)
-		os.Exit(ExitFile)
+	result, rerr := epicExport()
+	if rerr != nil {
+		exitEpicRunError(rerr)
 	}
 	if err := output.JSON(result); err != nil {
 		output.Error(ExitFile, err.Error(), internalEncodeHint)
@@ -143,25 +141,32 @@ func runEpicExportMarkdown() {
 }
 
 // epicExport assembles the JSON export, deriving every epic's state once.
-func epicExport() (*epicExportResult, error) {
-	g, states, bound := loadEpicStates()
+func epicExport() (*epicExportResult, *epicRunError) {
+	g, states, bound, rerr := readEpicStates()
+	if rerr != nil {
+		return nil, rerr
+	}
+	// task-file-hint: an unreadable bound task file or review state
+	fail := func(err error) (*epicExportResult, *epicRunError) {
+		return nil, &epicRunError{code: ExitFile, msg: err.Error(), hint: epicBoundFileHint}
+	}
 	tpDir := engine.DiscoverTPDir(".")
 	matcher := epicPlaceholderMatcher(tpDir)
 	plan, err := epicPlanStatus(g, states, bound, trackedMilestones(g), matcher, false)
 	if err != nil {
-		return nil, err
+		return fail(err)
 	}
 	files, err := engine.EpicFileStates(tpDir, bound)
 	if err != nil {
-		return nil, err
+		return fail(err)
 	}
 	reviewSlices, err := engine.EpicReviewSlices(tpDir, g, epicReviewPolicy(tpDir))
 	if err != nil {
-		return nil, err
+		return fail(err)
 	}
 	_, unknown, err := engine.LoadEpicGraphForLint(tpDir)
 	if err != nil {
-		return nil, err
+		return fail(err)
 	}
 	lint := engine.SummarizeEpicLint(engine.LintEpicGraph(g, unknown))
 	milestones := epicExportMilestones(g, states, plan.Milestones, matcher)
