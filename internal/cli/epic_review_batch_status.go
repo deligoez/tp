@@ -19,6 +19,7 @@ type epicBatchStatusRow struct {
 	Round       int                        `json:"round"`
 	State       string                     `json:"state"`
 	Open        map[string]int             `json:"open"`
+	OpenByRole  map[string]int             `json:"open_by_role"`
 	Grantable   bool                       `json:"grantable"`
 	MaxRounds   *int                       `json:"max_rounds"`
 	GrantsSpent int                        `json:"grants_spent"`
@@ -117,6 +118,7 @@ func epicBatchStatusRowOf(eg *epicReviewGraph, policy engine.EpicReviewPolicy, d
 		Round:       st.Round,
 		State:       engine.EpicSliceLoop(&st, true).State,
 		Open:        st.Open,
+		OpenByRole:  st.OpenByRole,
 		Grantable:   st.Grantable,
 		MaxRounds:   epicMaxRoundsOut(st.MaxRounds),
 		GrantsSpent: st.GrantsSpent,
@@ -144,6 +146,7 @@ func epicUnheldSliceRow(eg *epicReviewGraph, d engine.EpicSliceDir, policy engin
 		Round:       st.Round,
 		State:       engine.EpicSliceLoop(&st, false).State,
 		Open:        st.Open,
+		OpenByRole:  st.OpenByRole,
 		MaxRounds:   epicMaxRoundsOut(st.MaxRounds),
 		GrantsSpent: st.GrantsSpent,
 		NextAction:  next,
