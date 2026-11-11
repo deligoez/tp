@@ -7,9 +7,44 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<main>
-<h1>tp dashboard</h1>
-</main>
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><span class="tp">tp</span><span>dashboard</span></div>
+    <div class="live"><span id="conn" class="conn" data-state="connecting">Connecting</span><span id="pushed"></span></div>
+  </header>
+  <div id="banners" class="banners" role="alert"></div>
+  <noscript><p class="note">The dashboard draws everything with JavaScript; turn it on to see it.</p></noscript>
+  <p id="loading" class="empty">Waiting for the first state from tp.</p>
+
+  <nav class="tabs" role="tablist" aria-label="Views">
+    <button class="tab" role="tab" id="tab-epics" aria-controls="view-epics" aria-selected="false" type="button"><b>Epics</b><span>the plan</span><span class="c" id="c-epics"></span></button>
+    <button class="tab" role="tab" id="tab-specs" aria-controls="view-specs" aria-selected="false" type="button"><b>Specs</b><span>every task file</span><span class="c" id="c-specs"></span></button>
+    <button class="tab" role="tab" id="tab-work" aria-controls="view-work" aria-selected="false" type="button"><b>Spec</b><span>one at a time</span><span class="c" id="c-work"></span></button>
+  </nav>
+
+  <!-- Epics: the plan -->
+  <section id="view-epics" class="view" role="tabpanel" aria-labelledby="tab-epics" hidden>
+    <section class="card nograph" id="epics-none" aria-label="No epic graph" hidden>
+      <h2>No epic graph</h2>
+      <p>This repository has no epic graph, so the plan is empty and the lifecycle below counts task files. Start one with <code>tp epic</code>: <code>tp epic set milestones='[["M1"]]'</code>, then <code>tp epic add</code> for each epic. The graph appears here as soon as tp writes <code>.tp/epics.json</code>, with no restart.</p>
+    </section>
+    <section class="card pipecard" aria-label="Lifecycle" data-src="summary"><h2>Lifecycle</h2><div id="band"></div></section>
+    <div id="epics-body" class="view" data-src="epic-export"></div>
+  </section>
+
+  <!-- Specs: every task file -->
+  <section id="view-specs" class="view" role="tabpanel" aria-labelledby="tab-specs" hidden>
+    <section class="panel specs" aria-label="All specs" data-src="export-list">
+      <div class="specsbar"><h2>Specs</h2></div>
+      <div class="scroll" id="specs-body"></div>
+    </section>
+  </section>
+
+  <!-- Spec: one spec -->
+  <section id="view-work" class="view" role="tabpanel" aria-labelledby="tab-work" hidden>
+    <div id="work-body" class="view"><p class="empty">Pick a spec on the Specs tab to read it and work its tasks.</p></div>
+  </section>
+</div>
 <script src="app.js"></script>
 </body>
 </html>
