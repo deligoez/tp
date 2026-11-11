@@ -157,3 +157,21 @@ func TestEpicGraph_RemovingAnEpicARuleNamesIsRefused(t *testing.T) {
 	assert.Contains(t, stderr, "give each forbidden_edges rule a why")
 	assert.Equal(t, graph, string(readEpicGraphFile(t, dir)), "a refused remove writes nothing")
 }
+
+// TestEpicLink_AForbiddenDependencyIsRefused is §10's acceptance: with the
+// rule forbidding the track of B1 from milestone M3, tp epic link from b, an
+// epic of that track, to c, an M3 epic, exits 1 naming forbidden-dependency
+// and the rule's why, and the graph is unchanged.
+func TestEpicLink_AForbiddenDependencyIsRefused(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, forbiddenEdgesGraph)
+	_, stderr, code := runTP(t, dir, "epic", "add", `{"id": "c", "title": "C", "milestone": "M3", "root": true}`)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	before := readEpicGraphFile(t, dir)
+
+	_, stderr, code = runTP(t, dir, "epic", "link", "b", "c", "b needs c")
+	require.Equal(t, 1, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "forbidden-dependency")
+	assert.Contains(t, stderr, "track B ships before M3")
+	assert.Equal(t, string(before), string(readEpicGraphFile(t, dir)), "a refused link writes nothing")
+}
