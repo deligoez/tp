@@ -505,7 +505,12 @@ table a prose document embeds. Build it one topic at a time, each topic through 
    whole list**, so start from the current one (`tp epic export --md` or the file) and insert the new
    name. `tp epic set opens_after=<json>`, `gates=<json>` and `tag_checks=<json>` replace whole the
    same way; `gates.<m>.<field>=` edits one gate. The first `set` creates an absent file; a topic that
-   fits existing milestones skips this step.
+   fits existing milestones skips this step. An edge that must never exist — a track that may not
+   reach into another milestone, say — is a `forbidden_edges` rule, `[{from, to, why}]` at the top of
+   the file, each selector one of `epic`, `milestone`, `tag` or `track_of` (the track holding the named
+   milestone); it has no `tp epic set` key, so it is written by hand or through `tp epic import`.
+   `forbidden-dependency` then refuses every write that adds a direct edge or any-of member the rule
+   forbids, naming the rule's `why`.
 3. **`tp epic add --bulk <ndjson>`** — the topic's epics, one per line, every row or none. The lint
    check runs on the file as the whole batch leaves it, so rows may depend on each other in any
    order; a single `tp epic add` needs every target it names to exist already. A write whose
