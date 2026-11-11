@@ -2007,7 +2007,12 @@ contract:
   milestone. The dashboard layer also leaves `deferrable` gate members out of `waiting` and drops a
   condition only deferrable work waits on from `operator_conditions`; `tp epic status`, `ready` and
   `export` are unchanged by it. Empty with no graph.
-- `series`: the per-day lifecycle series; `[]` in this build, which derives none yet.
+- `series`: work epics per stage per UTC day, `[{date, planned, claimed, specced, in_progress, done,
+  unknown}]`, from the first recorded event's day to the last's. An epic is claimed at `claimed.at`,
+  specced at the earliest `bound_at` of its bound files when every one carries it, in progress at the
+  earliest `started_at` of their wip or done tasks, and done at `done_at`; while a stage it reached at
+  a time tp did not record may already hold it, it counts under `unknown`, never on a guessed day.
+  `[]` with no graph or no recorded event.
 
 ### Exit codes
 
