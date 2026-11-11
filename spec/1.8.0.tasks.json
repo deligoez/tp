@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T13:55:03.573189Z",
+  "updated_at": "2026-11-11T13:58:02.820598Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -21,7 +21,7 @@
       "id": "taskfile-lifecycle-times",
       "title": "Add the task file's two lifecycle times",
       "description": "Model: optional top-level bound_at and imported_at on TaskFile, RFC 3339 UTC as claimed.at is, omitempty.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "model"
       ],
@@ -31,11 +31,18 @@
       "source_sections": [
         "## 15. Bound and imported times"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T13:55:16.993582Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T13:58:02.810808Z",
+      "closed_reason": "- TaskFile gains optional bound_at and imported_at (*time.Time, omitempty, RFC 3339) in internal/model/taskfile.go; TestReadWriteTaskFile_LifecycleTimesRoundTrip reads and writes both unchanged\n- A file without either key loads and saves without gaining them: TestReadWriteTaskFile_OldFileGainsNoLifecycleTimes (internal/model/io_test.go); gate passed",
+      "gate_passed_at": "2026-11-11T13:58:02.810808Z",
+      "commit_sha": "b1ed3725",
+      "commit_shas": [
+        "b1ed3725"
+      ],
+      "commit_files": [
+        "internal/model/taskfile.go"
+      ]
     },
     {
       "id": "set-epic-bound-at",
