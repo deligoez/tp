@@ -30,6 +30,8 @@ type ExportLoop struct {
 // grades it now, and the difference of its spec snapshot from the round
 // before's, null for round 1 or when either snapshot is absent. A ground round
 // records no time, so its RecordedAt is its round file's modification time.
+// A review round also carries its findings as its round file holds them
+// (spec/1.8.0.md §13), absent when the file cannot be read.
 type ExportRound struct {
 	Round        int                 `json:"round"`
 	RecordedAt   string              `json:"recorded_at"`
@@ -37,6 +39,18 @@ type ExportRound struct {
 	Fails        *int                `json:"fails,omitempty"`
 	Clean        bool                `json:"clean"`
 	SnapshotDiff *ExportSnapshotDiff `json:"snapshot_diff"`
+	FindingRows  []ExportFinding     `json:"finding_rows,omitempty"`
+}
+
+// ExportFinding is one finding of a recorded review round: its severity,
+// role, class, location and text, and its disposition when it carries one.
+type ExportFinding struct {
+	Severity    string `json:"severity"`
+	Role        string `json:"role,omitempty"`
+	Class       string `json:"class,omitempty"`
+	Location    string `json:"location"`
+	Finding     string `json:"finding"`
+	Disposition string `json:"disposition,omitempty"`
 }
 
 // ExportSnapshotDiff is the section-level difference of two spec snapshots:
@@ -87,10 +101,37 @@ func specExportLoop(specPath, phase string, rounds []ReviewRound, clean []bool, 
 	}
 	for i := range rounds {
 		findings := rounds[i].Findings
-		l.Rounds = append(l.Rounds, ExportRound{Round: rounds[i].Round, RecordedAt: rounds[i].RecordedAt, Findings: &findings,
-			Clean: clean[i], SnapshotDiff: exportSnapshotDiff(specPath, phase, rounds[i].Round)})
+		round := ExportRound{Round: rounds[i].Round, RecordedAt: rounds[i].RecordedAt, Findings: &findings,
+			Clean: clean[i], SnapshotDiff: exportSnapshotDiff(specPath, phase, rounds[i].Round)}
+		if phase == PhaseReview {
+			round.FindingRows = exportFindingRows(specPath, rounds[i].File)
+		}
+		l.Rounds = append(l.Rounds, round)
 	}
 	return l
+}
+
+// exportFindingRows reads a review round file's findings, nil when it has
+// no file or the file cannot be read.
+func exportFindingRows(specPath, file string) []ExportFinding {
+	if file == "" {
+		return nil
+	}
+	rows, ok := readNDJSONRows(filepath.Join(ReviewStateDir(specPath), file))
+	if !ok {
+		return nil
+	}
+	str := func(row map[string]any, key string) string { s, _ := row[key].(string); return s }
+	out := make([]ExportFinding, 0, len(rows))
+	for _, row := range rows {
+		f := ExportFinding{Severity: str(row, "severity"), Role: str(row, "role"), Class: str(row, "class"),
+			Location: str(row, "location"), Finding: str(row, "finding")}
+		if resolved, isMap := row["resolved"].(map[string]any); isMap {
+			f.Disposition = str(resolved, "status")
+		}
+		out = append(out, f)
+	}
+	return out
 }
 
 // exportGroundLoop reads every recorded ground round: its FAIL rows, and
