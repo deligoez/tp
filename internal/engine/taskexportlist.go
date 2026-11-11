@@ -1,0 +1,165 @@
+package engine
+
+import (
+	"fmt"
+	"os"
+	"slices"
+	"sort"
+
+	"github.com/deligoez/tp/internal/model"
+)
+
+// TaskFileList is tp export --list's payload (spec/1.8.0.md §16): one row per
+// task file of the repository, bound or not, in phase order.
+type TaskFileList struct {
+	Version int           `json:"version"`
+	Files   []TaskFileRow `json:"files"`
+}
+
+// TaskFileRow is one task file as tp export --list reports it: its
+// repo-relative path, its spec's first heading, its epic and the epic's
+// derived status, the phase tp resume reports, its tasks counted by status,
+// its review and audit loops, the next step tp resume names and the escalate
+// blockers that stop it. A file that cannot be read carries its path and
+// Error alone.
+type TaskFileRow struct {
+	Path        string         `json:"path"`
+	Title       string         `json:"title,omitempty"`
+	Epic        *string        `json:"epic,omitempty"`
+	EpicState   *string        `json:"epic_state,omitempty"`
+	Phase       string         `json:"phase,omitempty"`
+	Tasks       map[string]int `json:"tasks,omitempty"`
+	Review      *EpicLoop      `json:"review,omitempty"`
+	Audit       *EpicLoop      `json:"audit,omitempty"`
+	NextStep    string         `json:"next_step,omitempty"`
+	Escalations []Blocker      `json:"escalations,omitempty"`
+	Error       string         `json:"error,omitempty"`
+
+	readable bool
+}
+
+// phaseRank orders rows in the loop's order; an unreadable row sorts last.
+var phaseRank = map[string]int{PhaseReview: 0, PhaseDecompose: 1, PhaseImplement: 2, PhaseAudit: 3, PhaseRelease: 4}
+
+// TaskFileListOf lists every task file git sees under start's repository,
+// tracked or untracked and not ignored, writing nothing. A file that cannot
+// be read, or whose state cannot, keeps its row with the error; outside a git
+// repository the list is empty. Rows are in phase order, those with an
+// escalation first within a phase, then by path.
+func TaskFileListOf(start string) TaskFileList {
+	list := TaskFileList{Version: TaskExportVersion, Files: []TaskFileRow{}}
+	root := gitToplevel(start)
+	if root == "" {
+		return list
+	}
+	bound := map[string][]string{}
+	for _, path := range repoTaskFiles(root) {
+		row, tf := taskFileRow(start, path)
+		if row.readable && tf.Epic != "" {
+			bound[tf.Epic] = append(bound[tf.Epic], path)
+		}
+		list.Files = append(list.Files, row)
+	}
+	fillEpicStates(start, list.Files, bound)
+	sort.SliceStable(list.Files, func(i, j int) bool { return taskFileRowLess(&list.Files[i], &list.Files[j]) })
+	return list
+}
+
+// taskFileRow reads one task file's row and returns the file it read.
+func taskFileRow(start, path string) (TaskFileRow, *model.TaskFile) {
+	row := TaskFileRow{Path: repoRelative(start, path)}
+	tf, err := model.ReadTaskFile(path)
+	if err != nil {
+		row.Error = fmt.Sprintf("task file %s cannot be read: %v", row.Path, err)
+		return row, nil
+	}
+	specPath, _ := ResolveSpecPath(path, tf.Spec)
+	st, err := epicFileState(path)
+	if err != nil {
+		row.Error = err.Error()
+		return row, nil
+	}
+	resume, err := AssembleResume(start, path, specPath, tf)
+	if err != nil {
+		row.Error = err.Error()
+		return row, nil
+	}
+	row.readable = true
+	row.Title = specTitle(specPath)
+	if tf.Epic != "" {
+		row.Epic = &tf.Epic
+	}
+	row.Phase, row.Tasks, row.Review, row.Audit = resume.Phase, st.Tasks, &st.Review, &st.Audit
+	row.NextStep = resume.NextAction.Summary
+	row.Escalations = []Blocker{}
+	for _, b := range resume.Blockers {
+		if b.Class == ClassEscalate {
+			row.Escalations = append(row.Escalations, b)
+		}
+	}
+	return row, tf
+}
+
+// specTitle is the spec's first heading, "" when it has none or cannot be
+// read.
+func specTitle(specPath string) string {
+	data, err := os.ReadFile(specPath) //nolint:gosec // the spec a task file names
+	if err != nil {
+		return ""
+	}
+	for _, s := range SpecSections(data) {
+		if s.Heading != "" {
+			return s.Heading
+		}
+	}
+	return ""
+}
+
+// fillEpicStates sets each bound row's epic state from the graph start's
+// project holds, over the readable files bound to each epic. With no graph,
+// an epic the graph does not hold, or state that cannot be derived, the
+// row's epic state stays null.
+func fillEpicStates(start string, rows []TaskFileRow, bound map[string][]string) {
+	if len(bound) == 0 {
+		return
+	}
+	tpDir := DiscoverTPDir(start)
+	if tpDir == "" {
+		return
+	}
+	g, _, err := LoadEpicGraph(tpDir)
+	if err != nil {
+		return
+	}
+	for id := range bound {
+		slices.Sort(bound[id])
+	}
+	states, err := DeriveEpicStates(g, bound)
+	if err != nil {
+		return
+	}
+	for i := range rows {
+		if rows[i].Epic == nil {
+			continue
+		}
+		if st, ok := states[*rows[i].Epic]; ok {
+			status := st.Status
+			rows[i].EpicState = &status
+		}
+	}
+}
+
+// taskFileRowLess orders a before b: by phase, an escalated row first within
+// a phase, then by path; an unreadable row after every readable one.
+func taskFileRowLess(a, b *TaskFileRow) bool {
+	if a.readable != b.readable {
+		return a.readable
+	}
+	if ra, rb := phaseRank[a.Phase], phaseRank[b.Phase]; ra != rb {
+		return ra < rb
+	}
+	if ea, eb := len(a.Escalations) > 0, len(b.Escalations) > 0; ea != eb {
+		return ea
+	}
+	return a.Path < b.Path
+}
