@@ -746,6 +746,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp graph` | Dependency tree (--tag, --from) |
 | `tp stats` | Parallelism analysis |
 | `tp config` | Effective configuration as JSON (`--resolved`; `--extract [--dry-run\|--force]` hoists policy shared by ALL task files into `.tp/config.json`) |
+| `tp export` | Print the read model of the task file `--file` names or discovery finds, as JSON, and write nothing: `{version, path, spec, epic, bound_at, imported_at, sections, tasks, loops, resume}`. `version` is 1; `sections` the spec's sections `{anchor, heading, line, paragraphs: [{anchor, line, text}]}`; each task the stored task plus `state` (`ready`, `waits_on_task`, `waits_on_epic`, or its `wip`/`done` status) and `waits_on`; `loops.{ground,review,audit}` each `{cap, clean_rounds_needed, streak, rounds}`, each recorded round `{round, recorded_at, findings` (ground: `fails`)`, clean, snapshot_diff}`; `resume` the `tp resume` view. `--compact` drops each section's paragraphs, each task's description and each round's `snapshot_diff`, and compacts `resume` as `tp resume --compact`. Runs under `TP_UNATTENDED`; no task file, or one it cannot read, exits 3 |
 | `tp dashboard [--port N]` | Serve the read-only dashboard on `127.0.0.1` (port 7377 unless `--port`), print its URL and serve until interrupted; writes nothing to the repository. A taken port exits 1 naming it, `TP_UNATTENDED` exits 2, and a repository with neither an epic graph nor a task file exits 3 |
 
 ### Spec & validation
