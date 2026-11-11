@@ -313,8 +313,11 @@ review changes them.
    (operator).
 5. `tp run` units live in v1? **Only `tp run --status` per bound file, read in-process; no new stream.**
 6. What does a repo with no graph show (tp's own)? Was **exit 3 with a hint** (operator). Reopened by
-   the Specs and Spec tabs: such a repo has specs and tasks to show. **Proposed: open on the Specs
-   tab, the Epics tab saying there is no graph; the operator confirms.**
+   the Specs and Spec tabs: such a repo has specs and tasks to show. **The page opens on the Specs
+   tab; the Epics tab stays and says the repo has no epic graph, with the command that starts one,
+   and its lifecycle band shows the spec phases alone. A graph added later fills the tab through the
+   live push, with no restart. A repo with neither a graph nor a task file still exits 3 with a
+   hint** (operator).
 7. Add `revision`/`generated_at` to the export? **Yes, additive within `version: 2`.**
 8. Trim `milestones`' duplication for the page? **No; 0.8 MB on localhost is fine; don't fork the contract.**
 9. Port: fixed default or random? **Fixed default (e.g. 7377) with `--port`; exit 1 naming it if taken.**
