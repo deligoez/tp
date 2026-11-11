@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T16:24:22.930091Z",
+  "updated_at": "2026-11-11T16:32:00.535563Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -919,7 +919,7 @@
       "id": "export-read-model",
       "title": "Build one task file's export read model",
       "description": "Engine: tasks with their state, each loop with its rounds and snapshot diffs, the tp resume view, the epic and both lifecycle times.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "export"
@@ -934,11 +934,19 @@
       "source_sections": [
         "## 16. One spec's read model: `tp export`"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T16:24:27.796242Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T16:32:00.52039Z",
+      "closed_reason": "- engine.TaskExportOf(start, taskFilePath) -\u003e TaskExport{version 1, path, spec (repo-relative), epic, bound_at, imported_at (null when none), sections (engine.SpecSections), tasks, loops, resume} (internal/engine/taskexport.go, taskexportloops.go; names and shape chosen for the export-command task to print). Each task is the stored model.Task (status, depends_on, estimate_minutes, acceptance, source_sections, started_at/closed_at, closed_reason, commit_shas, description) plus state (ready, waits_on_task, waits_on_epic; wip and done carry their status; reading chosen) and waits_on (undone dependencies, or the epic block's undone dependencies, a group as 'one of {A, B}'). TestTaskExport_CarriesTasksWithTheirState and TestTaskExport_AnOpenTaskOfABlockedEpicWaitsOnIt; mutant dropping the epic case turns the latter red\n- loops.{ground,review,audit} each {cap (null uncapped; ground none), clean_rounds_needed (ground 1, its --check reads the latest round), streak, rounds[{round, recorded_at, findings (review/audit) or fails (ground FAIL rows), clean (review ReviewRoundClean, audit LiveAuditRounds, ground no FAIL and every emitted unit dispositioned), snapshot_diff {changed, removed} by DiffSections from the round before's phase snapshot, null on round 1 or a missing snapshot}]}; a ground round has no stored time, so recorded_at is its round file's mtime (reading chosen). TestTaskExport_CarriesEachLoopWithItsRounds; mutants diffing a snapshot against itself and grading a FAIL ground round clean each turn it red\n- the model carries resume (engine.AssembleResume, the ResumeResult tp resume prints), epic, bound_at and imported_at: asserted in both tests above (epic e with both times; null on an unbound file). Gate passed (suite, golangci-lint, deadcode, complexity)",
+      "gate_passed_at": "2026-11-11T16:32:00.52039Z",
+      "commit_sha": "53bc475c",
+      "commit_shas": [
+        "53bc475c"
+      ],
+      "commit_files": [
+        "internal/engine/taskexport.go",
+        "internal/engine/taskexportloops.go"
+      ]
     },
     {
       "id": "export-command",
