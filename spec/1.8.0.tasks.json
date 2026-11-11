@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T14:49:03.120398Z",
+  "updated_at": "2026-11-11T14:52:19.178895Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -141,7 +141,7 @@
       "id": "export-lint-summary",
       "title": "Add the lint summary to the epic export",
       "description": "tp epic export gains lint: {errors, warnings, info}, the counts tp epic lint reports, derived by the same code.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "export"
@@ -153,11 +153,24 @@
         "## 2. Live data, derived once",
         "## 4. The Epics tab"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T14:49:03.504221Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T14:52:19.152065Z",
+      "closed_reason": "- tp epic export prints lint: {errors, warnings, info} (engine.EpicLintSummary from engine.SummarizeEpicLint, the counter tp epic lint now uses too; the export lints the graph with its unknown keys exactly as tp epic lint does, internal/cli/epic_export.go). Key name info follows the epic severity value. TestEpicExport_LintSummaryEqualsTheLintCounts, on a fixture with one gate-member-deferrable error, one thin-why warning and one gate-held-by-condition info, asserts lint equals tp epic lint's errors, warnings and info count; red before the change (no key); the mutant counting info as a warning turns it red\n- lint survives --compact: the same test runs tp epic export --compact and finds the same counts; gate passed",
+      "gate_passed_at": "2026-11-11T14:52:19.152065Z",
+      "commit_sha": "636514d1",
+      "commit_shas": [
+        "636514d1",
+        "37c984bd",
+        "7a5cf051",
+        "cae3ae0b"
+      ],
+      "commit_files": [
+        "internal/cli/epic_export.go",
+        "internal/cli/epic_export_lint_test.go",
+        "internal/cli/epic_lint.go",
+        "internal/engine/epiclint.go"
+      ]
     },
     {
       "id": "export-bound-file-times",
