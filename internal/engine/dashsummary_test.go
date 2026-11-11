@@ -36,9 +36,10 @@ func jsonKeys(t *testing.T, raw json.RawMessage) []string {
 }
 
 // TestDashboardSummary_ShapeIsPinned is spec/1.8.0.md §2's summary shape: the
-// four top-level keys rounds, band, release_impact and series, and each
-// per-round entry's round, total and by_role. band, release_impact and series
-// are present and empty here; the tasks that fill them extend this test.
+// four top-level keys rounds, band, release_impact and series, each per-round
+// entry's round, total and by_role, and the band's stages, phases and
+// phases_of with every key of both axes. release_impact and series are present
+// and empty here; the tasks that fill them extend this test.
 func TestDashboardSummary_ShapeIsPinned(t *testing.T) {
 	t.Parallel()
 	tpDir := t.TempDir()
@@ -50,15 +51,22 @@ func TestDashboardSummary_ShapeIsPinned(t *testing.T) {
 
 	assert.Equal(t, []string{"band", "release_impact", "rounds", "series"}, jsonKeys(t, data))
 	var top struct {
-		Rounds        map[string][]json.RawMessage `json:"rounds"`
-		Band          json.RawMessage              `json:"band"`
-		ReleaseImpact json.RawMessage              `json:"release_impact"`
-		Series        json.RawMessage              `json:"series"`
+		Rounds map[string][]json.RawMessage `json:"rounds"`
+		Band   struct {
+			Stages json.RawMessage `json:"stages"`
+			Phases json.RawMessage `json:"phases"`
+		} `json:"band"`
+		ReleaseImpact json.RawMessage `json:"release_impact"`
+		Series        json.RawMessage `json:"series"`
 	}
 	require.NoError(t, json.Unmarshal(data, &top))
+	var raw map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(data, &raw))
 	require.Len(t, top.Rounds["s1"], 1)
 	assert.Equal(t, []string{"by_role", "round", "total"}, jsonKeys(t, top.Rounds["s1"][0]))
-	assert.JSONEq(t, `{}`, string(top.Band))
+	assert.Equal(t, []string{"phases", "phases_of", "stages"}, jsonKeys(t, raw["band"]))
+	assert.Equal(t, []string{"claimed", "done", "in_progress", "planned", "specced"}, jsonKeys(t, top.Band.Stages))
+	assert.Equal(t, []string{"audit", "decompose", "implement", "release", "review"}, jsonKeys(t, top.Band.Phases))
 	assert.JSONEq(t, `{}`, string(top.ReleaseImpact))
 	assert.JSONEq(t, `[]`, string(top.Series))
 }
