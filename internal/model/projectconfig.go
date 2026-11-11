@@ -11,6 +11,17 @@ import "encoding/json"
 // nil (unset), so the file contributes no overrides to resolution.
 type ProjectConfig struct {
 	Workflow WorkflowOverride `json:"workflow"`
+	// Epic holds the project's epic graph settings; nil when the file has no
+	// epic key, so a write does not add one.
+	Epic *EpicProjectConfig `json:"epic,omitempty"`
+}
+
+// EpicProjectConfig is .tp/config.json's epic block.
+type EpicProjectConfig struct {
+	// ThresholdPlaceholder is the regular expression a trimmed gate threshold
+	// matches when the operator has not written it (spec/1.8.0.md §8); nil
+	// uses the default pattern.
+	ThresholdPlaceholder *string `json:"threshold_placeholder,omitempty"`
 }
 
 // LocalConfig models the git-ignored .tp/local.json file, which holds
