@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T16:32:00.535563Z",
+  "updated_at": "2026-11-11T16:37:55.2738Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -952,7 +952,7 @@
       "id": "export-command",
       "title": "Add the tp export command",
       "description": "tp export prints the read model of the task file --file names or discovery finds, version 1; --compact drops bulky fields.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "export"
@@ -966,11 +966,21 @@
         "## 16. One spec's read model: `tp export`",
         "## 18. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T16:32:01.186483Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T16:37:55.256018Z",
+      "closed_reason": "- tp export (internal/cli/export.go; registered in root.go, TestNonGoals baseline and SKILL.md inventory line in the same commit) prints engine.TaskExportOf's model of the task file --file names or discovery finds: version, path, spec, epic, bound_at, imported_at, sections with anchors and paragraphs, tasks with state, loops with one entry per recorded round, and resume rendered by resumeJSON exactly as tp resume prints it. TestExport_PrintsSectionsTasksLoopsAndResume (two recorded review rounds, round 2 carrying its snapshot_diff); against tp's own spec/1.5.0.tasks.json it prints version 1, 11 sections, 29 tasks, review 4 / audit 7 / ground 2 rounds and resume phase release\n- --compact keeps each section's anchor, heading and line and drops its paragraphs, drops each task's description and sets every round's snapshot_diff to null, and renders resume with resumeJSON(compact) (no next_action.summary): TestExport_CompactDropsBodiesDescriptionsAndDiffs; checked on spec/1.5.0.tasks.json too; the mutant rendering resume uncompacted turns it red\n- read-only and unfenced: under TP_UNATTENDED it exits 0 and leaves the work tree byte-identical; no task file exits 3 with a hint naming --file and tp init, a malformed one exits 3 with a hint naming the file and tp validate (StateCorruptError's own hint for corrupt review state; hints chosen): TestExport_RunsUnattendedAndExits3WithoutATaskFile. tp export takes no positional (cobra.NoArgs, reading chosen: §16 names --file and discovery only). Gate passed (suite, golangci-lint, deadcode, complexity)",
+      "gate_passed_at": "2026-11-11T16:37:55.256018Z",
+      "commit_sha": "964baa93",
+      "commit_shas": [
+        "964baa93"
+      ],
+      "commit_files": [
+        "internal/cli/export.go",
+        "internal/cli/nongoals_surface_test.go",
+        "internal/cli/root.go",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "export-list",
