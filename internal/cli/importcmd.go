@@ -231,6 +231,9 @@ func runImport(_ *cobra.Command, args []string) error {
 			return nil
 		}
 
+		// spec/1.8.0.md §15: every import, --force included, stamps the time.
+		importedAt := time.Now().UTC()
+		tf.ImportedAt = &importedAt
 		if err := model.WriteTaskFile(targetPath, tf); err != nil {
 			output.Error(ExitFile, err.Error())
 			os.Exit(ExitFile)
