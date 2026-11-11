@@ -26,7 +26,7 @@
   // it, if any; graph records whether tp pushed the epic export at all.
   const live = {};
   EVENTS.forEach((name) => { live[name] = { data: null, error: null }; });
-  const state = { graph: false, tab: null };
+  const state = { graph: false, tab: null, spec: null };
 
   // panels draw the tabs: each names the payloads it reads and draws from
   // their last good state. A later view registers its own with panel().
@@ -614,6 +614,136 @@
     '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path d="M1 7.5H14" stroke="var(--crit)" stroke-width="2.6"/></svg>critical path</span>' +
     '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path d="M1 7.5H14" stroke="var(--accent)" stroke-dasharray="3 2"/></svg>one of a group</span>' +
     '<span class="help">Click an epic for its chain, again to clear. Drag to pan; Ctrl or ⌘ with the wheel, or a pinch, zooms.</span>';
+
+  // ---------- the Specs tab (§12) ----------
+  // One row per task file, as tp export --list lists them: already in the
+  // loop's order, the rows an escalation stops first within a phase. The page
+  // groups them under their phase and keeps that order.
+  const specsView = { phase: "all", q: "" };
+  const STAGE_LABEL = Object.fromEntries(STAGES);
+  const LOOP_LABEL = { none: "none", open: "open", stale: "stale", cap_reached: "cap reached", done: "done" };
+  const PAUSE = '<svg class="ic" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 4v8M10 4v8"/></svg>';
+  const waitsOp = (f) => !!(f.escalations && f.escalations.length);
+  INFO.specs = "Every task file git sees, one row each, from tp export --list: grouped by the phase tp resume reports, in the loop's order (review, decompose, implement, audit, release), the ones an operator decision stops first. Operator decisions shows only those. Click a row to open that spec; press / anywhere to filter.";
+
+  // specMatches is the filter: a case-insensitive substring of the title, the
+  // path or the epic.
+  function specMatches(f, q) {
+    return !q || [f.title, f.path, f.epic].some((s) => s && s.toLowerCase().includes(q));
+  }
+
+  function loopCell(label, l) {
+    const v = l && l.state && l.state !== "none"
+      ? '<span class="st" data-s="' + esc(l.state) + '">round ' + esc(l.round) + ", " + esc(LOOP_LABEL[l.state] || l.state) + "</span>"
+      : '<span class="muted">none</span>';
+    return '<span class="lc"><span>' + label + "</span>" + v + "</span>";
+  }
+
+  function specRow(f) {
+    const ops = f.escalations || [];
+    const t = f.tasks || {};
+    const total = (t.open || 0) + (t.wip || 0) + (t.done || 0);
+    const tasks = total
+      ? '<span class="pm"><span class="meter" aria-hidden="true"><i style="width:' + Math.round((t.done || 0) / total * 100) + '%"></i></span><span class="num">' +
+        esc(t.done || 0) + "/" + esc(total) + "</span></span>" + (t.wip ? '<span class="sm muted">' + esc(t.wip) + " in progress</span>" : "")
+      : '<span class="muted">none yet</span>';
+    const epic = f.epic
+      ? '<code>' + esc(f.epic) + "</code>" + (f.epic_state ? '<span class="sm muted">' + esc(STAGE_LABEL[f.epic_state] || f.epic_state) + "</span>" : "")
+      : '<span class="muted">no epic</span>';
+    const next = ops.map((b) => '<span class="stat" title="' + esc(b.message) + '">' + PAUSE + esc(b.code) + "</span>").join("") +
+      (f.error ? '<span class="snext err">' + esc(f.error) + "</span>" : '<code class="snext">' + esc(f.next_step || "") + "</code>");
+    return '<tr class="srow' + (f.path === state.spec ? " on" : "") + '" tabindex="0" data-path="' + esc(f.path) + '">' +
+      '<td class="sname"><span class="pt">' + (ops.length ? '<span class="mk" title="Waits on an operator decision">' + PAUSE + "</span>" : "") +
+      "<span>" + esc(f.title || f.path) + "</span></span><code>" + esc(f.path) + "</code></td>" +
+      '<td class="sepic">' + epic + "</td><td>" + tasks + '</td><td class="sloop">' + loopCell("review", f.review) + loopCell("audit", f.audit) +
+      '</td><td class="snextc">' + next + "</td></tr>";
+  }
+
+  function drawSpecs() {
+    const list = data("export-list");
+    const files = (list && list.files) || [];
+    const groups = PHASES.concat([["", "Unreadable"]]);
+    const chip = (v, label, n) => '<button type="button" class="chip" data-phase="' + v + '" aria-pressed="' + (specsView.phase === v) + '">' +
+      esc(label) + ' <span class="num muted">' + n + "</span></button>";
+    $("phasechips").innerHTML = chip("all", "All", files.length) + chip("op", "Operator decisions", files.filter(waitsOp).length) +
+      PHASES.map(([p, label]) => chip(p, label, files.filter((f) => f.phase === p).length)).join("");
+    const q = specsView.q.trim().toLowerCase();
+    const ph = specsView.phase;
+    const focused = document.activeElement && document.activeElement.closest && document.activeElement.closest("#specs-body .srow");
+    let n = 0;
+    const body = groups.map(([p, label]) => {
+      if (ph !== "all" && ph !== "op" && ph !== p) return "";
+      const rows = files.filter((f) => (f.phase || "") === p && (ph !== "op" || waitsOp(f)) && specMatches(f, q));
+      n += rows.length;
+      return rows.length ? '<tbody><tr class="sgroup"><th colspan="5" scope="rowgroup">' + esc(label) + ' <span class="num muted">' + rows.length + "</span></th></tr>" +
+        rows.map(specRow).join("") + "</tbody>" : "";
+    }).join("");
+    $("specs-body").innerHTML = n
+      ? '<table class="stable"><thead><tr><th scope="col">Spec</th><th scope="col">Epic</th><th scope="col">Tasks</th><th scope="col">Loops</th><th scope="col">Next step</th></tr></thead>' + body + "</table>"
+      : none(list ? "No task file matches" + (q ? " “" + specsView.q.trim() + "”" : "") + " here." : "");
+    $("specs-n").textContent = list ? n : "";
+    if (focused) {
+      const again = $("specs-body").querySelector('.srow[data-path="' + CSS.escape(focused.dataset.path) + '"]');
+      if (again) again.focus();
+    }
+  }
+  panel(["export-list"], drawSpecs);
+
+  // openSpec takes one task file to the Spec tab, which tp export draws.
+  function openSpec(path) {
+    const f = ((data("export-list") || {}).files || []).find((x) => x.path === path);
+    state.spec = path;
+    $("c-work").textContent = path;
+    $("work-body").innerHTML = '<section class="panel"><h2>' + esc((f && f.title) || path) + "</h2><code>" + esc(path) + "</code></section>";
+    setTab("work");
+    drawSpecs();
+  }
+  function openSpecs() {
+    setTab("specs");
+    $("specs-q").focus();
+    $("specs-q").select();
+  }
+  $("specs-q").addEventListener("input", (ev) => { specsView.q = ev.target.value; drawSpecs(); });
+  $("specs-q").addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter") {
+      const r = $("specs-body").querySelector(".srow");
+      if (r) openSpec(r.dataset.path);
+    } else if (ev.key === "ArrowDown") {
+      const r = $("specs-body").querySelector(".srow");
+      if (r) { ev.preventDefault(); r.focus(); }
+    }
+  });
+  $("phasechips").addEventListener("click", (ev) => {
+    const b = ev.target.closest("[data-phase]");
+    if (!b) return;
+    specsView.phase = b.dataset.phase;
+    drawSpecs();
+  });
+  $("specs-body").addEventListener("click", (ev) => {
+    const r = ev.target.closest(".srow");
+    if (r) openSpec(r.dataset.path);
+  });
+  $("specs-body").addEventListener("keydown", (ev) => {
+    const r = ev.target.closest(".srow");
+    if (!r) return;
+    if (ev.key === "Enter") {
+      openSpec(r.dataset.path);
+      return;
+    }
+    if (ev.key !== "ArrowDown" && ev.key !== "ArrowUp") return;
+    ev.preventDefault();
+    const rows = [...$("specs-body").querySelectorAll(".srow")];
+    const i = rows.indexOf(r) + (ev.key === "ArrowDown" ? 1 : -1);
+    if (i < 0) $("specs-q").focus();
+    else if (rows[i]) rows[i].focus();
+  });
+  // "/" reaches the filter from anywhere but a field being typed in.
+  document.addEventListener("keydown", (ev) => {
+    const tag = (ev.target.tagName || "").toLowerCase();
+    if (ev.key !== "/" || ev.metaKey || ev.ctrlKey || ev.altKey || tag === "input" || tag === "textarea" || ev.target.isContentEditable) return;
+    ev.preventDefault();
+    openSpecs();
+  });
 
   TABS.forEach((t) => { $("tab-" + t).addEventListener("click", () => setTab(t)); });
 

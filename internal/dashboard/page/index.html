@@ -60,7 +60,11 @@
   <!-- Specs: every task file -->
   <section id="view-specs" class="view" role="tabpanel" aria-labelledby="tab-specs" hidden>
     <section class="panel specs" aria-label="All specs" data-src="export-list">
-      <div class="specsbar"><h2>Specs</h2></div>
+      <div class="specsbar">
+        <h2>Specs <span class="muted num" id="specs-n"></span> <button class="info" type="button" data-info="specs" aria-label="About the spec list" aria-expanded="false">i</button></h2>
+        <input type="search" id="specs-q" placeholder="Filter by title, path or epic" aria-label="Filter specs" autocomplete="off">
+        <div class="phasechips" id="phasechips" role="group" aria-label="Phase"></div>
+      </div>
       <div class="scroll" id="specs-body"></div>
     </section>
   </section>
