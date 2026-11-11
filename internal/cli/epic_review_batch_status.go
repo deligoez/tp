@@ -15,12 +15,14 @@ import (
 // one-slice --status cut to what a row needs, with the loop state tp epic
 // export reports.
 type epicBatchStatusRow struct {
-	Key        *engine.EpicSliceKeyRecord `json:"key"`
-	Round      int                        `json:"round"`
-	State      string                     `json:"state"`
-	Open       map[string]int             `json:"open"`
-	Grantable  bool                       `json:"grantable"`
-	NextAction string                     `json:"next_action"`
+	Key         *engine.EpicSliceKeyRecord `json:"key"`
+	Round       int                        `json:"round"`
+	State       string                     `json:"state"`
+	Open        map[string]int             `json:"open"`
+	Grantable   bool                       `json:"grantable"`
+	MaxRounds   *int                       `json:"max_rounds"`
+	GrantsSpent int                        `json:"grants_spent"`
+	NextAction  string                     `json:"next_action"`
 }
 
 // epicBatchStatusResult is a batch --status's payload.
@@ -111,12 +113,14 @@ func epicBatchStatusRowOf(eg *epicReviewGraph, policy engine.EpicReviewPolicy, d
 	}
 	st := epicBatchLoop(run.stateDir, run.all, policy)
 	return epicBatchStatusRow{
-		Key:        d.Key,
-		Round:      st.Round,
-		State:      engine.EpicSliceLoop(&st, true).State,
-		Open:       st.Open,
-		Grantable:  st.Grantable,
-		NextAction: epicStatusNextAction(key, &st, checksPass),
+		Key:         d.Key,
+		Round:       st.Round,
+		State:       engine.EpicSliceLoop(&st, true).State,
+		Open:        st.Open,
+		Grantable:   st.Grantable,
+		MaxRounds:   epicMaxRoundsOut(st.MaxRounds),
+		GrantsSpent: st.GrantsSpent,
+		NextAction:  epicStatusNextAction(key, &st, checksPass),
 	}, st.Done
 }
 
@@ -136,11 +140,13 @@ func epicUnheldSliceRow(eg *epicReviewGraph, d engine.EpicSliceDir, policy engin
 		next = "legacy slice, done; no action (safe to delete " + path + ")"
 	}
 	return epicBatchStatusRow{
-		Key:        d.Key,
-		Round:      st.Round,
-		State:      engine.EpicSliceLoop(&st, false).State,
-		Open:       st.Open,
-		NextAction: next,
+		Key:         d.Key,
+		Round:       st.Round,
+		State:       engine.EpicSliceLoop(&st, false).State,
+		Open:        st.Open,
+		MaxRounds:   epicMaxRoundsOut(st.MaxRounds),
+		GrantsSpent: st.GrantsSpent,
+		NextAction:  next,
 	}, st.Done
 }
 
