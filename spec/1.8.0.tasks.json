@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T19:23:08.634702Z",
+  "updated_at": "2026-11-11T19:29:03.92869Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -282,7 +282,7 @@
       "id": "lint-gate-threshold-unwritten",
       "title": "Add the gate-threshold-unwritten lint rule",
       "description": "tp epic lint warns on an unmet gate whose trimmed threshold matches the project's placeholder pattern.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "lint"
@@ -296,11 +296,26 @@
         "## 8. Placeholder thresholds",
         "## 18. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T19:23:12.276114Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T19:29:03.821869Z",
+      "closed_reason": "- gate-threshold-unwritten (engine.EpicRuleGateThresholdUnwritten, warning): engine.LintEpicThresholds(g, matcher) (internal/engine/epiclint_threshold.go) warns on each unmet gate, in milestone name order, whose trimmed threshold the PlaceholderMatcher matches, Names [milestone], epics [], message 'gate \"M\" threshold \"T\" is a placeholder: write the exit condition (tp epic set gates.M.threshold=\u003ctext\u003e)' (wording chosen); none on a met gate, written text, an absent or blank threshold. It is a separate function beside LintEpicGraph (which takes no project config; reading chosen); tp epic lint and tp epic export's lint summary share epicLintFindings (internal/cli/epic_lint.go), the export passing its own matcher, so both counts stay equal\n- §18 row 5: TestLintEpicThresholds_WarnsOnAnUnmetGateWithAPlaceholder on gates [threshold], ' TBD ', 'draft: 80% pass', a written one, none, and a met TBD: default warns on A,B; '^draft:' on C alone. Mutant reporting an absent threshold gives [A B E]/[C E], mutant keeping the default beside the project pattern gives [A B C] under ^draft:, both red. TestEpicLint_WarnsOnAPlaceholderThresholdUnderTheProjectPattern: tp epic lint warns on A by default, on B under ^draft: (config.json), exit 0, the export's lint.warnings is 1\n- Writers never refuse on it: they lint with LintEpicGraph alone and refuse only new errors; tp epic set gates.A.threshold=[threshold] exits 0 in the CLI test. Gate passed. README lint-table row left to docs-readme",
+      "gate_passed_at": "2026-11-11T19:29:03.821869Z",
+      "commit_sha": "65461b2a",
+      "commit_shas": [
+        "65461b2a",
+        "723cbdbb",
+        "037ea4a0",
+        "d5d71b67"
+      ],
+      "commit_files": [
+        "internal/cli/epic_export.go",
+        "internal/cli/epic_lint.go",
+        "internal/cli/epic_threshold_lint_test.go",
+        "internal/engine/epiclint.go",
+        "internal/engine/epiclint_threshold.go",
+        "internal/engine/epiclint_threshold_test.go"
+      ]
     },
     {
       "id": "milestone-state-engine",
