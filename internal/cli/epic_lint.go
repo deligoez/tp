@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/deligoez/tp/internal/engine"
+	"github.com/deligoez/tp/internal/model"
 	"github.com/deligoez/tp/internal/output"
 )
 
@@ -34,6 +35,13 @@ func newEpicLintCmd() *cobra.Command {
 	}
 }
 
+// epicLintFindings is what tp epic lint reports, and the export counts: the
+// graph's rules, then the placeholder thresholds judged by the project's
+// pattern.
+func epicLintFindings(g *model.EpicGraph, unknown []engine.EpicGraphUnknownKey, matcher *engine.PlaceholderMatcher) []engine.EpicLintFinding {
+	return append(engine.LintEpicGraph(g, unknown), engine.LintEpicThresholds(g, matcher)...)
+}
+
 // runEpicLint reads .tp/epics.json, writes nothing, and exits 0 when no rule
 // fires at error severity, 1 when one does, 3 when there is no readable file.
 func runEpicLint(_ *cobra.Command, _ []string) error {
@@ -54,7 +62,7 @@ func runEpicLint(_ *cobra.Command, _ []string) error {
 		output.Error(ExitFile, err.Error(), epicGraphFileHint)
 		os.Exit(ExitFile)
 	}
-	result := epicLintResult{Findings: engine.LintEpicGraph(g, unknown), Revision: revision}
+	result := epicLintResult{Findings: epicLintFindings(g, unknown, epicPlaceholderMatcher(tpDir)), Revision: revision}
 	if result.Findings == nil {
 		result.Findings = []engine.EpicLintFinding{}
 	}

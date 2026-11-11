@@ -171,7 +171,7 @@ func epicExport() (*epicExportResult, *epicRunError) {
 	if err != nil {
 		return fail(err)
 	}
-	lint := engine.SummarizeEpicLint(engine.LintEpicGraph(g, unknown))
+	lint := engine.SummarizeEpicLint(epicLintFindings(g, unknown, matcher))
 	milestones := epicExportMilestones(g, states, plan.Milestones, matcher)
 	epics := epicExportEpics(g, states, bound, files)
 	return &epicExportResult{Version: epicExportVersion, GeneratedAt: time.Now().UTC(), CriticalPath: plan.CriticalPath, Graph: g, Milestones: milestones, Epics: epics, Slices: reviewSlices, Lint: lint}, nil
