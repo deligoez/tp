@@ -111,3 +111,19 @@ func TestPage_ListensToTheEventStreamAndLoadsNothingRemote(t *testing.T) {
 	assert.NotContains(t, page, "http://")
 	assert.NotContains(t, page, "https://")
 }
+
+// TestPage_ReadsTheKPIsFromThePayloads is §4's KPI strip at the page: the
+// lint KPI reads the epic export's lint errors and warnings, the counts tp
+// epic lint prints, and every other figure and now list is read from the
+// summary's plan, so the page counts nothing itself.
+func TestPage_ReadsTheKPIsFromThePayloads(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, field := range []string{
+		"lint.errors", "lint.warnings",
+		"plan.figures", ".share_done", ".ready", ".critical_path", ".blocked", ".held", ".operator_queue", ".open_loops", ".throughput",
+		"plan.ready", "plan.operator_conditions", "plan.waiting", "plan.most_waited_on",
+	} {
+		assert.Contains(t, script, field)
+	}
+}
