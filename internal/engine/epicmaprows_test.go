@@ -90,3 +90,19 @@ func TestEpicMapRows_RootsFollowTheirDependentsAcrossMilestones(t *testing.T) {
 	assert.Equal(t, 0, crossings(g, rows))
 }
 
+// TestEpicMapRows_AnEpicWithNoDependencySitsNextToItsFirstDependent: p and r
+// have no dependency; p's first dependent is a and r's is c, listed after b,
+// so r moves from the end of the graph order to just before c.
+func TestEpicMapRows_AnEpicWithNoDependencySitsNextToItsFirstDependent(t *testing.T) {
+	g := rowsGraph([]string{"M"},
+		rowsEpic("p", "M"), rowsEpic("a", "M", "p"), rowsEpic("b", "M", "p"),
+		rowsEpic("r", "M"), rowsEpic("c", "M", "r"), rowsEpic("d", "M", "r"),
+	)
+	assert.Equal(t, map[string][]string{"M": {"p", "a", "b", "r", "c", "d"}}, EpicMapRows(g, EpicMapLanes(g)))
+
+	g = rowsGraph([]string{"M"},
+		rowsEpic("a", "M", "r"), rowsEpic("b", "M", "p"), rowsEpic("p", "M"), rowsEpic("r", "M"),
+	)
+	assert.Equal(t, map[string][]string{"M": {"r", "a", "p", "b"}}, EpicMapRows(g, EpicMapLanes(g)))
+}
+
