@@ -58,6 +58,7 @@ claim: all-ready
 close: reason-file skip-gate stdin
 commit: files
 config: dry-run extract force resolved
+dashboard: port
 done: auto-commit batch commit covered-by files gate-passed reason-file skip-gate stdin
 epic:
 epic add: bulk if-revision stdin
