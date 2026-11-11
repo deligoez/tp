@@ -293,3 +293,28 @@ func TestPage_DrawsASlicesGraphHistoryFromTheHistoryEndpoint(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(m[1]), &urlKeys))
 	assert.Subset(t, urlKeys, []string{"slice", "hr"})
 }
+
+// TestPage_DrawsTheBandAndMilestoneStateFromThePayloads is §6 at the page:
+// the band's cells read the summary's band stages and phases, a stage
+// filters the map by the export's epics[].status, kept in the address, and
+// each milestone entry reads the export's open, waiting_on and state (members
+// done of members, the threshold's state), so the page counts nothing itself.
+func TestPage_DrawsTheBandAndMilestoneStateFromThePayloads(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	assert.Contains(t, page, `id="msstate"`)
+	for _, field := range []string{"band.stages", "band.phases", "e.status === mapView.stage", ".waiting_on", ".members_done", ".members", ".threshold", "data-stage", "data-phase"} {
+		assert.Contains(t, script, field)
+	}
+	m := regexp.MustCompile(`const THRESHOLD_LABEL = (\{[^}]*\});`).FindStringSubmatch(script)
+	require.NotNil(t, m, "the script declares the threshold states as const THRESHOLD_LABEL = {...};")
+	var labels map[string]string
+	require.NoError(t, json.Unmarshal([]byte(m[1]), &labels))
+	assert.ElementsMatch(t, []string{"written", "absent", "placeholder", "met"}, keys(labels))
+	k := regexp.MustCompile(`const URL_KEYS = (\[.*\]);`).FindStringSubmatch(script)
+	require.NotNil(t, k)
+	var urlKeys []string
+	require.NoError(t, json.Unmarshal([]byte(k[1]), &urlKeys))
+	assert.Contains(t, urlKeys, "stage")
+	assert.Contains(t, script, `p.get("stage")`)
+}
