@@ -1927,11 +1927,14 @@ writes nothing.
   round. Each recorded round is `{round, recorded_at, findings, clean, snapshot_diff}` (ground: `fails`,
   its `FAIL` rows, in place of `findings`); a ground round stores no time, so its `recorded_at` is the
   round file's modification time. `snapshot_diff` is `{changed, removed}` against the round before's
-  snapshot of the same phase, `null` on round 1 or when a snapshot is missing.
+  snapshot of the same phase, `null` on round 1 or when a snapshot is missing. A review round also
+  carries `finding_rows`, its round file's findings `[{severity, role, class, location, finding,
+  disposition}]` (`role`, `class` and `disposition` left out when the row has none), absent when the
+  round holds none or its file cannot be read.
 - `resume` is `tp resume`'s payload for the file, exactly as that command prints it.
 
 `--compact` keeps each section's `anchor`, `heading` and `line` and drops its `paragraphs`, drops each
-task's `description`, sets every `snapshot_diff` to `null`, and compacts `resume` as
+task's `description`, sets every `snapshot_diff` to `null`, drops every `finding_rows`, and compacts `resume` as
 `tp resume --compact` does.
 
 ### `tp export --list` (version 1)
