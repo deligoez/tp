@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T19:45:51.334034Z",
+  "updated_at": "2026-11-11T19:52:24.047919Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -1710,7 +1710,7 @@
       "id": "page-specs-tab",
       "title": "Draw the Specs tab from the list",
       "description": "Rows from tp export --list, grouped by phase in loop order.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "page",
         "dashboard"
@@ -1724,11 +1724,22 @@
       "source_sections": [
         "## 12. The Specs tab"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T19:47:04.214719Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T19:52:24.00138Z",
+      "closed_reason": "- Specs tab draws one row per tp export --list row (internal/dashboard/page/app.js drawSpecs/specRow, index.html #specs-q/#phasechips/#specs-body, style.css .stable): title and path, epic id with its epic_state label (or no epic), task progress meter done/total plus wip, review and audit as round + state, next_step with each escalation's code; rows grouped under their phase in loop order (review..release, an Unreadable group for error rows) keeping the list's order, so escalated rows come first within a phase. Checked in a browser on a synthetic repo: bound alpha shows e1 Specced, unbound beta shows no epic.\n- A filter (case-insensitive substring of title, path or epic), All/Operator decisions/per-phase chips with counts narrow it; / outside a text field switches to Specs and focuses the filter; Enter in the filter opens the first row, arrows move between rows, a row click or Enter opens the Spec tab (state.spec, c-work names the path; the Spec tab body is a title+path stub until page-spec-* tasks draw it). Checked in a browser: / from Epics -\u003e tab specs, focus specs-q; filter '1.5' -\u003e spec/1.5.0.tasks.json only; Operator decisions chip -\u003e 7 rows; Release chip -\u003e 13; row click -\u003e tab work.\n- In tp's own repository (tp dashboard on this repo, rows read from the page): 32 rows = the 32 spec/*.tasks.json, each once, and 0 phase mismatches against tp resume --file \u003ceach\u003e. Gate passed (suite, golangci-lint, deadcode, complexity). No Go change, so no new Go test; verification is the browser run as for the other page tasks.",
+      "gate_passed_at": "2026-11-11T19:52:24.00138Z",
+      "commit_sha": "f8b1151b",
+      "commit_shas": [
+        "f8b1151b",
+        "751b50e1",
+        "c50f7d51"
+      ],
+      "commit_files": [
+        "internal/dashboard/page/app.js",
+        "internal/dashboard/page/index.html",
+        "internal/dashboard/page/style.css"
+      ]
     },
     {
       "id": "page-spec-header",
