@@ -38,8 +38,9 @@ func jsonKeys(t *testing.T, raw json.RawMessage) []string {
 // TestDashboardSummary_ShapeIsPinned is spec/1.8.0.md §2's summary shape: the
 // four top-level keys rounds, band, release_impact and series, each per-round
 // entry's round, total and by_role, and the band's stages, phases and
-// phases_of with every key of both axes. release_impact and series are present
-// and empty here; the tasks that fill them extend this test.
+// phases_of with every key of both axes, and a release impact entry's frees
+// and gates with each gate move's keys. series is present and empty here; the
+// task that fills it extends this test.
 func TestDashboardSummary_ShapeIsPinned(t *testing.T) {
 	t.Parallel()
 	tpDir := t.TempDir()
@@ -67,7 +68,17 @@ func TestDashboardSummary_ShapeIsPinned(t *testing.T) {
 	assert.Equal(t, []string{"phases", "phases_of", "stages"}, jsonKeys(t, raw["band"]))
 	assert.Equal(t, []string{"claimed", "done", "in_progress", "planned", "specced"}, jsonKeys(t, top.Band.Stages))
 	assert.Equal(t, []string{"audit", "decompose", "implement", "release", "review"}, jsonKeys(t, top.Band.Phases))
-	assert.JSONEq(t, `{}`, string(top.ReleaseImpact))
+	assert.JSONEq(t, `{}`, string(top.ReleaseImpact), "outside a repository no task file has an impact")
+	g, states := releaseImpactGraph()
+	entry, err := json.Marshal(SpecReleaseImpact(g, states, "a"))
+	require.NoError(t, err)
+	assert.Equal(t, []string{"frees", "gates"}, jsonKeys(t, entry))
+	var impact struct {
+		Gates []json.RawMessage `json:"gates"`
+	}
+	require.NoError(t, json.Unmarshal(entry, &impact))
+	require.Len(t, impact.Gates, 1)
+	assert.Equal(t, []string{"members", "members_done", "members_done_after", "milestone"}, jsonKeys(t, impact.Gates[0]))
 	assert.JSONEq(t, `[]`, string(top.Series))
 }
 
