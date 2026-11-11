@@ -159,3 +159,48 @@ func TestDashboard_PushesOnlyChangesAndATpDoneReachesTheStream(t *testing.T) {
 	}
 }
 
+// TestDashboard_PushesAGraphAddedWhileRunningAndADerivationsError is §2's
+// live graph and failure: a graph written after the server started is pushed
+// with no restart, and a malformed one is pushed as tp's error and hint.
+func TestDashboard_PushesAGraphAddedWhileRunningAndADerivationsError(t *testing.T) {
+	t.Parallel()
+	dir := dashboardRepo(t, false)
+	srv := startDashboard(t, dir, freePort(t))
+	events := openEvents(t, srv)
+	assert.NotContains(t, eventNames(collectEvents(events, dashboardTick)), "epic-export")
+
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".tp"), 0o755))
+	graph := filepath.Join(dir, ".tp", "epics.json")
+	require.NoError(t, os.WriteFile(graph, []byte(epicChainWithGate), 0o600))
+	added := waitForEvent(t, events, "epic-export")
+	assert.Contains(t, added.data, `"version"`)
+
+	require.NoError(t, os.WriteFile(graph, []byte("{not json"), 0o600))
+	failed := waitForEvent(t, events, "epic-export")
+	var e struct {
+		Error string `json:"error"`
+		Code  int    `json:"code"`
+		Hint  string `json:"hint"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(failed.data), &e), failed.data)
+	assert.NotEmpty(t, e.Error)
+	assert.Equal(t, 3, e.Code)
+	assert.NotEmpty(t, e.Hint)
+}
+
+// waitForEvent returns the first event named name within three ticks.
+func waitForEvent(t *testing.T, events <-chan sseEvent, name string) sseEvent {
+	t.Helper()
+	deadline := time.After(3 * dashboardTick)
+	for {
+		select {
+		case ev, ok := <-events:
+			require.True(t, ok, "the stream closed before %s", name)
+			if ev.name == name {
+				return ev
+			}
+		case <-deadline:
+			t.Fatalf("no %s event within three ticks", name)
+		}
+	}
+}
