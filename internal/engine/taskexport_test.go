@@ -116,3 +116,61 @@ func TestTaskExport_AnOpenTaskOfABlockedEpicWaitsOnIt(t *testing.T) {
 	assert.Equal(t, "2026-11-01T09:30:00Z", exp.ImportedAt.UTC().Format("2006-01-02T15:04:05Z"))
 }
 
+// TestTaskExport_CarriesEachLoopWithItsRounds is §16's loop half: ground,
+// review and audit each with cap, clean rounds needed and streak, and per
+// recorded round its time, finding or FAIL count, clean flag and the
+// difference of its snapshot from the round before; then the sections, the
+// tp resume view, and no epic on an unbound file.
+func TestTaskExport_CarriesEachLoopWithItsRounds(t *testing.T) {
+	dir, specPath, tfp := setupResumeProject(t, exportTasksJSON)
+	require.NoError(t, os.WriteFile(specPath, []byte(exportSpec), 0o600))
+	exportLoopsFixture(t, specPath)
+
+	exp, err := TaskExportOf(dir, tfp)
+	require.NoError(t, err)
+
+	rv := exp.Loops.Review
+	require.NotNil(t, rv.Cap)
+	assert.Equal(t, 4, *rv.Cap)
+	assert.Equal(t, 2, rv.CleanRoundsNeeded)
+	assert.Equal(t, 1, rv.Streak)
+	require.Len(t, rv.Rounds, 2)
+	assert.Equal(t, "2026-11-01T10:00:00Z", rv.Rounds[0].RecordedAt)
+	require.NotNil(t, rv.Rounds[0].Findings)
+	assert.Equal(t, 2, *rv.Rounds[0].Findings)
+	assert.False(t, rv.Rounds[0].Clean)
+	assert.Nil(t, rv.Rounds[0].SnapshotDiff, "round 1 has no round before")
+	assert.True(t, rv.Rounds[1].Clean)
+	require.NotNil(t, rv.Rounds[1].SnapshotDiff)
+	require.Len(t, rv.Rounds[1].SnapshotDiff.Changed, 1)
+	assert.Contains(t, rv.Rounds[1].SnapshotDiff.Changed[0].Heading, "2. Two")
+
+	au := exp.Loops.Audit
+	assert.Nil(t, au.Cap, "audit_max_rounds 0 is uncapped")
+	assert.Equal(t, 0, au.Streak)
+	require.Len(t, au.Rounds, 1)
+	assert.Equal(t, 1, *au.Rounds[0].Findings)
+
+	gr := exp.Loops.Ground
+	assert.Nil(t, gr.Cap, "ground has no round cap")
+	assert.Equal(t, 1, gr.Streak)
+	require.Len(t, gr.Rounds, 2)
+	assert.Nil(t, gr.Rounds[0].Findings, "a ground round counts FAIL rows, not findings")
+	require.NotNil(t, gr.Rounds[0].Fails)
+	assert.Equal(t, 1, *gr.Rounds[0].Fails)
+	assert.False(t, gr.Rounds[0].Clean)
+	assert.Equal(t, 0, *gr.Rounds[1].Fails)
+	assert.True(t, gr.Rounds[1].Clean)
+	assert.NotEmpty(t, gr.Rounds[1].RecordedAt)
+	require.NotNil(t, gr.Rounds[1].SnapshotDiff)
+	require.Len(t, gr.Rounds[1].SnapshotDiff.Changed, 1)
+
+	anchors := []string{}
+	for _, s := range exp.Sections {
+		anchors = append(anchors, s.Anchor)
+	}
+	assert.Equal(t, []string{"§0", "§1", "§2"}, anchors)
+	assert.Equal(t, PhaseImplement, exp.Resume.Phase)
+	assert.Nil(t, exp.Epic)
+	assert.Nil(t, exp.BoundAt)
+}
