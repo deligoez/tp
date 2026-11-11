@@ -1,6 +1,8 @@
 package model
 
 import (
+	"encoding/json"
+	"fmt"
 	"slices"
 	"time"
 )
@@ -24,7 +26,51 @@ type EpicGraph struct {
 	Gates map[string]EpicGate `json:"gates,omitempty"`
 	// TagChecks maps a tag to the epic every carrier of the tag must depend on.
 	TagChecks map[string]EpicTagCheck `json:"tag_checks,omitempty"`
-	Epics     []Epic                  `json:"epics"`
+	// ForbiddenEdges lists the dependencies the project forbids
+	// (spec/1.8.0.md §10).
+	ForbiddenEdges []EpicForbiddenEdge `json:"forbidden_edges,omitempty"`
+	Epics          []Epic              `json:"epics"`
+}
+
+// EpicForbiddenEdge forbids a direct edge, or an any-of member, from an epic
+// From selects to one To selects, for the reason Why.
+type EpicForbiddenEdge struct {
+	From EpicSelector `json:"from"`
+	To   EpicSelector `json:"to"`
+	Why  string       `json:"why"`
+}
+
+// EpicSelector selects epics by exactly one of an epic id, a milestone, a
+// tag, or the track holding a milestone (tracks carry no name of their own).
+type EpicSelector struct {
+	Epic      string `json:"epic,omitempty"`
+	Milestone string `json:"milestone,omitempty"`
+	Tag       string `json:"tag,omitempty"`
+	TrackOf   string `json:"track_of,omitempty"`
+}
+
+// UnmarshalJSON decodes a selector holding exactly one of its four keys, a
+// string; no key, two keys or any other key is a decode error, so every
+// reader refuses it as it refuses a value of the wrong type.
+func (s *EpicSelector) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return fmt.Errorf("a selector is an object: %w", err)
+	}
+	if len(raw) != 1 {
+		return fmt.Errorf("a selector holds exactly one of epic, milestone, tag, track_of; this one holds %d keys", len(raw))
+	}
+	fields := map[string]*string{"epic": &s.Epic, "milestone": &s.Milestone, "tag": &s.Tag, "track_of": &s.TrackOf}
+	for key, value := range raw {
+		field, ok := fields[key]
+		if !ok {
+			return fmt.Errorf("selector key %q is not one of epic, milestone, tag, track_of", key)
+		}
+		if err := json.Unmarshal(value, field); err != nil {
+			return fmt.Errorf("selector %s: %w", key, err)
+		}
+	}
+	return nil
 }
 
 // EpicGate is one milestone's gate: the member epics it requires, the ones it
