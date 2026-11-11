@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T20:58:15.146021Z",
+  "updated_at": "2026-11-11T21:02:28.163194Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -1515,7 +1515,7 @@
       "id": "page-lifecycle-band",
       "title": "Draw the lifecycle band with milestone axis",
       "description": "The band of §6 from the summary's counts and the export's milestone state.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "page",
         "dashboard"
@@ -1530,11 +1530,23 @@
       "source_sections": [
         "## 6. Lifecycle band and milestone state"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T20:58:21.492525Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T21:02:28.14376Z",
+      "closed_reason": "- Band cells read summary.band (stages, phases) as buttons (internal/dashboard/page/app.js): a stage cell filters the map to epics whose tp epic export epics[].status equals it (others dimmed, map toolbar names the count, pressed state, again clears; kept in the address as stage, a filter key), a phase cell opens Specs at that phase (specsView.phase). Browser check on a synthetic repo: Done -\u003e #tab=epics\u0026stage=done, map '3 epics done' with alpha, beta, delta dimmed; Implement -\u003e Specs tab with the Implement chip pressed\n- Milestones row (#msstate in index.html, one entry per export milestones[] in track order): open or closed with waits on (waiting_on), 'gate N of M done' from state.members_done/members (deferrable left out by the export), threshold via THRESHOLD_LABEL (written shows the text, absent, placeholder, met). Browser check: M2 with members beta, gamma, eps (gamma and eps done) and deferrable delta read 'closed, waits on M1, gate 2 of 3 done, placeholder threshold'; M1 'open, gate 1 of 2 done, threshold: \u003ctext\u003e'\n- TestPage_DrawsTheBandAndMilestoneStateFromThePayloads (internal/dashboard/dashboard_test.go) asserts the band, map-status, waiting_on, members_done/members/threshold fields, the four threshold states and the stage address key; red before; the mutant dropping met from THRESHOLD_LABEL turns it red. Gate passed",
+      "gate_passed_at": "2026-11-11T21:02:28.14376Z",
+      "commit_sha": "f10be58d",
+      "commit_shas": [
+        "f10be58d",
+        "9a63224d",
+        "660d4833"
+      ],
+      "commit_files": [
+        "internal/dashboard/dashboard_test.go",
+        "internal/dashboard/page/app.js",
+        "internal/dashboard/page/index.html",
+        "internal/dashboard/page/style.css"
+      ]
     },
     {
       "id": "page-operator-rows",
