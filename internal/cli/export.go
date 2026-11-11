@@ -2,12 +2,10 @@ package cli
 
 import (
 	"errors"
-	"os"
 
 	"github.com/spf13/cobra"
 
 	"github.com/deligoez/tp/internal/engine"
-	"github.com/deligoez/tp/internal/output"
 )
 
 // exportPayload is tp export's payload (spec/1.8.0.md §16): the task file's
@@ -45,14 +43,24 @@ func newExportCmd() *cobra.Command {
 // runExport prints the read model of the task file --file names or discovery
 // finds, writing nothing. No task file, or one it cannot read, exits 3.
 func runExport(_ *cobra.Command, _ []string) error {
-	path, err := engine.DiscoverTaskFile(".", flagFile)
+	payload, err := exportOf(flagFile, IsCompact())
+	if err != nil {
+		exitEpicRunError(err)
+	}
+	printResultOrExit(payload)
+	return nil
+}
+
+// exportOf derives runExport's payload for the task file explicit names, or
+// discovery finds when it is empty, returning the error it would exit with.
+func exportOf(explicit string, compact bool) (exportPayload, *epicRunError) {
+	path, err := engine.DiscoverTaskFile(".", explicit)
 	if err != nil {
 		hint := exportNoTaskFileHint
 		if errors.Is(err, engine.ErrMultipleTaskFiles) {
 			hint = "pass --file with one of the task files the message names"
 		}
-		output.Error(ExitFile, err.Error(), hint)
-		os.Exit(ExitFile)
+		return exportPayload{}, &epicRunError{code: ExitFile, msg: err.Error(), hint: hint}
 	}
 	exp, err := engine.TaskExportOf(".", path)
 	if err != nil {
@@ -61,11 +69,9 @@ func runExport(_ *cobra.Command, _ []string) error {
 		if errors.As(err, &sce) {
 			hint = sce.Hint()
 		}
-		output.Error(ExitFile, err.Error(), hint)
-		os.Exit(ExitFile)
+		return exportPayload{}, &epicRunError{code: ExitFile, msg: err.Error(), hint: hint}
 	}
-	printResultOrExit(exportPayloadOf(&exp, IsCompact()))
-	return nil
+	return exportPayloadOf(&exp, compact), nil
 }
 
 // exportPayloadOf renders exp, dropping under compact each section's body,
