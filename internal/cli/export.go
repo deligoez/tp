@@ -81,7 +81,7 @@ func exportOf(explicit string, compact bool) (exportPayload, *epicRunError) {
 }
 
 // exportPayloadOf renders exp, dropping under compact each section's body,
-// each task's description and each round's snapshot difference.
+// each task's description and each round's snapshot difference and findings.
 func exportPayloadOf(exp *engine.TaskExport, compact bool) exportPayload {
 	out := exportPayload{TaskExport: *exp, Sections: exp.Sections, Resume: resumeJSON(&exp.Resume, compact)}
 	if !compact {
@@ -100,6 +100,7 @@ func exportPayloadOf(exp *engine.TaskExport, compact bool) exportPayload {
 		loop.Rounds = append([]engine.ExportRound{}, loop.Rounds...)
 		for i := range loop.Rounds {
 			loop.Rounds[i].SnapshotDiff = nil
+			loop.Rounds[i].FindingRows = nil
 		}
 	}
 	return out
