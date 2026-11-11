@@ -199,3 +199,21 @@ func TestDashboard_UnattendedExitsTwo(t *testing.T) {
 	assert.Contains(t, stderr, "TP_UNATTENDED")
 }
 
+// TestDashboard_NeedsAGraphOrATaskFile is §18 row 2's start: an empty
+// directory exits 3 with a hint, and a directory with one task file and no
+// graph serves.
+func TestDashboard_NeedsAGraphOrATaskFile(t *testing.T) {
+	t.Parallel()
+	empty := t.TempDir()
+	stderr, code := runDashboardOnce(t, empty, false, "--port", strconv.Itoa(freePort(t)))
+	require.Equal(t, 3, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, `"hint"`)
+	assert.Contains(t, stderr, "tp init")
+
+	withTasks := t.TempDir()
+	writeTaskFileRaw(t, withTasks, `[]`)
+	srv := startDashboard(t, withTasks, freePort(t))
+	status, _ := getPage(t, srv.url)
+	require.Equal(t, http.StatusOK, status)
+}
+
