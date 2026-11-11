@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T19:16:50.740047Z",
+  "updated_at": "2026-11-11T19:23:08.634702Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -780,7 +780,7 @@
       "id": "lint-forbidden-dependency",
       "title": "Add the forbidden-dependency lint rule",
       "description": "An error per direct edge or any-of member from an epic `from` selects to one `to` selects, naming the rule's why; writers refuse it as they refuse every lint error.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "lint"
@@ -794,11 +794,27 @@
         "## 10. Forbidden dependencies",
         "## 18. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T19:16:54.298126Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T19:23:08.594184Z",
+      "closed_reason": "- forbidden-dependency (engine.EpicRuleForbiddenDependency, error; lintEpicForbiddenDependencies in internal/engine/epiclint_forbidden.go, run from LintEpicGraph) fails, per forbidden_edges rule, each direct edge and each any-of member from an epic From selects (epic, milestone, tag, track_of = the track holding the named milestone) to one To selects, one finding per edge with epics [from, to] and message '\u003cfrom\u003e depends on \u003cto\u003e[ through an any-of group], which forbidden_edges[i] forbids: \u003cwhy\u003e' (wording chosen). §18 row 6: TestLintEpicGraph_ForbiddenDependencyFailsADirectEdgeAndAnAnyOfMember on the track_of B1 -\u003e milestone M3 fixture (direct b1-\u003em3a, any-of b2-\u003e{m3b,x}, two-step b1-\u003ex-\u003em3c) finds 2 at HEAD; the mutant walking transitive paths finds 4 and the one skipping any-of members finds 1, both red. The rule joins EpicErrorRules, so tp epic review mechanizes it (TestEpicReview_LintErrorsAreMechanicalChecksWithheldFromThePrompts list updated in the same commit)\n- With the rule forbidding the track of B1 from M3, tp epic link b c (b in B1, c in M3) exits 1 naming forbidden-dependency and the why, the graph byte-identical (TestEpicLink_AForbiddenDependencyIsRefused; red before the change, the link was accepted); the refusal hint is the rule's own (internal/cli/epic_refusal_hint.go). Gate passed. README lint-table row left to docs-readme",
+      "gate_passed_at": "2026-11-11T19:23:08.594184Z",
+      "commit_sha": "9d93fd5d",
+      "commit_shas": [
+        "9d93fd5d",
+        "61a5b940",
+        "197850df",
+        "fe592e5f"
+      ],
+      "commit_files": [
+        "internal/cli/epic_forbidden_edges_test.go",
+        "internal/cli/epic_refusal_hint.go",
+        "internal/cli/epic_review_test.go",
+        "internal/engine/epiclint.go",
+        "internal/engine/epiclint_forbidden.go",
+        "internal/engine/epiclint_forbidden_test.go",
+        "internal/engine/epicreview.go"
+      ]
     },
     {
       "id": "epic-snapshot-diff",
