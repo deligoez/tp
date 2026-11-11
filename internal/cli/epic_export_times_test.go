@@ -42,11 +42,10 @@ func rawTime(t *testing.T, raw json.RawMessage) time.Time {
 	return at
 }
 
-// TestEpicExport_CarriesTheBoundFileTimes is spec/1.8.0.md §15: once a file
-// is imported and bound to a with tp set --epic, tp epic export shows
-// bound_at and imported_at under a's bound file, each the time the task file
-// recorded. The import runs first because tp import does not carry an
-// existing binding forward. An export that drops either key turns it red.
+// TestEpicExport_CarriesTheBoundFileTimes is spec/1.8.0.md §15: after tp set
+// --epic a and tp import, tp epic export shows bound_at and imported_at under
+// a's bound file, each the time the task file recorded. An export that drops
+// either key turns it red.
 func TestEpicExport_CarriesTheBoundFileTimes(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
@@ -57,11 +56,11 @@ func TestEpicExport_CarriesTheBoundFileTimes(t *testing.T) {
 	initGitRepo(t, dir)
 	_, stderr, code := runTP(t, dir, "init", "spec.md")
 	require.Equal(t, 0, code, "init failed: %s", stderr)
+	setEpic(t, dir, "a")
 	importPath := filepath.Join(dir, "import.json")
 	require.NoError(t, os.WriteFile(importPath, []byte(importLockTaskFile), 0o600))
 	_, stderr, code = runTP(t, dir, "import", importPath)
 	require.Equal(t, 0, code, "import failed: %s", stderr)
-	setEpic(t, dir, "a")
 
 	taskFile := filepath.Join(dir, "spec.tasks.json")
 	boundAt, importedAt := boundAtOf(t, taskFile), importedAtOf(t, taskFile)
