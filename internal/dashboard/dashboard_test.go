@@ -380,3 +380,14 @@ func TestPage_ReadsTheSpecInAnchoredSections(t *testing.T) {
 	assert.Contains(t, urlKeys, "sec")
 	assert.Contains(t, script, `p.get("sec")`)
 }
+
+// TestPage_AWaitingEpicNamesItsAnyOfGroups is the Waiting list's fix: an
+// epic held only by an any-of group printed "waits on" with nothing after it,
+// because the row read blocked_by alone; it reads the export's
+// blocked_by_any_of too and names each group's members as one of them.
+func TestPage_AWaitingEpicNamesItsAnyOfGroups(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Contains(t, script, ".blocked_by_any_of")
+	assert.Contains(t, script, `"one of "`)
+}
