@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T17:16:14.769882Z",
+  "updated_at": "2026-11-11T18:29:03.374688Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -1327,7 +1327,7 @@
       "id": "page-shell-tabs",
       "title": "Port the prototype shell with three tabs",
       "description": "Embedded page from the approved prototype (scratchpad dashboard-proto/index.html, v9, synthetic data) rewired to the SSE payloads: Epics, Specs and Spec tabs, no framework, library or CDN.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "page",
         "dashboard"
@@ -1341,11 +1341,24 @@
         "## 3. Tabs and where the page opens",
         "## 2. Live data, derived once"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T17:16:28.179831Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T18:29:03.340333Z",
+      "closed_reason": "- Opening tab: internal/dashboard/page/app.js decides when export-list arrives: Epics if an epic-export event (payload or error) came first, else Specs. To make that ordering hold for a graph added while the server runs, the hub now replays the current state in the latest derivation's order (internal/dashboard/live.go derivationOrder; TestHub_GivesALatePageTheCurrentStateInDerivationOrder, seen red first). With no graph the Epics tab shows #epics-none naming tp epic (tp epic set milestones=..., tp epic add, both run on a scratch repo) and the band (summary.band, phases_of task_files) draws the spec-phase lane alone. Checked in a browser on a synthetic repo: no graph -\u003e tab specs, Epics tab text names tp epic, band 'Task files by phase'; tp epic add while serving -\u003e Epics tab fills (1 epic, Epics lane), reload -\u003e opens on epics.\n- Error banner: a pushed {error, hint} is kept beside the last good payload; #banners shows each failed source with tp's error and hint and 'Showing the last good state, greyed'; elements whose data-src names it get .stale (grayscale, half opacity). Browser check: hand-truncating .tp/epics.json while serving showed banners for epic-export and summary, and the band plus epics body greyed with their previous content kept.\n- TestPage_ListensToTheEventStreamAndLoadsNothingRemote (internal/dashboard/dashboard_test.go) asserts app.js names \"/api/events\", \"epic-export\", \"export-list\", \"summary\" and that page+script+styles contain no http:// or https://. Mutants (scratch copy): /api/event -\u003e red; an https @import in style.css -\u003e red; export-list renamed -\u003e red. Prototype's Google Fonts link dropped; local font stack only; no synthetic data copied.\n- Structure for later page tasks: panel(sources, draw) registry, live[event] {data, error}, data-src greying, #epics-body / #specs-body / #work-body containers. Gate passed (suite, golangci-lint, deadcode, complexity).",
+      "gate_passed_at": "2026-11-11T18:29:03.340333Z",
+      "commit_sha": "4c509163",
+      "commit_shas": [
+        "4c509163",
+        "8084832f",
+        "33fc1643",
+        "4b123eb3"
+      ],
+      "commit_files": [
+        "internal/dashboard/live.go",
+        "internal/dashboard/page/app.js",
+        "internal/dashboard/page/index.html",
+        "internal/dashboard/page/style.css"
+      ]
     },
     {
       "id": "page-url-state",
