@@ -82,6 +82,7 @@ func newEpicReviewCmd() *cobra.Command {
 	cmd.Flags().Bool("history", false, "Print the slice's recorded rounds, each with its findings by role and its difference from the round before, then the difference to the current graph")
 	cmd.Flags().Int("from", 0, "With --history and --to: the earlier of the two rounds to diff")
 	cmd.Flags().Int("to", 0, "With --history and --from: the later of the two rounds to diff")
+	cmd.Flags().String("of-epic", "", "With --history and no slice: print this epic's edges and whys per recorded round of every slice whose snapshot holds it")
 	cmd.Flags().Bool("grant-round", false, "Grant a stale slice at review_max_rounds one more round to emit and record (the operator's decision)")
 	return cmd
 }
@@ -99,6 +100,9 @@ func epicReviewArgs(cmd *cobra.Command, args []string) error {
 // runEpicReview emits a round over the slice the flags name. Neither or both
 // slice flags is a usage error decided before anything is read or written.
 func runEpicReview(cmd *cobra.Command, args []string) error {
+	if runEpicReviewOfEpicIfSet(cmd) {
+		return nil
+	}
 	if grant, _ := cmd.Flags().GetBool("grant-round"); grant {
 		refuseEpicGrantBeside(cmd)
 		runEpicReviewGrant(epicReviewSliceKey(cmd))
