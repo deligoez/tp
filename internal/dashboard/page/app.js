@@ -213,7 +213,7 @@
     critical: "Not-done epics on the longest dependency chain of the whole graph: tp epic status's top-level critical_path.",
     blocked: "Work epics waiting on a dependency that is not done. Held epics are the blocked ones a condition holds.",
     held: "Blocked work epics a condition epic, or a group of conditions, holds: they wait on an operator decision, not on work.",
-    operator: "Decisions only the operator takes: actionable conditions (tp epic done), gates whose written threshold awaits --met, and placeholder thresholds to rewrite. From the summary's plan and the export's milestones[].operator.",
+    operator: "Decisions only the operator takes, each with the command that settles it: actionable conditions (tp epic done), any-of groups of conditions to choose one of, gates whose written threshold awaits --met, placeholder thresholds to rewrite (tp epic set), slices at their cap that can take one more round (tp epic review --grant-round), and the escalations stopping a spec bound to an epic. From the summary's plan, the export's milestones[].operator and slices, and the task file list's escalations.",
     loops: "Epic review slices whose loop is not done: open, stale, at its cap or with a round in flight. From the export's slices.",
     lint: "The error and warning counts tp epic lint prints for the graph, from the export's lint.",
     throughput: "Work epics done per ISO week across every milestone, from their done time. From the summary's plan.",
@@ -275,13 +275,16 @@
     const lint = v.g.lint || { errors: 0, warnings: 0 };
     const weeks = f.throughput || [];
     const last = weeks.length ? weeks[weeks.length - 1] : null;
+    // The plan's queue, plus the bound specs' escalations the task file list
+    // carries (§7), so the figure counts the rows the list draws.
+    const queue = f.operator_queue + escalationRows().length;
     $("kpis").innerHTML = [
       kpi("share", Math.round(f.share_done * 100) + "%<small> " + esc(f.done) + " of " + esc(f.work) + "</small>", "share of work epics done"),
       kpi("ready", esc(f.ready), "ready epics"),
       kpi("critical", esc(f.critical_path), "epics on the critical path", "crit"),
       kpi("blocked", esc(f.blocked), "blocked epics", f.blocked ? "warn" : ""),
       kpi("held", esc(f.held), "held epics", f.held ? "op" : ""),
-      kpi("operator", esc(f.operator_queue), "operator decisions waiting", f.operator_queue ? "op" : ""),
+      kpi("operator", esc(queue), "operator decisions waiting", queue ? "op" : ""),
       kpi("loops", esc(f.open_loops), "open review loops"),
       kpi("lint", esc(lint.errors) + "<small> / " + esc(lint.warnings) + "</small>", "lint errors / warnings", lint.errors ? "warn" : ""),
       kpi("throughput", last ? esc(last.done) + "<small> in " + esc(last.week) + "</small>" : "0", "epics done per week").replace("</div>", spark(weeks) + "</div>"),
@@ -308,6 +311,30 @@
     return d ? plural(d.dependents, "epic waits", "epics wait") + " on it" : "";
   };
 
+  // escalationRows are the escalations tp export --list names on the task
+  // files bound to an epic, one row each (§7).
+  const escalationRows = () => ((data("export-list") || {}).files || []).filter((f) => f.epic).flatMap((f) =>
+    (f.escalations || []).map((b) => row(f.epic, f.title || f.path, b.code, "<code>" + esc(f.path) + "</code>: " + esc(b.message))));
+
+  // operatorRows is §7's list, each row with the command that settles it:
+  // the actionable conditions, the any-of groups as their choices, the gates
+  // awaiting --met, each placeholder threshold once as its rewrite, the
+  // slices that may take --grant-round, and the bound specs' escalations.
+  function operatorRows(v) {
+    const done = (id) => "<code>tp epic done " + esc(id) + ' --evidence "&lt;text or URL&gt;"</code>';
+    const ops = v.plan.operator_conditions.map((id) => row(id, titleOf(v, id), "condition", done(id)));
+    (v.plan.operator_groups || []).forEach((c) => ops.push(row(c.epic, titleOf(v, c.epic), "choose one of " + plural(c.any_of.length, "condition", "conditions"),
+      c.any_of.map(done).join(" or "))));
+    (v.g.milestones || []).forEach((m) => {
+      const o = m.operator || {};
+      (o.gates || []).forEach((gate) => ops.push(row(gate.milestone, gate.threshold, "gate to measure", "<code>tp epic gate " + esc(gate.milestone) + ' --met --evidence "&lt;text or URL&gt;"</code>')));
+      (o.threshold_rewrites || []).forEach((r) => ops.push(row(r.milestone, r.threshold, "threshold to write", "<code>" + esc(r.command) + "</code>")));
+    });
+    (v.g.slices || []).filter((s) => s.grantable).forEach((s) => ops.push(row("slice", sliceLabel(s), roundText(s),
+      "stale at its cap: <code>tp epic review " + esc(sliceLabel(s)) + " --grant-round</code>")));
+    return ops.concat(escalationRows());
+  }
+
   // The now lists (§4): what can start, what waits on the operator, what
   // waits on other work, and what the most work waits on.
   panel(["summary", "epic-export"], () => {
@@ -315,13 +342,7 @@
     $("now").hidden = !v;
     if (!v) return;
     $("now-ready").innerHTML = v.plan.ready.map((id) => row(id, titleOf(v, id), dependents(v, id))).join("") || none("No epic can start now.");
-    const ops = v.plan.operator_conditions.map((id) => row(id, titleOf(v, id), "condition", "<code>tp epic done " + esc(id) + ' --evidence "&lt;text or URL&gt;"</code>'));
-    (v.g.milestones || []).forEach((m) => {
-      const o = m.operator || {};
-      (o.gates || []).forEach((gate) => ops.push(row(gate.milestone, gate.threshold, "gate to measure", "<code>tp epic gate " + esc(gate.milestone) + ' --met --evidence "&lt;text or URL&gt;"</code>')));
-      (o.threshold_rewrites || []).forEach((r) => ops.push(row(r.milestone, r.threshold, "threshold to write", "<code>" + esc(r.command) + "</code>")));
-    });
-    $("now-operator").innerHTML = ops.join("") || none("Nothing waits on the operator.");
+    $("now-operator").innerHTML = operatorRows(v).join("") || none("Nothing waits on the operator.");
     $("now-waiting").innerHTML = v.plan.waiting.map((id) => {
       const on = (v.epics[id] && v.epics[id].blocked_by) || [];
       return row(id, titleOf(v, id), v.epics[id] ? v.epics[id].milestone : "", "waits on " + on.map((x) => "<code>" + esc(x) + "</code>").join(", "));
