@@ -219,3 +219,37 @@ func keys(m map[string]string) []string {
 	}
 	return out
 }
+
+// TestPage_BoardColumnsPartitionTheExportedTaskStates is §13's Board at the
+// page: its columns, as the script declares them, take every task state tp
+// export reports exactly once, ready and waiting holding the open tasks, so
+// the column counts add up to tp status's open, wip and done; and the Tasks
+// view reads the task fields its side panel shows.
+func TestPage_BoardColumnsPartitionTheExportedTaskStates(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	m := regexp.MustCompile(`const BOARD = (\[.*\]);`).FindStringSubmatch(script)
+	require.NotNil(t, m, "the script declares the Board's columns as const BOARD = [...];")
+	var cols [][]json.RawMessage
+	require.NoError(t, json.Unmarshal([]byte(m[1]), &cols))
+	byCol := map[string][]string{}
+	seen := map[string]int{}
+	for _, c := range cols {
+		require.Len(t, c, 3, "each column is [key, label, states]")
+		var key string
+		var states []string
+		require.NoError(t, json.Unmarshal(c[0], &key))
+		require.NoError(t, json.Unmarshal(c[2], &states))
+		byCol[key] = states
+		for _, s := range states {
+			seen[s]++
+		}
+	}
+	assert.Equal(t, map[string]int{"ready": 1, "waits_on_task": 1, "waits_on_epic": 1, "wip": 1, "done": 1}, seen)
+	assert.ElementsMatch(t, []string{"ready", "waits_on_task", "waits_on_epic"}, append(append([]string{}, byCol["ready"]...), byCol["waiting"]...))
+	assert.Equal(t, []string{"wip"}, byCol["wip"])
+	assert.Equal(t, []string{"done"}, byCol["done"])
+	for _, field := range []string{".state", ".waits_on", ".depends_on", ".estimate_minutes", ".started_at", ".closed_at", ".closed_reason", ".commit_shas", ".acceptance", ".source_sections"} {
+		assert.Contains(t, script, field)
+	}
+}
