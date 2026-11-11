@@ -24,9 +24,6 @@ import (
 // (spec/1.8.0.md §1).
 const dashboardDefaultPort = 7377
 
-// dashboardHost is the only address tp dashboard binds.
-const dashboardHost = "127.0.0.1"
-
 // dashboardNoSourceHint answers a repository holding neither a graph nor a
 // task file.
 const dashboardNoSourceHint = "run tp dashboard inside a repository holding .tp/epics.json or a task file — create one with tp epic set or tp init <spec.md>"
@@ -61,7 +58,7 @@ func runDashboard(cmd *cobra.Command, _ []string) error {
 		output.Error(ExitFile, "nothing to show: no epic graph and no task file in this repository", dashboardNoSourceHint)
 		os.Exit(ExitFile)
 	}
-	addr := net.JoinHostPort(dashboardHost, strconv.Itoa(dashboardPort))
+	addr := net.JoinHostPort(dashboard.Host, strconv.Itoa(dashboardPort))
 	ln, err := (&net.ListenConfig{}).Listen(cmd.Context(), "tcp", addr)
 	if err != nil {
 		output.Error(ExitValidation, fmt.Sprintf("port %d is taken: %v", dashboardPort, err),
@@ -82,7 +79,7 @@ func runDashboard(cmd *cobra.Command, _ []string) error {
 func serveDashboard(parent context.Context, ln net.Listener) error {
 	ctx, stop := signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	srv := &http.Server{Handler: dashboard.Handler(), ReadHeaderTimeout: 10 * time.Second}
+	srv := &http.Server{Handler: dashboard.Handler(ln.Addr().(*net.TCPAddr).Port), ReadHeaderTimeout: 10 * time.Second}
 	go func() {
 		<-ctx.Done()
 		shutdown, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
