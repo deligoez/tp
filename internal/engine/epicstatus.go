@@ -46,6 +46,10 @@ type EpicReviewStatus struct {
 	// resolved fixed is not counted: it waits for the next round to read the
 	// change, not for a decision.
 	Open map[string]int
+	// OpenByRole counts the same findings by the role that raised them, so
+	// its counts sum to Open's (spec/1.8.0.md §5); a row naming no role is
+	// counted under "", as Open counts a row naming no severity.
+	OpenByRole map[string]int
 }
 
 // EpicReviewLoopStatus grades the slice's recorded rounds under p. A round is
@@ -71,13 +75,9 @@ func EpicReviewLoopStatus(stateDir string, units []EpicReviewUnit, p EpicReviewP
 		return EpicReviewStatus{}, err
 	}
 	st.Stale = stale
-	st.Open = map[string]int{"critical": 0, "high": 0, "medium": 0, "low": 0}
+	st.Open, st.OpenByRole = map[string]int{"critical": 0, "high": 0, "medium": 0, "low": 0}, map[string]int{}
 	if len(rounds) > 0 {
-		for _, row := range rounds[len(rounds)-1] {
-			if sev, _ := row["severity"].(string); !RowDispositioned(row) {
-				st.Open[sev]++
-			}
-		}
+		epicCountOpen(&st, rounds[len(rounds)-1])
 	}
 	st.ConsecutiveClean = epicConsecutiveClean(rounds, p.ConvergeOn)
 	st.Converged = st.ConsecutiveClean >= p.CleanRounds && !st.Stale
@@ -112,6 +112,20 @@ func epicGradeCap(st *EpicReviewStatus, last []map[string]any, convergeOn string
 		st.Done, st.DoneBy = true, DoneByCap
 	}
 	st.Grantable = st.Stale
+}
+
+// epicCountOpen counts the last round's rows that carry no disposition into
+// st.Open by severity and st.OpenByRole by role.
+func epicCountOpen(st *EpicReviewStatus, last []map[string]any) {
+	for _, row := range last {
+		if RowDispositioned(row) {
+			continue
+		}
+		sev, _ := row["severity"].(string)
+		role, _ := row["role"].(string)
+		st.Open[sev]++
+		st.OpenByRole[role]++
+	}
 }
 
 // epicGrantsSpent counts the recorded rounds past maxRounds, 0 when the slice
