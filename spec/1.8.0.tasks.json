@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T15:47:06.853541Z",
+  "updated_at": "2026-11-11T15:52:51.926811Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -1015,7 +1015,7 @@
       "id": "summary-release-impact",
       "title": "Derive each spec's release impact on the plan",
       "description": "Summary: per bound spec, the epics releasing it would free and the gate it would move.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "summary"
@@ -1029,11 +1029,27 @@
       "source_sections": [
         "## 13. The Spec tab"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T15:47:11.917018Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T15:52:51.881637Z",
+      "closed_reason": "- for a bound spec whose epic is the last undone dependency of another, the impact names that epic as freed and the gate whose done count moves: engine.SpecReleaseImpact(g, states, id) -\u003e ReleaseImpact{frees, gates[{milestone, members_done, members_done_after, members}]} (internal/engine/dashimpact.go; names and shape chosen, the dashboard's own payload), freed = every not-done epic an undone dependency holds now and none would with id done (epicWaitFlags, so any-of groups count), gates = tracked milestones whose gateMembersCount changes; summary.release_impact keys every task file git sees by its repo-relative path, a bound file carrying its epic's impact only when every other file bound to that epic is at release (reading chosen: otherwise its release finishes no epic), read in one pass by the new dashRepo (internal/engine/dashband.go refactor, DashboardSummaryOf). TestSpecReleaseImpact_NamesTheFreedEpicAndTheMovedGate frees b (a its last undone dependency), not d (still waits on x), M1 1-\u003e2 of 4, nothing once a is done; TestDashboardSummary_CarriesEachSpecsReleaseImpact on a real repository: b.tasks.json frees a and moves M 2-\u003e3 of 4, and is empty once a second spec of b is not at release; red before the change (undefined); mutants freeing every blocked dependent, and ignoring the other bound files, each turn one red; shape test pins the entry keys\n- an unbound spec carries an empty impact {frees: [], gates: []}: u.tasks.json in TestDashboardSummary_CarriesEachSpecsReleaseImpact; gate passed",
+      "gate_passed_at": "2026-11-11T15:52:51.881637Z",
+      "commit_sha": "484b4811",
+      "commit_shas": [
+        "484b4811",
+        "813aafe5",
+        "b57db8a4",
+        "629cdc7b",
+        "87397cb6",
+        "306384d9"
+      ],
+      "commit_files": [
+        "internal/engine/dashband.go",
+        "internal/engine/dashimpact.go",
+        "internal/engine/dashimpact_test.go",
+        "internal/engine/dashsummary.go",
+        "internal/engine/dashsummary_test.go"
+      ]
     },
     {
       "id": "summary-daily-series",
