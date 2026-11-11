@@ -101,15 +101,18 @@ func milestoneOrder(g *model.EpicGraph) []string {
 // tie: one more than its longest dependency, the earlier in depends_on order
 // on a tie, where an unsatisfied any-of group counts as its member with the
 // shortest chain, the first listed on a tie (spec/1.7.0.md §7). A moot epic
-// is on no chain. Empty when no work epic is left. A dependency cycle on the
-// chain is listed whole where the chain enters it, its other members in
-// graph order.
+// is on no chain. The chain never ends at an epic deferrable in its
+// milestone's gate, which waits on a trigger that may never come; one a
+// later epic of the chain depends on stays on it, since that epic waits on
+// it. Empty when no work epic is left. A dependency cycle on the chain is
+// listed whole where the chain enters it, its other members in graph order.
 func GraphCriticalPath(g *model.EpicGraph, states map[string]EpicState) []string {
 	w := newDownstreamWalk(g, states)
 	w.compLen, w.compEntry, w.compPrev = filled(len(w.comps)), filled(len(w.comps)), filled(len(w.comps))
+	deferrable := deferrableEpics(g)
 	end, best := -1, 0
 	for i := range g.Epics {
-		if !w.undone(i) {
+		if !w.undone(i) || deferrable[i] {
 			continue
 		}
 		if c := w.chainTo(w.comp[i]); c > best {
@@ -135,6 +138,17 @@ func GraphCriticalPath(g *model.EpicGraph, states map[string]EpicState) []string
 		}
 	}
 	return path
+}
+
+// deferrableEpics reports, by graph position, whether each epic is listed
+// deferrable in its own milestone's gate (spec/1.5.0.md §4).
+func deferrableEpics(g *model.EpicGraph) []bool {
+	out := make([]bool, len(g.Epics))
+	for i := range g.Epics {
+		e := &g.Epics[i]
+		out[i] = slices.Contains(g.Gates[e.Milestone].Deferrable, e.ID)
+	}
+	return out
 }
 
 // filled returns n entries of -1, a memo's "not yet".
