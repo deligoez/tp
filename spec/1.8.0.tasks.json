@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T20:41:44.869044Z",
+  "updated_at": "2026-11-11T20:58:15.146021Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -1732,7 +1732,7 @@
       "id": "page-graph-history",
       "title": "Draw a slice's graph history between rounds",
       "description": "Per slice, its rounds with findings by role; between two chosen rounds, the snapshot diff beside the earlier round's findings.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "page",
         "dashboard"
@@ -1746,11 +1746,23 @@
       "source_sections": [
         "## 11. Graph history"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T20:50:51.377615Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T20:58:15.1082Z",
+      "closed_reason": "- A slice's history on the Epics tab: each Plan review slice cell is a button opening #slice-history (internal/dashboard/page/app.js, index.html, style.css): every recorded round in order with its findings by role (findings_by_role counts) and what changed since the round before (diff_from/diff: units, edges, whys, fields), a Now row from current, and a two-round comparison (default the last two; selects pick any pair, kept in the address as slice and hr) fetched with from/to whose difference (units added/removed, edges added/removed with why, whys and fields with before and after, hashes_only units) is drawn beside the earlier round's findings (severity, location, finding, disposition). Checked with agent-browser on a synthetic repo: M2 slice with 3 rounds, gamma-\u003ebeta why rewritten between rounds 1 and 2 shown struck/new; picking rounds 1 and 3 wrote hr=1-3, a reload landed there, back returned to rounds 2-3, Close cleared the slice. TestPage_DrawsASlicesGraphHistoryFromTheHistoryEndpoint red before, green after; mutant dropping hr from URL_KEYS turns it red\n- Fetched by GET /api/history?\u003cslice key\u003e when shown and again on every push: the panel refetches whenever the pushed epic-export or summary payload changes (browser check: a tp epic link while the page was open re-fetched and the Now row changed to 1 why rewritten, 1 field changed); a slice with an unknown key says its next emission records it\n- Operator-decision fix (no task id) in 47387f6c, e4b0ed59, 5b73b4b5, 089f34de: tp resume's spec, blocker data.spec/message, next_action command/brief_command/summary and next_units brief_command now name the spec relative to the repository root, and so do tp export's embedded resume and tp export --list's next_step/escalations (engine.repoRelative, now symlink-resolved and keeping paths outside the repo); review/audit/resume/run resolve a spec argument missing from the working directory against the git top level (engine.ResolveSpecArg), so those commands run from a subdirectory. Tests TestResume_SpecStaleNamesTheSpecRelativeToTheRepositoryRoot and TestResume_NextActionCommandsAreRepoRelativeAndRunFromASubdirectory, red before; REFERENCE.md documents both\n- Gate passed (suite, golangci-lint, deadcode, complexity)",
+      "gate_passed_at": "2026-11-11T20:58:15.1082Z",
+      "commit_sha": "7b95ea8d",
+      "commit_shas": [
+        "7b95ea8d",
+        "701f3df9",
+        "4c72c4f9"
+      ],
+      "commit_files": [
+        "internal/dashboard/dashboard_test.go",
+        "internal/dashboard/page/app.js",
+        "internal/dashboard/page/index.html",
+        "internal/dashboard/page/style.css"
+      ]
     },
     {
       "id": "page-specs-tab",
