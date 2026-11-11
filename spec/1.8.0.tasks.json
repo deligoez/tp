@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T19:07:54.150631Z",
+  "updated_at": "2026-11-11T19:16:50.740047Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -1549,7 +1549,7 @@
       "id": "page-map-lanes",
       "title": "Draw the map from the exported layout",
       "description": "Epics placed by layout lanes, columns and rows; edges on selection, the critical path always.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "page",
         "dashboard"
@@ -1563,11 +1563,22 @@
       "source_sections": [
         "## 9. The map"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T19:09:02.717515Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T19:16:50.712705Z",
+      "closed_reason": "- Epics placed by layout alone: internal/dashboard/page/app.js mapGeometry turns each epic's export layout {lane, lane_kind, column, row} into coordinates (lane = row band labelled main/parallel/triggered, column = x, row = place in the milestone box; milestones sharing a lane and column, i.e. the triggered lane's, sit side by side in graph-file order without widening other lanes; reading chosen); track chips (one per graph.milestones track) only dim epics; markState reads status/moot/held/blocked and the milestone's open flag, and every state has its own mark shape, conditions a diamond (legend in #maplegend). Checked with agent-browser on a synthetic repo (main M1-M3, parallel P1-P2, triggered T1,T2): boxes in the exported lanes and columns\n- The critical path (critical_path.by_count) is always drawn; clicking an epic draws its transitive chain of edges (any-of members dashed), All edges (#f-edges) draws all: browser check gave 8 edge paths = the graph's 8 edges, and the P1-P2 chip dimmed the 9 other epics\n- TestPage_DrawsTheMapFromTheExportedLayout (internal/dashboard/dashboard_test.go) asserts the script reads .layout, .lane, .lane_kind, .column, .row, critical_path.by_count, .depends_on, .any_of and never opens_after; red before the change; mutants reading graph.opens_after, and reading critical_path.chain instead of by_count, each turn it red. Gate passed",
+      "gate_passed_at": "2026-11-11T19:16:50.712705Z",
+      "commit_sha": "bd551ae4",
+      "commit_shas": [
+        "bd551ae4",
+        "8a11dec3"
+      ],
+      "commit_files": [
+        "internal/dashboard/dashboard_test.go",
+        "internal/dashboard/page/app.js",
+        "internal/dashboard/page/index.html",
+        "internal/dashboard/page/style.css"
+      ]
     },
     {
       "id": "page-map-neighbours",
