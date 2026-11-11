@@ -58,3 +58,20 @@ func TestEpicReviewStatus_CountsOpenFindingsByRole(t *testing.T) {
 	require.Len(t, batch.Slices, 1)
 	assert.Equal(t, st.OpenByRole, batch.Slices[0].OpenByRole, "each batch row carries the slice's own counts")
 }
+
+// TestEpicReviewStatus_CountsARolelessFindingAsUnattributed: an open finding
+// naming no role is counted under the named bucket "unattributed", as audit
+// counts an unreadable severity under "unrecognised", so the by-role counts
+// still sum to the open total. Counting it under "" fails it.
+func TestEpicReviewStatus_CountsARolelessFindingAsUnattributed(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChain)
+	runEpicReview(t, dir, "--epic", "b")
+	recordEpicRound(t, dir, `{"severity":"high","finding":"f","location":"epic:b","evidence":"b"}`+"\n", "--epic", "b")
+
+	stdout, stderr, code := runTP(t, dir, "epic", "review", "--epic", "b", "--status")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var st epicOpenByRole
+	require.NoError(t, json.Unmarshal([]byte(stdout), &st), "stdout: %s", stdout)
+	assert.Equal(t, map[string]int{"unattributed": 1}, st.OpenByRole)
+}
