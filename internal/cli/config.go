@@ -187,10 +187,24 @@ func runConfig(_ *cobra.Command, _ []string) error {
 	// after auto resolution (§5.2).
 	effective := warnCommitStrategy(override.CommitStrategy, engine.ProjectWorkflowOverride().CommitStrategy)
 	if configResolved {
-		return output.JSON(resolvedConfig(&wf, &override))
+		result := resolvedConfig(&wf, &override)
+		result["epic"] = configEpic(true)
+		return output.JSON(result)
 	}
 	// The effective workflow as JSON on stdout, plus commit_strategy_effective (the
 	// concrete builtin/hc behavior). --compact is a documented no-op (the output is
 	// not task-shaped), so tp config always emits this shape.
-	return output.JSON(map[string]any{"workflow": wf, "commit_strategy_effective": effective})
+	return output.JSON(map[string]any{"workflow": wf, "commit_strategy_effective": effective, "epic": configEpic(false)})
+}
+
+// configEpic is tp config's epic block: the effective placeholder pattern,
+// the default when .tp/config.json does not set it, and under --resolved
+// the layer it came from (project or default). A malformed config has
+// already aborted in resolveConfigWorkflow.
+func configEpic(resolved bool) map[string]any {
+	pattern, fromProject, _ := engine.ProjectThresholdPlaceholder(engine.DiscoverTPDir("."))
+	if resolved {
+		return map[string]any{"threshold_placeholder": map[string]any{"value": pattern, "source": sourceLabel(false, fromProject)}}
+	}
+	return map[string]any{"threshold_placeholder": pattern}
 }
