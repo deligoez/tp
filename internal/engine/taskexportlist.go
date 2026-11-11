@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"slices"
@@ -19,9 +21,10 @@ type TaskFileList struct {
 // TaskFileRow is one task file as tp export --list reports it: its
 // repo-relative path, its spec's first heading, its epic and the epic's
 // derived status, the phase tp resume reports, its tasks counted by status,
-// its review and audit loops, the next step tp resume names and the escalate
-// blockers that stop it. A file that cannot be read carries its path and
-// Error alone.
+// its review and audit loops, the next step tp resume names, the escalate
+// blockers that stop it, and a hash of the task file's and its spec's bytes
+// that moves with an edit no other field shows. A file that cannot be read
+// carries its path and Error alone.
 type TaskFileRow struct {
 	Path        string         `json:"path"`
 	Title       string         `json:"title,omitempty"`
@@ -33,6 +36,7 @@ type TaskFileRow struct {
 	Audit       *EpicLoop      `json:"audit,omitempty"`
 	NextStep    string         `json:"next_step,omitempty"`
 	Escalations []Blocker      `json:"escalations,omitempty"`
+	ContentHash string         `json:"content_hash,omitempty"`
 	Error       string         `json:"error,omitempty"`
 
 	readable bool
@@ -91,6 +95,7 @@ func taskFileRow(start, path string) (TaskFileRow, *model.TaskFile) {
 	}
 	row.Phase, row.Tasks, row.Review, row.Audit = resume.Phase, st.Tasks, &st.Review, &st.Audit
 	row.NextStep = resume.NextAction.Summary
+	row.ContentHash = contentHash(path, specPath)
 	row.Escalations = []Blocker{}
 	for _, b := range resume.Blockers {
 		if b.Class == ClassEscalate {
@@ -98,6 +103,19 @@ func taskFileRow(start, path string) (TaskFileRow, *model.TaskFile) {
 		}
 	}
 	return row, tf
+}
+
+// contentHash is the lowercase hex SHA-256 of the task file's bytes followed
+// by its spec's, so an edit to a task's text or to the spec's moves it; a
+// spec that cannot be read adds nothing.
+func contentHash(taskPath, specPath string) string {
+	h := sha256.New()
+	for _, p := range []string{taskPath, specPath} {
+		if data, err := os.ReadFile(p); err == nil { //nolint:gosec // the task file and the spec it names
+			h.Write(data)
+		}
+	}
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 // specTitle is the spec's first heading, "" when it has none or cannot be
