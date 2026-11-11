@@ -425,3 +425,38 @@ button.pcell[aria-pressed="true"] { background: var(--color-accent-wash); border
 .excerpt { margin: 0 0 var(--space-xs); font-size: var(--text-sm); }
 .excerpt figcaption { font-weight: 500; }
 .excerpt blockquote { margin: var(--space-2xs) 0 0; padding: var(--space-2xs) var(--space-sm); border-left: 2px solid var(--color-rule-2); color: var(--ink-2); line-height: 1.5; }
+.tcard.dim { opacity: .35; }
+.secchip { display: inline-flex; align-items: center; gap: var(--space-2xs); font-size: var(--text-sm); background: var(--color-accent-wash); border: 1px solid var(--accent); border-radius: var(--radius-input); padding: 0 0 0 var(--space-xs); min-width: 0; overflow-wrap: anywhere; }
+.secchip .key { border: 0; background: none; }
+
+/* the Spec tab's Read view (§13): the spec in its sections, each paragraph under its anchor */
+.reader { padding: var(--space-lg) var(--space-xl) var(--space-xl) 80px; }
+.reader .doc { max-width: 72ch; margin-inline: auto; }
+.reader h1 { font: 600 var(--text-2xl)/1.15 var(--font-display); letter-spacing: var(--tracking-display); margin: var(--space-xs) 0 var(--space-sm); text-wrap: balance; }
+.rmeta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs) var(--space-md); font-size: var(--text-sm); color: var(--muted); }
+.toc { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 var(--space-sm); }
+.toc button { font: 500 var(--text-xs)/1 var(--font-display); min-height: 28px; padding: 0 10px; border-radius: var(--radius-input); background: var(--sunk); border: 1px solid var(--line); color: var(--ink-2); cursor: pointer; }
+.toc button:hover { border-color: var(--muted); }
+.toc button:active { background: var(--color-paper-3); }
+.sec { position: relative; scroll-margin-top: var(--space-md); border-radius: var(--radius-input); padding: var(--space-3xs) var(--space-sm); margin: 0 calc(-1 * var(--space-sm)); transition: background-color var(--dur-short) var(--ease-out); }
+.sec.flash { background: var(--color-accent-wash); }
+.sec h2.sth { font: 600 var(--text-xl)/1.2 var(--font-display); letter-spacing: var(--tracking-display); margin: var(--space-lg) 0 var(--space-xs); display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2xs) var(--space-sm); }
+.sec h2.sth .n { font: 500 var(--text-sm) var(--mono); color: var(--muted); letter-spacing: 0; }
+.sec h2.sth .tc { margin-left: auto; font: 500 var(--text-xs)/1 var(--font-display); letter-spacing: 0; min-height: 28px; padding: 0 10px; color: var(--accent); background: var(--surface); border: 1px solid var(--accent); border-radius: var(--radius-input); cursor: pointer; }
+.sec h2.sth .tc:hover { background: var(--color-accent-wash); }
+.sec h2.sth .tc:active { transform: translateY(1px); }
+.blk { position: relative; line-height: 1.7; font-size: 1.0625rem; overflow-wrap: anywhere; }
+.blk p, .blk ul, .blk ol, .blk .scroll { margin: 0 0 var(--space-sm); }
+.blk ul, .blk ol { padding-left: 22px; }
+.blk h3.sub { font: 600 var(--text-lg)/1.3 var(--font-display); margin: var(--space-sm) 0 var(--space-2xs); }
+.blk pre { font: 400 var(--text-sm)/1.6 var(--mono); background: var(--sunk); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius-input); padding: var(--space-sm) 14px; overflow-x: auto; margin: 0 0 var(--space-sm); overflow-wrap: normal; }
+.blk table { border-collapse: collapse; font-size: var(--text-sm); }
+.blk th { font: 500 var(--text-sm) var(--font-display); color: var(--muted); text-align: left; border-bottom: 1px solid var(--color-rule-2); padding: 6px var(--space-md) 6px 0; }
+.blk td { border-bottom: 1px solid var(--line); padding: 6px var(--space-md) 6px 0; vertical-align: top; }
+.blk code { font: 400 .9em var(--mono); }
+.blk .anc { position: absolute; left: -68px; top: 5px; width: 56px; text-align: right; font: 400 var(--text-xs) var(--mono); color: var(--muted); opacity: 0; transition: opacity var(--dur-micro) var(--ease-out); }
+.blk:hover .anc { opacity: 1; }
+@media (max-width: 760px) {
+  .reader { padding: var(--space-md); }
+  .blk .anc { position: static; display: block; width: auto; text-align: left; opacity: 1; line-height: 1.4; }
+}
