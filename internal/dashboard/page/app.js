@@ -237,6 +237,63 @@
     $("now-most").innerHTML = v.plan.most_waited_on.slice(0, 10).map((id) => row(id, titleOf(v, id), dependents(v, id))).join("") || none("No epic is waited on.");
   });
 
+  INFO.slices = "One row per epic review slice (tp epic review): its round with the cap and the grants spent, its state, the units changed since its last recorded round when it is stale, its open findings by role, and the findings of each recorded round as a curve. From the export's slices and the summary's per-round counts.";
+
+  // sliceLabel names a slice as tp epic review takes it.
+  function sliceLabel(s) {
+    const k = s.key;
+    if (!k) return s.dir;
+    if (k.kind === "epics") return "--epics " + (k.ids || []).join(",") + (k.name ? " --name " + k.name : "");
+    return "--" + k.kind + " " + k.value;
+  }
+
+  // roundText says the round against the cap and the grants spent.
+  function roundText(s) {
+    let t = "round " + s.round;
+    if (s.max_rounds !== null && s.max_rounds !== undefined) t += ", cap " + s.max_rounds;
+    if (s.grants_spent) t += " + " + plural(s.grants_spent, "grant", "grants");
+    return t;
+  }
+
+  // curve draws each recorded round's finding count, so a converging slice
+  // reads as a falling line.
+  function curve(rounds) {
+    if (!rounds || !rounds.length) return "";
+    const top = Math.max(1, ...rounds.map((r) => r.total));
+    const step = rounds.length > 1 ? 88 / (rounds.length - 1) : 0;
+    const pts = rounds.map((r, i) => [4 + i * step, 21 - (r.total / top) * 18]);
+    const label = rounds.map((r) => "round " + r.round + ": " + r.total).join(", ");
+    return '<svg class="curve" viewBox="0 0 96 24" role="img" aria-label="Findings per round: ' + esc(label) + '"><title>' + esc(label) + "</title>" +
+      (pts.length > 1 ? '<polyline points="' + pts.map((p) => p.join(",")).join(" ") + '"/>' : "") +
+      pts.map((p) => '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="2"/>').join("") + "</svg>";
+  }
+
+  // Plan review (§5): one row per slice. It follows the KPI strip while no
+  // epic has a bound spec, a planning-stage project's work (§3), and closes
+  // the tab in §4's order once one does.
+  panel(["epic-export", "summary"], () => {
+    const g = data("epic-export");
+    const sum = data("summary");
+    const box = $("plan-review");
+    box.hidden = !state.graph || !g;
+    if (box.hidden) return;
+    const bound = (g.epics || []).some((e) => e.files && e.files.length);
+    if (bound) $("view-epics").appendChild(box);
+    else $("kpis").after(box);
+    const slices = g.slices || [];
+    if (!slices.length) {
+      $("slices").innerHTML = '<p class="empty">No slice of the plan has been reviewed: <code>tp epic review --milestone &lt;m&gt;</code> starts one.</p>';
+      return;
+    }
+    $("slices").innerHTML = '<table class="loops"><thead><tr><th>Slice</th><th>Round</th><th>State</th><th>Open findings by role</th><th>Findings per round</th></tr></thead><tbody>' +
+      slices.map((s) => {
+        const stale = s.state === "stale" && s.stale_units && s.stale_units.length ? ' title="Changed since round ' + esc(s.round) + ": " + esc(s.stale_units.join(", ")) + '"' : "";
+        const open = Object.keys(s.open_by_role || {}).sort().map((r) => esc(r) + " " + esc(s.open_by_role[r])).join(", ") || "none";
+        return '<tr><td class="k">' + esc(sliceLabel(s)) + "</td><td>" + esc(roundText(s)) + '</td><td><span class="st" data-s="' + esc(s.state) + '"' + stale + ">" +
+          esc(s.state.replace("_", " ")) + '</span></td><td class="n">' + open + "</td><td>" + curve(sum ? sum.rounds[s.dir] : null) + "</td></tr>";
+      }).join("") + "</tbody></table>";
+  });
+
   TABS.forEach((t) => { $("tab-" + t).addEventListener("click", () => setTab(t)); });
 
   // The stream: a page that reconnects gets the current state again (§2).
