@@ -175,6 +175,51 @@ func TestDashboard_ServesThePageOnTheLoopbackURL(t *testing.T) {
 	}
 }
 
+// TestDashboard_GuardsTheServerOnARepoWithOneTaskFile is §18 row 1 on its
+// own fixture, a repository with one task file: the running server answers
+// GET alone, refuses a foreign Host, sends no CORS header, listens on
+// 127.0.0.1 only, and a second instance on its port exits 1 naming it.
+func TestDashboard_GuardsTheServerOnARepoWithOneTaskFile(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeTaskFileRaw(t, dir, `[]`)
+	initGitRepo(t, dir)
+	port := freePort(t)
+	srv := startDashboard(t, dir, port)
+
+	status, _ := getPage(t, srv.url)
+	require.Equal(t, http.StatusOK, status)
+
+	post, err := http.Post(srv.url, "text/plain", strings.NewReader("x")) //nolint:gosec,noctx // the test's own loopback child
+	require.NoError(t, err)
+	require.NoError(t, post.Body.Close())
+	assert.Equal(t, http.StatusMethodNotAllowed, post.StatusCode)
+
+	req, err := http.NewRequest(http.MethodGet, srv.url, http.NoBody) //nolint:noctx // the test's own loopback child
+	require.NoError(t, err)
+	req.Host = "rebound.example:" + strconv.Itoa(port)
+	req.Header.Set("Origin", "http://rebound.example")
+	foreign, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	require.NoError(t, foreign.Body.Close())
+	assert.Equal(t, http.StatusForbidden, foreign.StatusCode)
+	for name := range foreign.Header {
+		assert.False(t, strings.HasPrefix(strings.ToLower(name), "access-control-"), "CORS header %s", name)
+	}
+
+	stderr, code := runDashboardOnce(t, dir, false, "--port", strconv.Itoa(port))
+	require.Equal(t, 1, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, strconv.Itoa(port))
+
+	if ip := nonLoopbackIPv4(t); ip != "" {
+		conn, err := net.DialTimeout("tcp", net.JoinHostPort(ip, strconv.Itoa(port)), time.Second)
+		if err == nil {
+			_ = conn.Close()
+		}
+		require.Error(t, err, "the server answers on %s, not on 127.0.0.1 alone", ip)
+	}
+}
+
 // nonLoopbackIPv4 returns an IPv4 address of this host that is not loopback,
 // or "" when it has none.
 func nonLoopbackIPv4(t *testing.T) string {
