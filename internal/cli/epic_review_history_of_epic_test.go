@@ -93,3 +93,17 @@ func TestEpicReviewHistoryOfEpic_AnEpicInNoRecordedSliceSaysSo(t *testing.T) {
 	assert.Contains(t, h.Message, "no recorded")
 }
 
+// TestEpicReviewHistoryOfEpic_IsItsOwnMode is --of-epic's usage: it needs
+// --history and names no slice, and either mistake exits 2.
+func TestEpicReviewHistoryOfEpic_IsItsOwnMode(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChain)
+	for _, args := range [][]string{
+		{"--of-epic", "a"},
+		{"--history", "--of-epic", "a", "--milestone", "A"},
+		{"--history", "--of-epic", "a", "--from", "1", "--to", "2"},
+	} {
+		_, stderr, code := runTP(t, dir, append([]string{"epic", "review"}, args...)...)
+		assert.Equal(t, 2, code, "%v; stderr: %s", args, stderr)
+	}
+}
