@@ -145,7 +145,10 @@ func auditRoundsOf(st *ReviewState) []ReviewRound {
 // checksRegistered says whether the resolved workflow registers at least one
 // mechanical check; it is the decompose phase's only input beside the spec
 // path (see decomposeNextAction).
-func BuildNextAction(phase, specPath string, tf *model.TaskFile, st *ReviewState, checksRegistered bool) NextAction {
+//
+// specPath is what the round state is read through; shown is how the commands
+// and summaries name the spec — relative to the repository root in tp resume.
+func BuildNextAction(phase, specPath, shown string, tf *model.TaskFile, st *ReviewState, checksRegistered bool) NextAction {
 	cmd := func(s string) *string { return &s }
 	switch phase {
 	case PhaseReview:
@@ -155,16 +158,16 @@ func BuildNextAction(phase, specPath string, tf *model.TaskFile, st *ReviewState
 		// new one.
 		if inFlight := InFlightRound(specPath, PhaseReview, len(rounds)); inFlight > 0 {
 			return NextAction{
-				Command:      cmd(fmt.Sprintf("tp review %s --record <findings-round-%d.ndjson>", specPath, inFlight)),
-				BriefCommand: cmd(fmt.Sprintf("tp review %s --round %d", specPath, inFlight)),
+				Command:      cmd(fmt.Sprintf("tp review %s --record <findings-round-%d.ndjson>", shown, inFlight)),
+				BriefCommand: cmd(fmt.Sprintf("tp review %s --round %d", shown, inFlight)),
 				Summary:      fmt.Sprintf("record review round %d (its snapshot exists; the round was started but never recorded)", inFlight),
 				Payload:      map[string]any{"action": "record-round", "round": inFlight},
 			}
 		}
 		round, unresolved := roundPayload(specPath, PhaseReview, rounds)
 		return NextAction{
-			Command:      cmd("tp review " + specPath),
-			BriefCommand: cmd(fmt.Sprintf("tp review %s --round %d", specPath, round)),
+			Command:      cmd("tp review " + shown),
+			BriefCommand: cmd(fmt.Sprintf("tp review %s --round %d", shown, round)),
 			Summary:      fmt.Sprintf("run review round %d (%d unresolved from the previous round)", round, unresolved),
 			Payload:      map[string]any{"round": round, "unresolved_findings": unresolved},
 		}
@@ -173,16 +176,16 @@ func BuildNextAction(phase, specPath string, tf *model.TaskFile, st *ReviewState
 		// §10.2: mirror — an interrupted audit round points at recording it.
 		if inFlight := InFlightRound(specPath, PhaseAudit, len(rounds)); inFlight > 0 {
 			return NextAction{
-				Command:      cmd(fmt.Sprintf("tp audit %s --record <results-round-%d.ndjson>", specPath, inFlight)),
-				BriefCommand: cmd("tp audit " + specPath),
+				Command:      cmd(fmt.Sprintf("tp audit %s --record <results-round-%d.ndjson>", shown, inFlight)),
+				BriefCommand: cmd("tp audit " + shown),
 				Summary:      fmt.Sprintf("record audit round %d (its snapshot exists; the round was started but never recorded)", inFlight),
 				Payload:      map[string]any{"action": "record-round", "round": inFlight},
 			}
 		}
 		round, unresolved := roundPayload(specPath, PhaseAudit, rounds)
 		return NextAction{
-			Command:      cmd("tp audit " + specPath),
-			BriefCommand: cmd("tp audit " + specPath),
+			Command:      cmd("tp audit " + shown),
+			BriefCommand: cmd("tp audit " + shown),
 			Summary:      fmt.Sprintf("run audit round %d (%d unresolved from the previous round)", round, unresolved),
 			Payload:      map[string]any{"round": round, "unresolved_findings": unresolved},
 		}
@@ -199,7 +202,7 @@ func BuildNextAction(phase, specPath string, tf *model.TaskFile, st *ReviewState
 			Payload:      map[string]any{"task": task, "wip": wip},
 		}
 	case PhaseDecompose:
-		return decomposeNextAction(specPath, checksRegistered)
+		return decomposeNextAction(shown, checksRegistered)
 	default:
 		// PhaseRelease is the only value that reaches here: DetectPhase returns
 		// exactly one of the five phase constants and the other four are cased

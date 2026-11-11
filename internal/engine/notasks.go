@@ -26,7 +26,7 @@ func NoTasksYetFor(taskFilePath, specPath string, tf *model.TaskFile) NoTasksYet
 	if err != nil {
 		return NoTasksYet{Message: empty, Hint: "run tp resume for the next step"}
 	}
-	next := BuildNextAction(loops.phase, specPath, tf, loops.st, len(loops.wf.Checks) > 0)
+	next := BuildNextAction(loops.phase, specPath, specPath, tf, loops.st, len(loops.wf.Checks) > 0)
 	hint := next.Summary
 	if next.Command != nil {
 		hint += ": " + *next.Command

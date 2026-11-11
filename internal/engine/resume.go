@@ -82,7 +82,10 @@ func AssembleResume(start, taskFilePath, specPath string, tf *model.TaskFile) (R
 		guidance = "run each task in a fresh subagent/context; keep the orchestrator context clean"
 	}
 
-	blockers, epicNotice, err := resumeBlockers(taskFilePath, specPath, changes, tf, &loops)
+	// Every path the result prints names the spec relative to the repository
+	// root; specPath itself stays what the reads below resolve.
+	shown := repoRelative(start, specPath)
+	blockers, epicNotice, err := resumeBlockers(taskFilePath, shown, changes, tf, &loops)
 	if err != nil {
 		return ResumeResult{}, err
 	}
@@ -91,10 +94,13 @@ func AssembleResume(start, taskFilePath, specPath string, tf *model.TaskFile) (R
 	// empties them (§4.1), and next_action is rendered from the first unit so
 	// the human summary and the machine surface describe the same work.
 	nextUnits, round := BuildNextUnits(start, taskFilePath, specPath, phase, tf, loops.st, blockers)
+	for i := range nextUnits {
+		nextUnits[i].BriefCommand = nextUnits[i].Kind.BriefCommand(UnitTarget{Spec: shown, ID: nextUnits[i].ID})
+	}
 
 	return ResumeResult{
 		Phase:       phase,
-		Spec:        specPath,
+		Spec:        shown,
 		Changes:     changes,
 		Kept:        kept,
 		Bookkeeping: bookkeeping,
@@ -105,7 +111,7 @@ func AssembleResume(start, taskFilePath, specPath string, tf *model.TaskFile) (R
 		// len(wf.Checks) is read, never run: the decompose action names the
 		// gate that runs the registered checks (decomposeNextAction), and
 		// resume itself stays the read-only oracle §4.8 requires.
-		NextAction: renderNextAction(BuildNextAction(phase, specPath, tf, loops.st, len(wf.Checks) > 0), nextUnits, blockers),
+		NextAction: renderNextAction(BuildNextAction(phase, specPath, shown, tf, loops.st, len(wf.Checks) > 0), nextUnits, blockers),
 		Blockers:   blockers,
 		EpicNotice: epicNotice,
 	}, nil
@@ -129,7 +135,7 @@ type resumeLoops struct {
 // graph, since a blocked epic stops starting a task and nothing else
 // (spec/1.5.0.md §6); an unbound file reads nothing. A graph or bound file that
 // cannot be read is an error.
-func resumeBlockers(taskFilePath, specPath string, changes []string, tf *model.TaskFile, loops *resumeLoops) ([]Blocker, string, error) {
+func resumeBlockers(taskFilePath, shownSpec string, changes []string, tf *model.TaskFile, loops *resumeLoops) ([]Blocker, string, error) {
 	var epicBlock *EpicBlock
 	notice := ""
 	if loops.phase == PhaseImplement {
@@ -145,7 +151,7 @@ func resumeBlockers(taskFilePath, specPath string, changes []string, tf *model.T
 	wf := &loops.wf
 	return BuildBlockers(&BlockerInputs{
 		Phase:           loops.phase,
-		SpecPath:        specPath,
+		SpecPath:        shownSpec,
 		Changes:         changes,
 		TaskFile:        tf,
 		ReviewRounds:    len(loops.reviewRounds),

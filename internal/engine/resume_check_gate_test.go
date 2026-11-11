@@ -15,7 +15,7 @@ func TestBuildNextAction_DecomposeGatesOnRegisteredChecks(t *testing.T) {
 	t.Parallel()
 	tf := &model.TaskFile{Spec: "spec.md"}
 
-	gated := BuildNextAction(PhaseDecompose, "spec.md", tf, nil, true)
+	gated := BuildNextAction(PhaseDecompose, "spec.md", "spec.md", tf, nil, true)
 	require.NotNil(t, gated.Command)
 	assert.Equal(t, "tp review spec.md --status --check", *gated.Command)
 	// §9.3: a phase carrying a tp command carries the command that briefs it.
@@ -25,7 +25,7 @@ func TestBuildNextAction_DecomposeGatesOnRegisteredChecks(t *testing.T) {
 	assert.Equal(t, CheckGateClause("spec.md")+"decompose the converged spec into tasks and tp import",
 		gated.Summary, "the gate reads as it does in tp review --status")
 
-	plain := BuildNextAction(PhaseDecompose, "spec.md", tf, nil, false)
+	plain := BuildNextAction(PhaseDecompose, "spec.md", "spec.md", tf, nil, false)
 	assert.Nil(t, plain.Command, "with no registered check, decompose names no tp command")
 	assert.Nil(t, plain.BriefCommand)
 	assert.Equal(t, "decompose the converged spec into tasks and tp import", plain.Summary)
@@ -36,7 +36,7 @@ func TestBuildNextAction_DecomposeGatesOnRegisteredChecks(t *testing.T) {
 // operator answers before anything runs.
 func TestRenderNextAction_AnEscalateBlockerOutranksTheCheckGate(t *testing.T) {
 	t.Parallel()
-	gated := BuildNextAction(PhaseDecompose, "spec.md", &model.TaskFile{Spec: "spec.md"}, nil, true)
+	gated := BuildNextAction(PhaseDecompose, "spec.md", "spec.md", &model.TaskFile{Spec: "spec.md"}, nil, true)
 	require.NotNil(t, gated.Command, "the state under test: a decompose action carrying the gate")
 
 	deferred := renderNextAction(gated, nil, []Blocker{
