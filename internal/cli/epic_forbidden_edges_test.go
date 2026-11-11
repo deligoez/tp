@@ -141,3 +141,19 @@ func TestEpicGraph_AnUnknownKeyInAForbiddenRuleIsAnUnknownKey(t *testing.T) {
 	require.Len(t, messages, 1)
 	assert.Contains(t, messages[0], "forbidden_edges[0].owner")
 }
+
+// TestEpicGraph_RemovingAnEpicARuleNamesIsRefused: a write that leaves a
+// forbidden_edges selector naming no epic adds a dangling-reference error, so
+// tp epic remove of the one epic a rule names exits 1, names the rule's
+// selector with the forbidden_edges hint, and writes nothing.
+func TestEpicGraph_RemovingAnEpicARuleNamesIsRefused(t *testing.T) {
+	t.Parallel()
+	graph := strings.Replace(forbiddenEdgesGraph, "\"milestone\": \"M3\"\n      }", "\"epic\": \"m\"\n      }", 1)
+	require.NotEqual(t, forbiddenEdgesGraph, graph, "the fixture holds the selector to replace")
+	dir := epicGraphDir(t, graph)
+	_, stderr, code := runTP(t, dir, "epic", "remove", "m")
+	require.Equal(t, 1, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, `forbidden_edges[0].to epic \"m\" names no epic`)
+	assert.Contains(t, stderr, "give each forbidden_edges rule a why")
+	assert.Equal(t, graph, string(readEpicGraphFile(t, dir)), "a refused remove writes nothing")
+}
