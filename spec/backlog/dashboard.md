@@ -258,7 +258,10 @@ review changes them.
 3. Per-task detail in v1? **Yes, since the operator's review of prototype 1: the Spec tab shows each
    of the spec's tasks with its dependencies** (operator; the needs are §4's "What the Spec tab needs").
 4. Loop history in v1? **Round counts and clean per round, yes (the loop dots); severity and
-   resolution per finding stay later.**
+   resolution per finding stay later.** The operator then asked how a spec and an epic got where
+   they are (§4, "History"). **Proposed: the Spec tab's History view in v1, built only from what tp
+   holds today (rounds, their snapshots, task times, claim and done records); the lifecycle-over-time
+   chart after `bound_at` lands; the operator confirms.**
 5. `tp run` units live in v1? **Only `tp run --status` per bound file, read in-process; no new stream.**
 6. What does a repo with no graph show (tp's own)? Was **exit 3 with a hint** (operator). Reopened by
    the Spec tab: such a repo has specs and tasks to show. **Proposed: open on the Spec tab, the
