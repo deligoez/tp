@@ -94,7 +94,7 @@ Resolves the task file by the discovery order (a spec argument wins and uses its
 | Field | Meaning |
 |-------|---------|
 | `phase` | `review` / `decompose` / `implement` / `audit` / `release` (task-first: an open task is `implement` even when the spec is stale) |
-| `spec` | resolved spec path |
+| `spec` | resolved spec path, relative to the repository root (v1.8.0; absolute outside a git repository). Every spec path resume prints — `next_action`'s `command`, `brief_command` and `summary`, each `next_units[].brief_command`, a blocker's `message` and `data.spec` — takes the same form, and so do `tp export`'s embedded `resume` and `tp export --list`'s `next_step` and `escalations` |
 | `changes` | byte-sorted repo-root-relative uncommitted paths **not** on the keep-list |
 | `kept` | byte-sorted `{path, reason}` — uncommitted paths matched by the keep-list |
 | `bookkeeping` | `[]` of `{path, kind, ref}` — tp-owned dirty files that need committing (§5.2). `kind` ∈ `closure` (the task file; `ref` = task id) / `round` (a `.tp-review/` round or snapshot file; `ref` = round number) / `config` (any other dirty `.tp/` state; `ref` = basename). Reported separately from `changes` and never an `unexplained-changes` blocker. Under `commit_strategy: hc` a close legitimately leaves these modified |
@@ -106,6 +106,8 @@ Resolves the task file by the discovery order (a spec argument wins and uses its
 | `last_failure` (v0.35.0) | `{unit_kind, unit_id, phase, exit_code, summary, at}` from `.tp/last_failure-<base>.json`, or `null`. Advisory: it never changes which unit runs next |
 
 `next_units`, `round` and `phase` are the whole machine surface — a driver parses those three and nothing else. `next_action` stays the human-facing summary, and its `command`/`brief_command`/`payload` render `next_units[0]` when the array is non-empty. `tp brief` surfaces `last_failure` too, so a fresh unit sees the wall the previous attempt hit.
+
+The commands those paths name run from any directory of the repository: a spec argument that `tp review` (an emission, `--record`, `--status`), `tp audit`, `tp resume` or `tp run` cannot find from the working directory is resolved against the repository root (v1.8.0). A path found from the working directory keeps that meaning.
 
 `--compact` drops `next_action.summary`, each `kept[].reason`, and each `blockers[].message`; keeps every `data` plus `bookkeeping`, `guidance` and `next_units` (all decision-critical — §8.4). Under an escalate blocker a `--compact` reader therefore reads `blockers[].code` and `data`.
 
