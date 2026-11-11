@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"time"
 
 	"github.com/deligoez/tp/internal/model"
 )
@@ -35,14 +36,18 @@ type EpicLoop struct {
 
 // EpicFileState is one bound task file as tp epic export reports it: its
 // repo-relative path, the phase tp resume reports, its tasks counted by
-// status, and the review, audit and ground loops of its spec.
+// status, the review, audit and ground loops of its spec, and the bound and
+// imported times the file recorded, each omitted when it holds none
+// (spec/1.8.0.md §15).
 type EpicFileState struct {
-	Path   string         `json:"path"`
-	Phase  string         `json:"phase"`
-	Tasks  map[string]int `json:"tasks"`
-	Review EpicLoop       `json:"review"`
-	Audit  EpicLoop       `json:"audit"`
-	Ground EpicLoop       `json:"ground"`
+	Path       string         `json:"path"`
+	Phase      string         `json:"phase"`
+	Tasks      map[string]int `json:"tasks"`
+	Review     EpicLoop       `json:"review"`
+	Audit      EpicLoop       `json:"audit"`
+	Ground     EpicLoop       `json:"ground"`
+	BoundAt    *time.Time     `json:"bound_at,omitempty"`
+	ImportedAt *time.Time     `json:"imported_at,omitempty"`
 }
 
 // EpicFileStates reports every file of bound, EpicBoundFiles(start)'s result,
@@ -87,11 +92,13 @@ func epicFileState(path string) (EpicFileState, error) {
 		tasks[tf.Tasks[i].Status]++
 	}
 	return EpicFileState{
-		Phase:  loops.phase,
-		Tasks:  tasks,
-		Review: specLoop(len(loops.reviewRounds), loops.reviewDone, loops.reviewStale),
-		Audit:  specLoop(len(loops.auditRounds), loops.auditDone, false),
-		Ground: ground,
+		Phase:      loops.phase,
+		Tasks:      tasks,
+		Review:     specLoop(len(loops.reviewRounds), loops.reviewDone, loops.reviewStale),
+		Audit:      specLoop(len(loops.auditRounds), loops.auditDone, false),
+		Ground:     ground,
+		BoundAt:    tf.BoundAt,
+		ImportedAt: tf.ImportedAt,
 	}, nil
 }
 
