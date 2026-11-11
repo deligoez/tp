@@ -302,8 +302,20 @@
   const LANE_LABEL = { main: "Main", parallel: "Parallel", triggered: "Triggered" };
   const MARK_LABEL = { done: "done", ready: "can start", active: "claimed or under way", blocked: "blocked", held: "held by a condition", waiting: "milestone closed", moot: "moot" };
   const MARKS = ["done", "ready", "active", "blocked", "held", "waiting", "moot"];
-  const mapView = { selected: null, edges: false, tracks: new Set(), geo: null, deps: {}, dependents: {}, byId: {} };
-  INFO.map = "Lanes from the opening order: the main lane is the longest chain of milestone openings, parallel lanes the other chains, the triggered lane the milestones that open on a trigger. A milestone's column is its opening depth. tp computes every place (the export's layout); the page only draws it. Colour and shape both carry an epic's state; a diamond is a condition. The orange line is the critical path. The bar on a box's right edge is its gate's members done. Click an epic for its chain; All edges draws every edge.";
+  const mapView = { selected: null, edges: false, tracks: new Set(), geo: null, deps: {}, dependents: {}, byId: {}, q: "" };
+
+  // FOLD maps the letters the epic search folds before Unicode decomposition:
+  // the Turkish dotless and dotted i, which decomposition and lower-casing do
+  // not bring to a plain i, and the Turkish letters with a cedilla, breve or
+  // diaeresis, spelled out so a test can read them.
+  const FOLD = {"ı": "i", "İ": "i", "ş": "s", "Ş": "s", "ğ": "g", "Ğ": "g", "ç": "c", "Ç": "c", "ö": "o", "Ö": "o", "ü": "u", "Ü": "u"};
+  const FOLD_RE = new RegExp("[" + Object.keys(FOLD).join("") + "]", "g");
+  // fold reduces s to what the epic search compares: case and diacritics
+  // gone, so isik matches IŞIK and ışık alike.
+  const fold = (s) => String(s).replace(FOLD_RE, (c) => FOLD[c]).normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  // searchHit reports whether the epic's id or title holds the folded query.
+  const searchHit = (e, q) => !q || fold(e.id).includes(q) || fold(e.title || "").includes(q);
+  INFO.map = "Lanes from the opening order: the main lane is the longest chain of milestone openings, parallel lanes the other chains, the triggered lane the milestones that open on a trigger. A milestone's column is its opening depth. tp computes every place (the export's layout); the page only draws it. Colour and shape both carry an epic's state; a diamond is a condition. The orange line is the critical path. The bar on a box's right edge is its gate's members done. Click an epic for its chain; All edges draws every edge. The search matches ids and titles ignoring case and accents, Turkish ı and İ included.";
 
   // mapGeometry turns the export's layout into boxes and points. Milestones
   // sharing a lane and a column (the triggered lane's) sit side by side in
@@ -448,7 +460,9 @@
     const chain = sel ? chainOf(sel) : null;
     const trackOf = {};
     ((g.graph && g.graph.milestones) || []).forEach((t, i) => t.forEach((m) => { trackOf[m] = i; }));
-    const shown = (e) => (!mapView.tracks.size || mapView.tracks.has(trackOf[e.milestone])) && (!chain || chain.has(e.id));
+    const q = fold(mapView.q.trim());
+    const shown = (e) => (!mapView.tracks.size || mapView.tracks.has(trackOf[e.milestone])) && (!chain || chain.has(e.id)) && searchHit(e, q);
+    $("map-n").textContent = q ? plural(geo.placed.filter((e) => searchHit(e, q)).length, "match", "matches") : "";
     const out = [];
     geo.lanes.forEach((lane) => out.push('<text class="lanelab" x="12" y="' + (lane.y + 22) + '">' + esc(LANE_LABEL[lane.kind] || lane.kind) + "</text>"));
     geo.ms.forEach((m) => {
@@ -604,6 +618,7 @@
     b.setAttribute("aria-pressed", String(mapView.tracks.has(i)));
     drawMap();
   });
+  $("map-q").addEventListener("input", (ev) => { mapView.q = ev.target.value; drawMap(); });
   $("f-edges").addEventListener("click", () => {
     mapView.edges = !mapView.edges;
     $("f-edges").setAttribute("aria-pressed", String(mapView.edges));
