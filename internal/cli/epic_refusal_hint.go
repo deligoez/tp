@@ -35,6 +35,9 @@ var epicDanglingOriginHints = map[engine.DanglingOrigin]string{
 // id a gate lists that names no epic, a gates key's or a tag check's own,
 // else its rule's, else the generic one.
 func epicFindingRefusedHint(f *engine.EpicLintFinding) string {
+	if f.Origin == engine.DanglingForbiddenRule {
+		return "give each forbidden_edges rule a why and selectors naming an epic or milestone the graph holds, or drop the rule (tp epic import writes the corrected graph)"
+	}
 	if f.Rule == engine.EpicRuleDanglingReference && f.Gate != "" {
 		return fmt.Sprintf("list only epics of milestone %q that the graph holds", f.Gate)
 	}
