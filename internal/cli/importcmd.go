@@ -171,6 +171,7 @@ func runImport(_ *cobra.Command, args []string) error {
 				tf.Workflow = existing.Workflow
 			}
 		}
+		carryEpicBinding(targetPath, tf)
 
 		// Import convergence enforcement (§9.1/§9.2); runs before the file-exists
 		// guard so a stale or unconverged spec blocks with exit 1 even when the
@@ -255,4 +256,25 @@ func runImport(_ *cobra.Command, args []string) error {
 		delete(result, "done")
 	}
 	return output.JSON(result)
+}
+
+// carryEpicBinding keeps the target file's epic binding across an import, as
+// the workflow block is kept: a document with no epic key takes the file's
+// epic and bound_at, and one naming the same epic keeps the file's bound_at.
+// A document naming another epic is refused with exit 1 before anything is
+// written: re-binding is tp set --epic's, which stamps the new time.
+func carryEpicBinding(targetPath string, tf *model.TaskFile) {
+	existing, err := model.ReadTaskFile(targetPath)
+	if err != nil || existing.Epic == "" {
+		return
+	}
+	switch tf.Epic {
+	case "", existing.Epic:
+		tf.Epic, tf.BoundAt = existing.Epic, existing.BoundAt
+	default:
+		output.Error(ExitValidation,
+			fmt.Sprintf("import refused: the document names epic %q but %s is bound to epic %q", tf.Epic, taskFileLabel(targetPath), existing.Epic),
+			fmt.Sprintf("drop the document's epic key to keep the binding, or run tp set --epic %s after importing it without one", tf.Epic))
+		os.Exit(ExitValidation)
+	}
 }
