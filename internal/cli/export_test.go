@@ -122,3 +122,48 @@ func TestExport_CompactDropsBodiesDescriptionsAndDiffs(t *testing.T) {
 	assert.Contains(t, resume, "next_units")
 }
 
+// TestExport_RunsUnattendedAndExits3WithoutATaskFile is §16's contract: it
+// runs under TP_UNATTENDED and writes nothing; with no task file, or an
+// unreadable one, it exits 3 with a hint.
+func TestExport_RunsUnattendedAndExits3WithoutATaskFile(t *testing.T) {
+	t.Parallel()
+	dir := exportRepo(t)
+	before := worktreeFiles(t, dir)
+	stdout, stderr, code := runTPFence(t, dir, true, "export", "--file", "spec.tasks.json")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.Contains(t, stdout, `"version"`)
+	assert.Equal(t, before, worktreeFiles(t, dir), "tp export writes nothing")
+
+	empty := t.TempDir()
+	_, stderr, code = runTP(t, empty, "export")
+	assert.Equal(t, 3, code, "no task file; stderr: %s", stderr)
+	assertHasHint(t, stderr)
+
+	require.NoError(t, os.WriteFile(filepath.Join(empty, "bad.tasks.json"), []byte("{not json"), 0o600))
+	_, stderr, code = runTP(t, empty, "export", "--file", "bad.tasks.json")
+	assert.Equal(t, 3, code, "an unreadable task file; stderr: %s", stderr)
+	assertHasHint(t, stderr)
+}
+
+// worktreeFiles is snapshotTree without .git, whose index git status may
+// refresh.
+func worktreeFiles(t *testing.T, dir string) map[string]string {
+	t.Helper()
+	tree := snapshotTree(t, dir)
+	for path := range tree {
+		if rel, err := filepath.Rel(dir, path); err == nil && strings.HasPrefix(filepath.ToSlash(rel), ".git/") {
+			delete(tree, path)
+		}
+	}
+	return tree
+}
+
+// assertHasHint checks that a tp error on stderr carries a non-empty hint.
+func assertHasHint(t *testing.T, stderr string) {
+	t.Helper()
+	var e struct {
+		Hint string `json:"hint"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stderr), &e), "stderr: %s", stderr)
+	assert.NotEmpty(t, e.Hint)
+}
