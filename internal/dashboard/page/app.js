@@ -114,6 +114,129 @@
       lane(byEpics ? "Epics by spec phase" : "Task files by phase", PHASES, band.phases || {});
   });
 
+  // What each panel and figure lists and where it comes from (§4).
+  const INFO = {
+    band: "Work epics per stage, and per spec phase at the earliest phase of their bound specs; with no graph the phases count task files. From the summary's band.",
+    share: "Work epics done over all work epics; condition epics are in no figure. From the summary's plan, the share tp epic status reports.",
+    ready: "Work epics that can start now: open milestone, every dependency done, no bound spec, no claim. In tp epic ready's order, most downstream first.",
+    critical: "Not-done epics on the longest dependency chain of the whole graph: tp epic status's top-level critical_path.",
+    blocked: "Work epics waiting on a dependency that is not done. Held epics are the blocked ones a condition holds.",
+    held: "Blocked work epics a condition epic, or a group of conditions, holds: they wait on an operator decision, not on work.",
+    operator: "Decisions only the operator takes: actionable conditions (tp epic done), gates whose written threshold awaits --met, and placeholder thresholds to rewrite. From the summary's plan and the export's milestones[].operator.",
+    loops: "Epic review slices whose loop is not done: open, stale, at its cap or with a round in flight. From the export's slices.",
+    lint: "The error and warning counts tp epic lint prints for the graph, from the export's lint.",
+    throughput: "Work epics done per ISO week across every milestone, from their done time. From the summary's plan.",
+    waiting: "Work epics waiting on a dependency that is not done, each with what it waits on; deferrable gate members are left out.",
+    most: "Not-done work epics other work epics depend on, transitively, most dependents first.",
+  };
+
+  // The ⓘ buttons open one note at a time beside themselves.
+  let openInfo = null;
+  function closeInfo() {
+    if (openInfo) openInfo.setAttribute("aria-expanded", "false");
+    openInfo = null;
+    $("pop").hidden = true;
+  }
+  document.addEventListener("click", (ev) => {
+    const btn = ev.target.closest && ev.target.closest(".info");
+    if (!btn) {
+      if (!(ev.target.closest && ev.target.closest("#pop"))) closeInfo();
+      return;
+    }
+    if (openInfo === btn) {
+      closeInfo();
+      return;
+    }
+    closeInfo();
+    const pop = $("pop");
+    pop.textContent = INFO[btn.dataset.info] || "";
+    pop.hidden = false;
+    const r = btn.getBoundingClientRect();
+    pop.style.top = (r.bottom + window.scrollY + 6) + "px";
+    pop.style.left = Math.max(16, Math.min(r.left + window.scrollX - 8, document.documentElement.clientWidth - pop.offsetWidth - 16)) + "px";
+    btn.setAttribute("aria-expanded", "true");
+    openInfo = btn;
+  });
+  document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") closeInfo(); });
+
+  const info = (key, label) => '<button class="info" type="button" data-info="' + key + '" aria-label="About ' + esc(label) + '" aria-expanded="false">i</button>';
+  const kpi = (key, value, label, cls) => '<div class="card kpi' + (cls ? " " + cls : "") + '">' + info(key, label) +
+    '<span class="v">' + value + '</span><span class="l">' + esc(label) + "</span></div>";
+
+  // The plan as the page reads it: the summary's plan and the export's
+  // epics by id, or null while either is missing.
+  function planView() {
+    const sum = data("summary");
+    const g = data("epic-export");
+    if (!state.graph || !sum || !sum.plan || !g) return null;
+    const epics = {};
+    (g.epics || []).forEach((e) => { epics[e.id] = e; });
+    return { plan: sum.plan, g, epics };
+  }
+
+  // The KPI strip opens the Epics tab (§4); every figure arrives computed.
+  panel(["summary", "epic-export"], () => {
+    const v = planView();
+    $("kpis").hidden = !v;
+    if (!v) return;
+    const f = v.plan.figures;
+    const lint = v.g.lint || { errors: 0, warnings: 0 };
+    const weeks = f.throughput || [];
+    const last = weeks.length ? weeks[weeks.length - 1] : null;
+    $("kpis").innerHTML = [
+      kpi("share", Math.round(f.share_done * 100) + "%<small> " + esc(f.done) + " of " + esc(f.work) + "</small>", "share of work epics done"),
+      kpi("ready", esc(f.ready), "ready epics"),
+      kpi("critical", esc(f.critical_path), "epics on the critical path", "crit"),
+      kpi("blocked", esc(f.blocked), "blocked epics", f.blocked ? "warn" : ""),
+      kpi("held", esc(f.held), "held epics", f.held ? "op" : ""),
+      kpi("operator", esc(f.operator_queue), "operator decisions waiting", f.operator_queue ? "op" : ""),
+      kpi("loops", esc(f.open_loops), "open review loops"),
+      kpi("lint", esc(lint.errors) + "<small> / " + esc(lint.warnings) + "</small>", "lint errors / warnings", lint.errors ? "warn" : ""),
+      kpi("throughput", last ? esc(last.done) + "<small> in " + esc(last.week) + "</small>" : "0", "epics done per week").replace("</div>", spark(weeks) + "</div>"),
+    ].join("");
+  });
+
+  // spark draws the weekly throughput as bars, scaled to the busiest week.
+  function spark(weeks) {
+    if (!weeks.length) return "";
+    const top = Math.max(...weeks.map((w) => w.done));
+    const w = 100 / weeks.length;
+    return '<svg viewBox="0 0 100 32" preserveAspectRatio="none" role="img" aria-label="Epics done per week">' + weeks.map((x, i) => {
+      const h = Math.max(2, (x.done / top) * 30);
+      return '<rect x="' + (i * w + w * 0.15) + '" y="' + (32 - h) + '" width="' + w * 0.7 + '" height="' + h + '"><title>' + esc(x.week + ": " + x.done) + "</title></rect>";
+    }).join("") + "</svg>";
+  }
+
+  const row = (id, title, meta, why) => '<div class="row"><span class="id">' + esc(id) + '</span><span class="t">' + esc(title) +
+    '</span><span class="m">' + esc(meta || "") + "</span>" + (why ? '<span class="why">' + why + "</span>" : "") + "</div>";
+  const none = (text) => '<p class="empty">' + esc(text) + "</p>";
+  const titleOf = (v, id) => (v.epics[id] ? v.epics[id].title : "");
+  const dependents = (v, id) => {
+    const d = v.epics[id] && v.epics[id].downstream;
+    return d ? plural(d.dependents, "epic waits", "epics wait") + " on it" : "";
+  };
+
+  // The now lists (§4): what can start, what waits on the operator, what
+  // waits on other work, and what the most work waits on.
+  panel(["summary", "epic-export"], () => {
+    const v = planView();
+    $("now").hidden = !v;
+    if (!v) return;
+    $("now-ready").innerHTML = v.plan.ready.map((id) => row(id, titleOf(v, id), dependents(v, id))).join("") || none("No epic can start now.");
+    const ops = v.plan.operator_conditions.map((id) => row(id, titleOf(v, id), "condition", "<code>tp epic done " + esc(id) + ' --evidence "&lt;text or URL&gt;"</code>'));
+    (v.g.milestones || []).forEach((m) => {
+      const o = m.operator || {};
+      (o.gates || []).forEach((gate) => ops.push(row(gate.milestone, gate.threshold, "gate to measure", "<code>tp epic gate " + esc(gate.milestone) + ' --met --evidence "&lt;text or URL&gt;"</code>')));
+      (o.threshold_rewrites || []).forEach((r) => ops.push(row(r.milestone, r.threshold, "threshold to write", "<code>" + esc(r.command) + "</code>")));
+    });
+    $("now-operator").innerHTML = ops.join("") || none("Nothing waits on the operator.");
+    $("now-waiting").innerHTML = v.plan.waiting.map((id) => {
+      const on = (v.epics[id] && v.epics[id].blocked_by) || [];
+      return row(id, titleOf(v, id), v.epics[id] ? v.epics[id].milestone : "", "waits on " + on.map((x) => "<code>" + esc(x) + "</code>").join(", "));
+    }).join("") || none("No epic waits on another.");
+    $("now-most").innerHTML = v.plan.most_waited_on.slice(0, 10).map((id) => row(id, titleOf(v, id), dependents(v, id))).join("") || none("No epic is waited on.");
+  });
+
   TABS.forEach((t) => { $("tab-" + t).addEventListener("click", () => setTab(t)); });
 
   // The stream: a page that reconnects gets the current state again (§2).
