@@ -94,3 +94,31 @@ func TestExport_PrintsSectionsTasksLoopsAndResume(t *testing.T) {
 	assert.Contains(t, resume["next_action"], "summary")
 }
 
+// TestExport_CompactDropsBodiesDescriptionsAndDiffs is §16's --compact: no
+// section body or paragraph anchor, no task description, no snapshot
+// difference, and the resume view compacted as tp resume --compact is; the
+// headings, anchors, task states and loop counts stay.
+func TestExport_CompactDropsBodiesDescriptionsAndDiffs(t *testing.T) {
+	t.Parallel()
+	dir := exportRepo(t)
+	out := exportJSON(t, dir, "--file", "spec.tasks.json", "--compact")
+
+	for _, s := range out["sections"].([]any) {
+		sec := s.(map[string]any)
+		assert.NotContains(t, sec, "paragraphs")
+		assert.Contains(t, sec, "anchor")
+		assert.Contains(t, sec, "heading")
+	}
+	task := out["tasks"].([]any)[0].(map[string]any)
+	assert.NotContains(t, task, "description")
+	assert.Equal(t, "ready", task["state"])
+	rounds := exportReviewRounds(t, out)
+	require.Len(t, rounds, 2)
+	for _, r := range rounds {
+		assert.Nil(t, r.(map[string]any)["snapshot_diff"])
+	}
+	resume := out["resume"].(map[string]any)
+	assert.NotContains(t, resume["next_action"], "summary")
+	assert.Contains(t, resume, "next_units")
+}
+
