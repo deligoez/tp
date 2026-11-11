@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T16:17:42.739473Z",
+  "updated_at": "2026-11-11T16:24:22.930091Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -851,7 +851,7 @@
       "id": "epic-history-of-epic",
       "title": "Add --history --of-epic across every slice",
       "description": "One epic's edges and whys per recorded round of every slice whose snapshot holds it.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "history"
@@ -864,11 +864,23 @@
       "source_sections": [
         "## 11. Graph history"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T16:18:55.943597Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T16:24:22.914338Z",
+      "closed_reason": "- tp epic review --history --of-epic \u003cid\u003e prints {epic, slices, message?}: each slice {state_dir, key, rounds} of .tp/epic-review/ (engine.EpicReviewSliceDirs) whose recorded rounds' snapshots hold epic:\u003cid\u003e, each round {round, edges [{to, why}] in block order, hashes_only} parsed back from the snapshot block (engine.EpicEdgeHistory, internal/engine/epicedgehistory.go; CLI internal/cli/epic_review_history.go; payload names chosen). It names no slice and refuses every other flag of the command, --from/--to and a slice flag included, and needs --history (exit 2; reading chosen); read-only. TestEpicReviewHistoryOfEpic_IsItsOwnMode\n- TestEpicReviewHistoryOfEpic_ListsEdgesPerRoundOfEverySlice: the milestone A slice with b -\u003e c's why rewritten between rounds 1 and 2 lists the edge under both rounds with each text, and an --epic b slice recorded after it lists it once; mutant reading only the last recorded round turns it red\n- an epic in no recorded slice prints slices: [] and message 'epic \u003cid\u003e is in no recorded slice: ... no graph history' at exit 0 (reading chosen: a report, not an error; an epic the graph no longer holds is still looked up, since history outlives it). TestEpicReviewHistoryOfEpic_AnEpicInNoRecordedSliceSaysSo (slice emitted, never recorded); mutant keeping slices with no round turns it red. Gate passed (suite, golangci-lint, deadcode, complexity)",
+      "gate_passed_at": "2026-11-11T16:24:22.914338Z",
+      "commit_sha": "cec37149",
+      "commit_shas": [
+        "cec37149",
+        "854a508a"
+      ],
+      "commit_files": [
+        "internal/cli/epic_review.go",
+        "internal/cli/epic_review_history.go",
+        "internal/cli/nongoals_surface_test.go",
+        "internal/engine/epicedgehistory.go",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "spec-anchored-sections",
