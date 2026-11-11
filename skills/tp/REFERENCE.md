@@ -1401,6 +1401,7 @@ so it changes only through the `tp epic` writers.
 | `gates.<milestone>.threshold` | string | the exit condition in the operator's words, written before the work |
 | `gates.<milestone>.met` | `{at, evidence, threshold}` | written by `tp epic gate --met`, copying the threshold it was judged against |
 | a task file's `epic` | epic id, top-level | binds the file (v1.5.0): `tp init --epic`, `tp set --epic` (`""` removes it); refused for an id the graph does not hold, a condition or a done epic. `tp import` keeps it with its `bound_at` when the document has no `epic` key, as it keeps `workflow`, and keeps `bound_at` when the document names the same epic; a document naming another epic is refused at exit 1 and nothing is written (v1.8.0) |
+| a task file's `bound_at`, `imported_at` | RFC 3339 UTC, top-level (v1.8.0) | the time the file was bound and last imported; see *The task file's two times* |
 
 Any key outside this schema is the lint error `unknown-key`. The writers rewrite the file with
 2-space indentation, leave `<`, `>` and `&` unescaped and omit an empty list (`depends_on: []`) and
