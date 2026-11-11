@@ -1309,7 +1309,78 @@
       esc(label) + '<span class="muted num">' + esc(counts[v]) + "</span></button>").join("") : "";
     VIEWS.forEach(([v]) => { $("sv-" + v).hidden = !d || work.view !== v; });
     if (d && work.view === "tasks") drawTasks(d);
+    if (d && work.view === "history") drawSpecHistory(d);
     syncURL();
+  }
+
+  // ---------- the Spec tab's History view (§13) ----------
+  // From tp export's loops: every recorded round on a time axis, the round
+  // table per loop, and each review round's snapshot difference from the
+  // round before beside that round's findings.
+  const LOOPS = [["ground", "Ground"], ["review", "Review"], ["audit", "Audit"]];
+  INFO.spechistory = "This spec's recorded rounds from tp export: each loop's rounds by the time they were recorded (a ground round records no time, so its file's time stands in), the round table with each round's findings (ground: FAILs) and whether it is clean, with the loop's cap and its current run of clean rounds, and for each review round what changed in the spec since the round before, beside that round's findings.";
+
+  // roundAxis draws each loop's rounds as dots on one time axis, a clean
+  // round filled.
+  function roundAxis(L) {
+    const all = [];
+    LOOPS.forEach(([k]) => ((L[k] && L[k].rounds) || []).forEach((r) => all.push(Date.parse(r.recorded_at))));
+    const times = all.filter((x) => !isNaN(x));
+    if (!times.length) return "";
+    const lo = Math.min(...times);
+    const span = Math.max(1, Math.max(...times) - lo);
+    const x = (iso) => 90 + ((Date.parse(iso) - lo) / span) * 490;
+    const day = (ms) => new Date(ms).toISOString().slice(0, 10);
+    const lanes = LOOPS.map(([k, label], i) => {
+      const y = 16 + i * 26;
+      return '<text x="0" y="' + (y + 4) + '">' + label + '</text><line class="ax" x1="90" x2="580" y1="' + y + '" y2="' + y + '"/>' +
+        ((L[k] && L[k].rounds) || []).filter((r) => !isNaN(Date.parse(r.recorded_at))).map((r) => {
+          const n = r.fails !== undefined ? plural(r.fails, "FAIL", "FAILs") : plural(r.findings || 0, "finding", "findings");
+          return '<circle class="' + (r.clean ? "clean" : "dirty") + '" cx="' + x(r.recorded_at) + '" cy="' + y + '" r="5"><title>' +
+            esc(label + " round " + r.round + ", " + r.recorded_at.replace("T", " ").replace("Z", " UTC") + ": " + n + (r.clean ? ", clean" : "")) + "</title></circle>";
+        }).join("");
+    }).join("");
+    return '<svg class="raxis" viewBox="0 0 600 ' + (LOOPS.length * 26 + 22) + '" role="img" aria-label="Rounds over time">' + lanes +
+      '<text x="90" y="' + (LOOPS.length * 26 + 18) + '">' + day(lo) + '</text><text x="580" y="' + (LOOPS.length * 26 + 18) + '" text-anchor="end">' + day(lo + span) + "</text></svg>";
+  }
+
+  // roundTable lists each loop's rounds under a line naming its cap and its
+  // current run of clean rounds against the run it needs.
+  function roundTable(L) {
+    const body = LOOPS.map(([k, label]) => {
+      const l = L[k];
+      if (!l || !(l.rounds || []).length) return "";
+      const head = '<tr class="lgroup"><th colspan="4">' + label + ' <span class="muted">' + esc((l.cap ? "cap " + l.cap : "uncapped") + ", " + l.streak + " of " + l.clean_rounds_needed + " clean in a row") + "</span></th></tr>";
+      return head + l.rounds.map((r) => "<tr><td>Round " + esc(r.round) + "</td><td>" + esc(r.recorded_at.replace("T", " ").replace("Z", " UTC")) + '</td><td class="n">' +
+        esc(r.fails !== undefined ? plural(r.fails, "FAIL", "FAILs") : plural(r.findings || 0, "finding", "findings")) + "</td><td>" + (r.clean ? CHECK + " clean" : '<span class="muted">not clean</span>') + "</td></tr>").join("");
+    }).join("");
+    return '<div class="scroll"><table class="loops"><thead><tr><th>Round</th><th>Recorded</th><th>Findings</th><th>Clean</th></tr></thead><tbody>' + body + "</tbody></table></div>";
+  }
+
+  // snapshotDiff draws the sections a round's snapshot changed, added or
+  // removed against the round before's.
+  function snapshotDiff(d) {
+    if (!d) return none("The first round: there is no round before to compare with.");
+    const changed = (d.changed || []).map((s) => '<div class="dl ins"><code>' + esc(s.heading) + '</code> <span class="muted sm">' + esc(s.status) + "</span>" +
+      (s.content && s.content.trim() ? '<div class="now sectext">' + esc(s.content.trim()) + "</div>" : "") + "</div>");
+    const removed = (d.removed || []).map((s) => '<div class="dl del"><code>' + esc(s.heading) + "</code></div>");
+    return (changed.length ? '<div class="dpart"><h4>Changed or added</h4>' + changed.join("") + "</div>" : "") +
+      (removed.length ? '<div class="dpart"><h4>Removed</h4>' + removed.join("") + "</div>" : "") || none("Nothing changed in the spec since the round before.");
+  }
+
+  function drawSpecHistory(d) {
+    const L = d.loops || {};
+    const review = ((L.review && L.review.rounds) || []).slice().reverse();
+    const pairs = review.map((r) => {
+      const byRole = {};
+      (r.finding_rows || []).forEach((f) => { (byRole[f.role || "unattributed"] = byRole[f.role || "unattributed"] || []).push({ severity: f.severity, location: f.location, finding: f.finding, resolved: f.disposition ? { status: f.disposition } : null }); });
+      return '<div class="rpair"><h3 class="hsub">Review round ' + esc(r.round) + ' <span class="muted sm">' + esc(plural(r.findings || 0, "finding", "findings") + (r.clean ? ", clean" : "")) + "</span></h3>" +
+        '<div class="hcmp"><div><h4 class="hsub">What changed' + (r.round > 1 ? " since round " + esc(r.round - 1) : "") + "</h4>" + snapshotDiff(r.snapshot_diff) + "</div>" +
+        '<div><h4 class="hsub">Round ' + esc(r.round) + "'s findings</h4>" + findingsList(byRole) + "</div></div></div>";
+    }).join("");
+    const any = LOOPS.some(([k]) => L[k] && (L[k].rounds || []).length);
+    $("sv-history").innerHTML = '<div class="hhead"><h2>History</h2>' + info("spechistory", "the spec's history") + "</div>" +
+      (any ? roundAxis(L) + roundTable(L) + pairs : none("This spec has recorded no round yet."));
   }
 
   // ---------- the Spec tab's Tasks view (§13) ----------
