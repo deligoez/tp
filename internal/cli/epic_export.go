@@ -30,11 +30,29 @@ type epicExportResult struct {
 	GeneratedAt  time.Time               `json:"generated_at"`
 	CriticalPath epicPathReport          `json:"critical_path"`
 	Graph        *model.EpicGraph        `json:"graph"`
-	Milestones   []epicMilestoneReport   `json:"milestones"`
+	Milestones   []epicExportMilestone   `json:"milestones"`
 	Epics        []epicExportEpic        `json:"epics"`
 	Slices       []engine.EpicSliceState `json:"slices"`
 	// Lint is tp epic lint's counts for the same graph (spec/1.8.0.md §2).
 	Lint engine.EpicLintSummary `json:"lint"`
+}
+
+// epicExportMilestone is tp epic status's milestone report plus the
+// milestone's state beside the lifecycle band (spec/1.8.0.md §6), which the
+// export alone carries.
+type epicExportMilestone struct {
+	epicMilestoneReport
+	State epicExportMilestoneState `json:"state"`
+}
+
+// epicExportMilestoneState is engine.MilestoneState less what the report
+// already carries (milestone, open, waiting_on): the gate's members done out
+// of members, deferrable members left out of both, and the threshold state,
+// one of engine.ThresholdState*.
+type epicExportMilestoneState struct {
+	MembersDone int    `json:"members_done"`
+	Members     int    `json:"members"`
+	Threshold   string `json:"threshold"`
 }
 
 // epicExportEpic is one epic's title, place, derived state and bound files, and
@@ -145,8 +163,33 @@ func epicExport() (*epicExportResult, error) {
 		return nil, err
 	}
 	lint := engine.SummarizeEpicLint(engine.LintEpicGraph(g, unknown))
+	milestones, err := epicExportMilestones(g, states, plan.Milestones, tpDir)
+	if err != nil {
+		return nil, err
+	}
 	epics := epicExportEpics(g, states, bound, files)
-	return &epicExportResult{Version: epicExportVersion, GeneratedAt: time.Now().UTC(), CriticalPath: plan.CriticalPath, Graph: g, Milestones: plan.Milestones, Epics: epics, Slices: reviewSlices, Lint: lint}, nil
+	return &epicExportResult{Version: epicExportVersion, GeneratedAt: time.Now().UTC(), CriticalPath: plan.CriticalPath, Graph: g, Milestones: milestones, Epics: epics, Slices: reviewSlices, Lint: lint}, nil
+}
+
+// epicExportMilestones pairs each milestone report with its state, judging
+// placeholders by the project's pattern; a pattern that does not compile is
+// an error.
+func epicExportMilestones(g *model.EpicGraph, states map[string]engine.EpicState, reports []epicMilestoneReport, tpDir string) ([]epicExportMilestone, error) {
+	matcher, err := engine.ProjectPlaceholderMatcher(tpDir)
+	if err != nil {
+		return nil, err
+	}
+	byName := map[string]engine.MilestoneState{}
+	for _, s := range engine.MilestoneStates(g, states, matcher) {
+		byName[s.Milestone] = s
+	}
+	out := make([]epicExportMilestone, 0, len(reports))
+	for i := range reports {
+		s := byName[reports[i].Milestone]
+		out = append(out, epicExportMilestone{epicMilestoneReport: reports[i],
+			State: epicExportMilestoneState{MembersDone: s.MembersDone, Members: s.Members, Threshold: s.Threshold}})
+	}
+	return out, nil
 }
 
 // epicExportEpics builds every epic's item from one openness verdict, one
