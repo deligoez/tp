@@ -10,12 +10,14 @@
 ## Decision (proposed)
 
 `tp dashboard [--port N]` serves one static page, embedded in the binary, on `127.0.0.1`. Its data
-is `tp epic export`'s JSON and a read model of one spec (its text, tasks, loops and `tp resume` view,
-with the list of task files to pick from, §4), both produced in-process by the code the commands
-use, re-derived when tp's files change and pushed to the page. Two tabs: Epics draws the plan (map,
-chain, lists, matrix, plan review); Spec shows one spec at a time, its text read beside its tasks.
-Every detail opens in one drawer. It writes nothing and exposes no write endpoint. Stdlib only
-(`net/http`, `embed`, Server-Sent Events); no JS framework or CDN.
+is `tp epic export`'s JSON and a read model of one spec (its text and each round's snapshot, tasks,
+loops and `tp resume` view, with the list of task files, §4), both produced in-process by the code
+the commands use, re-derived when tp's files change and pushed to the page. Three tabs, in the
+lifecycle's order: Epics draws the plan (lifecycle band, map, chain, lists, matrix, plan review);
+Specs lists every task file by phase; Spec shows one spec, to read, to work its tasks, or to see its
+history. An epic's detail opens in a drawer, a task's beside its tasks. It writes nothing and
+exposes no write endpoint. Stdlib only (`net/http`, `embed`, Server-Sent Events); no JS framework or
+CDN.
 
 **Measured on v1.6.0 (built from `main`, synthetic graphs made with tp's own writers):**
 
