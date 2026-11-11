@@ -148,3 +148,22 @@ func TestEpicReviewHistory_PrintsEachRoundAndTheCurrentDifference(t *testing.T) 
 	assert.Equal(t, "A renamed", h.Current.Diff.FieldsChanged[0].After)
 }
 
+// TestEpicReviewHistory_FromToNarrowsToTwoRounds is §11's --from <a> --to <b>:
+// the payload holds those two rounds, the second's difference taken from the
+// first, and no difference to the current graph.
+func TestEpicReviewHistory_FromToNarrowsToTwoRounds(t *testing.T) {
+	t.Parallel()
+	dir, slice := twoRoundSlice(t)
+	h := epicHistory(t, dir, append(slice, "--history", "--from", "1", "--to", "2")...)
+
+	require.Len(t, h.Rounds, 2)
+	assert.Equal(t, 1, h.Rounds[0].Round)
+	assert.Nil(t, h.Rounds[0].Diff)
+	require.NotNil(t, h.Rounds[1].Diff)
+	require.Len(t, h.Rounds[1].Diff.WhysChanged, 1)
+	assert.Nil(t, h.Current, "a narrowed history leaves the current graph out")
+
+	_, stderr, code := runTP(t, dir, append([]string{"epic", "review"}, append(slice, "--history", "--from", "1", "--to", "5")...)...)
+	assert.Equal(t, 4, code, "a round the slice did not record is refused; stderr: %s", stderr)
+}
+
