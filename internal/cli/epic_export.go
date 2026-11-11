@@ -146,7 +146,8 @@ func runEpicExportMarkdown() {
 func epicExport() (*epicExportResult, error) {
 	g, states, bound := loadEpicStates()
 	tpDir := engine.DiscoverTPDir(".")
-	plan, err := epicPlanStatus(g, states, bound, trackedMilestones(g), false)
+	matcher := epicPlaceholderMatcherOrExit(tpDir)
+	plan, err := epicPlanStatus(g, states, bound, trackedMilestones(g), matcher, false)
 	if err != nil {
 		return nil, err
 	}
@@ -163,22 +164,14 @@ func epicExport() (*epicExportResult, error) {
 		return nil, err
 	}
 	lint := engine.SummarizeEpicLint(engine.LintEpicGraph(g, unknown))
-	milestones, err := epicExportMilestones(g, states, plan.Milestones, tpDir)
-	if err != nil {
-		return nil, err
-	}
+	milestones := epicExportMilestones(g, states, plan.Milestones, matcher)
 	epics := epicExportEpics(g, states, bound, files)
 	return &epicExportResult{Version: epicExportVersion, GeneratedAt: time.Now().UTC(), CriticalPath: plan.CriticalPath, Graph: g, Milestones: milestones, Epics: epics, Slices: reviewSlices, Lint: lint}, nil
 }
 
 // epicExportMilestones pairs each milestone report with its state, judging
-// placeholders by the project's pattern; a pattern that does not compile is
-// an error.
-func epicExportMilestones(g *model.EpicGraph, states map[string]engine.EpicState, reports []epicMilestoneReport, tpDir string) ([]epicExportMilestone, error) {
-	matcher, err := engine.ProjectPlaceholderMatcher(tpDir)
-	if err != nil {
-		return nil, err
-	}
+// placeholders by matcher.
+func epicExportMilestones(g *model.EpicGraph, states map[string]engine.EpicState, reports []epicMilestoneReport, matcher *engine.PlaceholderMatcher) []epicExportMilestone {
 	byName := map[string]engine.MilestoneState{}
 	for _, s := range engine.MilestoneStates(g, states, matcher) {
 		byName[s.Milestone] = s
@@ -189,7 +182,7 @@ func epicExportMilestones(g *model.EpicGraph, states map[string]engine.EpicState
 		out = append(out, epicExportMilestone{epicMilestoneReport: reports[i],
 			State: epicExportMilestoneState{MembersDone: s.MembersDone, Members: s.Members, Threshold: s.Threshold}})
 	}
-	return out, nil
+	return out
 }
 
 // epicExportEpics builds every epic's item from one openness verdict, one

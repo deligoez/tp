@@ -71,11 +71,13 @@ type epicClaimedEpic struct {
 }
 
 // epicOperatorWait is what waits on the operator: conditions to decide (the
-// actionable ones, every one not done with --all) and gates whose threshold
-// is to be measured.
+// actionable ones, every one not done with --all), gates whose written
+// threshold is to be measured, and gates whose placeholder threshold is to
+// be written (spec/1.8.0.md §7).
 type epicOperatorWait struct {
-	Conditions []epicOperatorCondition `json:"conditions"`
-	Gates      []epicThresholdWait     `json:"gates"`
+	Conditions        []epicOperatorCondition `json:"conditions"`
+	Gates             []epicThresholdWait     `json:"gates"`
+	ThresholdRewrites []epicThresholdRewrite  `json:"threshold_rewrites"`
 }
 
 // epicOperatorCondition is one condition with whether deciding it can
@@ -88,11 +90,19 @@ type epicOperatorCondition struct {
 	NotActionable []string `json:"not_actionable,omitempty"`
 }
 
-// epicThresholdWait is one gate whose members are done and whose threshold
-// has no met record.
+// epicThresholdWait is one gate whose members are done and whose written,
+// non-placeholder threshold has no met record.
 type epicThresholdWait struct {
 	Milestone string `json:"milestone"`
 	Threshold string `json:"threshold"`
+}
+
+// epicThresholdRewrite is one unmet gate whose threshold is a placeholder,
+// with the command that writes it (engine.ThresholdRewrites).
+type epicThresholdRewrite struct {
+	Milestone string `json:"milestone"`
+	Threshold string `json:"threshold"`
+	Command   string `json:"command"`
 }
 
 func newEpicReadyCmd() *cobra.Command {
@@ -111,17 +121,32 @@ func newEpicReadyCmd() *cobra.Command {
 func runEpicReady(cmd *cobra.Command, _ []string) error {
 	all, _ := cmd.Flags().GetBool("all")
 	g, states, bound := loadEpicStates()
+	matcher := epicPlaceholderMatcherOrExit(engine.DiscoverTPDir("."))
 	readiness := engine.EpicReady(g, states, bound, all)
-	if err := output.JSON(epicReadyReport(g, &readiness, flagCompact)); err != nil {
+	if err := output.JSON(epicReadyReport(g, &readiness, matcher, flagCompact)); err != nil {
 		output.Error(ExitFile, err.Error(), internalEncodeHint)
 		os.Exit(ExitFile)
 	}
 	return nil
 }
 
-// epicReadyReport turns r's ids into the payload's entries; compact leaves
-// each ready item's dependents_by_milestone out.
-func epicReadyReport(g *model.EpicGraph, r *engine.EpicReadiness, compact bool) epicReadyResult {
+// epicPlaceholderMatcherOrExit is the project's placeholder matcher; a
+// config that cannot be read, or a pattern that does not compile, exits 3.
+func epicPlaceholderMatcherOrExit(tpDir string) *engine.PlaceholderMatcher {
+	matcher, err := engine.ProjectPlaceholderMatcher(tpDir)
+	if err != nil {
+		output.Error(ExitFile, err.Error(),
+			"write "+engine.ThresholdPlaceholderKey+" in .tp/config.json as a Go regular expression, or remove it to use the default pattern")
+		os.Exit(ExitFile)
+	}
+	return matcher
+}
+
+// epicReadyReport turns r's ids into the payload's entries, telling a gate
+// to measure from one whose placeholder threshold is to be written by
+// matcher's verdict; compact leaves each ready item's dependents_by_milestone
+// out.
+func epicReadyReport(g *model.EpicGraph, r *engine.EpicReadiness, matcher *engine.PlaceholderMatcher, compact bool) epicReadyResult {
 	byID := make(map[string]*model.Epic, len(g.Epics))
 	for i := range g.Epics {
 		byID[g.Epics[i].ID] = &g.Epics[i]
@@ -145,8 +170,14 @@ func epicReadyReport(g *model.EpicGraph, r *engine.EpicReadiness, compact bool) 
 	for _, id := range r.Conditions {
 		result.Operator.Conditions = append(result.Operator.Conditions, epicOperatorCondition{epicReadyEpic: entry(id), Actionable: r.Actionable[id], NotActionable: r.NotActionable[id]})
 	}
-	for _, m := range r.Gates {
+	for _, m := range engine.WithoutPlaceholderGates(g, r.Gates, matcher) {
 		result.Operator.Gates = append(result.Operator.Gates, epicThresholdWait{Milestone: m, Threshold: g.Gates[m].Threshold})
+	}
+	rewrites := engine.ThresholdRewrites(g, matcher)
+	result.Operator.ThresholdRewrites = make([]epicThresholdRewrite, 0, len(rewrites))
+	for _, m := range rewrites {
+		result.Operator.ThresholdRewrites = append(result.Operator.ThresholdRewrites, epicThresholdRewrite{Milestone: m,
+			Threshold: g.Gates[m].Threshold, Command: "tp epic set gates." + m + ".threshold=<threshold>"})
 	}
 	return result
 }

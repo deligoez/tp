@@ -110,7 +110,8 @@ func runEpicStatus(cmd *cobra.Command, _ []string) error {
 	if open, _ := cmd.Flags().GetBool("open"); open {
 		milestones = openMilestonesOrExit(g, states, milestones, only)
 	}
-	result, err := epicPlanStatus(g, states, bound, milestones, flagCompact)
+	matcher := epicPlaceholderMatcherOrExit(engine.DiscoverTPDir("."))
+	result, err := epicPlanStatus(g, states, bound, milestones, matcher, flagCompact)
 	if err != nil {
 		// task-file-hint: an unreadable bound task file
 		output.Error(ExitFile, err.Error(), epicBoundFileHint)
@@ -170,11 +171,11 @@ type epicPlan struct {
 }
 
 // epicPlanStatus reports each of milestones over states, DeriveEpicStates'
-// result, and bound, EpicBoundFiles'. A bound file that cannot be read is an
-// error.
-func epicPlanStatus(g *model.EpicGraph, states map[string]engine.EpicState, bound map[string][]string, milestones []string, compact bool) (epicPlanResult, error) {
+// result, and bound, EpicBoundFiles'; matcher gives the placeholder verdict
+// on thresholds. A bound file that cannot be read is an error.
+func epicPlanStatus(g *model.EpicGraph, states map[string]engine.EpicState, bound map[string][]string, milestones []string, matcher *engine.PlaceholderMatcher, compact bool) (epicPlanResult, error) {
 	readiness := engine.EpicReady(g, states, bound, false)
-	p := epicPlan{g: g, states: states, bound: bound, gates: engine.MilestoneGates(g, states), after: engine.EffectiveOpensAfter(g), ready: epicReadyReport(g, &readiness, compact), conditions: map[string]bool{}, notActionable: readiness.NotActionable, moot: readiness.Moot, compact: compact}
+	p := epicPlan{g: g, states: states, bound: bound, gates: engine.MilestoneGates(g, states), after: engine.EffectiveOpensAfter(g), ready: epicReadyReport(g, &readiness, matcher, compact), conditions: map[string]bool{}, notActionable: readiness.NotActionable, moot: readiness.Moot, compact: compact}
 	for i := range g.Epics {
 		p.conditions[g.Epics[i].ID] = g.Epics[i].Condition
 	}
@@ -213,6 +214,8 @@ func (p *epicPlan) milestone(m string) (epicMilestoneReport, error) {
 		Operator: epicOperatorWait{
 			Conditions: inMilestone(p.ready.Operator.Conditions, m, func(e epicOperatorCondition) string { return e.Milestone }),
 			Gates:      inMilestone(p.ready.Operator.Gates, m, func(w epicThresholdWait) string { return w.Milestone }),
+			ThresholdRewrites: inMilestone(p.ready.Operator.ThresholdRewrites, m,
+				func(w epicThresholdRewrite) string { return w.Milestone }),
 		},
 	}
 	rep.Counts, rep.ShareDone = p.counts(m)
