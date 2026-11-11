@@ -2,6 +2,9 @@ package cli_test
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -97,5 +100,34 @@ func TestEpicOperator_PlaceholderGatesAreListedAsRewritesOnly(t *testing.T) {
 		assert.Equal(t, gates, g, "epic %s: gates", cmd)
 		assert.Equal(t, rewrites, r, "epic %s: rewrites", cmd)
 		assert.Equal(t, commands, c, "epic %s: commands", cmd)
+	}
+}
+
+// TestEpicReadCommands_FallBackOnAnUncompilablePlaceholder: a project config
+// whose epic.threshold_placeholder does not compile does not fail tp epic
+// ready, status or export. Each exits 0, warns once on stderr naming the key,
+// and judges thresholds by the default pattern, so the [threshold] gate still
+// lists as a rewrite. Only tp validate --project refuses the pattern.
+func TestEpicReadCommands_FallBackOnAnUncompilablePlaceholder(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, thresholdRewriteGraph)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".tp", "config.json"),
+		[]byte(`{"workflow":{},"epic":{"threshold_placeholder":"(["}}`), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "epic", "ready")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.Equal(t, 1, strings.Count(stderr, "epic.threshold_placeholder"), "one warning naming the key: %s", stderr)
+	var ready struct {
+		Operator operatorGateLists `json:"operator"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &ready), "stdout: %s", stdout)
+	gates, rewrites, commands := []string{}, []string{}, []string{}
+	ready.Operator.add(&gates, &rewrites, &commands)
+	assert.Equal(t, []string{"P", "Q"}, rewrites, "the default pattern judges [threshold] and TBD")
+
+	for _, cmd := range []string{"status", "export"} {
+		_, stderr, code := runTP(t, dir, "epic", cmd)
+		require.Equal(t, 0, code, "epic %s stderr: %s", cmd, stderr)
+		assert.Equal(t, 1, strings.Count(stderr, "epic.threshold_placeholder"), "epic %s: %s", cmd, stderr)
 	}
 }
