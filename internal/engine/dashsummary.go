@@ -10,14 +10,14 @@ import (
 // DashboardSummary is the dashboard's summary payload: the figures no command
 // prints (spec/1.8.0.md §2). Rounds holds §5's per-round finding counts, Band
 // §6's lifecycle band and ReleaseImpact §13's impact of releasing each spec,
-// keyed by its task file's repository path; Series (§17) is present and empty
-// until the task that derives it fills it; Plan is §4's KPI figures and now
-// lists, empty with no graph.
+// keyed by its task file's repository path; Series §17's work epics per stage
+// per day; Plan is §4's KPI figures and now lists. Series and Plan are empty
+// with no graph.
 type DashboardSummary struct {
 	Rounds        map[string][]SliceRoundCount `json:"rounds"`
 	Band          DashboardBand                `json:"band"`
 	ReleaseImpact map[string]ReleaseImpact     `json:"release_impact"`
-	Series        []any                        `json:"series"`
+	Series        []SeriesDay                  `json:"series"`
 	Plan          DashboardPlan                `json:"plan"`
 }
 
@@ -49,7 +49,7 @@ func DashboardSummaryOf(tpDir string, g *model.EpicGraph) (DashboardSummary, err
 		Rounds:        make(map[string][]SliceRoundCount, len(dirs)),
 		Band:          repo.band(g),
 		ReleaseImpact: repo.releaseImpacts(g),
-		Series:        []any{},
+		Series:        []SeriesDay{},
 		Plan:          emptyDashboardPlan(),
 	}
 	for _, d := range dirs {
@@ -61,6 +61,9 @@ func DashboardSummaryOf(tpDir string, g *model.EpicGraph) (DashboardSummary, err
 	}
 	if bandHasGraph(g) {
 		if sum.Plan, err = repo.plan(tpDir, g); err != nil {
+			return DashboardSummary{}, err
+		}
+		if sum.Series, err = lifecycleSeries(g, repo.states, repo.bound); err != nil {
 			return DashboardSummary{}, err
 		}
 	}
