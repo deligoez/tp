@@ -28,6 +28,7 @@ type exportListRow struct {
 	} `json:"audit"`
 	NextStep    string            `json:"next_step"`
 	Escalations []json.RawMessage `json:"escalations"`
+	ContentHash string            `json:"content_hash"`
 	Error       string            `json:"error"`
 }
 
