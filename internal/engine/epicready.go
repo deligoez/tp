@@ -55,7 +55,7 @@ func EpicReady(g *model.EpicGraph, states map[string]EpicState, bound map[string
 	}
 	for i := range g.Epics {
 		e := &g.Epics[i]
-		if e.Condition {
+		if !IsWorkEpic(e) {
 			if listCondition(e, gates, r.Actionable, all) {
 				r.Conditions = append(r.Conditions, e.ID)
 			}

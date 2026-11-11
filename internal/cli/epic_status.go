@@ -254,7 +254,7 @@ func (p *epicPlan) counts(m string) (counts map[string]int, shareDone float64) {
 		status := p.states[e.ID].Status
 		switch {
 		case e.Milestone != m:
-		case e.Condition:
+		case !engine.IsWorkEpic(e):
 			if status == engine.EpicStatusDone {
 				counts[epicCountConditionsDone]++
 			}
