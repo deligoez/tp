@@ -164,6 +164,37 @@ p { margin: 0; }
 .cfdkey svg { width: 14px; height: 14px; }
 .curve polyline { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-linejoin: round; }
 .curve circle { fill: var(--accent); }
+.loops tr.on td { background: var(--color-accent-wash); }
+.loops tr.on td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.slink { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-align: left; overflow-wrap: anywhere; }
+.slink:hover { text-decoration: underline; }
+.slink:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; border-radius: 3px; }
+
+/* a slice's graph history (§11) */
+.hist { margin-top: var(--space-md); padding-top: var(--space-md); border-top: 1px solid var(--line); display: grid; gap: var(--space-sm); }
+.hhead { display: flex; align-items: center; gap: var(--space-xs); flex-wrap: wrap; }
+.hhead h3 { font: 600 var(--text-md)/1.3 var(--font-display); }
+.hhead h3 code { font-size: var(--text-sm); color: var(--ink-2); }
+.hpick { display: flex; flex-wrap: wrap; gap: var(--space-sm); align-items: center; font-size: var(--text-sm); }
+.hpick select { font: inherit; min-height: 32px; margin-left: var(--space-2xs); padding: 0 var(--space-xs); border: 1px solid var(--color-rule-2); border-radius: var(--radius-input); background: var(--surface); color: var(--ink); }
+.hcmp { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: var(--space-md); }
+@media (max-width: 760px) { .hcmp { grid-template-columns: minmax(0, 1fr); } }
+.hsub { font: 600 var(--text-sm)/1.4 var(--font-display); margin-bottom: var(--space-2xs); }
+.dpart { margin-bottom: var(--space-sm); }
+.dpart h4 { font: 500 var(--text-xs)/1.4 var(--font-display); color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: var(--space-3xs); }
+.dl { font-size: var(--text-sm); padding: 4px var(--space-xs); border-radius: 5px; margin-bottom: 3px; overflow-wrap: anywhere; }
+.dl.ins, .dl .now { background: color-mix(in srgb, var(--done) 12%, var(--surface)); }
+.dl.del, .dl .was { background: color-mix(in srgb, var(--blocked) 10%, var(--surface)); }
+.dl.del { text-decoration: line-through; text-decoration-color: var(--muted); }
+.dl .was { text-decoration: line-through; text-decoration-color: var(--muted); }
+.dl .was, .dl .now { margin-top: 3px; padding: 3px var(--space-xs); border-radius: 4px; }
+.dwhy { display: block; color: var(--muted); }
+.fnd { padding: 6px var(--space-xs); border-bottom: 1px solid var(--line); font-size: var(--text-sm); display: flex; flex-wrap: wrap; gap: var(--space-3xs) var(--space-xs); align-items: baseline; }
+.fnd p { flex-basis: 100%; color: var(--ink-2); overflow-wrap: anywhere; }
+.fnd .sm { display: inline; }
+.sev { font: 600 var(--text-xs)/1 var(--font-display); text-transform: uppercase; letter-spacing: .03em; color: var(--muted); }
+.sev[data-sev="critical"], .sev[data-sev="high"] { color: var(--blocked); }
+.sev[data-sev="medium"] { color: var(--active); }
 
 /* the plan map (§9): tp lays it out, the page draws it */
 .spacer { flex: 1; }
