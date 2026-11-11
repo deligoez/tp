@@ -191,3 +191,31 @@ func TestPage_DrawsTheLifecycleChartFromTheSeries(t *testing.T) {
 	assert.Equal(t, []string{"done", "in_progress", "specced", "claimed", "unknown"}, keys)
 	assert.Contains(t, script, "planning time is not recorded, so an epic added to the graph later counts as planned from the chart's first day")
 }
+
+// TestPage_FiltersTheMapToOneEpicsNeighbours is §9's neighbours filter at the
+// page: a toggle keeps the selected epic with its direct dependencies and
+// dependents, each drawn edge is marked incoming or outgoing by the direction
+// table the script declares, and the edge carries its why for the hover tip.
+func TestPage_FiltersTheMapToOneEpicsNeighbours(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	assert.Contains(t, page, `id="f-nb"`)
+	assert.Contains(t, script, "function neighboursOf(")
+	m := regexp.MustCompile(`const NB_DIR = (\{[^}]*\});`).FindStringSubmatch(script)
+	require.NotNil(t, m, "the script declares the edge directions as const NB_DIR = {...};")
+	var dirs map[string]string
+	require.NoError(t, json.Unmarshal([]byte(m[1]), &dirs))
+	assert.ElementsMatch(t, []string{"in", "out"}, keys(dirs))
+	assert.Contains(t, script, `data-why="`)
+	for _, sel := range []string{".edge.in", ".edge.out"} {
+		assert.Contains(t, page, sel)
+	}
+}
+
+func keys(m map[string]string) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	return out
+}
