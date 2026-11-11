@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T14:52:19.178895Z",
+  "updated_at": "2026-11-11T14:56:32.745393Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -597,7 +597,7 @@
       "id": "forbidden-edges-schema",
       "title": "Add forbidden_edges to the epic graph schema",
       "description": "Top-level forbidden_edges: [{from, to, why}], each selector exactly one of epic, milestone, tag, track_of; the graph keeps version 1.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "model",
         "graph"
@@ -608,11 +608,22 @@
       "source_sections": [
         "## 10. Forbidden dependencies"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T14:52:19.559944Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T14:56:32.725185Z",
+      "closed_reason": "- .tp/epics.json accepts top-level forbidden_edges, [{from, to, why}] (model.EpicGraph.ForbiddenEdges, omitempty, written after tag_checks; model.EpicForbiddenEdge, model.EpicSelector) and the loader knows the key and the rule keys (internal/engine/epicgraph.go), so version stays 1 and every writer carries it: TestEpicGraph_ForbiddenEdgesAreAcceptedAndCarriedByEveryWriter (lint clean of unknown-key; set, add, link keep the rule; import round-trips the file byte-identically), red before the change (unknown-key); TestEpicGraph_AnUnknownKeyInAForbiddenRuleIsAnUnknownKey reports forbidden_edges[0].owner\n- a selector with no key, two keys or a key outside epic, milestone, tag, track_of fails EpicSelector.UnmarshalJSON, so it is refused exactly as a value of the wrong type: tp epic import exits 2 and writes nothing, and every reader of a hand-edited file exits 3 (reading chosen: a type-level schema error, not a new lint rule): TestEpicGraph_AMalformedSelectorIsASchemaError; the mutant decoding the selector as a plain struct turns all three cases red. No tp epic set forbidden_edges= key was added (not in the acceptance); gate passed",
+      "gate_passed_at": "2026-11-11T14:56:32.725185Z",
+      "commit_sha": "39529ba2",
+      "commit_shas": [
+        "39529ba2",
+        "a57334df",
+        "da9423df"
+      ],
+      "commit_files": [
+        "internal/cli/epic_forbidden_edges_test.go",
+        "internal/engine/epicgraph.go",
+        "internal/model/epic.go"
+      ]
     },
     {
       "id": "forbidden-selector-lint",
