@@ -55,6 +55,14 @@
         <div class="map" id="map"><svg id="mapsvg" role="img" aria-label="Plan map: lanes of milestones as boxes, epics as marks"></svg></div>
         <div class="legend" id="maplegend"></div>
       </section>
+      <section class="card" id="chaincard" aria-label="Chain of the selected epic" aria-live="polite" hidden>
+        <h2>Chain <button class="info" type="button" data-info="chain" aria-label="About the chain" aria-expanded="false">i</button></h2>
+        <div id="chain"></div>
+      </section>
+      <section class="card" id="matrixcard" aria-label="Milestone matrix" data-src="summary" hidden>
+        <h2>Milestone matrix <button class="info" type="button" data-info="matrix" aria-label="About the milestone matrix" aria-expanded="false">i</button></h2>
+        <div class="scroll" id="matrix"></div>
+      </section>
     </div>
     <section class="card" id="plan-review" aria-label="Plan review" data-src="epic-export summary" hidden>
       <h2>Plan review <button class="info" type="button" data-info="slices" aria-label="About plan review" aria-expanded="false">i</button></h2>
@@ -87,6 +95,10 @@
     </div>
   </section>
 </div>
+<aside id="drawer" class="drawer" aria-label="Epic detail" data-src="epic-export" hidden>
+  <div class="dhead"><span class="k">Epic</span><button class="info" type="button" data-info="drawer" aria-label="About the epic detail" aria-expanded="false">i</button><span class="spacer"></span><button type="button" class="key" id="dclose" aria-label="Close the epic detail">×</button></div>
+  <div class="dbody" id="dbody"></div>
+</aside>
 <div id="pop" class="pop" role="dialog" hidden></div>
 <div id="tip" class="tip" role="tooltip" hidden></div>
 <script src="app.js"></script>

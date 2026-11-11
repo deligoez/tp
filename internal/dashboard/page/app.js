@@ -362,7 +362,9 @@
     }).join("") + "</svg>";
   }
 
-  const row = (id, title, meta, why) => '<div class="row"><span class="id">' + esc(id) + '</span><span class="t">' + esc(title) +
+  // row draws one list row; an epic's row names it with a link that
+  // selects it.
+  const row = (id, title, meta, why, epic) => '<div class="row"><span class="id">' + (epic ? epicLink(id) : esc(id)) + '</span><span class="t">' + esc(title) +
     '</span><span class="m">' + esc(meta || "") + "</span>" + (why ? '<span class="why">' + why + "</span>" : "") + "</div>";
   const none = (text) => '<p class="empty">' + esc(text) + "</p>";
   const titleOf = (v, id) => (v.epics[id] ? v.epics[id].title : "");
@@ -401,15 +403,15 @@
     const v = planView();
     $("now").hidden = !v;
     if (!v) return;
-    $("now-ready").innerHTML = v.plan.ready.map((id) => row(id, titleOf(v, id), dependents(v, id))).join("") || none("No epic can start now.");
+    $("now-ready").innerHTML = v.plan.ready.map((id) => row(id, titleOf(v, id), dependents(v, id), "", true)).join("") || none("No epic can start now.");
     $("now-operator").innerHTML = operatorRows(v).join("") || none("Nothing waits on the operator.");
     $("now-waiting").innerHTML = v.plan.waiting.map((id) => {
       const e = v.epics[id] || {};
       const code = (x) => "<code>" + esc(x) + "</code>";
       const on = [(e.blocked_by || []).map(code).join(", ")].filter(Boolean).concat((e.blocked_by_any_of || []).map((g) => "one of " + g.map(code).join(", ")));
-      return row(id, titleOf(v, id), e.milestone || "", "waits on " + on.join("; "));
+      return row(id, titleOf(v, id), e.milestone || "", "waits on " + on.join("; "), true);
     }).join("") || none("No epic waits on another.");
-    $("now-most").innerHTML = v.plan.most_waited_on.slice(0, 10).map((id) => row(id, titleOf(v, id), dependents(v, id))).join("") || none("No epic is waited on.");
+    $("now-most").innerHTML = v.plan.most_waited_on.slice(0, 10).map((id) => row(id, titleOf(v, id), dependents(v, id), "", true)).join("") || none("No epic is waited on.");
   });
 
   INFO.slices = "One row per epic review slice (tp epic review): its round with the cap and the grants spent, its state, the units changed since its last recorded round when it is stale, its open findings by role, and the findings of each recorded round as a curve. From the export's slices and the summary's per-round counts.";
@@ -1059,9 +1061,7 @@
   function mapClick(ev) {
     const { node: n, edge } = mapHit(ev);
     if (edge) return;
-    const id = n ? n.dataset.id : null;
-    mapView.selected = id && id !== mapView.selected ? id : null;
-    drawMap();
+    selectEpic(n ? n.dataset.id : null);
   }
   $("trackchips").addEventListener("click", (ev) => {
     const b = ev.target.closest("[data-track]");
@@ -1090,6 +1090,221 @@
     '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path class="edge in" d="M1 7.5H14"/></svg>in: what it depends on</span>' +
     '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path class="edge out" d="M1 7.5H14"/></svg>out: what depends on it</span>' +
     '<span class="help">Click an epic for its chain, again to clear; Neighbours narrows it to one step each way. Drag to pan; Ctrl or ⌘ with the wheel, or a pinch, zooms.</span>';
+
+  // ---------- the selected epic: its chain, its drawer (§4, §11) ----------
+  // Selecting an epic on the map, in a now list or in the drawer draws its
+  // chain with every edge's why and opens its drawer: its fields, what it
+  // depends on and what depends on it with the whys, downstream, its bound
+  // specs, its own stepper and its graph history, fetched from
+  // /api/epic-history when it opens and again on every push.
+  const epicHist = { id: null, data: null, error: null, seq: 0 };
+  INFO.chain = "The selected epic's chain from the graph: every epic it depends on, transitively, and every epic that depends on it, each edge with the why the graph gives for it. A dashed group is an any-of group: one of its members is enough.";
+  INFO.matrix = "Row depends on column: each number counts the dependency edges from the row milestone's epics to the column's, each member of an any-of group one, and its colour says how many of those dependencies are done. The diagonal is the milestone's own share of work epics done. From the summary's matrix and the export's milestones.";
+  INFO.drawer = "One epic from tp epic export and the graph: its fields, what it depends on and what depends on it with the whys, downstream (the not-done work epics that wait on it), the specs bound to it with their phase and loops, its stepper (claimed, with who claimed it, or skipped when it was bound unclaimed; bound; done), and its graph history from tp epic review --history --of-epic.";
+  const ESTEPS = [["claimed", "Claimed"], ["bound", "Bound"], ["done", "Done"]];
+  const PHASE_NAME = Object.fromEntries(PHASES);
+
+  function selectEpic(id) {
+    mapView.selected = id && id !== mapView.selected ? id : null;
+    drawMap();
+    drawSelected();
+  }
+
+  const graphEpic = (g, id) => ((g.graph && g.graph.epics) || []).find((e) => e.id === id) || null;
+  const epicLink = (id) => '<button type="button" class="link" data-epic="' + esc(id) + '">' + esc(id) + "</button>";
+  const stamp = (iso) => (iso ? String(iso).replace("T", " ").replace(/\..*$|Z$/, "").slice(0, 16) + " UTC" : "");
+
+  // chainEdges walks the selected epic's edges one way, breadth first: up,
+  // to what it depends on, or down, to what depends on it.
+  function chainEdges(id, up) {
+    const seen = new Set([id]);
+    const out = [];
+    let front = [id];
+    while (front.length) {
+      const next = [];
+      front.forEach((x) => {
+        const edges = up ? (mapView.deps[x] || []).map((d) => ({ from: x, to: d.id, why: d.why, group: d.group }))
+          : [...new Set(mapView.dependents[x] || [])].flatMap((y) => (mapView.deps[y] || []).filter((d) => d.id === x).map((d) => ({ from: y, to: x, why: d.why, group: d.group })));
+        edges.forEach((e) => {
+          out.push(e);
+          const n = up ? e.to : e.from;
+          if (!seen.has(n)) { seen.add(n); next.push(n); }
+        });
+      });
+      front = next;
+    }
+    return out;
+  }
+
+  function edgeList(edges, empty) {
+    if (!edges.length) return none(empty);
+    return '<ul class="elist">' + edges.map((e) => "<li>" + epicLink(e.from) + ' <span class="muted">depends on</span> ' + epicLink(e.to) +
+      (e.group ? ' <span class="esub">one of {' + esc(e.group.join(", ")) + "}</span>" : "") +
+      '<span class="dwhy">' + (e.why ? esc(e.why) : "no why recorded") + "</span></li>").join("") + "</ul>";
+  }
+
+  function drawChain(g) {
+    const card = $("chaincard");
+    card.hidden = !g;
+    if (!g) return;
+    const id = mapView.selected;
+    $("chain").innerHTML = id && mapView.deps ? '<p class="note">' + esc(id) + ": " + esc((mapView.byId[id] || {}).title || "") + "</p>" +
+      '<div class="two-col"><div><h3 class="hsub">What it waits on</h3>' + edgeList(chainEdges(id, true), "It depends on no epic.") + "</div>" +
+      '<div><h3 class="hsub">What waits on it</h3>' + edgeList(chainEdges(id, false), "No epic depends on it.") + "</div></div>"
+      : none("Select an epic on the map, or in a list above, to see its chain.");
+  }
+
+  // drawMatrix draws the summary's milestone matrix in track order.
+  function drawMatrix(g, sum) {
+    const card = $("matrixcard");
+    card.hidden = !g || !sum || !sum.matrix;
+    if (card.hidden) return;
+    const order = [].concat(...((g.graph && g.graph.milestones) || []));
+    const rep = {};
+    (g.milestones || []).forEach((m) => { rep[m.milestone] = m; });
+    const cell = {};
+    sum.matrix.forEach((c) => { cell[c.from + "\u0000" + c.to] = c; });
+    const tint = (v, p) => "background:color-mix(in srgb, var(--" + v + ") " + p + "%, var(--surface))";
+    const mst = (m) => { const r = rep[m] || {}; return r.share_done === 1 ? "done" : r.open ? "active" : "waiting"; };
+    const head = (m) => ' style="' + tint(mst(m), 24) + '" title="' + esc(m + ": " + ((rep[m] || {}).open === false ? "closed" : "open") + ", " + Math.round(((rep[m] || {}).share_done || 0) * 100) + "% of work epics done") + '"';
+    if (!order.length) {
+      $("matrix").innerHTML = none("The graph names no milestone.");
+      return;
+    }
+    $("matrix").innerHTML = '<table class="matrix"><tr><th></th>' + order.map((m) => "<th" + head(m) + ">" + esc(m) + "</th>").join("") + "</tr>" +
+      order.map((m) => '<tr><th class="r"' + head(m) + ">" + esc(m) + "</th>" + order.map((o) => {
+        if (m === o) return '<td class="diag" style="' + tint(mst(m), 40) + '" title="' + esc(m + ": " + Math.round(((rep[m] || {}).share_done || 0) * 100) + "% of work epics done") + '">' + Math.round(((rep[m] || {}).share_done || 0) * 100) + "</td>";
+        const c = cell[m + "\u0000" + o];
+        if (!c) return "<td></td>";
+        const v = c.done === c.edges ? "done" : c.done ? "active" : (rep[m] || {}).open ? "blocked" : "waiting";
+        return '<td style="' + tint(v, Math.min(58, 26 + c.edges * 3)) + '" title="' + esc(m + " depends on " + o + ": " + plural(c.edges, "edge", "edges") + ", " + c.done + " done") + '">' + c.edges + "</td>";
+      }).join("") + "</tr>").join("") + "</table>" +
+      '<div class="mkey">' + [["done", "every dependency done"], ["active", "some done"], ["blocked", "none done, row open"], ["waiting", "none done, row closed"]].map(([v, t]) => '<span><i style="' + tint(v, 50) + '"></i>' + esc(t) + "</span>").join("") + "<span>diagonal: the milestone's own % done</span></div>";
+  }
+
+  // epicStepper is the epic's own stepper: claimed (who claimed it, or
+  // skipped when it was bound or done unclaimed), bound, done.
+  function epicStepper(e, ge) {
+    const claim = ge && ge.claimed;
+    const bound = (e.files || []).filter((f) => f.bound_at).map((f) => f.bound_at).sort()[0] || null;
+    const reached = { claimed: !!claim || ["specced", "in_progress", "done"].includes(e.status), bound: (e.files || []).length > 0, done: e.status === "done" };
+    const sub = {
+      claimed: claim ? "by " + claim.by + (claim.at ? ", " + stamp(claim.at) : "") : reached.claimed ? "skipped" : "not claimed",
+      bound: reached.bound ? plural(e.files.length, "spec", "specs") + (bound ? ", " + stamp(bound) : "") : "no spec yet",
+      done: reached.done ? (e.done_at ? stamp(e.done_at) : "done") : reached.bound ? "when its specs release" : "not yet",
+    };
+    const cur = ESTEPS.findIndex(([k]) => !reached[k]);
+    return '<ol class="stepper e3" aria-label="Epic lifecycle">' + ESTEPS.map(([k, label], i) => {
+      let st = reached[k] ? "done" : i === cur ? "cur" : "todo";
+      if (k === "claimed" && st === "done" && !claim) st = "skip";
+      const mk = st === "done" ? CHECK : st === "skip" ? "–" : String(i + 1);
+      return '<li class="' + st + '"' + (st === "cur" ? ' aria-current="step"' : "") + '><span class="sn">' + mk + '</span><span class="sl">' + label + '</span><span class="sd">' + esc(sub[k]) + "</span></li>";
+    }).join("") + "</ol>";
+  }
+
+  // epicHistoryHTML draws the --of-epic payload: per slice, each recorded
+  // round's edges of the epic with their whys, as that round's snapshot kept
+  // them.
+  function epicHistoryHTML(id) {
+    if (epicHist.id !== id || (!epicHist.data && !epicHist.error)) return none("Reading its graph history.");
+    if (epicHist.error) return '<div class="banner"><b>Its graph history could not be read</b><span>' + esc(epicHist.error.error) + "</span>" + (epicHist.error.hint ? '<span class="hint">' + esc(epicHist.error.hint) + "</span>" : "") + "</div>";
+    const h = epicHist.data;
+    const known = (x) => (((data("epic-export") || {}).epics) || []).some((e) => e.id === x);
+    if (!(h.slices || []).length) return none(h.message || "It is in no recorded slice, so it has no graph history.");
+    return h.slices.map((s) => '<div class="ehs"><h5><code>' + esc(sliceLabel({ key: s.key, dir: s.state_dir })) + "</code></h5><ol class=\"ehr\">" + (s.rounds || []).map((r) => "<li><b>Round " + esc(r.round) + "</b>" +
+      (r.hashes_only ? '<span class="muted sm">this round kept unit hashes only: no edge or why text was kept</span>'
+        : (r.edges || []).length ? '<ul class="elist">' + r.edges.map((x) => "<li>depends on " + (known(x.to) ? epicLink(x.to) : esc(x.to)) + '<span class="dwhy">' + (x.why ? esc(x.why) : "no why recorded") + "</span></li>").join("") + "</ul>"
+          : '<span class="muted sm">no dependency</span>') + "</li>").join("") + "</ol></div>").join("");
+  }
+
+  async function fetchEpicHistory(id) {
+    const seq = ++epicHist.seq;
+    let body;
+    try {
+      const res = await fetch("/api/epic-history?epic=" + encodeURIComponent(id), { cache: "no-store" });
+      body = await res.json();
+    } catch (err) {
+      body = { error: "tp epic review --history --of-epic could not be fetched: " + err.message, hint: "check that tp dashboard is still running" };
+    }
+    if (seq !== epicHist.seq) return;
+    Object.assign(epicHist, isError(body) ? { id, error: body } : { id, data: body, error: null });
+    drawDrawer();
+  }
+
+  function fileLine(f) {
+    const t = f.tasks || {};
+    const loop = (name, l) => (l && l.round ? name + " round " + l.round + " " + (LOOP_LABEL[l.state] || l.state) : "");
+    return '<li><button type="button" class="link" data-spec="' + esc(f.path) + '">' + esc(f.path) + '</button><small>' + esc([PHASE_NAME[f.phase] || f.phase,
+      plural((t.done || 0), "task", "tasks") + " done of " + ((t.open || 0) + (t.wip || 0) + (t.done || 0)), loop("ground", f.ground), loop("review", f.review), loop("audit", f.audit)].filter(Boolean).join(", ")) + "</small></li>";
+  }
+
+  function drawDrawer() {
+    const g = data("epic-export");
+    const id = mapView.selected;
+    const e = g && id ? (g.epics || []).find((x) => x.id === id) : null;
+    const open = !!e && state.tab === "epics";
+    $("drawer").hidden = !open;
+    document.body.classList.toggle("dopen", open);
+    if (!open) return;
+    const ge = graphEpic(g, id) || {};
+    const ms = (g.milestones || []).find((m) => m.milestone === e.milestone) || {};
+    const crit = ((g.critical_path && g.critical_path.by_count) || []).includes(id);
+    const down = e.downstream;
+    const deps = (ge.depends_on || []).map((d) => {
+      const members = d.any_of || [d.id];
+      return "<li>" + (d.any_of ? '<span class="muted">one of</span> ' : "") + members.map((x) => {
+        const xe = (g.epics || []).find((y) => y.id === x);
+        return epicLink(x) + (xe ? ' <span class="esub">(' + esc((STAGE_LABEL[xe.status] || xe.status).toLowerCase()) + ")</span>" : "");
+      }).join(", ") + '<span class="dwhy">' + (d.why ? esc(d.why) : "no why recorded") + "</span></li>";
+    }).join("");
+    const needs = [...new Set(mapView.dependents[id] || [])].map((y) => {
+      const d = (mapView.deps[y] || []).find((x) => x.id === id) || {};
+      return "<li>" + epicLink(y) + (d.group ? ' <span class="esub">one of {' + esc(d.group.join(", ")) + "}</span>" : "") + '<span class="dwhy">' + (d.why ? esc(d.why) : "no why recorded") + "</span></li>";
+    }).join("");
+    const waits = (e.blocked_by || []).concat((e.blocked_by_any_of || []).map((x) => "one of {" + x.join(", ") + "}"));
+    const fields = [
+      ["Milestone", e.milestone + ", " + (ms.open === false ? "closed" : "open") + (ms.state ? ", gate " + ms.state.members_done + " of " + ms.state.members + " members done" : "")],
+      ["Status", (STAGE_LABEL[e.status] || e.status) + (waits.length ? ", waits on " + waits.join(", ") : "")],
+      ["Downstream", down ? plural(down.dependents, "work epic waits", "work epics wait") + " on it, " + down.dependents_open + " in open milestones; longest chain " + down.longest_chain : "nothing waits on it"],
+      ge.estimate_minutes ? ["Estimate", minutes(ge.estimate_minutes)] : null,
+      (ge.tags || []).length ? ["Tags", ge.tags.join(", ")] : null,
+      ge.acceptance ? ["Acceptance", ge.acceptance] : null,
+      ge.done ? ["Done record", stamp(ge.done.at) + (ge.done.evidence ? ": " + ge.done.evidence : "")] : null,
+    ].filter(Boolean);
+    $("dbody").innerHTML = '<div><div class="dmeta"><code>' + esc(id) + "</code><span>" + (e.condition ? "condition" : "work epic") + "</span>" + (crit ? '<span class="critpill">on the critical path</span>' : "") + "</div><h3>" + esc(e.title) + "</h3></div>" +
+      (e.condition ? '<p class="impact">A condition: it takes no spec, and the operator records it with <code>tp epic done ' + esc(id) + ' --evidence</code>.</p>' : epicStepper(e, ge.claimed !== undefined ? ge : null)) +
+      "<dl>" + fields.map(([k, v]) => "<dt>" + esc(k) + "</dt><dd>" + esc(v) + "</dd>").join("") + "</dl>" +
+      (e.condition ? "" : "<div><h4>Specs bound to it</h4>" + ((e.files || []).length ? '<ul class="elist">' + e.files.map(fileLine).join("") + "</ul>" : none("None yet: tp init <spec> --epic " + id + " binds one.")) + "</div>") +
+      "<div><h4>Depends on</h4>" + (deps ? '<ul class="elist">' + deps + "</ul>" : none("Nothing.")) + "</div>" +
+      "<div><h4>Depended on by</h4>" + (needs ? '<ul class="elist">' + needs + "</ul>" : none("Nothing.")) + "</div>" +
+      "<div><h4>Graph history " + info("ehistory", "its graph history") + "</h4>" + epicHistoryHTML(id) + "</div>";
+  }
+  INFO.ehistory = "How this epic's edges and whys read in each recorded round of every epic review slice whose snapshot holds it, from tp epic review --history --of-epic. A round recorded before snapshots kept their text holds hashes only, so it shows no edge or why.";
+
+  // drawSelected draws what follows the selection: the chain, the drawer and
+  // its history, fetched again on every push while the drawer is open.
+  function drawSelected() {
+    const g = data("epic-export");
+    drawChain(state.graph && g ? g : null);
+    drawMatrix(state.graph ? g : null, data("summary"));
+    if (mapView.selected && epicHist.id !== mapView.selected) Object.assign(epicHist, { id: mapView.selected, data: null, error: null });
+    drawDrawer();
+    if (mapView.selected && state.tab === "epics" && g) fetchEpicHistory(mapView.selected);
+  }
+  panel(["epic-export", "summary"], drawSelected);
+
+  $("dclose").addEventListener("click", () => selectEpic(null));
+  document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && !$("drawer").hidden && $("pop").hidden) selectEpic(null); });
+  document.addEventListener("click", (ev) => {
+    const a = ev.target.closest && ev.target.closest("[data-epic]");
+    if (a) {
+      mapView.selected = null;
+      selectEpic(a.dataset.epic);
+      return;
+    }
+    const s = ev.target.closest && ev.target.closest("#dbody [data-spec]");
+    if (s) openSpec(s.dataset.spec);
+  });
 
   // ---------- the Specs tab (§12) ----------
   // One row per task file, as tp export --list lists them: already in the
