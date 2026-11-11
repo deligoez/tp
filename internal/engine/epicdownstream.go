@@ -145,8 +145,7 @@ func GraphCriticalPath(g *model.EpicGraph, states map[string]EpicState) []string
 func deferrableEpics(g *model.EpicGraph) []bool {
 	out := make([]bool, len(g.Epics))
 	for i := range g.Epics {
-		e := &g.Epics[i]
-		out[i] = slices.Contains(g.Gates[e.Milestone].Deferrable, e.ID)
+		out[i] = IsDeferrableMember(g, &g.Epics[i])
 	}
 	return out
 }
