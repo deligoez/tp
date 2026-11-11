@@ -79,6 +79,9 @@ func newEpicReviewCmd() *cobra.Command {
 	cmd.Flags().Bool("resolve", false, "Mark one finding of the last recorded round fixed/wontfix/duplicate (positionals: 0-based index, status, evidence)")
 	cmd.Flags().Bool("resolve-all", false, "Mark every unresolved finding of the last recorded round with a status (positionals: status, evidence)")
 	cmd.Flags().Bool("force", false, "With --resolve or --resolve-all: re-resolve findings that already carry a disposition")
+	cmd.Flags().Bool("history", false, "Print the slice's recorded rounds, each with its findings by role and its difference from the round before, then the difference to the current graph")
+	cmd.Flags().Int("from", 0, "With --history and --to: the earlier of the two rounds to diff")
+	cmd.Flags().Int("to", 0, "With --history and --from: the later of the two rounds to diff")
 	cmd.Flags().Bool("grant-round", false, "Grant a stale slice at review_max_rounds one more round to emit and record (the operator's decision)")
 	return cmd
 }
@@ -107,6 +110,9 @@ func runEpicReview(cmd *cobra.Command, args []string) error {
 	}
 	refuseEpicReportOutsideBatch(cmd)
 	key := epicReviewSliceKey(cmd)
+	if runEpicReviewHistoryIfSet(cmd, key) {
+		return nil
+	}
 	if runEpicReviewDisposition(cmd, key, args) {
 		return nil
 	}
