@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T21:13:57.12322Z",
+  "updated_at": "2026-11-11T21:19:03.08517Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -1979,7 +1979,7 @@
       "id": "page-since-last-looked",
       "title": "Draw the since-you-last-looked strip",
       "description": "Counts what changed since this browser last saw the page, kept in localStorage alone.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "page",
         "dashboard"
@@ -1992,11 +1992,21 @@
       "source_sections": [
         "## 17. Lifecycle over time, and since you last looked"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T21:14:04.380559Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T21:19:03.053085Z",
+      "closed_reason": "- A 'Since you last looked' strip above the tabs (internal/dashboard/page/app.js, index.html #since, style.css) counts tasks closed, rounds recorded and epics that changed stage, never which ones: it compares this browser's stored state with the current payloads: per task file done tasks and review+audit rounds (tp export --list), per epic status (tp epic export epics[].status, ids in both whose status differs) and per slice round (export slices[]). Reading chosen: the browser stores that compact state (localStorage key tp-dashboard-seen) rather than whole payloads; a file or slice absent from the stored state counts from zero; the strip is hidden when nothing changed\n- Each load compares its first state with the one the previous load stored, then stores its own (not on later pushes, so a reload counts what closed while the page was open); every localStorage access is inside try/catch and tp stores nothing. TestPage_KeepsTheSinceLastLookedStateInTheBrowserAlone (internal/dashboard/dashboard_test.go) asserts the counts' labels and fields and that each localStorage access sits in a try; red before the change; the mutant reading localStorage outside the try turns it red\n- Checked in a browser on a synthetic repo: first load no strip and state stored; tp done of a task in a terminal, reload -\u003e 'Since you last looked, moments ago, 1 task closed'; next reload no strip; a fresh browser session (empty storage, as a private window) shows no strip. Gate passed",
+      "gate_passed_at": "2026-11-11T21:19:03.053085Z",
+      "commit_sha": "2402499b",
+      "commit_shas": [
+        "2402499b",
+        "0af52d8a"
+      ],
+      "commit_files": [
+        "internal/dashboard/page/app.js",
+        "internal/dashboard/page/index.html",
+        "internal/dashboard/page/style.css"
+      ]
     },
     {
       "id": "docs-readme",
