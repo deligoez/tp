@@ -69,3 +69,44 @@ func TestLintEpicGraph_AForbiddenRuleWithoutAWhyIsMissingWhy(t *testing.T) {
 	assert.Equal(t, EpicSeverityError, missing[0].Severity)
 	assert.Equal(t, "forbidden_edges[1] has no why", missing[0].Message)
 }
+
+// forbiddenDependencyGraph is spec/1.8.0.md §18 row 6's fixture: a rule
+// forbidding the track of B1 from milestone M3, one direct edge b1 -> m3a,
+// one any-of group of b2 holding m3b, and a two-step path b1 -> x -> m3c
+// through an epic of a third track.
+func forbiddenDependencyGraph() *model.EpicGraph {
+	return &model.EpicGraph{
+		Version:    1,
+		Milestones: [][]string{{"A1", "M3"}, {"B1", "B2"}, {"C1"}},
+		ForbiddenEdges: []model.EpicForbiddenEdge{
+			forbiddenRule(model.EpicSelector{TrackOf: "B1"}, model.EpicSelector{Milestone: "M3"}, "track B ships before M3"),
+		},
+		Epics: []model.Epic{
+			{ID: "m3a", Title: "M3 a", Milestone: "M3", Root: true},
+			{ID: "m3b", Title: "M3 b", Milestone: "M3", Root: true},
+			{ID: "m3c", Title: "M3 c", Milestone: "M3", Root: true},
+			{ID: "x", Title: "X", Milestone: "C1", DependsOn: []model.EpicDep{{ID: "m3c", Why: "x needs m3c"}}},
+			{ID: "b1", Title: "B1", Milestone: "B1", DependsOn: []model.EpicDep{
+				{ID: "m3a", Why: "b1 needs m3a"},
+				{ID: "x", Why: "b1 needs x"},
+			}},
+			{ID: "b2", Title: "B2", Milestone: "B2", DependsOn: []model.EpicDep{{AnyOf: []string{"m3b", "x"}, Why: "either will do"}}},
+		},
+	}
+}
+
+// TestLintEpicGraph_ForbiddenDependencyFailsADirectEdgeAndAnAnyOfMember is
+// §18 row 6: the rule fails the direct edge and the any-of member, one error
+// each naming the rule's why, and passes the two-step path through x.
+func TestLintEpicGraph_ForbiddenDependencyFailsADirectEdgeAndAnAnyOfMember(t *testing.T) {
+	forbidden := findingsOf(t, LintEpicGraph(forbiddenDependencyGraph(), nil), EpicRuleForbiddenDependency)
+	require.Len(t, forbidden, 2, "%+v", forbidden)
+	assert.Equal(t, []string{"b1", "m3a"}, forbidden[0].Epics)
+	assert.Equal(t, []string{"b2", "m3b"}, forbidden[1].Epics)
+	for _, f := range forbidden {
+		assert.Equal(t, EpicSeverityError, f.Severity)
+		assert.Contains(t, f.Message, "forbidden_edges[0]")
+		assert.Contains(t, f.Message, "track B ships before M3")
+	}
+	assert.Contains(t, forbidden[1].Message, "any-of")
+}
