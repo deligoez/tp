@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T18:51:24.397491Z",
+  "updated_at": "2026-11-11T19:01:23.623348Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -642,7 +642,7 @@
       "id": "layout-epic-order",
       "title": "Order epics inside each milestone to cut crossings",
       "description": "Engine: a deterministic in-milestone order reducing edge crossings, with a dependency-free epic beside its first dependent.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "layout"
@@ -655,11 +655,23 @@
       "source_sections": [
         "## 9. The map"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T18:51:28.899522Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T19:01:23.505307Z",
+      "closed_reason": "- engine.EpicMapRows(g, EpicMapLanes(g)) (internal/engine/epicmaprows.go) returns map[milestone][]epic id, top to bottom: milestones taken by column, then lane, then lane place; an epic with a dependency is ordered by the barycenter (mean row) of its dependencies in milestones already taken, ones with none placed after them in graph-file order; ties keep graph-file order. On the two-milestone fixture (M1 r; a,b,c on r; M2 x,y,z on c,b,a) graph order crosses 3 edge pairs and the layout 0 (TestEpicMapRows_CrossFewerEdgesThanGraphOrder; mutant dropping the barycenter turns it red).\n- An epic with no dependency is keyed just before its first dependent's row (first epic in the graph file naming it, plain or any-of): right before it in the same milestone, opposite it in another; none -\u003e last. TestEpicMapRows_AnEpicWithNoDependencySitsNextToItsFirstDependent ([p,a,b,r,c,d] and [r,a,p,b]) and TestEpicMapRows_RootsFollowTheirDependentsAcrossMilestones (roots-only M1: 3 crossings -\u003e 0); mutant leaving roots last turns both red.\n- Determinism: no map iteration decides an order (stable sorts, explicit keys); TestEpicMapRows_TheSameGraphAlwaysYieldsTheSamePositions compares 50 derivations over a three-milestone graph; mutant taking milestones in map order turns it red. Reading chosen: one ordered row list per milestone, no sub-columns inside a milestone. Gate passed.",
+      "gate_passed_at": "2026-11-11T19:01:23.505307Z",
+      "commit_sha": "1e26f810",
+      "commit_shas": [
+        "1e26f810",
+        "4ba57c85",
+        "e48d6b71",
+        "4ee44b2a",
+        "1721721b"
+      ],
+      "commit_files": [
+        "internal/engine/epicmaprows.go",
+        "internal/engine/epicmaprows_test.go"
+      ]
     },
     {
       "id": "export-layout",
