@@ -87,3 +87,30 @@ func TestEpicSnapshotDiff_AWhyEditIsAWhyChangeWithBothTexts(t *testing.T) {
 	assert.Empty(t, diff.UnitsRemoved)
 }
 
+// TestEpicSnapshotDiff_AHashOnlySnapshotCarriesNoTextAndSaysSo is the
+// pre-block snapshot: a round snapshotted before blocks were kept holds only
+// hashes, so its diff names the units added, removed and changed, carries no
+// edge, why or field text, and sets HashesOnly.
+func TestEpicSnapshotDiff_AHashOnlySnapshotCarriesNoTextAndSaysSo(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, epicSnapshotFile(1)),
+		[]byte(`{"round": 1, "units": {"epic:a": "h1", "epic:b": "h2", "epic:c": "h3"}}`+"\n"), 0o600))
+	require.NoError(t, WriteEpicReviewSnapshot(dir, 2, snapshotUnits(
+		model.Epic{ID: "a", Title: "A", Milestone: "M"},
+		model.Epic{ID: "b", Title: "B", Milestone: "M", DependsOn: []model.EpicDep{{ID: "a", Why: "why"}}},
+		model.Epic{ID: "d", Title: "D", Milestone: "M"},
+	)))
+
+	diff, err := EpicReviewRoundsDiff(dir, 1, 2)
+	require.NoError(t, err)
+
+	assert.True(t, diff.HashesOnly)
+	assert.Equal(t, []string{"epic:d"}, diff.UnitsAdded)
+	assert.Equal(t, []string{"epic:c"}, diff.UnitsRemoved)
+	assert.Equal(t, []string{"epic:a", "epic:b"}, diff.UnitsChanged)
+	assert.Empty(t, diff.EdgesAdded)
+	assert.Empty(t, diff.EdgesRemoved)
+	assert.Empty(t, diff.WhysChanged)
+	assert.Empty(t, diff.FieldsChanged)
+}
