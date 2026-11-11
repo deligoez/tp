@@ -54,3 +54,30 @@ func TestSpecReleaseImpact_NamesTheFreedEpicAndTheMovedGate(t *testing.T) {
 		"an epic already done frees nothing")
 }
 
+// TestDashboardSummary_CarriesEachSpecsReleaseImpact: the summary keys each
+// task file by its repository path; b's bound spec frees a and moves M's
+// gate, the unbound spec carries an empty impact, and once a second spec of
+// b is not at release, releasing the first frees nothing.
+func TestDashboardSummary_CarriesEachSpecsReleaseImpact(t *testing.T) {
+	t.Parallel()
+	root := boundFilesRepo(t)
+	tpDir := filepath.Join(root, ".tp")
+	require.NoError(t, os.MkdirAll(tpDir, 0o755))
+	writeStatusFile(t, root, "b", model.StatusOpen)
+	require.NoError(t, os.WriteFile(filepath.Join(root, "u.md"), []byte("# U\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "u.tasks.json"), []byte(`{"version":1,"spec":"u.md","tasks":[]}`), 0o600))
+
+	sum, err := DashboardSummaryOf(tpDir, statusChain())
+	require.NoError(t, err)
+	empty := ReleaseImpact{Frees: []string{}, Gates: []GateMove{}}
+	assert.Equal(t, map[string]ReleaseImpact{
+		"b.tasks.json": {Frees: []string{"a"}, Gates: []GateMove{{Milestone: "M", MembersDone: 2, MembersDoneAfter: 3, Members: 4}}},
+		"u.tasks.json": empty,
+	}, sum.ReleaseImpact)
+
+	writeStatusFile(t, root, "b2", model.StatusOpen)
+	sum, err = DashboardSummaryOf(tpDir, statusChain())
+	require.NoError(t, err)
+	assert.Equal(t, empty, sum.ReleaseImpact["b.tasks.json"], "b2 is not at release, so releasing b does not finish epic b")
+	assert.Equal(t, empty, sum.ReleaseImpact["b2.tasks.json"])
+}
