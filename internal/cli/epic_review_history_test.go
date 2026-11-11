@@ -167,3 +167,18 @@ func TestEpicReviewHistory_FromToNarrowsToTwoRounds(t *testing.T) {
 	assert.Equal(t, 4, code, "a round the slice did not record is refused; stderr: %s", stderr)
 }
 
+// TestEpicReviewHistory_CompactKeepsEveryChangeAndDropsTheContext is §11's
+// --compact: the unchanged context goes, every change stays.
+func TestEpicReviewHistory_CompactKeepsEveryChangeAndDropsTheContext(t *testing.T) {
+	t.Parallel()
+	dir, slice := twoRoundSlice(t)
+	h := epicHistory(t, dir, append(slice, "--history", "--compact")...)
+
+	require.Len(t, h.Rounds, 2)
+	require.NotNil(t, h.Rounds[1].Diff)
+	assert.Nil(t, h.Rounds[1].Diff.Unchanged)
+	require.Len(t, h.Rounds[1].Diff.WhysChanged, 1)
+	require.NotNil(t, h.Current)
+	require.Len(t, h.Current.Diff.FieldsChanged, 1)
+}
+
