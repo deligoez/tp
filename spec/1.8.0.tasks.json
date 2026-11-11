@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T13:58:02.820598Z",
+  "updated_at": "2026-11-11T14:01:34.706106Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -72,7 +72,7 @@
       "id": "import-imported-at",
       "title": "Stamp imported_at on every import",
       "description": "tp import writes imported_at and rewrites it on every later import into the file, --force included.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli"
       ],
@@ -85,11 +85,18 @@
         "## 15. Bound and imported times",
         "## 18. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T13:58:08.478112Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T14:01:34.696505Z",
+      "closed_reason": "- tp import stamps imported_at (UTC) just before its write, so every import into the file, --force included, moves it (internal/cli/importcmd.go): TestImport_WritesImportedAtAndEveryImportMovesIt; the mutant skipping the stamp under --force turns it red (second imported_at nil)\n- A file written before the release has no imported_at and a non-import write (tp claim) adds none: TestImport_FileImportedBeforeTheReleaseGainsNoImportedAt (internal/cli/import_imported_at_test.go); the mutant stamping in model.WriteTaskFile on every write turns it red; gate passed",
+      "gate_passed_at": "2026-11-11T14:01:34.696505Z",
+      "commit_sha": "948c071d",
+      "commit_shas": [
+        "948c071d"
+      ],
+      "commit_files": [
+        "internal/cli/importcmd.go"
+      ]
     },
     {
       "id": "export-generated-at",
