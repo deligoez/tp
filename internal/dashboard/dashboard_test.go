@@ -170,3 +170,24 @@ func TestPage_FoldsTurkishLettersInTheEpicSearch(t *testing.T) {
 		assert.Equal(t, to, fold[from], "FOLD maps %s", from)
 	}
 }
+
+// TestPage_DrawsTheLifecycleChartFromTheSeries is §17's chart at the page: it
+// reads the summary's series and stacks one band per stage after planned plus
+// the unknown band, so an epic whose stage time tp did not record is drawn as
+// unknown rather than on a guessed day, and its ⓘ says an epic's planning
+// time is not recorded.
+func TestPage_DrawsTheLifecycleChartFromTheSeries(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Contains(t, script, "sum.series")
+	m := regexp.MustCompile(`const CFD_BANDS = (\[.*\]);`).FindStringSubmatch(script)
+	require.NotNil(t, m, "the script declares the chart's bands as const CFD_BANDS = [...];")
+	var bands [][]string
+	require.NoError(t, json.Unmarshal([]byte(m[1]), &bands))
+	keys := make([]string, 0, len(bands))
+	for _, b := range bands {
+		keys = append(keys, b[0])
+	}
+	assert.Equal(t, []string{"done", "in_progress", "specced", "claimed", "unknown"}, keys)
+	assert.Contains(t, script, "planning time is not recorded, so an epic added to the graph later counts as planned from the chart's first day")
+}
