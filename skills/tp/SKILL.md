@@ -516,8 +516,8 @@ table a prose document embeds. Build it one topic at a time, each topic through 
    order; a single `tp epic add` needs every target it names to exist already. A write whose
    after-state holds a lint error the before-state did not exits 1 and writes nothing, naming each
    error by its epic ids.
-4. **`tp epic lint`** — read the warnings (`no-dependencies`, `thin-why`, `partial-parallel`) the
-   writers do not refuse; exit 0 means no error-severity finding.
+4. **`tp epic lint`** — read the warnings (`no-dependencies`, `thin-why`, `partial-parallel`,
+   `gate-threshold-unwritten`) the writers do not refuse; exit 0 means no error-severity finding.
 5. **`tp epic review --milestone <m>` (or `--epic <id>`) over the touched slice** — a milestone
    slice asks every epic in it, not only the topic's, and its gate, so a topic spread over several
    milestones costs a round per milestone; for a topic, review the topic itself with
@@ -590,6 +590,12 @@ from a done record.
    `tp epic gate <m> --met --evidence "<text or URL>"`. List under `deferrable` the work that waits on
    a trigger that may never come, so it never holds the milestone. Edit one gate with
    `tp epic set gates.<m>.threshold=<text>` (or `.deferrable=`, `.members=`), which keeps its `met`.
+   **A placeholder threshold** (`[threshold]`, `<exit condition>`, `TBD`; `.tp/config.json`'s
+   `epic.threshold_placeholder` replaces the default pattern) is not one the operator can measure:
+   `tp epic lint` warns `gate-threshold-unwritten` on an unmet gate carrying one, and `tp epic ready`,
+   `tp epic status` and `tp epic export` leave that gate out of `operator.gates` and list it once under
+   `operator.threshold_rewrites` with its `tp epic set gates.<m>.threshold=<threshold>` command. Writing
+   the exit condition is the operator's; a unit reports the rewrite rather than inventing the text.
 6. **Opening order.** A milestone opens after the previous one of its track by default, the first
    after none. `tp epic set opens_after=<json>` changes that per milestone: `[]` on each of a family
    of siblings keeps them one track, always open; `{"R": ["P"]}` opens R after P, in parallel with
