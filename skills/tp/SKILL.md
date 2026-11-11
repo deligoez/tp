@@ -746,6 +746,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp graph` | Dependency tree (--tag, --from) |
 | `tp stats` | Parallelism analysis |
 | `tp config` | Effective configuration as JSON (`--resolved`; `--extract [--dry-run\|--force]` hoists policy shared by ALL task files into `.tp/config.json`) |
+| `tp dashboard [--port N]` | Serve the read-only dashboard on `127.0.0.1` (port 7377 unless `--port`), print its URL and serve until interrupted; writes nothing to the repository. A taken port exits 1 naming it, `TP_UNATTENDED` exits 2, and a repository with neither an epic graph nor a task file exits 3 |
 
 ### Spec & validation
 | Command | Purpose |
