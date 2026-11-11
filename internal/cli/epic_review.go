@@ -257,17 +257,25 @@ func exitEpicRunError(err *epicRunError) {
 // loadEpicReviewGraph reads the graph and lints it. It writes nothing: an
 // absent or unreadable graph exits 3.
 func loadEpicReviewGraph() epicReviewGraph {
+	eg, err := readEpicReviewGraph()
+	if err != nil {
+		exitEpicRunError(err)
+	}
+	return eg
+}
+
+// readEpicReviewGraph is loadEpicReviewGraph returning its exit-3 error
+// instead of exiting, for a caller that answers it, as the dashboard does.
+func readEpicReviewGraph() (epicReviewGraph, *epicRunError) {
 	tpDir := engine.DiscoverTPDir(".")
 	if tpDir == "" {
-		output.Error(ExitFile, "epic graph not found: no .tp/ directory up to the git boundary", epicGraphFileHint)
-		os.Exit(ExitFile)
+		return epicReviewGraph{}, &epicRunError{code: ExitFile, msg: "epic graph not found: no .tp/ directory up to the git boundary", hint: epicGraphFileHint}
 	}
 	g, unknown, err := engine.LoadEpicGraph(tpDir)
 	if err != nil {
-		output.Error(ExitFile, err.Error(), epicGraphFileHint)
-		os.Exit(ExitFile)
+		return epicReviewGraph{}, &epicRunError{code: ExitFile, msg: err.Error(), hint: epicGraphFileHint}
 	}
-	return epicReviewGraph{tpDir: tpDir, g: g, checks: engine.EpicMechanicalChecks(engine.LintEpicGraph(g, unknown))}
+	return epicReviewGraph{tpDir: tpDir, g: g, checks: engine.EpicMechanicalChecks(engine.LintEpicGraph(g, unknown))}, nil
 }
 
 // prepareEpicReviewRun derives key's slice over eg and its round, writing
