@@ -86,6 +86,9 @@ type epicExportEpic struct {
 	// Moot marks a moot epic (engine.MootEpics), which carries it in place
 	// of actionable and not_actionable.
 	Moot bool `json:"moot,omitempty"`
+	// Layout is the epic's place on the map (engine.EpicMapLayout), absent
+	// on an epic whose milestone no track lists.
+	Layout *engine.EpicLayout `json:"layout,omitempty"`
 }
 
 // epicExportDownstream is F1's downstream without dependents_by_milestone.
@@ -201,6 +204,7 @@ func epicExportEpics(g *model.EpicGraph, states map[string]engine.EpicState, bou
 	downs := engine.EpicDownstreams(g, states, gates, ids)
 	notActionable := engine.ConditionsNotActionable(g, states, gates, bound)
 	moot := engine.MootEpics(g, states)
+	layout := engine.EpicMapLayout(g)
 	conditions := map[string]bool{}
 	for i := range g.Epics {
 		conditions[g.Epics[i].ID] = g.Epics[i].Condition
@@ -212,6 +216,9 @@ func epicExportEpics(g *model.EpicGraph, states map[string]engine.EpicState, bou
 			Status: states[e.ID].Status, DoneAt: states[e.ID].DoneAt, Files: files[e.ID]}
 		if item.Files == nil {
 			item.Files = []engine.EpicFileState{}
+		}
+		if l, ok := layout[e.ID]; ok {
+			item.Layout = &l
 		}
 		if d, ok := downs[e.ID]; ok {
 			item.Downstream = &epicExportDownstream{LongestChain: d.LongestChain, Dependents: d.Dependents, DependentsOpen: d.DependentsOpen}
