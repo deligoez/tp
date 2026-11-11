@@ -391,3 +391,21 @@ func TestPage_AWaitingEpicNamesItsAnyOfGroups(t *testing.T) {
 	assert.Contains(t, script, ".blocked_by_any_of")
 	assert.Contains(t, script, `"one of "`)
 }
+
+// TestPage_DrawsTheEpicDrawerItsChainAndTheMatrix is §4 and §11 at the page:
+// a selected epic opens a drawer reading the export's fields, downstream and
+// bound files with their phase and loops, the graph's whys and claim for its
+// stepper, and its graph history from /api/epic-history, a hash-only round
+// and an epic in no slice each said; the chain panel and the milestone matrix,
+// read from the summary's matrix, have their own cards.
+func TestPage_DrawsTheEpicDrawerItsChainAndTheMatrix(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	for _, id := range []string{`id="drawer"`, `id="chaincard"`, `id="matrixcard"`} {
+		assert.Contains(t, page, id)
+	}
+	assert.Contains(t, script, `"/api/epic-history?epic="`)
+	for _, field := range []string{".hashes_only", ".message", "sum.matrix", ".edges", ".claimed", ".bound_at", ".done_at", ".downstream", ".depends_on", ".why", ".phase", ".review", ".audit"} {
+		assert.Contains(t, script, field)
+	}
+}
