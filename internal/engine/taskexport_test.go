@@ -92,3 +92,27 @@ func TestTaskExport_CarriesTasksWithTheirState(t *testing.T) {
 	assert.Equal(t, "the second", t2.Description)
 }
 
+// TestTaskExport_AnOpenTaskOfABlockedEpicWaitsOnIt is §16's third state: a
+// task whose own dependencies are done waits on its epic while the epic's
+// dependency x is not done.
+func TestTaskExport_AnOpenTaskOfABlockedEpicWaitsOnIt(t *testing.T) {
+	dir, specPath, tfp := setupResumeProject(t, `{"spec":"s.md","epic":"e","bound_at":"2026-11-01T09:00:00Z","imported_at":"2026-11-01T09:30:00Z","tasks":[
+{"id":"t1","title":"T1","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"a","source_sections":["## 1. One"]}]}`)
+	require.NoError(t, os.WriteFile(specPath, []byte(exportSpec), 0o600))
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".tp"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".tp", EpicGraphFile), []byte(`{"version":1,"milestones":[["M"]],"epics":[
+{"id":"x","title":"X","milestone":"M"},
+{"id":"e","title":"E","milestone":"M","depends_on":[{"id":"x","why":"e needs x"}]}]}`), 0o600))
+
+	exp, err := TaskExportOf(dir, tfp)
+	require.NoError(t, err)
+	require.Len(t, exp.Tasks, 1)
+	assert.Equal(t, TaskStateWaitsOnEpic, exp.Tasks[0].State)
+	assert.Equal(t, []string{"x"}, exp.Tasks[0].WaitsOn)
+	require.NotNil(t, exp.Epic)
+	assert.Equal(t, "e", *exp.Epic)
+	require.NotNil(t, exp.BoundAt)
+	require.NotNil(t, exp.ImportedAt)
+	assert.Equal(t, "2026-11-01T09:30:00Z", exp.ImportedAt.UTC().Format("2006-01-02T15:04:05Z"))
+}
+
