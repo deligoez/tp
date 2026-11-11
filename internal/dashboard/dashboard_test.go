@@ -271,3 +271,25 @@ func TestPage_ReadsEveryAddressKey(t *testing.T) {
 	}
 	assert.Contains(t, script, `"popstate"`)
 }
+
+// TestPage_DrawsASlicesGraphHistoryFromTheHistoryEndpoint is §11 at the page:
+// a slice's history is fetched from /api/history, tp epic review --history's
+// payload, its rounds read with their findings by role and their difference
+// from the round before, two chosen rounds fetched with from and to, every
+// part of a difference drawn, and the picked slice and rounds kept in the
+// address.
+func TestPage_DrawsASlicesGraphHistoryFromTheHistoryEndpoint(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	assert.Contains(t, page, `id="slice-history"`)
+	assert.Contains(t, script, `"/api/history?"`)
+	for _, field := range []string{".findings_by_role", ".diff_from", ".current", ".units_added", ".units_removed", ".units_changed",
+		".edges_added", ".edges_removed", ".whys_changed", ".fields_changed", ".hashes_only", `"from"`, `"to"`} {
+		assert.Contains(t, script, field)
+	}
+	m := regexp.MustCompile(`const URL_KEYS = (\[.*\]);`).FindStringSubmatch(script)
+	require.NotNil(t, m)
+	var urlKeys []string
+	require.NoError(t, json.Unmarshal([]byte(m[1]), &urlKeys))
+	assert.Subset(t, urlKeys, []string{"slice", "hr"})
+}
