@@ -22,6 +22,7 @@ type epicStatusResult struct {
 	MechanicalChecks []engine.EpicMechanicalCheck `json:"mechanical_checks"`
 	ConvergeOn       string                       `json:"converge_on"`
 	Open             map[string]int               `json:"open"`
+	OpenByRole       map[string]int               `json:"open_by_role"`
 	Grantable        bool                         `json:"grantable"`
 	MaxRounds        *int                         `json:"max_rounds"`
 	GrantsSpent      int                          `json:"grants_spent"`
@@ -110,6 +111,7 @@ func runEpicReviewStatus(key engine.EpicSliceKey, check bool) {
 		MechanicalChecks: run.checks,
 		ConvergeOn:       epicReviewPolicy(run.tpDir).ConvergeOn,
 		Open:             st.Open,
+		OpenByRole:       st.OpenByRole,
 		Grantable:        st.Grantable,
 		MaxRounds:        epicMaxRoundsOut(st.MaxRounds),
 		GrantsSpent:      st.GrantsSpent,
