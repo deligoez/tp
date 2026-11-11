@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T15:41:52.09867Z",
+  "updated_at": "2026-11-11T15:47:06.853541Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -976,7 +976,7 @@
       "id": "summary-lifecycle-band",
       "title": "Count work epics per stage over phases",
       "description": "Summary band: epic stages over spec phases, counting work epics.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "summary"
@@ -990,11 +990,26 @@
       "source_sections": [
         "## 6. Lifecycle band and milestone state"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T15:41:57.349119Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T15:47:06.820032Z",
+      "closed_reason": "- the band counts work epics per stage (planned, claimed, specced, in_progress, done) and per spec phase (review, decompose, implement, audit, release), an epic with several bound specs once at its earliest phase: engine.LifecycleBand(g, states, epicPhases, filePhases) -\u003e DashboardBand{stages, phases, phases_of} (internal/engine/dashband.go; type, keys and phases_of chosen, the dashboard's own payload: both maps always carry every key of their axis, conditions are left out via IsWorkEpic), carried as summary.band by DashboardSummaryOf, which reads it with DashboardBandOf(parent of tpDir, g) (bound files' tp resume phases and DeriveEpicStates). TestLifecycleBand_CountsWorkEpicsPerStageAndEarliestPhase (d bound at audit and implement counts once at implement, condition x in neither axis) reads stages 1/1/1/1/2 and phases review 1, implement 1, release 1; red before the change (undefined); mutants counting every bound file and taking the latest phase each turn it red; TestDashboardSummary_ShapeIsPinned extended to pin band's keys\n- with no graph (nil, or a graph with no epics) the phases count task files (every *.tasks.json git sees) and phases_of reads task_files; with a graph an unbound task file is not counted: TestLifecycleBand_WithNoGraphThePhasesCountTaskFiles (review 1, implement 2, every stage 0) and, on a real repository, TestDashboardBandOf_ReadsTheRepositorysTaskFiles (b's bound file and an unbound file, both open: the graph's band counts implement 1, with no graph 2); the pure test's unbound decompose file reads decompose 0 under a graph; gate passed",
+      "gate_passed_at": "2026-11-11T15:47:06.820032Z",
+      "commit_sha": "c80dd6a3",
+      "commit_shas": [
+        "c80dd6a3",
+        "aaa9c032",
+        "4d7886b2",
+        "ed766ab0",
+        "0b22ab16",
+        "8e2b3c26"
+      ],
+      "commit_files": [
+        "internal/engine/dashband.go",
+        "internal/engine/dashband_test.go",
+        "internal/engine/dashsummary.go",
+        "internal/engine/dashsummary_test.go"
+      ]
     },
     {
       "id": "summary-release-impact",
