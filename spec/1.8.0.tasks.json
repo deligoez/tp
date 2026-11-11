@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T19:40:39.972315Z",
+  "updated_at": "2026-11-11T19:45:51.334034Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -1950,7 +1950,7 @@
       "id": "docs-reference",
       "title": "Document the new schemas in REFERENCE.md",
       "description": "Exit codes, payload schemas, graph and config keys, the two lint rules.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -1963,11 +1963,28 @@
         "## 16. One spec's read model: `tp export`",
         "## 15. Bound and imported times"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T19:45:51.262196Z",
+      "duration_source": "implicit",
+      "closed_at": "2026-11-11T19:45:51.262265Z",
+      "closed_reason": "- skills/tp/REFERENCE.md exit codes: new 'Task Export and the Dashboard (v1.8.0)' exit table - tp dashboard 1 (port taken), 2 (--port outside 1-65535, TP_UNATTENDED), 3 (no graph, no task file); tp export 0 and 3 (2 for a positional); --list 0; and under Exit codes (tp epic) --history 3 (no state directory), plus 2 and 4; all probed with /tmp/tp-dev/tp on scratch repos\n- schemas: epic export additions (generated_at, lint, milestones[].state, epics[].layout, slices max_rounds/grants_spent/stale_units/open_by_role, bound files' bound_at/imported_at, operator.threshold_rewrites), tp export and --list version 1, the dashboard summary (rounds, band, release_impact, plan, series - series is [] in this build), the request guard, SSE events and GET endpoints, forbidden_edges in the graph-file table, epic.threshold_placeholder under Project Configuration (read commands warn and fall back, only tp validate --project refuses: probed), the task file's two times\n- lint table: gate-threshold-unwritten (warning) with the default pattern and its match examples, forbidden-dependency (error), dangling-reference for forbidden_edges selectors (tag = warning) and missing-why for a rule; also --history/--of-epic payloads and the slice status fields; gate passed",
+      "gate_passed_at": "2026-11-11T19:45:51.262265Z",
+      "commit_sha": "fea257f8",
+      "commit_shas": [
+        "fea257f8",
+        "3bf4cb77",
+        "fa639bee",
+        "c1fcc60b",
+        "94b0c0c8",
+        "45c694a9",
+        "7c9e0a27",
+        "8e79cc73",
+        "e8ba1606",
+        "55dd6da5",
+        "c8e7fb31"
+      ],
+      "commit_files": [
+        "skills/tp/REFERENCE.md"
+      ]
     },
     {
       "id": "docs-claude-md",
