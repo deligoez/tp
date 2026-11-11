@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/deligoez/tp/internal/engine"
 	"github.com/deligoez/tp/internal/model"
@@ -44,7 +45,7 @@ func runSetEpic(args []string, id string) error {
 			output.Error(ExitFile, err.Error())
 			os.Exit(ExitFile)
 		}
-		tf.Epic = id
+		applyEpicBinding(tf, id, time.Now().UTC())
 		if err := model.WriteTaskFile(taskFilePath, tf); err != nil {
 			// task-file-hint: the write that failed is the task file's.
 			output.Error(ExitFile, err.Error())
@@ -53,6 +54,25 @@ func runSetEpic(args []string, id string) error {
 		output.Success(fmt.Sprintf("%s epic=%q", taskFileLabel(taskFilePath), id))
 		return output.JSON(epicBindingWritten{File: taskFileLabel(taskFilePath), Epic: id})
 	})
+}
+
+// applyEpicBinding sets tf's epic to id. A change of epic stamps bound_at
+// with now and removing the binding removes it; re-binding the epic the file
+// already names changes nothing (spec/1.8.0.md §15).
+func applyEpicBinding(tf *model.TaskFile, id string, now time.Time) {
+	if tf.Epic == id {
+		return
+	}
+	tf.Epic, tf.BoundAt = id, boundAtFor(id, now)
+}
+
+// boundAtFor is the bound_at a binding to id written at now carries: now, or
+// nil when id is empty and the file is bound to nothing.
+func boundAtFor(id string, now time.Time) *time.Time {
+	if id == "" {
+		return nil
+	}
+	return &now
 }
 
 // exitOnEpicBindingRefusal exits 1 when §2 refuses binding a task file to
