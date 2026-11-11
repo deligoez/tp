@@ -85,7 +85,8 @@ const (
 // TargetAt is the index in Epics of the epic that first edge reaches, an
 // index so a finding stays small; 0 and unread on any other finding.
 // Origin tells the other dangling-reference shapes that are not edges apart:
-// DanglingGateKey or DanglingTagCheck, "" otherwise.
+// DanglingGateKey, DanglingTagCheck or DanglingForbiddenRule (a missing-why
+// on a forbidden_edges rule too), DanglingEdge otherwise.
 type EpicLintFinding struct {
 	Rule     string         `json:"rule"`
 	Severity string         `json:"severity"`
@@ -109,6 +110,9 @@ const (
 	DanglingGateKey
 	// DanglingTagCheck is a tag_checks provided_by that names no epic.
 	DanglingTagCheck
+	// DanglingForbiddenRule is a forbidden_edges rule: a selector that names
+	// nothing, or the rule's missing why.
+	DanglingForbiddenRule
 )
 
 // LintEpicGraph runs the structure, edge, milestone and tag rules, then the
@@ -120,6 +124,7 @@ func LintEpicGraph(g *model.EpicGraph, unknown []EpicGraphUnknownKey) []EpicLint
 	out = append(out, lintEpicCycles(g)...)
 	out = append(out, lintEpicAnyOfShape(g)...)
 	out = append(out, lintEpicDangling(g)...)
+	out = append(out, lintEpicForbiddenRules(g)...)
 	out = append(out, lintEpicDuplicates(g)...)
 	out = append(out, lintEpicUnknownKeys(unknown)...)
 	out = append(out, lintEpicMissingWhy(g)...)
