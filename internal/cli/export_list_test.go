@@ -113,3 +113,18 @@ func TestExportList_KeepsTheReadableRowAndMarksTheMalformedOne(t *testing.T) {
 	assert.Empty(t, bad.Phase)
 }
 
+// TestExportList_EmptyWithoutATaskFileAndRunsUnattended is §16's --list
+// contract: no task file exits 0 with an empty list, and it runs under
+// TP_UNATTENDED.
+func TestExportList_EmptyWithoutATaskFileAndRunsUnattended(t *testing.T) {
+	t.Parallel()
+	empty := t.TempDir()
+	initGitRepo(t, empty)
+	_, rows := exportList(t, empty, false)
+	assert.Empty(t, rows)
+	_, rows = exportList(t, t.TempDir(), true)
+	assert.Empty(t, rows)
+
+	_, rows = exportList(t, exportRepo(t), true)
+	assert.Len(t, rows, 1)
+}
