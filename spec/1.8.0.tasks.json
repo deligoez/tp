@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T13:45:06.889076Z",
+  "updated_at": "2026-11-11T13:55:03.573189Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -293,7 +293,7 @@
       "id": "conditions-out-of-figures",
       "title": "Exclude condition epics from every work figure",
       "description": "Ready, blocked, held and share-done figures count work epics only, in tp epic ready, tp epic status and tp epic export.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -304,11 +304,21 @@
         "## 4. The Epics tab",
         "## 18. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T13:46:44.834361Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T13:55:03.55232Z",
+      "closed_reason": "- Work figures count no condition epic: engine.IsWorkEpic is the one predicate; engine.WorkFigures (internal/engine/epicfigures.go) applies it once to ready, blocked, held, done and share done, and tp epic ready (EpicReady) and tp epic status counts/share_done filter through it. Per the operator decision, status's blocked list and export's per-epic blocked/held keep the v1.6/1.7 contract (not_actionable, moot); spec 1.8.0 section 4 governs the figures, not those lists; no export version bump\n- A graph whose only undone epic is a condition shows zero ready and zero blocked epics and lists the condition under operator conditions: TestEpicWorkFigures_OnlyUndoneEpicIsACondition (internal/engine/epicfigures_test.go)\n- Section 18 row 7, condition half: TestEpicWorkFigures_CountNoCondition, Blocked 1 at HEAD and 2 under the mutant applying the filter to the share-done figure only; removing the filter from EpicReady turns the only-condition test red; gate passed",
+      "gate_passed_at": "2026-11-11T13:55:03.55232Z",
+      "commit_sha": "f9f575ea",
+      "commit_shas": [
+        "f9f575ea",
+        "deb6c673"
+      ],
+      "commit_files": [
+        "internal/cli/epic_status.go",
+        "internal/engine/epicfigures.go",
+        "internal/engine/epicready.go"
+      ]
     },
     {
       "id": "deferrable-out-of-waiting",
