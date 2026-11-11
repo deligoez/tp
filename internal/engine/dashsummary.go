@@ -9,11 +9,12 @@ import (
 
 // DashboardSummary is the dashboard's summary payload: the figures no command
 // prints (spec/1.8.0.md §2). Its four keys are fixed. Rounds holds §5's
-// per-round finding counts; Band (§6), ReleaseImpact (§13) and Series (§17)
-// are present and empty until the tasks that derive them fill them.
+// per-round finding counts and Band §6's lifecycle band; ReleaseImpact (§13)
+// and Series (§17) are present and empty until the tasks that derive them
+// fill them.
 type DashboardSummary struct {
 	Rounds        map[string][]SliceRoundCount `json:"rounds"`
-	Band          map[string]any               `json:"band"`
+	Band          DashboardBand                `json:"band"`
 	ReleaseImpact map[string]any               `json:"release_impact"`
 	Series        []any                        `json:"series"`
 }
@@ -30,15 +31,20 @@ type SliceRoundCount struct {
 // DashboardSummaryOf derives the summary from tpDir's epic review state: for
 // every slice state directory, keyed by its directory name as tp epic
 // export's slices[].dir names it, each recorded round's counts in round
-// order. An unreadable round file is an error.
+// order; and the lifecycle band of the repository holding tpDir
+// (DashboardBandOf). An unreadable round file or task file is an error.
 func DashboardSummaryOf(tpDir string, g *model.EpicGraph) (DashboardSummary, error) {
 	dirs, err := EpicReviewSliceDirs(tpDir, g)
 	if err != nil {
 		return DashboardSummary{}, err
 	}
+	band, err := DashboardBandOf(filepath.Dir(tpDir), g)
+	if err != nil {
+		return DashboardSummary{}, err
+	}
 	sum := DashboardSummary{
 		Rounds:        make(map[string][]SliceRoundCount, len(dirs)),
-		Band:          map[string]any{},
+		Band:          band,
 		ReleaseImpact: map[string]any{},
 		Series:        []any{},
 	}
