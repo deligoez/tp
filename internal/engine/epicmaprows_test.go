@@ -78,3 +78,15 @@ func TestEpicMapRows_CrossFewerEdgesThanGraphOrder(t *testing.T) {
 	assert.Equal(t, 0, crossings(g, rows))
 }
 
+// TestEpicMapRows_RootsFollowTheirDependentsAcrossMilestones: M1 holds only
+// roots, so no barycenter orders it; each root takes its first dependent's row.
+func TestEpicMapRows_RootsFollowTheirDependentsAcrossMilestones(t *testing.T) {
+	g := rowsGraph([]string{"M1", "M2"},
+		rowsEpic("a", "M1"), rowsEpic("b", "M1"), rowsEpic("c", "M1"),
+		rowsEpic("x", "M2", "c"), rowsEpic("y", "M2", "b"), rowsEpic("z", "M2", "a"),
+	)
+	rows := EpicMapRows(g, EpicMapLanes(g))
+	assert.Equal(t, 3, crossings(g, graphRows(g)))
+	assert.Equal(t, 0, crossings(g, rows))
+}
+
