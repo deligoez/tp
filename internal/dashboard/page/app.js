@@ -340,9 +340,223 @@
       slices.map((s) => {
         const stale = s.state === "stale" && s.stale_units && s.stale_units.length ? ' title="Changed since round ' + esc(s.round) + ": " + esc(s.stale_units.join(", ")) + '"' : "";
         const open = Object.keys(s.open_by_role || {}).sort().map((r) => esc(r) + " " + esc(s.open_by_role[r])).join(", ") || "none";
-        return '<tr><td class="k">' + esc(sliceLabel(s)) + "</td><td>" + esc(roundText(s)) + '</td><td><span class="st" data-s="' + esc(s.state) + '"' + stale + ">" +
+        const on = s.dir === hist.dir;
+        return '<tr class="' + (on ? "on" : "") + '"><td class="k"><button type="button" class="slink" data-slice="' + esc(s.dir) + '" aria-pressed="' + on +
+          '" title="Show this slice\'s graph history">' + esc(sliceLabel(s)) + "</button></td><td>" + esc(roundText(s)) + '</td><td><span class="st" data-s="' + esc(s.state) + '"' + stale + ">" +
           esc(s.state.replace("_", " ")) + '</span></td><td class="n">' + open + "</td><td>" + curve(sum ? sum.rounds[s.dir] : null) + "</td></tr>";
       }).join("") + "</tbody></table>";
+  });
+
+  // ---------- a slice's graph history (§11) ----------
+  // One slice at a time, from tp epic review <slice> --history: its rounds in
+  // order with their findings by role and what changed since the round
+  // before, then what changed since its last round. Two chosen rounds are
+  // fetched with from and to, their difference drawn beside the earlier
+  // round's findings. Fetched when the slice is shown and again on every push.
+  const hist = { dir: null, pair: null, data: null, pairData: null, error: null, seq: 0, seen: null };
+  INFO.history = "A slice's rounds in order, from tp epic review <slice> --history: each round's findings by role, and what changed in the slice's units since the round before, read from the two rounds' snapshots. Now is what changed since the last round. Pick two rounds to see their difference beside the earlier round's findings. A change made and undone between two rounds leaves no trace, and which write made a change is not recorded.";
+
+  const selectedSlice = () => (((data("epic-export") || {}).slices) || []).find((s) => s.dir === hist.dir) || null;
+  const csvField = (id) => (/[",\s]/.test(id) ? '"' + id.replace(/"/g, '""') + '"' : id);
+
+  // sliceQuery names the slice as /api/history takes it, or null for a slice
+  // whose key tp does not know yet.
+  function sliceQuery(s) {
+    const k = s && s.key;
+    if (!k) return null;
+    const p = new URLSearchParams();
+    if (k.kind === "epics") {
+      p.set("epics", (k.ids || []).map(csvField).join(","));
+      if (k.name) p.set("name", k.name);
+    } else {
+      p.set(k.kind, k.value);
+    }
+    return p;
+  }
+
+  async function getHistory(p) {
+    try {
+      const res = await fetch("/api/history?" + p.toString(), { cache: "no-store" });
+      return await res.json();
+    } catch (err) {
+      return { error: "tp epic review --history could not be fetched: " + err.message, hint: "check that tp dashboard is still running" };
+    }
+  }
+
+  // shownPair is the two rounds compared: the chosen ones, else the last two.
+  function shownPair() {
+    const n = hist.data && hist.data.rounds ? hist.data.rounds.length : 0;
+    if (hist.pair && hist.pair[1] <= n) return hist.pair;
+    return n >= 2 ? [n - 1, n] : null;
+  }
+
+  async function fetchHistory() {
+    const s = selectedSlice();
+    const q = sliceQuery(s);
+    const seq = ++hist.seq;
+    if (!q) {
+      Object.assign(hist, { data: null, pairData: null, error: s ? { error: "tp does not know this slice's key yet", hint: "its next tp epic review emission records it" } : null });
+      drawHistory();
+      return;
+    }
+    const full = await getHistory(q);
+    if (seq !== hist.seq) return;
+    if (isError(full)) {
+      hist.error = full;
+      drawHistory();
+      return;
+    }
+    Object.assign(hist, { data: full, error: null });
+    const pair = shownPair();
+    let pairData = null;
+    if (pair) {
+      const pq = new URLSearchParams(q);
+      pq.set("from", pair[0]);
+      pq.set("to", pair[1]);
+      pairData = await getHistory(pq);
+      if (seq !== hist.seq) return;
+    }
+    hist.pairData = pairData;
+    drawHistory();
+  }
+
+  // diffParts says what a difference holds, one phrase per kind of change.
+  function diffParts(d) {
+    if (!d) return [];
+    const parts = [];
+    const n = (list, one, many) => { if (list && list.length) parts.push(plural(list.length, one, many)); };
+    n(d.units_added, "unit added", "units added");
+    n(d.units_removed, "unit removed", "units removed");
+    n(d.edges_added, "edge added", "edges added");
+    n(d.edges_removed, "edge removed", "edges removed");
+    n(d.whys_changed, "why rewritten", "whys rewritten");
+    n(d.fields_changed, "field changed", "fields changed");
+    if (d.hashes_only) n(d.units_changed, "unit changed", "units changed");
+    return parts;
+  }
+  const diffLine = (d) => (d ? diffParts(d).join(", ") || "no change" : "the first round shown");
+
+  function findingsLine(byRole) {
+    const roles = Object.keys(byRole || {}).sort();
+    return roles.length ? roles.map((r) => esc(r) + " " + esc(byRole[r].length)).join(", ") : '<span class="muted">clean</span>';
+  }
+
+  // diffDetail draws every change of a difference: units, edges, whys with
+  // both texts, and fields with both values.
+  function diffDetail(d) {
+    if (!d) return none("No difference.");
+    const out = [];
+    const code = (s) => "<code>" + esc(s) + "</code>";
+    const list = (title, items) => { if (items.length) out.push('<div class="dpart"><h4>' + esc(title) + "</h4>" + items.join("") + "</div>"); };
+    const units = (xs) => (xs || []).map((u) => '<div class="dl">' + code(u) + "</div>");
+    list("Units added", units(d.units_added));
+    list("Units removed", units(d.units_removed));
+    list("Edges added", (d.edges_added || []).map((e) => '<div class="dl ins">' + code(e.unit) + " → " + code(e.to) + (e.why ? '<span class="dwhy">' + esc(e.why) + "</span>" : "") + "</div>"));
+    list("Edges removed", (d.edges_removed || []).map((e) => '<div class="dl del">' + code(e.unit) + " → " + code(e.to) + (e.why ? '<span class="dwhy">' + esc(e.why) + "</span>" : "") + "</div>"));
+    list("Whys rewritten", (d.whys_changed || []).map((w) => '<div class="dl">' + code(w.unit) + " → " + code(w.to) +
+      '<div class="was">' + esc(w.before) + '</div><div class="now">' + esc(w.after) + "</div></div>"));
+    list("Fields changed", (d.fields_changed || []).map((f) => '<div class="dl">' + code(f.unit) + " " + esc(f.field) +
+      (f.before ? '<div class="was">' + esc(f.before) + "</div>" : "") + (f.after ? '<div class="now">' + esc(f.after) + "</div>" : "") + "</div>"));
+    if (d.hashes_only) list("Units changed (their blocks were not kept, so only which changed is known)", units(d.units_changed));
+    return out.join("") || none("Nothing changed between these two snapshots.");
+  }
+
+  // findingsList draws a round's findings under their role, each with its
+  // severity, place and disposition.
+  function findingsList(byRole) {
+    const roles = Object.keys(byRole || {}).sort();
+    if (!roles.length) return none("This round found nothing.");
+    return roles.map((r) => '<div class="dpart"><h4>' + esc(r) + ' <span class="muted num">' + byRole[r].length + "</span></h4>" +
+      byRole[r].map((f) => {
+        const res = f.resolved && f.resolved.status ? '<span class="sm muted">' + esc(f.resolved.status) + "</span>" : "";
+        return '<div class="fnd"><span class="sev" data-sev="' + esc(f.severity || "") + '">' + esc(f.severity || "") + "</span><code>" + esc(f.location || "") + "</code>" + res +
+          "<p>" + esc(f.finding || "") + "</p></div>";
+      }).join("") + "</div>").join("");
+  }
+
+  function drawHistory() {
+    const box = $("slice-history");
+    const s = selectedSlice();
+    box.hidden = !s;
+    if (!s) return;
+    const head = '<div class="hhead"><h3>Graph history of <code>' + esc(sliceLabel(s)) + "</code></h3>" + info("history", "the graph history") +
+      '<span class="spacer"></span><button type="button" class="chip" data-hclose>Close</button></div>';
+    if (hist.error) {
+      box.innerHTML = head + '<div class="banner"><b>The history could not be derived</b><span>' + esc(hist.error.error) + "</span>" +
+        (hist.error.hint ? '<span class="hint">' + esc(hist.error.hint) + "</span>" : "") + "</div>";
+      return;
+    }
+    const h = hist.data;
+    if (!h) {
+      box.innerHTML = head + none("Reading the history from tp.");
+      return;
+    }
+    const rounds = h.rounds || [];
+    if (!rounds.length) {
+      box.innerHTML = head + none("This slice has recorded no round yet, so it has no history.");
+      return;
+    }
+    const pair = shownPair();
+    const rows = rounds.map((r) => '<tr class="' + (pair && pair.includes(r.round) ? "on" : "") + '"><td>Round ' + esc(r.round) + "</td><td>" + findingsLine(r.findings_by_role) +
+      "</td><td>" + esc(r.diff_from ? "since round " + r.diff_from + ": " + diffLine(r.diff) : diffLine(null)) + "</td></tr>").join("") +
+      (h.current ? '<tr><td>Now</td><td class="muted">not reviewed</td><td>' + esc("since round " + h.current.from_round + ": " + diffLine(h.current.diff)) + "</td></tr>" : "");
+    const opts = (sel) => rounds.map((r) => '<option value="' + r.round + '"' + (r.round === sel ? " selected" : "") + ">round " + r.round + "</option>").join("");
+    let compare = none("Two rounds are needed to compare; this slice has recorded one.");
+    if (pair) {
+      const pd = hist.pairData;
+      const pick = '<div class="hpick"><label>Compare <select data-hr="0" aria-label="Earlier round">' + opts(pair[0]) + "</select></label>" +
+        '<label>with <select data-hr="1" aria-label="Later round">' + opts(pair[1]) + "</select></label></div>";
+      let body = none("Reading the two rounds from tp.");
+      if (isError(pd)) body = '<div class="banner"><b>The two rounds could not be compared</b><span>' + esc(pd.error) + "</span></div>";
+      else if (pd && pd.rounds && pd.rounds.length === 2) {
+        const [a, b] = pd.rounds;
+        body = '<div class="hcmp"><div><h4 class="hsub">Round ' + esc(a.round) + "'s findings</h4>" + findingsList(a.findings_by_role) + "</div>" +
+          '<div><h4 class="hsub">From round ' + esc(a.round) + " to round " + esc(b.round) + '<span class="muted sm"> ' + esc(diffLine(b.diff)) + "</span></h4>" + diffDetail(b.diff) + "</div></div>";
+      }
+      compare = pick + body;
+    }
+    box.innerHTML = head + '<div class="scroll"><table class="loops hrounds"><thead><tr><th>Round</th><th>Findings by role</th><th>What changed in the slice</th></tr></thead><tbody>' +
+      rows + "</tbody></table></div>" + compare;
+  }
+
+  // The history follows tp: a picked slice is fetched, and fetched again on
+  // every push while it is shown.
+  panel(["epic-export", "summary"], () => {
+    const pushed = [data("epic-export"), data("summary")];
+    if (!hist.dir || state.tab === null) {
+      drawHistory();
+      return;
+    }
+    const seen = hist.seen;
+    if (!seen || seen.dir !== hist.dir || seen.p[0] !== pushed[0] || seen.p[1] !== pushed[1]) {
+      hist.seen = { dir: hist.dir, p: pushed };
+      fetchHistory();
+    }
+    drawHistory();
+  });
+
+  function showSlice(dir) {
+    hist.dir = hist.dir === dir ? null : dir;
+    Object.assign(hist, { pair: null, data: null, pairData: null, error: null, seen: null });
+    render();
+    syncURL();
+    if (hist.dir) $("slice-history").scrollIntoView({ block: "nearest" });
+  }
+  $("plan-review").addEventListener("click", (ev) => {
+    const b = ev.target.closest("[data-slice]");
+    if (b) showSlice(b.dataset.slice);
+    else if (ev.target.closest("[data-hclose]")) showSlice(hist.dir);
+  });
+  $("plan-review").addEventListener("change", (ev) => {
+    const sel = ev.target.closest("[data-hr]");
+    if (!sel) return;
+    const pair = (shownPair() || [1, 2]).slice();
+    pair[Number(sel.dataset.hr)] = Number(sel.value);
+    if (pair[0] === pair[1]) return drawHistory();
+    hist.pair = pair.sort((x, y) => x - y);
+    hist.pairData = null;
+    syncURL();
+    fetchHistory();
   });
 
   // ---------- the plan map (§9) ----------
@@ -1286,13 +1500,14 @@
   // ---------- the address (§14) ----------
   // The page's place lives in the address's fragment, so back and forward and
   // a copied link land where the operator was. URL_KEYS names every key: the
-  // tab, the spec, its view, the picked task, the selected epic, and the
-  // active filters (the map's tracks, all edges, neighbours and search; the
-  // Specs tab's phase and filter; the Tasks view's Steps or Board). A change
-  // of place (tab, spec, view, task, epic) adds a history entry; a filter
-  // replaces the current one.
-  const URL_KEYS = ["tab", "spec", "view", "task", "epic", "tracks", "edges", "nb", "q", "phase", "sq", "tview"];
-  const PLACE_KEYS = ["tab", "spec", "view", "task", "epic"];
+  // tab, the spec, its view, the picked task, the selected epic, the slice
+  // whose graph history is shown and its two compared rounds, and the active
+  // filters (the map's tracks, all edges, neighbours and search; the Specs
+  // tab's phase and filter; the Tasks view's Steps or Board). A change of
+  // place (tab, spec, view, task, epic, slice, rounds) adds a history entry;
+  // a filter replaces the current one.
+  const URL_KEYS = ["tab", "spec", "view", "task", "epic", "tracks", "edges", "nb", "q", "phase", "sq", "tview", "slice", "hr"];
+  const PLACE_KEYS = ["tab", "spec", "view", "task", "epic", "slice", "hr"];
   const address = { landed: false, quiet: false, applying: false };
 
   function placeParams() {
@@ -1312,6 +1527,8 @@
     put("q", mapView.q);
     if (specsView.phase !== "all") put("phase", specsView.phase);
     put("sq", specsView.q);
+    put("slice", hist.dir);
+    if (hist.dir && hist.pair) put("hr", hist.pair.join("-"));
     return p;
   }
 
@@ -1354,6 +1571,12 @@
     const phase = p.get("phase");
     specsView.phase = phase === "op" || PHASES.some(([x]) => x === phase) ? phase : "all";
     specsView.q = p.get("sq") || "";
+    const slice = p.get("slice") || null;
+    const hr = /^(\d+)-(\d+)$/.exec(p.get("hr") || "");
+    const pair = hr && Number(hr[1]) >= 1 && Number(hr[1]) < Number(hr[2]) ? [Number(hr[1]), Number(hr[2])] : null;
+    if (slice !== hist.dir || String(pair) !== String(hist.pair)) {
+      Object.assign(hist, { dir: slice, pair, data: slice === hist.dir ? hist.data : null, pairData: null, error: null, seen: null });
+    }
     $("map-q").value = mapView.q;
     $("specs-q").value = specsView.q;
     $("f-edges").setAttribute("aria-pressed", String(mapView.edges));
