@@ -1805,8 +1805,10 @@ The read commands write nothing and list epics in graph order, every list `[]` w
   UTC ISO weeks (`2026-W45`), counting epics `done` now. `rollup` has a row per bound epic, summing
   `tp report`'s totals over its files; `estimate_total` sums every task's estimate whatever its
   status, the other figures closed tasks only. `--compact` leaves each milestone's `critical_path`
-  (v1.6.0: the top-level one carries the chain), `throughput` and `rollup` out.
-- **`tp epic export`**: JSON, `{version, critical_path, graph, milestones, epics, slices}`, every key
+  (v1.6.0: the top-level one carries the chain), `throughput` and `rollup` out. So
+  `--milestone <m> --compact` prints one `critical_path`, the top-level one, which is the whole
+  graph's chain and not `<m>`'s: read a milestone's own chain without `--compact`.
+- **`tp epic export`**: JSON, `{version, generated_at, critical_path, graph, milestones, epics, slices, lint}`, every key
   always present; `critical_path` is `tp epic status`'s top-level one (v1.6.0); `--md` prints the
   per-milestone tables instead, a group as `one of {A, B}: <why>`, and `--compact` is ignored.
   `version` is 2 (v1.7.0, since a `depends_on` entry may carry `any_of` in place of `id`; 1
