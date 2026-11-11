@@ -25,9 +25,13 @@ type EpicReviewStatus struct {
 	Done             bool
 	DoneBy           string
 	Stale            bool
-	InFlightRound    int
-	CapReached       bool
-	Undisposed       int
+	// StaleUnits names, in slice order, the units whose hash differs from
+	// the last recorded round's snapshot or has none there (spec/1.8.0.md
+	// §5): every unit before a round is recorded, none on a fresh slice.
+	StaleUnits    []string
+	InFlightRound int
+	CapReached    bool
+	Undisposed    int
 	// GrantedRound is the round an operator's grant lets the slice emit and
 	// record past its cap while that round is not yet recorded (0: none), and
 	// Grantable says the slice is at its cap and stale with no grant open, so
@@ -70,11 +74,11 @@ func EpicReviewLoopStatus(stateDir string, units []EpicReviewUnit, p EpicReviewP
 		}
 		rounds = append(rounds, rows)
 	}
-	stale, err := epicSliceStale(stateDir, st.Round, units)
+	stale, staleUnits, err := epicSliceStale(stateDir, st.Round, units)
 	if err != nil {
 		return EpicReviewStatus{}, err
 	}
-	st.Stale = stale
+	st.Stale, st.StaleUnits = stale, staleUnits
 	st.Open, st.OpenByRole = map[string]int{"critical": 0, "high": 0, "medium": 0, "low": 0}, map[string]int{}
 	if len(rounds) > 0 {
 		epicCountOpen(&st, rounds[len(rounds)-1])
@@ -178,20 +182,25 @@ func epicCapUndisposed(rows []map[string]any, convergeOn string) (undisposed, bl
 }
 
 // epicSliceStale reports whether any unit's hash differs from the snapshot of
-// the last recorded round, or has none recorded (D7). No recorded round
-// records no hash, so the slice is stale.
-func epicSliceStale(stateDir string, round int, units []EpicReviewUnit) (bool, error) {
+// the last recorded round, or has none recorded (D7), and names each such
+// unit. No recorded round records no hash, so the slice is stale and every
+// unit is named.
+func epicSliceStale(stateDir string, round int, units []EpicReviewUnit) (stale bool, changed []string, err error) {
+	changed = []string{}
 	if round < 1 {
-		return true, nil
+		for _, u := range units {
+			changed = append(changed, u.Key)
+		}
+		return true, changed, nil
 	}
 	snap, err := readEpicSnapshot(stateDir, round)
 	if err != nil {
-		return false, err
+		return false, nil, err
 	}
 	for _, u := range units {
 		if hash, ok := snap[u.Key]; !ok || hash != u.Hash {
-			return true, nil
+			changed = append(changed, u.Key)
 		}
 	}
-	return false, nil
+	return len(changed) > 0, changed, nil
 }
