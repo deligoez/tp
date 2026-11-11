@@ -1167,7 +1167,7 @@
   // ---------- the Spec tab (§13) ----------
   // One task file at a time, from tp export of that file: fetched when it is
   // opened, and again each time tp pushes a changed list.
-  const work = { path: null, data: null, error: null, view: null, task: null, tview: "steps", seq: 0 };
+  const work = { path: null, data: null, error: null, view: null, task: null, sec: null, tview: "steps", seq: 0 };
   const VIEWS = [["read", "Read the spec"], ["tasks", "Tasks"], ["history", "History"]];
   const STEPS = ["ground", "review", "decompose", "implement", "audit", "release"];
   const CHECK = '<svg class="ic" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.5l3 3 6-7"/></svg>';
@@ -1181,7 +1181,7 @@
 
   // openSpec takes one task file to the Spec tab.
   function openSpec(path) {
-    if (work.path !== path) Object.assign(work, { path, data: null, error: null, view: null, task: null });
+    if (work.path !== path) Object.assign(work, { path, data: null, error: null, view: null, task: null, sec: null });
     state.spec = path;
     setTab("work");
     drawSpecs();
@@ -1301,17 +1301,110 @@
     const crumb = '<div class="crumb"><button type="button" class="link" id="crumb-specs">Specs</button><span aria-hidden="true">/</span><code>' + esc(work.path) + "</code></div>";
     $("spechead").innerHTML = crumb + banner + (d ? specHead(d, f) : e ? "" : none("Reading " + work.path + " with tp export."));
     const counts = {
-      read: d ? plural((d.sections || []).length, "section", "sections") : "",
+      read: d ? plural((d.sections || []).filter((s) => s.anchor !== "§0").length, "section", "sections") : "",
       tasks: f && f.tasks && f.tasks.open + f.tasks.wip + f.tasks.done ? f.tasks.done + " of " + (f.tasks.open + f.tasks.wip + f.tasks.done) + " done" : "none yet",
       history: d ? plural(["ground", "review", "audit"].reduce((s, k) => s + ((d.loops[k] && d.loops[k].rounds) || []).length, 0), "round", "rounds") : "",
     };
     $("subnav").innerHTML = d ? VIEWS.map(([v, label]) => '<button type="button" role="tab" data-view="' + v + '" aria-controls="sv-' + v + '" aria-selected="' + (work.view === v) + '">' +
       esc(label) + '<span class="muted num">' + esc(counts[v]) + "</span></button>").join("") : "";
     VIEWS.forEach(([v]) => { $("sv-" + v).hidden = !d || work.view !== v; });
+    if (d && work.view === "read") drawRead(d);
     if (d && work.view === "tasks") drawTasks(d);
     if (d && work.view === "history") drawSpecHistory(d);
     syncURL();
   }
+
+  // ---------- the Spec tab's Read view (§13) ----------
+  // The spec's text from tp export's sections, each section and paragraph
+  // under the anchor tp gave it; a section's task count opens Tasks with the
+  // tasks written from it picked out.
+  INFO.reader = "The spec as the file reads now, in its numbered sections, from tp export. Every section and paragraph carries a stable anchor (§3 ¶2; hover a paragraph to see it) that findings and feedback can point at. A section's task count opens Tasks with the tasks written from it picked out.";
+
+  // inline draws a paragraph's code spans and bold over its escaped text.
+  const inline = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+
+  // tableHTML draws a paragraph of table rows, its first row the head and
+  // separator rows left out.
+  function tableHTML(lines) {
+    const rows = lines.filter((l) => !/^\|?\s*:?-{2,}/.test(l.trim())).map((l) => l.trim().replace(/^\||\|$/g, "").split("|").map((c) => c.trim()));
+    return '<div class="scroll"><table>' + rows.map((r, i) => "<tr>" + r.map((c) => (i ? "<td>" : "<th>") + inline(c) + (i ? "</td>" : "</th>")).join("") + "</tr>").join("") + "</table></div>";
+  }
+
+  // listHTML draws a paragraph of list items, a line with no marker
+  // continuing the item before it.
+  function listHTML(lines) {
+    const mark = /^\s*(?:[-*+]|\d+[.)])\s+/;
+    const items = [];
+    lines.forEach((l) => { if (mark.test(l) || !items.length) items.push(l.replace(mark, "")); else items[items.length - 1] += " " + l.trim(); });
+    const tag = /^\s*\d/.test(lines[0]) ? "ol" : "ul";
+    return "<" + tag + ">" + items.map((x) => "<li>" + inline(x) + "</li>").join("") + "</" + tag + ">";
+  }
+
+  // blockHTML draws one paragraph of the spec by what its first line is: a
+  // fence, a table, a list, a heading that opens no section, or prose.
+  function blockHTML(text) {
+    const lines = String(text).split("\n");
+    if (/^\s*(```|~~~)/.test(lines[0])) return "<pre>" + esc(lines.slice(1, /^\s*(```|~~~)/.test(lines[lines.length - 1]) && lines.length > 1 ? -1 : undefined).join("\n")) + "</pre>";
+    if (lines.every((l) => l.trim().startsWith("|"))) return tableHTML(lines);
+    if (/^\s*(?:[-*+]|\d+[.)])\s+/.test(lines[0])) return listHTML(lines);
+    if (/^#{1,6}\s/.test(lines[0])) return '<h3 class="sub">' + inline(lines[0].replace(/^#+\s*/, "")) + "</h3>" + (lines.length > 1 ? blockHTML(lines.slice(1).join("\n")) : "");
+    return "<p>" + inline(lines.join(" ")) + "</p>";
+  }
+
+  // secKey is a section's anchor without its sign: the address's sec value.
+  const secKey = (sec) => String(sec.anchor).replace(/^§/, "");
+  const secTitle = (sec) => sec.heading.replace(/^\d+(?:\.\d+)*\.?\s+/, "");
+
+  // tasksBySection counts, per section key, the tasks written from it.
+  function tasksBySection(d) {
+    const by = {};
+    (d.tasks || []).forEach((t) => new Set((t.source_sections || []).map((s) => sectionOf(d, s)).filter(Boolean).map(secKey)).forEach((k) => { (by[k] = by[k] || []).push(t.id); }));
+    return by;
+  }
+
+  function drawRead(d) {
+    const secs = d.sections || [];
+    const pre = secs.find((s) => secKey(s) === "0");
+    const numbered = secs.filter((s) => s !== pre);
+    const by = tasksBySection(d);
+    const reviews = ((d.loops.review && d.loops.review.rounds) || []).length;
+    const blk = (k, p) => '<div class="blk" id="p-' + esc(k) + "-" + esc(p.anchor.split("¶")[1] || "") + '"><span class="anc">' + esc(p.anchor) + "</span>" + blockHTML(p.text) + "</div>";
+    const section = (s) => {
+      const k = secKey(s);
+      const n = (by[k] || []).length;
+      return '<section class="sec" id="sec-' + esc(k) + '"><h2 class="sth"><span class="n">' + esc(s.anchor) + "</span><span>" + esc(secTitle(s)) + "</span>" +
+        (n ? '<button type="button" class="tc" data-sec="' + esc(k) + '" aria-label="' + esc("Show the " + plural(n, "task", "tasks") + " written from " + s.anchor) + '">' + plural(n, "task", "tasks") + "</button>" : "") + "</h2>" +
+        (s.paragraphs || []).map((p) => blk(k, p)).join("") + "</section>";
+    };
+    $("sv-read").innerHTML = '<div class="doc"><div class="rmeta"><span>' + (reviews ? "reviewed in " + plural(reviews, "round", "rounds") : "no review round yet") + "</span><span>" +
+      ((d.tasks || []).length ? "each section names the tasks written from it" : "tasks are written from these sections after review") + "</span>" + info("reader", "the spec reader") + "</div>" +
+      "<h1>" + esc((pre && pre.heading) || d.spec) + "</h1>" + (pre && pre.paragraphs ? pre.paragraphs.map((p) => blk("0", p)).join("") : "") +
+      (numbered.length ? '<nav class="toc" aria-label="Sections">' + numbered.map((s) => '<button type="button" data-goto="' + esc(secKey(s)) + '">' + esc(s.anchor + " " + secTitle(s)) + "</button>").join("") + "</nav>" : "") +
+      (numbered.map(section).join("") || none("The spec has no numbered section.")) + "</div>";
+  }
+
+  // gotoSection shows the Read view at one section.
+  function gotoSection(k) {
+    work.view = "read";
+    drawWork();
+    const el = $("sec-" + k);
+    if (!el) return;
+    el.scrollIntoView({ block: "start" });
+    el.classList.add("flash");
+    setTimeout(() => el.classList.remove("flash"), 1400);
+  }
+
+  $("sv-read").addEventListener("click", (ev) => {
+    const c = ev.target.closest("[data-sec]");
+    const g = ev.target.closest("[data-goto]");
+    if (c) {
+      Object.assign(work, { sec: c.dataset.sec, view: "tasks", task: null });
+      drawWork();
+      window.scrollTo(0, $("subnav").offsetTop);
+    } else if (g) {
+      gotoSection(g.dataset.goto);
+    }
+  });
 
   // ---------- the Spec tab's History view (§13) ----------
   // From tp export's loops: every recorded round on a time axis, the round
@@ -1437,7 +1530,8 @@
   }
 
   function taskCard(t, ix) {
-    return '<button type="button" class="tcard" data-s="' + esc(t.state) + '" data-t="' + esc(t.id) + '" aria-pressed="' + (t.id === work.task) + '">' +
+    const dim = work.secIds && !work.secIds.has(t.id);
+    return '<button type="button" class="tcard' + (dim ? " dim" : "") + '" data-s="' + esc(t.state) + '" data-t="' + esc(t.id) + '" aria-pressed="' + (t.id === work.task) + '">' +
       '<span class="tt">' + (TASK_MARK[t.state] || "") + "<span>" + esc(t.title) + '</span></span><code class="tid">' + esc(t.id) +
       '</code><span class="tm">' + esc(taskMeta(t, ix)) + "</span></button>";
   }
@@ -1561,7 +1655,7 @@
     const src = (t.source_sections || []).map((s) => {
       const sec = sectionOf(d, s);
       const p = sec && sec.paragraphs && sec.paragraphs[0];
-      return '<figure class="excerpt"><figcaption>' + esc(sec ? sec.anchor + " " + sec.heading.replace(/^\d+\.\s*/, "") : String(s).replace(/^#+\s*/, "")) + "</figcaption>" +
+      return '<figure class="excerpt"><figcaption>' + (sec ? '<button type="button" class="link" data-goto="' + esc(secKey(sec)) + '">' + esc(sec.anchor + " " + secTitle(sec)) + "</button>" : esc(String(s).replace(/^#+\s*/, ""))) + "</figcaption>" +
         (p ? "<blockquote>" + esc(p.text) + "</blockquote>" : "") + "</figure>";
     }).join("");
     return '<div class="td-head"><div><span class="stat" style="color:var(--' + (TASK_COLOR[t.state] || "muted") + ')">' + (TASK_MARK[t.state] || "") + esc(TASK_LABEL[t.state] || t.state) + "</span>" +
@@ -1580,7 +1674,12 @@
     const focused = document.activeElement && document.activeElement.closest && document.activeElement.closest("#sv-tasks [data-t]");
     const tasks = d.tasks || [];
     const tview = (v, label) => '<button type="button" data-tview="' + v + '" aria-pressed="' + (work.tview === v) + '">' + label + "</button>";
-    $("sv-tasks").innerHTML = '<section class="panel tpanel"><div class="toolbar"><h2>Tasks ' + info("tasks", "the tasks") + '</h2><span class="spacer"></span>' +
+    const sec = work.sec !== null ? (d.sections || []).find((s) => secKey(s) === work.sec) : null;
+    if (!sec) work.sec = null;
+    work.secIds = sec ? new Set(tasksBySection(d)[work.sec] || []) : null;
+    const chip = sec ? '<span class="secchip">' + esc(plural(work.secIds.size, "task", "tasks")) + ' from <button type="button" class="link" data-goto="' + esc(work.sec) + '">' + esc(sec.anchor + " " + secTitle(sec)) + "</button>" +
+      '<button type="button" class="key" data-secclear aria-label="Show every task">×</button></span>' : "";
+    $("sv-tasks").innerHTML = '<section class="panel tpanel"><div class="toolbar"><h2>Tasks ' + info("tasks", "the tasks") + "</h2>" + chip + '<span class="spacer"></span>' +
       '<div class="seg" role="group" aria-label="Task view">' + tview("steps", "Steps") + tview("board", "Board") + "</div></div>" +
       '<div class="stages' + (work.tview === "board" ? " board" : "") + '" id="stages">' + (tasks.length ? (work.tview === "board" ? boardHTML(d, ix) : stepsHTML(d, ix)) : none("No tasks yet.")) + "</div>" +
       '<div class="legend">' + ["ready", "wip", "waits_on_task", "waits_on_epic", "done"].map((s) => '<span><i class="lg" data-s="' + s + '"></i>' + esc(TASK_LABEL[s]) + "</span>").join("") + "</div></section>" +
@@ -1606,11 +1705,17 @@
     const v = ev.target.closest("[data-tview]");
     const t = ev.target.closest("[data-t]");
     const c = ev.target.closest("[data-copy]");
+    const g = ev.target.closest("[data-goto]");
     if (c) {
       copyKey(c);
       return;
     }
-    if (v) work.tview = v.dataset.tview;
+    if (g) {
+      gotoSection(g.dataset.goto);
+      return;
+    }
+    if (ev.target.closest("[data-secclear]")) work.sec = null;
+    else if (v) work.tview = v.dataset.tview;
     else if (ev.target.closest("[data-tclose]")) work.task = null;
     else if (t) work.task = t.classList.contains("tcard") && work.task === t.dataset.t ? null : t.dataset.t;
     else return;
@@ -1698,10 +1803,11 @@
   // tab, the spec, its view, the picked task, the selected epic, the slice
   // whose graph history is shown and its two compared rounds, and the active
   // filters (the map's tracks, all edges, neighbours and search; the Specs
-  // tab's phase and filter; the Tasks view's Steps or Board). A change of
+  // tab's phase and filter; the Tasks view's Steps or Board and the section
+  // whose tasks it picks out, sec, a section anchor without its sign). A change of
   // place (tab, spec, view, task, epic, slice, rounds) adds a history entry;
   // a filter replaces the current one.
-  const URL_KEYS = ["tab", "spec", "view", "task", "epic", "tracks", "edges", "nb", "q", "phase", "sq", "tview", "slice", "hr", "stage"];
+  const URL_KEYS = ["tab", "spec", "view", "task", "epic", "tracks", "edges", "nb", "q", "phase", "sq", "tview", "slice", "hr", "stage", "sec"];
   const PLACE_KEYS = ["tab", "spec", "view", "task", "epic", "slice", "hr"];
   const address = { landed: false, quiet: false, applying: false };
 
@@ -1713,6 +1819,7 @@
     if (work.path) {
       put("view", work.view);
       put("task", work.task);
+      put("sec", work.sec);
       if (work.tview !== "steps") put("tview", work.tview);
     }
     put("epic", mapView.selected);
@@ -1758,6 +1865,7 @@
     const view = p.get("view");
     work.view = VIEWS.some(([v]) => v === view) ? view : work.data ? defaultView(work.data) : null;
     work.task = p.get("task");
+    work.sec = /^\d+(?:\.\d+)*$/.test(p.get("sec") || "") ? p.get("sec") : null;
     work.tview = p.get("tview") === "board" ? "board" : "steps";
     mapView.selected = p.get("epic");
     mapView.tracks = new Set((p.get("tracks") || "").split(",").filter((x) => /^\d+$/.test(x)).map(Number));
