@@ -1,7 +1,7 @@
 # tp dashboard — one view of the plan, the specs and every loop
 
 > Decision candidate, rewritten against the v1.6.0 export as shipped and updated for v1.7.0. The
-> operator answered §6's questions 1, 6 and 12; §4 records a web research pass on graph rendering
+> operator answered §6's questions 1, 4, 6 and 12; §4 records a web research pass on graph rendering
 > and dashboard design, and the operator's reviews of prototypes 1 to 9, which add a Specs and a
 > Spec tab, the loop in tp's order and the lifecycle's history. v1.7.0 moved the export to
 > `version: 2`, which this candidate reads: a `depends_on` entry may be `{any_of, why}`, and
@@ -285,8 +285,8 @@ strip + "Now" lists + matrix + plan review, from today's export plus `revision`/
 Read, Tasks (steps and board, a detail and progress panel) and History views, from the spec read
 model (§4).
 **Later:** feedback on the spec, per-finding detail (severity, resolution), `tp run` units live (3),
-a TUI summary, a `--md`/static snapshot for sharing, and the history views §4's "History" lists
-beyond the operator's v1 choice (§6, question 4).
+a TUI summary, a `--md`/static snapshot for sharing, the lifecycle-over-time chart (after
+`bound_at`) and "since you last looked" (§6, question 4).
 
 ## Non-goals
 
@@ -297,7 +297,7 @@ model, which reads them in Go the way `tp review --status` does. No JS dependenc
 
 ## 6. Questions, answered
 
-The operator decided 1, 6 and 12; the rest take the recommended answer unless the decision note's
+The operator decided 1, 4, 6 and 12; the rest take the recommended answer unless the decision note's
 review changes them.
 
 1. Web page now, TUI later? **Web only in v1** (operator).
@@ -306,9 +306,11 @@ review changes them.
    of the spec's tasks with its dependencies** (operator; the needs are §4's "What the Spec tab needs").
 4. Loop history in v1? **Round counts and clean per round, yes (the loop dots); severity and
    resolution per finding stay later.** The operator then asked how a spec and an epic got where
-   they are (§4, "History"). **Proposed: the Spec tab's History view in v1, built only from what tp
-   holds today (rounds, their snapshots, task times, claim and done records); the lifecycle-over-time
-   chart after `bound_at` lands; the operator confirms.**
+   they are (§4, "History"). **v1 has the Spec tab's History view (rounds on a time axis, the round
+   table, and the change in the spec between two review rounds, a diff of their snapshots) and the
+   epic drawer's history (claim recorded or skipped, done record, release), all from what tp holds
+   today. The lifecycle-over-time chart waits for `bound_at`; "since you last looked" comes later**
+   (operator).
 5. `tp run` units live in v1? **Only `tp run --status` per bound file, read in-process; no new stream.**
 6. What does a repo with no graph show (tp's own)? Was **exit 3 with a hint** (operator). Reopened by
    the Specs and Spec tabs: such a repo has specs and tasks to show. **Proposed: open on the Specs
