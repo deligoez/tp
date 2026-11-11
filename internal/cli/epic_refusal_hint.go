@@ -22,6 +22,7 @@ var epicRuleRefusedHints = map[string]string{
 	engine.EpicRuleGateMemberDeferrable:       "list the epic in the gate's members or its deferrable, not both (tp epic set gates.<m>.members= or .deferrable=)",
 	engine.EpicRuleUnprovidedTagCheck:         "make the epic depend on the tag's provider, or drop the tag from the epic",
 	engine.EpicRuleOpensAfterCycle:            "drop or redirect one opens_after entry of the cycle; a milestone without an entry opens after the previous one of its track",
+	engine.EpicRuleForbiddenDependency:        "drop the edge, or the any-of member, the forbidden_edges rule forbids (its why is in the message), or change the rule with tp epic import",
 }
 
 // epicDanglingOriginHints answer the dangling-reference shapes that are not
