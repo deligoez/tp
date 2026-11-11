@@ -294,6 +294,327 @@
       }).join("") + "</tbody></table>";
   });
 
+  // ---------- the plan map (§9) ----------
+  // tp lays the map out: every epic's layout names its lane, the lane's kind,
+  // its milestone's column and its row inside the milestone. The page turns
+  // those into coordinates and places nothing by any rule of its own.
+  const MAP = { boxW: 178, rowH: 18, head: 34, padB: 12, colGap: 40, slotGap: 14, laneGap: 22, left: 92, top: 14 };
+  const LANE_LABEL = { main: "Main", parallel: "Parallel", triggered: "Triggered" };
+  const MARK_LABEL = { done: "done", ready: "can start", active: "claimed or under way", blocked: "blocked", held: "held by a condition", waiting: "milestone closed", moot: "moot" };
+  const MARKS = ["done", "ready", "active", "blocked", "held", "waiting", "moot"];
+  const mapView = { selected: null, edges: false, tracks: new Set(), geo: null, deps: {}, dependents: {}, byId: {} };
+  INFO.map = "Lanes from the opening order: the main lane is the longest chain of milestone openings, parallel lanes the other chains, the triggered lane the milestones that open on a trigger. A milestone's column is its opening depth. tp computes every place (the export's layout); the page only draws it. Colour and shape both carry an epic's state; a diamond is a condition. The orange line is the critical path. The bar on a box's right edge is its gate's members done. Click an epic for its chain; All edges draws every edge.";
+
+  // mapGeometry turns the export's layout into boxes and points. Milestones
+  // sharing a lane and a column (the triggered lane's) sit side by side in
+  // graph-file order.
+  function mapGeometry(g) {
+    const placed = (g.epics || []).filter((e) => e.layout);
+    const order = [].concat(...((g.graph && g.graph.milestones) || []));
+    const open = {};
+    (g.milestones || []).forEach((m) => { open[m.milestone] = m; });
+    const byMs = {};
+    placed.forEach((e) => {
+      const l = e.layout;
+      const m = byMs[e.milestone] || (byMs[e.milestone] = { id: e.milestone, lane: l.lane, kind: l.lane_kind, column: l.column, rows: 0, report: open[e.milestone] || null });
+      m.rows = Math.max(m.rows, l.row + 1);
+    });
+    const ms = Object.values(byMs).sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+    const taken = {};
+    const lanes = [];
+    let cols = 0;
+    ms.forEach((m) => {
+      const k = m.lane + "/" + m.column;
+      m.slot = taken[k] = taken[k] === undefined ? 0 : taken[k] + 1;
+      cols = Math.max(cols, m.column + 1);
+      const lane = lanes[m.lane] || (lanes[m.lane] = { kind: m.kind, rows: 0 });
+      lane.rows = Math.max(lane.rows, m.rows);
+    });
+    const colX = [];
+    for (let c = 0; c < cols; c++) colX[c] = MAP.left + c * (MAP.boxW + MAP.colGap);
+    let x = MAP.left + cols * (MAP.boxW + MAP.colGap);
+    let y = MAP.top;
+    lanes.forEach((lane) => {
+      lane.y = y;
+      lane.h = MAP.head + lane.rows * MAP.rowH + MAP.padB;
+      y += lane.h + MAP.laneGap;
+    });
+    // Only the triggered lane holds milestones of one column; they run on to
+    // the right inside their own lane, so they widen no other lane's column.
+    ms.forEach((m) => {
+      m.x = colX[m.column] + m.slot * (MAP.boxW + MAP.slotGap);
+      m.y = lanes[m.lane].y;
+      m.h = lanes[m.lane].h;
+      x = Math.max(x, m.x + MAP.boxW + MAP.colGap);
+    });
+    const pos = {};
+    placed.forEach((e) => {
+      const m = byMs[e.milestone];
+      pos[e.id] = { x: m.x + 16, y: m.y + MAP.head + e.layout.row * MAP.rowH + MAP.rowH / 2 };
+    });
+    return { ms, byMs, lanes, pos, placed, W: x, H: y };
+  }
+
+  // markState reads an epic's mark from what the export says of it.
+  function markState(e, ms) {
+    if (e.status === "done") return "done";
+    if (e.moot) return "moot";
+    if (e.held) return "held";
+    if (e.blocked) return "blocked";
+    if (ms && ms.report && !ms.report.open) return "waiting";
+    if (e.status !== "planned") return "active";
+    return "ready";
+  }
+
+  // mark draws one state: a circle for a work epic, a diamond for a
+  // condition, and a shape inside for every state, so colour is never alone.
+  function mark(cond, s, x, y, r) {
+    const c = "var(--" + s + ")";
+    const shape = (fill, stroke, dash) => (cond
+      ? '<path d="M' + x + " " + (y - r - 1) + "L" + (x + r + 1) + " " + y + "L" + x + " " + (y + r + 1) + "L" + (x - r - 1) + " " + y + 'Z"'
+      : '<circle cx="' + x + '" cy="' + y + '" r="' + r + '"') +
+      ' fill="' + fill + '" stroke="' + stroke + '" stroke-width="1.5"' + (dash ? ' stroke-dasharray="' + dash + '"' : "") + "/>";
+    switch (s) {
+      case "done": return shape(c, c);
+      case "ready": return '<circle cx="' + x + '" cy="' + y + '" r="' + (r + 2.8) + '" fill="none" stroke="' + c + '" stroke-width="1" opacity=".55"/>' + shape(c, c);
+      case "active": return shape("var(--surface)", c) + '<circle cx="' + x + '" cy="' + y + '" r="' + (r - 2.3) + '" fill="' + c + '"/>';
+      case "blocked": return shape(c, c) + '<path d="M' + (x - r + 1.6) + " " + (y + r - 1.6) + "L" + (x + r - 1.6) + " " + (y - r + 1.6) + '" stroke="var(--surface)" stroke-width="1.6"/>';
+      case "held": return shape(c, c) + '<rect x="' + (x - 2.3) + '" y="' + (y - 2.5) + '" width="1.5" height="5" fill="var(--surface)"/><rect x="' + (x + 0.8) + '" y="' + (y - 2.5) + '" width="1.5" height="5" fill="var(--surface)"/>';
+      case "moot": return shape("none", "var(--moot)", "1.2 1.6");
+      default: return shape("var(--surface)", "var(--waiting)", "2 1.5");
+    }
+  }
+
+  // The graph's edges, both ways, as stored: an any-of group names each member.
+  function mapEdges(g) {
+    const deps = {};
+    const dependents = {};
+    ((g.graph && g.graph.epics) || []).forEach((e) => {
+      deps[e.id] = [];
+      (e.depends_on || []).forEach((d) => {
+        (d.any_of || [d.id]).forEach((x) => {
+          deps[e.id].push({ id: x, why: d.why, group: !!d.any_of });
+          (dependents[x] = dependents[x] || []).push(e.id);
+        });
+      });
+    });
+    mapView.deps = deps;
+    mapView.dependents = dependents;
+  }
+
+  // chainOf is every epic the selected one depends on, and every epic that
+  // depends on it, transitively.
+  function chainOf(id) {
+    const seen = new Set([id]);
+    const walk = (x, next) => (next[x] || []).forEach((y) => {
+      const yid = y.id || y;
+      if (!seen.has(yid)) { seen.add(yid); walk(yid, next); }
+    });
+    walk(id, mapView.deps);
+    walk(id, mapView.dependents);
+    return seen;
+  }
+
+  function edgePath(p, q) {
+    const dx = Math.max(18, (q.x - p.x) / 2);
+    return "M" + p.x + " " + p.y + "C" + (p.x + dx) + " " + p.y + " " + (q.x - dx) + " " + q.y + " " + q.x + " " + q.y;
+  }
+
+  // The track chips filter the map; each track is one list of the graph's
+  // milestones, named by its first and last.
+  function drawTrackChips(g) {
+    const tracks = (g.graph && g.graph.milestones) || [];
+    const key = JSON.stringify(tracks);
+    const box = $("trackchips");
+    if (box.dataset.key === key) return;
+    box.dataset.key = key;
+    mapView.tracks = new Set();
+    box.innerHTML = tracks.length > 1 ? tracks.map((t, i) => '<button class="chip" type="button" data-track="' + i + '" aria-pressed="false" title="' +
+      esc(t.join(", ")) + '">' + esc(t.length > 1 ? t[0] + "–" + t[t.length - 1] : t[0] || "track " + (i + 1)) + "</button>").join("") : "";
+  }
+
+  function drawMap() {
+    const g = data("epic-export");
+    const card = $("mapcard");
+    card.hidden = !state.graph || !g;
+    if (card.hidden) return;
+    drawTrackChips(g);
+    mapEdges(g);
+    const geo = mapView.geo = mapGeometry(g);
+    mapView.byId = {};
+    geo.placed.forEach((e) => { mapView.byId[e.id] = e; });
+    if (mapView.selected && !geo.pos[mapView.selected]) mapView.selected = null;
+    const sel = mapView.selected;
+    const chain = sel ? chainOf(sel) : null;
+    const trackOf = {};
+    ((g.graph && g.graph.milestones) || []).forEach((t, i) => t.forEach((m) => { trackOf[m] = i; }));
+    const shown = (e) => (!mapView.tracks.size || mapView.tracks.has(trackOf[e.milestone])) && (!chain || chain.has(e.id));
+    const out = [];
+    geo.lanes.forEach((lane) => out.push('<text class="lanelab" x="12" y="' + (lane.y + 22) + '">' + esc(LANE_LABEL[lane.kind] || lane.kind) + "</text>"));
+    geo.ms.forEach((m) => {
+      const r = m.report || {};
+      const st = r.state || {};
+      const share = st.members ? st.members_done / st.members : 0;
+      const ih = m.h - MAP.head - MAP.padB;
+      const label = r.open === false ? "closed" : Math.round((r.share_done || 0) * 100) + "%";
+      out.push('<g><rect class="msbox' + (r.open === false ? " closed" : "") + '" x="' + m.x + '" y="' + m.y + '" width="' + MAP.boxW + '" height="' + m.h + '" rx="7"/>' +
+        '<text class="msname" x="' + (m.x + 12) + '" y="' + (m.y + 21) + '">' + esc(m.id) + "</text>" +
+        '<text class="msshare" x="' + (m.x + MAP.boxW - 15) + '" y="' + (m.y + 21) + '" text-anchor="end">' + esc(label) + "</text>" +
+        '<rect x="' + (m.x + MAP.boxW - 7.5) + '" y="' + (m.y + MAP.head) + '" width="4" height="' + ih + '" rx="2" fill="var(--line)"/>' +
+        '<rect x="' + (m.x + MAP.boxW - 7.5) + '" y="' + (m.y + MAP.head + ih * (1 - share)) + '" width="4" height="' + ih * share + '" rx="2" fill="var(--' +
+        (st.members && st.members_done === st.members ? "done" : r.open ? "active" : "waiting") + ')"><title>' +
+        esc(m.id + " gate: " + (st.members_done || 0) + " of " + (st.members || 0) + " members done") + "</title></rect></g>");
+    });
+    const edges = [];
+    if (mapView.edges || sel) {
+      Object.keys(mapView.deps).forEach((id) => mapView.deps[id].forEach((d) => {
+        const p = geo.pos[d.id];
+        const q = geo.pos[id];
+        if (!p || !q || (chain && !(chain.has(id) && chain.has(d.id)))) return;
+        edges.push('<path class="edge' + (sel ? " sel" : "") + '" d="' + edgePath(p, q) + '"' + (d.group ? ' stroke-dasharray="3 2"' : "") + "/>");
+      }));
+    }
+    out.push("<g>" + edges.join("") + "</g>");
+    const crit = ((g.critical_path && g.critical_path.by_count) || []).filter((id) => geo.pos[id]);
+    if (crit.length > 1) out.push('<polyline class="crit" points="' + crit.map((id) => geo.pos[id].x + "," + geo.pos[id].y).join(" ") + '"/>');
+    geo.placed.forEach((e) => {
+      const p = geo.pos[e.id];
+      const s = markState(e, geo.byMs[e.milestone]);
+      out.push('<g class="node' + (shown(e) ? "" : " dim") + '" data-id="' + esc(e.id) + '">' +
+        (e.id === sel ? '<circle cx="' + p.x + '" cy="' + p.y + '" r="10" fill="none" stroke="var(--accent)" stroke-width="2.2"/>' : "") +
+        mark(e.condition, s, p.x, p.y, 4.8) + '<text class="eid" x="' + (p.x + 12) + '" y="' + (p.y + 4) + '">' + esc(clip(e.id, 19)) + "</text>" +
+        '<rect x="' + (p.x - 9) + '" y="' + (p.y - MAP.rowH / 2) + '" width="' + (MAP.boxW - 24) + '" height="' + MAP.rowH + '" fill="transparent"/></g>');
+    });
+    $("mapsvg").innerHTML = out.join("");
+    mapPort.bounds(geo.W, geo.H);
+  }
+  const clip = (s, n) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
+  panel(["epic-export"], drawMap);
+
+  // mapPort pans and zooms the map: drag to pan, Ctrl or ⌘ with the wheel (a
+  // pinch) to zoom; a plain wheel scrolls the page.
+  const mapPort = (function () {
+    const el = $("map");
+    const svg = $("mapsvg");
+    let v = null;
+    let size = { W: 1, H: 1 };
+    let drag = null;
+    let moved = false;
+    const apply = () => { if (v) svg.setAttribute("viewBox", v.x + " " + v.y + " " + v.w + " " + v.h); };
+    function fit() {
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height) return;
+      const ar = r.width / r.height;
+      const W = size.W + 10;
+      const H = size.H + 10;
+      v = W / H > ar ? { x: -5, y: -5, w: W, h: W / ar } : { x: -5, y: -5, w: H * ar, h: H };
+      apply();
+    }
+    function zoomAt(f, px, py) {
+      if (!v) return;
+      const nw = Math.min(Math.max(size.W, size.H) * 3, Math.max(120, v.w * f));
+      f = nw / v.w;
+      v = { x: px - (px - v.x) * f, y: py - (py - v.y) * f, w: v.w * f, h: v.h * f };
+      apply();
+    }
+    const toSvg = (cx, cy) => {
+      const r = el.getBoundingClientRect();
+      return { x: v.x + (cx - r.left) / r.width * v.w, y: v.y + (cy - r.top) / r.height * v.h };
+    };
+    el.addEventListener("wheel", (ev) => {
+      if (!(ev.ctrlKey || ev.metaKey) || !v) return;
+      ev.preventDefault();
+      const p = toSvg(ev.clientX, ev.clientY);
+      zoomAt(Math.exp(Math.max(-80, Math.min(80, ev.deltaY)) * 0.01), p.x, p.y);
+    }, { passive: false });
+    el.addEventListener("pointerdown", (ev) => {
+      if (ev.button !== 0 || !v || ev.pointerType === "touch") return;
+      drag = { x: ev.clientX, y: ev.clientY, v: { ...v } };
+      moved = false;
+    });
+    el.addEventListener("pointermove", (ev) => {
+      if (drag && (moved || Math.abs(ev.clientX - drag.x) + Math.abs(ev.clientY - drag.y) > 3)) {
+        if (!moved) { moved = true; el.classList.add("drag"); el.setPointerCapture(ev.pointerId); }
+        const r = el.getBoundingClientRect();
+        v = { ...drag.v, x: drag.v.x - (ev.clientX - drag.x) / r.width * drag.v.w, y: drag.v.y - (ev.clientY - drag.y) / r.height * drag.v.h };
+        apply();
+        $("tip").hidden = true;
+        return;
+      }
+      mapHover(ev);
+    });
+    el.addEventListener("pointerup", (ev) => {
+      el.classList.remove("drag");
+      const wasDrag = drag && moved;
+      drag = null;
+      if (!wasDrag) mapClick(ev);
+    });
+    el.addEventListener("pointerleave", () => { $("tip").hidden = true; });
+    $("mapcard").querySelectorAll("[data-z]").forEach((b) => b.addEventListener("click", () => {
+      const z = b.dataset.z;
+      if (z === "fit" || !v) fit();
+      else zoomAt(z === "in" ? 1 / 1.5 : 1.5, v.x + v.w / 2, v.y + v.h / 2);
+    }));
+    new ResizeObserver(() => {
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height) return;
+      if (!v) fit();
+      else { v.h = v.w * r.height / r.width; apply(); }
+    }).observe(el);
+    return {
+      // bounds takes the drawing's size; the first drawing is fitted, later
+      // ones keep the reader's view.
+      bounds(W, H) {
+        const first = size.W === 1 && size.H === 1;
+        size = { W, H };
+        if (first || !v) fit();
+        else apply();
+      },
+    };
+  })();
+
+  const nodeAt = (ev) => {
+    const el = document.elementFromPoint(ev.clientX, ev.clientY);
+    return el && el.closest ? el.closest("#mapsvg .node") : null;
+  };
+  function mapHover(ev) {
+    const n = nodeAt(ev);
+    const tip = $("tip");
+    const e = n && mapView.byId[n.dataset.id];
+    if (!e) { tip.hidden = true; return; }
+    const s = markState(e, mapView.geo.byMs[e.milestone]);
+    tip.innerHTML = '<span class="tid">' + esc(e.id) + ", milestone " + esc(e.milestone) + (e.condition ? ", condition" : "") + "</span><br>" + esc(e.title) +
+      "<br>" + esc(MARK_LABEL[s]) + ", " + esc(e.status.replace("_", " "));
+    tip.hidden = false;
+    tip.style.left = Math.min(ev.clientX + 14, window.innerWidth - 310) + "px";
+    tip.style.top = (ev.clientY + 14) + "px";
+  }
+  function mapClick(ev) {
+    const n = nodeAt(ev);
+    const id = n ? n.dataset.id : null;
+    mapView.selected = id && id !== mapView.selected ? id : null;
+    drawMap();
+  }
+  $("trackchips").addEventListener("click", (ev) => {
+    const b = ev.target.closest("[data-track]");
+    if (!b) return;
+    const i = Number(b.dataset.track);
+    if (mapView.tracks.has(i)) mapView.tracks.delete(i);
+    else mapView.tracks.add(i);
+    b.setAttribute("aria-pressed", String(mapView.tracks.has(i)));
+    drawMap();
+  });
+  $("f-edges").addEventListener("click", () => {
+    mapView.edges = !mapView.edges;
+    $("f-edges").setAttribute("aria-pressed", String(mapView.edges));
+    drawMap();
+  });
+  $("maplegend").innerHTML = MARKS.map((s) => '<span><svg viewBox="0 0 15 15" aria-hidden="true">' + mark(false, s, 7.5, 7.5, 4.6) + "</svg>" + esc(MARK_LABEL[s]) + "</span>").join("") +
+    '<span><svg viewBox="0 0 15 15" aria-hidden="true">' + mark(true, "ready", 7.5, 7.5, 4.4) + "</svg>condition</span>" +
+    '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path d="M1 7.5H14" stroke="var(--crit)" stroke-width="2.6"/></svg>critical path</span>' +
+    '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path d="M1 7.5H14" stroke="var(--accent)" stroke-dasharray="3 2"/></svg>one of a group</span>' +
+    '<span class="help">Click an epic for its chain, again to clear. Drag to pan; Ctrl or ⌘ with the wheel, or a pinch, zooms.</span>';
+
   TABS.forEach((t) => { $("tab-" + t).addEventListener("click", () => setTab(t)); });
 
   // The stream: a page that reconnects gets the current state again (§2).

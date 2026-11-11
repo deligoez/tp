@@ -156,3 +156,37 @@ p { margin: 0; }
 .curve { width: 96px; height: 24px; display: block; }
 .curve polyline { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-linejoin: round; }
 .curve circle { fill: var(--accent); }
+
+/* the plan map (§9): tp lays it out, the page draws it */
+.spacer { flex: 1; }
+.chips { display: contents; }
+.chip { font: 500 var(--text-sm)/1 var(--font-display); min-height: 32px; padding: 0 var(--space-sm); border-radius: var(--radius-input); background: var(--surface); border: 1px solid var(--color-rule-2); color: var(--ink-2); cursor: pointer; }
+.chip:hover { border-color: var(--muted); }
+.chip:active { background: var(--color-paper-3); }
+.chip[aria-pressed="true"] { background: var(--color-accent-wash); border-color: var(--accent); color: var(--ink); }
+.key { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; min-height: 32px; padding: 0 10px; border: 1px solid var(--line); border-radius: var(--radius-input); background: var(--surface); color: var(--ink); font: 500 var(--text-sm)/1 var(--font-display); cursor: pointer; white-space: nowrap; }
+.key:hover { border-color: var(--faint); }
+.key:active { background: var(--color-paper-3); }
+.mapcard { padding: 0; overflow: hidden; }
+.toolbar { display: flex; flex-wrap: wrap; gap: var(--space-xs); align-items: center; padding: var(--space-sm) var(--space-md); border-bottom: 1px solid var(--line); }
+.toolbar h2 { display: flex; align-items: center; gap: var(--space-xs); margin-right: var(--space-xs); font: 600 var(--text-md)/1.3 var(--font-display); }
+.map { position: relative; height: min(70vh, 660px); background-color: var(--sunk); background-image: radial-gradient(circle at 1px 1px, var(--color-rule-2) 1px, transparent 1.5px); background-size: 16px 16px; cursor: grab; touch-action: pan-y; overflow: hidden; }
+.map.drag { cursor: grabbing; }
+.map svg { display: block; width: 100%; height: 100%; user-select: none; }
+.map .lanelab { font: 600 13px var(--font-display); fill: var(--muted); }
+.map .msbox { fill: var(--surface); stroke: var(--line); }
+.map .msbox.closed { opacity: .72; }
+.map .msname { font: 500 13px var(--mono); fill: var(--ink); }
+.map .msshare { font-size: 11px; fill: var(--faint); }
+.map .eid { font: 400 11px var(--mono); fill: var(--ink-2); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
+.map .node { cursor: pointer; }
+.map .node.dim { opacity: .15; }
+.map .edge { fill: none; stroke: var(--faint); stroke-width: .8; opacity: .45; }
+.map .edge.sel { stroke: var(--accent); stroke-width: 1.3; opacity: .85; }
+.map .crit { fill: none; stroke: var(--crit); stroke-width: 2.6; stroke-linejoin: round; stroke-linecap: round; opacity: .85; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px var(--space-md); padding: 10px var(--space-md); border-top: 1px solid var(--line); font-size: var(--text-sm); color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend svg { width: 16px; height: 16px; }
+.legend .help { flex-basis: 100%; }
+.tip { position: fixed; z-index: var(--z-tooltip); pointer-events: none; background: var(--color-ink); color: var(--color-paper); font-size: var(--text-sm); padding: var(--space-xs) 10px; border-radius: var(--radius-input); max-width: 300px; line-height: 1.4; }
+.tip .tid { font-family: var(--mono); font-size: var(--text-xs); opacity: .75; }

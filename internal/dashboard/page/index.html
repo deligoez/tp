@@ -36,7 +36,21 @@
       <div class="card"><h2>Waiting epics <button class="info" type="button" data-info="waiting" aria-label="About waiting epics" aria-expanded="false">i</button></h2><div class="list" id="now-waiting"></div></div>
       <div class="card"><h2>Most waited-on epics <button class="info" type="button" data-info="most" aria-label="About the most waited-on epics" aria-expanded="false">i</button></h2><div class="list" id="now-most"></div></div>
     </section>
-    <div id="epics-body" class="view" data-src="epic-export"></div>
+    <div id="epics-body" class="view" data-src="epic-export">
+      <section class="card mapcard" id="mapcard" aria-label="Plan map" hidden>
+        <div class="toolbar">
+          <h2>Plan map <button class="info" type="button" data-info="map" aria-label="About the plan map" aria-expanded="false">i</button></h2>
+          <span id="trackchips" class="chips" role="group" aria-label="Show only these tracks"></span>
+          <button class="chip" type="button" id="f-edges" aria-pressed="false">All edges</button>
+          <span class="spacer"></span>
+          <button type="button" class="key" data-z="out" aria-label="Zoom out">−</button>
+          <button type="button" class="key" data-z="in" aria-label="Zoom in">+</button>
+          <button type="button" class="key" data-z="fit">Fit</button>
+        </div>
+        <div class="map" id="map"><svg id="mapsvg" role="img" aria-label="Plan map: lanes of milestones as boxes, epics as marks"></svg></div>
+        <div class="legend" id="maplegend"></div>
+      </section>
+    </div>
     <section class="card" id="plan-review" aria-label="Plan review" data-src="epic-export summary" hidden>
       <h2>Plan review <button class="info" type="button" data-info="slices" aria-label="About plan review" aria-expanded="false">i</button></h2>
       <div class="scroll" id="slices"></div>
@@ -57,6 +71,7 @@
   </section>
 </div>
 <div id="pop" class="pop" role="dialog" hidden></div>
+<div id="tip" class="tip" role="tooltip" hidden></div>
 <script src="app.js"></script>
 </body>
 </html>
