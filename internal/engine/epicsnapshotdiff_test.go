@@ -63,3 +63,27 @@ func TestEpicSnapshotDiff_ListsUnitEdgeWhyAndFieldChanges(t *testing.T) {
 	assert.Equal(t, []EpicFieldChange{{Unit: "epic:b", Field: "title", Before: "B", After: "B renamed"}}, diff.FieldsChanged)
 }
 
+// TestEpicSnapshotDiff_AWhyEditIsAWhyChangeWithBothTexts is §18 row 9 alone:
+// a why edited between two recorded rounds, nothing else, reads as one why
+// change carrying both texts and no other change.
+func TestEpicSnapshotDiff_AWhyEditIsAWhyChangeWithBothTexts(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	a := model.Epic{ID: "a", Title: "A", Milestone: "M"}
+	before := model.Epic{ID: "b", Title: "B", Milestone: "M", DependsOn: []model.EpicDep{{ID: "a", Why: "old why"}}}
+	after := before
+	after.DependsOn = []model.EpicDep{{ID: "a", Why: "new why"}}
+	require.NoError(t, WriteEpicReviewSnapshot(dir, 1, snapshotUnits(a, before)))
+	require.NoError(t, WriteEpicReviewSnapshot(dir, 2, snapshotUnits(a, after)))
+
+	diff, err := EpicReviewRoundsDiff(dir, 1, 2)
+	require.NoError(t, err)
+
+	assert.Equal(t, []EpicWhyChange{{Unit: "epic:b", To: "a", Before: "old why", After: "new why"}}, diff.WhysChanged)
+	assert.Empty(t, diff.EdgesAdded)
+	assert.Empty(t, diff.EdgesRemoved)
+	assert.Empty(t, diff.FieldsChanged)
+	assert.Empty(t, diff.UnitsAdded)
+	assert.Empty(t, diff.UnitsRemoved)
+}
+
