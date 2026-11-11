@@ -217,3 +217,21 @@ func TestDashboard_NeedsAGraphOrATaskFile(t *testing.T) {
 	require.Equal(t, http.StatusOK, status)
 }
 
+// TestDashboard_WritesNothingToTheRepository is §1's third acceptance: after
+// the server has run and answered, git status shows no change it made.
+func TestDashboard_WritesNothingToTheRepository(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChainWithGate)
+	require.NoError(t, os.Remove(filepath.Join(dir, ".git")))
+	writeTaskFileRaw(t, dir, `[]`)
+	initGitRepo(t, dir)
+	require.Empty(t, gitRun(t, dir, "status", "--porcelain", "--ignored"))
+
+	srv := startDashboard(t, dir, freePort(t))
+	status, _ := getPage(t, srv.url)
+	require.Equal(t, http.StatusOK, status)
+	require.NoError(t, srv.cmd.Process.Signal(os.Interrupt))
+	require.NoError(t, srv.cmd.Wait(), "an interrupted server exits 0; stderr: %s", srv.stderr.String())
+
+	assert.Empty(t, gitRun(t, dir, "status", "--porcelain", "--ignored"))
+}
