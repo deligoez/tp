@@ -18,6 +18,7 @@ type epicStatusResult struct {
 	Done             bool                         `json:"done"`
 	DoneBy           *string                      `json:"done_by"`
 	Stale            bool                         `json:"stale"`
+	StaleUnits       []string                     `json:"stale_units"`
 	InFlightRound    *int                         `json:"in_flight_round"`
 	MechanicalChecks []engine.EpicMechanicalCheck `json:"mechanical_checks"`
 	ConvergeOn       string                       `json:"converge_on"`
@@ -108,6 +109,7 @@ func runEpicReviewStatus(key engine.EpicSliceKey, check bool) {
 		Converged:        st.Converged,
 		Done:             st.Done,
 		Stale:            st.Stale,
+		StaleUnits:       st.StaleUnits,
 		MechanicalChecks: run.checks,
 		ConvergeOn:       epicReviewPolicy(run.tpDir).ConvergeOn,
 		Open:             st.Open,
