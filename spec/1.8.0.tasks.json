@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T20:37:32.725632Z",
+  "updated_at": "2026-11-11T20:41:44.869044Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -1442,7 +1442,7 @@
       "id": "page-url-state",
       "title": "Keep the page's place in the URL",
       "description": "Tab, spec, view, task, selected epic and active filters live in the URL.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "page",
         "dashboard"
@@ -1455,11 +1455,20 @@
       "source_sections": [
         "## 14. The address"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T20:41:44.854656Z",
+      "duration_source": "implicit",
+      "closed_at": "2026-11-11T20:41:44.854725Z",
+      "closed_reason": "- Tab, spec, view, task, selected epic and the active filters (map tracks, all edges, neighbours, map search; Specs phase and filter; Steps or Board) are written to and read from the address fragment by syncURL/readURL in internal/dashboard/page/app.js (const URL_KEYS: tab, spec, view, task, epic, tracks, edges, nb, q, phase, sq, tview); a change of place (tab, spec, view, task, epic) pushes a history entry, a filter or the default view replaces it, and popstate re-reads the address. agent-browser: four backs walked epic -\u003e epics tab -\u003e Read view -\u003e task a3 -\u003e task a2, and forward returned to a3\n- Opening http://127.0.0.1:\u003cport\u003e/#tab=work\u0026spec=spec%2Falpha.tasks.json\u0026view=tasks\u0026task=a2\u0026tview=board fresh in agent-browser on a synthetic fixture lands on the Spec tab's Board with task a2's detail (state, progress, command, acceptance, dependencies, section)\n- TestPage_ReadsEveryAddressKey (internal/dashboard/dashboard_test.go) asserts URL_KEYS covers each key and the script reads each with p.get, plus a popstate listener; seen red first; mutant replacing p.get(\"task\") turns it red. Gate passed. Readings chosen: the fragment rather than the query string (the server serves the page at / only; a fragment never reaches it); the key names above; the map's track filter is kept across redraws instead of being reset when the chips first draw",
+      "gate_passed_at": "2026-11-11T20:41:44.854725Z",
+      "commit_sha": "398bc424",
+      "commit_shas": [
+        "398bc424",
+        "307821f3"
+      ],
+      "commit_files": [
+        "internal/dashboard/dashboard_test.go",
+        "internal/dashboard/page/app.js"
+      ]
     },
     {
       "id": "page-epics-kpi",
