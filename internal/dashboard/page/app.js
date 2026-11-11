@@ -404,8 +404,10 @@
     $("now-ready").innerHTML = v.plan.ready.map((id) => row(id, titleOf(v, id), dependents(v, id))).join("") || none("No epic can start now.");
     $("now-operator").innerHTML = operatorRows(v).join("") || none("Nothing waits on the operator.");
     $("now-waiting").innerHTML = v.plan.waiting.map((id) => {
-      const on = (v.epics[id] && v.epics[id].blocked_by) || [];
-      return row(id, titleOf(v, id), v.epics[id] ? v.epics[id].milestone : "", "waits on " + on.map((x) => "<code>" + esc(x) + "</code>").join(", "));
+      const e = v.epics[id] || {};
+      const code = (x) => "<code>" + esc(x) + "</code>";
+      const on = [(e.blocked_by || []).map(code).join(", ")].filter(Boolean).concat((e.blocked_by_any_of || []).map((g) => "one of " + g.map(code).join(", ")));
+      return row(id, titleOf(v, id), e.milestone || "", "waits on " + on.join("; "));
     }).join("") || none("No epic waits on another.");
     $("now-most").innerHTML = v.plan.most_waited_on.slice(0, 10).map((id) => row(id, titleOf(v, id), dependents(v, id))).join("") || none("No epic is waited on.");
   });
