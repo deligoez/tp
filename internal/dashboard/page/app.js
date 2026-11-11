@@ -102,7 +102,9 @@
   panel(["epic-export"], () => { $("epics-none").hidden = state.graph || state.tab === null; });
 
   // The lifecycle band (§6): epic stages when the phases count epics, and the
-  // spec phases, which count task files when the repository has no graph.
+  // spec phases, which count task files when the repository has no graph. A
+  // stage filters the map to the epics tp epic export reports in it; a phase
+  // opens Specs at that phase.
   panel(["summary"], () => {
     const sum = data("summary");
     if (!sum || !sum.band) {
@@ -110,12 +112,51 @@
       return;
     }
     const band = sum.band;
-    const cell = (label, n) => '<div class="pcell"><b class="num">' + esc(n) + '</b><span class="pl">' + esc(label) + "</span></div>";
-    const lane = (title, axis, counts) => '<div class="plane"><span class="plab">' + esc(title) + '</span><div class="pcells">' +
-      axis.map(([k, label]) => cell(label, counts[k] || 0)).join("") + "</div></div>";
+    const cell = (attr, k, label, n, pressed) => '<button type="button" class="pcell" ' + attr + '="' + esc(k) + '"' +
+      (pressed === undefined ? "" : ' aria-pressed="' + pressed + '"') + '><b class="num">' + esc(n) + '</b><span class="pl">' + esc(label) + "</span></button>";
+    const lane = (title, cells) => '<div class="plane"><span class="plab">' + esc(title) + '</span><div class="pcells">' + cells + "</div></div>";
     const byEpics = band.phases_of === "epics";
-    $("band").innerHTML = (byEpics ? lane("Epics", STAGES, band.stages || {}) : "") +
-      lane(byEpics ? "Epics by spec phase" : "Task files by phase", PHASES, band.phases || {});
+    const stages = band.stages || {};
+    const phases = band.phases || {};
+    $("band").innerHTML = (byEpics ? lane("Epics", STAGES.map(([k, label]) => cell("data-stage", k, label, stages[k] || 0, mapView.stage === k)).join("")) : "") +
+      lane(byEpics ? "Epics by spec phase" : "Task files by phase", PHASES.map(([k, label]) => cell("data-phase", k, label, phases[k] || 0)).join(""));
+  });
+  $("band").addEventListener("click", (ev) => {
+    const st = ev.target.closest("[data-stage]");
+    const ph = ev.target.closest("[data-phase]");
+    if (st) {
+      mapView.stage = mapView.stage === st.dataset.stage ? null : st.dataset.stage;
+      render();
+      syncURL();
+      if (mapView.stage) $("mapcard").scrollIntoView({ block: "nearest" });
+    } else if (ph) {
+      specsView.phase = ph.dataset.phase;
+      setTab("specs");
+      drawSpecs();
+    }
+  });
+
+  // Milestone state (§6): one entry per milestone in track order, read from
+  // the export's milestones: open or closed with what it waits on, its gate's
+  // members done of members (deferrable members in neither), and its
+  // threshold's state.
+  const THRESHOLD_LABEL = {"written": "threshold written", "absent": "no threshold", "placeholder": "placeholder threshold", "met": "threshold met"};
+  panel(["epic-export"], () => {
+    const g = data("epic-export");
+    const box = $("msstate");
+    const ms = (state.graph && g && g.milestones) || [];
+    box.hidden = !ms.length;
+    if (box.hidden) return;
+    box.innerHTML = '<span class="plab">Milestones</span><div class="mscells">' + ms.map((m) => {
+      const s = m.state || {};
+      const waits = m.waiting_on && m.waiting_on.length ? "waits on " + m.waiting_on.join(", ") : "";
+      const th = s.threshold || "absent";
+      const gateTitle = m.gate && m.gate.threshold ? ' title="' + esc(m.gate.threshold) + '"' : "";
+      return '<div class="ms" data-open="' + !!m.open + '"><b>' + esc(m.milestone) + '</b><span class="st" data-s="' + (m.open ? "done" : "stale") + '">' +
+        (m.open ? "open" : "closed") + "</span>" + (waits ? '<span class="sm muted">' + esc(waits) + "</span>" : "") +
+        '<span class="sm">gate ' + esc(s.members_done || 0) + " of " + esc(s.members || 0) + ' done</span><span class="sm th" data-th="' + esc(th) + '"' + gateTitle + ">" +
+        esc(th === "written" && m.gate && m.gate.threshold ? "threshold: " + m.gate.threshold : THRESHOLD_LABEL[th] || th) + "</span></div>";
+    }).join("") + "</div>";
   });
 
   // Lifecycle over time (§17): the summary's series, one band per stage after
@@ -166,7 +207,7 @@
 
   // What each panel and figure lists and where it comes from (§4).
   const INFO = {
-    band: "Work epics per stage, and per spec phase at the earliest phase of their bound specs; with no graph the phases count task files. From the summary's band.",
+    band: "Work epics per stage, and per spec phase at the earliest phase of their bound specs; with no graph the phases count task files. From the summary's band. Click a stage to show only its epics on the map, again to clear; click a phase to open Specs at it. Milestones: each one open or closed by its opening order with what it waits on, its gate's members done out of members (deferrable members in neither count), and its threshold as written, absent, a placeholder or met, from the export's milestones.",
     share: "Work epics done over all work epics; condition epics are in no figure. From the summary's plan, the share tp epic status reports.",
     ready: "Work epics that can start now: open milestone, every dependency done, no bound spec, no claim. In tp epic ready's order, most downstream first.",
     critical: "Not-done epics on the longest dependency chain of the whole graph: tp epic status's top-level critical_path.",
@@ -567,7 +608,7 @@
   const LANE_LABEL = { main: "Main", parallel: "Parallel", triggered: "Triggered" };
   const MARK_LABEL = { done: "done", ready: "can start", active: "claimed or under way", blocked: "blocked", held: "held by a condition", waiting: "milestone closed", moot: "moot" };
   const MARKS = ["done", "ready", "active", "blocked", "held", "waiting", "moot"];
-  const mapView = { selected: null, edges: false, nb: false, tracks: new Set(), geo: null, deps: {}, dependents: {}, byId: {}, q: "" };
+  const mapView = { selected: null, edges: false, nb: false, tracks: new Set(), geo: null, deps: {}, dependents: {}, byId: {}, q: "", stage: null };
   // NB_DIR names the two directions the neighbours filter marks an edge with:
   // in, from an epic the selected one depends on; out, to an epic depending
   // on it.
@@ -766,8 +807,10 @@
     const trackOf = {};
     ((g.graph && g.graph.milestones) || []).forEach((t, i) => t.forEach((m) => { trackOf[m] = i; }));
     const q = fold(mapView.q.trim());
-    const shown = (e) => (!mapView.tracks.size || mapView.tracks.has(trackOf[e.milestone])) && (!chain || chain.has(e.id)) && searchHit(e, q);
-    $("map-n").textContent = q ? plural(geo.placed.filter((e) => searchHit(e, q)).length, "match", "matches") : "";
+    const inStage = (e) => !mapView.stage || e.status === mapView.stage;
+    const shown = (e) => (!mapView.tracks.size || mapView.tracks.has(trackOf[e.milestone])) && (!chain || chain.has(e.id)) && searchHit(e, q) && inStage(e);
+    const stageNote = mapView.stage ? plural(geo.placed.filter(inStage).length, "epic", "epics") + " " + (STAGES.find(([k]) => k === mapView.stage) || ["", mapView.stage])[1].toLowerCase() : "";
+    $("map-n").textContent = [q ? plural(geo.placed.filter((e) => searchHit(e, q) && inStage(e)).length, "match", "matches") : "", stageNote].filter(Boolean).join(", ");
     const out = [];
     geo.lanes.forEach((lane) => out.push('<text class="lanelab" x="12" y="' + (lane.y + 22) + '">' + esc(LANE_LABEL[lane.kind] || lane.kind) + "</text>"));
     geo.ms.forEach((m) => {
@@ -1506,7 +1549,7 @@
   // tab's phase and filter; the Tasks view's Steps or Board). A change of
   // place (tab, spec, view, task, epic, slice, rounds) adds a history entry;
   // a filter replaces the current one.
-  const URL_KEYS = ["tab", "spec", "view", "task", "epic", "tracks", "edges", "nb", "q", "phase", "sq", "tview", "slice", "hr"];
+  const URL_KEYS = ["tab", "spec", "view", "task", "epic", "tracks", "edges", "nb", "q", "phase", "sq", "tview", "slice", "hr", "stage"];
   const PLACE_KEYS = ["tab", "spec", "view", "task", "epic", "slice", "hr"];
   const address = { landed: false, quiet: false, applying: false };
 
@@ -1525,6 +1568,7 @@
     if (mapView.edges) put("edges", "1");
     if (mapView.nb) put("nb", "1");
     put("q", mapView.q);
+    put("stage", mapView.stage);
     if (specsView.phase !== "all") put("phase", specsView.phase);
     put("sq", specsView.q);
     put("slice", hist.dir);
@@ -1568,6 +1612,8 @@
     mapView.edges = p.get("edges") === "1";
     mapView.nb = p.get("nb") === "1";
     mapView.q = p.get("q") || "";
+    const stage = p.get("stage");
+    mapView.stage = STAGES.some(([k]) => k === stage) ? stage : null;
     const phase = p.get("phase");
     specsView.phase = phase === "op" || PHASES.some(([x]) => x === phase) ? phase : "all";
     specsView.q = p.get("sq") || "";
