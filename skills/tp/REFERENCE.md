@@ -1730,9 +1730,11 @@ The read commands write nothing and list epics in graph order, every list `[]` w
   The top-level `by_count` is the longest chain of not-done epics in the whole graph, in work order,
   counted in work epics; ties go to the chain ending earlier in graph order; v1.7.0: at an
   unsatisfied any-of group it goes through the member with the shortest remaining chain, the first
-  listed on a tie, and a moot epic is on no chain; it ignores `--milestone`,
-  `--open` and `--compact`. Each tracked milestone once, in track order: `{milestone, open,
-  opens_after, waiting_on, counts: {planned, claimed, specced, in_progress, done, conditions_done},
+  listed on a tie, and a moot epic is on no chain; it never ends at an epic `deferrable` in its
+  milestone's gate, though it goes through one a later epic of the chain depends on; it ignores
+  `--milestone`, `--open` and `--compact`. Each tracked milestone once, in track order:
+  `{milestone, open, opens_after, waiting_on, counts: {planned, claimed, specced, in_progress, done,
+  conditions_done},
   share_done, gate, ready, claimed, blocked: [{id, title, milestone, held_by, blocked_by,
   held_by_any_of, blocked_by_any_of, not_actionable?, moot?}], operator,
   critical_path: {by_count, by_estimate: {chain, estimate_minutes}}, throughput: [{week, done}],
