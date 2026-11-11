@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T15:33:36.837348Z",
+  "updated_at": "2026-11-11T15:41:52.09867Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -839,7 +839,7 @@
       "id": "spec-anchored-sections",
       "title": "Split a spec into anchored sections",
       "description": "Engine: the spec's text as numbered sections, each section and paragraph with a stable anchor (§3 ¶2).",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "export"
@@ -851,11 +851,22 @@
         "## 16. One spec's read model: `tp export`",
         "## 13. The Spec tab"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T15:37:19.835766Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T15:41:52.072366Z",
+      "closed_reason": "- a spec parses into its sections with each paragraph anchored `§N ¶M`: engine.SpecSections(data) returns []SpecSection{anchor, heading, line, paragraphs[{anchor, line, text}]} (internal/engine/specsections.go; type, field and JSON names chosen for the tp export task to publish). §0 is the preamble (its first H1 its heading, left out when empty), a numbered heading of level 2-6 opens §\u003cnumber\u003e (floorAnchorsByLine's rule, headingNumRe), a paragraph is a run of non-blank lines, a fenced block one paragraph whatever it holds, frontmatter blanked so line numbers count it. TestSpecSections_ParsesNumberedSectionsWithParagraphAnchors and TestSpecSections_FrontmatterIsNotAParagraph; red before the change (undefined SpecSections)\n- editing a later section leaves every earlier anchor unchanged, and the pinned rule for an unnumbered heading: an unnumbered level-2 heading opens §\u003cslug\u003e (lowercased, each run of non-letter/digit characters one hyphen), an anchor taken earlier takes the next free suffix (-2, -3) so an anchor depends only on the text above it, and an unnumbered level-3+ heading is a paragraph of its section. TestSpecSections_ALaterEditLeavesEveryEarlierAnchorUnchanged adds a paragraph to §2, a new §3 and a second '## Non-goals' and reads the first 12 anchors unchanged and the new one as §non-goals-2; mutants: no dedup suffix turns it red, positional anchors for unnumbered headings turn both tests red; gate passed\n- Coordinator follow-up fix (no task id), commits a4b6923d (fix) and b41b762a (test): tp epic ready, tp epic status and tp epic export no longer exit 3 when .tp/config.json cannot be read or epic.threshold_placeholder does not compile; epicPlaceholderMatcher (internal/cli/epic_ready.go, was epicPlaceholderMatcherOrExit) prints one output.Notice warning on stderr naming epic.threshold_placeholder and falls back to engine.DefaultThresholdPlaceholder; tp validate --project still refuses the pattern. TestEpicReadCommands_FallBackOnAnUncompilablePlaceholder: config pattern '([' -\u003e each of the three commands exits 0, the key appears once on stderr, and ready lists P (TBD) and Q ([threshold]) as rewrites; red on HEAD (exit 3)",
+      "gate_passed_at": "2026-11-11T15:41:52.072366Z",
+      "commit_sha": "51e2f3fb",
+      "commit_shas": [
+        "51e2f3fb",
+        "0ceece17",
+        "868b6401",
+        "ee7e0765"
+      ],
+      "commit_files": [
+        "internal/engine/specsections.go",
+        "internal/engine/specsections_test.go"
+      ]
     },
     {
       "id": "export-read-model",
