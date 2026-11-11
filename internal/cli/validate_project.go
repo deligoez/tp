@@ -133,6 +133,7 @@ func runValidateProject() error {
 		return output.JSON(map[string]any{"project_config": false, "deviations": []any{}})
 	}
 
+	refuseUncompiledPlaceholder(tpDir)
 	project := engine.ProjectWorkflowOverride()
 	files, scanErr := engine.ScanProjectTaskFiles(root)
 
@@ -179,6 +180,21 @@ func runValidateProject() error {
 		os.Exit(ExitValidation)
 	}
 	return output.JSON(result)
+}
+
+// refuseUncompiledPlaceholder exits 1 naming epic.threshold_placeholder and
+// the compile error when the project's placeholder pattern does not compile
+// (spec/1.8.0.md §8). A config that does not parse is reported under skipped
+// instead, as for every other field.
+func refuseUncompiledPlaceholder(tpDir string) {
+	_, err := engine.ProjectPlaceholderMatcher(tpDir)
+	var mce *engine.MalformedConfigError
+	if err == nil || errors.As(err, &mce) {
+		return
+	}
+	output.Error(ExitValidation, err.Error(),
+		"write "+engine.ThresholdPlaceholderKey+" in .tp/config.json as a Go regular expression, or remove it to use the default pattern")
+	os.Exit(ExitValidation)
 }
 
 // relOrSelf abbreviates p relative to root, falling back to p itself when the
