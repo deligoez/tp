@@ -138,3 +138,22 @@ func TestGraphCriticalPath_StartsAtTheConditionItPassesThrough(t *testing.T) {
 
 	assert.Equal(t, []string{"c", "w"}, GraphCriticalPath(g, anyOfStates(g)))
 }
+
+// TestGraphCriticalPath_EndsAtNoDeferrableEpic: f and f2, deferrable in P's
+// gate, wait on a trigger that may never come, so the chain r -> a -> f -> f2
+// ends at a and the path is [r a]; the work epic w, which depends on the
+// deferrable d, still waits on it, so d stays on w's chain, as a gate member
+// reaching a deferrable epic still waits on it. A walk that ignored
+// deferrable runs r -> a -> f -> f2.
+func TestGraphCriticalPath_EndsAtNoDeferrableEpic(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"P"}}, Epics: []model.Epic{
+		dependsOn("r", "P"), dependsOn("a", "P", "r"), dependsOn("f", "P", "a"), dependsOn("f2", "P", "f"),
+	}}
+	g.Gates = map[string]model.EpicGate{"P": {Deferrable: []string{"f", "f2"}}}
+	assert.Equal(t, []string{"r", "a"}, GraphCriticalPath(g, anyOfStates(g)))
+
+	g.Epics = append(g.Epics, dependsOn("d", "P"), dependsOn("d2", "P", "d"), dependsOn("w", "P", "d2"))
+	g.Gates = map[string]model.EpicGate{"P": {Deferrable: []string{"f", "f2", "d"}}}
+	assert.Equal(t, []string{"d", "d2", "w"}, GraphCriticalPath(g, anyOfStates(g)),
+		"a deferrable epic a work epic depends on stays on that epic's chain")
+}
