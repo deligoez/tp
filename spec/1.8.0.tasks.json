@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T18:43:47.819599Z",
+  "updated_at": "2026-11-11T18:51:24.397491Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -609,7 +609,7 @@
       "id": "layout-lanes",
       "title": "Compute map lanes from the opens_after topology",
       "description": "Engine: every milestone in exactly one lane (triggered, main, parallel) and a column equal to its opening depth.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "layout"
@@ -621,11 +621,22 @@
         "## 9. The map",
         "## 18. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T18:44:54.218936Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T18:51:24.363402Z",
+      "closed_reason": "- engine.EpicMapLanes (internal/engine/epicmaplanes.go) returns MapLanes{Lanes []MapLane{kind, milestones}, Columns map[milestone]int}: milestones whose opens_after entry is an explicit [] form the triggered lane (a track first with no entry is not one); the longest opening chain over the rest is the main lane; the rest are taken longest-chain-first into parallel lanes, emitted in graph-file order of their first milestone; column = opening depth over EffectiveOpensAfter. Lane order: main, parallel..., triggered. Kinds main/parallel/triggered. A cycle's closing edge is ignored so a lint-refused graph still lays out.\n- §18 row 8: TestEpicMapLanes_EveryMilestoneFallsIntoOneLaneByPrecedence (two [] milestones, one mid-track; track firsts N1/B1 with no entry; equal chains N1-N3 and B1-B3 with N listed first but B first by name; parallel vertical V after N1, listed before B). Mutants, each red: triggered milestones also kept in the chain pool (two lane rules); tie broken by name; tie to the later file position; triggered read as any empty effective list; parallel lanes left in extraction order.\n- Equal chains sharing a first milestone: TestEpicMapLanes_EqualChainsFromOneMilestoneTieOnTheFirstDifference (S-Z1-Z2, S-C1-C2, S-B1-B2: main S-Z1-Z2, then parallel C1-C2 and B1-B2 as two lanes); red under the name-tie and later-position mutants. Plus TestEpicMapLanes_ACycleStillPlacesEveryMilestoneOnce. Gate passed (suite, golangci-lint, deadcode, complexity).",
+      "gate_passed_at": "2026-11-11T18:51:24.363402Z",
+      "commit_sha": "086bfbce",
+      "commit_shas": [
+        "086bfbce",
+        "01ca237a",
+        "ac817828",
+        "b86d19d4"
+      ],
+      "commit_files": [
+        "internal/engine/epicmaplanes.go",
+        "internal/engine/epicmaplanes_test.go"
+      ]
     },
     {
       "id": "layout-epic-order",
