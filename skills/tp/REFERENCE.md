@@ -2024,6 +2024,10 @@ contract:
   earliest `started_at` of their wip or done tasks, and done at `done_at`; while a stage it reached at
   a time tp did not record may already hold it, it counts under `unknown`, never on a guessed day.
   `[]` with no graph or no recorded event.
+- `matrix`: the milestone matrix, `[{from, to, edges, done}]`, one cell per pair of milestones a
+  dependency edge joins, from the dependent epic's milestone to its dependency's, in track order:
+  `edges` counts the edges, each member of an any-of group as one, and `done` those whose dependency
+  is done. An edge inside one milestone has no cell. `[]` with no graph.
 
 ### Exit codes
 
