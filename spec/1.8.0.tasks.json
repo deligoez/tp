@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T15:02:57.539766Z",
+  "updated_at": "2026-11-11T15:06:10.952015Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -210,7 +210,7 @@
       "id": "placeholder-matcher",
       "title": "Match thresholds against the placeholder pattern",
       "description": "Engine: one function giving the placeholder verdict for a gate threshold under the default pattern or a project pattern that replaces it.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "lint"
@@ -221,11 +221,20 @@
       "source_sections": [
         "## 8. Placeholder thresholds"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T15:03:02.251965Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T15:06:10.938044Z",
+      "closed_reason": "- engine.NewPlaceholderMatcher(pattern) with (*PlaceholderMatcher).IsPlaceholder(threshold) (internal/engine/placeholder.go; names chosen); the default, engine.DefaultThresholdPlaceholder, is (?i)^(?:\\[[^\\[\\]]*\\]|\u003c[^\u003c\u003e]*\u003e|TBD|TODO|TBC)$ over the trimmed threshold: TestPlaceholderMatcher_DefaultPattern ([threshold], \u003cexit condition\u003e, TBD, todo, Tbc match; draft: 80% pass, [a] and [b], TBD by Friday, written text do not), red before the change (undefined)\n- a non-empty project pattern replaces the default (an empty one is the default; one that does not compile returns the compile error, for the config-key task): TestPlaceholderMatcher_AProjectPatternReplacesTheDefault (^draft: matches draft: 80% pass, not [threshold] or TBD); the mutant OR-ing the default beside the project pattern turns it red\n- an absent or blank threshold is never a placeholder, even under ^$ or .*: TestPlaceholderMatcher_AnAbsentThresholdIsNeverAPlaceholder; the mutant dropping the blank check turns it red; gate passed",
+      "gate_passed_at": "2026-11-11T15:06:10.938044Z",
+      "commit_sha": "6e86c4f0",
+      "commit_shas": [
+        "6e86c4f0",
+        "f518bf37"
+      ],
+      "commit_files": [
+        "internal/engine/placeholder.go",
+        "internal/engine/placeholder_test.go"
+      ]
     },
     {
       "id": "placeholder-config-key",
