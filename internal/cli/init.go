@@ -103,8 +103,9 @@ func runInit(_ *cobra.Command, args []string) error {
 				ContextOnly: []string{},
 				Unmapped:    []string{},
 			},
-			Tasks: []model.Task{},
-			Epic:  initEpic,
+			Tasks:   []model.Task{},
+			Epic:    initEpic,
+			BoundAt: boundAtFor(initEpic, now),
 		}
 
 		fenceQualityGateInit(initQualityGate)
