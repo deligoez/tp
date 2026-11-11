@@ -114,3 +114,11 @@ func TestSpecSections_ALaterEditLeavesEveryEarlierAnchorUnchanged(t *testing.T) 
 	}, after[12:])
 }
 
+// TestSpecSections_FrontmatterIsNotAParagraph: a YAML frontmatter block is
+// not part of the preamble, and line numbers still count it.
+func TestSpecSections_FrontmatterIsNotAParagraph(t *testing.T) {
+	t.Parallel()
+	sections := SpecSections([]byte("---\ntp:\n  domain: prose\n---\n\nIntro\n\n## 1. A\n\nB\n"))
+	assert.Equal(t, []string{"§0|# ", "§0 ¶1|Intro", "§1|# 1. A", "§1 ¶1|B"}, paragraphAnchors(sections))
+	assert.Equal(t, 6, sections[0].Paragraphs[0].Line)
+}
