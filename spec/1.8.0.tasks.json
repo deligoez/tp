@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T15:20:12.696878Z",
+  "updated_at": "2026-11-11T15:25:14.20047Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -370,7 +370,7 @@
       "id": "operator-gates-skip-placeholder",
       "title": "List placeholder gates as rewrites only",
       "description": "tp epic ready's operator lists: gates awaiting --met only when the threshold is written and not a placeholder; a placeholder gate once as the rewrite, with its tp epic set command.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "operator"
@@ -383,11 +383,24 @@
       "source_sections": [
         "## 7. Operator decisions"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T15:20:17.140313Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T15:25:14.175216Z",
+      "closed_reason": "- operator.gates lists a gate only when its members are done and its threshold is written and not a placeholder: engine.WithoutPlaceholderGates filters EpicReady's Gates by the project matcher (internal/engine/epicrewrite.go, epicReadyReport in internal/cli/epic_ready.go); TestEpicOperator_PlaceholderGatesAreListedAsRewritesOnly lists W (done, written) alone, not P (done, TBD); red before the change; the mutant keeping placeholder gates lists P, W and turns it red\n- an unmet gate with a placeholder threshold is listed once under the new additive key operator.threshold_rewrites, entries {milestone, threshold, command} with command tp epic set gates.\u003cm\u003e.threshold=\u003cthreshold\u003e (key, entry shape and the \u003cthreshold\u003e template chosen, following tp next's \u003cevidence\u003e convention), whether or not its members are done (reading chosen from section 7, which conditions the rewrite on the placeholder alone): engine.ThresholdRewrites, track order, deduped; the test lists P and Q, not D (met TBD) and not W; the mutant ignoring the met record lists P, D, Q and turns it red\n- tp epic ready, tp epic status and tp epic export carry the same lists: epicPlanStatus takes the matcher and filters threshold_rewrites per milestone like gates; the test compares ready's lists with the per-milestone union of status and export. The matcher comes from engine.ProjectPlaceholderMatcher once per command (epicPlaceholderMatcherOrExit: an unreadable config or uncompilable pattern exits 3 with a hint naming epic.threshold_placeholder, as export already did); gate passed",
+      "gate_passed_at": "2026-11-11T15:25:14.175216Z",
+      "commit_sha": "f9f9687b",
+      "commit_shas": [
+        "f9f9687b",
+        "a590d5b9",
+        "f14278db"
+      ],
+      "commit_files": [
+        "internal/cli/epic_export.go",
+        "internal/cli/epic_ready.go",
+        "internal/cli/epic_status.go",
+        "internal/cli/epic_threshold_rewrite_test.go",
+        "internal/engine/epicrewrite.go"
+      ]
     },
     {
       "id": "conditions-out-of-figures",
