@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T19:01:23.623348Z",
+  "updated_at": "2026-11-11T19:07:54.150631Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -677,7 +677,7 @@
       "id": "export-layout",
       "title": "Carry the per-epic layout in the export",
       "description": "Each epic in tp epic export carries layout: lane, column and row.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "export"
@@ -691,11 +691,21 @@
         "## 9. The map",
         "## 2. Live data, derived once"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T19:01:31.5175Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T19:07:54.123233Z",
+      "closed_reason": "- tp epic export carries a per-epic layout key (additive, version stays 2): {lane, lane_kind, column, row} from engine.EpicMapLayout (internal/engine/epicmaplayout.go, over EpicMapLanes + EpicMapRows; wired in epicExportEpics, internal/cli/epic_export.go); lane is the index in EpicMapLanes order (main 0, parallel lanes, triggered last), lane_kind main|parallel|triggered, column the opening depth, row the place inside the milestone; absent (omitempty) on an epic whose milestone no track lists. TestEpicExport_CarriesEachEpicsLayout (internal/cli/epic_export_layout_test.go) runs tp epic export twice on one graph and asserts identical layout values.\n- Same test: milestones T1 and T2 with opens_after [] put t1 and t2 at {lane:1, lane_kind:triggered, column:0, row:0}, a and b on the main lane at columns 0 and 1; seen red first (no layout key), and a mutant giving every epic lane 0's kind turns it red. Gate passed. Key names are a dashboard-facing additive choice for the docs tasks to document.",
+      "gate_passed_at": "2026-11-11T19:07:54.123233Z",
+      "commit_sha": "4bce7f8c",
+      "commit_shas": [
+        "4bce7f8c",
+        "ec5ec84f"
+      ],
+      "commit_files": [
+        "internal/cli/epic_export.go",
+        "internal/cli/epic_export_layout_test.go",
+        "internal/engine/epicmaplayout.go"
+      ]
     },
     {
       "id": "forbidden-edges-schema",
