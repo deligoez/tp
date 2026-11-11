@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T21:25:42.095437Z",
+  "updated_at": "2026-11-11T21:36:12.427507Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -1862,7 +1862,7 @@
       "id": "page-spec-read",
       "title": "Draw the Spec tab Read view",
       "description": "The spec's text in anchored sections from tp export.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "page",
         "dashboard"
@@ -1876,11 +1876,20 @@
       "source_sections": [
         "## 13. The Spec tab"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T21:26:43.907144Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T21:36:12.412358Z",
+      "closed_reason": "- Read view (internal/dashboard/page/app.js drawRead/blockHTML, style.css .reader/.sec/.blk, index.html): tp export's sections drawn as numbered sections with a TOC, each paragraph under its anchor (§N ¶M, on hover at desktop, inline at phone width) rendered as prose, list, table, fenced block or sub-heading; a section's task count (tasks whose source_sections resolve to it) opens Tasks with those tasks picked out (others dimmed, a chip naming the section, × clears), kept in the address as the new URL key sec (URL_KEYS comment updated); a task detail's source section links back to the text. TestPage_ReadsTheSpecInAnchoredSections, red before (no sec key). Browser on a synthetic repo: 7 anchored paragraphs, counts 2/2/1, §2's count opens Tasks with g3,g4 lit and g1,g2 dimmed (#...\u0026view=tasks\u0026sec=2); 390 px scrollWidth 390, dark and light checked\n- Measured: editing the spec text left tp export --list unchanged (and a reviewed spec's row changes once, to stale), so no push would ever refetch; waiting is not acceptable, so each row gains content_hash, the SHA-256 of the task file's bytes then its spec's (engine contentHash, internal/engine/taskexportlist.go; name chosen, documented in REFERENCE.md and SKILL.md). TestExportList_ContentHashMovesWithTheSpecAndTaskText: spec edit and tp set acceptance/description each move only the hash; red before (empty hash); mutant hashing the task file alone turns it red. With the tab open, a spec text edit and a tp set acceptance each showed on the page within one tick. Gate passed",
+      "gate_passed_at": "2026-11-11T21:36:12.412358Z",
+      "commit_sha": "76c112b2",
+      "commit_shas": [
+        "76c112b2",
+        "2047c11f"
+      ],
+      "commit_files": [
+        "internal/dashboard/page/app.js",
+        "internal/engine/taskexportlist.go"
+      ]
     },
     {
       "id": "page-spec-tasks",
