@@ -58,14 +58,8 @@ func runEpicLint(_ *cobra.Command, _ []string) error {
 	if result.Findings == nil {
 		result.Findings = []engine.EpicLintFinding{}
 	}
-	for _, f := range result.Findings {
-		switch f.Severity {
-		case engine.EpicSeverityError:
-			result.Errors++
-		case engine.EpicSeverityWarning:
-			result.Warnings++
-		}
-	}
+	summary := engine.SummarizeEpicLint(result.Findings)
+	result.Errors, result.Warnings = summary.Errors, summary.Warnings
 	if err := output.JSON(result); err != nil {
 		output.Error(ExitFile, err.Error(), internalEncodeHint)
 		os.Exit(ExitFile)
