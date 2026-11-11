@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T19:57:50.168753Z",
+  "updated_at": "2026-11-11T20:06:39.189779Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -1195,7 +1195,7 @@
       "id": "summary-daily-series",
       "title": "Derive the per-day lifecycle series",
       "description": "Summary: work epics per stage per day from the times tp records, ending at the last recorded event.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "summary"
@@ -1210,11 +1210,25 @@
         "## 17. Lifecycle over time, and since you last looked",
         "## 18. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T19:58:45.604358Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T20:06:39.132354Z",
+      "closed_reason": "- engine.DashboardSummaryOf fills series (internal/engine/dashseries.go lifecycleSeries; DashboardSummary.Series []SeriesDay): each UTC day {date, planned, claimed, specced, in_progress, done, unknown} over work epics (engine.IsWorkEpic), claimed from claimed.at, specced from the earliest bound_at when every bound file has one (else unknown), in progress from the earliest started_at of wip/done tasks, done from EpicState.DoneAt; an epic that a stage reached at an unrecorded time may already hold counts as unknown; the series runs from the first recorded event's day to the last's ([] with no graph or no event). Shape (dashboard's own payload, chosen): flat per-day counts plus unknown; UTC days. Shape test extended with the day's keys; REFERENCE.md summary series line rewritten (the '[] in this build' follow-up).\n- TestDashboardSeries_DatesEachStageFromItsRecord: epic claimed 2026-11-01, bound 2026-11-02, started and audit-converged 2026-11-03 -\u003e [{11-01 claimed 1}, {11-02 specced 1}, {11-03 done 1}], condition epic in no stage; red before the change (undefined SeriesDay).\n- TestDashboardSeries_AnUnknownBindingTimeStaysUnknown (§18 row 12): a bound with no bound_at, b with it, c with two files only one carrying it -\u003e HEAD [{2026-11-10 specced 1, unknown 2}]; mutant reading created_at -\u003e red (series starts 2026-10-01, specced 2, planned 1, unknown 0); mutant taking c's one file that has it -\u003e red (specced 2, unknown 1). Gate passed.",
+      "gate_passed_at": "2026-11-11T20:06:39.132354Z",
+      "commit_sha": "b98d7cd2",
+      "commit_shas": [
+        "b98d7cd2",
+        "2f4532d2",
+        "df367016",
+        "67c3d779"
+      ],
+      "commit_files": [
+        "internal/engine/dashseries.go",
+        "internal/engine/dashseries_test.go",
+        "internal/engine/dashsummary.go",
+        "internal/engine/dashsummary_test.go",
+        "skills/tp/REFERENCE.md"
+      ]
     },
     {
       "id": "dashboard-command",
