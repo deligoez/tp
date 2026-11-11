@@ -197,6 +197,43 @@ file or the graph schema. Whether it is an export key or a command of its own is
 note's question. **Feedback on the spec is later and its own decision** (who writes it, where it is
 stored, how a round reads it); v1 only leaves the anchors for it.
 
+### History: what tp already holds
+
+The operator asked whether the dashboard can show how a spec and an epic got where they are, loop by
+loop, and whether tp should keep that history. Prototype 9 shows it on synthetic data: a spec's
+History view (its rounds on a time axis, and what changed in the spec between two review rounds), an
+epic's history in its drawer, a lifecycle-over-time chart, and a "since you last looked" strip. What
+each moment reads:
+
+| Moment | Held by tp today | Gap |
+|---|---|---|
+| An epic planned | the git history of `.tp/epics.json` | none, where the graph is committed |
+| Claimed, and by whom | `claimed: {at, by}` in the graph; binding leaves it, only `tp epic claim --release` removes it | none: a bound epic without the record was bound unclaimed, which binding allows (`engine.CheckEpicBinding` refuses only a condition and a done epic) |
+| A spec bound to it | the task file's `created_at` when `tp init --epic` bound it | the time `tp set --epic` binds an existing file: `bound_at` |
+| Each ground, review and audit round | `state.json` entries (`recorded_at`, `findings`, `clean`, `spec_hash`), the round files, and each round's spec snapshot (`snapshot-round-N.md`, `snapshot-<phase>-round-N.md`) | none: what changed between two review rounds is the diff of their snapshots, beside the earlier round's findings and resolutions |
+| Tasks written | none | the time `tp import` wrote them: `imported_at` |
+| Each task started and closed, on what evidence | `started_at`, `closed_at`, `closed_reason`, `commit_sha(s)` | none; a reopened task keeps only its current state |
+| Released, and the epic done | an epic's `done_at`, from the audit round that brought its last bound file to release; `done: {at, evidence}` for an unbound epic | none |
+| Derived figures over time (critical path, blocked count) | none | not tp's to hold |
+
+The state directories are committed in tp's own repository; a project that does not commit them
+keeps this history on one machine, so the history views read what is on disk and say nothing about
+what is not.
+
+**Proposed: no event log.** tp derives status rather than storing it (an epic's status is never
+written), and a log beside the files would be a second copy of the truth that drifts the first time
+someone edits a file by hand, and an append-only file that every branch and parallel agent writes.
+Instead, three steps:
+
+1. Show what is held. The History view, the epic's history and the claim (recorded or skipped) need
+   no new data, only the read model reading it.
+2. Add the two missing times where the fact lives, the way `claimed.at`, `done.at` and `met.at`
+   already are: `bound_at` and `imported_at` on the task file. That is its own decision candidate,
+   `lifecycle-timestamps.md`.
+3. Leave trends to the dashboard. "Since you last looked" lives in the browser; a week-by-week chart
+   of derived figures would come from snapshots the dashboard keeps for itself, never from tp, and
+   losing them breaks nothing.
+
 ## 5. Scope
 
 **v1:** `tp dashboard`, option B, two tabs. Epics: map + filters + chain + KPI strip + "Now" lists +
