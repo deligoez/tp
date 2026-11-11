@@ -10,6 +10,16 @@
       "spec_hash": "sha256:2eba6e51fe50ee7661e5d66a2c41c7b2d143a972c23310ccb1381a5444d2e300",
       "roles_hash": "sha256:0befaf26c4b1b0761ecd0afe62547a871a74e0f3af07c34e2105a37adb4b0d9d",
       "hash_scheme": "snapshot"
+    },
+    {
+      "round": 2,
+      "findings": 21,
+      "clean": false,
+      "recorded_at": "2026-11-11T12:32:34Z",
+      "file": "review-round-2.ndjson",
+      "spec_hash": "sha256:b407bd4ec947a09a30ca667d0a0c3518eaa1cbf3fd02a9d261f3163e4a29fa75",
+      "roles_hash": "sha256:0befaf26c4b1b0761ecd0afe62547a871a74e0f3af07c34e2105a37adb4b0d9d",
+      "hash_scheme": "snapshot"
     }
   ],
   "audit_rounds": []
