@@ -219,7 +219,7 @@ func LoadProjectConfig(tpDir string) (model.ProjectConfig, []string, error) {
 	}
 	var warnings []string
 	for k := range top {
-		if k != "workflow" {
+		if k != "workflow" && k != "epic" {
 			warnings = append(warnings, "unknown top-level key: "+k)
 		}
 	}
@@ -229,7 +229,35 @@ func LoadProjectConfig(tpDir string) (model.ProjectConfig, []string, error) {
 		warnings = append(warnings, wfWarn...)
 		warnings = append(warnings, clampWorkflowRanges(&pc.Workflow)...)
 	}
+	if epicRaw, ok := top["epic"]; ok {
+		var epicWarn []string
+		pc.Epic, epicWarn = parseEpicProjectConfig(epicRaw)
+		warnings = append(warnings, epicWarn...)
+	}
 	return pc, warnings, nil
+}
+
+// parseEpicProjectConfig leniently parses the epic block: an unknown key or a
+// wrong-typed value warns and is ignored, as in the workflow block.
+func parseEpicProjectConfig(raw json.RawMessage) (ec *model.EpicProjectConfig, warnings []string) {
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &m); err != nil {
+		return nil, []string{"epic: value is not an object, ignored"}
+	}
+	ec = &model.EpicProjectConfig{}
+	for k, v := range m {
+		if k != "threshold_placeholder" {
+			warnings = append(warnings, "unknown epic key: "+k)
+			continue
+		}
+		var s string
+		if err := json.Unmarshal(v, &s); err != nil {
+			warnings = append(warnings, "epic.threshold_placeholder: expected a string, ignored")
+			continue
+		}
+		ec.ThresholdPlaceholder = &s
+	}
+	return ec, warnings
 }
 
 // LoadLocalConfig reads and leniently parses tpDir/local.json into a
