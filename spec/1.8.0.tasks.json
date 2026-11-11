@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T15:25:14.20047Z",
+  "updated_at": "2026-11-11T15:30:34.406906Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -504,7 +504,7 @@
       "id": "slice-stale-unit-ids",
       "title": "Report the units that made a slice stale",
       "description": "A stale slice names the units whose hash differs from its last recorded round's snapshot.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "review"
@@ -518,11 +518,24 @@
         "## 5. Plan review, per slice",
         "## 18. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T15:25:18.461797Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T15:30:34.383439Z",
+      "closed_reason": "- tp epic review \u003cslice\u003e --status prints stale_units, the unit keys (epic:\u003cid\u003e, gate:\u003cm\u003e, the record's location form) whose hash differs from the last recorded round's snapshot, in slice order; [] on a fresh slice, every unit before a round is recorded (engine.EpicReviewStatus.StaleUnits from epicSliceStale, internal/engine/epicstatus.go; key name chosen, additive). Each batch --status row (--all, --milestones) carries the same key; an unheld slice row prints []. TestEpicReviewStatus_AStaleSliceNamesTheUnitsThatChanged: the milestone A slice reads stale_units [] after its round, red before the change (no key)\n- section 18 row 4: after a's title is edited the slice is stale and stale_units is exactly [epic:a], in --status and in the --all row; the mutant naming every unit of the slice once any changed (staleness read from the milestone) prints [epic:a, epic:b, epic:c, epic:d, gate:A] and turns it red. Reading kept: a unit's hash covers its dependencies' blocks, so editing b would name epic:a and epic:b, both of whose units changed; the fixture edits a, which no unit's hash covers; gate passed",
+      "gate_passed_at": "2026-11-11T15:30:34.383439Z",
+      "commit_sha": "971e0a2e",
+      "commit_shas": [
+        "971e0a2e",
+        "71450541",
+        "8e0110c2",
+        "49cdf5f8"
+      ],
+      "commit_files": [
+        "internal/cli/epic_review_batch_status.go",
+        "internal/cli/epic_review_stale_units_test.go",
+        "internal/cli/epic_review_status.go",
+        "internal/engine/epicstatus.go"
+      ]
     },
     {
       "id": "slice-open-by-role",
