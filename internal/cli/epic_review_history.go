@@ -61,16 +61,27 @@ func runEpicReviewOfEpicIfSet(cmd *cobra.Command) bool {
 // runEpicReviewOfEpic prints epic id's edges and whys per recorded round of
 // every slice whose snapshot holds it, writing nothing.
 func runEpicReviewOfEpic(id string) {
-	eg := loadEpicReviewGraph()
+	res, err := epicOfEpicOf(id)
+	if err != nil {
+		exitEpicRunError(err)
+	}
+	printResultOrExit(res)
+}
+
+// epicOfEpicOf derives runEpicReviewOfEpic's payload, returning the error it
+// would exit with.
+func epicOfEpicOf(id string) (epicOfEpicResult, *epicRunError) {
+	eg, rerr := readEpicReviewGraph()
+	if rerr != nil {
+		return epicOfEpicResult{}, rerr
+	}
 	dirs, err := engine.EpicReviewSliceDirs(eg.tpDir, eg.g)
 	if err != nil {
-		output.Error(ExitFile, err.Error(), epicRoundFileHint)
-		os.Exit(ExitFile)
+		return epicOfEpicResult{}, &epicRunError{code: ExitFile, msg: err.Error(), hint: epicRoundFileHint}
 	}
 	slices, err := engine.EpicEdgeHistory(dirs, id)
 	if err != nil {
-		output.Error(ExitFile, err.Error(), epicRoundFileHint)
-		os.Exit(ExitFile)
+		return epicOfEpicResult{}, &epicRunError{code: ExitFile, msg: err.Error(), hint: epicRoundFileHint}
 	}
 	res := epicOfEpicResult{Epic: id, Slices: slices}
 	for i := range res.Slices {
@@ -81,7 +92,7 @@ func runEpicReviewOfEpic(id string) {
 	if len(slices) == 0 {
 		res.Message = "epic " + id + " is in no recorded slice: no snapshot of a recorded round holds it, so it has no graph history"
 	}
-	printResultOrExit(res)
+	return res, nil
 }
 
 // epicHistoryNoStateHint answers a slice no round was ever emitted for.
@@ -113,22 +124,36 @@ func runEpicReviewHistoryIfSet(cmd *cobra.Command, key engine.EpicSliceKey) bool
 // and differences, writing nothing. A slice with no state directory exits 3,
 // a round it did not record 4.
 func runEpicReviewHistory(key engine.EpicSliceKey, from, to int) {
-	run := loadEpicReviewRun(key)
+	res, err := epicReviewHistoryOf(key, from, to, IsCompact())
+	if err != nil {
+		exitEpicRunError(err)
+	}
+	printResultOrExit(res)
+}
+
+// epicReviewHistoryOf derives runEpicReviewHistory's payload, compacted when
+// compact is set, returning the error it would exit with.
+func epicReviewHistoryOf(key engine.EpicSliceKey, from, to int, compact bool) (epicHistoryResult, *epicRunError) {
+	eg, rerr := readEpicReviewGraph()
+	if rerr != nil {
+		return epicHistoryResult{}, rerr
+	}
+	run, rerr := prepareEpicReviewRun(&eg, key)
+	if rerr != nil {
+		return epicHistoryResult{}, rerr
+	}
 	if info, err := os.Stat(run.stateDir); err != nil || !info.IsDir() {
-		output.Error(ExitFile, "epic review state not found for "+epicSliceLabel(key)+": "+epicReviewStateDirOut(&run), epicHistoryNoStateHint)
-		os.Exit(ExitFile)
+		return epicHistoryResult{}, &epicRunError{code: ExitFile, msg: "epic review state not found for " + epicSliceLabel(key) + ": " + epicReviewStateDirOut(&run), hint: epicHistoryNoStateHint}
 	}
 	h, err := engine.EpicReviewHistory(run.stateDir, run.all, from, to)
 	if err != nil {
 		if errors.As(err, new(*engine.EpicRoundOutOfRangeError)) {
-			output.Error(ExitState, err.Error(), "pass --from and --to rounds the slice recorded; tp epic review <slice> --status prints its round")
-			os.Exit(ExitState)
+			return epicHistoryResult{}, &epicRunError{code: ExitState, msg: err.Error(), hint: "pass --from and --to rounds the slice recorded; tp epic review <slice> --status prints its round"}
 		}
-		output.Error(ExitFile, err.Error(), epicRoundFileHint)
-		os.Exit(ExitFile)
+		return epicHistoryResult{}, &epicRunError{code: ExitFile, msg: err.Error(), hint: epicRoundFileHint}
 	}
-	if IsCompact() {
+	if compact {
 		h.WithoutContext()
 	}
-	printResultOrExit(epicHistoryResult{StateDir: epicReviewStateDirOut(&run), EpicHistory: h})
+	return epicHistoryResult{StateDir: epicReviewStateDirOut(&run), EpicHistory: h}, nil
 }
