@@ -228,6 +228,9 @@ tp blocked                     # Tasks waiting on unsatisfied deps
 tp graph                       # Dependency tree (--tag, --from)
 tp stats                       # Parallelism analysis
 tp report                      # Per-task duration + estimation accuracy
+tp export                      # One task file's read model as JSON: spec sections, tasks with state, loops, tp resume's view (--compact)
+tp export --list               # One row per task file of the repository: phase, tasks, review and audit loops, next step
+tp dashboard                   # Serve the read-only dashboard on http://127.0.0.1:7377 until interrupted (--port N)
 ```
 
 ### Spec & Validation
