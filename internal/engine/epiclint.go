@@ -374,3 +374,28 @@ func lintEpicUnknownKeys(unknown []EpicGraphUnknownKey) []EpicLintFinding {
 	}
 	return out
 }
+
+// EpicLintSummary counts lint findings by severity: tp epic lint's errors and
+// warnings, and the info findings it lists and counts in neither
+// (spec/1.8.0.md §2).
+type EpicLintSummary struct {
+	Errors   int `json:"errors"`
+	Warnings int `json:"warnings"`
+	Info     int `json:"info"`
+}
+
+// SummarizeEpicLint counts findings by severity.
+func SummarizeEpicLint(findings []EpicLintFinding) EpicLintSummary {
+	var s EpicLintSummary
+	for _, f := range findings {
+		switch f.Severity {
+		case EpicSeverityError:
+			s.Errors++
+		case EpicSeverityWarning:
+			s.Warnings++
+		case EpicSeverityInfo:
+			s.Info++
+		}
+	}
+	return s
+}
