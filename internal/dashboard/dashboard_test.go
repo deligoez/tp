@@ -253,3 +253,21 @@ func TestPage_BoardColumnsPartitionTheExportedTaskStates(t *testing.T) {
 		assert.Contains(t, script, field)
 	}
 }
+
+// TestPage_ReadsEveryAddressKey is §14 at the page: the address keys the
+// script declares cover the tab, the spec, its view, the picked task, the
+// selected epic and every active filter, and the script reads each one back
+// from the address, so a copied link lands where its writer was.
+func TestPage_ReadsEveryAddressKey(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	m := regexp.MustCompile(`const URL_KEYS = (\[.*\]);`).FindStringSubmatch(script)
+	require.NotNil(t, m, "the script declares the address keys as const URL_KEYS = [...];")
+	var urlKeys []string
+	require.NoError(t, json.Unmarshal([]byte(m[1]), &urlKeys))
+	assert.Subset(t, urlKeys, []string{"tab", "spec", "view", "task", "epic", "tracks", "edges", "nb", "q", "phase", "sq", "tview"})
+	for _, k := range urlKeys {
+		assert.Contains(t, script, `p.get("`+k+`")`, "the script reads %s from the address", k)
+	}
+	assert.Contains(t, script, `"popstate"`)
+}
