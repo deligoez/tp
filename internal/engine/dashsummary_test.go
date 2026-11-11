@@ -36,11 +36,12 @@ func jsonKeys(t *testing.T, raw json.RawMessage) []string {
 }
 
 // TestDashboardSummary_ShapeIsPinned is spec/1.8.0.md §2's summary shape: the
-// four top-level keys rounds, band, release_impact and series, each per-round
+// top-level keys rounds, band, release_impact, series and plan, each per-round
 // entry's round, total and by_role, and the band's stages, phases and
-// phases_of with every key of both axes, and a release impact entry's frees
-// and gates with each gate move's keys. series is present and empty here; the
-// task that fills it extends this test.
+// phases_of with every key of both axes, a release impact entry's frees and
+// gates with each gate move's keys, and the plan's figures and now lists (§4),
+// empty with no graph. series is present and empty here; the task that fills
+// it extends this test.
 func TestDashboardSummary_ShapeIsPinned(t *testing.T) {
 	t.Parallel()
 	tpDir := t.TempDir()
@@ -50,7 +51,7 @@ func TestDashboardSummary_ShapeIsPinned(t *testing.T) {
 	data, err := json.Marshal(sum)
 	require.NoError(t, err)
 
-	assert.Equal(t, []string{"band", "release_impact", "rounds", "series"}, jsonKeys(t, data))
+	assert.Equal(t, []string{"band", "plan", "release_impact", "rounds", "series"}, jsonKeys(t, data))
 	var top struct {
 		Rounds map[string][]json.RawMessage `json:"rounds"`
 		Band   struct {
@@ -80,6 +81,15 @@ func TestDashboardSummary_ShapeIsPinned(t *testing.T) {
 	require.Len(t, impact.Gates, 1)
 	assert.Equal(t, []string{"members", "members_done", "members_done_after", "milestone"}, jsonKeys(t, impact.Gates[0]))
 	assert.JSONEq(t, `[]`, string(top.Series))
+	assert.Equal(t, []string{"figures", "most_waited_on", "operator_conditions", "ready", "waiting"}, jsonKeys(t, raw["plan"]))
+	var plan struct {
+		Figures json.RawMessage `json:"figures"`
+	}
+	require.NoError(t, json.Unmarshal(raw["plan"], &plan))
+	assert.Equal(t, []string{"blocked", "critical_path", "done", "held", "open_loops", "operator_queue", "ready", "share_done", "throughput", "work"},
+		jsonKeys(t, plan.Figures))
+	assert.JSONEq(t, `{"figures":{"blocked":0,"critical_path":0,"done":0,"held":0,"open_loops":0,"operator_queue":0,"ready":0,"share_done":0,"throughput":[],"work":0},"most_waited_on":[],"operator_conditions":[],"ready":[],"waiting":[]}`,
+		string(raw["plan"]), "with no graph the plan is empty")
 }
 
 // TestDashboardSummary_RoundCountsByRoleSumToEachTotal is §5's acceptance: a
