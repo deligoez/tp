@@ -1,9 +1,11 @@
 package dashboard_test
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -151,4 +153,20 @@ func TestPage_DrawsTheMapFromTheExportedLayout(t *testing.T) {
 		assert.Contains(t, script, field)
 	}
 	assert.NotContains(t, script, "opens_after")
+}
+
+// TestPage_FoldsTurkishLettersInTheEpicSearch is §9's search rule at the
+// page: the folding table the search applies before Unicode decomposition
+// maps the Turkish dotless and dotted i, and the letters decomposition alone
+// would not reduce reliably, to their plain Latin letter.
+func TestPage_FoldsTurkishLettersInTheEpicSearch(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	m := regexp.MustCompile(`const FOLD = (\{[^}]*\});`).FindStringSubmatch(script)
+	require.NotNil(t, m, "the script declares the folding table as const FOLD = {...};")
+	var fold map[string]string
+	require.NoError(t, json.Unmarshal([]byte(m[1]), &fold))
+	for from, to := range map[string]string{"ı": "i", "İ": "i", "ş": "s", "ğ": "g", "ç": "c", "ö": "o", "ü": "u"} {
+		assert.Equal(t, to, fold[from], "FOLD maps %s", from)
+	}
 }
