@@ -174,6 +174,46 @@ command gathers yet tagged so:
   reports, the ground, review and audit rounds as dots, the next step and any escalation. The epic
   review slices stay on the Epics tab as "Plan review", and a spec's escalation joins its operator list.
 
+### Prototypes 4 to 9: the lifecycle, end to end
+
+The operator read each of prototypes 4 to 9 and asked for the following. Prototype 9 has all of it,
+on the same synthetic data:
+
+- **The look stays plain.** A theme from a design pass (a cobalt one) was tried and dropped: the
+  operator found prototype 3's plain cool greys, IBM Plex and one blue accent better. What the pass
+  fixed stays: no tracked capitals on labels, every colour from one token set, focus and pressed
+  states on every control.
+- **One task view, two ways to see it.** Prototype 3 showed a task graph and a task list, the same
+  tasks twice. Now one panel: *Steps*, the dependency tree (a task one step below the last task it
+  waits on, wires to what it waits on), and *Board*, the same tasks by state (ready, in progress,
+  waiting, done). Titles wrap instead of being cut.
+- **The spec list is its own tab.** *Specs* lists every task file, one row each: title and path,
+  epic and its state, task progress, review and audit rounds, next step. Rows are grouped by phase
+  in the loop's own order, operator decisions first within a phase; a filter, phase chips and an
+  "operator decisions" chip narrow it, and <kbd>/</kbd> reaches it from anywhere. A row opens the
+  *Spec* tab. The tabs read left to right as the lifecycle: Epics, Specs, Spec.
+- **The spec's text and its tasks are not needed at once.** The operator reads the spec, then works
+  its tasks. The Spec tab has three views: *Read the spec*, *Tasks* and *History* (§4, "History").
+  A spec still in review or decompose opens on its text; one with tasks opens on its tasks. The link
+  between them stays: a section's task count opens Tasks filtered to that section, and a task's
+  detail quotes the section it comes from, which opens the text there.
+- **The loop in tp's order, once.** The Spec tab's header holds one stepper, ground, review,
+  decompose, implement, audit, release, each step saying what happened in it or when it comes, the
+  current one marked and a pause mark where the operator decides. Under it, what the release will
+  do ("epic X is done: that frees N waiting epics and brings milestone M's gate to k of n"), and the
+  next command `tp resume` names, with a copy key.
+- **A task's detail and the spec's progress sit beside its tasks**, in a panel that never closes:
+  with no task picked it shows progress (tasks by state, estimate left, each running task against
+  its estimate, tasks closed over time); a picked task shows its state, time against estimate or
+  closing evidence and commit, acceptance, dependencies, the section it comes from, and its command.
+  The drawer is the epic's alone.
+- **The whole path on the Epics tab.** A lifecycle band opens it: epic stages (planned, claimed,
+  specced, in progress, done) over spec phases (review to release), each a count that filters the
+  map or opens Specs at that phase. An epic's drawer adds its own stepper, with the claim shown as
+  recorded (by whom) or skipped, the next command for it, and its history.
+- **The address says where you are.** Tab, spec, view and task live in the URL, so back and forward
+  and a shared link land where the operator was.
+- **Columns line up.** Panels on one row follow the grid of the row below.
 ### What the Spec tab needs from tp
 
 Needs first, development last. The link needs nothing new: a task file binds to one epic through its
