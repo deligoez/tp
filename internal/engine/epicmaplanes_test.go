@@ -37,3 +37,20 @@ func TestEpicMapLanes_EveryMilestoneFallsIntoOneLaneByPrecedence(t *testing.T) {
 	}, got.Columns)
 }
 
+// TestEpicMapLanes_EqualChainsFromOneMilestoneTieOnTheFirstDifference: three
+// chains of three start at S; Z's second milestone is listed first, so it is
+// the main lane, and the C and B chains are two parallel lanes in file order.
+func TestEpicMapLanes_EqualChainsFromOneMilestoneTieOnTheFirstDifference(t *testing.T) {
+	g := lanesGraph(
+		[][]string{{"S", "Z1", "Z2"}, {"C1", "C2"}, {"B1", "B2"}},
+		map[string][]string{"C1": {"S"}, "B1": {"S"}},
+	)
+	got := EpicMapLanes(g)
+	assert.Equal(t, []MapLane{
+		{Kind: MapLaneMain, Milestones: []string{"S", "Z1", "Z2"}},
+		{Kind: MapLaneParallel, Milestones: []string{"C1", "C2"}},
+		{Kind: MapLaneParallel, Milestones: []string{"B1", "B2"}},
+	}, got.Lanes)
+	assert.Equal(t, map[string]int{"S": 0, "Z1": 1, "Z2": 2, "C1": 1, "C2": 2, "B1": 1, "B2": 2}, got.Columns)
+}
+
