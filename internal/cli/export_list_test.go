@@ -91,3 +91,25 @@ func TestExportList_OneRowPerTaskFileUnderItsResumePhaseInPhaseOrder(t *testing.
 	assert.Equal(t, 0, rows[1].Audit.Round)
 }
 
+// TestExportList_KeepsTheReadableRowAndMarksTheMalformedOne is §18 row 10:
+// two task files, one malformed — the list exits 0, keeps the readable row
+// whole and gives the malformed one a row carrying its error.
+func TestExportList_KeepsTheReadableRowAndMarksTheMalformedOne(t *testing.T) {
+	t.Parallel()
+	dir := exportRepo(t)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "bad.tasks.json"), []byte("{not json"), 0o600))
+
+	_, rows := exportList(t, dir, false)
+	require.Len(t, rows, 2)
+	byPath := map[string]exportListRow{}
+	for _, r := range rows {
+		byPath[r.Path] = r
+	}
+	good, bad := byPath["spec.tasks.json"], byPath["bad.tasks.json"]
+	assert.Equal(t, "implement", good.Phase)
+	assert.Empty(t, good.Error)
+	assert.NotEmpty(t, bad.Error)
+	assert.Contains(t, bad.Error, "bad.tasks.json")
+	assert.Empty(t, bad.Phase)
+}
+
