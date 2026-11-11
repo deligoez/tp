@@ -182,3 +182,20 @@ func TestEpicReviewHistory_CompactKeepsEveryChangeAndDropsTheContext(t *testing.
 	require.Len(t, h.Current.Diff.FieldsChanged, 1)
 }
 
+// TestEpicReviewHistory_ReadOnlyUnattendedAndExits3WithoutState is §11's
+// contract: it runs under TP_UNATTENDED, writes nothing to the slice's state,
+// and a slice with no state directory exits 3.
+func TestEpicReviewHistory_ReadOnlyUnattendedAndExits3WithoutState(t *testing.T) {
+	t.Parallel()
+	dir, slice := twoRoundSlice(t)
+	before := snapshotTree(t, dir)
+	stdout, stderr, code := runTPFence(t, dir, true, append([]string{"epic", "review"}, append(slice, "--history")...)...)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.Contains(t, stdout, `"rounds"`)
+	assert.Equal(t, before, snapshotTree(t, dir), "--history writes nothing")
+
+	fresh := epicGraphDir(t, epicChain)
+	_, stderr, code = runTP(t, fresh, "epic", "review", "--milestone", "A", "--history")
+	require.Equal(t, 3, code, "stderr: %s", stderr)
+}
+
