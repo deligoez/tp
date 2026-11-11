@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T16:10:35.927852Z",
+  "updated_at": "2026-11-11T16:17:42.739473Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -804,7 +804,7 @@
       "id": "epic-review-history-cmd",
       "title": "Add tp epic review --history for one slice",
       "description": "--history prints the slice's rounds, each with findings by role and the diff from the round before, then the diff from the last round to the current graph; --from/--to narrow it.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "history"
@@ -817,11 +817,35 @@
       "source_sections": [
         "## 11. Graph history"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T16:10:40.280951Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T16:17:42.677803Z",
+      "closed_reason": "- tp epic review \u003cslice\u003e --history prints {state_dir, rounds, current}: each recorded round {round, findings_by_role (unattributed under engine.EpicRoleUnattributed), diff_from, diff} diffed from the round before (round 1: null), then current {from_round, diff} from the last round to the slice's units as the graph now renders them; --from a --to b holds rounds a and b only, b diffed from a, no current (engine.EpicReviewHistory, internal/engine/epichistory.go; EpicReviewCurrentDiff; CLI internal/cli/epic_review_history.go; payload names chosen). --from/--to without --history, or one without the other, exits 2; a round not recorded exits 4 (EpicRoundOutOfRangeError, reading chosen: an absent named object). Tests TestEpicReviewHistory_PrintsEachRoundAndTheCurrentDifference (b-\u003ec why rewritten between rounds with both texts, a's title to the current graph) and _FromToNarrowsToTwoRounds\n- read-only and unfenced: under TP_UNATTENDED it exits 0 and every file under the repo is byte-identical (_ReadOnlyUnattendedAndExits3WithoutState); a slice with no state directory exits 3 with a hint. --compact drops each diff's new unchanged context (EpicGraphDiff.unchanged, units under the same hash) and keeps every change (_CompactKeepsEveryChangeAndDropsTheContext); the mutant ignoring --compact turns it red\n- a round snapshotted before blocks were kept reads hashes_only true with no edge or why text and units_changed still named (_AHashOnlyRoundSaysSo). runEpicReview's emission moved to runEpicReviewEmit to stay under funlen. Command surface and SKILL.md inventory list --history/--from/--to. Gate passed (suite -race, golangci-lint, deadcode, complexity)",
+      "gate_passed_at": "2026-11-11T16:17:42.677803Z",
+      "commit_sha": "1c096a92",
+      "commit_shas": [
+        "1c096a92",
+        "12afe7f8",
+        "67d1b93c",
+        "186e1abd",
+        "8b50ac5b",
+        "7a1c14e1",
+        "1ceb8af3",
+        "e78d94f2",
+        "9627ffc5",
+        "0d6cb520",
+        "1b04a594",
+        "dc9b212a"
+      ],
+      "commit_files": [
+        "internal/cli/epic_review.go",
+        "internal/cli/epic_review_history.go",
+        "internal/cli/epic_review_history_test.go",
+        "internal/cli/nongoals_surface_test.go",
+        "internal/engine/epichistory.go",
+        "internal/engine/epicsnapshotdiff.go",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "epic-history-of-epic",
