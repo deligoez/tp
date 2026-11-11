@@ -108,3 +108,33 @@ p { margin: 0; }
   .pcells { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+
+/* the ⓘ on every panel and figure, and the note it opens */
+.info { width: 20px; height: 20px; padding: 0; border-radius: 50%; font: 500 12px/1 var(--font-display); color: var(--muted); background: transparent; border: 1px solid var(--color-rule-2); display: inline-grid; place-items: center; flex: none; cursor: pointer; letter-spacing: 0; }
+.info:hover, .info[aria-expanded="true"] { color: var(--accent); border-color: var(--accent); }
+.pop { position: absolute; z-index: var(--z-tooltip); max-width: min(340px, calc(100vw - 32px)); padding: var(--space-sm) var(--space-md); background: var(--color-ink); color: var(--color-paper); border-radius: var(--radius-input); font-size: var(--text-sm); line-height: 1.45; }
+.pop code { color: inherit; }
+
+/* KPI strip */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--space-xs); }
+.kpi { position: relative; display: grid; gap: var(--space-3xs); align-content: start; padding: var(--space-sm) var(--space-md); }
+.kpi .info { position: absolute; top: 8px; right: 8px; }
+.kpi .v { font: 500 1.875rem/1.2 var(--font-display); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.kpi .v small { font: 400 var(--text-sm) var(--font-body); color: var(--muted); letter-spacing: 0; }
+.kpi .l { font-size: var(--text-sm); color: var(--muted); padding-right: var(--space-lg); }
+.kpi.warn .v { color: var(--blocked); }
+.kpi.op .v { color: var(--held); }
+.kpi.crit .v { color: var(--crit); }
+.kpi svg { width: 100%; height: 32px; }
+.kpi svg rect { fill: var(--done); }
+
+/* now lists */
+.now { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: var(--space-sm); }
+.list { display: grid; gap: var(--space-3xs); }
+.row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--space-3xs) var(--space-sm); align-items: baseline; padding: 6px var(--space-xs); border-radius: var(--radius-input); }
+.row:hover { background: var(--sunk); }
+.row .id { font-family: var(--mono); font-size: var(--text-xs); color: var(--muted); }
+.row .t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .m { font-size: var(--text-sm); color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.row .why { grid-column: 2 / 4; font-size: var(--text-sm); color: var(--muted); overflow-wrap: anywhere; }
+.row .why code { color: var(--ink-2); }
