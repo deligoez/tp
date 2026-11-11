@@ -139,3 +139,16 @@ func TestPage_DrawsPlanReviewFromTheSliceFields(t *testing.T) {
 		assert.Contains(t, script, field)
 	}
 }
+
+// TestPage_DrawsTheMapFromTheExportedLayout is §9 at the page: every epic is
+// placed by the export's layout (its lane, the lane's kind, its milestone's
+// column and its row) and the critical path by tp epic status's by_count,
+// and the script never reads opens_after, so it cannot lay the map out again.
+func TestPage_DrawsTheMapFromTheExportedLayout(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, field := range []string{".layout", ".lane", ".lane_kind", ".column", ".row", "critical_path.by_count", ".depends_on", ".any_of"} {
+		assert.Contains(t, script, field)
+	}
+	assert.NotContains(t, script, "opens_after")
+}
