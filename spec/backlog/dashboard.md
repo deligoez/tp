@@ -2,10 +2,11 @@
 
 > Decision candidate, rewritten against the v1.6.0 export as shipped and updated for v1.7.0. The
 > operator answered §6's questions 1, 6 and 12; §4 records a web research pass on graph rendering
-> and dashboard design, and the operator's reviews of prototypes 1 and 2, which add a Spec tab: one
-> spec at a time, read beside its tasks. v1.7.0 moved the export to `version: 2`, which this
-> candidate reads: a `depends_on` entry may be `{any_of, why}`, and `epics[]` add
-> `blocked_by_any_of`, `held_by_any_of`, `blocked`, `held` and `moot` (spec/1.7.0.md §7).
+> and dashboard design, and the operator's reviews of prototypes 1 to 9, which add a Specs and a
+> Spec tab, the loop in tp's order and the lifecycle's history. v1.7.0 moved the export to
+> `version: 2`, which this candidate reads: a `depends_on` entry may be `{any_of, why}`, and
+> `epics[]` add `blocked_by_any_of`, `held_by_any_of`, `blocked`, `held` and `moot` (spec/1.7.0.md
+> §7).
 
 ## Decision (proposed)
 
