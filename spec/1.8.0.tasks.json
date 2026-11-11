@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T21:36:12.427507Z",
+  "updated_at": "2026-11-11T21:47:18.949004Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -1732,7 +1732,7 @@
       "id": "page-epic-drawer",
       "title": "Draw the epic drawer with its chain",
       "description": "Drawer with fields, dependencies, downstream, bound specs, stepper and history; the selected epic's chain and the milestone matrix.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "page",
         "dashboard"
@@ -1747,11 +1747,24 @@
         "## 4. The Epics tab",
         "## 11. Graph history"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T21:38:02.847686Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T21:47:18.922475Z",
+      "closed_reason": "- Drawer (internal/dashboard/page/app.js drawDrawer/epicStepper, index.html #drawer, style.css .drawer; bottom sheet at phone width): a selected epic (map click, a now-list row's id link, a link inside the drawer, or the address's epic key) shows its fields (milestone with open/closed and gate members done, status with what it waits on, downstream, estimate, tags, acceptance, done record), Depends on and Depended on by with each why (any-of groups named), bound specs with phase, tasks and ground/review/audit round+state (a link opens the Spec tab), and its stepper Claimed (by \u003cwho\u003e, \u003ctime\u003e / skipped when bound or done unclaimed) - Bound - Done; the chain card (#chaincard) lists every edge up and down the chain with its why; the milestone matrix (#matrixcard) draws the summary's new matrix key, [{from, to, edges, done}] per milestone pair an edge joins (engine.MilestoneMatrix, internal/engine/dashmatrix.go; key and cell names chosen, documented in REFERENCE.md): TestMilestoneMatrix_CountsEdgesBetweenMilestones (M2-\u003eM1 4 edges 2 done, any-of members one each, an edge inside M2 no cell), red before (undefined); the mutant counting a group's first member only turns it red (3 edges); shape test extended with matrix\n- History: fetched from GET /api/epic-history?epic=\u003cid\u003e when the drawer opens and again on every push (browser: 8 fetches on load, 9 after a graph write while open); an epic in no recorded slice shows the payload's message ('epic alpha is in no recorded slice ... no graph history')\n- A hash-only round reads 'this round kept unit hashes only: no edge or why text was kept' (browser on a synthetic slice whose round-1 snapshot holds no blocks). TestPage_DrawsTheEpicDrawerItsChainAndTheMatrix red against the previous page. Checked at 1280 and 390 px (scrollWidth 390), dark and light. Also (fix track, da8ce158 + test 5fd18635): the Waiting list named nothing after 'waits on' for an epic held only by an any-of group; it now reads blocked_by_any_of and prints 'one of c1, c2' (TestPage_AWaitingEpicNamesItsAnyOfGroups, red before; browser: x waits on one of c1, c2). Gate passed",
+      "gate_passed_at": "2026-11-11T21:47:18.922475Z",
+      "commit_sha": "dbb3fef3",
+      "commit_shas": [
+        "dbb3fef3",
+        "0cd976f6",
+        "2581f645",
+        "da8ce158"
+      ],
+      "commit_files": [
+        "internal/dashboard/page/app.js",
+        "internal/dashboard/page/index.html",
+        "internal/engine/dashmatrix.go",
+        "internal/engine/dashsummary.go"
+      ]
     },
     {
       "id": "page-graph-history",
