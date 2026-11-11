@@ -130,6 +130,18 @@ func TestPage_ReadsTheKPIsFromThePayloads(t *testing.T) {
 	}
 }
 
+// TestPage_DrawsTheOperatorRowsFromThePayloads is §7's list at the page: it
+// reads each slice's grantable and offers --grant-round on it, the
+// placeholder thresholds to rewrite, the any-of groups to choose in, and the
+// task file list's escalations, so it judges no row itself.
+func TestPage_DrawsTheOperatorRowsFromThePayloads(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, field := range []string{".grantable", "--grant-round", ".threshold_rewrites", "plan.operator_groups", ".escalations"} {
+		assert.Contains(t, script, field)
+	}
+}
+
 // TestPage_DrawsPlanReviewFromTheSliceFields is §5's panel at the page: each
 // slice row reads the export's slices with their cap, grants spent, stale
 // unit ids and open findings by role, and the summary's per-round counts,
