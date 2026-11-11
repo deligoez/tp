@@ -629,6 +629,18 @@ A field in a task file's `workflow` block counts as an override only when presen
 
 Malformed `.tp/config.json` or `.tp/local.json` aborts with exit 3 and a repair hint; unknown keys and out-of-range values warn (to stderr) and fall back.
 
+**`epic.threshold_placeholder`** (v1.8.0): a top-level `epic` block in `.tp/config.json`,
+`{"epic": {"threshold_placeholder": "<Go regexp>"}}`, sets the pattern that marks a gate threshold as
+a placeholder (`gate-threshold-unwritten`, `operator.threshold_rewrites`, the export's
+`milestones[].state.threshold`). Absent or empty, the default applies:
+`(?i)^(?:\[[^\[\]]*\]|<[^<>]*>|TBD|TODO|TBC)$`, matched against the trimmed threshold. An unknown key
+in the block, or a value that is not a string, warns and is ignored. `tp config` prints
+`epic: {threshold_placeholder}`, the effective pattern, beside `workflow`, `--resolved` as `{value,
+source}` with `source` `project` or `default`, and `tp config --extract` keeps the block. A pattern that
+does not compile is refused by `tp validate --project` alone (exit 1, naming the key and the compile
+error); `tp epic lint`, `ready`, `status` and `export` print one warning naming the key on stderr and
+fall back to the default, and so do they when `.tp/config.json` cannot be read.
+
 ## State Directory (`.tp-review/`)
 
 tp owns the review/audit round lifecycle in `<spec-dir>/.tp-review/<spec-base>/`:
