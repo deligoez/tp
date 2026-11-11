@@ -199,3 +199,18 @@ func TestEpicReviewHistory_ReadOnlyUnattendedAndExits3WithoutState(t *testing.T)
 	require.Equal(t, 3, code, "stderr: %s", stderr)
 }
 
+// TestEpicReviewHistory_AHashOnlyRoundSaysSo is §11 over a snapshot written
+// before blocks were kept: round 2's difference carries no edge or why text
+// and sets hashes_only.
+func TestEpicReviewHistory_AHashOnlyRoundSaysSo(t *testing.T) {
+	t.Parallel()
+	dir, slice := twoRoundSlice(t)
+	stripSnapshotBlocks(t, dir, 1)
+	h := epicHistory(t, dir, append(slice, "--history")...)
+
+	require.NotNil(t, h.Rounds[1].Diff)
+	assert.True(t, h.Rounds[1].Diff.HashesOnly)
+	assert.Empty(t, h.Rounds[1].Diff.WhysChanged)
+	assert.Empty(t, h.Rounds[1].Diff.EdgesAdded)
+	assert.Contains(t, h.Rounds[1].Diff.UnitsChanged, "epic:b")
+}
