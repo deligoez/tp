@@ -246,8 +246,9 @@ beyond the operator's v1 choice (§6, question 4).
 ## Non-goals
 
 No writes, buttons or claims from the page. No second derivation in JS (it renders the export's
-fields; it computes nothing a tp command reports). No remote access, auth or multi-user. No reading
-of round files, run logs or state directories. No JS dependency or CDN.
+fields; it computes nothing a tp command reports). No remote access, auth or multi-user. The page
+reads no file: round files, snapshots, run logs and state directories reach it only through the read
+model, which reads them in Go the way `tp review --status` does. No JS dependency or CDN.
 
 ## 6. Questions, answered
 
