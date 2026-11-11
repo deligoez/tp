@@ -48,3 +48,18 @@ func TestHandler_RefusesEveryMethodButGET(t *testing.T) {
 	}
 }
 
+// TestHandler_RefusesAForeignHost is §1's Host rule: the bound address and
+// port, or localhost with that port, serve; any other Host is refused, which
+// is what closes DNS rebinding.
+func TestHandler_RefusesAForeignHost(t *testing.T) {
+	t.Parallel()
+	for _, host := range []string{"127.0.0.1:7377", "localhost:7377", "LOCALHOST:7377"} {
+		assert.Equal(t, http.StatusOK, serve(t, http.MethodGet, host, "/").StatusCode, host)
+	}
+	for _, host := range []string{"evil.example:7377", "127.0.0.1:7378", "localhost:8080", "127.0.0.1", "localhost", "0.0.0.0:7377", "[::1]:7377"} {
+		resp := serve(t, http.MethodGet, host, "/")
+		assert.Equal(t, http.StatusForbidden, resp.StatusCode, host)
+		assertNoCORS(t, resp)
+	}
+}
+
