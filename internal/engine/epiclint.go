@@ -74,6 +74,11 @@ const (
 	EpicRuleGateHeldByCondition = "gate-held-by-condition"
 )
 
+// EpicRuleForbiddenDependency is the error on a direct edge, or an any-of
+// member, from an epic a forbidden_edges rule's from selects to one its to
+// selects (spec/1.8.0.md §10).
+const EpicRuleForbiddenDependency = "forbidden-dependency"
+
 // EpicLintFinding is one lint result. Epics holds the sorted, distinct ids the
 // finding names, a dangling id included; it is never nil, so it encodes as [].
 // Names holds the sorted milestone, gate, tag or key names the finding
@@ -125,6 +130,7 @@ func LintEpicGraph(g *model.EpicGraph, unknown []EpicGraphUnknownKey) []EpicLint
 	out = append(out, lintEpicAnyOfShape(g)...)
 	out = append(out, lintEpicDangling(g)...)
 	out = append(out, lintEpicForbiddenRules(g)...)
+	out = append(out, lintEpicForbiddenDependencies(g)...)
 	out = append(out, lintEpicDuplicates(g)...)
 	out = append(out, lintEpicUnknownKeys(unknown)...)
 	out = append(out, lintEpicMissingWhy(g)...)
