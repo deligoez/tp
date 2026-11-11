@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T16:37:55.2738Z",
+  "updated_at": "2026-11-11T17:04:42.842523Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -1259,7 +1259,7 @@
       "id": "dashboard-get-endpoints",
       "title": "Serve read models on demand by GET",
       "description": "GET endpoints for one task file's tp export and a slice's or an epic's graph history, produced in-process by the commands' code.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "dashboard"
@@ -1275,11 +1275,28 @@
         "## 2. Live data, derived once",
         "## 11. Graph history"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T16:37:56.048891Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T17:04:42.804166Z",
+      "closed_reason": "- GET /api/export?file=, /api/history?milestone|epic|epics[\u0026name][\u0026from\u0026to] and /api/epic-history?epic= return tp export's, the slice's --history and --of-epic's JSON byte-equal to the commands' stdout (internal/dashboard/api.go, internal/cli/dashboard_api.go; dashboard.Handler(port, api) with an API interface cli implements; bodies encoded with SetIndent like output.JSON; uncompacted payloads); TestDashboard_GetReturnsTheCommandsJSON (internal/cli/dashboard_api_test.go); mutants: no routing -\u003e red, no SetIndent -\u003e red on all 4 byte-equal checks\n- an unknown file or slice answers tp's {error, code, hint}: exit 2 -\u003e 400, 3/4 -\u003e 404; a task file resolving outside engine.ProjectRoot (relative ../, absolute, or a symlink inside pointing out; EvalSymlinks on both sides, a missing file resolved through its parent) -\u003e 403 with code 2; TestDashboard_GetAnswersTpsErrorAndRefusesOutsideTheRepo (internal/cli/dashboard_api_errors_test.go); mutant: file not EvalSymlinked -\u003e red on the symlink case. Error-returning variants readEpicReviewGraph, epicReviewHistoryOf, epicOfEpicOf, exportOf reuse epicRunError. Gate passed.",
+      "gate_passed_at": "2026-11-11T17:04:42.804166Z",
+      "commit_sha": "b2036758",
+      "commit_shas": [
+        "b2036758",
+        "c39ed237",
+        "b831edc0",
+        "08f2809d"
+      ],
+      "commit_files": [
+        "internal/cli/dashboard.go",
+        "internal/cli/dashboard_api.go",
+        "internal/cli/epic_review.go",
+        "internal/cli/epic_review_history.go",
+        "internal/cli/export.go",
+        "internal/dashboard/api.go",
+        "internal/dashboard/dashboard.go",
+        "internal/dashboard/dashboard_test.go"
+      ]
     },
     {
       "id": "page-shell-tabs",
