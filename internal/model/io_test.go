@@ -141,6 +141,42 @@ func TestReadWriteTaskFile_EpicBindingRoundTrips(t *testing.T) {
 	assert.NotContains(t, string(data), `"epic"`)
 }
 
+// TestReadWriteTaskFile_LifecycleTimesRoundTrip is spec/1.8.0.md §15:
+// bound_at and imported_at, RFC 3339 in UTC, come back from a read and a
+// write unchanged.
+func TestReadWriteTaskFile_LifecycleTimesRoundTrip(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "times.tasks.json")
+	require.NoError(t, os.WriteFile(path, []byte(`{"version":1,"spec":"s.md","epic":"e1",`+
+		`"bound_at":"2026-11-01T10:00:00Z","imported_at":"2026-11-02T11:30:00Z","tasks":[]}`), 0o600))
+	tf, err := ReadTaskFile(path)
+	require.NoError(t, err)
+	require.NotNil(t, tf.BoundAt)
+	require.NotNil(t, tf.ImportedAt)
+	assert.Equal(t, time.Date(2026, 11, 1, 10, 0, 0, 0, time.UTC), tf.BoundAt.UTC())
+	assert.Equal(t, time.Date(2026, 11, 2, 11, 30, 0, 0, time.UTC), tf.ImportedAt.UTC())
+	require.NoError(t, WriteTaskFile(path, tf))
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `"bound_at": "2026-11-01T10:00:00Z"`)
+	assert.Contains(t, string(data), `"imported_at": "2026-11-02T11:30:00Z"`)
+}
+
+// TestReadWriteTaskFile_OldFileGainsNoLifecycleTimes: a file written before
+// §15 has neither key, loads, and saves without gaining either.
+func TestReadWriteTaskFile_OldFileGainsNoLifecycleTimes(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "old.tasks.json")
+	require.NoError(t, os.WriteFile(path, []byte(`{"version":1,"spec":"s.md","epic":"e1","tasks":[]}`), 0o600))
+	tf, err := ReadTaskFile(path)
+	require.NoError(t, err)
+	assert.Nil(t, tf.BoundAt)
+	assert.Nil(t, tf.ImportedAt)
+	require.NoError(t, WriteTaskFile(path, tf))
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), `"bound_at"`)
+	assert.NotContains(t, string(data), `"imported_at"`)
+}
+
 func TestReadTaskFile_NonexistentPath(t *testing.T) {
 	_, err := ReadTaskFile("/nonexistent/path/tasks.json")
 	require.Error(t, err)
