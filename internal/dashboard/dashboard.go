@@ -38,6 +38,7 @@ func Handler(port int, api API) http.Handler {
 	}
 	files := http.FileServerFS(sub)
 	endpoints := apiHandlers(api)
+	live := newHub(func() []Payload { return api.Live() }, Tick)
 	portText := strconv.Itoa(port)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !allowedHost(r.Host, portText) {
@@ -47,6 +48,10 @@ func Handler(port int, api API) http.Handler {
 		if r.Method != http.MethodGet {
 			w.Header().Set("Allow", http.MethodGet)
 			http.Error(w, "method not allowed: the dashboard answers GET only", http.StatusMethodNotAllowed)
+			return
+		}
+		if r.URL.Path == "/api/events" {
+			live.serveEvents(w, r)
 			return
 		}
 		if handle, ok := endpoints[r.URL.Path]; ok {

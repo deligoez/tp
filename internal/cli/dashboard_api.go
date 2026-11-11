@@ -11,6 +11,7 @@ import (
 
 	"github.com/deligoez/tp/internal/dashboard"
 	"github.com/deligoez/tp/internal/engine"
+	"github.com/deligoez/tp/internal/model"
 )
 
 // dashboardAPI answers the dashboard's GET endpoints with the payloads tp
@@ -64,6 +65,53 @@ func (dashboardAPI) EpicHistory(epic string) (any, *dashboard.Error) {
 		return nil, runErrorOf(err)
 	}
 	return res, nil
+}
+
+// Live derives what the server pushes (spec/1.8.0.md §2): tp epic export
+// while a graph exists, read afresh each tick so a graph written while the
+// server runs is pushed, tp export --list, and the summary of the figures no
+// command prints. A derivation that fails carries tp's error and hint.
+func (dashboardAPI) Live() []dashboard.Payload {
+	hasGraph, _ := engine.DashboardSources(".")
+	out := make([]dashboard.Payload, 0, 3)
+	if hasGraph {
+		p := dashboard.Payload{Event: "epic-export"}
+		if res, err := epicExport(); err != nil {
+			p.Err = runErrorOf(err)
+		} else {
+			p.Data = res
+		}
+		out = append(out, p)
+	}
+	out = append(out, dashboard.Payload{Event: "export-list", Data: engine.TaskFileListOf(".")})
+	return append(out, dashboardSummaryPayload(hasGraph))
+}
+
+// dashboardSummaryPayload derives the summary over the graph, or over an
+// empty one when the repository holds none.
+func dashboardSummaryPayload(hasGraph bool) dashboard.Payload {
+	p := dashboard.Payload{Event: "summary"}
+	tpDir := engine.DiscoverTPDir(".")
+	if tpDir == "" {
+		tpDir = filepath.Join(engine.ProjectRoot("."), ".tp")
+	}
+	g := &model.EpicGraph{}
+	if hasGraph {
+		eg, err := readEpicReviewGraph()
+		if err != nil {
+			p.Err = runErrorOf(err)
+			return p
+		}
+		g = eg.g
+	}
+	sum, err := engine.DashboardSummaryOf(tpDir, g)
+	if err != nil {
+		// task-file-hint: an unreadable round file or task file
+		p.Err = dashboard.NewError(ExitFile, err.Error(), epicBoundFileHint)
+		return p
+	}
+	p.Data = sum
+	return p
 }
 
 // dashboardHistoryQuery reads the slice and the rounds from q under the

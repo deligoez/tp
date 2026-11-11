@@ -17,6 +17,9 @@ type API interface {
 	History(query url.Values) (any, *Error)
 	// EpicHistory is tp epic review --history --of-epic epic's payload.
 	EpicHistory(epic string) (any, *Error)
+	// Live derives the payloads the server pushes on every tick: tp epic
+	// export when a graph exists, tp export --list, and the summary.
+	Live() []Payload
 }
 
 // Error is tp's error as an endpoint answers it: the exit code the command
