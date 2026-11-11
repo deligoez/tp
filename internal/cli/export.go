@@ -32,17 +32,23 @@ const exportNoTaskFileHint = "pass --file <path>.tasks.json, or run tp export wh
 const exportReadHint = "tp export reads the task file and its spec's state under .tp-review/: repair the file the message names (tp validate checks a task file)"
 
 func newExportCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "export",
 		Short: "Print one task file's read model as JSON: sections, tasks, loops and the tp resume view (read-only)",
 		Args:  cobra.NoArgs,
 		RunE:  runExport,
 	}
+	cmd.Flags().Bool("list", false, "Print one row per task file of the repository, bound or not, in phase order")
+	return cmd
 }
 
 // runExport prints the read model of the task file --file names or discovery
 // finds, writing nothing. No task file, or one it cannot read, exits 3.
-func runExport(_ *cobra.Command, _ []string) error {
+func runExport(cmd *cobra.Command, _ []string) error {
+	if list, _ := cmd.Flags().GetBool("list"); list {
+		printResultOrExit(engine.TaskFileListOf("."))
+		return nil
+	}
 	payload, err := exportOf(flagFile, IsCompact())
 	if err != nil {
 		exitEpicRunError(err)

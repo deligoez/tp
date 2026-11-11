@@ -79,7 +79,7 @@ epic set: if-revision
 epic status: milestone open
 epic unlink: any-of if-revision
 escalate: decision evidence option
-export:
+export: list
 graph: from tag
 ground: check force record status units
 import: force spec
