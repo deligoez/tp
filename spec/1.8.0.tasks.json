@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T15:30:34.406906Z",
+  "updated_at": "2026-11-11T15:33:36.837348Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -575,7 +575,7 @@
       "id": "export-slice-fields",
       "title": "Carry the per-slice review fields in the export",
       "description": "tp epic export's slices[] carry cap, grants, stale unit ids and open findings by role, and no other history.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "export"
@@ -590,11 +590,20 @@
         "## 5. Plan review, per slice",
         "## 2. Live data, derived once"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T15:30:38.712169Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T15:33:36.823132Z",
+      "closed_reason": "- each tp epic export slices[] entry carries max_rounds (null when uncapped), grants_spent, stale_units and open_by_role, the key names tp epic review --status prints (engine.EpicSliceState fields, filled by epicSliceState from the same EpicReviewLoopStatus, internal/engine/epicexportjson.go); stale_units is [] for a slice whose units are not known, as its state ignores staleness there. TestEpicExport_EachSliceCarriesItsStatusReviewFields: the --epic b slice at round 2 past cap 1 with one grant, its round-2 finding unattributed, c's title edited after it, reads the same four values in the export as in --status (stale_units [epic:b]); red before the change (keys absent); the mutant dropping stale_units turns it red\n- no per-round history enters the export: the same test asserts the entry's keys are exactly dir, grantable, grants_spent, key, max_rounds, open_by_role, round, stale_units, state; the mutant adding a rounds key turns it red; gate passed",
+      "gate_passed_at": "2026-11-11T15:33:36.823132Z",
+      "commit_sha": "626e5b90",
+      "commit_shas": [
+        "626e5b90",
+        "ed499846"
+      ],
+      "commit_files": [
+        "internal/cli/epic_export_slice_fields_test.go",
+        "internal/engine/epicexportjson.go"
+      ]
     },
     {
       "id": "layout-lanes",
