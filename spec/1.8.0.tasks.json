@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T13:41:30.360207Z",
+  "updated_at": "2026-11-11T13:45:06.889076Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -279,7 +279,7 @@
         "placeholder-config-key"
       ],
       "estimate_minutes": 12,
-      "acceptance": "- `operator.gates` lists a gate only when its non-deferrable members are done and its threshold is written and not a placeholder\n- a gate whose threshold is `TBD` is listed once as a rewrite carrying `tp epic set gates.\u003cm\u003e.threshold=` and not under `operator.gates`\n- `tp epic export` and `tp epic status` carry the same lists",
+      "acceptance": "- `operator.gates` lists a gate only when its non-deferrable members are done and its threshold is written and not a placeholder\n- only an UNMET gate whose threshold is a placeholder (e.g. `TBD`) is listed, once, as a rewrite carrying `tp epic set gates.\u003cm\u003e.threshold=` and not under `operator.gates`; a met gate with a placeholder threshold is not listed\n- `tp epic export` and `tp epic status` carry the same lists",
       "source_sections": [
         "## 7. Operator decisions"
       ],
@@ -438,7 +438,7 @@
       ],
       "depends_on": [],
       "estimate_minutes": 15,
-      "acceptance": "- explicit `[]` entries form the triggered lane (a track's first milestone with no entry is not one); the longest opening chain is the main lane, a tie to the chain whose first milestone the graph lists first; the rest are parallel; the column is the opening depth\n- §18 row 8: two `[]` milestones, a first milestone with no entry, two equally long chains and a parallel vertical put each milestone in exactly one lane; mutants matching two lane rules, or breaking the tie by anything but file order, turn it red\n- two equal chains starting at the same first milestone: the fixture checks the deterministic rule this task pins for that case",
+      "acceptance": "- explicit `[]` entries form the triggered lane (a track's first milestone with no entry is not one); the longest opening chain is the main lane, a tie to the chain whose first milestone the graph lists first; each other parallel chain gets its own lane, in graph-file order; the column is the opening depth\n- §18 row 8: two `[]` milestones, a first milestone with no entry, two equally long chains and a parallel vertical put each milestone in exactly one lane; mutants matching two lane rules, or breaking the tie by anything but file order, turn it red\n- equal chains sharing a first milestone break the tie by the first differing milestone's order in the graph file; one fixture covers two parallel chains (two lanes) and that tie",
       "source_sections": [
         "## 9. The map",
         "## 18. Tests"
@@ -1011,7 +1011,7 @@
         "export-milestone-state"
       ],
       "estimate_minutes": 12,
-      "acceptance": "- stage cells come from the summary band; a stage filters the map and a phase opens Specs at it\n- one milestone entry each: open or closed with what it waits on, gate members done of members, threshold written, absent, placeholder or met\n- a Go test asserts the page reads the band and milestone-state fields",
+      "acceptance": "- stage cells come from the summary band; a stage filters the map by `epics[].status` of `tp epic export` and a phase opens Specs at it\n- one milestone entry each: open or closed with what it waits on, gate members done of members, threshold written, absent, placeholder or met\n- a Go test asserts the page reads the band and milestone-state fields",
       "source_sections": [
         "## 6. Lifecycle band and milestone state"
       ],
@@ -1347,7 +1347,7 @@
         "page-epics-kpi"
       ],
       "estimate_minutes": 12,
-      "acceptance": "- counts tasks closed, rounds recorded and epics that changed stage (status differs between the stored and the current `tp epic export`), never which ones\n- each load compares the stored payload with the current one, then stores it; storage access in try/catch, tp stores nothing\n- after a task closes in another terminal a reload counts it under tasks closed; a private window shows no strip",
+      "acceptance": "- counts tasks closed, rounds recorded and epics that changed stage (compare by `epics[].status` between the stored and the current `tp epic export`), never which ones\n- each load compares the stored payload with the current one, then stores it; storage access in try/catch, tp stores nothing\n- after a task closes in another terminal a reload counts it under tasks closed; a private window shows no strip",
       "source_sections": [
         "## 17. Lifecycle over time, and since you last looked"
       ],
