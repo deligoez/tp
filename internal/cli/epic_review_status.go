@@ -23,7 +23,18 @@ type epicStatusResult struct {
 	ConvergeOn       string                       `json:"converge_on"`
 	Open             map[string]int               `json:"open"`
 	Grantable        bool                         `json:"grantable"`
+	MaxRounds        *int                         `json:"max_rounds"`
+	GrantsSpent      int                          `json:"grants_spent"`
 	NextAction       string                       `json:"next_action"`
+}
+
+// epicMaxRoundsOut is a slice's cap as --status prints it: null when
+// uncapped, as tp review --status prints max_rounds.
+func epicMaxRoundsOut(maxRounds int) *int {
+	if maxRounds <= 0 {
+		return nil
+	}
+	return &maxRounds
 }
 
 // epicReviewPolicy resolves review_clean_rounds, review_converge_on and
@@ -100,6 +111,8 @@ func runEpicReviewStatus(key engine.EpicSliceKey, check bool) {
 		ConvergeOn:       epicReviewPolicy(run.tpDir).ConvergeOn,
 		Open:             st.Open,
 		Grantable:        st.Grantable,
+		MaxRounds:        epicMaxRoundsOut(st.MaxRounds),
+		GrantsSpent:      st.GrantsSpent,
 		NextAction:       epicStatusNextAction(key, &st, checksPass),
 	}
 	if st.Done {
