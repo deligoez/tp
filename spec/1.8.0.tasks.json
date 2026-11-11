@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T15:14:08.844177Z",
+  "updated_at": "2026-11-11T15:20:12.696878Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -337,7 +337,7 @@
       "id": "export-milestone-state",
       "title": "Carry milestone state in the epic export",
       "description": "tp epic export's milestones carry the §6 state.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "export"
@@ -351,11 +351,20 @@
         "## 6. Lifecycle band and milestone state",
         "## 2. Live data, derived once"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T15:14:54.942948Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T15:20:12.678802Z",
+      "closed_reason": "- tp epic export gives each milestones[] entry a nested state: {members_done, members, threshold} (operator decision, option A; export only, tp epic status unchanged; epicExportMilestone embeds epicMilestoneReport, epicExportMilestoneState drops the milestone/open/waiting_on the entry already carries; epicExportMilestones in internal/cli/epic_export.go reads engine.MilestoneStates with engine.ProjectPlaceholderMatcher, threshold one of written/absent/placeholder/met): TestEpicExport_CarriesEachMilestonesState on the deferrable fixture (members a, f, c with two done, deferrable d done, threshold TBD) reads 2 of 3 with threshold placeholder, and absent on M2 with no gate entry; red before the change (no state); the mutant counting deferrable members reads 3 of 4 and turns it red\n- the same test runs tp epic export --compact and asserts the same state on every milestone (the export builds its milestone reports uncompacted, so the key is present); gate passed",
+      "gate_passed_at": "2026-11-11T15:20:12.678802Z",
+      "commit_sha": "e3698bb5",
+      "commit_shas": [
+        "e3698bb5",
+        "6f8f2833"
+      ],
+      "commit_files": [
+        "internal/cli/epic_export.go",
+        "internal/cli/epic_export_milestone_state_test.go"
+      ]
     },
     {
       "id": "operator-gates-skip-placeholder",
