@@ -78,3 +78,18 @@ func TestEpicReviewHistoryOfEpic_ListsEdgesPerRoundOfEverySlice(t *testing.T) {
 	assert.Equal(t, "b reads c's schema", e.Rounds[0].Edges[0].Why)
 }
 
+// TestEpicReviewHistoryOfEpic_AnEpicInNoRecordedSliceSaysSo is §11's
+// acceptance: an epic no recorded round's snapshot holds — here one whose
+// only slice was emitted and never recorded — reports no history and says so.
+func TestEpicReviewHistoryOfEpic_AnEpicInNoRecordedSliceSaysSo(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChain)
+	runEpicReview(t, dir, "--epic", "a")
+
+	h := epicOfEpic(t, dir, "a")
+	assert.Equal(t, "a", h.Epic)
+	assert.NotNil(t, h.Slices)
+	assert.Empty(t, h.Slices)
+	assert.Contains(t, h.Message, "no recorded")
+}
+
