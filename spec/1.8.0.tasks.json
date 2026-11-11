@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T14:10:12.858052Z",
+  "updated_at": "2026-11-11T14:16:00.094557Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -777,7 +777,7 @@
       "id": "summary-round-counts",
       "title": "Settle the summary payload with per-round counts",
       "description": "The dashboard summary payload (figures no command prints) is defined here; this task adds per slice each recorded round's finding count, total and by role, in round order.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "summary"
@@ -791,11 +791,18 @@
         "## 2. Live data, derived once",
         "## 5. Plan review, per slice"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T14:14:07.50746Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T14:16:00.084947Z",
+      "closed_reason": "- engine.DashboardSummary (internal/engine/dashsummary.go) fixes the summary's four top-level keys per the coordinator's decision (option a): rounds, band, release_impact, series; only rounds is filled, band and release_impact are {} and series is [], and their inner shape is owned by summary-lifecycle-band, summary-release-impact and summary-daily-series, each extending TestDashboardSummary_ShapeIsPinned; mutant series,omitempty turns it red\n- rounds maps each slice state directory name (tp epic export's slices[].dir) to [{round, total, by_role}] in round order, every finding counted whatever its disposition, a roleless one under unattributed: TestDashboardSummary_RoundCountsByRoleSumToEachTotal (two rounds: 3 = why-auditor 2 + phase-economist 1, then 1 = unattributed 1); mutant counting only undisposed findings turns it red; gate passed. Also landed before this close, per the coordinator: open_by_role counts a roleless finding under engine.EpicRoleUnattributed (fix fe714bb1, test d1ec5857 TestEpicReviewStatus_CountsARolelessFindingAsUnattributed, red under the former \"\" key)",
+      "gate_passed_at": "2026-11-11T14:16:00.084947Z",
+      "commit_sha": "1c013318",
+      "commit_shas": [
+        "1c013318"
+      ],
+      "commit_files": [
+        "internal/engine/dashsummary.go"
+      ]
     },
     {
       "id": "summary-lifecycle-band",
