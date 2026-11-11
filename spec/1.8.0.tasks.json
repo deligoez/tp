@@ -1,14 +1,1455 @@
 {
   "version": 1,
   "spec": "spec/1.8.0.md",
-  "created_at": "2026-11-11T10:48:25.71299Z",
-  "updated_at": "2026-11-11T10:48:25.713Z",
+  "created_at": "0001-01-01T00:00:00Z",
+  "updated_at": "2026-11-11T13:39:50.954977Z",
   "workflow": {},
   "coverage": {
-    "total_sections": 0,
-    "mapped_sections": 0,
-    "context_only": [],
+    "total_sections": 21,
+    "mapped_sections": 18,
+    "context_only": [
+      "# tp v1.8.0 — the dashboard",
+      "## Non-goals",
+      "## Decided with the operator"
+    ],
     "unmapped": []
   },
-  "tasks": []
+  "tasks": [
+    {
+      "id": "taskfile-lifecycle-times",
+      "title": "Add the task file's two lifecycle times",
+      "description": "Model: optional top-level bound_at and imported_at on TaskFile, RFC 3339 UTC as claimed.at is, omitempty.",
+      "status": "open",
+      "tags": [
+        "model"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "- a task file carrying `bound_at` and `imported_at` (RFC 3339, UTC) round-trips unchanged through load and save\n- a file written before this release has neither key, loads, and saves without gaining them",
+      "source_sections": [
+        "## 15. Bound and imported times"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "set-epic-bound-at",
+      "title": "Stamp bound_at when the binding changes",
+      "description": "tp init --epic and tp set --epic write bound_at only when the file's epic changes; tp set --epic \"\" removes it with epic.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "binding"
+      ],
+      "depends_on": [
+        "taskfile-lifecycle-times"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- `tp set --epic E1` on an unbound file writes `bound_at`; `tp init \u003cspec\u003e --epic E1` writes it on the new file\n- §18 row 11: a file bound to a, re-bound to a (bound_at unchanged), then to b (bound_at moves); the mutant writing a stamp on every `set --epic` turns it red\n- `tp set --epic \"\"` removes `bound_at` together with `epic`",
+      "source_sections": [
+        "## 15. Bound and imported times",
+        "## 18. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "import-imported-at",
+      "title": "Stamp imported_at on every import",
+      "description": "tp import writes imported_at and rewrites it on every later import into the file, --force included.",
+      "status": "open",
+      "tags": [
+        "cli"
+      ],
+      "depends_on": [
+        "taskfile-lifecycle-times"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- `tp import` writes `imported_at`; a second import into the same file, `--force` included, moves it (§18 row 11, one import)\n- a file imported before this release loads with no `imported_at` and nothing reports a time for it",
+      "source_sections": [
+        "## 15. Bound and imported times",
+        "## 18. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "export-generated-at",
+      "title": "Add generated_at to the epic export",
+      "description": "tp epic export gains generated_at, additively within version 2.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "export"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "- `tp epic export` prints `generated_at` (RFC 3339, UTC) and `version` stays 2\n- two exports of an unchanged repository differ in `generated_at` alone",
+      "source_sections": [
+        "## 2. Live data, derived once"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "export-lint-summary",
+      "title": "Add the lint summary to the epic export",
+      "description": "tp epic export gains lint: {errors, warnings, info}, the counts tp epic lint reports, derived by the same code.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "export"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "- on a graph holding one error, one warning and one info finding, `tp epic export`'s `lint` equals `tp epic lint`'s `errors`, `warnings` and info count\n- `lint` survives `--compact`",
+      "source_sections": [
+        "## 2. Live data, derived once",
+        "## 4. The Epics tab"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "export-bound-file-times",
+      "title": "Carry bound file times in the epic export",
+      "description": "Each bound file entry of tp epic export carries bound_at and imported_at from its task file.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "export"
+      ],
+      "depends_on": [
+        "set-epic-bound-at",
+        "import-imported-at"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "- after `tp set --epic E1` and `tp import`, `tp epic export` shows `bound_at` and `imported_at` under E1's bound file\n- a bound file without them omits both keys and the rest of its entry is unchanged",
+      "source_sections": [
+        "## 15. Bound and imported times",
+        "## 2. Live data, derived once"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "placeholder-matcher",
+      "title": "Match thresholds against the placeholder pattern",
+      "description": "Engine: one function giving the placeholder verdict for a gate threshold under the default pattern or a project pattern that replaces it.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "lint"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 12,
+      "acceptance": "- default pattern: a trimmed threshold wholly inside one pair of square or angle brackets, or `TBD`, `TODO`, `TBC` alone in any case, is a placeholder; `draft: 80% pass` and written text are not\n- a project pattern replaces the default: under `^draft:` the text `draft: 80% pass` matches and `[threshold]` and `TBD` do not\n- an absent or empty threshold is never a placeholder",
+      "source_sections": [
+        "## 8. Placeholder thresholds"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "placeholder-config-key",
+      "title": "Read epic.threshold_placeholder from the project config",
+      "description": "The project config gains epic.threshold_placeholder, one regular expression matched against the trimmed threshold; tp validate --project refuses one that does not compile.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "config"
+      ],
+      "depends_on": [
+        "placeholder-matcher"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- `.tp/config.json`'s `epic.threshold_placeholder` is the pattern the matcher uses; a config without it uses the default\n- `tp validate --project` refuses a pattern that does not compile, naming the key and the compile error\n- `tp config` shows the key, and `tp config --extract` leaves it intact",
+      "source_sections": [
+        "## 8. Placeholder thresholds"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "lint-gate-threshold-unwritten",
+      "title": "Add the gate-threshold-unwritten lint rule",
+      "description": "tp epic lint warns on an unmet gate whose trimmed threshold matches the project's placeholder pattern.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "lint"
+      ],
+      "depends_on": [
+        "placeholder-config-key"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- a warning on an unmet gate whose threshold matches the pattern; none on a met gate, on written text, on an absent or empty threshold\n- §18 row 5: gates `[threshold]`, `TBD`, `draft: 80% pass`, a written and no threshold warn on the first two under the default and on `draft: 80% pass` alone under `^draft:`; mutants reporting an absent threshold, or keeping the default beside the project pattern, turn it red\n- a writer never refuses on it (warning severity)",
+      "source_sections": [
+        "## 8. Placeholder thresholds",
+        "## 18. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "milestone-state-engine",
+      "title": "Derive the state of each milestone",
+      "description": "Engine: per milestone, open or closed by opens_after with what it waits on, gate members done out of members (deferrable left out of both), and threshold as written, absent, placeholder or met.",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "placeholder-config-key"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- a milestone whose `opens_after` names a milestone with an unmet gate reads closed and names that milestone\n- a gate with three members, two done, and a fourth, deferrable member reads 2 of 3\n- the threshold state is one of written, absent, placeholder (the §8 verdict) and met",
+      "source_sections": [
+        "## 6. Lifecycle band and milestone state"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "export-milestone-state",
+      "title": "Carry milestone state in the epic export",
+      "description": "tp epic export's milestones carry the §6 state.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "export"
+      ],
+      "depends_on": [
+        "milestone-state-engine"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "- `tp epic export` carries each milestone's §6 state; the deferrable fixture reads 2 of 3 there\n- the state survives `--compact`",
+      "source_sections": [
+        "## 6. Lifecycle band and milestone state",
+        "## 2. Live data, derived once"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "operator-gates-skip-placeholder",
+      "title": "List placeholder gates as rewrites only",
+      "description": "tp epic ready's operator lists: gates awaiting --met only when the threshold is written and not a placeholder; a placeholder gate once as the rewrite, with its tp epic set command.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "operator"
+      ],
+      "depends_on": [
+        "placeholder-config-key"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- `operator.gates` lists a gate only when its non-deferrable members are done and its threshold is written and not a placeholder\n- a gate whose threshold is `TBD` is listed once as a rewrite carrying `tp epic set gates.\u003cm\u003e.threshold=` and not under `operator.gates`\n- `tp epic export` and `tp epic status` carry the same lists",
+      "source_sections": [
+        "## 7. Operator decisions"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "conditions-out-of-figures",
+      "title": "Exclude condition epics from every work figure",
+      "description": "Ready, blocked, held and share-done figures count work epics only, in tp epic ready, tp epic status and tp epic export.",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 12,
+      "acceptance": "- the ready, blocked, held and share-done figures of `tp epic ready`, `tp epic status` and `tp epic export` count no condition epic\n- a graph whose only undone epic is a condition shows zero ready and zero blocked epics, and the condition under operator conditions when actionable\n- §18 row 7, condition half: the mutant applying the share-done filter to only one figure turns it red",
+      "source_sections": [
+        "## 4. The Epics tab",
+        "## 18. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "deferrable-out-of-waiting",
+      "title": "Drop deferrable members from every waiting list",
+      "description": "A deferrable gate member is never listed as waiting: not in the operator list, the waiting list or a gate's count.",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "conditions-out-of-figures"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- a deferrable gate member is in no waiting list, no operator list and no gate count of `tp epic status`, `tp epic ready` or `tp epic export`\n- §18 row 7 fixture: a gate with one deferrable member and one condition",
+      "source_sections": [
+        "## 7. Operator decisions",
+        "## 18. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "slice-cap-grants",
+      "title": "Report each slice's cap with grants spent",
+      "description": "tp epic review --status, per slice and under --all/--milestones, reports the slice's cap and the grants it has spent.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "review"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "- `tp epic review \u003cslice\u003e --status`, and each slice under `--all` and `--milestones`, prints the cap and the grants spent, so round 4, cap 3 + 1 grant is readable\n- §18 row 4 fixture: a slice past its cap with one grant",
+      "source_sections": [
+        "## 5. Plan review, per slice",
+        "## 18. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "slice-stale-unit-ids",
+      "title": "Report the units that made a slice stale",
+      "description": "A stale slice names the units whose hash differs from its last recorded round's snapshot.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "review"
+      ],
+      "depends_on": [
+        "slice-cap-grants"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- a stale slice's `--status` lists the ids of the units changed since its last recorded round; a fresh slice lists none\n- §18 row 4: a graph edit after the last round names exactly the edited epic; the mutant reading staleness from the milestone instead of the slice's units turns it red",
+      "source_sections": [
+        "## 5. Plan review, per slice",
+        "## 18. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "slice-open-by-role",
+      "title": "Count each slice's open findings by role",
+      "description": "tp epic review --status reports the last round's open findings counted by role, beside the severity counts.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "review"
+      ],
+      "depends_on": [
+        "slice-cap-grants"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- `--status` prints the last round's open findings counted by role, and the counts sum to the open total\n- a disposed finding is counted under no role",
+      "source_sections": [
+        "## 5. Plan review, per slice"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "export-slice-fields",
+      "title": "Carry the per-slice review fields in the export",
+      "description": "tp epic export's slices[] carry cap, grants, stale unit ids and open findings by role, and no other history.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "export"
+      ],
+      "depends_on": [
+        "slice-stale-unit-ids",
+        "slice-open-by-role"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "- each `slices[]` entry carries the cap, grants, stale unit ids and open-by-role counts `--status` reports for it\n- no per-round history enters the export",
+      "source_sections": [
+        "## 5. Plan review, per slice",
+        "## 2. Live data, derived once"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "layout-lanes",
+      "title": "Compute map lanes from the opens_after topology",
+      "description": "Engine: every milestone in exactly one lane (triggered, main, parallel) and a column equal to its opening depth.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "layout"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 15,
+      "acceptance": "- explicit `[]` entries form the triggered lane (a track's first milestone with no entry is not one); the longest opening chain is the main lane, a tie to the chain whose first milestone the graph lists first; the rest are parallel; the column is the opening depth\n- §18 row 8: two `[]` milestones, a first milestone with no entry, two equally long chains and a parallel vertical put each milestone in exactly one lane; mutants matching two lane rules, or breaking the tie by anything but file order, turn it red\n- two equal chains starting at the same first milestone: the fixture checks the deterministic rule this task pins for that case",
+      "source_sections": [
+        "## 9. The map",
+        "## 18. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "layout-epic-order",
+      "title": "Order epics inside each milestone to cut crossings",
+      "description": "Engine: a deterministic in-milestone order reducing edge crossings, with a dependency-free epic beside its first dependent.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "layout"
+      ],
+      "depends_on": [
+        "layout-lanes"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- on a two-milestone fixture whose graph order crosses edges, the layout order crosses fewer\n- an epic with no dependency sits next to its first dependent\n- the same graph always yields the same positions",
+      "source_sections": [
+        "## 9. The map"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "export-layout",
+      "title": "Carry the per-epic layout in the export",
+      "description": "Each epic in tp epic export carries layout: lane, column and row.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "export"
+      ],
+      "depends_on": [
+        "layout-epic-order"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "- `tp epic export` run twice on one graph prints identical `layout` values\n- in a graph where two milestones have an `opens_after` entry of `[]`, both milestones' epics carry the triggered lane",
+      "source_sections": [
+        "## 9. The map",
+        "## 2. Live data, derived once"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "forbidden-edges-schema",
+      "title": "Add forbidden_edges to the epic graph schema",
+      "description": "Top-level forbidden_edges: [{from, to, why}], each selector exactly one of epic, milestone, tag, track_of; the graph keeps version 1.",
+      "status": "open",
+      "tags": [
+        "model",
+        "graph"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 12,
+      "acceptance": "- `.tp/epics.json` accepts `forbidden_edges` with `{from, to, why}` rules and keeps `version: 1`; every writer carries the key through\n- a selector with no key, two keys or a key outside `epic`, `milestone`, `tag`, `track_of` is refused like any schema error",
+      "source_sections": [
+        "## 10. Forbidden dependencies"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "forbidden-selector-lint",
+      "title": "Lint forbidden_edges selectors for dangling references",
+      "description": "Selector references: a missing epic or milestone is dangling-reference, an uncarried tag a warning, an empty why missing-why.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "lint"
+      ],
+      "depends_on": [
+        "forbidden-edges-schema"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- an `epic`, `milestone` or `track_of` selector naming nothing the graph holds is a `dangling-reference` error\n- a `tag` no epic carries is a warning, so a rule may precede its tag; a rule without a why is `missing-why`",
+      "source_sections": [
+        "## 10. Forbidden dependencies"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "lint-forbidden-dependency",
+      "title": "Add the forbidden-dependency lint rule",
+      "description": "An error per direct edge or any-of member from an epic `from` selects to one `to` selects, naming the rule's why; writers refuse it as they refuse every lint error.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "lint"
+      ],
+      "depends_on": [
+        "forbidden-selector-lint"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- §18 row 6: a `track_of` rule fails one direct edge and one any-of member, one finding each naming the why, and passes a two-step path through a third epic; mutants walking transitive paths, or skipping any-of members, turn it red\n- with a rule forbidding the track of `B1` from milestone `M3`, `tp epic link` from an epic of that track to an `M3` epic is refused with `forbidden-dependency` and the why, the graph unchanged",
+      "source_sections": [
+        "## 10. Forbidden dependencies",
+        "## 18. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-snapshot-diff",
+      "title": "Diff two epic review snapshots",
+      "description": "Engine: units added or removed, edges added or removed, whys and fields changed between two rounds' snapshots, or a snapshot and the current graph.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "history"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 15,
+      "acceptance": "- the diff lists units added and removed, edges added and removed, and whys and fields changed\n- §18 row 9: a why edited between two recorded rounds is a why change with both texts; the mutant diffing hashes alone turns it red\n- a snapshot written before blocks were kept holds only hashes (`readEpicSnapshotFile`, internal/engine/epiccarry.go): its diff carries no edge or why text and a flag saying so",
+      "source_sections": [
+        "## 11. Graph history",
+        "## 18. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-review-history-cmd",
+      "title": "Add tp epic review --history for one slice",
+      "description": "--history prints the slice's rounds, each with findings by role and the diff from the round before, then the diff from the last round to the current graph; --from/--to narrow it.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "history"
+      ],
+      "depends_on": [
+        "epic-snapshot-diff"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- `tp epic review \u003cslice\u003e --history` prints each recorded round with findings by role and its diff from the round before, then last round to current graph; `--from \u003ca\u003e --to \u003cb\u003e` narrows to those two rounds\n- read-only, runs under `TP_UNATTENDED`, exits 3 for a slice with no state directory; `--compact` drops each diff's unchanged context and keeps every change\n- a hash-only round reports no edge or why text and says so",
+      "source_sections": [
+        "## 11. Graph history"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-history-of-epic",
+      "title": "Add --history --of-epic across every slice",
+      "description": "One epic's edges and whys per recorded round of every slice whose snapshot holds it.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "history"
+      ],
+      "depends_on": [
+        "epic-review-history-cmd"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- `tp epic review --history --of-epic \u003cid\u003e` prints the epic's edges and whys per recorded round of every slice whose snapshot holds it\n- a slice with two recorded rounds between which one edge's why was rewritten lists that edge under both rounds\n- an epic in no recorded slice reports no graph history and says so",
+      "source_sections": [
+        "## 11. Graph history"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "spec-anchored-sections",
+      "title": "Split a spec into anchored sections",
+      "description": "Engine: the spec's text as numbered sections, each section and paragraph with a stable anchor (§3 ¶2).",
+      "status": "open",
+      "tags": [
+        "engine",
+        "export"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 12,
+      "acceptance": "- a spec parses into its numbered sections, each paragraph anchored `§N ¶M`\n- editing a later section leaves every earlier anchor unchanged; an unnumbered heading gets the anchor rule this task pins",
+      "source_sections": [
+        "## 16. One spec's read model: `tp export`",
+        "## 13. The Spec tab"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "export-read-model",
+      "title": "Build one task file's export read model",
+      "description": "Engine: tasks with their state, each loop with its rounds and snapshot diffs, the tp resume view, the epic and both lifecycle times.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "export"
+      ],
+      "depends_on": [
+        "spec-anchored-sections",
+        "import-imported-at",
+        "set-epic-bound-at"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- every task carries status, dependencies, estimate, acceptance, `source_sections`, times, closing evidence, commits and a state: ready, waits on a task, waits on its epic\n- ground, review and audit loops carry cap, clean rounds needed and streak, and per recorded round its time, finding or FAIL count, clean flag and spec-snapshot diff from the round before\n- the model carries the `tp resume` view, the epic, `bound_at` and `imported_at`",
+      "source_sections": [
+        "## 16. One spec's read model: `tp export`"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "export-command",
+      "title": "Add the tp export command",
+      "description": "tp export prints the read model of the task file --file names or discovery finds, version 1; --compact drops bulky fields.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "export"
+      ],
+      "depends_on": [
+        "export-read-model"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- `tp export --file spec/1.5.0.tasks.json` prints `version`, the sections with anchors, the tasks, the loops with one entry per recorded round and the `tp resume` view\n- `--compact` prints no section body, task description or snapshot diff, and compacts the resume view as `tp resume --compact`\n- runs under `TP_UNATTENDED`; with no task file, or an unreadable one, it exits 3 with a hint",
+      "source_sections": [
+        "## 16. One spec's read model: `tp export`",
+        "## 18. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "export-list",
+      "title": "Add tp export --list over every task file",
+      "description": "One row per task file, bound or not, in phase order: path, title, epic and its state, phase, task counts, review and audit rounds, next step, escalation.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "export"
+      ],
+      "depends_on": [
+        "export-command"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- in tp's own repository it prints one row per `spec/*.tasks.json`, none bound, each under the phase `tp resume \u003cfile\u003e` reports, in phase order\n- §18 row 10: two task files, one malformed, exit 0 with the readable row kept and the bad one carrying its error; the mutant exiting 3 on the first bad file turns it red\n- with no task file it exits 0 with an empty list; `TP_UNATTENDED=1 tp export --list` exits 0",
+      "source_sections": [
+        "## 16. One spec's read model: `tp export`",
+        "## 12. The Specs tab"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "summary-round-counts",
+      "title": "Settle the summary payload with per-round counts",
+      "description": "The dashboard summary payload (figures no command prints) is defined here; this task adds per slice each recorded round's finding count, total and by role, in round order.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "summary"
+      ],
+      "depends_on": [
+        "slice-open-by-role"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- the summary payload's shape (round counts, band, release impact, per-day series) is settled and pinned by a JSON shape test\n- for a slice with two recorded rounds the summary carries two per-round entries whose by-role counts sum to each round's total",
+      "source_sections": [
+        "## 2. Live data, derived once",
+        "## 5. Plan review, per slice"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "summary-lifecycle-band",
+      "title": "Count work epics per stage over phases",
+      "description": "Summary band: epic stages over spec phases, counting work epics.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "summary"
+      ],
+      "depends_on": [
+        "summary-round-counts",
+        "conditions-out-of-figures"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- the band counts work epics per stage (planned, claimed, specced, in progress, done) and per spec phase; an epic with several bound specs counts once, at its earliest phase\n- with no graph the phases count task files; with a graph an unbound task file is not counted",
+      "source_sections": [
+        "## 6. Lifecycle band and milestone state"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "summary-release-impact",
+      "title": "Derive each spec's release impact on the plan",
+      "description": "Summary: per bound spec, the epics releasing it would free and the gate it would move.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "summary"
+      ],
+      "depends_on": [
+        "summary-round-counts",
+        "milestone-state-engine"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- for a bound spec whose epic is the last undone dependency of another, the impact names that epic as freed and the gate whose done count moves\n- an unbound spec carries an empty impact",
+      "source_sections": [
+        "## 13. The Spec tab"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "summary-daily-series",
+      "title": "Derive the per-day lifecycle series",
+      "description": "Summary: work epics per stage per day from the times tp records, ending at the last recorded event.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "summary"
+      ],
+      "depends_on": [
+        "summary-round-counts",
+        "export-bound-file-times"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- claimed dates from `claimed.at`, specced from the earliest `bound_at` when every bound file has one (else unknown), in progress from the earliest task `started_at`, done from `done_at`; the series ends at the last recorded event\n- an epic claimed, bound and done on three days appears in claimed, specced and done on those days\n- §18 row 12: an epic with no `bound_at`, one with it, one with two bound files only one carrying it (unknown); mutants reading `created_at`, or the one file that has it, turn it red",
+      "source_sections": [
+        "## 17. Lifecycle over time, and since you last looked",
+        "## 18. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "dashboard-command",
+      "title": "Add the tp dashboard command",
+      "description": "tp dashboard [--port N]: binds 127.0.0.1:7377 by default, prints the URL, serves an embedded page until interrupted. Standard library only.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "dashboard"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 15,
+      "acceptance": "- in a repository with a graph it prints `http://127.0.0.1:\u003cport\u003e/` (7377 unless `--port`), and a GET of it returns the page; a taken port exits 1 naming it\n- `TP_UNATTENDED=1` exits 2; §18 row 2: an empty directory exits 3 with a hint, a directory with one task file serves; the mutant requiring a graph turns it red\n- after the server has run, `git status` shows no change it made",
+      "source_sections": [
+        "## 1. The command",
+        "## 18. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "dashboard-request-guard",
+      "title": "Serve GET requests from the bound host only",
+      "description": "Only GET is served; a Host other than the bound address and port (or localhost with that port) is refused; no CORS header.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "dashboard",
+        "security"
+      ],
+      "depends_on": [
+        "dashboard-command"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- every method but GET is refused; a `Host` not the bound address and port, nor `localhost` with that port, is refused; no response carries a CORS header\n- §18 row 1 (repo with one task file): the listener is on 127.0.0.1 only and a second instance on the port exits 1 naming it; mutants listening on all interfaces, or serving any method, turn it red\n- the page, its script and styles are served from the binary's embed",
+      "source_sections": [
+        "## 1. The command",
+        "## 18. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "dashboard-sse-push",
+      "title": "Push changed payloads over Server-Sent Events",
+      "description": "A fixed tick re-derives the epic export (when a graph exists), tp export --list and the summary in-process, and pushes each only when its content, generated_at left out, changed.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "dashboard"
+      ],
+      "depends_on": [
+        "dashboard-request-guard",
+        "export-generated-at",
+        "export-list",
+        "summary-round-counts"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- each tick derives the three payloads in-process and pushes one only when its content without `generated_at` changed; a reconnecting client gets the current state\n- §18 row 3: graph with one unbound task file, and a task file with no graph, two ticks each: nothing pushed after the first state, a `tp done` reaches the stream; mutants deciding on a payload with `generated_at`, or on the epic export alone, turn it red\n- a failing derivation pushes tp's error and hint; a graph added while the server runs is pushed with no restart",
+      "source_sections": [
+        "## 2. Live data, derived once",
+        "## 18. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "dashboard-get-endpoints",
+      "title": "Serve read models on demand by GET",
+      "description": "GET endpoints for one task file's tp export and a slice's or an epic's graph history, produced in-process by the commands' code.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "dashboard"
+      ],
+      "depends_on": [
+        "dashboard-request-guard",
+        "export-command",
+        "epic-history-of-epic"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- a GET returns one task file's `tp export`, a slice's `--history` and an epic's `--of-epic` history, byte-equal in content to the commands' JSON\n- an unknown file or slice answers with tp's error; a path outside the repository is refused",
+      "source_sections": [
+        "## 2. Live data, derived once",
+        "## 11. Graph history"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "page-shell-tabs",
+      "title": "Port the prototype shell with three tabs",
+      "description": "Embedded page from the approved prototype (scratchpad dashboard-proto/index.html, v9, synthetic data) rewired to the SSE payloads: Epics, Specs and Spec tabs, no framework, library or CDN.",
+      "status": "open",
+      "tags": [
+        "page",
+        "dashboard"
+      ],
+      "depends_on": [
+        "dashboard-sse-push"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- with a graph the page opens on Epics; with task files and no graph it opens on Specs, and the Epics tab names `tp epic` as the way to start a graph and its band shows the spec phases alone\n- a pushed error shows as a banner over the last good state, greyed (a hand edit breaking the graph keeps the previous map)\n- a Go test asserts the embedded page names the SSE endpoint and the three payloads' event names, and references no `http://` or `https://` resource",
+      "source_sections": [
+        "## 3. Tabs and where the page opens",
+        "## 2. Live data, derived once"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "page-url-state",
+      "title": "Keep the page's place in the URL",
+      "description": "Tab, spec, view, task, selected epic and active filters live in the URL.",
+      "status": "open",
+      "tags": [
+        "page",
+        "dashboard"
+      ],
+      "depends_on": [
+        "page-shell-tabs"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- tab, spec, view, task, selected epic and active filters are read from and written to the URL; back and forward restore them\n- opening a copied URL of the Tasks view with a task picked shows that task's detail\n- a Go test asserts the embedded page reads each URL key",
+      "source_sections": [
+        "## 14. The address"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "page-epics-kpi",
+      "title": "Draw the Epics KPI strip with now lists",
+      "description": "KPI strip, now lists (ready in tp epic ready's order, operator decisions, waiting epics, most waited-on), an info mark per panel and unit-named labels.",
+      "status": "open",
+      "tags": [
+        "page",
+        "dashboard"
+      ],
+      "depends_on": [
+        "page-shell-tabs",
+        "export-lint-summary",
+        "conditions-out-of-figures"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- the strip shows share done, ready epics, critical-path length, blocked and held epics, operator queue length, open review loops, lint errors and warnings, throughput; every panel carries an ⓘ and every label names its unit\n- the lint KPI shows the export's `lint` errors and warnings, equal to `tp epic lint`'s (a Go test asserts the page reads those fields)\n- now lists: ready epics in `tp epic ready`'s order, operator decisions, waiting epics with what each waits on, most waited-on",
+      "source_sections": [
+        "## 4. The Epics tab"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "page-lifecycle-band",
+      "title": "Draw the lifecycle band with milestone axis",
+      "description": "The band of §6 from the summary's counts and the export's milestone state.",
+      "status": "open",
+      "tags": [
+        "page",
+        "dashboard"
+      ],
+      "depends_on": [
+        "page-epics-kpi",
+        "summary-lifecycle-band",
+        "export-milestone-state"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- stage cells come from the summary band; a stage filters the map and a phase opens Specs at it\n- one milestone entry each: open or closed with what it waits on, gate members done of members, threshold written, absent, placeholder or met\n- a Go test asserts the page reads the band and milestone-state fields",
+      "source_sections": [
+        "## 6. Lifecycle band and milestone state"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "page-operator-rows",
+      "title": "Draw the operator decision rows",
+      "description": "Each operator decision with the command that settles it, every row from a payload.",
+      "status": "open",
+      "tags": [
+        "page",
+        "dashboard"
+      ],
+      "depends_on": [
+        "page-epics-kpi",
+        "operator-gates-skip-placeholder",
+        "export-slice-fields",
+        "deferrable-out-of-waiting"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- rows: actionable conditions, any-of groups as their choices, gates awaiting `--met`, a placeholder gate once with its `tp epic set` rewrite, run escalations from `--list`\n- a slice `--status` reports `grantable: true` appears with `tp epic review \u003cslice\u003e --grant-round`\n- a Go test asserts the page reads `grantable` and the placeholder list",
+      "source_sections": [
+        "## 7. Operator decisions"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "page-plan-review",
+      "title": "Draw the plan review panel per slice",
+      "description": "One row per slice: key, round with cap and grants, state, stale cause on hover, open by role, per-round counts as a small curve.",
+      "status": "open",
+      "tags": [
+        "page",
+        "dashboard"
+      ],
+      "depends_on": [
+        "page-epics-kpi",
+        "export-slice-fields",
+        "summary-round-counts"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- one row per slice: key, round with cap and grants, state, stale with its unit ids on hover, open findings by role, the per-round counts as a small curve\n- in a graph with epics, review slices and no bound file, the panel after the KPI strip is plan review; once a spec is bound the tab takes §4's order",
+      "source_sections": [
+        "## 5. Plan review, per slice",
+        "## 3. Tabs and where the page opens"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "page-map-lanes",
+      "title": "Draw the map from the exported layout",
+      "description": "Epics placed by layout lanes, columns and rows; edges on selection, the critical path always.",
+      "status": "open",
+      "tags": [
+        "page",
+        "dashboard"
+      ],
+      "depends_on": [
+        "page-epics-kpi",
+        "export-layout"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- epics placed by `layout` alone; tracks are a filter; status reads by colour and by shape, conditions in their own shape\n- the critical path is always drawn, other edges on selection, a toggle draws all\n- a Go test asserts the page reads `layout`",
+      "source_sections": [
+        "## 9. The map"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "page-map-neighbours",
+      "title": "Filter the map to one epic's neighbours",
+      "description": "Keep one epic, the epics it depends on and its dependents.",
+      "status": "open",
+      "tags": [
+        "page",
+        "dashboard"
+      ],
+      "depends_on": [
+        "page-map-lanes"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- the filter keeps one epic, its dependencies and its dependents, marks each edge incoming or outgoing, and shows the edge's why on hover",
+      "source_sections": [
+        "## 9. The map"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "page-map-search",
+      "title": "Make the epic search accent-insensitive",
+      "description": "Ids and titles matched ignoring case and diacritics, Turkish dotted and dotless i included.",
+      "status": "open",
+      "tags": [
+        "page",
+        "dashboard"
+      ],
+      "depends_on": [
+        "page-map-lanes"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "- searching `isik` finds an epic whose id is `IŞIK-1`\n- a Go test asserts the page's folding table maps ı, İ, ş, ğ, ç, ö and ü",
+      "source_sections": [
+        "## 9. The map"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "page-epic-drawer",
+      "title": "Draw the epic drawer with its chain",
+      "description": "Drawer with fields, dependencies, downstream, bound specs, stepper and history; the selected epic's chain and the milestone matrix.",
+      "status": "open",
+      "tags": [
+        "page",
+        "dashboard"
+      ],
+      "depends_on": [
+        "page-map-lanes",
+        "dashboard-get-endpoints"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- the drawer shows fields, dependencies with whys, downstream, bound specs with phase and loops, and its stepper (claim with author or skipped, bound, done); the chain panel shows every edge's why; the milestone matrix renders\n- its history comes from the `--of-epic` GET, refetched on every push; an epic in no recorded slice says it has no graph history\n- a hash-only round says no edge or why text was kept",
+      "source_sections": [
+        "## 4. The Epics tab",
+        "## 11. Graph history"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "page-graph-history",
+      "title": "Draw a slice's graph history between rounds",
+      "description": "Per slice, its rounds with findings by role; between two chosen rounds, the snapshot diff beside the earlier round's findings.",
+      "status": "open",
+      "tags": [
+        "page",
+        "dashboard"
+      ],
+      "depends_on": [
+        "page-plan-review",
+        "dashboard-get-endpoints"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- a slice's rounds in order with findings by role; choosing two rounds shows their diff with the earlier round's findings beside it\n- fetched by GET when shown and again on every push",
+      "source_sections": [
+        "## 11. Graph history"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "page-specs-tab",
+      "title": "Draw the Specs tab from the list",
+      "description": "Rows from tp export --list, grouped by phase in loop order.",
+      "status": "open",
+      "tags": [
+        "page",
+        "dashboard"
+      ],
+      "depends_on": [
+        "page-shell-tabs",
+        "export-list"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- one row per task file: title and path, epic and its state, task progress, review and audit rounds, next step; grouped by phase in the loop's order, operator decisions first within a phase\n- a filter, phase chips and an operator-decisions chip narrow it, `/` reaches the filter from anywhere, a row opens the Spec tab\n- in tp's own repository every `spec/*.tasks.json` appears once, under the phase `tp resume \u003cfile\u003e` reports",
+      "source_sections": [
+        "## 12. The Specs tab"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "page-spec-header",
+      "title": "Draw the Spec tab header stepper",
+      "description": "Stepper ground to release, release impact, and the tp resume command with a copy key.",
+      "status": "open",
+      "tags": [
+        "page",
+        "dashboard"
+      ],
+      "depends_on": [
+        "page-specs-tab",
+        "summary-release-impact"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- one stepper (ground, review, decompose, implement, audit, release), each step saying what happened or when it comes, the current marked, a pause mark where the operator decides\n- a spec with review rounds and no tasks opens on Read with the step `tp resume` reports marked; one with tasks opens on Tasks\n- the release impact from the summary and the `tp resume` command with a copy key",
+      "source_sections": [
+        "## 13. The Spec tab"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "page-spec-read",
+      "title": "Draw the Spec tab Read view",
+      "description": "The spec's text in anchored sections from tp export.",
+      "status": "open",
+      "tags": [
+        "page",
+        "dashboard"
+      ],
+      "depends_on": [
+        "page-spec-header",
+        "dashboard-get-endpoints"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- the text in numbered sections with their `§N ¶M` anchors; a section's task count opens Tasks filtered to it\n- an edit to spec text or a task's acceptance or description changes none of the pushed payloads: test editing the spec text with the tab open and decide whether waiting for the next push is acceptable; if not, add a per-file content hash to `tp export --list` (with its test) so the page refetches",
+      "source_sections": [
+        "## 13. The Spec tab"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "page-spec-tasks",
+      "title": "Draw the Spec tab Tasks view",
+      "description": "Steps and Board in one panel, beside a progress or task panel that never closes.",
+      "status": "open",
+      "tags": [
+        "page",
+        "dashboard"
+      ],
+      "depends_on": [
+        "page-spec-header"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- Steps puts each task one step below the last task it waits on; Board has ready, in progress, waiting, done, its counts equal to `tp status`'s open, wip and done\n- with no task picked the side panel shows progress: tasks by state, estimate left, running tasks against estimate, tasks closed over time\n- with a task picked it shows state, time against estimate or evidence and commit, acceptance, dependencies, its section and its command",
+      "source_sections": [
+        "## 13. The Spec tab"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "page-spec-history",
+      "title": "Draw the Spec tab History view",
+      "description": "Rounds on a time axis, the round table and each review round's snapshot diff.",
+      "status": "open",
+      "tags": [
+        "page",
+        "dashboard"
+      ],
+      "depends_on": [
+        "page-spec-header"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- rounds on a time axis and the round table: findings or FAIL count, clean, cap, streak\n- each review round's snapshot diff from the round before beside its findings; a spec with two review rounds shows the diff of `snapshot-round-1.md` and `snapshot-round-2.md`",
+      "source_sections": [
+        "## 13. The Spec tab"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "page-lifecycle-chart",
+      "title": "Draw the lifecycle-over-time chart",
+      "description": "Work epics per stage per day from the summary series.",
+      "status": "open",
+      "tags": [
+        "page",
+        "dashboard"
+      ],
+      "depends_on": [
+        "page-epics-kpi",
+        "summary-daily-series"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- the chart draws the summary's per-day series; an unknown binding time shows as unknown, never on a guessed day\n- its ⓘ says an epic's planning time is not recorded, so a later-added epic counts as planned from the first day",
+      "source_sections": [
+        "## 17. Lifecycle over time, and since you last looked"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "page-since-last-looked",
+      "title": "Draw the since-you-last-looked strip",
+      "description": "Counts what changed since this browser last saw the page, kept in localStorage alone.",
+      "status": "open",
+      "tags": [
+        "page",
+        "dashboard"
+      ],
+      "depends_on": [
+        "page-epics-kpi"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- counts tasks closed, rounds recorded and epics that changed stage (status differs between the stored and the current `tp epic export`), never which ones\n- each load compares the stored payload with the current one, then stores it; storage access in try/catch, tp stores nothing\n- after a task closes in another terminal a reload counts it under tasks closed; a private window shows no strip",
+      "source_sections": [
+        "## 17. Lifecycle over time, and since you last looked"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "docs-readme",
+      "title": "Document the dashboard release in README",
+      "description": "Command index and lint rule table.",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [
+        "lint-gate-threshold-unwritten",
+        "lint-forbidden-dependency",
+        "dashboard-sse-push",
+        "export-list",
+        "epic-history-of-epic"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- the command index names `tp dashboard`, `tp export`, `tp export --list` and `tp epic review --history`\n- the lint table carries `gate-threshold-unwritten` (warning) and `forbidden-dependency` (error) rows",
+      "source_sections": [
+        "## 8. Placeholder thresholds",
+        "## 10. Forbidden dependencies"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "docs-skill",
+      "title": "Document the new commands in SKILL.md",
+      "description": "Command inventory rows and Workflow E notes; plugin content changed after a tag, so bump plugin.json (CLAUDE.md rule 12).",
+      "status": "open",
+      "tags": [
+        "docs",
+        "plugin"
+      ],
+      "depends_on": [
+        "docs-readme"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- the inventory has `tp dashboard [--port N]`, `tp export`, `tp export --compact`, `tp export --list`, `tp epic review \u003cslice\u003e --history`, `--from/--to` and `--history --of-epic`\n- Workflow E mentions `forbidden_edges` and placeholder thresholds\n- `.claude-plugin/plugin.json`'s version is bumped and the plugin-version guard tests pass",
+      "source_sections": [
+        "## 16. One spec's read model: `tp export`",
+        "## 11. Graph history"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "docs-reference",
+      "title": "Document the new schemas in REFERENCE.md",
+      "description": "Exit codes, payload schemas, graph and config keys, the two lint rules.",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [
+        "docs-readme"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- exit codes: `tp dashboard` 1, 2, 3; `tp export` 0 and 3; `--list` 0; `--history` 3\n- schemas: the epic export's additions (`generated_at`, `layout`, `lint`, milestone state, slice fields, `bound_at`/`imported_at`), `tp export` and `--list` version 1, the summary payload, `forbidden_edges`, `epic.threshold_placeholder`, the task file's two times\n- `gate-threshold-unwritten` and `forbidden-dependency` semantics, the default placeholder pattern included",
+      "source_sections": [
+        "## 16. One spec's read model: `tp export`",
+        "## 15. Bound and imported times"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "docs-claude-md",
+      "title": "Update CLAUDE.md's open work after the dashboard",
+      "description": "Only what changed: the open-work pointer and, if a package was added, the project structure.",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [
+        "docs-reference"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "- the open-work paragraph no longer names `spec/backlog/dashboard.md` as open, and a new dashboard package, if added, is in the project structure",
+      "source_sections": [
+        "## 1. The command"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
 }
