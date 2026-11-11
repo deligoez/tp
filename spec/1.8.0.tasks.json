@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T19:52:24.047919Z",
+  "updated_at": "2026-11-11T19:57:50.168753Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -1745,7 +1745,7 @@
       "id": "page-spec-header",
       "title": "Draw the Spec tab header stepper",
       "description": "Stepper ground to release, release impact, and the tp resume command with a copy key.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "page",
         "dashboard"
@@ -1759,11 +1759,21 @@
       "source_sections": [
         "## 13. The Spec tab"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T19:52:27.663661Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T19:57:50.146567Z",
+      "closed_reason": "- One stepper (ground, review, decompose, implement, audit, release; internal/dashboard/page/app.js stepper/stepLines) from tp export of the file (GET /api/export?file=, re-fetched on every pushed export-list): each step says what happened (loop round of cap and clean streak, converged/ended in round N, N tasks written, D of N done from the list row's counts, ground FAILs to repair or not run) or when it comes (after X); the current step is the phase tp resume reports (ground, which resume never reports, shows as skipped when it has no round); escalate blockers put a pause mark on the current step and an operator note each. Checked in a browser on a synthetic repo: a file with 3 review rounds at its cap shows a paused Review step and the review-budget-exhausted note.\n- A spec opens on Read when tp resume reports review or decompose or it has no task, else on Tasks (defaultView); subnav Read the spec (N sections) / Tasks (D of N done) / History (N rounds). Browser: alpha (1 review round, no tasks) opened on Read with Review marked; beta (2 clean review rounds, 2 tasks, implement) opened on Tasks with Implement marked; claiming t1 while open re-read the export (next step became 'resume the in-progress task t1').\n- Release impact from summary.release_impact[path] (frees and gate moves; 'Bound to no epic' for an unbound file, 'Released.' at release) and the command tp resume names (next_action.command, else brief_command) with a Copy key (navigator.clipboard), plus its summary. Browser: alpha bound to e1 read 'Releasing it completes epic e1, which frees e2 and brings milestone M1's gate from 0 to 1 of 2 members done.', command 'tp review alpha.md' with Copy. Read/Tasks/History panels are empty containers for page-spec-read/-tasks/-history. Gate passed; no Go change.",
+      "gate_passed_at": "2026-11-11T19:57:50.146567Z",
+      "commit_sha": "4e733708",
+      "commit_shas": [
+        "4e733708",
+        "7bb017a8"
+      ],
+      "commit_files": [
+        "internal/dashboard/page/app.js",
+        "internal/dashboard/page/index.html",
+        "internal/dashboard/page/style.css"
+      ]
     },
     {
       "id": "page-spec-read",
