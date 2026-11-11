@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T15:06:10.952015Z",
+  "updated_at": "2026-11-11T15:10:47.332257Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -240,7 +240,7 @@
       "id": "placeholder-config-key",
       "title": "Read epic.threshold_placeholder from the project config",
       "description": "The project config gains epic.threshold_placeholder, one regular expression matched against the trimmed threshold; tp validate --project refuses one that does not compile.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "config"
@@ -253,11 +253,30 @@
       "source_sections": [
         "## 8. Placeholder thresholds"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T15:06:15.430395Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T15:10:47.290977Z",
+      "closed_reason": "- .tp/config.json gains a top-level epic block, {threshold_placeholder} (model.ProjectConfig.Epic *EpicProjectConfig, omitempty), parsed leniently by LoadProjectConfig (unknown epic key / non-string value warn and are ignored); engine.ProjectThresholdPlaceholder(tpDir) and engine.ProjectPlaceholderMatcher(tpDir) give the pattern the matcher uses, the default when the key is absent or empty or no .tp/ exists: TestProjectPlaceholderMatcher_UsesTheConfiguredPattern, _WithoutTheKeyUsesTheDefault, TestLoadProjectConfig_AnUnknownOrWrongTypedEpicKeyWarns, red before the change (no field)\n- tp validate --project exits 1 (ExitValidation, reading chosen) when the pattern does not compile, the error naming epic.threshold_placeholder and the regexp compile error, with a repair hint; a malformed config stays under skipped as before: TestValidateProject_RefusesAPlaceholderPatternThatDoesNotCompile, red before the change (exit 0)\n- tp config prints epic: {threshold_placeholder: \u003ceffective pattern, the default when unset\u003e} beside workflow, and --resolved prints it as {value, source} with source project or default (reading chosen); tp config --extract --force keeps the epic block since the model carries it: TestConfig_ShowsTheThresholdPlaceholder, TestConfigExtract_KeepsTheThresholdPlaceholder, both red before the change (no key; the extract dropped epic); gate passed",
+      "gate_passed_at": "2026-11-11T15:10:47.290977Z",
+      "commit_sha": "78bf13ba",
+      "commit_shas": [
+        "78bf13ba",
+        "eb016628",
+        "98ab9e9b",
+        "cc4ce9ba",
+        "fc1095b2",
+        "819fe059",
+        "f0a97806"
+      ],
+      "commit_files": [
+        "internal/cli/config.go",
+        "internal/cli/placeholder_config_test.go",
+        "internal/cli/validate_project.go",
+        "internal/engine/placeholder.go",
+        "internal/engine/placeholder_config_test.go",
+        "internal/engine/projectconfig.go",
+        "internal/model/projectconfig.go"
+      ]
     },
     {
       "id": "lint-gate-threshold-unwritten",
