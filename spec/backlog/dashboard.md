@@ -240,7 +240,8 @@ Instead, three steps:
 matrix + plan review, from today's export plus `revision`/`generated_at` (gap 5) and `layout`. Spec:
 picker, loop, reader, task graph and task list, from the spec read model (§4).
 **Later:** feedback on the spec, per-finding detail (severity, resolution), `tp run` units live (3),
-a TUI summary, a `--md`/static snapshot for sharing.
+a TUI summary, a `--md`/static snapshot for sharing, and the history views §4's "History" lists
+beyond the operator's v1 choice (§6, question 4).
 
 ## Non-goals
 
