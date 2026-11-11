@@ -26,7 +26,7 @@
   // it, if any; graph records whether tp pushed the epic export at all.
   const live = {};
   EVENTS.forEach((name) => { live[name] = { data: null, error: null }; });
-  const state = { graph: false, tab: null, spec: null };
+  const state = { graph: false, tab: null, spec: null, wantTab: null };
 
   // panels draw the tabs: each names the payloads it reads and draws from
   // their last good state. A later view registers its own with panel().
@@ -50,7 +50,10 @@
     if (name === "epic-export") state.graph = true;
     // The server replays the current state in derivation order, the graph's
     // export before the list, so the list's arrival settles where to open.
-    if (name === "export-list" && state.tab === null) setTab(state.graph ? "epics" : "specs");
+    if (name === "export-list" && state.tab === null) {
+      setTab(state.wantTab || (state.graph ? "epics" : "specs"));
+      address.landed = true;
+    }
     $("pushed").textContent = "Updated " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     render();
   }
@@ -63,6 +66,7 @@
       $("tab-" + t).setAttribute("aria-selected", String(t === tab));
       $("view-" + t).hidden = t !== tab;
     });
+    syncURL();
   }
 
   function render() {
@@ -526,8 +530,8 @@
     const box = $("trackchips");
     if (box.dataset.key === key) return;
     box.dataset.key = key;
-    mapView.tracks = new Set();
-    box.innerHTML = tracks.length > 1 ? tracks.map((t, i) => '<button class="chip" type="button" data-track="' + i + '" aria-pressed="false" title="' +
+    mapView.tracks = new Set([...mapView.tracks].filter((i) => i < tracks.length));
+    box.innerHTML = tracks.length > 1 ? tracks.map((t, i) => '<button class="chip" type="button" data-track="' + i + '" aria-pressed="' + mapView.tracks.has(i) + '" title="' +
       esc(t.join(", ")) + '">' + esc(t.length > 1 ? t[0] + "–" + t[t.length - 1] : t[0] || "track " + (i + 1)) + "</button>").join("") : "";
   }
 
@@ -591,6 +595,7 @@
     if (nb) out.push("<g>" + neighbourEdges(sel, geo.pos).join("") + "</g>");
     $("mapsvg").innerHTML = out.join("");
     mapPort.bounds(geo.W, geo.H);
+    syncURL();
   }
   const clip = (s, n) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
   panel(["epic-export"], drawMap);
@@ -817,6 +822,7 @@
       const again = $("specs-body").querySelector('.srow[data-path="' + CSS.escape(focused.dataset.path) + '"]');
       if (again) again.focus();
     }
+    syncURL();
   }
   panel(["export-list"], drawSpecs);
 
@@ -861,7 +867,10 @@
     } else {
       work.data = body;
       work.error = null;
-      if (work.view === null) work.view = defaultView(body);
+      if (work.view === null) {
+        work.view = defaultView(body);
+        address.quiet = true;
+      }
     }
     drawWork();
   }
@@ -942,7 +951,10 @@
     $("work-none").hidden = !!work.path;
     $("work-body").hidden = !work.path;
     $("c-work").textContent = work.path || "";
-    if (!work.path) return;
+    if (!work.path) {
+      syncURL();
+      return;
+    }
     const d = work.data;
     const f = listRow(work.path);
     const e = work.error;
@@ -959,6 +971,7 @@
       esc(label) + '<span class="muted num">' + esc(counts[v]) + "</span></button>").join("") : "";
     VIEWS.forEach(([v]) => { $("sv-" + v).hidden = !d || work.view !== v; });
     if (d && work.view === "tasks") drawTasks(d);
+    syncURL();
   }
 
   // ---------- the Spec tab's Tasks view (§13) ----------
@@ -1269,6 +1282,93 @@
   });
 
   TABS.forEach((t) => { $("tab-" + t).addEventListener("click", () => setTab(t)); });
+
+  // ---------- the address (§14) ----------
+  // The page's place lives in the address's fragment, so back and forward and
+  // a copied link land where the operator was. URL_KEYS names every key: the
+  // tab, the spec, its view, the picked task, the selected epic, and the
+  // active filters (the map's tracks, all edges, neighbours and search; the
+  // Specs tab's phase and filter; the Tasks view's Steps or Board). A change
+  // of place (tab, spec, view, task, epic) adds a history entry; a filter
+  // replaces the current one.
+  const URL_KEYS = ["tab", "spec", "view", "task", "epic", "tracks", "edges", "nb", "q", "phase", "sq", "tview"];
+  const PLACE_KEYS = ["tab", "spec", "view", "task", "epic"];
+  const address = { landed: false, quiet: false, applying: false };
+
+  function placeParams() {
+    const p = new URLSearchParams();
+    const put = (k, v) => { if (v) p.set(k, v); };
+    put("tab", state.tab);
+    put("spec", work.path);
+    if (work.path) {
+      put("view", work.view);
+      put("task", work.task);
+      if (work.tview !== "steps") put("tview", work.tview);
+    }
+    put("epic", mapView.selected);
+    put("tracks", [...mapView.tracks].sort((a, b) => a - b).join(","));
+    if (mapView.edges) put("edges", "1");
+    if (mapView.nb) put("nb", "1");
+    put("q", mapView.q);
+    if (specsView.phase !== "all") put("phase", specsView.phase);
+    put("sq", specsView.q);
+    return p;
+  }
+
+  // syncURL writes the page's place into the address: a new history entry
+  // when the place changed after the page first landed, else in place.
+  function syncURL() {
+    if (address.applying || state.tab === null) return;
+    const next = placeParams();
+    const cur = new URLSearchParams(location.hash.slice(1));
+    const quiet = address.quiet;
+    address.quiet = false;
+    if (next.toString() === cur.toString()) return;
+    const moved = PLACE_KEYS.some((k) => (next.get(k) || "") !== (cur.get(k) || ""));
+    const url = location.pathname + location.search + "#" + next.toString();
+    if (moved && address.landed && !quiet) history.pushState(null, "", url);
+    else history.replaceState(null, "", url);
+  }
+
+  // readURL takes the page's place from the address; a spec it names that is
+  // not the open one is opened and fetched.
+  function readURL() {
+    const p = new URLSearchParams(location.hash.slice(1));
+    const tab = p.get("tab");
+    state.wantTab = TABS.includes(tab) ? tab : null;
+    const spec = p.get("spec");
+    if ((spec || null) !== work.path) {
+      Object.assign(work, { path: spec || null, data: null, error: null });
+      state.spec = work.path;
+      if (work.path && state.tab !== null) fetchSpec();
+    }
+    const view = p.get("view");
+    work.view = VIEWS.some(([v]) => v === view) ? view : work.data ? defaultView(work.data) : null;
+    work.task = p.get("task");
+    work.tview = p.get("tview") === "board" ? "board" : "steps";
+    mapView.selected = p.get("epic");
+    mapView.tracks = new Set((p.get("tracks") || "").split(",").filter((x) => /^\d+$/.test(x)).map(Number));
+    mapView.edges = p.get("edges") === "1";
+    mapView.nb = p.get("nb") === "1";
+    mapView.q = p.get("q") || "";
+    const phase = p.get("phase");
+    specsView.phase = phase === "op" || PHASES.some(([x]) => x === phase) ? phase : "all";
+    specsView.q = p.get("sq") || "";
+    $("map-q").value = mapView.q;
+    $("specs-q").value = specsView.q;
+    $("f-edges").setAttribute("aria-pressed", String(mapView.edges));
+    $("f-nb").setAttribute("aria-pressed", String(mapView.nb));
+    $("trackchips").querySelectorAll("[data-track]").forEach((b) => b.setAttribute("aria-pressed", String(mapView.tracks.has(Number(b.dataset.track)))));
+  }
+
+  readURL();
+  window.addEventListener("popstate", () => {
+    address.applying = true;
+    readURL();
+    if (state.tab !== null) setTab(state.wantTab || (state.graph ? "epics" : "specs"));
+    render();
+    address.applying = false;
+  });
 
   // The stream: a page that reconnects gets the current state again (§2).
   const conn = $("conn");
