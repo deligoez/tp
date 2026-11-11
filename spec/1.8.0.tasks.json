@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T14:16:00.094557Z",
+  "updated_at": "2026-11-11T14:19:29.240518Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -48,7 +48,7 @@
       "id": "set-epic-bound-at",
       "title": "Stamp bound_at when the binding changes",
       "description": "tp init --epic and tp set --epic write bound_at only when the file's epic changes; tp set --epic \"\" removes it with epic.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "binding"
@@ -62,11 +62,20 @@
         "## 15. Bound and imported times",
         "## 18. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T14:16:00.478146Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T14:19:29.224143Z",
+      "closed_reason": "- tp set --epic a on an unbound file writes bound_at in UTC (applyEpicBinding in internal/cli/set_epic.go) and tp init \u003cspec\u003e --epic a writes it on the new file (boundAtFor in internal/cli/init.go); an unbound init writes none: TestSetEpic_BoundAtMovesOnlyWhenTheEpicChanges, TestInit_EpicWritesBoundAt\n- §18 row 11 fixture (bound to a, re-bound to a, then to b): bound_at unchanged on the re-bind and later after b; the mutant stamping on every set --epic turns TestSetEpic_BoundAtMovesOnlyWhenTheEpicChanges red at the re-bind\n- tp set --epic \"\" removes bound_at with epic: TestSetEpic_EmptyRemovesBoundAtWithTheEpic, red under the mutant that keeps a stamp on removal; gate passed",
+      "gate_passed_at": "2026-11-11T14:19:29.224143Z",
+      "commit_sha": "b050830f",
+      "commit_shas": [
+        "b050830f",
+        "52b88aa8"
+      ],
+      "commit_files": [
+        "internal/cli/init.go",
+        "internal/cli/set_epic.go"
+      ]
     },
     {
       "id": "import-imported-at",
