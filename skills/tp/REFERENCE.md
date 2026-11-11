@@ -1619,6 +1619,29 @@ ascending. Classes sort by the number of distinct epics, descending, then by nam
 `direct` tag check is the operator's. Without `--all` or `--milestones`, or beside `--status`,
 `--check` or `--role`, it exits 2; a round file tp cannot read exits 3.
 
+### Graph history (`--history`, v1.8.0)
+
+`tp epic review <slice> --history` reads the slice's recorded rounds and the graph and writes nothing:
+`{state_dir, rounds, current}`. Each recorded round is `{round, findings_by_role, diff_from, diff}`:
+`findings_by_role` counts the round's findings by role, a finding naming none under `unattributed`;
+`diff` is the difference from round `diff_from`, the round before, and both are `null` on round 1.
+`current` is `{from_round, diff}`, the difference from the last recorded round to the slice's units as
+the graph renders them now. `--from <a> --to <b>` holds rounds `a` and `b` only, `b` diffed from `a`,
+and no `current`.
+
+A difference is `{units_added, units_removed, units_changed, edges_added, edges_removed,
+whys_changed, fields_changed, hashes_only, unchanged}`, each list sorted by unit key and never null:
+an edge `{unit, to, why}`, a why change `{unit, to, before, after}` with both texts, a field change
+`{unit, field, before, after}`. A round snapshotted before blocks were kept holds only hashes:
+`hashes_only` is true, the edge, why and field lists are empty, and the unit lists stay known.
+`unchanged` names the units under the same hash; `--compact` drops it and keeps every change.
+
+`tp epic review --history --of-epic <id>` takes no slice: `{epic, slices, message?}`, each slice
+`{state_dir, key, rounds}` whose recorded rounds' snapshots hold `epic:<id>`, each round `{round,
+edges: [{to, why}], hashes_only}`, the edges in block order. An epic no recorded round holds prints
+`slices: []` and a `message` saying it has no graph history, at exit 0; an epic the graph no longer
+holds is still looked up, since history outlives it.
+
 ### Binding and status (v1.5.0)
 
 A task file names its epic in the top-level `epic` (schema above). An epic's bound files are every
