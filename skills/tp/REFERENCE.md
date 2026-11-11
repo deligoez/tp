@@ -1880,3 +1880,142 @@ relative to the directory the command ran in, symlinks resolved on both sides, s
 | 2 | usage: a payload key outside the schema, an unknown `set` field or gate field (`gates.<m>.<field>=`) or bad JSON, an `opens_after=` value that is not an object of string lists (a `null` list included, on `set` and `import` alike), an `add` or `--bulk` payload that names `claimed` or `done` and a `set gates=` one that names `met`, a malformed `tp epic apply` row, an unknown `op` or an `add` row of an id an earlier row removes, a `condition=` value other than `true`/`false`, `review` without exactly one of `--milestone`/`--epic`/`--epics`, `--name` without `--epics` or an empty `--epics`, `milestone add` without exactly one of `--after`/`--before`/`--new-track`, an unknown `--role`, an invalid `--resolve` status, an out-of-range or repeated index or a `wontfix`/`duplicate` without evidence, `tp epic done` without exactly one of `--evidence`/`--undo`, `gate --met` without `--evidence` or `--evidence` without `--met`, `claim --release` with `--by`, `--grant-round` beside another mode or a batch flag, `--milestones` beside `--all`, either beside `--milestone`/`--epic`/`--epics`/`--name`/`--record`/`--resolve`/`--resolve-all`/`--force`, a `--milestones` list that is empty or holds an empty name, `--report` without `--all` or `--milestones` or beside `--status`/`--check`/`--role`; and under `TP_UNATTENDED` every writer, `--record`, `--grant-round` (escalate `grant-round`), `tp epic done` and its `--undo`, `gate --met`, and `tp init --epic` and `tp set --epic` (an empty value too) — `tp epic claim` runs |
 | 3 | file: no graph file, a malformed one, unreadable slice state, a project config that does not parse, or `--resolve` with no recorded round; for `ready`, `status`, `gate` and `export`, no graph file or an unreadable bound task file |
 | 4 | state: an absent epic (`set`, `remove`, `link`/`unlink`'s `<from>`, the subject of a `tp epic apply` row at that row, `review --epic`/`--epics`, `claim`, `done`), edge (`unlink`, an `apply` unlink row), any-of group (`unlink --any-of`) or milestone (`review --milestone`, `milestone add`'s anchor, `gate`'s milestone, `status --milestone`, `set gates.<m>.<field>=`, the message listing the milestones the tracks hold), or a `status --open --milestone` that is closed; a stale `--if-revision`; a reached cap — `review_max_rounds` rounds recorded and not converged — refuses emission and `--record`, naming the slice's `--resolve` and the key that raises the cap (on a stale slice, `--grant-round` first); `--grant-round` on a slice below its cap, unchanged since its last round, done, or with a grant open |
+
+`--history` (v1.8.0) adds to the table: 2 for `--from` or `--to` without the other or without
+`--history`, and for `--of-epic` beside a slice flag, `--from`/`--to` or any other flag of the command,
+or without `--history`; 3 for a slice with no state directory; 4 for a `--from`/`--to` round the slice
+did not record. It runs under `TP_UNATTENDED`: it writes nothing.
+
+## Task Export and the Dashboard (v1.8.0)
+
+### The task file's two times
+
+| Key | Shape | Written by |
+|-----|-------|------------|
+| `bound_at` | RFC 3339 UTC, top-level, omitted when unset | `tp set --epic <id>` and `tp init --epic <id>` when the binding changes: re-binding the same epic keeps it, binding another moves it, and `tp set --epic ""` removes it with `epic`. `tp import` keeps it as it keeps `epic` |
+| `imported_at` | RFC 3339 UTC, top-level, omitted when unset | every `tp import` into the file, `--force` included; no other write touches it |
+
+A file written before v1.8.0 has neither key, loads, and saves without gaining them; nothing reports a
+time for it. `tp epic export` copies both onto the bound file's entry and `tp export` prints both
+(`null` when absent).
+
+### `tp export` (version 1)
+
+The read model of one task file, the one `--file` names or discovery finds; it takes no positional and
+writes nothing.
+
+```
+{version: 1, path, spec, epic, bound_at, imported_at, sections, tasks, loops, resume}
+```
+
+- `path` is the task file and `spec` its spec, repo-relative; `epic`, `bound_at` and `imported_at` are
+  `null` on a file without them.
+- `sections`: `[{anchor, heading, line, paragraphs: [{anchor, line, text}]}]`. `§0` is the preamble
+  (left out when empty); a numbered heading of level 2 to 6 opens `§<number>`; an unnumbered level-2
+  heading opens `§<slug>` (lowercased, each run of characters other than letters and digits one
+  hyphen), a repeated slug taking the next free suffix (`-2`, `-3`); a level-3-or-deeper unnumbered
+  heading is a paragraph of its section. A paragraph is a run of non-blank lines, a fenced block one
+  paragraph, anchored `§N ¶M`; frontmatter is no paragraph but counts in `line`. An anchor depends only
+  on the text above it, so an edit leaves every earlier anchor unchanged.
+- `tasks`: each task as stored plus `state` — `ready`, `waits_on_task`, `waits_on_epic`, or its
+  `wip`/`done` status — and `waits_on`, its undone dependencies, or, under the epic block, the epic's
+  undone dependencies, a group written `one of {A, B}`.
+- `loops.{ground, review, audit}`: each `{cap, clean_rounds_needed, streak, rounds}`; `cap` is `null`
+  uncapped and on ground; ground's `clean_rounds_needed` is 1, since its `--check` reads the latest
+  round. Each recorded round is `{round, recorded_at, findings, clean, snapshot_diff}` (ground: `fails`,
+  its `FAIL` rows, in place of `findings`); a ground round stores no time, so its `recorded_at` is the
+  round file's modification time. `snapshot_diff` is `{changed, removed}` against the round before's
+  snapshot of the same phase, `null` on round 1 or when a snapshot is missing.
+- `resume` is `tp resume`'s payload for the file, exactly as that command prints it.
+
+`--compact` keeps each section's `anchor`, `heading` and `line` and drops its `paragraphs`, drops each
+task's `description`, sets every `snapshot_diff` to `null`, and compacts `resume` as
+`tp resume --compact` does.
+
+### `tp export --list` (version 1)
+
+```
+{version: 1, files: [{path, title, epic?, epic_state?, phase, tasks: {open, wip, done},
+                      review: {round, state}, audit: {round, state}, next_step, escalations?}]}
+```
+
+One row per `*.tasks.json` git sees, tracked or untracked and not ignored, bound or not; outside a
+git repository `files` is `[]`. `title` is the spec's first heading; `epic_state` the epic's
+derived status (`null` with no graph); `phase` and `next_step` what `tp resume <file>` reports;
+`review`/`audit` `{round, state}` as `tp epic export`'s bound files carry them; `escalations` the file's
+escalate blockers. `epic`, `epic_state` and `escalations` are omitted when empty. Rows run in phase
+order (`review`, `decompose`, `implement`, `audit`, `release`), escalated rows first within a phase,
+then by path. A file that cannot be read keeps a `{path, error}` row, sorted last, and the rest are
+whole. `--list` ignores `--file` and `--compact`.
+
+### `tp dashboard`
+
+Serves the embedded page and its data on `127.0.0.1:<port>` (7377 unless `--port`), prints the URL —
+the bare URL in a TTY, `{url}` when piped or under `--json` — and serves until `SIGINT` or `SIGTERM`.
+It writes nothing to the repository and loads nothing remote.
+
+| Request | Answer |
+|---------|--------|
+| a `Host` other than `127.0.0.1:<port>` or `localhost:<port>` (name case-insensitive, port required) | 403, before anything else |
+| any method but `GET` | 405 with `Allow: GET` |
+| `/`, `/style.css`, `/app.js` | the page |
+| `/api/events` | the event stream below |
+| `/api/export?file=<path>` | `tp export --file <path>`'s JSON, uncompacted |
+| `/api/history?milestone=<m>` (or `epic=`, `epics=`, with `name=`, and `from=`/`to=`) | that slice's `tp epic review --history` JSON |
+| `/api/epic-history?epic=<id>` | `tp epic review --history --of-epic <id>`'s JSON |
+
+A GET answer is byte-equal to the command's stdout. An error answers tp's `{error, code, hint}`:
+HTTP 400 for code 2, 404 for codes 3 and 4, and 403 with code 2 for a `file` that resolves outside the
+repository (a relative `..`, an absolute path, or a symlink pointing out). No response carries a CORS
+header.
+
+**Events.** `/api/events` is a server-sent event stream. While at least one page listens, the server
+derives three payloads in-process every 2 seconds and pushes each, as one line of JSON under its event
+name, only when it differs from the last push with a top-level `generated_at` left out:
+
+| Event | Payload |
+|-------|---------|
+| `epic-export` | `tp epic export`'s JSON, while a graph file exists |
+| `export-list` | `tp export --list`'s JSON |
+| `summary` | the summary below, over an empty graph when there is none |
+
+A page that connects first receives the current state, in the order the payloads were derived. A
+derivation that fails is pushed under its event as tp's `{error, code, hint}`; the page shows it as a
+banner over the last good payload, greyed. A page more than 32 events behind is dropped and
+reconnects, and the loop stops when no page listens.
+
+**The summary** is the page's own payload, figures no command prints; its keys are not a versioned
+contract:
+
+- `rounds`: per epic review slice, keyed by its state directory name (`tp epic export`'s
+  `slices[].dir`), `[{round, total, by_role}]` in round order, every finding counted whatever its
+  disposition, a finding naming no role under `unattributed`.
+- `band`: `{stages, phases, phases_of}`. `stages` counts work epics per status (`planned`, `claimed`,
+  `specced`, `in_progress`, `done`); `phases` counts per spec phase (`review`, `decompose`,
+  `implement`, `audit`, `release`) each work epic with a bound file once, at its earliest bound file's
+  phase, and `phases_of` reads `epics`. With no graph, or one with no epic, `phases` counts task files
+  instead and `phases_of` reads `task_files`. Both maps carry every key of their axis.
+- `release_impact`: per task file, by repo-relative path, `{frees, gates}`: the epics that would no
+  longer be blocked once this file's epic is done, and `[{milestone, members_done,
+  members_done_after, members}]` for each gate whose done count would move. A bound file carries its
+  epic's impact only when every other file bound to that epic is at `release`; an unbound file
+  carries `{frees: [], gates: []}`.
+- `plan`: `{figures, ready, operator_conditions, waiting, most_waited_on}`; `figures` is `{work, ready,
+  blocked, held, done, share_done, critical_path, operator_queue, open_loops, throughput}` over work
+  epics, `operator_queue` counting actionable conditions, gates awaiting `--met` and threshold
+  rewrites, `open_loops` the epic review slices not `done`, `throughput` `[{week, done}]` over every
+  milestone. The dashboard layer also leaves `deferrable` gate members out of `waiting` and drops a
+  condition only deferrable work waits on from `operator_conditions`; `tp epic status`, `ready` and
+  `export` are unchanged by it. Empty with no graph.
+- `series`: the per-day lifecycle series; `[]` in this build, which derives none yet.
+
+### Exit codes
+
+| Command | 0 | 1 | 2 | 3 |
+|---------|---|---|---|---|
+| `tp export` | printed | — | usage | no task file (the hint names `--file` and `tp init`), or one that cannot be read (the hint names the file and `tp validate`) |
+| `tp export --list` | printed, `files: []` with no task file; a malformed file keeps its row | — | usage | — |
+| `tp dashboard` | interrupted after serving | the port is taken (the message names it) | `--port` outside 1-65535; `TP_UNATTENDED` | neither a graph file nor a task file (the hint names `tp epic set` and `tp init`) |
+
+`tp export` and `--list` run under `TP_UNATTENDED`, since they write nothing; `tp dashboard` does not,
+since it serves until interrupted.
