@@ -39,8 +39,8 @@ func jsonKeys(t *testing.T, raw json.RawMessage) []string {
 // top-level keys rounds, band, release_impact, series and plan, each per-round
 // entry's round, total and by_role, and the band's stages, phases and
 // phases_of with every key of both axes, a release impact entry's frees and
-// gates with each gate move's keys, and the plan's figures and now lists (§4),
-// empty with no graph. series is present and empty here; the task that fills
+// gates with each gate move's keys, the plan's figures and now lists (§4),
+// and the milestone matrix's cells, both empty with no graph. series is present and empty here; the task that fills
 // it extends this test.
 func TestDashboardSummary_ShapeIsPinned(t *testing.T) {
 	t.Parallel()
@@ -51,7 +51,10 @@ func TestDashboardSummary_ShapeIsPinned(t *testing.T) {
 	data, err := json.Marshal(sum)
 	require.NoError(t, err)
 
-	assert.Equal(t, []string{"band", "plan", "release_impact", "rounds", "series"}, jsonKeys(t, data))
+	assert.Equal(t, []string{"band", "matrix", "plan", "release_impact", "rounds", "series"}, jsonKeys(t, data))
+	cell, err := json.Marshal(MatrixCell{})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"done", "edges", "from", "to"}, jsonKeys(t, cell))
 	var top struct {
 		Rounds map[string][]json.RawMessage `json:"rounds"`
 		Band   struct {
@@ -64,6 +67,7 @@ func TestDashboardSummary_ShapeIsPinned(t *testing.T) {
 	require.NoError(t, json.Unmarshal(data, &top))
 	var raw map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(data, &raw))
+	assert.JSONEq(t, `[]`, string(raw["matrix"]), "with no graph the matrix is empty")
 	require.Len(t, top.Rounds["s1"], 1)
 	assert.Equal(t, []string{"by_role", "round", "total"}, jsonKeys(t, top.Rounds["s1"][0]))
 	assert.Equal(t, []string{"phases", "phases_of", "stages"}, jsonKeys(t, raw["band"]))
