@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T19:29:03.92869Z",
+  "updated_at": "2026-11-11T19:33:59.487806Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -1875,7 +1875,7 @@
       "id": "docs-readme",
       "title": "Document the dashboard release in README",
       "description": "Command index and lint rule table.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -1892,11 +1892,21 @@
         "## 8. Placeholder thresholds",
         "## 10. Forbidden dependencies"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T19:33:59.459795Z",
+      "duration_source": "implicit",
+      "closed_at": "2026-11-11T19:33:59.459832Z",
+      "closed_reason": "- README.md command index names tp export (--compact), tp export --list and tp dashboard (--port N, http://127.0.0.1:7377) under Query, and tp epic review --history (--from/--to, --of-epic) under Spec \u0026 Validation; forms confirmed with /tmp/tp-dev/tp help\n- README.md lint table: forbidden-dependency (error) and gate-threshold-unwritten (warning) rows; dangling-reference row extended to forbidden_edges selectors (tag selector no epic carries = warning) and missing-why to a forbidden_edges rule; the default placeholder pattern is described in words (its | would split the table cell) and left exact to REFERENCE.md; gate passed",
+      "gate_passed_at": "2026-11-11T19:33:59.459832Z",
+      "commit_sha": "8e3fccc3",
+      "commit_shas": [
+        "8e3fccc3",
+        "66a46191",
+        "d3c46d0d",
+        "7131cb5d"
+      ],
+      "commit_files": [
+        "README.md"
+      ]
     },
     {
       "id": "docs-skill",
