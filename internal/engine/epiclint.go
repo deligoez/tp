@@ -79,6 +79,11 @@ const (
 // selects (spec/1.8.0.md §10).
 const EpicRuleForbiddenDependency = "forbidden-dependency"
 
+// EpicRuleGateThresholdUnwritten is the warning on an unmet gate whose
+// threshold is a placeholder (spec/1.8.0.md §8): LintEpicThresholds'
+// rule, which needs the project's pattern.
+const EpicRuleGateThresholdUnwritten = "gate-threshold-unwritten"
+
 // EpicLintFinding is one lint result. Epics holds the sorted, distinct ids the
 // finding names, a dangling id included; it is never nil, so it encodes as [].
 // Names holds the sorted milestone, gate, tag or key names the finding
