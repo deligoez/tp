@@ -33,6 +33,8 @@ type epicExportResult struct {
 	Milestones   []epicMilestoneReport   `json:"milestones"`
 	Epics        []epicExportEpic        `json:"epics"`
 	Slices       []engine.EpicSliceState `json:"slices"`
+	// Lint is tp epic lint's counts for the same graph (spec/1.8.0.md §2).
+	Lint engine.EpicLintSummary `json:"lint"`
 }
 
 // epicExportEpic is one epic's title, place, derived state and bound files, and
@@ -138,8 +140,13 @@ func epicExport() (*epicExportResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	_, unknown, err := engine.LoadEpicGraphForLint(tpDir)
+	if err != nil {
+		return nil, err
+	}
+	lint := engine.SummarizeEpicLint(engine.LintEpicGraph(g, unknown))
 	epics := epicExportEpics(g, states, bound, files)
-	return &epicExportResult{Version: epicExportVersion, GeneratedAt: time.Now().UTC(), CriticalPath: plan.CriticalPath, Graph: g, Milestones: plan.Milestones, Epics: epics, Slices: reviewSlices}, nil
+	return &epicExportResult{Version: epicExportVersion, GeneratedAt: time.Now().UTC(), CriticalPath: plan.CriticalPath, Graph: g, Milestones: plan.Milestones, Epics: epics, Slices: reviewSlices, Lint: lint}, nil
 }
 
 // epicExportEpics builds every epic's item from one openness verdict, one
