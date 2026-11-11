@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T14:19:29.240518Z",
+  "updated_at": "2026-11-11T14:25:15.843492Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -154,7 +154,7 @@
       "id": "export-bound-file-times",
       "title": "Carry bound file times in the epic export",
       "description": "Each bound file entry of tp epic export carries bound_at and imported_at from its task file.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "export"
@@ -169,11 +169,20 @@
         "## 15. Bound and imported times",
         "## 2. Live data, derived once"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T14:20:41.268166Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T14:25:15.827899Z",
+      "closed_reason": "- tp epic export carries bound_at and imported_at on each bound file entry (engine.EpicFileState.BoundAt/ImportedAt, *time.Time copied from the task file in epicFileState, internal/engine/epicexportjson.go): TestEpicExport_CarriesTheBoundFileTimes imports a file, binds it with tp set --epic a, and finds both keys equal to the task file's times; red before the change (no bound_at key)\n- a bound file without the times omits both keys (omitempty) and keeps exactly path, phase, tasks, review, audit, ground: TestEpicExport_ABoundFileWithoutTimesOmitsBoth; mutant dropping omitempty on bound_at turns it red; gate passed\nOut of scope: tp import drops an existing task file's epic binding and bound_at (internal/cli/importcmd.go carries only workflow forward), so tp init --epic a followed by tp import leaves the file unbound; the test therefore imports before binding. Carrying the binding through import is a user-visible choice for the operator.",
+      "gate_passed_at": "2026-11-11T14:25:15.827899Z",
+      "commit_sha": "adfa66ab",
+      "commit_shas": [
+        "adfa66ab",
+        "e480a085"
+      ],
+      "commit_files": [
+        "internal/cli/epic_export_times_test.go",
+        "internal/engine/epicexportjson.go"
+      ]
     },
     {
       "id": "placeholder-matcher",
