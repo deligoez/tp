@@ -117,25 +117,32 @@ func runEpicGate(cmd *cobra.Command, args []string) error {
 // derives every epic's state once, for the read-only epic commands. It exits
 // 3 with no readable graph or bound file.
 func loadEpicStates() (g *model.EpicGraph, states map[string]engine.EpicState, bound map[string][]string) {
+	g, states, bound, err := readEpicStates()
+	if err != nil {
+		exitEpicRunError(err)
+	}
+	return g, states, bound
+}
+
+// readEpicStates is loadEpicStates returning its exit-3 error instead of
+// exiting, for a caller that answers it, as the dashboard does.
+func readEpicStates() (g *model.EpicGraph, states map[string]engine.EpicState, bound map[string][]string, rerr *epicRunError) {
 	tpDir := engine.DiscoverTPDir(".")
 	if tpDir == "" {
-		output.Error(ExitFile, "epic graph not found: no .tp/ directory up to the git boundary", epicGraphFileHint)
-		os.Exit(ExitFile)
+		return nil, nil, nil, &epicRunError{code: ExitFile, msg: "epic graph not found: no .tp/ directory up to the git boundary", hint: epicGraphFileHint}
 	}
 	g, _, err := engine.LoadEpicGraph(tpDir)
 	if err != nil {
-		output.Error(ExitFile, err.Error(), epicGraphFileHint)
-		os.Exit(ExitFile)
+		return nil, nil, nil, &epicRunError{code: ExitFile, msg: err.Error(), hint: epicGraphFileHint}
 	}
 	bound, err = engine.EpicBoundFiles(tpDir)
 	if err == nil {
 		states, err = engine.DeriveEpicStates(g, bound)
 	}
 	if err != nil {
-		output.Error(ExitFile, err.Error(), epicBoundFileHint)
-		os.Exit(ExitFile)
+		return nil, nil, nil, &epicRunError{code: ExitFile, msg: err.Error(), hint: epicBoundFileHint}
 	}
-	return g, states, bound
+	return g, states, bound, nil
 }
 
 // epicGateReport lists m's members and deferrable epics with their derived
