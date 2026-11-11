@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T21:02:28.163194Z",
+  "updated_at": "2026-11-11T21:13:57.12322Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -1552,7 +1552,7 @@
       "id": "page-operator-rows",
       "title": "Draw the operator decision rows",
       "description": "Each operator decision with the command that settles it, every row from a payload.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "page",
         "dashboard"
@@ -1568,11 +1568,24 @@
       "source_sections": [
         "## 7. Operator decisions"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T21:03:24.997622Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T21:13:57.097473Z",
+      "closed_reason": "- Operator decisions (internal/dashboard/page/app.js operatorRows) draws, each with the command that settles it: actionable conditions (tp epic done), any-of groups as their choices (new additive summary key plan.operator_groups [{epic, any_of}], engine.DashboardOperatorGroups in internal/engine/dashoperator.go: an unsatisfied group whose members are all conditions, held by a not-done work epic of an open milestone that is not a deferrable member; each member's tp epic done joined by 'or'), gates awaiting --met, each placeholder threshold once as its tp epic set gates.\u003cm\u003e.threshold=\u003cthreshold\u003e rewrite (export milestones[].operator.threshold_rewrites), and the escalations tp export --list carries on task files bound to an epic. Reading chosen: plan.figures.operator_queue now also counts the groups and the grantable slices; the KPI adds the bound files' escalation rows, so it equals the rows drawn. REFERENCE.md documents operator_groups and the queue terms\n- A slice whose export entry has grantable: true is a row with tp epic review \u003cslice\u003e --grant-round. Checked in a browser on a synthetic repo (cap 1, one recorded round, epic edited after it, a TBD gate, an any-of condition group, a spec bound to the held epic): rows c1, c2, x 'choose one of 2 conditions', A TBD with tp epic set gates.A.threshold=\u003cthreshold\u003e, slice --epic w with tp epic review --epic w --grant-round, x W client epic-blocked; KPI 6\n- TestPage_DrawsTheOperatorRowsFromThePayloads (internal/dashboard/dashboard_test.go) asserts the script reads .grantable, --grant-round, .threshold_rewrites, plan.operator_groups and .escalations; red before the change; the mutant filtering slices by state cap_reached instead of grantable turns it red. TestDashboardPlan_OperatorGroupsAreTheConditionChoicesOfOpenMilestones and _OperatorQueueCountsGroupsAndGrantableSlices (internal/engine/dashoperator_test.go): only x's {c1,c2} group is listed (work-epic group, done-member group, deferrable member's group and closed milestone's group are not); queue 5; mutants dropping the all-conditions check and the grantable count each turn them red. Gate passed\nOut of scope: the Waiting epics list shows 'waits on' with nothing for an epic held only by an any-of group (it reads blocked_by, not blocked_by_any_of)",
+      "gate_passed_at": "2026-11-11T21:13:57.097473Z",
+      "commit_sha": "258d3cf8",
+      "commit_shas": [
+        "258d3cf8",
+        "37066d43",
+        "e1e5f7c7"
+      ],
+      "commit_files": [
+        "internal/dashboard/page/app.js",
+        "internal/engine/dashoperator.go",
+        "internal/engine/dashplan.go",
+        "internal/engine/dashsummary_test.go",
+        "skills/tp/REFERENCE.md"
+      ]
     },
     {
       "id": "page-plan-review",
