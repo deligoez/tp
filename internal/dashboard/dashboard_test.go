@@ -142,6 +142,24 @@ func TestPage_DrawsTheOperatorRowsFromThePayloads(t *testing.T) {
 	}
 }
 
+// TestPage_KeepsTheSinceLastLookedStateInTheBrowserAlone is §17's strip at
+// the page: it counts tasks closed, rounds recorded and epics whose status
+// changed, from the stored and the current payloads, and every access to the
+// browser's storage sits inside a try, so a browser that refuses storage
+// loses only the strip.
+func TestPage_KeepsTheSinceLastLookedStateInTheBrowserAlone(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, field := range []string{"tasks closed", "rounds recorded", "epics changed stage", ".tasks", ".review", ".audit", ".status", ".slices"} {
+		assert.Contains(t, script, field)
+	}
+	uses := regexp.MustCompile(`localStorage\.`).FindAllStringIndex(script, -1)
+	require.NotEmpty(t, uses, "the strip keeps its state in localStorage")
+	for _, u := range uses {
+		assert.Contains(t, script[max(0, u[0]-40):u[0]], "try {", "localStorage at byte %d is outside a try", u[0])
+	}
+}
+
 // TestPage_DrawsPlanReviewFromTheSliceFields is §5's panel at the page: each
 // slice row reads the export's slices with their cap, grants spent, stale
 // unit ids and open findings by role, and the summary's per-round counts,
