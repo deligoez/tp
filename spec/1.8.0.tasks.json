@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T19:33:59.487806Z",
+  "updated_at": "2026-11-11T19:40:39.972315Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -1912,7 +1912,7 @@
       "id": "docs-skill",
       "title": "Document the new commands in SKILL.md",
       "description": "Command inventory rows and Workflow E notes; plugin content changed after a tag, so bump plugin.json (CLAUDE.md rule 12).",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs",
         "plugin"
@@ -1926,11 +1926,25 @@
         "## 16. One spec's read model: `tp export`",
         "## 11. Graph history"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T19:40:39.90915Z",
+      "duration_source": "implicit",
+      "closed_at": "2026-11-11T19:40:39.909237Z",
+      "closed_reason": "- skills/tp/SKILL.md inventory: tp dashboard [--port N] (now with the GET-only/Host guard, the SSE events epic-export/export-list/summary and the three GET endpoints, probed with /tmp/tp-dev/tp on a scratch repo: GET 200, POST 405, foreign Host 403, taken port exit 1), tp export, a new tp export --compact row, tp export --list, tp epic review \u003cslice\u003e --history, --history --from/--to and --history --of-epic (the last three already present); epic export/ready/status/review --status rows gained the v1.8.0 keys (generated_at, lint, milestones[].state, layout, bound_at/imported_at, slice max_rounds/grants_spent/stale_units/open_by_role, operator.threshold_rewrites, placeholder fallback) and the --milestone --compact critical_path note, checked against dogfood output; rows name no other command's flags (TestSkillFlagInventoryRecordsOnlyWhatExists)\n- Workflow E: step 2 describes forbidden_edges (selectors epic/milestone/tag/track_of, no tp epic set key - confirmed exit 2 - so hand-written or tp epic import) and forbidden-dependency; step 4 lists gate-threshold-unwritten; step 5 describes placeholder thresholds, epic.threshold_placeholder and operator.threshold_rewrites\n- .claude-plugin/plugin.json was already 1.8.0 (per brief, not touched); after committing, TestPluginVersionIsNotBehindTheLatestTag and TestPluginVersionIsBumpedWhenPluginContentChanges pass; gate passed",
+      "gate_passed_at": "2026-11-11T19:40:39.909237Z",
+      "commit_sha": "41878cd1",
+      "commit_shas": [
+        "41878cd1",
+        "00478fee",
+        "8afcef46",
+        "e46339e6",
+        "7fda6c76",
+        "14d41417",
+        "d4de76ec",
+        "e6c8daea"
+      ],
+      "commit_files": [
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "docs-reference",
