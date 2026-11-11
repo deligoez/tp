@@ -1830,13 +1830,35 @@ The read commands write nothing and list epics in graph order, every list `[]` w
     `phase` `tp resume`'s, each loop `{round, state}`. Review and audit count recorded rounds, `state`
     `none`, `done`, `stale` (review only), `cap_reached` or `open`; ground counts emitted rounds,
     `state` `none`, `complete` or `open`.
-  - `slices`: each `.tp/epic-review/` directory in name order, `{dir, key, round, state, grantable}`. `key` is
+  - `slices`: each `.tp/epic-review/` directory in name order, `{dir, key, round, state, grantable,
+    max_rounds, grants_spent, stale_units, open_by_role}`, the last four as `--status` prints them
+    (v1.8.0) and no per-round history, which is `--history`'s. `key` is
     its `key.json` record; without one, the key whose hash equals the directory name among the
     units its recorded rounds name (read-only, nothing is written), else `null`; `state` is `done`,
     `in_flight` (emitted, not recorded), `none`, `stale`, `cap_reached` or `open`, graded as
     `tp epic review --status` does, `grantable` too (v1.7.0). A null-key slice, or one naming an
     epic or milestone the graph no longer holds, is graded without staleness, so it is never
-    grantable.
+    grantable and its `stale_units` is `[]`.
+  - `generated_at` (v1.8.0): the RFC 3339 UTC time of the derivation, right after `version`; two
+    exports of an unchanged repository differ in it alone.
+  - `lint` (v1.8.0): `{errors, warnings, info}`, the counts `tp epic lint` reports for the same
+    file under the same placeholder pattern; it survives `--compact`.
+  - `milestones[].state` (v1.8.0): `{members_done, members, threshold}` — the gate's members done
+    of its members, `deferrable` epics in neither count, and `threshold` one of `met` (a met record,
+    whatever the text), `absent` (empty or blank), `placeholder` (the pattern matches) or `written`.
+    Each milestone's `operator` carries `threshold_rewrites` as `tp epic status` does.
+  - `epics[].layout` (v1.8.0): `{lane, lane_kind, column, row}`, the epic's place on the dashboard's
+    map, derived from the graph alone and the same on every export of one graph. Milestones whose
+    `opens_after` entry is an explicit `[]` form the `triggered` lane; over the rest, the longest
+    opening chain is the `main` lane and the remaining milestones are taken longest chain first into
+    `parallel` lanes, emitted in graph-file order of their first milestone. `lane` is the index in
+    the order main, parallel lanes, triggered; `column` is the milestone's opening depth over the
+    effective `opens_after`; `row` the epic's place inside its milestone, epics ordered by the mean
+    row of their dependencies in milestones already placed, an epic with no dependency just before
+    its first dependent, ties in graph-file order. Absent on an epic whose milestone no track lists.
+    A cycle's closing edge is ignored, so a graph lint refuses still lays out.
+  - bound files (v1.8.0) add `bound_at` and `imported_at` when the task file carries them, each
+    omitted otherwise.
 
 ### `--epic` on `tp resume`, `tp next`, `tp ready` (v1.6.0)
 
