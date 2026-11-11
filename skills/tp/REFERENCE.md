@@ -2002,10 +2002,13 @@ contract:
   members_done_after, members}]` for each gate whose done count would move. A bound file carries its
   epic's impact only when every other file bound to that epic is at `release`; an unbound file
   carries `{frees: [], gates: []}`.
-- `plan`: `{figures, ready, operator_conditions, waiting, most_waited_on}`; `figures` is `{work, ready,
-  blocked, held, done, share_done, critical_path, operator_queue, open_loops, throughput}` over work
-  epics, `operator_queue` counting actionable conditions, gates awaiting `--met` and threshold
-  rewrites, `open_loops` the epic review slices not `done`, `throughput` `[{week, done}]` over every
+- `plan`: `{figures, ready, operator_conditions, operator_groups, waiting, most_waited_on}`;
+  `operator_groups` is `[{epic, any_of}]`, each unsatisfied any-of group of conditions a not-done work
+  epic of an open milestone, not a deferrable member, waits on: the operator records one of them.
+  `figures` is `{work, ready, blocked, held, done, share_done, critical_path, operator_queue,
+  open_loops, throughput}` over work epics, `operator_queue` counting actionable conditions, those
+  groups, gates awaiting `--met`, threshold rewrites and the slices whose `grantable` is true,
+  `open_loops` the epic review slices not `done`, `throughput` `[{week, done}]` over every
   milestone. The dashboard layer also leaves `deferrable` gate members out of `waiting` and drops a
   condition only deferrable work waits on from `operator_conditions`; `tp epic status`, `ready` and
   `export` are unchanged by it. Empty with no graph.
