@@ -18,6 +18,7 @@ type epicBatchStatusRow struct {
 	Key         *engine.EpicSliceKeyRecord `json:"key"`
 	Round       int                        `json:"round"`
 	State       string                     `json:"state"`
+	StaleUnits  []string                   `json:"stale_units"`
 	Open        map[string]int             `json:"open"`
 	OpenByRole  map[string]int             `json:"open_by_role"`
 	Grantable   bool                       `json:"grantable"`
@@ -117,6 +118,7 @@ func epicBatchStatusRowOf(eg *epicReviewGraph, policy engine.EpicReviewPolicy, d
 		Key:         d.Key,
 		Round:       st.Round,
 		State:       engine.EpicSliceLoop(&st, true).State,
+		StaleUnits:  st.StaleUnits,
 		Open:        st.Open,
 		OpenByRole:  st.OpenByRole,
 		Grantable:   st.Grantable,
@@ -145,6 +147,7 @@ func epicUnheldSliceRow(eg *epicReviewGraph, d engine.EpicSliceDir, policy engin
 		Key:         d.Key,
 		Round:       st.Round,
 		State:       engine.EpicSliceLoop(&st, false).State,
+		StaleUnits:  []string{},
 		Open:        st.Open,
 		OpenByRole:  st.OpenByRole,
 		MaxRounds:   epicMaxRoundsOut(st.MaxRounds),
