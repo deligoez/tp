@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T21:19:03.08517Z",
+  "updated_at": "2026-11-11T21:25:42.095437Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -1921,7 +1921,7 @@
       "id": "page-spec-history",
       "title": "Draw the Spec tab History view",
       "description": "Rounds on a time axis, the round table and each review round's snapshot diff.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "page",
         "dashboard"
@@ -1934,11 +1934,27 @@
       "source_sections": [
         "## 13. The Spec tab"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T21:19:10.186878Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T21:25:42.066154Z",
+      "closed_reason": "- The Spec tab's History view (internal/dashboard/page/app.js drawSpecHistory, style.css) draws every recorded ground, review and audit round as a dot on one time axis by recorded_at (filled when clean), and the round table per loop: each round's recorded time, findings (ground: FAILs) and clean flag under a loop line naming its cap (or uncapped) and its streak against clean_rounds_needed. Reading chosen: the streak is the loop's current one from tp export, shown once per loop, not recomputed per round\n- Each review round, newest first, shows its snapshot_diff from the round before (sections changed or added with their text, sections removed) beside that round's findings grouped by role with severity, location and disposition. To give the page the findings without a second read model, tp export's review rounds gain the additive key finding_rows [{severity, role, class, location, finding, disposition}] read from the round file (engine ExportFinding, exportFindingRows in internal/engine/taskexportloops.go), dropped under --compact; REFERENCE.md and SKILL.md document it. TestTaskExport_EachReviewRoundCarriesItsFindings (red before: no field; the mutant dropping the disposition turns it red) and TestPage_DrawsASpecsHistoryFromItsExportedRounds (red before; the mutant not reading finding_rows turns it red). Checked in a browser on a synthetic spec with two review rounds: round 2 shows the diff of snapshot-round-1.md and snapshot-round-2.md (section 2. Reply modified, its new text) beside 'This round found nothing'; round 1 shows its two findings (tester high §2 fixed, architect low §1); no horizontal scroll at 390 px. Gate passed",
+      "gate_passed_at": "2026-11-11T21:25:42.066154Z",
+      "commit_sha": "bc3e306a",
+      "commit_shas": [
+        "bc3e306a",
+        "be3e2d73",
+        "fe112f91",
+        "d8e5455f",
+        "c7321511"
+      ],
+      "commit_files": [
+        "internal/cli/export.go",
+        "internal/dashboard/page/app.js",
+        "internal/dashboard/page/style.css",
+        "internal/engine/taskexportloops.go",
+        "skills/tp/REFERENCE.md",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "page-lifecycle-chart",
