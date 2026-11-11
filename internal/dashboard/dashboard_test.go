@@ -63,3 +63,19 @@ func TestHandler_RefusesAForeignHost(t *testing.T) {
 	}
 }
 
+// TestHandler_ServesThePageScriptAndStylesFromTheEmbed is §1's embed rule:
+// the page links its script and styles, and each is served from the binary.
+func TestHandler_ServesThePageScriptAndStylesFromTheEmbed(t *testing.T) {
+	t.Parallel()
+	page := serve(t, http.MethodGet, "127.0.0.1:7377", "/")
+	body, err := io.ReadAll(page.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(body), `src="app.js"`)
+	assert.Contains(t, string(body), `href="style.css"`)
+
+	for path, kind := range map[string]string{"/app.js": "javascript", "/style.css": "text/css"} {
+		resp := serve(t, http.MethodGet, "127.0.0.1:7377", path)
+		require.Equal(t, http.StatusOK, resp.StatusCode, path)
+		assert.Contains(t, resp.Header.Get("Content-Type"), kind, path)
+	}
+}
