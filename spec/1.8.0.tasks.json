@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T15:10:47.332257Z",
+  "updated_at": "2026-11-11T15:14:08.844177Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -306,7 +306,7 @@
       "id": "milestone-state-engine",
       "title": "Derive the state of each milestone",
       "description": "Engine: per milestone, open or closed by opens_after with what it waits on, gate members done out of members (deferrable left out of both), and threshold as written, absent, placeholder or met.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -318,11 +318,20 @@
       "source_sections": [
         "## 6. Lifecycle band and milestone state"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T15:10:51.306854Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T15:14:08.829129Z",
+      "closed_reason": "- engine.MilestoneStates(g, states, matcher) returns one engine.MilestoneState {milestone, open, waiting_on, members_done, members, threshold} per tracked milestone in track order (internal/engine/dashmilestone.go; names and JSON tags chosen, the export task decides what it publishes); open and waiting_on reuse MilestoneGates and MilestoneWaitingOn: TestMilestoneStates_AClosedMilestoneNamesWhatItWaitsOn (N, whose opens_after names M1 with an unmet gate, and M2 after it in its track, read closed naming M1; N opens once M1 is green), red before the change (undefined)\n- members_done of members leave deferrable epics out of both counts, even where an explicit members list names one: TestMilestoneStates_CountsMembersDoneLeavingDeferrableOut (three members, two done, a fourth deferrable done, reads 2 of 3, explicit and implicit gate); the mutant counting deferrable members turns it red (3 of 4)\n- threshold is one of written, absent, placeholder and met (engine.ThresholdState* constants): a met record wins over the text, an empty or blank threshold is absent, else the section 8 verdict of the given PlaceholderMatcher: TestMilestoneStates_ThresholdState (default and ^draft: patterns, a met TBD reads met); gate passed",
+      "gate_passed_at": "2026-11-11T15:14:08.829129Z",
+      "commit_sha": "cfd62321",
+      "commit_shas": [
+        "cfd62321",
+        "126dbc13"
+      ],
+      "commit_files": [
+        "internal/engine/dashmilestone.go",
+        "internal/engine/dashmilestone_test.go"
+      ]
     },
     {
       "id": "export-milestone-state",
