@@ -53,6 +53,9 @@
     if (name === "export-list" && state.tab === null) {
       setTab(state.wantTab || (state.graph ? "epics" : "specs"));
       address.landed = true;
+      const now = seenNow();
+      lastLook.counts = sinceCounts(readSeen(), now);
+      storeSeen(now);
     }
     $("pushed").textContent = "Updated " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     render();
@@ -78,6 +81,62 @@
       el.setAttribute("aria-disabled", String(stale));
     });
   }
+
+  // ---------- since you last looked (§17) ----------
+  // This browser's memory of the last state it saw: each file's done tasks
+  // and recorded review and audit rounds from tp export --list, each epic's
+  // status and each slice's round from tp epic export. Each load compares
+  // its first state with the one the previous load stored, then stores its
+  // own; tp stores nothing, and a browser that refuses storage shows no strip.
+  const SEEN_KEY = "tp-dashboard-seen";
+  const lastLook = { counts: null };
+  function seenNow() {
+    const files = {};
+    ((data("export-list") || {}).files || []).forEach((f) => {
+      files[f.path] = { done: (f.tasks || {}).done || 0, rounds: ((f.review || {}).round || 0) + ((f.audit || {}).round || 0) };
+    });
+    const g = data("epic-export") || {};
+    const epics = {};
+    (g.epics || []).forEach((e) => { epics[e.id] = e.status; });
+    const slices = {};
+    (g.slices || []).forEach((s) => { slices[s.dir] = s.round; });
+    return { at: Date.now(), files, epics, slices };
+  }
+  function readSeen() {
+    try { return JSON.parse(localStorage.getItem(SEEN_KEY)); } catch (e) { return null; }
+  }
+  function storeSeen(seen) {
+    try { localStorage.setItem(SEEN_KEY, JSON.stringify(seen)); } catch (e) { /* the strip is lost, nothing else */ }
+  }
+  // sinceCounts counts what moved from prev to now, never which: tasks
+  // closed and rounds recorded (a file or slice prev did not hold counts
+  // from zero), and epics both hold whose status differs. Null without prev.
+  function sinceCounts(prev, now) {
+    if (!prev || typeof prev !== "object" || !prev.files) return null;
+    const grew = (was, is) => Math.max(0, is - (was || 0));
+    let tasks = 0;
+    let rounds = 0;
+    Object.keys(now.files).forEach((p) => {
+      const was = prev.files[p] || {};
+      tasks += grew(was.done, now.files[p].done);
+      rounds += grew(was.rounds, now.files[p].rounds);
+    });
+    Object.keys(now.slices).forEach((d) => { rounds += grew((prev.slices || {})[d], now.slices[d]); });
+    const epics = Object.keys(now.epics).filter((id) => prev.epics && id in prev.epics && prev.epics[id] !== now.epics[id]).length;
+    return { at: prev.at, tasks, rounds, epics };
+  }
+
+  panel(["export-list"], () => {
+    const c = lastLook.counts;
+    const box = $("since");
+    box.hidden = !c || !(c.tasks || c.rounds || c.epics);
+    if (box.hidden) return;
+    const mins = Math.round((Date.now() - c.at) / 60000);
+    const ago = !(mins >= 1) ? "moments ago" : mins < 60 ? mins + " min ago" : mins < 2880 ? Math.round(mins / 60) + " h ago" : Math.round(mins / 1440) + " days ago";
+    box.innerHTML = "<b>Since you last looked</b><span class=\"ago\">" + esc(ago) + "</span><ul>" +
+      [[c.tasks, "task closed", "tasks closed"], [c.rounds, "round recorded", "rounds recorded"], [c.epics, "epic changed stage", "epics changed stage"]]
+        .filter((x) => x[0]).map((x) => "<li>" + esc(plural(x[0], x[1], x[2])) + "</li>").join("") + "</ul>" + info("since", "since you last looked");
+  });
 
   // renderBanners shows each failed derivation's error and hint, and says
   // when the page keeps the last good state under it.
@@ -219,6 +278,7 @@
     throughput: "Work epics done per ISO week across every milestone, from their done time. From the summary's plan.",
     waiting: "Work epics waiting on a dependency that is not done, each with what it waits on; deferrable gate members are left out.",
     most: "Not-done work epics other work epics depend on, transitively, most dependents first.",
+    since: "What changed since this browser last saw the page: tasks closed and review, audit and plan review rounds recorded, and epics whose stage changed, counted and never named. This browser keeps the last state it saw and compares it on each load; tp stores nothing for it, and a private window or cleared storage shows no strip.",
     cfd: "Work epics per stage per day, from the times tp records: claimed at the claim, specced at the earliest binding time of the bound specs, in progress at the earliest start of their tasks, done at the done record or the audit that released the last bound spec. An epic that reached a stage at a time tp did not record (a spec bound before tp recorded binding times) is counted as time not recorded, never on a guessed day. An epic's planning time is not recorded, so an epic added to the graph later counts as planned from the chart's first day. Planned epics are left out of the bands. From the summary's series.",
   };
 
