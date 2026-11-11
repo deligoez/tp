@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T18:39:50.959933Z",
+  "updated_at": "2026-11-11T18:43:47.819599Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -1479,7 +1479,7 @@
       "id": "page-plan-review",
       "title": "Draw the plan review panel per slice",
       "description": "One row per slice: key, round with cap and grants, state, stale cause on hover, open by role, per-round counts as a small curve.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "page",
         "dashboard"
@@ -1495,11 +1495,22 @@
         "## 5. Plan review, per slice",
         "## 3. Tabs and where the page opens"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T18:40:02.7174Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T18:43:47.797525Z",
+      "closed_reason": "- One row per slice (internal/dashboard/page/app.js, #plan-review in index.html, .loops/.curve in style.css): slice key as tp epic review takes it (--milestone/--epic/--epics [--name], the dir when the key is unknown), 'round N, cap C + G grants' from slices[].round/max_rounds/grants_spent, state, stale with 'Changed since round N: \u003cstale_units\u003e' in the title (hover), open findings by role from open_by_role, and summary.rounds[dir] totals as a small polyline curve; i note on the panel; empty state names tp epic review --milestone. Browser check on a synthetic graph with one slice reviewed twice (2 then 1 findings) and an edited why: row read '--milestone M1 | round 2, cap 3 | stale (hover: Changed since round 2: epic:b) | why-auditor 1 | falling curve'.\n- Placement: while no export epic has a bound file the panel is moved right after the KPI strip; once one has, it is appended after the tab's other panels (§4's order, plan review last). Browser check: before binding, order kpis \u003e plan-review \u003e lifecycle \u003e now; after tp set --epic a on the demo task file, pushed live, kpis \u003e lifecycle \u003e now \u003e epics-body \u003e plan-review. TestPage_DrawsPlanReviewFromTheSliceFields asserts app.js reads .slices, .max_rounds, .grants_spent, .stale_units, .open_by_role, .rounds[ and .total; a mutant renaming stale_units turns it red. Gate passed.",
+      "gate_passed_at": "2026-11-11T18:43:47.797525Z",
+      "commit_sha": "69cc0f6a",
+      "commit_shas": [
+        "69cc0f6a",
+        "ec6dfda1",
+        "8805d198"
+      ],
+      "commit_files": [
+        "internal/dashboard/page/app.js",
+        "internal/dashboard/page/index.html",
+        "internal/dashboard/page/style.css"
+      ]
     },
     {
       "id": "page-map-lanes",
