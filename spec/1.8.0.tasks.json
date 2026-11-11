@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T14:01:34.706106Z",
+  "updated_at": "2026-11-11T14:06:46.023165Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -361,7 +361,7 @@
       "id": "slice-cap-grants",
       "title": "Report each slice's cap with grants spent",
       "description": "tp epic review --status, per slice and under --all/--milestones, reports the slice's cap and the grants it has spent.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "review"
@@ -373,11 +373,22 @@
         "## 5. Plan review, per slice",
         "## 18. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T14:02:21.67146Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T14:06:46.002204Z",
+      "closed_reason": "- tp epic review \u003cslice\u003e --status and every batch row (--all, --milestones; epicBatchStatusRowOf and epicUnheldSliceRow) print max_rounds (null when uncapped) and grants_spent, the recorded rounds past the cap (engine.EpicReviewStatus.MaxRounds/GrantsSpent, epicGrantsSpent): TestEpicReviewStatus_ReportsTheCapAndTheGrantsSpent, TestEpicReviewBatchStatus_EachRowReportsTheCapAndTheGrantsSpent, TestEpicReviewStatus_AnUncappedSliceReportsANullCap\n- §18 row 4 fixture slicePastItsCapWithOneGrant (cap 1, one grant, round 2) reads max_rounds 1, grants_spent 1 at HEAD; mutant 'grants_spent always 0' turns both tests red, mutant 'counted from the grant file' turns the status test red (an open, unrecorded grant reads 0); gate passed",
+      "gate_passed_at": "2026-11-11T14:06:46.002204Z",
+      "commit_sha": "f93fe68b",
+      "commit_shas": [
+        "f93fe68b",
+        "57285757",
+        "6f44bdce"
+      ],
+      "commit_files": [
+        "internal/cli/epic_review_batch_status.go",
+        "internal/cli/epic_review_status.go",
+        "internal/engine/epicstatus.go"
+      ]
     },
     {
       "id": "slice-stale-unit-ids",
