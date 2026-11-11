@@ -1,0 +1,454 @@
+# tp v1.8.0 — the dashboard
+
+> Full track. Sources: `spec/backlog/dashboard.md` (the decision candidate, its operator answers in
+> §6, the prototype reviews in §4) and `spec/backlog/lifecycle-timestamps.md`, both taken whole, and a
+> field review of the approved prototype by a planning-stage project (several hundred epics, many
+> gates and conditions, several epic-review rounds, no bound specs yet), in shape only. The size and
+> timing measurements the decisions rest on are the tables in `spec/backlog/dashboard.md`.
+
+`tp dashboard` serves one read-only page over the plan, the specs and every loop. The field review
+adds what a project that is still planning needs first: plan review before anything else, the state
+of each milestone beside the state of each epic, the operator's gate and grant decisions, a map laid
+out by how milestones open, a forbidden-dependency rule tp can check, and the history of the graph
+across review rounds and of the lifecycle over time. Everything the page shows is derived in Go by
+the code the commands use; the page draws it. Outside the dashboard: `tp epic review --status` and
+`tp epic export` report more per slice (§5), `tp epic review --history` prints a slice's or an epic's
+graph history (§11), `tp epic lint` gains two rules (§8, §10), the task file gains two times (§15),
+and `tp export` prints the read model the Specs and Spec tabs draw (§16). The critical path the
+page draws is the one the fix track repaired in this release (deferrable gate members excluded);
+this spec does not restate it.
+
+## 1. The command
+
+`tp dashboard [--port N]` binds `127.0.0.1` only, on port 7377 unless `--port` names another
+(operator), prints the URL, and serves until interrupted. It exits 1 naming the port when the port
+is taken, 2 under
+`TP_UNATTENDED` (a long-running server is not a unit's job), and 3 with a hint when the repository
+holds neither an epic graph nor a task file. It writes nothing to the repository and exposes no write
+endpoint: every method but GET is refused, a request whose `Host` is not the bound address and port
+(or `localhost` with that port) is refused, no CORS header is sent, and the page fetches nothing
+from outside the server. The page and its script and styles are embedded in the binary; the server
+uses the Go standard library only, and the page uses no framework, library or CDN.
+
+Why: the operator answered web-only (dashboard.md §6, question 1); local-only and read-only are
+dashboard.md §3 and its non-goals. The Host check closes DNS rebinding, which a loopback bind alone
+does not.
+
+Rejected: a random port (a bookmark and a shared link stop working); a TUI in this release (it
+cannot draw the map).
+
+**Acceptance.**
+- `tp dashboard` in a repository with a graph prints a `http://127.0.0.1:<port>/` URL; a GET of it
+  returns the page.
+- `TP_UNATTENDED=1 tp dashboard` exits 2; its exit 3 (no graph, no task file) prints a hint.
+- After the server has run, `git status` shows no change the server made.
+
+## 2. Live data, derived once
+
+The server re-derives what it pushes on a fixed tick — `tp epic export` when a graph exists, and
+`tp export --list` — and pushes it over Server-Sent Events only when its content changed, compared
+with `generated_at` left out; a page reconnecting gets the current state. A derivation that fails
+(a malformed graph or task file) is pushed as tp's error and hint, and the page shows it as a
+banner over the last good state, greyed, when there is one.
+
+The page computes no figure a tp command reports: every count, state, rank, layout position and
+diff it shows arrives computed. It may filter, sort and search what it was given, and compare two
+payloads it was given (§17's "since you last looked"). One spec's `tp export` (§16) and a slice's
+or an epic's history (§11) it fetches by GET when it shows them, and again when a push shows that
+file or slice changed; every payload is produced in-process by the code the commands use.
+
+`tp epic export` gains, within `version: 2` and additively: `generated_at`; a per-epic `layout`
+(§9); a `lint` summary with the count of errors, warnings and info findings `tp epic lint` reports;
+per milestone the state of §6; per slice the fields of §5 and no other history; per bound file
+`bound_at`, `imported_at` (§15) and its tasks' earliest `started_at` (§17).
+
+Why: option B of dashboard.md §2 needs no file watcher and no list of paths to keep in step with
+tp's layout; the export is the contract the dashboard reads, and a second derivation in JS would
+drift from the commands the first time either changes.
+
+Rejected: polling from the page (the work repeats per tab while nothing changes); a file watcher
+(no standard-library one, and a path tp starts writing would be missed).
+
+**Acceptance.**
+- `tp epic export` prints `generated_at` and `lint`; two exports of an unchanged repository differ
+  in `generated_at` alone.
+- A hand edit that breaks the epic graph file shows tp's error as a banner and keeps the previous map.
+
+## 3. Tabs and where the page opens
+
+Three tabs, in the lifecycle's order: Epics (the plan), Specs (every task file), Spec (one spec).
+With a graph the page opens on Epics. With task files and no graph it opens on Specs; the Epics tab
+stays, says the repository has no epic graph, names the command that starts one, and its lifecycle
+band shows the spec phases alone. A graph added while the server runs fills the tab through the push,
+with no restart.
+
+On the Epics tab, plan review follows the KPI strip whenever no epic has a bound spec: it is what a
+planning-stage project works on, and the Specs and Spec tabs have nothing for it yet. Once a spec is
+bound the tab takes §4's order.
+
+Why: dashboard.md §6 question 6 (operator), and the field review's first request.
+
+**Acceptance.**
+- In tp's own repository (task files, no graph) the page opens on Specs and the Epics tab names
+  `tp epic` as the way to start a graph.
+- In a repository whose graph has epics, review slices and no bound file, the panel after the KPI
+  strip is plan review.
+
+## 4. The Epics tab
+
+A KPI strip opens the tab: share done, ready epics, critical-path length, blocked and held epics, the
+operator queue's length, open review loops, the `tp epic lint` summary (errors and warnings), and
+throughput. Then the lifecycle band (§6), the "now" lists (ready epics in `tp epic ready`'s order,
+operator decisions §7, waiting epics with what each waits on, most waited-on), the map (§9), the
+chain of a selected epic with every edge's why, the milestone matrix, and plan review (§5). An epic's
+detail opens in a drawer: its fields, dependencies with whys, downstream, bound specs with their
+phase and loops, its own stepper (claim recorded with its author or skipped, bound, done) and its
+history (§11). Every panel and figure carries an ⓘ saying what it lists and where it comes from, and
+every label names its unit ("ready epics", never "ready").
+
+Condition epics stay out of every ready, blocked, held and share-done figure, as they are out of
+share done today; they appear as operator decisions when actionable and on the map in their own
+shape.
+
+**Acceptance.**
+- The lint KPI shows the same error and warning counts `tp epic lint` prints for the graph.
+- A graph whose only undone epic is a condition shows zero ready and zero blocked epics, and the
+  condition under operator decisions when it is actionable.
+
+## 5. Plan review, per slice
+
+`tp epic review --status`, with a slice or with `--all`/`--milestones`, reports per slice, besides
+what it reports today: its cap and the grants it has spent, so a reader can say "round 4, cap 3 + 1
+grant"; when it is stale, the ids of the units changed since its last recorded round (`--history`,
+§11, shows what changed in each); its open findings counted by role. The export's `slices[]` carry
+the same, and each recorded round's finding count, total and by role, in round order. All of it is
+read from the slice's state directory — its round files and per-round snapshots — and the current
+graph; none of it is computed by the page.
+
+The page shows one row per slice: key, round with cap and grants, state, stale with its cause on
+hover, open findings by role, and the per-round counts as a small curve, so converging and not
+converging read at a glance.
+
+Why: the field review's first request; a stale flag without its cause sends the operator to diff
+snapshots by hand, and an agent asking the same question pays the same round-trips (P1, P3).
+
+Rejected: deriving staleness causes in the page from two snapshots (a second derivation); a severity
+breakdown per round (dashboard.md §6 question 4 keeps severity later).
+
+**Acceptance.**
+- For a slice with two recorded rounds, `tp epic export` carries two per-round entries whose
+  by-role counts sum to each round's total.
+
+## 6. Lifecycle band and milestone state
+
+The band has two axes. Epic stages (planned, claimed, specced, in progress, done) over spec phases
+(review to release), each a count of work epics that filters the map or opens Specs at that phase;
+an epic with several bound specs counts once, at its earliest phase; an unbound task file counts
+only when there is no graph, and then the phases count task files. Beside it, milestone state, one
+entry per milestone: open or closed by its `opens_after`, with what it waits on; its gate's members
+done out of members, deferrable members left out of both counts; and its threshold as written,
+absent, placeholder (§8) or met. The export carries this state per milestone.
+
+Why: a planning-stage project moves milestone by milestone before any epic moves; an epic count
+alone shows nothing happening.
+
+**Acceptance.**
+- A gate with three members, two of them done, and a fourth, deferrable member reads "2 of 3" in the
+  band and in the export.
+- A milestone whose `opens_after` names a milestone with an unmet gate reads closed and names that
+  milestone.
+
+## 7. Operator decisions
+
+The operator list holds, each with the command that settles it: actionable conditions; any-of groups
+as their choices; gates whose non-deferrable members are done awaiting `--met`; gates whose
+threshold is a placeholder (§8); stale slices at their cap that can take `--grant-round`; and
+escalations recorded by a bound spec's run. Deferrable gate members are never listed as waiting, in
+the operator list, the waiting list or a gate's count.
+
+Why: the field review's third request; each row is a decision only the operator may take (CLAUDE.md
+rule 9 for grant-round), and the list is where the operator looks for them.
+
+**Acceptance.**
+- A gate whose threshold is `TBD` appears in operator decisions with the `tp epic set` command that
+  rewrites it.
+- A slice `--status` reports `grantable: true` appears with `tp epic review <slice> --grant-round`.
+
+## 8. Placeholder thresholds
+
+`tp epic lint` gains `gate-threshold-unwritten`, a warning: an unmet gate whose threshold, trimmed,
+matches the project's placeholder pattern. An absent or empty threshold is not reported: such a gate
+goes green once its members are done, as today. The default pattern matches text wholly inside one
+pair of square or angle brackets and the words TBD, TODO and TBC alone, ignoring case. A project
+replaces the default with one regular expression in `.tp/config.json` (`epic.threshold_placeholder`),
+matched against the trimmed threshold; `tp validate --project` refuses a pattern that does not
+compile. The page shows the same verdict the rule gives. (Operator: default pattern, one project
+override, warning.)
+
+Why: a placeholder is a threshold the operator has not written, and a bracketed `[threshold]` copied
+from a template reads as written to every check tp has today.
+
+Rejected: bracketed text only, with no project pattern (a project whose drafts use another marker is
+never told); a `draft: true` flag on the gate (a second field to keep in step with the text);
+leaving the judgement to the page (a second derivation).
+
+**Acceptance.**
+- The rule's row appears in README.md's lint table.
+
+## 9. The map
+
+tp computes the map's layout; the page draws it. Lanes come from the `opens_after` topology, in this
+order: milestones whose `opens_after` entry is an explicit `[]` sit in a triggered lane of their own
+(a track's first milestone with no entry is not one); among the rest, the longest chain of openings
+is the main lane, a tie going to the chain whose milestones come first in the graph file, and every
+other milestone is a parallel lane. A milestone's column is its opening depth. Inside a milestone,
+epics are ordered to reduce crossings, and an epic with no dependency sits next to its first
+dependent. Tracks remain a filter. The layout is in the export (§2), so a graph always draws alike.
+
+Edges are drawn on selection, with the critical path always drawn; a toggle draws all. A
+"neighbours of one epic" filter keeps one epic, the epics it depends on and the epics that depend on
+it, marks each edge incoming or outgoing, and shows the edge's why on hover. The epic search matches
+ids and titles ignoring case and diacritics, Turkish dotted and dotless i included. Status reads by
+colour and by shape, never colour alone.
+
+Why: the field review's fourth request; tracks alone put parallel verticals and triggered milestones
+in the wrong order, and layout computed in Go is deterministic and testable.
+
+Rejected: a layout library in the page (the page's one dependency, and the layers are already given);
+WebGL (the field graph is far below the size where it pays off, dashboard.md §4).
+
+**Acceptance.**
+- `tp epic export` run twice on one graph prints identical `layout` values.
+- In a graph where two milestones have an `opens_after` entry of `[]`, both are in the triggered lane.
+- Searching `isik` finds an epic whose id is `IŞIK-1`.
+
+## 10. Forbidden dependencies
+
+The graph gains `forbidden_edges`, a list of rules, each `{from, to, why}`, where `from` and `to`
+each select epics by one of `epic`, `milestone`, `tag`, or `track_of` (the track holding the named
+milestone, since tracks carry no name of their own):
+
+    "forbidden_edges": [
+      {"from": {"track_of": "B1"}, "to": {"milestone": "M3"}, "why": "track B ships before M3"}
+    ]
+
+`tp epic lint` gains `forbidden-dependency`, an error: an epic `from` selects has a direct edge to an
+epic `to` selects, or an any-of group with such a member, one finding per edge naming the rule's why.
+A selector naming no epic or milestone is a `dangling-reference`; one naming a tag no epic carries
+is a warning, so a rule may precede its tag; a rule without a why is a `missing-why`. Writers refuse
+what the rule forbids, as they refuse every lint error. The graph file keeps `version: 1`.
+(Operator: this schema, these selectors, direct edges and any-of members only, an error; an
+uncarried tag a warning.)
+
+Why: the field review's fifth request; a project rule that lives only in prose is checked by
+reading, and `tag_checks` can only require an edge, never forbid one.
+
+Consequences: a graph that uses the key is an `unknown-key` error for a tp older than this release.
+
+Rejected: a `forbid` field on `tag_checks` (it reaches only tags, and the asked rule is about tracks
+and milestones); a registered check script (projects would each write the same graph walk); checking
+transitive paths (every long chain would trip it, and the asked rule is about what an epic names).
+
+**Acceptance.**
+- With a rule forbidding the track of `B1` from milestone `M3`, `tp epic link` from an epic of that
+  track to an `M3` epic is refused with `forbidden-dependency` and the rule's why, and the graph is
+  unchanged.
+
+## 11. Graph history
+
+Per slice, the page shows its rounds in order: each round's findings by role, and, between two
+chosen rounds, the difference of their snapshots — units added or removed, edges added or removed,
+whys and fields changed — with the earlier round's findings beside it. Per epic, the drawer shows
+how its edges and whys changed across the snapshots of the slices it appears in. All of it is
+derived in Go from the slices' state directories, and the same derivation is a command:
+`tp epic review <slice> --history` prints the slice's rounds, each with its findings by role and the
+difference from the round before, and the difference from the last round to the current graph;
+`--from <a> --to <b>` narrows the difference to two rounds; `tp epic review --history --of-epic <id>`
+prints one epic's edges and whys per recorded round of every slice whose snapshot holds it. It is
+read-only, runs under `TP_UNATTENDED`, and exits 3 for a slice with no state directory. `--compact`
+drops the unchanged context of each difference and keeps every change.
+
+Why: the field review's sixth request; the snapshots already hold it, and dashboard.md §4 rejected an
+event log as a second copy of the truth.
+
+Consequences: history exists only for rounds a slice recorded, and only for the epics that slice's
+snapshot holds; a change made and undone between two rounds leaves no trace. Which write made a
+change (an `apply`, a `link`) is not recorded; the graph file's git history is where that lives.
+
+**Acceptance.**
+- An epic that was in no recorded slice shows no graph history and says so.
+- For a slice with two recorded rounds between which one edge's why was rewritten,
+  `tp epic review --history --of-epic <id>` on that edge's epic lists it under both rounds.
+
+## 12. The Specs tab
+
+One row per task file, bound or not: title (the spec's first heading) and path, its epic and the
+epic's state, task progress, review and audit rounds, and the next step `tp resume` names. Rows are
+grouped by phase in the loop's order, operator decisions first within a phase; a filter, phase chips
+and an "operator decisions" chip narrow it, and `/` reaches the filter from anywhere. A row opens the
+Spec tab. The rows are `tp export --list`'s (§16), and the Spec tab draws `tp export` of one file.
+
+**Acceptance.**
+- In tp's own repository every `spec/*.tasks.json` appears once, under the phase `tp resume <file>`
+  reports for it.
+
+## 13. The Spec tab
+
+One spec at a time, in three views: Read the spec, Tasks and History. A spec in review or decompose
+opens on its text, one with tasks on its tasks.
+
+- **Header.** One stepper — ground, review, decompose, implement, audit, release — each step saying
+  what happened in it or when it comes, the current step marked, a pause mark where the operator
+  decides; under it, what releasing the spec would do to the plan (the epics it frees, the gate it
+  moves), and the command `tp resume` names, with a copy key.
+- **Read.** The spec's text in numbered sections; every section and paragraph carries a stable
+  anchor (`§3 ¶2`) for the feedback a later release adds. A section's task count opens Tasks
+  filtered to it.
+- **Tasks.** One panel, two ways: Steps (the dependency tree, each task one step below the last task
+  it waits on) and Board (ready, in progress, waiting, done). Beside it a panel that never closes:
+  with no task picked, progress (tasks by state, estimate left, running tasks against estimate, tasks
+  closed over time); with a task picked, its state, time against estimate or closing evidence and
+  commit, acceptance, dependencies, the section it comes from, and its command.
+- **History.** The spec's rounds on a time axis, the round table (findings or FAIL count, clean, cap,
+  streak), and each review round's snapshot diff from the round before beside that round's findings.
+
+**Acceptance.**
+- For a spec with review rounds and no tasks, the Spec tab opens on Read and the stepper marks
+  review or decompose, as `tp resume` reports.
+- For a spec with tasks, the Board's counts equal `tp status`'s open, wip and done counts.
+- The History view of a spec with two review rounds shows the diff of `snapshot-round-1.md` and
+  `snapshot-round-2.md`.
+
+## 14. The address
+
+Tab, spec, view, task, the selected epic and the active filters live in the URL, so back and forward
+and a shared link land where the operator was.
+
+**Acceptance.**
+- Opening a copied URL of the Tasks view with a task picked shows that task's detail.
+
+## 15. Bound and imported times
+
+The task file gains two optional top-level keys, RFC 3339 in UTC, as `claimed.at` is: `bound_at`,
+written by `tp init --epic` and by a `tp set --epic <id>` that changes the file's epic (re-binding
+the same epic writes nothing), and removed with `epic` by `tp set --epic ""`; and `imported_at`,
+written by `tp import` and rewritten by every later import into the file, `--force` included. A
+file written before this release has neither and reads as it does today; a reader that needs the
+time says it does not know. `tp epic export` carries both per bound file.
+
+Why: the two lifecycle moments tp did not write down (lifecycle-timestamps.md §1); every other moment
+is already a recorded time.
+
+Rejected: an event log, git history as the only source, the dashboard's own snapshots
+(lifecycle-timestamps.md §2).
+
+**Acceptance.**
+- `tp set --epic E1` on an unbound file writes `bound_at`; `tp set --epic ""` removes it with `epic`.
+- `tp import` writes `imported_at`; a second import moves it.
+- `tp epic export` shows both under the bound file.
+
+## 16. One spec's read model: `tp export`
+
+`tp export` prints, as JSON, the read model of the task file `--file` names or discovery finds, as
+every task-file command resolves it: the spec's text in numbered sections, each section and
+paragraph with its anchor; every task with its status, dependencies, estimate, acceptance,
+`source_sections`, times, closing evidence and commits, and its state (ready, waits on a task,
+waits on its epic); each loop (ground, review, audit) with its cap, clean rounds needed and streak,
+and per recorded round its time, finding or FAIL count, clean flag, and the difference of its spec
+snapshot from the round before; the `tp resume` view of the file; its epic, `bound_at` and
+`imported_at`. `tp export --list` prints one row per task file in the repository, bound or not:
+path, title, epic and the epic's state, phase, task counts, review and audit rounds, the next step
+and any escalation, in phase order. The payload carries its own `version: 1`. (Operator: a command
+as well as the dashboard.)
+
+Name: the task-file twin of `tp epic export` — commands over one task file sit at the top level,
+commands over the graph under `tp epic`, and `export` is the verb tp already uses for "everything
+derived, as one contract".
+
+`--compact`, as everywhere in tp, drops explanatory and bulky fields and keeps what a decision
+needs: it drops each section's body with its paragraph anchors (section headings and anchors stay),
+each task's description, and each round's snapshot difference; it keeps tasks, states, loop counts
+and the `tp resume` view, itself compacted as `tp resume --compact` is. It is read-only and runs
+under `TP_UNATTENDED`. It exits 0; 3 with a hint when no task file is found or the one it reads
+cannot be read; `--list` exits 0, with an empty list when no task file exists and with an unreadable
+file's row carrying its error.
+
+Why: an agent asks the same questions the Spec tab answers, and one call is cheaper than
+`tp show`, `tp resume` and two `--status` calls (P1, P3); the dashboard and an agent then read one
+derivation.
+
+Rejected: an export key on `tp epic export` (unbound files have no place in the graph's contract);
+a dashboard-only read model (an agent would rebuild it from four commands).
+
+**Acceptance.**
+- `tp export --file spec/1.5.0.tasks.json` prints `version`, the sections with anchors, the tasks,
+  the loops with one entry per recorded round, and the `tp resume` view; with `--compact` it prints
+  no section body and no snapshot difference.
+- `tp export --list` in tp's own repository prints one row per `spec/*.tasks.json`, none bound.
+- `TP_UNATTENDED=1 tp export --list` exits 0; `tp export` in a directory with no task file exits 3.
+
+## 17. Lifecycle over time, and since you last looked
+
+The Epics tab draws the lifecycle over time: work epics per stage (planned, claimed, specced, in
+progress, done) per day, from the times tp records — `claimed.at` dates claimed, the earliest
+`bound_at` of its bound files specced when every bound file has one (else the chart shows it as
+unknown, never on a guessed day), the earliest `started_at` of their tasks in progress, and the
+epic's `done_at` (its done record, or the audit round that brought its last bound file to release)
+done. The dashboard server computes the per-day series in Go and pushes it beside the export (§2).
+(Operator: the chart and the strip are in this release.)
+
+"Since you last looked" is a strip above the tab: what changed since this browser last saw the
+page — epics that changed stage, rounds recorded, tasks closed (from `tp export --list`'s counts),
+operator decisions added. It is kept in the browser alone: each load compares the payload the
+previous load stored with the one it now holds, then stores that one; tp stores nothing for it,
+and losing it loses only the strip.
+
+Consequences: an epic's planning time is not recorded, so an epic added to the graph later counts
+as planned from the chart's first day; the chart says so in its ⓘ.
+
+**Acceptance.**
+- An epic claimed, bound and done on three days appears in claimed, specced and done on those days.
+- After a task closes in another terminal, a reload shows it in the strip; a private window shows
+  no strip.
+
+## 18. Tests
+
+The counts of each row are confirmed by the task that builds it, once its subject exists.
+
+| # | Behaviour | Fixture | Mutant that turns it red |
+|---|---|---|---|
+| 1 | `tp dashboard` binds 127.0.0.1 only, answers GET alone, refuses a foreign `Host`, and a second instance on the same port exits 1 naming it | a repo with one task file | a listener on all interfaces, or a handler that serves any method |
+| 2 | with no graph and no task file `tp dashboard` exits 3; with task files and no graph it serves the Specs tab first | an empty directory; a directory with one task file | a start that requires the graph |
+| 3 | an unchanged repository pushes nothing after the first state; a task closed with `tp done` reaches the page | a graph with one unbound task file; a task file and no graph; two ticks each | a push decided on a payload that carries `generated_at`, or on `tp epic export` alone |
+| 4 | a slice reports its cap, its grants used and the ids of the units that made it stale | a slice past its cap with one grant and a graph edit after its last round | stale read from the milestone instead of the slice's units |
+| 5 | `gate-threshold-unwritten` warns on `[threshold]` and `TBD` and not on written text or an absent threshold; under a project pattern it warns on that pattern's match and no longer on `[threshold]` or `TBD` | gates with `[threshold]`, `TBD`, `draft: 80% pass`, a written and no threshold; run once with the default pattern, then with `^draft:` | a rule that reports an absent threshold, or keeps the default beside the project's pattern |
+| 6 | `forbidden-dependency` fails a direct edge and an any-of member from a selected epic to a forbidden one, and passes a path through a third epic | a rule with a `track_of` selector, one direct edge, one any-of member, one two-step path | a check that walks transitive paths, or one that skips any-of members |
+| 7 | a condition epic is counted in neither ready nor blocked, and a deferrable member is in no waiting list | a gate with one deferrable member and one condition | the share-done filter applied to only one figure |
+| 8 | every milestone falls into exactly one lane, in the stated order of precedence, and a tie between equal chains goes to the one first in the graph file | two milestones with an `opens_after` entry of `[]`, a track's first milestone with no entry, two equally long chains and a parallel vertical | a milestone matched by two lane rules, or a tie broken by anything but file order |
+| 9 | `tp epic review <slice> --history` prints each round's findings by role and the edges and whys added, removed or changed between two rounds | a slice with two recorded rounds and one why edited between them | a diff over hashes alone |
+| 10 | `tp export` prints a spec in anchored sections with its tasks and loops; `--list` keeps the readable rows and marks an unreadable file | two task files, one malformed | a list that exits 3 on the first bad file |
+| 11 | `tp set --epic` writes `bound_at` only when the epic changes, and `tp import` writes `imported_at` | a file bound to a, re-bound to a, then to b; one import | a stamp written on every `set --epic` |
+| 12 | the lifecycle chart dates each stage from its stated record and shows an unknown binding time as unknown | an epic bound before this release with no `bound_at`; one with it; one with two bound files, only one carrying it | a binding time read from `created_at`, or from the one file that has it |
+
+## Non-goals
+
+- Writes, buttons or claims from the page; remote access, authentication, several users.
+- A figure computed in the page that a tp command reports.
+- Feedback on the spec (the anchors are left for it), per-finding severity and resolution, `tp run`
+  units live beyond `tp run --status` per bound file, a TUI, a static snapshot for sharing.
+- An event log, or recording which write changed the graph; an epic's planning time.
+- Forbidden transitive paths; forbidden edges selected by anything but epic, milestone, track or
+  tag; names for tracks.
+- Trimming the export's duplication between `milestones` and `epics[]` (dashboard.md §6 question 8).
+
+## Decided with the operator
+
+1. Full track (dashboard.md §6 question 13 had proposed the decision track).
+2. Port 7377 by default, `--port` to change it (§1).
+3. Placeholder thresholds: the default pattern, one project regular expression in
+   `.tp/config.json`, `gate-threshold-unwritten` as a warning (§8).
+4. Forbidden edges: top-level `forbidden_edges`, selectors `epic`, `milestone`, `tag`, `track_of`,
+   direct edges and any-of members only, `forbidden-dependency` as an error (§10).
+5. The read model is a command, `tp export`, as well as the dashboard's data (§16).
+6. The lifecycle-over-time chart, "since you last looked" and the graph history are in this release
+   (§11, §17).
