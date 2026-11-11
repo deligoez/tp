@@ -51,6 +51,7 @@ internal/cli/         Cobra commands, one file per command or mode (review_*.go,
 internal/engine/      Core logic (toposort, closure, validate, lint, discover, lock, excerpt, config resolve, ...)
 internal/model/       Data types (TaskFile, Task, Workflow, Coverage)
 internal/output/      Formatting (JSON/TTY, compact, colors, hint errors)
+internal/dashboard/   The `tp dashboard` server, its read-only API, and the embedded page under page/
 internal/fakerunner/  The scripted runner child `tp run`'s tests spawn
 spec/                 Specs, one file per version/feature; spec/backlog/ holds decision candidates
 skills/tp/            SKILL.md (workflows, command inventory) + REFERENCE.md (fields, exit codes, schemas)
