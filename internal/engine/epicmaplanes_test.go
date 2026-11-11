@@ -54,3 +54,15 @@ func TestEpicMapLanes_EqualChainsFromOneMilestoneTieOnTheFirstDifference(t *test
 	assert.Equal(t, map[string]int{"S": 0, "Z1": 1, "Z2": 2, "C1": 1, "C2": 2, "B1": 1, "B2": 2}, got.Columns)
 }
 
+// TestEpicMapLanes_ACycleStillPlacesEveryMilestoneOnce: a graph lint refuses
+// still draws, each milestone in one lane.
+func TestEpicMapLanes_ACycleStillPlacesEveryMilestoneOnce(t *testing.T) {
+	g := lanesGraph([][]string{{"A", "B"}}, map[string][]string{"A": {"B"}})
+	got := EpicMapLanes(g)
+	placed := []string{}
+	for _, lane := range got.Lanes {
+		placed = append(placed, lane.Milestones...)
+	}
+	assert.ElementsMatch(t, []string{"A", "B"}, placed)
+	assert.Len(t, got.Columns, 2)
+}
