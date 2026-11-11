@@ -213,6 +213,18 @@ button.pcell[aria-pressed="true"] { background: var(--color-accent-wash); border
 .fnd { padding: 6px var(--space-xs); border-bottom: 1px solid var(--line); font-size: var(--text-sm); display: flex; flex-wrap: wrap; gap: var(--space-3xs) var(--space-xs); align-items: baseline; }
 .fnd p { flex-basis: 100%; color: var(--ink-2); overflow-wrap: anywhere; }
 .fnd .sm { display: inline; }
+/* a spec's history (§13) */
+#sv-history { display: grid; gap: var(--space-md); }
+#sv-history h2 { font: 600 var(--text-md)/1.3 var(--font-display); }
+.raxis { width: 100%; max-width: 720px; height: auto; }
+.raxis text { fill: var(--muted); font-size: 10px; font-family: var(--mono); }
+.raxis .ax { stroke: var(--line); }
+.raxis circle { stroke: var(--blocked); stroke-width: 2; fill: var(--surface); }
+.raxis circle.clean { stroke: var(--done); fill: var(--done); }
+.loops tr.lgroup th { font: 600 var(--text-sm) var(--font-display); color: var(--ink); padding-top: var(--space-sm); }
+.loops td .ic { width: 14px; height: 14px; vertical-align: -2px; color: var(--done); }
+.rpair { border-top: 1px solid var(--line); padding-top: var(--space-sm); }
+.sectext { white-space: pre-wrap; max-height: 16em; overflow: auto; font-size: var(--text-xs); }
 .sev { font: 600 var(--text-xs)/1 var(--font-display); text-transform: uppercase; letter-spacing: .03em; color: var(--muted); }
 .sev[data-sev="critical"], .sev[data-sev="high"] { color: var(--blocked); }
 .sev[data-sev="medium"] { color: var(--active); }
