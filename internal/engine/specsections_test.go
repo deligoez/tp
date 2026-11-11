@@ -1,0 +1,91 @@
+package engine
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// specSectionsFixture carries a preamble, numbered sections at two levels, an
+// unnumbered level-2 heading, an unnumbered level-3 heading and a fenced block
+// holding a blank line and a heading-shaped line.
+const specSectionsFixture = "# Title\n" +
+	"\n" +
+	"Intro para one.\n" +
+	"\n" +
+	"## 1. First\n" +
+	"\n" +
+	"Para A\n" +
+	"continues.\n" +
+	"\n" +
+	"Para B\n" +
+	"\n" +
+	"```text\n" +
+	"x\n" +
+	"\n" +
+	"## 9. Not a heading\n" +
+	"```\n" +
+	"\n" +
+	"### Unnumbered detail\n" +
+	"\n" +
+	"Detail text\n" +
+	"\n" +
+	"## Non-goals\n" +
+	"\n" +
+	"N1\n" +
+	"\n" +
+	"## 2. Second\n" +
+	"\n" +
+	"S1\n" +
+	"\n" +
+	"### 2.1 Sub\n" +
+	"\n" +
+	"T1\n"
+
+// paragraphAnchors flattens sections into "anchor|text" rows, section
+// headings included as "anchor|# heading".
+func paragraphAnchors(sections []SpecSection) []string {
+	var out []string
+	for _, s := range sections {
+		out = append(out, s.Anchor+"|# "+s.Heading)
+		for _, p := range s.Paragraphs {
+			out = append(out, p.Anchor+"|"+p.Text)
+		}
+	}
+	return out
+}
+
+// TestSpecSections_ParsesNumberedSectionsWithParagraphAnchors: a spec parses
+// into its sections, §0 for the preamble, §N(.M) for a numbered heading of
+// level 2 or deeper, §<slug> for an unnumbered level-2 heading; every
+// paragraph is anchored `§N ¶M`, a fenced block is one paragraph however many
+// blank lines it holds, and an unnumbered level-3 heading is a paragraph of
+// the section it sits in.
+func TestSpecSections_ParsesNumberedSectionsWithParagraphAnchors(t *testing.T) {
+	t.Parallel()
+	got := paragraphAnchors(SpecSections([]byte(specSectionsFixture)))
+	assert.Equal(t, []string{
+		"§0|# Title",
+		"§0 ¶1|Intro para one.",
+		"§1|# 1. First",
+		"§1 ¶1|Para A\ncontinues.",
+		"§1 ¶2|Para B",
+		"§1 ¶3|```text\nx\n\n## 9. Not a heading\n```",
+		"§1 ¶4|### Unnumbered detail",
+		"§1 ¶5|Detail text",
+		"§non-goals|# Non-goals",
+		"§non-goals ¶1|N1",
+		"§2|# 2. Second",
+		"§2 ¶1|S1",
+		"§2.1|# 2.1 Sub",
+		"§2.1 ¶1|T1",
+	}, got)
+
+	sections := SpecSections([]byte(specSectionsFixture))
+	require.Len(t, sections, 5)
+	assert.Equal(t, 5, sections[1].Line, "a section's line is its heading's")
+	assert.Equal(t, 7, sections[1].Paragraphs[0].Line, "a paragraph's line is its first line's")
+}
+
