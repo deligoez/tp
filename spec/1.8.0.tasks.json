@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.8.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-11T15:52:51.926811Z",
+  "updated_at": "2026-11-11T16:02:22.61055Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -1080,7 +1080,7 @@
       "id": "dashboard-command",
       "title": "Add the tp dashboard command",
       "description": "tp dashboard [--port N]: binds 127.0.0.1:7377 by default, prints the URL, serves an embedded page until interrupted. Standard library only.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "dashboard"
@@ -1092,11 +1092,33 @@
         "## 1. The command",
         "## 18. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-11T15:54:09.147529Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-11T16:02:22.561183Z",
+      "closed_reason": "- tp dashboard [--port N] binds 127.0.0.1 only (port 7377 unless --port; 1-65535 else exit 2), prints the URL ({\"url\": ...} when piped/--json, the bare URL in a TTY; reading chosen) and serves the embedded page until SIGINT/SIGTERM (internal/cli/dashboard.go; page embedded by new package internal/dashboard, Handler() over http.FileServerFS, stdlib only; page is a placeholder index.html the page-shell task replaces). A listen failure exits 1 naming the port. TestDashboard_ServesThePageOnTheLoopbackURL: URL is http://127.0.0.1:\u003cport\u003e/, GET 200 with the page title, a second instance on the same port exits 1 naming it, and a dial to a non-loopback IPv4 of the host is refused; the mutant listening on :\u003cport\u003e (all interfaces) turns it red\n- TP_UNATTENDED=1 exits 2 with a hint to run attended (TestDashboard_UnattendedExitsTwo). engine.DashboardSources(start) (internal/engine/dashsources.go, name chosen) reports a graph (.tp/epics.json) and any task file (git ls-files, else task-file discovery, several counting); neither exits 3 with a hint naming tp epic set / tp init. TestDashboard_NeedsAGraphOrATaskFile: an empty directory exits 3 with a hint, a directory with one task file and no graph serves 200; the mutant requiring the graph turns it red. Method/Host guard left to dashboard-request-guard\n- TestDashboard_WritesNothingToTheRepository: a committed git repo with a graph and a task file reads git status --porcelain --ignored empty after the server served a GET and exited 0 on interrupt. Gate passed (suite -race, golangci-lint, deadcode, complexity); the command surface baseline and SKILL.md inventory list tp dashboard --port (the docs tasks expand it)",
+      "gate_passed_at": "2026-11-11T16:02:22.561183Z",
+      "commit_sha": "0f075c7c",
+      "commit_shas": [
+        "0f075c7c",
+        "c831a2c0",
+        "80bd40a9",
+        "2952c91f",
+        "07568344",
+        "30902452",
+        "33ad2ed3",
+        "edba05eb",
+        "5d315b1a"
+      ],
+      "commit_files": [
+        "internal/cli/dashboard.go",
+        "internal/cli/dashboard_test.go",
+        "internal/cli/nongoals_surface_test.go",
+        "internal/cli/root.go",
+        "internal/dashboard/dashboard.go",
+        "internal/dashboard/page/index.html",
+        "internal/engine/dashsources.go",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "dashboard-request-guard",
