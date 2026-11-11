@@ -106,3 +106,16 @@ func TestEpicMapRows_AnEpicWithNoDependencySitsNextToItsFirstDependent(t *testin
 	assert.Equal(t, map[string][]string{"M": {"r", "a", "p", "b"}}, EpicMapRows(g, EpicMapLanes(g)))
 }
 
+// TestEpicMapRows_TheSameGraphAlwaysYieldsTheSamePositions: repeated
+// derivations over one graph, maps inside it included, agree.
+func TestEpicMapRows_TheSameGraphAlwaysYieldsTheSamePositions(t *testing.T) {
+	g := rowsGraph([]string{"M1", "M2", "M3"},
+		rowsEpic("r", "M1"), rowsEpic("s", "M1"), rowsEpic("a", "M1", "r"), rowsEpic("b", "M1", "s"),
+		rowsEpic("x", "M2", "a", "b"), rowsEpic("y", "M2", "b"), rowsEpic("z", "M2", "a"), rowsEpic("q", "M2"),
+		rowsEpic("u", "M3", "x", "q"), rowsEpic("v", "M3", "y", "z"),
+	)
+	want := EpicMapRows(g, EpicMapLanes(g))
+	for range 50 {
+		assert.Equal(t, want, EpicMapRows(g, EpicMapLanes(g)))
+	}
+}
