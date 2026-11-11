@@ -160,6 +160,19 @@ func TestPage_KeepsTheSinceLastLookedStateInTheBrowserAlone(t *testing.T) {
 	}
 }
 
+// TestPage_DrawsASpecsHistoryFromItsExportedRounds is §13's History at the
+// page: the rounds on a time axis by their recorded time, the round table
+// from each loop's rounds with their finding or FAIL count, clean flag, cap
+// and streak, and each review round's snapshot difference drawn beside that
+// round's findings, all read from tp export's loops.
+func TestPage_DrawsASpecsHistoryFromItsExportedRounds(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, field := range []string{"sv-history", ".recorded_at", ".fails", ".clean", ".cap", ".streak", ".clean_rounds_needed", ".snapshot_diff", ".changed", ".removed", ".finding_rows"} {
+		assert.Contains(t, script, field)
+	}
+}
+
 // TestPage_DrawsPlanReviewFromTheSliceFields is §5's panel at the page: each
 // slice row reads the export's slices with their cap, grants spent, stale
 // unit ids and open findings by role, and the summary's per-round counts,
