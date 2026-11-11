@@ -361,3 +361,22 @@ func TestPage_DrawsTheBandAndMilestoneStateFromThePayloads(t *testing.T) {
 	assert.Contains(t, urlKeys, "stage")
 	assert.Contains(t, script, `p.get("stage")`)
 }
+
+// TestPage_ReadsTheSpecInAnchoredSections is §13's Read view at the page: the
+// spec's text is drawn from tp export's sections and their paragraphs, each
+// carrying the anchor tp computed, a section's task count opens Tasks filtered
+// to it with the filter kept in the address.
+func TestPage_ReadsTheSpecInAnchoredSections(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	assert.Contains(t, page, `id="sv-read"`)
+	for _, field := range []string{".sections", ".paragraphs", ".anchor", ".heading", ".text", ".source_sections", "data-sec"} {
+		assert.Contains(t, script, field)
+	}
+	m := regexp.MustCompile(`const URL_KEYS = (\[.*\]);`).FindStringSubmatch(script)
+	require.NotNil(t, m)
+	var urlKeys []string
+	require.NoError(t, json.Unmarshal([]byte(m[1]), &urlKeys))
+	assert.Contains(t, urlKeys, "sec")
+	assert.Contains(t, script, `p.get("sec")`)
+}
