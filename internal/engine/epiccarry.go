@@ -13,22 +13,27 @@ import (
 
 // EpicCarry is one emission's split of a slice's units (spec/1.3.0.md §5):
 // the units asked this round and those carried from the round before, both
-// in slice order. Changed is true when a unit's hash differs from the round
-// before's or has none recorded (D7); Fixed holds the round before's rows
-// resolved fixed. Either one appends the regression role (D2). Decided holds
-// every earlier round's rows accepted wontfix or duplicate on an asked unit,
-// each with its round. Before holds, for each asked unit whose own block
-// changed, the block the round before read.
+// in slice order. Changed is true when an epic or gate unit's hash differs
+// from the round before's or has none recorded (D7); Fixed holds the round
+// before's rows on an epic or gate unit resolved fixed. Either one appends
+// the regression role (D2), which reads only those kinds
+// (EpicRegressionKinds); ScopeFixed holds the fixed rows on any other unit,
+// which its own role confirms. Decided holds every earlier round's rows
+// accepted wontfix or duplicate on an asked unit, each with its round. Before
+// holds, for each asked unit whose own block changed, the block the round
+// before read.
 type EpicCarry struct {
-	Asked   []EpicReviewUnit
-	Carried []EpicReviewUnit
-	Changed bool
-	Fixed   []map[string]any
-	Decided []EpicDecision
-	Before  map[string]string
-	// VerifyOnly is true when the round before left nothing open and fixed
-	// no blocking finding, at least one non-blocking one: the change must still
-	// be read, but by the regression role alone.
+	Asked      []EpicReviewUnit
+	Carried    []EpicReviewUnit
+	Changed    bool
+	Fixed      []map[string]any
+	ScopeFixed []map[string]any
+	Decided    []EpicDecision
+	Before     map[string]string
+	// VerifyOnly is true when the round before left nothing open on an epic
+	// or gate unit and fixed no blocking finding there, at least one
+	// non-blocking one: the change must still be read, but by the regression
+	// role alone, beside the roles a scope unit or a purpose change asks.
 	VerifyOnly bool
 	// PurposeStale holds, in slice order, the units Asked does not hold whose
 	// milestone's purpose changed since the round before's snapshot
@@ -36,6 +41,15 @@ type EpicCarry struct {
 	// asked them; a purpose change is no unit change, so they set neither
 	// Changed nor VerifyOnly.
 	PurposeStale []EpicReviewUnit
+}
+
+// EpicRegressionKinds are the unit kinds the built-in regression role reads.
+// A scope unit's change or fix never appends it: the scope role reads that.
+var EpicRegressionKinds = []string{model.RoleUnitEpics, model.RoleUnitGates}
+
+// epicRegressionKind reports whether a unit key is of EpicRegressionKinds.
+func epicRegressionKind(key string) bool {
+	return slices.Contains(EpicRegressionKinds, EpicUnitKind(key))
 }
 
 // EpicDecision is one earlier row accepted wontfix or duplicate, and the
@@ -71,7 +85,7 @@ func EpicReviewCarry(stateDir string, round int, units []EpicReviewUnit) (EpicCa
 	for _, u := range units {
 		hash, ok := prev.Units[u.Key]
 		changed := !ok || hash != u.Hash
-		c.Changed = c.Changed || changed
+		c.Changed = c.Changed || changed && epicRegressionKind(u.Key)
 		if !changed && !reask[u.Key] {
 			c.Carried = append(c.Carried, u)
 			continue
@@ -133,8 +147,9 @@ func (c *EpicCarry) readDecided(stateDir string, round int) error {
 	return nil
 }
 
-// readPriorRows collects the round before's fixed rows into c and returns the
-// unit keys an open row names.
+// readPriorRows collects the round before's fixed rows into c, an epic or
+// gate unit's into Fixed and any other into ScopeFixed, and returns the unit
+// keys an open row names. Only the epic and gate rows decide VerifyOnly.
 func (c *EpicCarry) readPriorRows(path string) (map[string]bool, error) {
 	rows, ok := readNDJSONRows(path)
 	if !ok {
@@ -143,15 +158,19 @@ func (c *EpicCarry) readPriorRows(path string) (map[string]bool, error) {
 	reask := map[string]bool{}
 	onlyLowFixes := true
 	for _, row := range rows {
+		loc, _ := row["location"].(string)
+		regression := epicRegressionKind(loc)
 		fixed := rowFixed(row)
-		if fixed {
+		switch {
+		case fixed && regression:
 			c.Fixed = append(c.Fixed, row)
+		case fixed:
+			c.ScopeFixed = append(c.ScopeFixed, row)
 		}
-		if fixed && ReviewRowBlocking(row) || !fixed && !RowAccepted(row) {
+		if regression && (fixed && ReviewRowBlocking(row) || !fixed && !RowAccepted(row)) {
 			onlyLowFixes = false
 		}
 		if !RowAccepted(row) {
-			loc, _ := row["location"].(string)
 			reask[loc] = true
 		}
 	}
