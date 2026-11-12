@@ -42,6 +42,23 @@ func TestEpicSet_DescriptionWritesTheTextAndBlankUnsetsIt(t *testing.T) {
 	}
 }
 
+// TestEpicReviewStatus_ADescriptionEditReAsksTheDescribedEpicAlone is the
+// own-block rule at the loop: after a recorded round, describing b makes the
+// slice stale on epic:b only; a, which depends on b, is not re-asked.
+func TestEpicReviewStatus_ADescriptionEditReAsksTheDescribedEpicAlone(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicDescriptionGraph)
+	slice := []string{"--milestone", "A"}
+	runEpicReview(t, dir, slice...)
+	recordEpicRound(t, dir, "", slice...)
+
+	_, stderr, code := runTP(t, dir, "epic", "set", "b", "description=Purpose: feed a.")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	stale := decodeStaleUnits(t, dir, slice...)
+	require.NotNil(t, stale.StaleUnits)
+	assert.Equal(t, []string{"epic:b"}, *stale.StaleUnits)
+}
+
 // TestEpicApply_SetRowCarriesAMultiLineDescription: an apply set row's JSON
 // string value carries multi-line markdown with no shell quoting, and the
 // file keeps it byte for byte.
