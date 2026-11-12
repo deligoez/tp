@@ -35,6 +35,10 @@ type EpicReviewUnit struct {
 	Hash      string
 	Milestone string
 	Purpose   string
+	// hashTail is what an epic unit's hash covers after its own block,
+	// its dependencies' blocks, so a carry can tell a change of the own
+	// block alone (epicDescriptionOnly).
+	hashTail string
 }
 
 // The unit key prefixes, one per kind a graph role's units may list.
@@ -290,16 +294,15 @@ func epicDependentBrief(e *model.Epic, asked map[string]bool) string {
 // description edit re-asks the described epic alone.
 func epicUnit(e *model.Epic, byID map[string]*model.Epic) EpicReviewUnit {
 	block := epicBlock(e) + epicDescriptionBlock(e.Description)
-	var hashed strings.Builder
-	hashed.WriteString(block)
+	var tail strings.Builder
 	for _, d := range e.DependsOn {
 		for _, id := range d.Names() {
 			if dep, ok := byID[id]; ok {
-				hashed.WriteString("\x00" + epicBlock(dep))
+				tail.WriteString("\x00" + epicBlock(dep))
 			}
 		}
 	}
-	return EpicReviewUnit{Key: EpicUnitPrefix + e.ID, Block: block, Hash: epicHash(hashed.String()), Milestone: e.Milestone}
+	return EpicReviewUnit{Key: EpicUnitPrefix + e.ID, Block: block, Hash: epicHash(block + tail.String()), Milestone: e.Milestone, hashTail: tail.String()}
 }
 
 // epicBlock renders an epic's id, title, milestone, condition when true, tags,
