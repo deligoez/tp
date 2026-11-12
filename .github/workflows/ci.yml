@@ -22,10 +22,11 @@ jobs:
       # Go is a gate tool like the ones pinned below: `stable` moved from 1.27.1
       # to 1.27.3 with no commit here and golangci-lint v2.13.2 then failed to
       # read the stdlib's export data. Raise it together with the tools, after
-      # running the gate locally on the new version (TestWorkflowGoIsPinned).
+      # running the gate locally on the new version (TestWorkflowGoIsPinned):
+      # 1.27.4 came with golangci-lint v2.15.0 for the same reason.
       - uses: actions/setup-go@v5
         with:
-          go-version: 1.27.1
+          go-version: 1.27.4
 
       # check-suite-state.sh RUNS `go test -count=1 -race ./...` between two
       # hashes of spec/.tp-review/ and .tp/rounds/ (v0.36.0 §6.1 S1). -count=1 is
@@ -52,7 +53,7 @@ jobs:
 
       - name: Install and run golangci-lint
         run: |
-          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
           golangci-lint run
 
       - name: Install and run deadcode
