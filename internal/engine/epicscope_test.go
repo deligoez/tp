@@ -421,3 +421,28 @@ func TestScope_MootEpicsAreNotOutside(t *testing.T) {
 
 	assert.Equal(t, []ScopeOutside{{ID: "z"}}, scopeOf(t, g, "m0").Outside)
 }
+
+// TestScope_ImplicitGateHoldsALostAlternative settles whether a lost
+// alternative is moot under implicit members: it is not. An implicit gate
+// holds every work epic of its milestone, the lost alternative y and its
+// dependency y1 included, so MootEpics does not mark them moot and the gate
+// stays red until they are done (GateGreen). The scope reports the gate as
+// it is: both are members, in the closure.
+func TestScope_ImplicitGateHoldsALostAlternative(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0"}}, Epics: []model.Epic{
+		scopeEpic("a1", "m0", scopeAnyOf("x", "y")),
+		scopeEpic("x", "m0"),
+		scopeEpic("y", "m0", scopeDeps("y1")...),
+		scopeEpic("y1", "m0"),
+	}}
+	g.Epics[1].Done = scopeDone()
+	states, err := DeriveEpicStates(g, nil)
+	require.NoError(t, err)
+	require.Empty(t, MootEpics(g, states), "an implicit gate holds y and y1, so neither is moot")
+
+	s := scopeOf(t, g, "m0")
+
+	assert.Equal(t, []string{"a1", "x", "y", "y1"}, s.Members)
+	assert.Equal(t, []string{"a1", "y", "y1"}, closureIDs(&s))
+	assert.False(t, GateGreen(g, "m0", states), "the gate waits on y and y1 too")
+}
