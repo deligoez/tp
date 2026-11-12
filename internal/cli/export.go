@@ -69,6 +69,19 @@ func exportOf(explicit string, compact bool) (exportPayload, *epicRunError) {
 		return exportPayload{}, &epicRunError{code: ExitFile, msg: err.Error(), hint: hint}
 	}
 	exp, err := engine.TaskExportOf(".", path)
+	return exportResultOf(&exp, err, compact)
+}
+
+// exportDataOf is exportOf's uncompacted payload for the task file at path
+// whose bytes the caller already read, data.
+func exportDataOf(path string, data []byte) (exportPayload, *epicRunError) {
+	exp, err := engine.TaskExportOfData(".", path, data)
+	return exportResultOf(&exp, err, false)
+}
+
+// exportResultOf renders exp, or converts err, the export's failure, into
+// the error tp export exits with.
+func exportResultOf(exp *engine.TaskExport, err error, compact bool) (exportPayload, *epicRunError) {
 	if err != nil {
 		hint := exportReadHint
 		var sce *engine.StateCorruptError
@@ -77,7 +90,7 @@ func exportOf(explicit string, compact bool) (exportPayload, *epicRunError) {
 		}
 		return exportPayload{}, &epicRunError{code: ExitFile, msg: err.Error(), hint: hint}
 	}
-	return exportPayloadOf(&exp, compact), nil
+	return exportPayloadOf(exp, compact), nil
 }
 
 // exportPayloadOf renders exp, dropping under compact each section's body,
