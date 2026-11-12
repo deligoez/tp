@@ -408,6 +408,7 @@ Modes (mutually exclusive):
 					os.Exit(ExitUsage)
 					return nil
 				}
+				enterTree(emissionTarget(engine.ResolveSpecArg(args[0])), "tp review --verify")
 				return runReviewVerify(args[0], findingsPath, affectedFiles, diffFrom, specInline, roleQueryFor(args[0], roleFilter, cmd.Flags().Changed("role")))
 			case "report":
 				return runReviewReport(args)
@@ -417,6 +418,8 @@ Modes (mutually exclusive):
 					os.Exit(ExitUsage)
 					return nil
 				}
+				// --record runs the registered checks against the tree.
+				enterTree(emissionTarget(engine.ResolveSpecArg(args[0])), "tp review --record")
 				return runReviewRecord(engine.ResolveSpecArg(args[0]), recordPath, harnessNote)
 			default:
 				// "status" is the only value that reaches here: detectReviewMode
@@ -593,6 +596,10 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 		return nil
 	}
 
+	// The panel's agents read this tree: a spec whose task file, or which
+	// itself, belongs to another project is refused before anything is read.
+	enterTree(emissionTarget(specPath), "tp review")
+
 	if perspective == "regression" {
 		refuseRegressionRound(cmd)
 		return runReviewRegression(specPath, diffFrom, findingsPath, roleQueryFor(specPath, roleFilter, roleGiven))
@@ -672,9 +679,6 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 	}
 
 	wfChecks, checksTaskFile := engine.ResolveWorkflow(specPath, flagFile)
-	// The panel's agents read this tree, so a task file of another project,
-	// found beside the spec rather than through --file, is refused too.
-	refuseForeignTree(checksTaskFile, "tp review")
 
 	prompts, regressionIncluded, skippedRoles := buildReviewPrompts(specPath, &panel, elems, specContent, round, summary, affectedFiles, finalRound, &wfChecks, diffFrom, noState, reviewSt)
 

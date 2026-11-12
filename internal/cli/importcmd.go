@@ -141,6 +141,8 @@ func runImport(_ *cobra.Command, args []string) error {
 	base := strings.TrimSuffix(filepath.Base(tf.Spec), filepath.Ext(tf.Spec))
 	dir := filepath.Dir(tf.Spec)
 	targetPath := filepath.Join(dir, base+".tasks.json")
+	// The import runs the registered checks and the convergence gate here.
+	enterTree(targetPath, "tp import")
 
 	// §3: the whole read-modify-write runs under the task-file write lock, on
 	// the same terms as every other write command. WriteTaskFile is atomic, but

@@ -96,6 +96,7 @@ func runClose(cmd *cobra.Command, args []string) error {
 		os.Exit(ExitFile)
 		return nil
 	}
+	enterTree(taskFilePath, "tp close")
 
 	if resolveEffectiveStrategy(taskFilePath) == engine.CommitStrategyHC {
 		output.Error(ExitUsage, "commit_strategy is hc: close with tp done --commit <sha> or --covered-by <id>", hcCommitHint)

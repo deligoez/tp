@@ -132,6 +132,7 @@ func runDone(cmd *cobra.Command, args []string) error {
 		os.Exit(ExitFile)
 		return nil
 	}
+	enterTree(taskFilePath, "tp done")
 
 	if resolveEffectiveStrategy(taskFilePath) == engine.CommitStrategyHC {
 		if doneAutoCommit {
@@ -780,6 +781,7 @@ func runDoneBatch() error {
 		os.Exit(ExitFile)
 		return nil
 	}
+	enterTree(taskFilePath, "tp done")
 
 	tfPre, preErr := model.ReadTaskFile(taskFilePath)
 	if preErr != nil {

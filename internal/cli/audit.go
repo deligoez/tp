@@ -280,6 +280,10 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 		return nil
 	}
 
+	// Before changed-file detection, which reads this tree's git: an audit of
+	// another project's spec is refused rather than reported as no changes.
+	enterTree(emissionTarget(specPath), "tp audit")
+
 	// Reject a --base git would read as an option before any code path uses
 	// it. Several helpers pass it to git, and the ones that only build diff
 	// stats would otherwise ignore it silently, so a user typo looks like a
@@ -348,8 +352,7 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	// §10.6 loop budget for prompt framing: the audit round being emitted
 	// (one past the last recorded), the consecutive clean rounds so far, and
 	// the resolved workflow caps.
-	auditWf, auditTaskFile := engine.ResolveWorkflow(specPath, flagFile)
-	refuseForeignTree(auditTaskFile, "tp audit")
+	auditWf, _ := engine.ResolveWorkflow(specPath, flagFile)
 	auditRound := 1
 	auditConsecutive := 0
 	if st, err := engine.LoadReviewState(specPath); err == nil && st != nil {

@@ -200,6 +200,12 @@ func canonicalDir(dir string) string {
 	return dir
 }
 
+// CanonicalPath is a file's path with its directory in canonicalDir's form, so
+// a path printed beside a CanonicalProjectRoot shares its spelling.
+func CanonicalPath(path string) string {
+	return filepath.Join(canonicalDir(filepath.Dir(path)), filepath.Base(path))
+}
+
 // CanonicalProjectRoot is ProjectRoot(start) in canonicalDir's form, the
 // spelling a refusal names.
 func CanonicalProjectRoot(start string) string {

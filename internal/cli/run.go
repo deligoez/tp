@@ -78,6 +78,7 @@ Output: {run_id, phase, stop_reason, units}
 // runs.
 func runRun(_ *cobra.Command, args []string) error {
 	taskFilePath, specPath, _ := resolveCycle(args)
+	enterTree(taskFilePath, "tp run")
 
 	opts := engine.DriverOptions{
 		Root:     ".",
@@ -169,6 +170,7 @@ func runExitCode(reason engine.StopReason) int {
 // resolved runner here for a later edit to accidentally spawn.
 func runRunDryRun(args []string) error {
 	taskFilePath, specPath, _ := resolveCycle(args)
+	enterTree(taskFilePath, "tp run --dry-run")
 
 	phase, round, units, err := engine.DryRunUnits(&engine.DriverOptions{
 		Root:     ".",

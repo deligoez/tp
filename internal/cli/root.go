@@ -60,10 +60,10 @@ INCREMENTAL (1 task at a time):
 	cmd.Version = version
 	cmd.SetVersionTemplate("tp version {{.Version}}\n")
 
-	cmd.PersistentPreRun = func(c *cobra.Command, _ []string) {
+	cmd.PersistentPreRun = func(c *cobra.Command, args []string) {
 		applyFlagDefaults(c)
 		output.Configure(flagJSON, flagQuiet, flagNoColor)
-		checkTaskFileProject(c)
+		checkProjectConfig(c, args)
 	}
 
 	// Command groups
