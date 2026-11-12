@@ -80,7 +80,7 @@ func TestEpicReview_APurposeReasksOnlyThePurposeRoles(t *testing.T) {
 
 	out := runEpicReview(t, dir, "--milestone", "A")
 	assert.Equal(t, []string{"placer", "scope-judge"}, promptRoles(&out), "no regression: a purpose change is no unit change")
-	assert.Equal(t, map[string]string{"plain": "no-units", "regression": "no-units"}, epicSkipped(t, dir, "--milestone", "A"))
+	assert.Equal(t, map[string]string{"plain": "no-units"}, epicSkipped(t, dir, "--milestone", "A"), "a scope change appends no regression")
 	assert.Equal(t, []string{"epic:a", "epic:b", "epic:c", "epic:d", "scope:A"}, out.Units)
 	placer := out.Prompts[0].Prompt
 	assert.Contains(t, placer, "\nMilestone purposes:\n- A: prove the chain end to end\n")
@@ -98,17 +98,25 @@ func TestEpicReview_APurposeReasksOnlyThePurposeRoles(t *testing.T) {
 }
 
 // TestEpicReview_ACorpusWithoutAPurposeRoleIsNotReasked: with no role taking
-// the purpose, writing one re-asks no epic and leaves nothing purpose-stale.
+// the scope or the purpose, a gate with a threshold has no scope unit, the
+// slice converges, and writing a purpose re-asks nothing and leaves nothing
+// stale.
 func TestEpicReview_ACorpusWithoutAPurposeRoleIsNotReasked(t *testing.T) {
 	t.Parallel()
-	dir := convergedPurposeSlice(t, map[string]string{"plain": purposeRoles["plain"]})
+	dir := epicGraphDir(t, epicChainThreshold)
+	writeEpicRoles(t, dir, map[string]string{"plain": purposeRoles["plain"]})
+	first := runEpicReview(t, dir, "--milestone", "A")
+	assert.Equal(t, []string{"epic:a", "epic:b", "epic:c", "epic:d", "gate:A"}, first.Units, "no role reads a scope unit, so the slice holds none")
+	dir = convergedPurposeSlice(t, map[string]string{"plain": purposeRoles["plain"]})
 	setGateField(t, dir, "gates.A.purpose=prove the chain end to end")
 
-	st, _ := epicPurposeStatusOf(t, dir)
+	st, code := epicPurposeStatusOf(t, dir)
+	assert.Equal(t, 0, code, "still converged: %+v", st)
 	assert.Empty(t, st.PurposeStale)
+	assert.Empty(t, st.StaleUnits)
 	out := runEpicReview(t, dir, "--milestone", "A")
-	assert.Empty(t, out.Prompts, "plain is asked no unit of its kinds")
-	assert.Equal(t, []string{"scope:A"}, out.Units, "only the scope unit, whose fingerprint holds the purpose, changed")
+	assert.Empty(t, out.Prompts)
+	assert.Empty(t, out.Units)
 }
 
 // TestEpicReview_RemovingAPurposeReasks: a purpose removed is a purpose

@@ -24,7 +24,9 @@ func TestEpicReview_GateScopeJudgesTheScopeUnitAlone(t *testing.T) {
 	scope := out.Prompts[3].Prompt
 	assert.Contains(t, scope, "Asked units:\n---\nscope: A\n")
 	assert.NotContains(t, scope, "\n---\nepic: a\n")
-	assert.Contains(t, scope, "\nMilestone purposes:\n- A: prove the chain end to end\n")
+	assert.Contains(t, scope, "purpose: prove the chain end to end\n", "the scope unit's block carries the purpose")
+	assert.NotContains(t, scope, "Milestone purposes:", "a scope-only role reads the purpose once, in its block")
+	assert.Empty(t, epicSkipped(t, dir, "--milestone", "A"), "all four built-in roles run, gate-scope not skipped")
 	assert.Contains(t, scope, "Scope of gate A")
 	assert.Contains(t, scope, "`scope:<milestone>`")
 	economist := out.Prompts[2].Prompt
