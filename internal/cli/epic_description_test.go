@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 
@@ -277,8 +278,8 @@ func TestEpicReview_AFindingFixedThroughADescriptionIsVerified(t *testing.T) {
 	out := runEpicReview(t, dir, slice...)
 	regression := promptOf(&out, "regression")
 	require.NotEmpty(t, regression, "roles: %v", promptRoles(&out))
-	assert.Contains(t, regression, "--- epic:b, description changed since round 1 (- removed, + added):\n+ Purpose: feed a.\n")
-	assert.NotContains(t, regression, "--- epic:b, now")
+	assert.Contains(t, regression, "\nChanged since round 1:\n--- epic:b, its description only, as a line diff (- removed, + added, … unchanged lines left out):\n+ Purpose: feed a.\n")
+	assert.NotContains(t, regression, "--- epic:b, as it reads now")
 	assert.Contains(t, regression, "b's purpose is unstated", "regression confirms the fixed row")
 }
 
@@ -313,6 +314,41 @@ func TestEpicReview_AVerifyOnlyRoundStillAsksAnAuthoredEpic(t *testing.T) {
 	stale = decodeStaleUnits(t, dir, slice...)
 	require.NotNil(t, stale.StaleUnits)
 	assert.Equal(t, []string{}, *stale.StaleUnits)
+}
+
+// regressionAfter reviews slice over graph, records round 1 empty, applies
+// each tp epic set edit and reports whether round 2 asks regression.
+func regressionAfter(t *testing.T, graph string, slice []string, edits ...[]string) bool {
+	t.Helper()
+	dir := epicGraphDir(t, graph)
+	runEpicReview(t, dir, slice...)
+	recordEpicRound(t, dir, "", slice...)
+	for _, edit := range edits {
+		epicSet(t, dir, edit...)
+	}
+	out := runEpicReview(t, dir, slice...)
+	return slices.Contains(promptRoles(&out), "regression")
+}
+
+// rootEpicB is one root epic b whose acceptance is acc.
+func rootEpicB(acc string) string {
+	value, _ := json.Marshal(acc)
+	return `{"version": 1, "milestones": [["A"]], "epics": [{"id": "b", "title": "B step", "milestone": "A", "root": true, "acceptance": ` + string(value) + `}]}`
+}
+
+// TestEpicReview_AContractChangeShapedLikeADescriptionAppendsRegression: an
+// acceptance edit, whatever its text looks like, is a contract change, and
+// so is the same for an epic whose dependency changed beside its own
+// description: each appends regression.
+func TestEpicReview_AContractChangeShapedLikeADescriptionAppendsRegression(t *testing.T) {
+	t.Parallel()
+	epicB := []string{"--epic", "b"}
+	assert.True(t, regressionAfter(t, rootEpicB("b ships\ndescription:\n  step one"), epicB,
+		[]string{"b", "acceptance=b ships\ndescription:\n  step two, much bigger"}), "an acceptance holding a description: line")
+	assert.True(t, regressionAfter(t, rootEpicB("foo\ndescription:\n  bar\n  baz"), epicB,
+		[]string{"b", "acceptance=foo"}), "the same acceptance cut down")
+	assert.True(t, regressionAfter(t, epicDescriptionGraph, []string{"--epic", "a"},
+		[]string{"a", "description=Purpose: read b."}, []string{"b", "acceptance=b ships twice"}), "a's description beside its dependency's edit")
 }
 
 // TestEpicReview_ADescriptionStaysInsideItsBlocksFrame: a description holding
