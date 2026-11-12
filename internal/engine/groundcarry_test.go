@@ -520,3 +520,22 @@ func TestAppendGroundRowsTerminatesAPayloadThatDoesNot(t *testing.T) {
 	require.NotNil(t, rows[0].UnitID)
 	assert.Equal(t, "u9", *rows[0].UnitID)
 }
+
+// TestRoundOneCarriesNothingEvenBesideARoundZeroFile: round 1 has no preceding
+// round, so it carries nothing, and a stray ground-round-0.ndjson is not one.
+// The round-2 half is the control: the same row one round earlier does carry.
+func TestRoundOneCarriesNothingEvenBesideARoundZeroFile(t *testing.T) {
+	specPath := groundEmittedDir(t, 1)
+	floor := []FloorIndexRow{{ID: "u1", Anchor: "§1", TextSHA: "aaaaaaaaaaaa", Ordinal: 1, Bytes: 30}}
+	source := groundCarriedSource("aaaaaaaaaaaa", 1, VerdictFail)
+	groundRoundOnDisk(t, specPath, 0, source)
+	groundRoundOnDisk(t, specPath, 1, source)
+
+	carried, err := GroundCarriedRows(specPath, 2, floor, nil)
+	require.NoError(t, err)
+	require.Len(t, carried, 1, "the control: round 1's row carries into round 2")
+
+	carried, err = GroundCarriedRows(specPath, 1, floor, nil)
+	require.NoError(t, err)
+	assert.Empty(t, carried, "round 1 reads no round 0")
+}
