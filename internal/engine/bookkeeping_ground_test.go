@@ -90,6 +90,19 @@ func TestGroundArtifactsReportTheirRoundNumberLikeTheirSiblings(t *testing.T) {
 	}
 }
 
+// TestAnInFlightGroundScratchFileIsRoundBookkeeping is the classifier half of
+// spec/backlog/ground-scratch-in-state-dir.md: the scratch file a ground unit
+// writes now sits under the spec's state directory, so a dirty one is the
+// round's bookkeeping, never an unexplained change, and it reports the round
+// number its siblings report.
+func TestAnInFlightGroundScratchFileIsRoundBookkeeping(t *testing.T) {
+	bk := groundBookkeeping(t, "review-round-3.ndjson", "ground-inbox/round-3.ndjson")
+	entry, found := bk["round-3.ndjson"]
+	require.True(t, found)
+	assert.Equal(t, BookkeepingRound, entry.Kind)
+	assert.Equal(t, bk["review-round-3.ndjson"].Ref, entry.Ref, "the scratch file reports its round number")
+}
+
 // TestNextGroundRoundIsNotNumberedByTheBookkeepingRegex is the acceptance's
 // second half: widening roundNumberRe widens the bookkeeping reference and
 // nothing else. Numbering keeps its own matcher, which is anchored on
