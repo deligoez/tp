@@ -1397,6 +1397,7 @@ so it changes only through the `tp epic` writers.
 | `epics[].milestone` | milestone name | required; names one of `milestones` |
 | `epics[].tags` | list of strings | opaque to tp, read only by `tag_checks` |
 | `epics[].depends_on` | list of `{id, why}` or `{any_of, why}` (v1.7.0) | a plain edge to one epic, or an any-of group of alternative epics, conditions or work; exactly one of `id` and `any_of`, the group with two or more distinct members and one `why`; `why` is required and is content, like `title` and `acceptance` |
+| `epics[].description` | string, optional, written only when non-empty (v1.11.0) | markdown content in the epic's own words, never parsed: purpose, scope, non-goals, decisions, open questions; empty or only whitespace is unset. `tp epic set <id> description=<text>` takes short text, an empty value unsetting it, and a `tp epic apply` set row's JSON `value` carries multi-line text with no shell quoting; `tp epic add`, its `--bulk` rows and `tp epic import` take it under the same strict decode. It is in the epic's own review block only (*An epic's description*, below); no lint rule reads it |
 | `epics[].root` | boolean, written only when `true` | the epic has no dependency on purpose; `no-dependencies` does not fire on it |
 | `epics[].condition` | boolean, written only when `true` | a precondition the operator decides: no bound file, no claim, done only by a done record; refused on an epic with either |
 | `epics[].estimate_minutes` | integer, written only when set | the epic's estimate; with none, the sum of its bound tasks' estimates when every one has one |
@@ -1524,7 +1525,7 @@ its own, so the set may grow without changing directory. `--status` names it as
 
 | File | Written by | Content |
 |------|------------|---------|
-| `snapshot-round-<N>.json` | emission | each unit's hash and block text as round N read it, and each slice milestone's purpose as `purposes` (v1.9.0); a unit's hash covers its own block and, for an epic, the blocks of its direct dependencies, an any-of group's members included (v1.7.0) |
+| `snapshot-round-<N>.json` | emission | each unit's hash and block text as round N read it, and each slice milestone's purpose as `purposes` (v1.9.0); a unit's hash covers its own block and, for an epic, the blocks of its direct dependencies, an any-of group's members included (v1.7.0), a dependency's without its description (v1.11.0) |
 | `round-<N>.ndjson` | `--record` | the round's findings, each with `severity`, `finding`, `location` (`epic:<id>`, `gate:<m>` or `scope:<m>`) and `evidence`; `--resolve` writes dispositions into the last one |
 | `key.json` | emission (v1.5.0) | the slice's key, `{kind, value?, ids?, name?}` with `kind` one of `epic`, `milestone`, `epics`; `tp epic export` lists it |
 | `grant.json` | `--grant-round` (v1.7.0) | `{round}`, the one round past the cap the operator granted; recording that round spends it |
@@ -1546,7 +1547,7 @@ every unit before a round is recorded; since a unit's hash covers its dependenci
 epic names every unit whose hash covers it — `purpose_stale_units` (v1.9.0, below), `open_by_role`, the
 last round's undisposed findings counted by role (`unattributed` for none), summing to the same
 total as `open`, `max_rounds`, the resolved cap or `null` uncapped, and `grants_spent`, the recorded
-rounds past the cap.
+rounds past the cap, and `asked_block_bytes` (v1.11.0, *Prompt size* below).
 With no `.tp/epic-reviewers/` the four built-in graph roles run (`dod-satisfiability`,
 `why-auditor`, `phase-economist`, `gate-scope`); a populated directory replaces them, and `--role`
 naming a built-in graph role such a directory lacks exits 2 saying so, with the way to add it
@@ -1657,6 +1658,41 @@ the roles whose file says `purpose: true`, the price of keeping it away from the
 it to. A custom or ejected corpus gets these mechanisms, not the built-in text: a corpus ejected
 before v1.9.0 keeps the old `phase-economist`, gate focus included, and has no `gate-scope` until it
 is ejected again or the file is added.
+
+**An epic's description (v1.11.0).** `epics[].description` is part of the epic's **own** block only:
+after its edges, a `description:` line, then each line of the text indented two spaces, a blank
+line left empty and the text's surrounding blank lines dropped. So it is in that epic's unit hash,
+and editing it re-asks that epic and nothing else. Where the epic is another epic's dependency — in
+that epic's hash and its context — its block appears without the description: a dependent relies on
+what the dependency delivers, which is its acceptance. An epic with no description, or an empty or
+whitespace-only one, renders the block bytes v1.10.0 rendered, so no hash moves on upgrade. The
+`tp epic scope` fingerprint, the `scope:<m>` unit's hash and block and the scope context a scope role
+reads never contain a description: a description is not scope. In a prompt the asked epic's
+description is shown in full, uncapped, inside its block; context epics, full or brief, show none,
+and `gate-scope`'s prompt holds none (regression's before-and-now copies of a changed unit are that
+unit's own block, so they show its description). `--history` reads a description edit as a change of
+the field `description`, never its lines as fields or edges. The built-in `dod-satisfiability`,
+`why-auditor` and `phase-economist` read a description, when the asked epic has one, as the primary
+text of the epic under review: whether the acceptance satisfies its purpose and scope, whether the
+edges' whys agree with its decisions, whether the placement fits its purpose. The acceptance stays
+the contract the gate checks; a contradiction between the description and the acceptance or an edge
+is a finding; a missing description is not, and an open question the description lists is not
+reported back. `gate-scope` does not read it. A corpus ejected before v1.11.0 gets the text in its
+blocks and none of these instructions until it is ejected again. What belongs in a description is
+intent, scope, non-goals, decisions and open questions; behaviour written there is re-reviewed on
+every edit and ages as unbuilt spec text does, and every description edit is a round against the
+slice's cap.
+
+**Prompt size (v1.11.0).** The cost of descriptions is shown, not capped. A slice's `--status`, and
+each batch `--status` row, prints `asked_block_bytes`: the bytes of the blocks of the units a round
+would ask now, the carry's asked units and the purpose-stale ones (`0` on a fresh slice and on a
+batch row the graph no longer holds). It is a proxy, available before anything is emitted, which
+matters because an emitted round is frozen and taking it back is the operator's `--discard`: it
+counts no instructions, context or contract, and each role reads only the units of its kinds. The
+emission reports each role's real size as `prompt_bytes`, the byte length of `prompts[].prompt`.
+`tp epic review` has no compact form, so `--compact` drops neither key. A prompt that grows too large
+is answered with a smaller slice (`--epics … --name`), not a cap; the peak is the first pass, since
+describing a whole milestone re-asks every epic of it at once.
 
 Each prompt reads, in order: the role's instructions, the asked units (and, for each of its kinds of
 which none is asked, a line saying that kind's questions do not apply), a purpose role's purpose
@@ -2006,7 +2042,8 @@ The read commands write nothing and list epics in graph order, every list `[]` w
   `version` is 2 (v1.7.0, since a `depends_on` entry may carry `any_of` in place of `id`; 1
   before); renaming, removing or retyping a key bumps it, adding one does not. The graph file keeps
   its own `version: 1`.
-  - `graph` is `.tp/epics.json` as stored; `milestones` is `tp epic status`'s `milestones`,
+  - `graph` is `.tp/epics.json` as stored, each epic's `description` included (v1.11.0, additive,
+    so the export keeps its version); `milestones` is `tp epic status`'s `milestones`,
     uncompacted.
   - `epics`: `{id, title, milestone, condition, status, done_at, files, downstream?, actionable?,
     not_actionable?, moot?, held_by, blocked_by, held_by_any_of, blocked_by_any_of, blocked,
@@ -2192,6 +2229,9 @@ A page that connects first receives the current state, in the order the payloads
 derivation that fails is pushed under its event as tp's `{error, code, hint}`; the page shows it as a
 banner over the last good payload, greyed. A page more than 32 events behind is dropped and
 reconnects, and the loop stops when no page listens.
+
+The epic drawer shows a selected epic's `description` (v1.11.0), read from the export's raw graph,
+as preformatted text: escaped, never rendered as markup.
 
 **The summary** is the page's own payload, figures no command prints; its keys are not a versioned
 contract:
