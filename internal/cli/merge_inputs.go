@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/deligoez/tp/internal/engine"
 	"github.com/deligoez/tp/internal/output"
 )
 
@@ -78,6 +79,16 @@ type mergeRowRule struct {
 // clean round. An input whose content lines all fail is a dropped role, which
 // the merge turns into exit 1.
 func loadMergeRows(args []string, rule mergeRowRule) ([]map[string]any, []mergeInputCounts) {
+	// spec/backlog/role-files-in-state-dir.md: a role file under its
+	// pre-1.12.0 name is never read, since two same-base specs share it.
+	for _, path := range args {
+		if target, legacy := engine.LegacyRoleFile(path); legacy {
+			output.Error(ExitFile,
+				fmt.Sprintf("%s is a role file under its pre-1.12.0 name, which two specs with one base share, so tp does not merge it", path),
+				fmt.Sprintf("if it is your spec's, move it to %s under that spec's directory and merge from there", target))
+			os.Exit(ExitFile)
+		}
+	}
 	for _, path := range args {
 		if _, err := os.Stat(path); os.IsNotExist(err) {
 			output.Error(ExitFile, fmt.Sprintf("file not found: %s", path), ndjsonInputFileHint)
