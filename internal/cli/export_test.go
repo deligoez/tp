@@ -145,8 +145,8 @@ func TestExport_RunsUnattendedAndExits3WithoutATaskFile(t *testing.T) {
 	assertHasHint(t, stderr)
 }
 
-// worktreeFiles is snapshotTree without .git, whose index git status may
-// refresh.
+// worktreeFiles maps every file under dir to its content, skipping .git: git
+// refreshes its index and runs background maintenance there.
 func worktreeFiles(t *testing.T, dir string) map[string]string {
 	t.Helper()
 	tree := map[string]string{}
