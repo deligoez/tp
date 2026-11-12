@@ -133,7 +133,7 @@ func runEpicReady(cmd *cobra.Command, _ []string) error {
 
 // epicPlaceholderMatcher is the project's placeholder matcher. A read
 // command does not fail on a config that cannot be read or a pattern that
-// does not compile: it warns once naming epic.threshold_placeholder and
+// does not compile: it warns once per process naming epic.threshold_placeholder and
 // falls back to the default pattern. Only tp validate --project refuses it.
 func epicPlaceholderMatcher(tpDir string) *engine.PlaceholderMatcher {
 	matcher, err := engine.ProjectPlaceholderMatcher(tpDir)
@@ -144,7 +144,10 @@ func epicPlaceholderMatcher(tpDir string) *engine.PlaceholderMatcher {
 	if !strings.HasPrefix(msg, engine.ThresholdPlaceholderKey) {
 		msg = engine.ThresholdPlaceholderKey + ": " + msg
 	}
-	output.Notice("warning: " + msg + "; using the default placeholder pattern (tp validate --project reports it)")
+	// Keyed by the message, so the dashboard's ticks repeat nothing and a
+	// different broken pattern still warns.
+	msg = "warning: " + msg + "; using the default placeholder pattern (tp validate --project reports it)"
+	noticeOnce(msg, msg)
 	matcher, _ = engine.NewPlaceholderMatcher(engine.DefaultThresholdPlaceholder)
 	return matcher
 }
