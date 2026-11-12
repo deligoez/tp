@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -31,11 +32,23 @@ next_action, blockers}`,
 	return cmd
 }
 
+// resumeStart is the tree tp resume classifies and roots the round
+// directories under: the working directory for a task file of this project,
+// and the task file's own project root for one of another, since a report
+// about that plan describes that tree, not this one
+// (spec/backlog/project-layer-from-task-file.md).
+func resumeStart(taskFilePath string) string {
+	if taskFilePath == "" || engine.SameProjectRoot(filepath.Dir(taskFilePath), ".") {
+		return "."
+	}
+	return engine.CanonicalProjectRoot(filepath.Dir(taskFilePath))
+}
+
 func runResume(_ *cobra.Command, args []string) error {
 	applyEpicFileFlag()
 	taskFilePath, specPath, tf := resolveCycle(args)
 
-	result, err := engine.AssembleResume(".", taskFilePath, specPath, tf)
+	result, err := engine.AssembleResume(resumeStart(taskFilePath), taskFilePath, specPath, tf)
 	if err != nil {
 		var sce *engine.StateCorruptError
 		if errors.As(err, &sce) {
