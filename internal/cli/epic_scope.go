@@ -48,7 +48,7 @@ type epicScopeCompactHolds struct {
 // epicScopeCompactMilestone is one closure milestone without its epics.
 type epicScopeCompactMilestone struct {
 	Milestone  string `json:"milestone"`
-	Track      *int   `json:"track,omitempty"`
+	Track      *int   `json:"track_index,omitempty"`
 	CrossTrack bool   `json:"cross_track,omitempty"`
 	Size       int    `json:"size"`
 }

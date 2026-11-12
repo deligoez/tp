@@ -95,7 +95,7 @@ type ScopeShrink struct {
 // lint leaves free by design, never an error.
 type ScopeMilestone struct {
 	Milestone  string      `json:"milestone"`
-	Track      *int        `json:"track,omitempty"`
+	Track      *int        `json:"track_index,omitempty"`
 	CrossTrack bool        `json:"cross_track,omitempty"`
 	Size       int         `json:"size"`
 	Epics      []ScopeEpic `json:"epics"`
