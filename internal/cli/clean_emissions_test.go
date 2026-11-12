@@ -60,6 +60,8 @@ func TestCleanEmissionsKnowsTheInboxes(t *testing.T) {
 	} {
 		assert.Contains(t, out, name, "an old inbox file is removable, its round recorded or not")
 	}
+	assert.Contains(t, out, "recorded inbox file", "each path carries its reason")
+	assert.Contains(t, out, "unrecorded inbox file")
 }
 
 // TestCleanEmissionsReportsOldLayoutRoundDirectories: a round directory under
@@ -77,7 +79,7 @@ func TestCleanEmissionsReportsOldLayoutRoundDirectories(t *testing.T) {
 	writeOld(t, filepath.Join(dir, ".tp", "rounds", "x", "a", "review-r1", "role-tester.ndjson"))
 
 	out := runCleanEmissions(t, dir)
-	assert.Contains(t, out, filepath.Join(".tp", "rounds", "a", "review-r1"), "an orphaned old-layout round directory is reported")
+	assert.Contains(t, out, filepath.Join(".tp", "rounds", "a", "review-r1")+"  old-layout round dir", "an orphaned old-layout round directory is reported, with its reason")
 	assert.NotContains(t, out, filepath.Join(".tp", "rounds", "b", "review-r1"), "a root task file's round directory is kept")
 	assert.NotContains(t, out, filepath.Join(".tp", "rounds", "x", "a"), "and so is a new-layout one")
 }
