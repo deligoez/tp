@@ -13,30 +13,56 @@ type EpicReviewPolicy struct {
 	CleanRounds int
 	MaxRounds   int // 0 is uncapped
 	ConvergeOn  string
-	// PurposeKinds are the unit kinds a role with purpose: true is asked
-	// (EpicPurposeKinds): a unit of one of them whose milestone's purpose
-	// changed waits on that role's re-ask, so the slice is stale until it is
-	// recorded. Empty, no purpose change holds a slice open.
-	PurposeKinds map[string]bool
+	// Kinds is what the resolved graph-review corpus reads: a slice holds no
+	// unit of a kind no role is asked (FilterEpicUnits), and a unit of a
+	// purpose role's kind whose milestone's purpose changed waits on that
+	// role's re-ask, so the slice is stale until it is recorded. The zero
+	// value filters nothing and holds no slice open on a purpose.
+	Kinds EpicCorpusKinds
 }
 
-// EpicPurposeKinds returns the unit kinds the roles with purpose: true are
-// asked, over the graph-review corpus resolved from startDir; none when the
-// corpus cannot be read, which the emission itself reports.
-func EpicPurposeKinds(startDir string) map[string]bool {
-	kinds := map[string]bool{}
+// EpicCorpusKinds is what a graph-review corpus reads: Units, the unit kinds
+// some role is asked, and Purpose, those a role with purpose: true is asked.
+// A nil Units means every kind.
+type EpicCorpusKinds struct {
+	Units   map[string]bool
+	Purpose map[string]bool
+}
+
+// ResolveEpicCorpusKinds resolves the graph-review corpus from startDir, as
+// the emission does, and returns the kinds it reads; a corpus that cannot be
+// read is an error, so no reader grades a slice against a corpus it could not
+// load.
+func ResolveEpicCorpusKinds(startDir string) (EpicCorpusKinds, error) {
 	roles, err := ResolveEpicRoleCorpus(startDir)
 	if err != nil {
-		return kinds
+		return EpicCorpusKinds{}, err
 	}
+	kinds := EpicCorpusKinds{Units: map[string]bool{}, Purpose: map[string]bool{}}
 	for i := range roles {
-		if roles[i].Purpose {
-			for _, k := range roles[i].UnitKinds() {
-				kinds[k] = true
+		for _, k := range roles[i].UnitKinds() {
+			kinds.Units[k] = true
+			if roles[i].Purpose {
+				kinds.Purpose[k] = true
 			}
 		}
 	}
-	return kinds
+	return kinds, nil
+}
+
+// FilterEpicUnits returns, in their order, the units of a kind kinds holds:
+// a kind no role reads produces no unit. A nil kinds keeps every unit.
+func FilterEpicUnits(units []EpicReviewUnit, kinds map[string]bool) []EpicReviewUnit {
+	if kinds == nil {
+		return units
+	}
+	var out []EpicReviewUnit
+	for _, u := range units {
+		if kinds[EpicUnitKind(u.Key)] {
+			out = append(out, u)
+		}
+	}
+	return out
 }
 
 // EpicReviewStatus is a slice's loop verdict, read live from its state
@@ -54,7 +80,7 @@ type EpicReviewStatus struct {
 	// §5): every unit before a round is recorded, none on a fresh slice.
 	StaleUnits []string
 	// PurposeStale names, in slice order, the units of a purpose role's
-	// kinds (EpicReviewPolicy.PurposeKinds) whose hash is unchanged but
+	// kinds (EpicReviewPolicy.Kinds) whose hash is unchanged but
 	// whose milestone's purpose differs from the last recorded round's
 	// snapshot; Stale holds while either list is not empty.
 	PurposeStale  []string
@@ -103,7 +129,7 @@ func EpicReviewLoopStatus(stateDir string, units []EpicReviewUnit, p EpicReviewP
 		}
 		rounds = append(rounds, rows)
 	}
-	staleUnits, purposeStale, err := epicSliceStale(stateDir, st.Round, units, p.PurposeKinds)
+	staleUnits, purposeStale, err := epicSliceStale(stateDir, st.Round, units, p.Kinds.Purpose)
 	if err != nil {
 		return EpicReviewStatus{}, err
 	}

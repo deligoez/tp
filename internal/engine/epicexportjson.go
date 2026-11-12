@@ -182,6 +182,7 @@ func EpicReviewSlices(tpDir string, g *model.EpicGraph, p EpicReviewPolicy) ([]E
 	out := []EpicSliceState{}
 	for _, d := range dirs {
 		units, known := epicSliceUnits(g, d.Key)
+		units = FilterEpicUnits(units, p.Kinds.Units)
 		st, err := EpicReviewLoopStatus(d.Path, units, p)
 		if err != nil {
 			return nil, err
