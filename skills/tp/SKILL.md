@@ -517,7 +517,7 @@ table a prose document embeds. Build it one topic at a time, each topic through 
    after-state holds a lint error the before-state did not exits 1 and writes nothing, naming each
    error by its epic ids.
 4. **`tp epic lint`** — read the warnings (`no-dependencies`, `thin-why`, `partial-parallel`,
-   `gate-threshold-unwritten`) the writers do not refuse; exit 0 means no error-severity finding.
+   `gate-threshold-unwritten`, `deferrable-required`) the writers do not refuse; exit 0 means no error-severity finding.
 5. **`tp epic review --milestone <m>` (or `--epic <id>`) over the touched slice** — a milestone
    slice asks every epic in it, not only the topic's, and its gate, so a topic spread over several
    milestones costs a round per milestone; for a topic, review the topic itself with
