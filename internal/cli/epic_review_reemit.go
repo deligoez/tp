@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	"github.com/deligoez/tp/internal/engine"
 	"github.com/deligoez/tp/internal/output"
 )
@@ -46,10 +48,11 @@ func epicEmissionChanges(run *epicReviewRun, panel []engine.EpicSnapshotRole) ([
 	return changes, nil
 }
 
-// epicWaysForward names what an unrecorded round leaves open, in order:
-// record it as emitted, or discard it, the operator's decision.
+// epicWaysForward is the one sentence every refusal over an unrecorded round
+// ends in, naming its two ways forward in order: record it as emitted, or,
+// the operator's decision, discard it and emit again.
 func epicWaysForward(label string) string {
-	return fmt.Sprintf("record the round as emitted with tp epic review %s --record-inbox, or, as the operator's decision, discard it and emit again with tp epic review %s --force",
+	return fmt.Sprintf("record the round as emitted with tp epic review %s --record-inbox, or, as the operator's decision, discard it with tp epic review %s --discard, then emit again",
 		label, label)
 }
 
@@ -64,36 +67,70 @@ func epicChangedError(run *epicReviewRun, changes []string) *epicRunError {
 // guardEpicEmission is the refusal an epic review emission makes before it
 // writes anything, as guardInFlightEmission is spec review's: re-emitting an
 // unrecorded round whose units, purposes or panel changed would rebuild it
-// under the roles still holding the old prompts. It exits 3 unless force,
-// which discards the old emission and exactly the files its stored panel
-// named, said on stderr; under TP_UNATTENDED a --force that would discard
-// exits 2 (discard-emission). It returns only when the emission may proceed.
-func guardEpicEmission(run *epicReviewRun, panel []engine.EpicSnapshotRole, force bool) {
+// under the roles still holding the old prompts. It exits 3 and returns only
+// when the emission may proceed; discarding is --discard's, never an
+// emission's.
+func guardEpicEmission(run *epicReviewRun, panel []engine.EpicSnapshotRole) {
 	changes, rerr := epicEmissionChanges(run, panel)
 	if rerr != nil {
 		exitEpicRunError(rerr)
 	}
-	if len(changes) == 0 {
-		return
-	}
-	label := epicSliceLabel(run.key)
-	if force && engine.Unattended() {
-		refuseUnattended(fmt.Sprintf("--force discarding epic review round %d's unrecorded emission of %s", run.round, label), engine.EscalateDiscardEmission)
-		return
-	}
-	if !force {
+	if len(changes) > 0 {
 		exitEpicRunError(epicChangedError(run, changes))
-		return
 	}
-	old, _, err := engine.EpicStoredPanel(run.stateDir, run.round)
-	var removed []string
-	if err == nil {
-		removed, err = engine.RemoveEpicPanelFiles(engine.EpicRepoRoot(run.tpDir), old)
+}
+
+// epicDiscardResult is tp epic review --discard's payload.
+type epicDiscardResult struct {
+	StateDir     string `json:"state_dir"`
+	Round        int    `json:"round"`
+	FilesRemoved int    `json:"files_removed"`
+	NextAction   string `json:"next_action"`
+}
+
+// runEpicReviewDiscard removes the slice's unrecorded emission, its snapshot
+// and exactly the files its stored panel named, and emits nothing, so the
+// dispositions it froze can change before the round is emitted again
+// (spec/backlog/epic-reemit-guard.md). It is the operator's decision: under
+// TP_UNATTENDED it exits 2 (discard-emission) before reading anything. With
+// no unrecorded emission it exits 4 and writes nothing.
+func runEpicReviewDiscard(key engine.EpicSliceKey) {
+	if engine.Unattended() {
+		refuseUnattended("tp epic review --discard removes an unrecorded emission, which", engine.EscalateDiscardEmission)
 	}
+	run := loadEpicReviewRun(key)
+	label := epicSliceLabel(key)
+	panel, stored, err := engine.EpicStoredPanel(run.stateDir, run.round)
+	switch {
+	case err != nil:
+		exitEpicRunError(&epicRunError{code: ExitFile, msg: fmt.Sprintf("cannot read round %d's emission snapshot: %v", run.round, err), hint: epicRoundFileHint})
+	case !stored:
+		exitEpicRunError(&epicRunError{code: ExitState, msg: fmt.Sprintf("epic review round %d of %s has no unrecorded emission to discard", run.round, label),
+			hint: "emit the round with tp epic review " + label + ", or read its loop with tp epic review " + label + " --status"})
+	}
+	removed, err := engine.DiscardEpicEmission(run.stateDir, run.round, engine.EpicRepoRoot(run.tpDir), panel)
 	if err != nil {
-		output.Error(ExitFile, "cannot remove the discarded emission's role files: "+err.Error(), epicReviewStateHint)
+		output.Error(ExitFile, "cannot discard the emission: "+err.Error(), epicReviewStateHint)
 		os.Exit(ExitFile)
 	}
-	output.Notice(fmt.Sprintf("--force: discarding epic review round %d's unrecorded emission of %s (%s); removed %d role file(s) it named",
-		run.round, label, strings.Join(changes, "; "), len(removed)))
+	output.Notice(fmt.Sprintf("--discard: discarded epic review round %d's unrecorded emission of %s; removed %d role file(s) it named",
+		run.round, label, len(removed)))
+	result := epicDiscardResult{StateDir: epicReviewStateDirOut(&run), Round: run.round, FilesRemoved: len(removed),
+		NextAction: fmt.Sprintf("dispose of the last recorded round's findings if needed (tp epic review %s --resolve), then emit the round again with tp epic review %s", label, label)}
+	if err := output.JSON(result); err != nil {
+		output.Error(ExitFile, err.Error(), internalEncodeHint)
+		os.Exit(ExitFile)
+	}
+}
+
+// refuseEpicDiscardBeside exits 2 when --discard comes with a mode that
+// writes a round or a disposition: a discard is one decision on one slice.
+func refuseEpicDiscardBeside(cmd *cobra.Command) {
+	for _, name := range []string{"record", "record-inbox", "resolve", "resolve-all"} {
+		if cmd.Flags().Changed(name) {
+			output.Error(ExitUsage, "--discard takes no --"+name+": it removes an unrecorded emission and does nothing else",
+				"discard with tp epic review <slice> --discard, then run the other mode on its own")
+			os.Exit(ExitUsage)
+		}
+	}
 }

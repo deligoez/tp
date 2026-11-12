@@ -166,10 +166,9 @@ func refuseEpicResolveInFlight(run *epicReviewRun, round int) {
 	}
 	label := epicSliceLabel(run.key)
 	exitEpicRunError(&epicRunError{code: ExitFile,
-		msg: fmt.Sprintf("epic review round %d of %s is emitted and unrecorded, and it was built from round %d's dispositions: they stay as they are until it is recorded or discarded",
+		msg: fmt.Sprintf("epic review round %d of %s is emitted and unrecorded, and it was built from round %d's dispositions: they stay as they are until it is recorded, after which a disposition takes effect from the next round, or discarded",
 			run.round, label, round),
-		hint: fmt.Sprintf("record round %d as emitted with tp epic review %s --record-inbox, and the disposition then takes effect from the next round; or, as the operator's decision, discard it with tp epic review %s --force",
-			run.round, label, label)})
+		hint: epicWaysForward(label)})
 }
 
 // epicRefuseResolved exits 1 when the finding already carries a disposition

@@ -33,8 +33,8 @@ const (
 	EscalateAcceptFinding   = "accept-finding"
 	// EscalateDiscardEmission is --force on a review, audit or ground emission
 	// that would overwrite an unrecorded round's snapshot (and ground's floor)
-	// with a changed spec, or on an epic review emission whose units, purposes
-	// or panel changed. Under a run, sibling role units grade that one
+	// with a changed spec, and tp epic review --discard, which removes an
+	// unrecorded epic emission. Under a run, sibling role units grade that one
 	// emission concurrently, so a unit's discard pulls the text out from under
 	// the others; recovering a crashed round is the operator's call.
 	EscalateDiscardEmission = "discard-emission"

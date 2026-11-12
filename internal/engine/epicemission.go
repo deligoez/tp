@@ -158,10 +158,24 @@ func EpicPanelPath(root, stored string) string {
 	return filepath.Join(root, filepath.FromSlash(stored))
 }
 
-// RemoveEpicPanelFiles removes exactly the files a stored panel named, each
+// DiscardEpicEmission removes round's unrecorded emission in stateDir: the
+// files its stored panel named (removeEpicPanelFiles), then its snapshot,
+// so the round is no longer in flight. It returns the files removed.
+func DiscardEpicEmission(stateDir string, round int, root string, panel []EpicSnapshotRole) ([]string, error) {
+	removed, err := removeEpicPanelFiles(root, panel)
+	if err != nil {
+		return removed, err
+	}
+	if err := os.Remove(filepath.Join(stateDir, epicSnapshotFile(round))); err != nil && !os.IsNotExist(err) {
+		return removed, err
+	}
+	return removed, nil
+}
+
+// removeEpicPanelFiles removes exactly the files a stored panel named, each
 // resolved against root, and returns the paths it removed. A snapshot from
 // before the panel was kept names none.
-func RemoveEpicPanelFiles(root string, panel []EpicSnapshotRole) ([]string, error) {
+func removeEpicPanelFiles(root string, panel []EpicSnapshotRole) ([]string, error) {
 	var removed []string
 	for _, r := range panel {
 		p := EpicPanelPath(root, r.OutputPath)

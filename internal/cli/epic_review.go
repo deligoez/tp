@@ -193,7 +193,8 @@ func newEpicReviewCmd() *cobra.Command {
 	cmd.Flags().Bool("check", false, "With --status: exit 0 only when the loop is done and every mechanical check passes")
 	cmd.Flags().Bool("resolve", false, "Mark one finding of the last recorded round fixed/wontfix/duplicate (positionals: 0-based index, status, evidence)")
 	cmd.Flags().Bool("resolve-all", false, "Mark every unresolved finding of the last recorded round with a status (positionals: status, evidence)")
-	cmd.Flags().Bool("force", false, "With --resolve or --resolve-all: re-resolve findings that already carry a disposition; on an emission: discard the unrecorded round's changed emission and its inbox files, and emit again (the operator's decision)")
+	cmd.Flags().Bool("force", false, "With --resolve or --resolve-all: re-resolve findings that already carry a disposition")
+	cmd.Flags().Bool("discard", false, "Remove the slice's unrecorded emission and the role files it named, emitting nothing (the operator's decision)")
 	cmd.Flags().Bool("history", false, "Print the slice's recorded rounds, each with its findings by role and its difference from the round before, then the difference to the current graph")
 	cmd.Flags().Int("from", 0, "With --history and --to: the earlier of the two rounds to diff")
 	cmd.Flags().Int("to", 0, "With --history and --from: the later of the two rounds to diff")
@@ -232,6 +233,11 @@ func runEpicReview(cmd *cobra.Command, args []string) error {
 	if runEpicReviewHistoryIfSet(cmd, key) {
 		return nil
 	}
+	if discard, _ := cmd.Flags().GetBool("discard"); discard {
+		refuseEpicDiscardBeside(cmd)
+		runEpicReviewDiscard(key)
+		return nil
+	}
 	if runEpicReviewDisposition(cmd, key, args) {
 		return nil
 	}
@@ -259,7 +265,7 @@ func runEpicReview(cmd *cobra.Command, args []string) error {
 
 // runEpicReviewEmit emits the slice's next round: its prompts, narrowed by
 // --role, and the emission's state. An unrecorded round whose emission
-// changed is refused unless --force discards it (guardEpicEmission).
+// changed is refused (guardEpicEmission).
 func runEpicReviewEmit(cmd *cobra.Command, key engine.EpicSliceKey) {
 	run := loadEpicReviewRun(key)
 	refuseEpicReviewAtCap(&run)
@@ -276,8 +282,7 @@ func runEpicReviewEmit(cmd *cobra.Command, key engine.EpicSliceKey) {
 	roleName, _ := cmd.Flags().GetString("role")
 	q := roleQuery{name: roleName, given: cmd.Flags().Changed("role"), specDir: filepath.Dir(run.tpDir)}
 	refuseEpicRoleMissing(q, roles)
-	force, _ := cmd.Flags().GetBool("force")
-	guardEpicEmission(&run, em.panel, force)
+	guardEpicEmission(&run, em.panel)
 	prompts, skipped := filterByRole(em.built, func(p *epicReviewPrompt) string { return p.Role }, q, em.skipped)
 	if err := writeEpicReviewEmission(&run, em.panel); err != nil {
 		output.Error(ExitFile, "cannot write the epic review state: "+err.Error(), epicReviewStateHint)

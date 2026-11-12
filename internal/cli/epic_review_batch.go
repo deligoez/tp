@@ -25,7 +25,7 @@ type epicBatchScope struct {
 // epicBatchRefused lists the flags --milestones and --all refuse beside
 // them: the one-slice flags, which name a slice the batch names itself, and
 // the writes the non-goals keep one slice at a time.
-var epicBatchRefused = []string{"milestone", "epic", "epics", "name", "record", "record-inbox", "resolve", "resolve-all", "force"}
+var epicBatchRefused = []string{"milestone", "epic", "epics", "name", "record", "record-inbox", "resolve", "resolve-all", "force", "discard"}
 
 // epicBatchFlags reads --milestones and --all, reporting false when neither
 // is set. Both, a refused flag beside either, or a --milestones list that is
