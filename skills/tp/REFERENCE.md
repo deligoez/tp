@@ -1859,7 +1859,7 @@ The read commands write nothing and list epics in graph order, every list `[]` w
 - **`tp epic scope <m>`**: `{fingerprint, milestone, purpose, members, members_implicit,
   member_count, closure: [{milestone, track_index?, cross_track?, size, epics: [{id, any_of?,
   deferrable?}]}], shrink: [{epic, member, any_of?, size, leaves}], outside: [{id, deferrable?,
-  condition?, no_dependents?}], deferrable_in_closure, holds_opening: [{milestone, size, epics}],
+  condition?, no_dependents?}], deferrable_in_closure, holds_opening: [{milestone, members_implicit, size, epics}],
   critical_path: {by_count, by_estimate: {chain, estimate_minutes}}}`. `purpose` is the gate's
   `purpose` trimmed, `null` when it is unset, empty or only whitespace. `members` is `GateMembers`'
   list, `members_implicit` true when the gate names none, `member_count` its length. `closure` is the
@@ -1900,7 +1900,7 @@ The read commands write nothing and list epics in graph order, every list `[]` w
   reach moves it. `--compact` prints a strict subset of the same keys, the fingerprint still first:
   `{fingerprint, milestone, purpose, members?, members_implicit, member_count, closure: [{milestone,
   track_index?, cross_track?, size}], shrink: [{epic, member, any_of?, size}],
-  deferrable_in_closure?, holds_opening: [{milestone, size}], critical_path: {by_count}}`; it drops an
+  deferrable_in_closure?, holds_opening: [{milestone, members_implicit, size}], critical_path: {by_count}}`; it drops an
   implicit gate's `members` list, the closure's epic lists, each shrink row's `leaves`, `outside`,
   each holds_opening row's `epics`, an empty `deferrable_in_closure` and `by_estimate`. It writes
   nothing and runs under `TP_UNATTENDED`.
