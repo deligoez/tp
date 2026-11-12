@@ -35,7 +35,7 @@ func recordedRows(t *testing.T, dir string, out *epicReviewPayload, round int) [
 	data, err := os.ReadFile(filepath.Join(dir, out.StateDir, "round-"+string(rune('0'+round))+".ndjson"))
 	require.NoError(t, err)
 	var rows []map[string]any
-	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(string(data)), "\n") {
 		if line == "" {
 			continue
 		}
