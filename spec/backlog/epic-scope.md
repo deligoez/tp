@@ -85,6 +85,9 @@ Part B is built after Part A, whose output is its input.
 without running a review round. Review state, convergence and the role corpus do not change in
 Part A. A project can trial its own scope role today: a populated `.tp/epic-reviewers/` replaces the
 built-in graph roles.
+An implicit gate holds every work epic of its milestone, so an any-of alternative that lost when
+its group was satisfied keeps that gate red and stays in its closure, as `tp epic gate` agrees; that
+is a further reason to name a gate's members.
 
 ## 2. Alternatives
 
