@@ -48,20 +48,21 @@ measurement given by hand to a scope reviewer and, as the control, to `phase-eco
 criterion was written before that round: how many of the questions the operator held back the
 reviewer finds unaided, and how many of its findings the operator rejects.
 
-The first half has reported, one run per arm: the scope reviewer raised the held-back questions the
-criterion named, and the control, given the same measurement with the gate asked, returned nothing.
-The arms differed twice — the scope prompt asked the second direction and also said what the
-milestone was for — so the control's silence does not say which mattered. The scope arm also
-returned first-direction cuts, the question the control answered with nothing, which points at
-the purpose. A third arm settles it: `phase-economist`'s gate unit with the same measurement and the
-same one-line purpose, nothing else changed.
+The first half has reported, one run per arm. The scope reviewer raised the held-back questions the
+criterion named. The control, `phase-economist` given the same measurement with the gate asked,
+returned nothing. A third arm, the control plus the scope prompt's one-line purpose and nothing
+else, returned findings — all on the asked epic units, about their placement, and none on the gate.
+Read together: the purpose deepens a role along its own questions, and the gate-wide missing work
+appears only when the second direction is asked of the gate as a whole. The third arm's findings
+and the scope arm's did not overlap, so neither role replaces the other.
 
 The lean, not yet the decision: a separate gate-only role owning both directions, with
 `phase-economist`'s gate question moving to it, since the scope pass has its own trigger (a changed
-fingerprint) and its own input (Part A's output); and an optional `gates.<m>.purpose`, kept apart
-from the threshold and entering the fingerprint. Both are user-visible changes for the operator,
-decided with the third arm's result and the operator's rejections counted per direction. Until
-then no behaviour is written for Part B.
+fingerprint), its own input (Part A's output), and the third arm left the gate untouched even with
+the purpose; and an optional `gates.<m>.purpose`, kept apart from the threshold, entering the
+fingerprint, and given to every graph role, since it deepened the role that already existed. Both
+are user-visible changes for the operator, decided with the operator's rejections counted per
+direction. Until then no behaviour is written for Part B.
 
 **Consequences.** An operator can ask what a gate pulls in, and which few epics to cut or split,
 without running a review round. Review state, convergence and the role corpus do not change in
