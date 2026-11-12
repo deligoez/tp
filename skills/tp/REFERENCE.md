@@ -213,6 +213,13 @@ what completes the durable write, so a crashed unit's partial file is never mist
 role. A role file's predicate reads content lines only — blank and whitespace-only lines are
 ignored, so a trailing newline never fails a role.
 
+Under a run every prompt a round emits has a role unit: one per active corpus role and, on a review
+round that carries the built-in `regression` prompt (from round 2, when a section changed since the
+newest earlier snapshot or a recorded finding is resolved `fixed`), one more `review-role` unit whose
+id is `regression`, after the corpus roles. The oracle and the emission read the same predicate, so
+neither side can name a role the other lacks. The regression unit counts against `run_max_units`
+like any other unit.
+
 ### Stop reasons
 
 A run stops for exactly one reason, recorded verbatim in the run state. Caps bound a run; they never
@@ -755,7 +762,7 @@ tp does **not** guard against deactivating a role that has open findings — no 
 
 `--merge` is the read because `tp review --status`/`--report` compute `overlap_report` over the **latest recorded round only** and therefore can never span the two rounds. The relabelled `role` travels into whatever you `--record`, so record a copy with the corpus id restored if round history should keep it. No flag or config supports the recipe — it is the existing instrument read along a second axis.
 
-**Transparency fields (v0.29.0, §9):** prompt emission (`tp review`/`tp audit`) reports `skipped_roles: [{role, reason}]` naming every corpus role it did not emit (`reason` ∈ `no-checklist-items` / `no-spec-change` / `domain-mismatch` / `no-baseline` / `disabled-by-spec`, plus `role-filter` for each emitted role `--role` narrowed away — under a driver (`TP_RUN_ID` set), only a prompt no sibling unit covers, today review's `regression`; `[]` when none skipped; `tp epic review` adds `no-units` for a graph role asked no unit of its kinds, Epic Graph). Merge/`--status` summary adds `attribution_excludes: ["regression"]` **only** when excluding the built-in `regression` role causes `merged_count` to exceed the overlap-report finding count (omitted otherwise). `tp audit --merge`/`--status` emit their own `overlap_report` over non-PASS rows clustered by `(item_id, category)` with the same `{role, unique, shared, trim_candidate}` shape.
+**Transparency fields (v0.29.0, §9):** prompt emission (`tp review`/`tp audit`) reports `skipped_roles: [{role, reason}]` naming every corpus role it did not emit (`reason` ∈ `no-checklist-items` / `no-spec-change` / `domain-mismatch` / `no-baseline` / `disabled-by-spec`, plus `role-filter` for each emitted role `--role` narrowed away — under a driver (`TP_RUN_ID` set), only a prompt no sibling unit covers, which is none: every corpus role and, when the round carries it, review's `regression` is its own unit; `[]` when none skipped; `tp epic review` adds `no-units` for a graph role asked no unit of its kinds, Epic Graph). Merge/`--status` summary adds `attribution_excludes: ["regression"]` **only** when excluding the built-in `regression` role causes `merged_count` to exceed the overlap-report finding count (omitted otherwise). `tp audit --merge`/`--status` emit their own `overlap_report` over non-PASS rows clustered by `(item_id, category)` with the same `{role, unique, shared, trim_candidate}` shape.
 
 
 **`--role` payload contract (v0.36.0).** `--role <name>` narrows a `tp review`/`tp audit` emission to
