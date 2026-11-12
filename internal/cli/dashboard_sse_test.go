@@ -217,6 +217,20 @@ func TestDashboard_PushesAMalformedProjectConfigAndKeepsServing(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
+// TestDashboard_WarnsOnceAboutAnUncompilablePlaceholder is §2's live
+// derivation over a threshold_placeholder that does not compile: the export
+// falls back to the default pattern on every tick, and the server's stderr
+// carries the warning once, not once per tick.
+func TestDashboard_WarnsOnceAboutAnUncompilablePlaceholder(t *testing.T) {
+	t.Parallel()
+	dir := dashboardRepo(t, true)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".tp", "config.json"), []byte(`{"epic":{"threshold_placeholder":"(unclosed"}}`), 0o600))
+	srv := startDashboard(t, dir, freePort(t))
+	events := openEvents(t, srv)
+	collectEvents(events, 2*dashboardTick+dashboardTick/2)
+	assert.Equal(t, 1, strings.Count(srv.stderr.String(), "using the default placeholder pattern"), "stderr: %s", srv.stderr.String())
+}
+
 // waitForEvent returns the first event named name within three ticks.
 func waitForEvent(t *testing.T, events <-chan sseEvent, name string) sseEvent {
 	t.Helper()
