@@ -9,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/deligoez/tp/internal/engine"
 )
 
 // TestEmittedPromptsCarryFraming verifies the tp-owned framing wrapped around
@@ -36,7 +38,7 @@ func TestEmittedPromptsCarryFraming(t *testing.T) {
 			pm := p.(map[string]any)
 			role := pm["role"].(string)
 			outputPath := pm["output_path"].(string)
-			assert.Equal(t, "review-spec-r1-"+role+".ndjson", outputPath, "output_path is review-<base>-r<N>-<role>.ndjson")
+			assert.Equal(t, engine.RoleInboxPath(specPath, "review", 1, role), outputPath, "output_path is the review inbox file")
 			body := pm["prompt"].(string)
 			assert.Contains(t, body, "Write this round's findings to: "+outputPath, "§10.4 text names the file")
 			assert.Contains(t, body, "Produce findings for this round only, write them to that file, then stop.", "§10.5 reset discipline")
@@ -58,7 +60,7 @@ func TestEmittedPromptsCarryFraming(t *testing.T) {
 			pm := p.(map[string]any)
 			role := pm["role"].(string)
 			outputPath := pm["output_path"].(string)
-			assert.Equal(t, "audit-spec-r1-"+role+".ndjson", outputPath, "output_path is audit-<base>-r<N>-<role>.ndjson")
+			assert.Equal(t, engine.RoleInboxPath(specPath, "audit", 1, role), outputPath, "output_path is the audit inbox file")
 			body := pm["prompt"].(string)
 			assert.Contains(t, body, "Write this round's findings to: "+outputPath, "§10.4 text names the file")
 			assert.Contains(t, body, "Produce findings for this round only, write them to that file, then stop.", "§10.5 reset discipline")

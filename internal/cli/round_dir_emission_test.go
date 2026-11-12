@@ -82,12 +82,11 @@ func TestRoleOutputPathIsRoundScopedUnderARun(t *testing.T) {
 	}
 }
 
-// TestRoleOutputPathIsCwdRelativeOutsideARun is §6.3's last sentence: outside a
-// run the emitted filename stays cwd-relative, so the interactive loop that
-// collects <phase>-<base>-r<N>-<role>.ndjson in the working directory keeps
-// working. It is the arm that fails if the round-scoped path is emitted
-// unconditionally.
-func TestRoleOutputPathIsCwdRelativeOutsideARun(t *testing.T) {
+// TestRoleOutputPathIsTheInboxOutsideARun is §6.3's last sentence as
+// spec/backlog/role-files-in-state-dir.md amends it: outside a run the emitted
+// file is the phase's inbox in the spec's state directory. It is the arm that
+// fails if the round-scoped path is emitted unconditionally.
+func TestRoleOutputPathIsTheInboxOutsideARun(t *testing.T) {
 	t.Parallel()
 	dir, specPath, codePath := emissionFixture(t)
 
@@ -106,8 +105,8 @@ func TestRoleOutputPathIsCwdRelativeOutsideARun(t *testing.T) {
 			prompts := emittedPrompts(t, dir, []string{engine.EnvRoundDir + "="}, tc.args...)
 			for _, pm := range prompts {
 				role := pm["role"].(string)
-				assert.Equal(t, tc.phase+"-spec-r1-"+role+".ndjson", pm["output_path"].(string),
-					"with no TP_ROUND_DIR in the environment the name is the cwd-relative, spec-scoped one")
+				assert.Equal(t, engine.RoleInboxPath(specPath, tc.phase, 1, role), pm["output_path"].(string),
+					"with no TP_ROUND_DIR in the environment the file is the phase's inbox file")
 			}
 		})
 	}

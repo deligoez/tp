@@ -66,11 +66,11 @@ func TestRoleOutputPathCarriesTheSpecBase(t *testing.T) {
 			gotB := outputPathByRole(t, emittedPrompts(t, dir, noRoundDir(), tc.args(specB)...))
 
 			for role, path := range gotA {
-				assert.Equal(t, tc.phase+"-a-r1-"+role+".ndjson", path,
-					"the emitted name carries the spec's base, matching ground's scratch name")
+				assert.Equal(t, engine.RoleInboxPath(specA, tc.phase, 1, role), path,
+					"the role file sits in the spec's own state directory, as ground's scratch file does")
 			}
 			for role, path := range gotB {
-				assert.Equal(t, tc.phase+"-b-r1-"+role+".ndjson", path)
+				assert.Equal(t, engine.RoleInboxPath(specB, tc.phase, 1, role), path)
 			}
 
 			shared := 0
@@ -137,10 +137,13 @@ func TestSpecScopedRoleFilesRecordEndToEnd(t *testing.T) {
 		base := engine.SpecBaseName(spec)
 		for _, pm := range emittedPrompts(t, dir, noRoundDir(), "review", spec) {
 			path := pm["output_path"].(string)
-			require.False(t, filepath.IsAbs(path), "outside a run the path is relative to the working directory")
-			full := filepath.Join(dir, path)
+			full := path
+			if !filepath.IsAbs(full) {
+				full = filepath.Join(dir, path)
+			}
 			require.NoFileExists(t, full,
 				"%s: another spec's role already wrote this file — that write is the silent loss", path)
+			require.NoError(t, os.MkdirAll(filepath.Dir(full), 0o750), "the role's writer creates its inbox")
 			row := `{"evidence":"read the cited section","severity":"high","category":"c",` +
 				`"location":"` + base + `.md:1","finding":"finding from ` + base + `","suggestion":"s"}` + "\n"
 			require.NoError(t, os.WriteFile(full, []byte(row), 0o600))
@@ -195,7 +198,6 @@ func TestRoleBriefCommandNamesTheFileThePromptNames(t *testing.T) {
 	} {
 		t.Run(tc.phase, func(t *testing.T) {
 			for _, spec := range []string{specA, specB} {
-				base := engine.SpecBaseName(spec)
 				// The role is taken from the panel this spec emits rather
 				// than named here, so the brief is built for a role the
 				// phase really has.
@@ -206,7 +208,7 @@ func TestRoleBriefCommandNamesTheFileThePromptNames(t *testing.T) {
 
 				prompts := emittedPrompts(t, dir, noRoundDir(), argv[1:]...)
 				require.Len(t, prompts, 1, "--role emits that role alone")
-				assert.Equal(t, tc.phase+"-"+base+"-r1-"+role+".ndjson", prompts[0]["output_path"].(string),
+				assert.Equal(t, engine.RoleInboxPath(spec, tc.phase, 1, role), prompts[0]["output_path"].(string),
 					"the brief's own emission names this spec's file")
 			}
 		})
