@@ -151,3 +151,17 @@ func TestDashboard_DotDotThroughAMissingDirectoryAnswersAsTheCommand(t *testing.
 
 	requireSameErrorAsCommand(t, srv, dir, "nope/../spec.tasks.json", http.StatusNotFound)
 }
+
+// TestDashboard_DanglingInRepoSymlinkIsNotFound: an in-repo symlink whose
+// in-repo target does not exist names nothing outside the repository and
+// answers tp export's not-found error.
+func TestDashboard_DanglingInRepoSymlinkIsNotFound(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeTaskFileRaw(t, dir, `[]`)
+	require.NoError(t, os.Symlink("gone.tasks.json", filepath.Join(dir, "dangling.tasks.json")))
+	initGitRepo(t, dir)
+	srv := startDashboard(t, dir, freePort(t))
+
+	requireSameErrorAsCommand(t, srv, dir, "dangling.tasks.json", http.StatusNotFound)
+}
