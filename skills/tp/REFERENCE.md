@@ -1552,7 +1552,8 @@ With no `.tp/epic-reviewers/` the four built-in graph roles run (`dod-satisfiabi
 `why-auditor`, `phase-economist`, `gate-scope`); a populated directory replaces them, and `--role`
 naming a built-in graph role such a directory lacks exits 2 saying so, with the way to add it
 (re-eject, or copy the file). From round 2 the built-in `regression` role, which reads `epics` and
-`gates` only, is appended whenever an epic or gate unit changed or the round before resolved a
+`gates` only, is appended whenever an epic or gate unit changed (other than in its own description
+alone, v1.11.0: *An epic's description*, below) or the round before resolved a
 finding on one `fixed`; when that round left nothing open on an epic or gate unit and fixed no
 blocking finding there, regression is the only role asked those units, beside the roles a scope unit
 or a changed purpose asks (below). A scope unit's change or fix never appends regression.
@@ -1660,39 +1661,51 @@ before v1.9.0 keeps the old `phase-economist`, gate focus included, and has no `
 is ejected again or the file is added.
 
 **An epic's description (v1.11.0).** `epics[].description` is part of the epic's **own** block only:
-after its edges, a `description:` line, then each line of the text indented two spaces, a blank
-line left empty and the text's surrounding blank lines dropped. So it is in that epic's unit hash,
-and editing it re-asks that epic and nothing else. Where the epic is another epic's dependency — in
-that epic's hash and its context — its block appears without the description: a dependent relies on
-what the dependency delivers, which is its acceptance. An epic with no description, or an empty or
-whitespace-only one, renders the block bytes v1.10.0 rendered, so no hash moves on upgrade. The
-`tp epic scope` fingerprint, the `scope:<m>` unit's hash and block and the scope context a scope role
-reads never contain a description: a description is not scope. In a prompt the asked epic's
-description is shown in full, uncapped, inside its block; context epics, full or brief, show none,
-and `gate-scope`'s prompt holds none (regression's before-and-now copies of a changed unit are that
-unit's own block, so they show its description). `--history` reads a description edit as a change of
-the field `description`, never its lines as fields or edges. The built-in `dod-satisfiability`,
-`why-auditor` and `phase-economist` read a description, when the asked epic has one, as the primary
-text of the epic under review: whether the acceptance satisfies its purpose and scope, whether the
-edges' whys agree with its decisions, whether the placement fits its purpose. The acceptance stays
-the contract the gate checks; a contradiction between the description and the acceptance or an edge
-is a finding; a missing description is not, and an open question the description lists is not
-reported back. `gate-scope` does not read it. A corpus ejected before v1.11.0 gets the text in its
-blocks and none of these instructions until it is ejected again. What belongs in a description is
-intent, scope, non-goals, decisions and open questions; behaviour written there is re-reviewed on
-every edit and ages as unbuilt spec text does, and every description edit is a round against the
-slice's cap.
+its last section, after the edges, a `description:` line, then each line of the text indented two
+spaces, a blank line left empty and the text's surrounding blank lines dropped; a `description:`
+line anywhere else, such as inside a multi-line acceptance or why, is a continuation line. Writers
+store it with CRLF line ends turned to LF, so one text is one description. It is in that epic's unit
+hash, and editing it re-asks that epic and nothing else. Where the epic is another epic's dependency
+— in that epic's hash and its context — its block appears without the description: a dependent
+relies on what the dependency delivers, which is its acceptance. An epic with no description, or an
+empty or whitespace-only one, renders the block bytes v1.10.0 rendered, so no hash moves on upgrade.
+The `tp epic scope` fingerprint, the `scope:<m>` unit's hash and block and the scope context a scope
+role reads never contain a description: a description is not scope. In a prompt the asked epic's
+description is shown in full, uncapped, inside its block, every line indented, so no text line can
+close the block's `---` frame; context epics, full or brief, show none, and `gate-scope`'s prompt
+holds none. Writing a description is authoring, not a change for regression: a unit whose only
+difference from the round before is its own description is asked again of the roles reading its
+kind but appends no regression role, and a regression-only round still asks it of them, as a purpose
+change asks purpose roles. A finding on it resolved `fixed` appends regression as before, which reads
+that unit's change as the description's line diff (`- ` removed, `+ ` added, unchanged lines as
+context) instead of the before-and-now copies other changes keep. The hand-off context compares a
+changed title and acceptance with the ones the round before read, so a description naming an epic
+hides no hand-off. `--history` reads a description edit as a change of the field `description`,
+never its lines as fields or edges. The built-in `dod-satisfiability`, `why-auditor` and
+`phase-economist` read a description, when the asked epic has one, as the primary text of the epic
+under review: whether the acceptance satisfies its purpose and scope, whether the edges' whys agree
+with its decisions, whether the placement fits its purpose. The acceptance stays the contract the
+gate checks; a contradiction between the description and the acceptance or an edge is a finding; a
+missing description is not, and an open question the description lists is not reported back.
+`gate-scope` does not read it. A corpus ejected before v1.11.0 gets the text in its blocks and none
+of these instructions until it is ejected again. What belongs in a description is intent, scope,
+non-goals, decisions and open questions; behaviour written there is re-reviewed on every edit and
+ages as unbuilt spec text does, and every description edit is a round against the slice's cap.
 
 **Prompt size (v1.11.0).** The cost of descriptions is shown, not capped. A slice's `--status`, and
 each batch `--status` row, prints `asked_block_bytes`: the bytes of the blocks of the units a round
-would ask now, the carry's asked units and the purpose-stale ones (`0` on a fresh slice and on a
-batch row the graph no longer holds). It is a proxy, available before anything is emitted, which
+would ask now, the carry's asked units and the purpose-stale ones. Before the first round it counts
+every unit's block; it is `0` when nothing is stale, after a recorded round with no change since, and
+on a batch row the graph no longer holds. It is a proxy, available before anything is emitted, which
 matters because an emitted round is frozen and taking it back is the operator's `--discard`: it
 counts no instructions, context or contract, and each role reads only the units of its kinds. The
-emission reports each role's real size as `prompt_bytes`, the byte length of `prompts[].prompt`.
-`tp epic review` has no compact form, so `--compact` drops neither key. A prompt that grows too large
-is answered with a smaller slice (`--epics … --name`), not a cap; the peak is the first pass, since
-describing a whole milestone re-asks every epic of it at once.
+emission reports each role's real size as `prompt_bytes`, the byte length of `prompts[].prompt`,
+printed before it. `tp epic review` has no compact form, so `--compact` drops neither key. On a large
+slice, emit `tp epic review <slice> --role <id>` once per sub-agent rather than reading the whole
+emission: an identical re-emission is idempotent, so each call prints only that role's prompt over
+the same round. A prompt that grows too large is answered with a smaller slice (`--epics … --name`),
+not a cap; the peak is the first pass, since describing a whole milestone re-asks every epic of it
+at once.
 
 Each prompt reads, in order: the role's instructions, the asked units (and, for each of its kinds of
 which none is asked, a line saying that kind's questions do not apply), a purpose role's purpose
