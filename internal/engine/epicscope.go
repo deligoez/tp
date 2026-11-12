@@ -240,7 +240,12 @@ type scopeSet struct {
 // gate needs, are no input.
 func (w *scopeWalk) holdsOpening(milestone string, full scopeSet) []ScopeHoldsOpening {
 	out := []ScopeHoldsOpening{}
+	seen := map[string]bool{}
 	for _, p := range EffectiveOpensAfter(w.g)[milestone] {
+		if seen[p] {
+			continue
+		}
+		seen[p] = true
 		members, _ := GateMembers(w.g, p)
 		ids := []string{}
 		for _, id := range members {
