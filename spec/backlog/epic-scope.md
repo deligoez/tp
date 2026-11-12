@@ -6,7 +6,7 @@ operator's request after a field project's proposal; the field graph's ids, coun
 out of tp, and every fixture this note leads to is synthetic.
 
 Class: **decision**. Part A is one new read-only command, derived from the graph and writing
-nothing. Part B is gated on a trial the field project runs first and has no behaviour text yet.
+nothing. Part B, decided after a field trial, adds a gate-only graph role and an optional purpose.
 
 ## 1. The decision
 
@@ -42,8 +42,8 @@ milestone of the same track, and a milestone's own critical path is
    threshold text, so "unchanged since the last round" is a string compare and a rewritten
    threshold counts as a change even when the closure is identical.
 
-**Decision, Part B — gated, not decided.** Whether graph review gains the second direction —
-*what work does the threshold need that the closure lacks* — waits on a field trial: Part A's
+**Decision, Part B — the gate as a whole.** Whether graph review gains the second direction —
+*what work does the threshold need that the closure lacks* — was settled by a field trial: Part A's
 measurement given by hand to a scope reviewer and, as the control, to `phase-economist` alone. Its
 criterion was written before that round: how many of the questions the operator held back the
 reviewer finds unaided, and how many of its findings the operator rejects.
@@ -66,15 +66,14 @@ it hung from, which item 2 shows, and the set item 6 reports grew. In this trial
 round moved the measurement, and a scope pass reruns after an apply because the fingerprint
 changed.
 
-The lean, now carried by the trial: a separate gate-only role owning both directions, with
-`phase-economist`'s gate question moving to it, since the scope pass has its own trigger (a changed
+**Decided by the operator.** A separate built-in gate-only role owns both directions, and
+`phase-economist`'s gate question moves to it, since the scope pass has its own trigger (a changed
 fingerprint), its own input (Part A's output), and the third arm left the gate untouched even with
-the purpose; and an optional `gates.<m>.purpose`, kept apart from the threshold and entering the
-fingerprint, given to the gate-only role, which needs it, and to `phase-economist`, the one role
-tested with it, whose purpose-fed rows were all accepted. For the other graph roles it is open:
-giving it to all of them would rest on uniformity, one prompt line and no per-role switch, which is
-a simplicity argument and not a trial result. All three are user-visible choices for the operator.
-Until the operator makes them, no behaviour is written for Part B.
+the purpose. An optional `gates.<m>.purpose`, kept apart from the threshold and entering the
+fingerprint, goes to the gate-only role, which needs it, and to `phase-economist`, the one role
+tested with it, whose purpose-fed rows were all accepted. The other graph roles do not get it:
+giving it to all of them would rest on uniformity, a simplicity argument and not a trial result.
+Part B is built after Part A, whose output is its input.
 
 **Consequences.** An operator can ask what a gate pulls in, and which few epics to cut or split,
 without running a review round. Review state, convergence and the role corpus do not change in
@@ -93,7 +92,7 @@ built-in graph roles.
 - **"Single dependent inside the closure" as the cut signal.** Rejected for removal shrink: on the
   field graph it flagged a large share of the closure, while shrink singled out the few epics the
   operator went on to decide about.
-- **The second direction as a question inside `phase-economist`.** Leaning against (Part B): the
+- **The second direction as a question inside `phase-economist`.** Rejected (Part B): the
   scope pass runs on a changed fingerprint with Part A's output as input, which no other graph role
   needs, and two built-in roles asking "is the gate minimal" at one location is the overlap this
   list rejects.
@@ -107,6 +106,8 @@ built-in graph roles.
   only measures reviewer variance.
 - **`tp epic path --to <m>` as the name.** Rejected: it promises a sequence and an estimate total,
   and the command returns a set and set differences; estimates are often unset.
+- **The purpose for every graph role.** Rejected by the operator: one role was tested with it, and
+  uniformity is a simplicity argument, not a result.
 
 ## 3. Non-goals
 
