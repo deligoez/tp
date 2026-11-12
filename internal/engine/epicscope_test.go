@@ -299,3 +299,20 @@ func TestScope_Fingerprint(t *testing.T) {
 	g.Epics[3].DependsOn = scopeDeps("a5")
 	assert.NotEqual(t, rewritten, scopeOf(t, g, "m0").Fingerprint, "a new edge in the closure is a change")
 }
+
+// TestScope_ShrinkMarksAnyOfAlternative: the row of an epic an any-of group
+// alone brought in carries the group, since cutting it is choosing the
+// other alternative; size counts the epic itself.
+func TestScope_ShrinkMarksAnyOfAlternative(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0"}}, Epics: []model.Epic{
+		scopeEpic("a1", "m0", scopeAnyOf("x", "y")),
+		scopeEpic("x", "m0", scopeDeps("x1")...),
+		scopeEpic("x1", "m0"),
+		scopeEpic("y", "m0"),
+	}, Gates: map[string]model.EpicGate{"m0": {Members: []string{"a1"}}}}
+
+	assert.Equal(t, []ScopeShrink{
+		{Epic: "a1", Member: true, Size: 4, Leaves: []string{"a1", "x", "x1", "y"}},
+		{Epic: "x", AnyOf: []string{"x", "y"}, Size: 2, Leaves: []string{"x", "x1"}},
+	}, scopeOf(t, g, "m0").Shrink)
+}
