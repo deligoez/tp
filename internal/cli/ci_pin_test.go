@@ -93,3 +93,40 @@ func TestWorkflowGoIsPinned(t *testing.T) {
 	}
 	assert.Positive(t, checked, "no `go-version:` found in any workflow — the regex or the workflows moved")
 }
+
+// setupNodeVersion matches a workflow's `node-version:` value.
+var setupNodeVersion = regexp.MustCompile(`node-version:\s*(\S+)`)
+
+// TestWorkflowNodeIsPinned: every workflow that sets up Go runs the suite,
+// in CI directly and in a release through goreleaser's test hook, both with
+// CI=true, under which the dashboard's escaping check fails without node.
+// So each sets up node too, at an exact N.N.N as Go is, never a floating
+// major or `lts/*`.
+func TestWorkflowNodeIsPinned(t *testing.T) {
+	t.Parallel()
+	dir := filepath.Join(repoRoot(t), ".github", "workflows")
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+
+	exact := regexp.MustCompile(`^\d+\.\d+\.\d+$`)
+	checked := 0
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".yml") {
+			continue
+		}
+		body, readErr := os.ReadFile(filepath.Join(dir, entry.Name()))
+		require.NoError(t, readErr)
+		if !setupGoVersion.Match(body) {
+			continue
+		}
+		checked++
+		assert.Contains(t, string(body), "actions/setup-node@", "%s runs the suite and sets up no node", entry.Name())
+		versions := setupNodeVersion.FindAllStringSubmatch(string(body), -1)
+		require.NotEmpty(t, versions, "%s sets up node with no node-version", entry.Name())
+		for _, match := range versions {
+			assert.Regexp(t, exact, strings.Trim(match[1], `"'`),
+				"%s sets up node at the floating version %q: pin an exact version", entry.Name(), match[1])
+		}
+	}
+	assert.Equal(t, 2, checked, "ci.yml and release.yml both set up Go — the regex or the workflows moved")
+}
