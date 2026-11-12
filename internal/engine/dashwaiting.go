@@ -17,8 +17,8 @@ func IsDeferrableMember(g *model.EpicGraph, e *model.Epic) bool {
 // DashboardWaiting returns the dashboard's waiting list for milestone m, or
 // for the whole graph when m is empty: the work epics, in graph order, that
 // are not done and wait on an undone dependency, less the deferrable members
-// (spec/1.8.0.md §7). tp epic status's blocked list and tp epic export keep
-// their v1.6/1.7 contract; only the dashboard's list leaves these out.
+// (spec/1.8.0.md §7), which tp epic status's and export's blocked lists leave
+// out too. Unlike those lists it holds no condition.
 func DashboardWaiting(g *model.EpicGraph, states map[string]EpicState, m string) []string {
 	conditions := make(map[string]bool, len(g.Epics))
 	for i := range g.Epics {

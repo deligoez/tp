@@ -274,7 +274,8 @@ func (p *epicPlan) counts(m string) (counts map[string]int, shareDone float64) {
 
 // claimedAndBlocked lists m's epics whose derived status is claimed, each
 // with its holder, and its not-done epics with a dependency that is not done,
-// each with those dependencies, in graph order.
+// each with those dependencies, in graph order. A deferrable member of m's
+// gate is never listed as blocked (spec/1.8.0.md §7): nothing waits on it.
 func (p *epicPlan) claimedAndBlocked(m string) (claimed []epicClaimedEpic, blocked []epicBlockedEpic) {
 	claimed, blocked = []epicClaimedEpic{}, []epicBlockedEpic{}
 	for i := range p.g.Epics {
@@ -287,7 +288,7 @@ func (p *epicPlan) claimedAndBlocked(m string) (claimed []epicClaimedEpic, block
 		if status == engine.EpicStatusClaimed {
 			claimed = append(claimed, epicClaimedEpic{epicReadyEpic: entry, By: e.Claimed.By, At: e.Claimed.At})
 		}
-		if status == engine.EpicStatusDone {
+		if status == engine.EpicStatusDone || engine.IsDeferrableMember(p.g, e) {
 			continue
 		}
 		if w := epicUndoneDeps(e, p.states, p.conditions); w.blocked() {
