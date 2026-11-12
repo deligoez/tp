@@ -1,9 +1,10 @@
 package engine
 
 import (
+	"fmt"
+	"maps"
 	"slices"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/deligoez/tp/internal/model"
@@ -13,10 +14,11 @@ import (
 // §1, Part A), derived from the graph and writing nothing.
 type EpicScope struct {
 	Milestone string `json:"milestone"`
-	// Fingerprint hashes the member list in order, the closure's id set, the
-	// critical path by count and the threshold text, so "unchanged since the
-	// last scope pass" is a string compare and a rewritten threshold is a
-	// change even when the closure is identical.
+	// Fingerprint hashes the member set, the id set of the closure drawn
+	// blind to status (blindClosure) and the threshold text, so "unchanged
+	// since the last scope pass" is a string compare that closing an epic
+	// does not move, and a rewritten threshold is a change even when the
+	// closure is identical.
 	Fingerprint string `json:"fingerprint"`
 	// Members is the gate's effective members (GateMembers); MembersImplicit
 	// says the gate names none, so they are every epic of the milestone that
@@ -114,30 +116,58 @@ func MilestoneScope(g *model.EpicGraph, states map[string]EpicState, estimates m
 	if !implicit {
 		s.Outside, s.NoDependents = w.outside(milestone, full)
 	}
-	s.Fingerprint = scopeFingerprint(members, full, s.CriticalPath.ByCount, g.Gates[milestone].Threshold)
+	s.Fingerprint = scopeFingerprint(members, blindClosure(w.epics, members), g.Gates[milestone].Threshold)
 	return s
 }
 
 // scopeFingerprint hashes members in order, the ids of full sorted, path in
 // order and threshold, each id quoted (strconv.Quote) and each list on a line
 // of its own, so no two inputs share one canonical string.
-func scopeFingerprint(members []string, full scopeSet, path []string, threshold string) string {
-	ids := make([]string, 0, len(full.in))
-	for id := range full.in {
-		ids = append(ids, id)
-	}
-	sort.Strings(ids)
+// scopeFingerprint hashes the members sorted, the status-blind closure's ids
+// sorted, and the threshold. Each part is labelled and counted and each item
+// length-prefixed, so an id moving between parts cannot collide and a new
+// part is an additive change.
+func scopeFingerprint(members, closure []string, threshold string) string {
 	var b strings.Builder
-	for _, list := range [][]string{members, ids, path, {threshold}} {
-		for i, s := range list {
-			if i > 0 {
-				b.WriteByte(',')
-			}
-			b.WriteString(strconv.Quote(s))
+	part := func(label string, items []string) {
+		fmt.Fprintf(&b, "%s:%d\n", label, len(items))
+		for _, s := range items {
+			fmt.Fprintf(&b, "%d:%s\n", len(s), s)
 		}
-		b.WriteByte('\n')
 	}
+	part("members", slices.Sorted(slices.Values(members)))
+	part("closure", closure)
+	part("threshold", []string{threshold})
 	return epicHash(b.String())
+}
+
+// blindClosure returns, sorted, the ids members reach with every epic taken
+// as not done and every any-of member followed, satisfied groups included:
+// the closure as the graph's shape alone draws it, so closing an epic leaves
+// the fingerprint where it was.
+func blindClosure(epics map[string]*model.Epic, members []string) []string {
+	in := map[string]bool{}
+	queue := []string{}
+	add := func(id string) {
+		if _, ok := epics[id]; ok && !in[id] {
+			in[id] = true
+			queue = append(queue, id)
+		}
+	}
+	for _, id := range members {
+		add(id)
+	}
+	for len(queue) > 0 {
+		id := queue[0]
+		queue = queue[1:]
+		for _, d := range epics[id].DependsOn {
+			add(d.ID)
+			for _, m := range d.Members() {
+				add(m)
+			}
+		}
+	}
+	return slices.Sorted(maps.Keys(in))
 }
 
 // scopeWalk walks depends_on edges backwards from a gate's members through
