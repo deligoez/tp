@@ -98,4 +98,7 @@ func TestRunStatusOmitsAuditSignalsWhenTheCorpusCannotBeRead(t *testing.T) {
 	assert.NotContains(t, st, "role_streaks", "no signal is computed against an unread corpus")
 	assert.NotContains(t, st, "spec_coverage_clean_rounds")
 	assert.NotContains(t, st, "divergence")
+	reason, ok := st["audit_signals_omitted"].(string)
+	require.True(t, ok, "the report says why the signals are missing: %v", st)
+	assert.Contains(t, reason, "role")
 }
