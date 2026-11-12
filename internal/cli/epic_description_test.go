@@ -173,6 +173,29 @@ func TestEpicReview_EachPromptReportsItsBytes(t *testing.T) {
 	}
 }
 
+// TestEpicExport_CarriesTheDescriptionInTheRawGraph: tp epic export's raw
+// graph holds each epic's description as the file does, an additive key
+// under the same export version.
+func TestEpicExport_CarriesTheDescriptionInTheRawGraph(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicDescribedSlice("text"))
+	stdout, stderr, code := runTP(t, dir, "epic", "export")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var out struct {
+		Version int `json:"version"`
+		Graph   struct {
+			Epics []struct {
+				ID          string `json:"id"`
+				Description string `json:"description"`
+			} `json:"epics"`
+		} `json:"graph"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out), "stdout: %s", stdout)
+	assert.Equal(t, 2, out.Version)
+	require.Len(t, out.Graph.Epics, 4)
+	assert.Equal(t, "DESC-b\n\nscope: b alone", out.Graph.Epics[1].Description)
+}
+
 // TestEpicApply_SetRowCarriesAMultiLineDescription: an apply set row's JSON
 // string value carries multi-line markdown with no shell quoting, and the
 // file keeps it byte for byte.
