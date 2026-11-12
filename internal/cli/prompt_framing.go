@@ -36,14 +36,15 @@ type promptFraming struct {
 //
 // Outside a run the name is <phase>-<base>-r<round>-<role>.ndjson, relative to
 // wherever the operator is standing, which is what the interactive loop
-// collects. The spec's base is in the name for the reason it is in
-// engine.GroundScratchName: this file is not under the per-spec state
-// directory, so with the phase, the round and the role alone, two specs
-// reviewed or audited from one directory named one file per role and the
-// second panel's findings overwrote the first's with no error anywhere. The
+// collects. The spec's base is in the name because this file is not under the
+// per-spec state directory, so with the phase, the round and the role alone,
+// two specs reviewed or audited from one directory named one file per role and
+// the second panel's findings overwrote the first's with no error anywhere. The
 // base is engine.SpecBaseName, the slug ReviewStateDir names the state
 // directory by, so the scratch file and the recorded round agree about which
-// spec they belong to.
+// spec they belong to. Two same-base specs in different directories still
+// share the name; ground's scratch file moved into the state directory for
+// that reason (engine.GroundScratchPath), and this one has not.
 //
 // Inside a run TP_ROUND_DIR is set, and §6.3 puts a role's findings at
 // $TP_ROUND_DIR/role-<role>.ndjson.part — the single path the reviewer and

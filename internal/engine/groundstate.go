@@ -101,17 +101,29 @@ func GroundFloorPath(specPath string, round int) string {
 	return filepath.Join(ReviewStateDir(specPath), fmt.Sprintf("floor-ground-round-%d.txt", round))
 }
 
-// GroundScratchName is the file a ground round's prompt tells its unit to
-// write, the emission's `output_path`: ground-<base>-rN.ndjson, relative to
-// where tp runs.
+// groundInboxDir is the subdirectory of a spec's state directory that holds the
+// in-flight ground scratch files, apart from the recorded rounds beside it.
+const groundInboxDir = "ground-inbox"
+
+// GroundScratchPath is the file a ground round's prompt tells its unit to
+// write, the emission's `output_path`:
+// spec/.tp-review/<base>/ground-inbox/round-N.ndjson.
 //
-// The spec's base is in the name because this file, unlike the snapshot and
-// the floor, is not under the per-spec state directory: with the round alone,
-// two specs grounded from one directory at the same round named one file and
-// the second unit's rows overwrote the first's. The base is SpecBaseName, the
-// slug ReviewStateDir names that directory by, so the two agree about which
-// spec a round belongs to.
-func GroundScratchName(specPath string, round int) string {
+// It lives in the spec's own state directory, as the snapshot and the floor
+// do, so its identity comes from location: x/a.md and y/a.md grounded from
+// one working directory write two files, where a cwd-relative name carrying
+// the base wrote one (spec/backlog/ground-scratch-in-state-dir.md). It sits in
+// a subdirectory, as epic review keeps role output in an inbox, so an
+// in-flight file is never mistaken for the recorded ground-round-N.ndjson.
+func GroundScratchPath(specPath string, round int) string {
+	return filepath.Join(ReviewStateDir(specPath), groundInboxDir, fmt.Sprintf("round-%d.ndjson", round))
+}
+
+// LegacyGroundScratchName is where a ground unit was told to write before
+// GroundScratchPath, ground-<base>-rN.ndjson relative to where tp ran. It is
+// never read: the name is the one two same-base specs share, so a file there
+// may be the other spec's. --record names it in a refusal instead.
+func LegacyGroundScratchName(specPath string, round int) string {
 	return fmt.Sprintf("ground-%s-r%d.ndjson", SpecBaseName(specPath), round)
 }
 
