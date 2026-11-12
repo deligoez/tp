@@ -173,7 +173,7 @@ var epicBlockFieldRe = regexp.MustCompile(`^([a-z_]+): (.*)$`)
 
 // parseEpicBlock reads a block back into its fields and edges. A line that is
 // neither continues the value before it, as a multi-line acceptance or why
-// renders.
+// renders; the lines under description: are its field, un-indented.
 func parseEpicBlock(block string) parsedEpicBlock {
 	p := parsedEpicBlock{fields: map[string]string{}, edges: map[string]string{}}
 	inDeps := false
@@ -181,6 +181,10 @@ func parseEpicBlock(block string) parsedEpicBlock {
 	for line := range strings.SplitSeq(strings.TrimSuffix(block, "\n"), "\n") {
 		if line == "depends_on:" {
 			inDeps = true
+			continue
+		}
+		if line == epicDescriptionHeader {
+			last = p.descriptionAppender()
 			continue
 		}
 		if to, why, ok := strings.Cut(strings.TrimPrefix(line, "- "), ": "); inDeps && ok && strings.HasPrefix(line, "- ") {
@@ -198,4 +202,21 @@ func parseEpicBlock(block string) parsedEpicBlock {
 		last(line)
 	}
 	return p
+}
+
+// descriptionAppender opens p's description field and returns what each
+// line below the description: line goes through: the first sets it, the
+// rest continue it, each with its indent removed.
+func (p *parsedEpicBlock) descriptionAppender() func(string) {
+	p.fields["description"] = ""
+	first := true
+	return func(s string) {
+		s = strings.TrimPrefix(s, epicDescriptionIndent)
+		if first {
+			first = false
+			p.fields["description"] = s
+			return
+		}
+		p.fields["description"] += "\n" + s
+	}
 }
