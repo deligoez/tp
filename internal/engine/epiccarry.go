@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/deligoez/tp/internal/model"
@@ -80,18 +81,37 @@ func EpicReviewCarry(stateDir string, round int, units []EpicReviewUnit) (EpicCa
 			c.Before[u.Key] = before
 		}
 	}
+	c.PurposeStale = epicPurposeStale(prev.Purposes, units, c.Asked)
 	if err := c.readDecided(stateDir, round); err != nil {
 		return EpicCarry{}, err
 	}
 	return c, nil
 }
 
+// epicPurposeStale returns, in units' order, the units outside skip whose
+// milestone's purpose differs from the one before recorded: an absent entry
+// is no purpose, so an old snapshot with none re-asks nothing while no
+// purpose is written, and a removed purpose is a change too.
+func epicPurposeStale(before map[string]string, units, skip []EpicReviewUnit) []EpicReviewUnit {
+	asked := map[string]bool{}
+	for _, u := range skip {
+		asked[u.Key] = true
+	}
+	var out []EpicReviewUnit
+	for _, u := range units {
+		if !asked[u.Key] && before[u.Milestone] != u.Purpose {
+			out = append(out, u)
+		}
+	}
+	return out
+}
+
 // readDecided collects every earlier round's rows accepted wontfix or
-// duplicate on a unit this round asks, so the prompt can say they are
-// decided rather than have a role raise them again.
+// duplicate on a unit this round asks, purpose-stale ones included, so the
+// prompt can say they are decided rather than have a role raise them again.
 func (c *EpicCarry) readDecided(stateDir string, round int) error {
 	asked := map[string]bool{}
-	for _, u := range c.Asked {
+	for _, u := range append(slices.Clone(c.Asked), c.PurposeStale...) {
 		asked[u.Key] = true
 	}
 	for r := 1; r < round; r++ {
