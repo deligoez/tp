@@ -188,6 +188,35 @@ func TestDashboard_PushesAGraphAddedWhileRunningAndADerivationsError(t *testing.
 	assert.NotEmpty(t, e.Hint)
 }
 
+// TestDashboard_PushesAMalformedProjectConfigAndKeepsServing is §2's
+// failure for the project config the export's review policy reads: a
+// .tp/config.json broken while the server runs is pushed as tp's exit-3
+// error and hint, and the server keeps answering.
+func TestDashboard_PushesAMalformedProjectConfigAndKeepsServing(t *testing.T) {
+	t.Parallel()
+	dir := dashboardRepo(t, true)
+	srv := startDashboard(t, dir, freePort(t))
+	events := openEvents(t, srv)
+	require.Contains(t, eventNames(collectEvents(events, dashboardTick)), "epic-export")
+
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".tp", "config.json"), []byte("{"), 0o600))
+	failed := waitForEvent(t, events, "epic-export")
+	var e struct {
+		Error string `json:"error"`
+		Code  int    `json:"code"`
+		Hint  string `json:"hint"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(failed.data), &e), failed.data)
+	assert.Contains(t, e.Error, "config.json")
+	assert.Equal(t, 3, e.Code)
+	assert.Equal(t, "fix .tp/config.json", e.Hint)
+
+	resp, err := http.Get(srv.url) //nolint:gosec,noctx // the test's own loopback child
+	require.NoError(t, err, "the server stopped answering; stderr: %s", srv.stderr.String())
+	_ = resp.Body.Close()
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
 // waitForEvent returns the first event named name within three ticks.
 func waitForEvent(t *testing.T, events <-chan sseEvent, name string) sseEvent {
 	t.Helper()
