@@ -118,6 +118,10 @@ is a further reason to name a gate's members.
   and the command returns a set and set differences; estimates are often unset.
 - **The purpose for every graph role.** Rejected by the operator: one role was tested with it, and
   uniformity is a simplicity argument, not a result.
+- **Moving `phase-economist`'s second gate question, whether a deferrable is required by an epic of
+  the next milestone.** Dropped, not moved: the scope payload holds no later epic to answer it from,
+  and a deferrable inside the closure is already required by this gate. The gate-only role asks
+  instead whether the deferrable mark or the edge requiring it is the mistake.
 
 ## 3. Non-goals
 
