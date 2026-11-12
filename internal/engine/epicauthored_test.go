@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -25,6 +26,59 @@ func carryAfter(t *testing.T, before, after *model.EpicGraph, key EpicSliceKey) 
 	carry, err := EpicReviewCarry(dir, 2, second.Units)
 	require.NoError(t, err)
 	return carry
+}
+
+// carryAfterLegacy is carryAfter over a round 1 snapshot as v1.10.0 wrote
+// it: hashes and blocks, no own_rests and no tails.
+func carryAfterLegacy(t *testing.T, before, after *model.EpicGraph, key EpicSliceKey) EpicCarry {
+	t.Helper()
+	dir := t.TempDir()
+	first, err := EpicReviewSlice(before, key)
+	require.NoError(t, err)
+	require.NoError(t, WriteEpicReviewSnapshot(dir, 1, first.Units, nil))
+	path := filepath.Join(dir, epicSnapshotFile(1))
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	var snap map[string]any
+	require.NoError(t, json.Unmarshal(data, &snap))
+	require.Contains(t, snap, "own_rests")
+	delete(snap, "own_rests")
+	delete(snap, "tails")
+	data, err = json.Marshal(snap)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path, data, 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, epicRoundFile(1)), nil, 0o600))
+	second, err := EpicReviewSlice(after, key)
+	require.NoError(t, err)
+	carry, err := EpicReviewCarry(dir, 2, second.Units)
+	require.NoError(t, err)
+	return carry
+}
+
+// TestEpicCarry_OverAV1100SnapshotADescriptionAloneIsAuthored is the upgrade
+// path: a snapshot from before v1.11.0 holds no own_rests or tails, and could
+// hold no description, so a block that only gained one is Authored and
+// appends no regression.
+func TestEpicCarry_OverAV1100SnapshotADescriptionAloneIsAuthored(t *testing.T) {
+	before := epicDescribedGraph()
+	after := epicDescribedGraph()
+	after.Epics[0].Description = "Purpose: read b."
+	carry := carryAfterLegacy(t, before, after, EpicSliceKey{Epic: "a"})
+	assert.Equal(t, map[string]bool{"epic:a": true}, carry.Authored)
+	assert.False(t, carry.Regression())
+}
+
+// TestEpicCarry_OverAV1100SnapshotADescriptionWithAnAcceptanceEditIsAChange:
+// over the same snapshot, a description added beside an acceptance edit is
+// a change: not Authored, and regression runs.
+func TestEpicCarry_OverAV1100SnapshotADescriptionWithAnAcceptanceEditIsAChange(t *testing.T) {
+	before := epicDescribedGraph()
+	after := epicDescribedGraph()
+	after.Epics[0].Description = "Purpose: read b."
+	after.Epics[0].Acceptance = "a ships and reads b"
+	carry := carryAfterLegacy(t, before, after, EpicSliceKey{Epic: "a"})
+	assert.Empty(t, carry.Authored)
+	assert.True(t, carry.Regression())
 }
 
 // rootEpicGraph is one root epic b with acceptance acc and no description.
