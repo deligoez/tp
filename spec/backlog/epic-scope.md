@@ -59,10 +59,13 @@ and the scope arm's did not overlap, so neither role replaces the other.
 The lean, not yet the decision: a separate gate-only role owning both directions, with
 `phase-economist`'s gate question moving to it, since the scope pass has its own trigger (a changed
 fingerprint), its own input (Part A's output), and the third arm left the gate untouched even with
-the purpose; and an optional `gates.<m>.purpose`, kept apart from the threshold, entering the
-fingerprint, and given to every graph role, since it deepened the role that already existed. Both
-are user-visible changes for the operator, decided with the operator's rejections counted per
-direction. Until then no behaviour is written for Part B.
+the purpose; and an optional `gates.<m>.purpose`, kept apart from the threshold and entering the
+fingerprint, given to the gate-only role, which needs it, and to `phase-economist`, the one role
+tested with it, pending the disposition of that arm's findings. For the other graph roles it is
+open: giving it to all of them would rest on uniformity, one prompt line and no per-role switch,
+which is a simplicity argument and not a trial result. All three are user-visible choices for the
+operator, decided with the operator's rejections counted per group — missing work, surplus cuts,
+and the third arm's findings. Until then no behaviour is written for Part B.
 
 **Consequences.** An operator can ask what a gate pulls in, and which few epics to cut or split,
 without running a review round. Review state, convergence and the role corpus do not change in
