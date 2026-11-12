@@ -138,7 +138,8 @@ func TestEpicBuiltinRoles_ReadADescriptionAsThePrimaryText(t *testing.T) {
 			"the acceptance stays the contract the gate checks",
 			"A contradiction between the description and the acceptance or an edge is a finding",
 			"A missing description is not a finding",
-			"an open question the description lists is not one to report back",
+			"checked against them wherever it is said, an open-questions list included, and a conflict is a finding",
+			"an open question that leaves the acceptance and the edges as they stand is not one to report back",
 		} {
 			assert.Contains(t, text, want, roles[i].ID)
 		}
