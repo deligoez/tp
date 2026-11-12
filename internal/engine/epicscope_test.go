@@ -309,7 +309,18 @@ func TestScope_Fingerprint(t *testing.T) {
 	assert.NotEqual(t, first, rewritten, "a rewritten threshold is a change")
 
 	g.Epics[3].DependsOn = scopeDeps("a5")
-	assert.NotEqual(t, rewritten, scopeOf(t, g, "m0").Fingerprint, "a new edge in the closure is a change")
+	edged := scopeOf(t, g, "m0").Fingerprint
+	assert.NotEqual(t, rewritten, edged, "a new edge in the closure is a change")
+
+	g.Epics = append(g.Epics, scopeEpic("a6", "m0"))
+	g.Epics[3].DependsOn = nil
+	bare := scopeOf(t, g, "m0").Fingerprint
+	g.Epics[3].DependsOn = []model.EpicDep{scopeAnyOf("a5", "a6")}
+	grouped := scopeOf(t, g, "m0").Fingerprint
+	assert.NotEqual(t, bare, grouped, "a group's members are in the closure")
+
+	g.Epics[4].Done = scopeDone()
+	assert.Equal(t, grouped, scopeOf(t, g, "m0").Fingerprint, "satisfying a group is no change")
 }
 
 // TestScope_ShrinkMarksAnyOfAlternative: the row of an epic an any-of group
