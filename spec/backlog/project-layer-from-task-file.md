@@ -32,6 +32,34 @@ corpus, routed classes, the epic graph and any other — and the start directory
 decision covers every one a task-file command reaches; any it leaves is named here with the reason,
 since fixing one site of several leaves the entry's title untrue.
 
+**Checked before the build (2026-11-13, at 59975e14).** Every place tp finds `.tp/`
+(`DiscoverTPDir`, `ProjectConfigDir`, `ProjectRoot`, `ProjectWorkflowOverride`) and the directory
+it starts from:
+
+| Site | Starts from | Reached by a task-file command | Here |
+|---|---|---|---|
+| project config, `ProjectWorkflowOverride` (`configresolve.go`) | working directory | `ResolveWorkflow` (review, audit, their record and status, resume, the run oracle), `EffectiveWorkflowForTaskFile` (the gate in done, close and import, run), brief, next, plan, config, the commit strategy, the unattended fences | follows the task file |
+| project config, `ResolveEffectiveWorkflow` (`tp config`) | working directory | `tp config --file` | follows the task file |
+| `.tp/local.json` `notify_cmd` (`LocalNotifyCmd`) | working directory | run | follows the task file |
+| working-tree classification, keep-list and bookkeeping in `AssembleResume` | working directory | resume, `tp run` | the task file's project root when it is not the working directory's |
+| round directory root (`BuildNextUnits`, `RoundDir`) | working directory, or the run's root | resume, run | as the row above |
+| epic graph for a bound task file (`EpicBlockFor`) | the task file's directory | next, resume, export | already follows |
+| epic binding check (`tp set --epic`) | working directory | set | follows the task file |
+| lock files (`LockFilePath`), run lock | the locked file's directory | every writer | already follow |
+| role corpus and its hash (`LoadRoleCorpus`, `rolehash.go`) | the spec's directory | review, audit, resume, run | left: the corpus belongs to the spec, which `tp review <spec>` takes with no task file at all; the task file's spec field resolves from the task file, so for a spec inside its task file's tree the two agree, and review and audit emission is refused across trees anyway |
+| `.tp/local.json` `active` (`ResolveLocalActive`) | working directory | the discovery chain itself | left: it is how a task file is found, so it cannot start from one |
+| `.tp/local.json` flag defaults (`LocalFlagDefaults`) | working directory | every command | left: applied while flags are parsed, before any task file is resolved, and they are per-operator presentation (`--compact`, `--quiet`), not project policy |
+| routed classes (`.tp/routed-classes.json`) | repository root | none: only `scripts/audit-round-prep.py` reads it | not a tp discovery |
+| dashboard, epic graph commands, `use`, `keep`, `validate --project`, `set --workflow --project`, `init`'s `.tp/` | working directory | no task file | unchanged (non-goal) |
+
+`ProjectWorkflowOverride` swallows a load error: a `config.json` that exists but cannot be read or
+parsed returns an empty override, so the built-in defaults run as if there were no project config.
+`ResolveEffectiveWorkflow` (`tp config`) is the one path that already refuses it. No site needs a
+further design choice: the three left are named with their reasons.
+
+`ProjectRoot` (`projectconfig.go`) already computes the root the decision defines: the directory
+holding the `.tp/` discovery stops at, else the git top level, else the start directory itself.
+
 **Consequences.** Resolution precedence in REFERENCE changes. Driving another tree's plan with
 `--file` keeps working for reports and stops for work in the tree, which until now ran against the
 wrong project and exited 0.
