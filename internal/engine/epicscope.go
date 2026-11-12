@@ -32,6 +32,20 @@ type EpicScope struct {
 	// NoDependents is the part of Outside no epic of the graph depends on, by
 	// plain edge or as an any-of member; empty under implicit members.
 	NoDependents []string `json:"no_dependents"`
+	// UnneededEarlier is, for each milestone before this one in its track,
+	// in track order, the not-done members of its gate that no closure of a
+	// later gate of the track contains; a milestone with none is left out.
+	UnneededEarlier []ScopeUnneeded `json:"unneeded_earlier"`
+}
+
+// ScopeUnneeded is one earlier milestone's gate members no later gate of the
+// track needs, in gate order. ImplicitLater names the later milestones whose
+// gates were implicit: such a closure holds its whole milestone, so it says
+// nothing about which of that milestone's epics are needed.
+type ScopeUnneeded struct {
+	Milestone     string   `json:"milestone"`
+	Epics         []string `json:"epics"`
+	ImplicitLater []string `json:"implicit_later"`
 }
 
 // ScopeShrink is one closure epic's removal shrink: for a non-member, the
@@ -84,11 +98,73 @@ func MilestoneScope(g *model.EpicGraph, states map[string]EpicState, estimates m
 		Outside:         []string{},
 		OutsideImplicit: implicit,
 		NoDependents:    []string{},
+		UnneededEarlier: w.unneededEarlier(milestone),
 	}
 	if !implicit {
 		s.Outside, s.NoDependents = w.outside(milestone, full)
 	}
 	return s
+}
+
+// scopeWalk walks depends_on edges backwards from a gate's members through
+// not-done epics.
+type scopeWalk struct {
+	g      *model.EpicGraph
+	states map[string]EpicState
+	epics  map[string]*model.Epic
+	pos    map[string]milestonePos
+	// home is the scope milestone's track.
+	home int
+}
+
+func newScopeWalk(g *model.EpicGraph, states map[string]EpicState, milestone string) *scopeWalk {
+	w := &scopeWalk{g: g, states: states, epics: epicsByID(g), pos: milestonePositions(g)}
+	w.home = w.track(milestone)
+	return w
+}
+
+// scopeSet is one closure: the epics in it, and the any-of group each epic
+// only groups brought in came by (ScopeEpic.AnyOf).
+type scopeSet struct {
+	in    map[string]bool
+	anyOf map[string][]string
+}
+
+// unneededEarlier returns the ScopeUnneeded rows of the milestones before
+// milestone in its track; none for a milestone no track lists.
+func (w *scopeWalk) unneededEarlier(milestone string) []ScopeUnneeded {
+	out := []ScopeUnneeded{}
+	p, ok := w.pos[milestone]
+	if !ok {
+		return out
+	}
+	track := w.g.Milestones[p.track]
+	closures := map[string]scopeSet{}
+	for _, m := range track {
+		if _, done := closures[m]; !done {
+			members, _ := GateMembers(w.g, m)
+			closures[m] = w.closure(members, "")
+		}
+	}
+	for i, e := range track[:p.index] {
+		row := ScopeUnneeded{Milestone: e, Epics: []string{}, ImplicitLater: []string{}}
+		later := track[i+1:]
+		for _, l := range later {
+			if len(w.g.Gates[l].Members) == 0 && !slices.Contains(row.ImplicitLater, l) {
+				row.ImplicitLater = append(row.ImplicitLater, l)
+			}
+		}
+		members, _ := GateMembers(w.g, e)
+		for _, id := range members {
+			if w.open(id) && !slices.ContainsFunc(later, func(l string) bool { return closures[l].in[id] }) {
+				row.Epics = append(row.Epics, id)
+			}
+		}
+		if len(row.Epics) > 0 {
+			out = append(out, row)
+		}
+	}
+	return out
 }
 
 // outside returns milestone's not-done epics full misses, in graph order,
@@ -156,30 +232,6 @@ func (s scopeSet) minus(o scopeSet) []string {
 	}
 	sort.Strings(out)
 	return out
-}
-
-// scopeWalk walks depends_on edges backwards from a gate's members through
-// not-done epics.
-type scopeWalk struct {
-	g      *model.EpicGraph
-	states map[string]EpicState
-	epics  map[string]*model.Epic
-	pos    map[string]milestonePos
-	// home is the scope milestone's track.
-	home int
-}
-
-func newScopeWalk(g *model.EpicGraph, states map[string]EpicState, milestone string) *scopeWalk {
-	w := &scopeWalk{g: g, states: states, epics: epicsByID(g), pos: milestonePositions(g)}
-	w.home = w.track(milestone)
-	return w
-}
-
-// scopeSet is one closure: the epics in it, and the any-of group each epic
-// only groups brought in came by (ScopeEpic.AnyOf).
-type scopeSet struct {
-	in    map[string]bool
-	anyOf map[string][]string
 }
 
 // open reports whether id names an epic of the graph that is not done.
