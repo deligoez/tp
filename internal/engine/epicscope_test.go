@@ -39,7 +39,7 @@ func scopeDone() *model.EpicDone {
 }
 
 // closureIDs flattens a scope's closure in its order.
-func closureIDs(s EpicScope) []string {
+func closureIDs(s *EpicScope) []string {
 	out := []string{}
 	for _, m := range s.Closure {
 		for _, e := range m.Epics {
@@ -94,7 +94,7 @@ func TestScope_ClosureCutAtDoneEpic(t *testing.T) {
 
 	s := scopeOf(t, g, "m0")
 
-	assert.Equal(t, []string{"a1", "a2"}, closureIDs(s))
+	assert.Equal(t, []string{"a1", "a2"}, closureIDs(&s))
 	require.Len(t, s.Closure, 1)
 	assert.Equal(t, 2, s.Closure[0].Size)
 }
