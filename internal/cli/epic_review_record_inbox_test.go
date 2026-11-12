@@ -203,6 +203,23 @@ func TestEpicReviewRecordInbox_AMovedRepositoryStillRecords(t *testing.T) {
 	assert.Contains(t, stdout, `"round": 1`)
 }
 
+// TestEpicReviewRecordInbox_AVanishedUnitLeavesTheDiscard: a role wrote a row
+// on e, and e left the graph while the round was out; the row names no unit
+// any more, so the round cannot be recorded as emitted, and the refusal names
+// the operator's --discard.
+func TestEpicReviewRecordInbox_AVanishedUnitLeavesTheDiscard(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChainWithE)
+	out := runEpicReview(t, dir, "--milestone", "A")
+	writeInbox(t, &out, map[string]string{out.Prompts[0].Role: vanishingRow})
+	rewriteEpicGraph(t, dir, eDeleted)
+
+	_, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A", "--record-inbox")
+	require.Equal(t, 1, code, "stderr: %s", stderr)
+	_, hint := epicErrorOf(t, stderr)
+	assert.Contains(t, hint, "as the operator's decision, discard it with tp epic review --milestone A --discard, then emit again")
+}
+
 // TestEpicReviewRecordInbox_ASkippedLineIsNamedByFileAndLine: a line the
 // reader cannot parse refuses the round at exit 1, naming the file as stored
 // and the line.
