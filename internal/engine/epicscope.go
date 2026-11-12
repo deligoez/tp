@@ -106,10 +106,12 @@ type ScopeMilestone struct {
 // is needed whatever the operator chooses. Every other epic is optional and
 // AnyOf is the group of the alternative it hangs from: the group that
 // reached it, or the mark of the epic whose plain edge did, the first in
-// walk order when two groups reach it.
+// walk order when two groups reach it. Deferrable says the scope's gate
+// lists the epic deferrable, required or optional.
 type ScopeEpic struct {
-	ID    string   `json:"id"`
-	AnyOf []string `json:"any_of,omitempty"`
+	ID         string   `json:"id"`
+	AnyOf      []string `json:"any_of,omitempty"`
+	Deferrable bool     `json:"deferrable,omitempty"`
 }
 
 // MilestoneScope derives milestone's scope over states, DeriveEpicStates'
@@ -119,7 +121,7 @@ func MilestoneScope(g *model.EpicGraph, states map[string]EpicState, estimates m
 	w := newScopeWalk(g, states, milestone)
 	members, deferrable := GateMembers(g, milestone)
 	full := w.closure(members, "")
-	closure := w.compose(full)
+	closure := w.compose(full, deferrable)
 	s := EpicScope{
 		Milestone:           milestone,
 		Members:             members,
@@ -414,13 +416,13 @@ func (w *scopeWalk) follow(d model.EpicDep, inherited []string, add func(id stri
 }
 
 // compose lays set out per milestone in milestone order, each milestone's
-// epics in graph order.
-func (w *scopeWalk) compose(set scopeSet) []ScopeMilestone {
+// epics in graph order, marking those deferrable lists.
+func (w *scopeWalk) compose(set scopeSet, deferrable []string) []ScopeMilestone {
 	byMilestone := map[string][]ScopeEpic{}
 	for i := range w.g.Epics {
 		e := &w.g.Epics[i]
 		if set.in[e.ID] && w.epics[e.ID] == e {
-			byMilestone[e.Milestone] = append(byMilestone[e.Milestone], ScopeEpic{ID: e.ID, AnyOf: set.anyOf[e.ID]})
+			byMilestone[e.Milestone] = append(byMilestone[e.Milestone], ScopeEpic{ID: e.ID, AnyOf: set.anyOf[e.ID], Deferrable: slices.Contains(deferrable, e.ID)})
 		}
 	}
 	out := []ScopeMilestone{}
