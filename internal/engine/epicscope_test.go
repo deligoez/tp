@@ -298,6 +298,29 @@ func TestScope_HoldsOpeningConsultsOnlyTheDirectPredecessors(t *testing.T) {
 	}, scopeOf(t, g, "m2").HoldsOpening)
 }
 
+// TestScope_HoldsOpeningEdgeCases: a predecessor named twice gets one row,
+// an explicit empty opens_after consults no gate, and a milestone no track
+// lists opens after nothing.
+func TestScope_HoldsOpeningEdgeCases(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0", "m1", "m2"}}, Epics: []model.Epic{
+		scopeEpic("a1", "m0"),
+		scopeEpic("b1", "m1"),
+		scopeEpic("c1", "m2"),
+		scopeEpic("u1", "u0"),
+	}, Gates: map[string]model.EpicGate{
+		"m1": {Members: []string{"b1"}},
+		"m2": {Members: []string{"c1"}},
+	}}
+	g.OpensAfter = map[string][]string{"m2": {"m1", "m1"}}
+	assert.Equal(t, []ScopeHoldsOpening{{Milestone: "m1", Size: 1, Epics: []string{"b1"}}}, scopeOf(t, g, "m2").HoldsOpening,
+		"a predecessor named twice is one row")
+
+	g.OpensAfter = map[string][]string{"m2": {}}
+	assert.Equal(t, []ScopeHoldsOpening{}, scopeOf(t, g, "m2").HoldsOpening, "an explicit [] opens after nothing")
+
+	assert.Equal(t, []ScopeHoldsOpening{}, scopeOf(t, g, "u0").HoldsOpening, "an untracked milestone opens after nothing")
+}
+
 // TestScope_LaterGateChangeFreesEarlierMembers is a synthetic scenario: the
 // later gate drops the member that was the only consumer of an earlier
 // gate's member, which then holds the later milestone's opening for nothing.
