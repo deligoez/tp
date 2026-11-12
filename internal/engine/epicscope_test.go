@@ -186,7 +186,7 @@ func TestScope_Shrink(t *testing.T) {
 
 // TestScope_OutsideAndNoDependents: outside is the milestone's not-done
 // epics the closure misses, each deferrable or condition one marked, and
-// no_dependents the part of it no epic depends on, by plain edge or as an
+// no_dependents marking each no epic depends on, by plain edge or as an
 // any-of member. Implicit members leave the deferrable and condition epics
 // out, so outside is computed the same way under them and is not empty.
 func TestScope_OutsideAndNoDependents(t *testing.T) {
@@ -205,13 +205,12 @@ func TestScope_OutsideAndNoDependents(t *testing.T) {
 	g.Epics[5].Done = scopeDone()
 
 	s := scopeOf(t, g, "m0")
-	assert.Equal(t, []ScopeOutside{{ID: "a3", Deferrable: true}, {ID: "a4"}, {ID: "a5"}, {ID: "c1", Condition: true}}, s.Outside)
-	assert.Equal(t, []string{"a3", "a5"}, s.NoDependents)
+	assert.Equal(t, []ScopeOutside{{ID: "a3", Deferrable: true, NoDependents: true}, {ID: "a4"}, {ID: "a5", NoDependents: true},
+		{ID: "c1", Condition: true}}, s.Outside)
 
 	g.Gates = map[string]model.EpicGate{"m0": {Deferrable: []string{"a3"}}}
 	s = scopeOf(t, g, "m0")
-	assert.Equal(t, []ScopeOutside{{ID: "a3", Deferrable: true}, {ID: "c1", Condition: true}}, s.Outside)
-	assert.Equal(t, []string{"a3"}, s.NoDependents)
+	assert.Equal(t, []ScopeOutside{{ID: "a3", Deferrable: true, NoDependents: true}, {ID: "c1", Condition: true}}, s.Outside)
 }
 
 // TestScope_DeferrableInClosure: a deferrable epic the members require is in
@@ -231,7 +230,7 @@ func TestScope_DeferrableInClosure(t *testing.T) {
 	s := scopeOf(t, g, "m0")
 
 	assert.Equal(t, []string{"d1"}, s.DeferrableInClosure)
-	assert.Equal(t, []ScopeOutside{{ID: "d2", Deferrable: true}}, s.Outside)
+	assert.Equal(t, []ScopeOutside{{ID: "d2", Deferrable: true, NoDependents: true}}, s.Outside)
 
 	g.Gates = map[string]model.EpicGate{"m0": {Members: []string{"a1"}}}
 	assert.Equal(t, []string{}, scopeOf(t, g, "m0").DeferrableInClosure)
@@ -377,7 +376,7 @@ func TestScope_ControlEpicLeavesWithItsChain(t *testing.T) {
 	g.Epics[0].DependsOn = scopeDeps("y")
 	after := scopeOf(t, g, "m0")
 	assert.Equal(t, []string{"a1", "y"}, closureIDs(&after))
-	assert.Equal(t, []ScopeOutside{{ID: "x"}, {ID: "c1", Condition: true}}, after.Outside)
+	assert.Equal(t, []ScopeOutside{{ID: "x", NoDependents: true}, {ID: "c1", Condition: true}}, after.Outside)
 }
 
 // TestScope_LaterGateChangeFreesEarlierMembers is a synthetic scenario: a
@@ -435,7 +434,7 @@ func TestScope_MootEpicsAreNotOutside(t *testing.T) {
 	}, Gates: map[string]model.EpicGate{"m0": {Members: []string{"a1"}}}}
 	g.Epics[1].Done = scopeDone()
 
-	assert.Equal(t, []ScopeOutside{{ID: "z"}}, scopeOf(t, g, "m0").Outside)
+	assert.Equal(t, []ScopeOutside{{ID: "z", NoDependents: true}}, scopeOf(t, g, "m0").Outside)
 }
 
 // TestScope_ImplicitGateHoldsALostAlternative settles whether a lost
