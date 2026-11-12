@@ -181,7 +181,11 @@ func epicRegressionPrompt(run *epicReviewRun, ask *epicRoleAsk) epicReviewPrompt
 // repeats the row keys and the path on the last line.
 func epicPromptWithTail(run *epicReviewRun, role string, b *strings.Builder, ask *epicRoleAsk, context string) epicReviewPrompt {
 	path := epicRoleOutputPath(run, role)
-	b.WriteString(mechanizedExclusionPrefix + strings.Join(engine.EpicErrorRules(), ", "))
+	if ask.kinds[model.RoleUnitEpics] || ask.kinds[model.RoleUnitGates] {
+		// The mechanized classes are lint rules over epics and gates; a role
+		// reading neither has nothing they would exclude.
+		b.WriteString(mechanizedExclusionPrefix + strings.Join(engine.EpicErrorRules(), ", "))
+	}
 	b.WriteString(epicFindingContract(ask.kinds))
 	fmt.Fprintf(b, "\nWrite this round's findings to: %s\nProduce findings for this round only, write them to that file, then stop.\n", path)
 	b.WriteString(context)
