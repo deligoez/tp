@@ -207,8 +207,9 @@ func configEpic(resolved bool) map[string]any {
 	if _, err := engine.NewPlaceholderMatcher(pattern); fromProject && err != nil {
 		// The epic commands fall back to the default for a pattern that does
 		// not compile, so the default is what tp config reports as effective.
-		fmt.Fprintf(os.Stderr, "warning: %s: the project's pattern does not compile (%v); the default pattern is in effect (tp validate --project reports it)\n",
-			engine.ThresholdPlaceholderKey, err)
+		// output.Notice, worded as the epic commands word it: the channel that
+		// honours --quiet.
+		output.Notice(placeholderFallbackWarning(err))
 		pattern, fromProject = engine.DefaultThresholdPlaceholder, false
 	}
 	if resolved {
