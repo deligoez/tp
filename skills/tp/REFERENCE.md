@@ -1542,7 +1542,7 @@ nothing, and it takes one slice at a time, no other mode beside it (exit 2).
 `--status` (v1.8.0) also prints `stale_units`, the unit keys (`epic:<id>`, `gate:<m>`, `scope:<m>`)
 whose hash differs from the last recorded round's snapshot, in slice order — `[]` on a fresh slice,
 every unit before a round is recorded; since a unit's hash covers its dependencies' blocks, editing an
-epic names every unit whose hash covers it — `purpose_stale` (v1.9.0, below), `open_by_role`, the
+epic names every unit whose hash covers it — `purpose_stale_units` (v1.9.0, below), `open_by_role`, the
 last round's undisposed findings counted by role (`unattributed` for none), summing to the same
 total as `open`, `max_rounds`, the resolved cap or `null` uncapped, and `grants_spent`, the recorded
 rounds past the cap.
@@ -1582,9 +1582,9 @@ each slice milestone's purpose (`purposes`); when a milestone's purpose changes,
 since the last recorded round, every unit of that milestone of a purpose role's kinds is asked of
 that role again, although its hash is unchanged. That is no unit change: it appends no regression
 role and sets no regression-only round. Until such a round is recorded, `--status` lists those units
-in `purpose_stale` (`[]` when none; a unit already in `stale_units` is not repeated), the slice is
+in `purpose_stale_units` (`[]` when none; a unit already in `stale_units` is not repeated), the slice is
 `stale`, so neither converged nor done and, at its cap, `grantable`, and the batch `--status` rows
-carry the same `purpose_stale`. A snapshot written before v1.9.0 holds no purposes, which reads as
+carry the same `purpose_stale_units`. A snapshot written before v1.9.0 holds no purposes, which reads as
 none set, so an upgrade that writes no purpose re-asks nothing. The switch is per role: a purpose
 reaches only the roles whose file says `purpose: true`, the price of keeping it away from the roles
 no trial gave it to. A custom or ejected corpus gets these mechanisms, not the built-in text: a
@@ -1634,7 +1634,7 @@ listed twice is one slice.
 | Call | Reads | Payload |
 |------|-------|---------|
 | emission | each listed milestone; `--all`: every milestone the tracks hold, in track order | `{slices: [{key, <emission>...}...], skipped: [{key, reason}]}` |
-| `--status [--check]` | each listed milestone; `--all`: every slice directory, in track order | `{slices: [{key, round, state, stale_units, purpose_stale, open, open_by_role, grantable, max_rounds, grants_spent, next_action}]}` |
+| `--status [--check]` | each listed milestone; `--all`: every slice directory, in track order | `{slices: [{key, round, state, stale_units, purpose_stale_units, open, open_by_role, grantable, max_rounds, grants_spent, next_action}]}` |
 | `--report` | each listed milestone; `--all`: every slice directory, in track order | `{classes: [{class, epics, slices: [{key, rounds}]}]}` |
 
 `--milestones` keeps the order given. Under `--all`, track order lists each milestone slice where
@@ -1928,7 +1928,7 @@ The read commands write nothing and list epics in graph order, every list `[]` w
     `none`, `done`, `stale` (review only), `cap_reached` or `open`; ground counts emitted rounds,
     `state` `none`, `complete` or `open`.
   - `slices`: each `.tp/epic-review/` directory in name order, `{dir, key, round, state, grantable,
-    max_rounds, grants_spent, stale_units, open_by_role}`, the last four as `--status` prints them
+    max_rounds, grants_spent, stale_units, purpose_stale_units, open_by_role}`, the last four as `--status` prints them
     (v1.8.0) and no per-round history, which is `--history`'s. `key` is
     its `key.json` record; without one, the key whose hash equals the directory name among the
     units its recorded rounds name (read-only, nothing is written), else `null`; `state` is `done`,
