@@ -69,3 +69,17 @@ func TestDashboard_RefusesASymlinkChainPastTheOSLimit(t *testing.T) {
 	requireRefusedAsOutside(t, srv, first)
 }
 
+// TestDashboard_InRepoSymlinkChainAnswersAsTheCommand: a nine-link chain
+// that ends inside the repository, within the OS's limit, answers byte-equal
+// to tp export --file through it.
+func TestDashboard_InRepoSymlinkChainAnswersAsTheCommand(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeTaskFileRaw(t, dir, `[]`)
+	first := linkChain(t, dir, 9, "spec.tasks.json")
+	initGitRepo(t, dir)
+	srv := startDashboard(t, dir, freePort(t))
+
+	requireSameAsCommand(t, srv, dir, "/api/export?file="+first, "export", "--file", first)
+}
+
