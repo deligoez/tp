@@ -235,25 +235,32 @@ func TestScope_UnneededEarlier(t *testing.T) {
 	}, s.UnneededEarlier, "another track's need for a2 does not count, and m1's b1 is needed by m2")
 }
 
-// TestScope_Fingerprint: the fingerprint is stable while nothing it covers
-// changes, changes with a rewritten threshold even when the closure is
-// identical, and changes with the closure.
+// TestScope_Fingerprint: the fingerprint hashes a status-blind closure, so
+// closing an epic does not move it; it is blind to the members' order, moves
+// with a rewritten threshold, and moves with the graph's edges.
 func TestScope_Fingerprint(t *testing.T) {
 	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0"}}, Epics: []model.Epic{
 		scopeEpic("a1", "m0", scopeDeps("a2")...),
-		scopeEpic("a2", "m0"),
+		scopeEpic("a2", "m0", scopeDeps("a3")...),
 		scopeEpic("a3", "m0"),
-	}, Gates: map[string]model.EpicGate{"m0": {Members: []string{"a1"}, Threshold: "ten users"}}}
+		scopeEpic("a4", "m0"),
+		scopeEpic("a5", "m0"),
+	}, Gates: map[string]model.EpicGate{"m0": {Members: []string{"a1", "a4"}, Threshold: "ten users"}}}
 
-	first := scopeOf(t, g, "m0")
-	assert.Len(t, first.Fingerprint, 64)
-	assert.Equal(t, first.Fingerprint, scopeOf(t, g, "m0").Fingerprint, "stable on a rerun")
-
-	g.Gates["m0"] = model.EpicGate{Members: []string{"a1"}, Threshold: "twenty users"}
-	rewritten := scopeOf(t, g, "m0")
-	assert.Equal(t, closureIDs(&first), closureIDs(&rewritten))
-	assert.NotEqual(t, first.Fingerprint, rewritten.Fingerprint, "a rewritten threshold is a change")
+	first := scopeOf(t, g, "m0").Fingerprint
+	assert.Len(t, first, 64)
+	assert.Equal(t, first, scopeOf(t, g, "m0").Fingerprint, "stable on a rerun")
 
 	g.Epics[1].Done = scopeDone()
-	assert.NotEqual(t, rewritten.Fingerprint, scopeOf(t, g, "m0").Fingerprint, "a smaller closure is a change")
+	assert.Equal(t, first, scopeOf(t, g, "m0").Fingerprint, "closing an epic is no change")
+
+	g.Gates["m0"] = model.EpicGate{Members: []string{"a4", "a1"}, Threshold: "ten users"}
+	assert.Equal(t, first, scopeOf(t, g, "m0").Fingerprint, "reordering the members is no change")
+
+	g.Gates["m0"] = model.EpicGate{Members: []string{"a4", "a1"}, Threshold: "twenty users"}
+	rewritten := scopeOf(t, g, "m0").Fingerprint
+	assert.NotEqual(t, first, rewritten, "a rewritten threshold is a change")
+
+	g.Epics[3].DependsOn = scopeDeps("a5")
+	assert.NotEqual(t, rewritten, scopeOf(t, g, "m0").Fingerprint, "a new edge in the closure is a change")
 }
