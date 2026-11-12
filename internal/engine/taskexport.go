@@ -103,6 +103,13 @@ func repoRelative(start, path string) string {
 	return filepath.ToSlash(rel)
 }
 
+// RepoRelative is path as a command prints it for the agent to run again:
+// relative to the git top level of the working directory, which
+// ResolveSpecArg resolves from any subdirectory; path itself outside one.
+func RepoRelative(path string) string {
+	return repoRelative(".", path)
+}
+
 // ResolveSpecArg resolves a spec path given on the command line: as given
 // when it names a file from the working directory, else against the git top
 // level, so the repo-relative paths tp resume prints run from a subdirectory
