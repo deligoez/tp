@@ -104,3 +104,17 @@ func TestDashboardSeries_AnUnboundUnclaimedEpicCountsAsPlanned(t *testing.T) {
 	}}
 	assert.Equal(t, []SeriesDay{{Date: "2026-11-01", Planned: 1, Claimed: 1}}, seriesOf(t, root, g))
 }
+
+// TestDashboardSeries_AClaimedEpicBoundAtAnUnknownTimeIsUnknown: e was
+// claimed on the 1st and then bound by a file with no bound_at, so from its
+// claim on it may already be specced: the series counts it unknown, not
+// claimed.
+func TestDashboardSeries_AClaimedEpicBoundAtAnUnknownTimeIsUnknown(t *testing.T) {
+	t.Parallel()
+	root := boundFilesRepo(t)
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"M"}}, Epics: []model.Epic{
+		{ID: "e", Title: "E", Milestone: "M", Root: true, Claimed: &model.EpicClaim{At: seriesDay(1, 9), By: "agent"}},
+	}}
+	writeSeriesFile(t, root, "e", "e", nil, model.Task{Status: model.StatusOpen})
+	assert.Equal(t, []SeriesDay{{Date: "2026-11-01", Unknown: 1}}, seriesOf(t, root, g))
+}
