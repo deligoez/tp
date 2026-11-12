@@ -75,6 +75,7 @@ epic milestone add: after before if-revision new-track
 epic ready: all
 epic remove: force if-revision
 epic review: all check epic epics force from grant-round history milestone milestones name of-epic record report resolve resolve-all role status to
+epic scope:
 epic set: if-revision
 epic status: milestone open
 epic unlink: any-of if-revision
