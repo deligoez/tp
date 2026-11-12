@@ -147,25 +147,28 @@ type EpicSliceState struct {
 	// Grantable is tp epic review --status's: the slice is at its cap and
 	// stale, so the operator may grant it one round (spec/1.7.0.md §8).
 	Grantable bool `json:"grantable"`
-	// MaxRounds (null when uncapped), GrantsSpent, StaleUnits and
-	// OpenByRole are tp epic review --status's for the slice (spec/1.8.0.md
-	// §5); StaleUnits is empty when the slice's units are not known.
-	MaxRounds   *int           `json:"max_rounds"`
-	GrantsSpent int            `json:"grants_spent"`
-	StaleUnits  []string       `json:"stale_units"`
-	OpenByRole  map[string]int `json:"open_by_role"`
+	// MaxRounds (null when uncapped), GrantsSpent, StaleUnits,
+	// PurposeStaleUnits (v1.9.0) and OpenByRole are tp epic review
+	// --status's for the slice (spec/1.8.0.md §5); the two unit lists are
+	// empty when the slice's units are not known.
+	MaxRounds         *int           `json:"max_rounds"`
+	GrantsSpent       int            `json:"grants_spent"`
+	StaleUnits        []string       `json:"stale_units"`
+	PurposeStaleUnits []string       `json:"purpose_stale_units"`
+	OpenByRole        map[string]int `json:"open_by_role"`
 }
 
 // epicSliceState is the export entry of the slice d, graded as st.
 func epicSliceState(d EpicSliceDir, st *EpicReviewStatus, known bool) EpicSliceState {
 	out := EpicSliceState{Dir: d.Name, Key: d.Key, EpicLoop: EpicSliceLoop(st, known), Grantable: known && st.Grantable,
-		GrantsSpent: st.GrantsSpent, StaleUnits: []string{}, OpenByRole: st.OpenByRole}
+		GrantsSpent: st.GrantsSpent, StaleUnits: []string{}, PurposeStaleUnits: []string{}, OpenByRole: st.OpenByRole}
 	if st.MaxRounds > 0 {
 		maxRounds := st.MaxRounds
 		out.MaxRounds = &maxRounds
 	}
 	if known {
 		out.StaleUnits = st.StaleUnits
+		out.PurposeStaleUnits = st.PurposeStale
 	}
 	return out
 }
