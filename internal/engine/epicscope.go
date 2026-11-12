@@ -120,9 +120,6 @@ func MilestoneScope(g *model.EpicGraph, states map[string]EpicState, estimates m
 	return s
 }
 
-// scopeFingerprint hashes members in order, the ids of full sorted, path in
-// order and threshold, each id quoted (strconv.Quote) and each list on a line
-// of its own, so no two inputs share one canonical string.
 // scopeFingerprint hashes the members sorted, the status-blind closure's ids
 // sorted, and the threshold. Each part is labelled and counted and each item
 // length-prefixed, so an id moving between parts cannot collide and a new
