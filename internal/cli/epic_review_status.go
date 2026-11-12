@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/deligoez/tp/internal/engine"
 	"github.com/deligoez/tp/internal/model"
@@ -21,6 +22,7 @@ type epicStatusResult struct {
 	Stale            bool                         `json:"stale"`
 	StaleUnits       []string                     `json:"stale_units"`
 	PurposeStale     []string                     `json:"purpose_stale_units"`
+	AskedBlockBytes  int                          `json:"asked_block_bytes"`
 	InFlightRound    *int                         `json:"in_flight_round"`
 	MechanicalChecks []engine.EpicMechanicalCheck `json:"mechanical_checks"`
 	ConvergeOn       string                       `json:"converge_on"`
@@ -145,6 +147,7 @@ func runEpicReviewStatus(key engine.EpicSliceKey, check bool) {
 		Stale:            st.Stale,
 		StaleUnits:       st.StaleUnits,
 		PurposeStale:     st.PurposeStale,
+		AskedBlockBytes:  epicAskedBlockBytes(&run),
 		MechanicalChecks: run.checks,
 		ConvergeOn:       epicReviewPolicy(run.tpDir).ConvergeOn,
 		Open:             st.Open,
@@ -167,6 +170,20 @@ func runEpicReviewStatus(key engine.EpicSliceKey, check bool) {
 	if check && (!st.Done || !checksPass) {
 		os.Exit(ExitValidation)
 	}
+}
+
+// epicAskedBlockBytes is --status's proxy for the size of the slice's next
+// round (spec/backlog/epic-description.md, Prompt size): the bytes of the
+// blocks of the units it would ask now, the carry's asked units and the
+// purpose-stale ones. Instructions, context and contract are not counted,
+// and each role reads only the units of its kinds, so a real prompt's bytes
+// are the emission's prompt_bytes.
+func epicAskedBlockBytes(run *epicReviewRun) int {
+	n := 0
+	for _, u := range slices.Concat(run.carry.Asked, run.carry.PurposeStale) {
+		n += len(u.Block)
+	}
+	return n
 }
 
 // epicChecksPass reports whether every mechanical check passed.
