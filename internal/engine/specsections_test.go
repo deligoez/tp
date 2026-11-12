@@ -122,3 +122,13 @@ func TestSpecSections_FrontmatterIsNotAParagraph(t *testing.T) {
 	assert.Equal(t, []string{"§0|# ", "§0 ¶1|Intro", "§1|# 1. A", "§1 ¶1|B"}, paragraphAnchors(sections))
 	assert.Equal(t, 6, sections[0].Paragraphs[0].Line)
 }
+
+// TestSpecSections_ASpecWithNoPreambleHasNoSectionZero: a spec that opens on
+// a numbered section, with no title and nothing above it, carries no empty
+// §0; its first section is §1.
+func TestSpecSections_ASpecWithNoPreambleHasNoSectionZero(t *testing.T) {
+	got := SpecSections([]byte("## 1. First\n\nPara\n"))
+	require.Len(t, got, 1)
+	assert.Equal(t, "§1", got[0].Anchor)
+	assert.Equal(t, "1. First", got[0].Heading)
+}
