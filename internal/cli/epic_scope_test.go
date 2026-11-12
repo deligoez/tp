@@ -74,3 +74,11 @@ func TestEpicScope_Compact(t *testing.T) {
 	assert.JSONEq(t, `1`, string(implicit["member_count"]))
 }
 
+// TestEpicScope_UnknownMilestoneExits4 answers a milestone no track lists as
+// tp epic gate does.
+func TestEpicScope_UnknownMilestoneExits4(t *testing.T) {
+	_, stderr, code := runTP(t, epicGraphDir(t, epicScopeGraph), "epic", "scope", "zz")
+	assert.Equal(t, 4, code)
+	assert.Contains(t, stderr, "zz")
+}
+
