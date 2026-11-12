@@ -74,12 +74,15 @@ func (s *EpicSelector) UnmarshalJSON(data []byte) error {
 }
 
 // EpicGate is one milestone's gate: the member epics it requires, the ones it
-// may defer, the exit threshold in the operator's words, and the record of
-// that threshold being met.
+// may defer, the exit threshold in the operator's words, the milestone's
+// purpose, and the record of that threshold being met. A purpose that is
+// empty or only whitespace counts as unset everywhere (spec/backlog/
+// epic-scope.md, Part B).
 type EpicGate struct {
 	Members    []string `json:"members"`
 	Deferrable []string `json:"deferrable,omitempty"`
 	Threshold  string   `json:"threshold,omitempty"`
+	Purpose    string   `json:"purpose,omitempty"`
 	Met        *GateMet `json:"met,omitempty"`
 }
 
