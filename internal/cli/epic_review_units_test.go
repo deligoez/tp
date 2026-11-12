@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -145,9 +146,16 @@ func TestEpicReview_AChangedScopeUnitShowsItsBlockBefore(t *testing.T) {
 	setGateField(t, dir, "gates.A.threshold=twenty users")
 	out := runEpicReview(t, dir, "--milestone", "A")
 	require.Equal(t, []string{"plain", "scope-only", "regression"}, promptRoles(&out))
-	scope := out.Prompts[1]
-	assert.Contains(t, scope.Prompt, "--- scope:A, round 1\nscope: A\nmembers: a, b\nthreshold: ten users\n")
-	assert.Contains(t, scope.Prompt, "--- scope:A, now\nscope: A\nmembers: a, b\nthreshold: twenty users\n")
+	scope := out.Prompts[1].Prompt
+	assert.Contains(t, scope, "\nChanged since round 1 — scope:A, field by field:\n- threshold: ten users → twenty users\n")
+	assert.NotContains(t, scope, "--- scope:A, round 1", "no full copy of the block before")
+	assert.Equal(t, 1, strings.Count(scope, "scope: A\n"), "the current block is shown once, as the asked unit")
+
+	recordEpicRows(t, dir, "")
+	setGateField(t, dir, "gates.A.members=b")
+	out = runEpicReview(t, dir, "--milestone", "A")
+	scope = out.Prompts[1].Prompt
+	assert.Contains(t, scope, "- members: a, b → b\n- closure: −a\n", "members old → new, the closure as ids added and removed")
 }
 
 // TestEpicReview_AKindNoRoleReadsHasNoUnit: a corpus whose every role takes
