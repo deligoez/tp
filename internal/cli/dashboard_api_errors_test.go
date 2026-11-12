@@ -62,3 +62,25 @@ func TestDashboard_GetAnswersTpsErrorAndRefusesOutsideTheRepo(t *testing.T) {
 		assert.Contains(t, e.Error, "outside", file)
 	}
 }
+
+// TestDashboard_RefusesAMissingPathThroughASymlinkOutsideTheRepo: a task
+// file named through an in-repo symlink to a directory outside the
+// repository is refused 403 whether the rest of the path exists or not, so
+// the answer does not tell a caller which outside directories exist; a
+// missing path inside the repository still reaches tp's not-found error.
+func TestDashboard_RefusesAMissingPathThroughASymlinkOutsideTheRepo(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeTaskFileRaw(t, dir, `[]`)
+	initGitRepo(t, dir)
+	outside := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(outside, "realdir"), 0o755))
+	require.NoError(t, os.Symlink(outside, filepath.Join(dir, "lnk")))
+	srv := startDashboard(t, dir, freePort(t))
+
+	for _, file := range []string{"lnk/realdir/x.tasks.json", "lnk/nope/y.tasks.json", "lnk/nope/deeper/z.tasks.json"} {
+		e := getDashboardError(t, srv, "/api/export?file="+url.QueryEscape(file), http.StatusForbidden)
+		assert.Contains(t, e.Error, "outside", file)
+	}
+	assert.Equal(t, 3, getDashboardError(t, srv, "/api/export?file="+url.QueryEscape("nope/deeper/z.tasks.json"), http.StatusNotFound).Code)
+}
