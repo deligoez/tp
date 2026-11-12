@@ -980,12 +980,38 @@
       const p = toSvg(ev.clientX, ev.clientY);
       zoomAt(Math.exp(Math.max(-80, Math.min(80, ev.deltaY)) * 0.01), p.x, p.y);
     }, { passive: false });
+    // Touch: one finger pans like a drag, two pinch (tpPure.pinchView); the
+    // fingers down are kept by pointer id, in the order they came down.
+    const fingers = new Map();
+    let pinch = null;
+    const inBox = (ev) => {
+      const r = el.getBoundingClientRect();
+      return { x: ev.clientX - r.left, y: ev.clientY - r.top };
+    };
     el.addEventListener("pointerdown", (ev) => {
-      if (ev.button !== 0 || !v || ev.pointerType === "touch") return;
+      if (!v || (ev.button !== 0 && ev.pointerType !== "touch")) return;
+      if (ev.pointerType === "touch") {
+        fingers.set(ev.pointerId, inBox(ev));
+        if (fingers.size === 2) {
+          const [a, b] = [...fingers.values()];
+          pinch = { a, b, v: { ...v } };
+          drag = null;
+          moved = true;
+          return;
+        }
+      }
       drag = { x: ev.clientX, y: ev.clientY, v: { ...v } };
       moved = false;
     });
     el.addEventListener("pointermove", (ev) => {
+      if (fingers.has(ev.pointerId)) fingers.set(ev.pointerId, inBox(ev));
+      if (pinch && fingers.size >= 2) {
+        const r = el.getBoundingClientRect();
+        const [a, b] = [...fingers.values()];
+        v = tpPure.pinchView(pinch.v, pinch.a, pinch.b, a, b, r.width, r.height);
+        apply();
+        return;
+      }
       if (drag && (moved || Math.abs(ev.clientX - drag.x) + Math.abs(ev.clientY - drag.y) > 3)) {
         if (!moved) { moved = true; el.classList.add("drag"); el.setPointerCapture(ev.pointerId); }
         const r = el.getBoundingClientRect();
@@ -994,14 +1020,21 @@
         $("tip").hidden = true;
         return;
       }
-      mapHover(ev);
+      if (ev.pointerType !== "touch") mapHover(ev);
     });
-    el.addEventListener("pointerup", (ev) => {
+    const lift = (ev) => {
+      fingers.delete(ev.pointerId);
+      if (fingers.size < 2) pinch = null;
       el.classList.remove("drag");
-      const wasDrag = drag && moved;
+      const wasDrag = !drag || moved;
       drag = null;
-      if (!wasDrag) mapClick(ev);
+      return wasDrag;
+    };
+    el.addEventListener("pointerup", (ev) => {
+      const pinched = !!pinch;
+      if (!lift(ev) && !pinched) mapClick(ev);
     });
+    el.addEventListener("pointercancel", lift);
     el.addEventListener("pointerleave", () => { $("tip").hidden = true; });
     $("mapcard").querySelectorAll("[data-z]").forEach((b) => b.addEventListener("click", () => {
       const z = b.dataset.z;

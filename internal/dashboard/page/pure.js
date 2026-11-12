@@ -20,6 +20,22 @@
     return { x: -VIEW_PAD, y: -VIEW_PAD, w: bw / s, h: bh / s };
   };
 
+  // pinchView is the view after two fingers moved from a0 and b0 to a1 and
+  // b1 (pixels from the box's top left, the box rw by rh) over the view v0
+  // they started on: zoomed by the ratio of their spans, with the drawing
+  // point under their first midpoint kept under their current one.
+  P.pinchView = function (v0, a0, b0, a1, b1, rw, rh) {
+    const span = (a, b) => Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    const f = span(a0, b0) / span(a1, b1);
+    const m0 = { x: (a0.x + b0.x) / 2, y: (a0.y + b0.y) / 2 };
+    const m1 = { x: (a1.x + b1.x) / 2, y: (a1.y + b1.y) / 2 };
+    const w = v0.w * f;
+    const h = v0.h * f;
+    const px = v0.x + (m0.x / rw) * v0.w;
+    const py = v0.y + (m0.y / rh) * v0.h;
+    return { x: px - (m1.x / rw) * w, y: py - (m1.y / rh) * h, w, h };
+  };
+
   if (typeof module === "object" && module.exports) module.exports = P;
   else root.tpPure = P;
 })(this);
