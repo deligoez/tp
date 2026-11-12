@@ -2,9 +2,9 @@ package cli_test
 
 import (
 	"encoding/json"
+	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -149,12 +149,21 @@ func TestExport_RunsUnattendedAndExits3WithoutATaskFile(t *testing.T) {
 // refresh.
 func worktreeFiles(t *testing.T, dir string) map[string]string {
 	t.Helper()
-	tree := snapshotTree(t, dir)
-	for path := range tree {
-		if rel, err := filepath.Rel(dir, path); err == nil && strings.HasPrefix(filepath.ToSlash(rel), ".git/") {
-			delete(tree, path)
+	tree := map[string]string{}
+	require.NoError(t, filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
 		}
-	}
+		if d.IsDir() {
+			if path != dir && d.Name() == ".git" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		tree[path] = string(data)
+		return err
+	}))
 	return tree
 }
 
