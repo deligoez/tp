@@ -32,9 +32,9 @@ type EpicScope struct {
 	// Shrink is each closure epic's removal shrink that takes at least one
 	// other epic with it, by size descending, then id.
 	Shrink []ScopeShrink `json:"shrink"`
-	// Outside is the milestone's not-done epics the closure misses, in graph
-	// order, computed the same way under implicit members, which leave the
-	// deferrable and condition epics out.
+	// Outside is the milestone's not-done epics the closure misses, moot ones
+	// left out, in graph order, computed the same way under implicit members,
+	// which leave the deferrable and condition epics out.
 	Outside []ScopeOutside `json:"outside"`
 	// NoDependents is the ids of Outside no epic of the graph depends on, by
 	// plain edge or as an any-of member.
@@ -187,12 +187,14 @@ type scopeWalk struct {
 	states map[string]EpicState
 	epics  map[string]*model.Epic
 	pos    map[string]milestonePos
+	// moot marks each moot epic (MootEpics), which counts nowhere.
+	moot map[string]bool
 	// home is the scope milestone's track.
 	home int
 }
 
 func newScopeWalk(g *model.EpicGraph, states map[string]EpicState, milestone string) *scopeWalk {
-	w := &scopeWalk{g: g, states: states, epics: epicsByID(g), pos: milestonePositions(g)}
+	w := &scopeWalk{g: g, states: states, epics: epicsByID(g), pos: milestonePositions(g), moot: MootEpics(g, states)}
 	w.home = w.track(milestone)
 	return w
 }
@@ -338,20 +340,21 @@ func (s scopeSet) minus(o scopeSet) []string {
 	return out
 }
 
-// open reports whether id names an epic of the graph that is not done.
+// open reports whether id names an epic of the graph that is not done and
+// not moot: a moot epic leaves every list as a done one does (spec/1.7.0.md
+// §7).
 func (w *scopeWalk) open(id string) bool {
 	_, ok := w.epics[id]
-	return ok && w.states[id].Status != EpicStatusDone
+	return ok && w.states[id].Status != EpicStatusDone && !w.moot[id]
 }
 
 // closure returns the not-done epics members reach, the not-done members
 // included, over depends_on entries that still hold, never entering cut: an
 // empty cut cuts nothing. A plain edge leads to its epic, an unsatisfied
 // any-of group to every member, a satisfied one nowhere (spec/1.7.0.md §7).
-// A moot epic needs no check of its own, as on CriticalPath's chains: a gate
-// holds none, only a moot epic has a plain edge to one, and a satisfied group
-// is not walked. The required part, what plain edges alone reach, carries no
-// mark; every other epic is optional and keeps the mark walk gave it.
+// A moot epic is never entered (open). The required part, what plain edges
+// alone reach, carries no mark; every other epic is optional and keeps the
+// mark walk gave it.
 func (w *scopeWalk) closure(members []string, cut string) scopeSet {
 	set := w.walk(members, cut, false)
 	for id := range w.walk(members, cut, true).in {
