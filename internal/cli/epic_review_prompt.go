@@ -190,7 +190,7 @@ func epicPromptWithTail(run *epicReviewRun, role string, b *strings.Builder, ask
 	fmt.Fprintf(b, "\nWrite this round's findings to: %s\nProduce findings for this round only, write them to that file, then stop.\n", path)
 	b.WriteString(context)
 	fmt.Fprintf(b, "\nReminder: write one NDJSON row per finding with severity, finding, location and evidence to %s, then stop.\n", path)
-	return epicReviewPrompt{Role: role, Prompt: b.String(), OutputPath: path}
+	return epicReviewPrompt{Role: role, Prompt: b.String(), PromptBytes: b.Len(), OutputPath: path}
 }
 
 // epicAskedText renders the round's header and the asked units' blocks, then,
