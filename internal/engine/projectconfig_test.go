@@ -307,3 +307,60 @@ func TestClampWorkflowRanges_KeepsEachDocumentedBoundAndDropsOnePast(t *testing.
 		}
 	}
 }
+
+// TestIsProjectTPDir_SideEffectEntriesNeverAnchorAProject is the name table
+// isProjectTPDir matches by: each artifact a lock or a run leaves behind, alone
+// in a .tp/, is not a project root, and the same artifact beside a deliberate
+// write (config.json) is one. The pair is what separates the two readings of
+// every name: a side-effect entry treated as deliberate fails the first row, and
+// a check that never reaches the deliberate entry fails the second.
+func TestIsProjectTPDir_SideEffectEntriesNeverAnchorAProject(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		dir  bool
+	}{
+		{".gitignore", false},
+		{"locks", true},
+		{"rounds", true},
+		{"runs", true},
+		{"run-spec.json", false},
+		{"last_failure-spec.json", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			build := func(t *testing.T, withConfig bool) string {
+				t.Helper()
+				tpDir := filepath.Join(t.TempDir(), ".tp")
+				require.NoError(t, os.Mkdir(tpDir, 0o755))
+				if tc.dir {
+					require.NoError(t, os.Mkdir(filepath.Join(tpDir, tc.name), 0o755))
+				} else {
+					require.NoError(t, os.WriteFile(filepath.Join(tpDir, tc.name), []byte("x\n"), 0o600))
+				}
+				if withConfig {
+					require.NoError(t, os.WriteFile(filepath.Join(tpDir, "config.json"), []byte("{}\n"), 0o600))
+				}
+				return tpDir
+			}
+			assert.False(t, isProjectTPDir(build(t, false)), "%s alone is a side effect, not a project", tc.name)
+			assert.True(t, isProjectTPDir(build(t, true)), "%s beside config.json is a project", tc.name)
+		})
+	}
+
+	t.Run("empty", func(t *testing.T) {
+		tpDir := filepath.Join(t.TempDir(), ".tp")
+		require.NoError(t, os.Mkdir(tpDir, 0o755))
+		assert.True(t, isProjectTPDir(tpDir), "an empty .tp/ was made on purpose")
+	})
+
+	t.Run("unreadable", func(t *testing.T) {
+		if os.Geteuid() == 0 {
+			t.Skip("root can list a 0o000 directory, so the fixture is not unreadable")
+		}
+		tpDir := filepath.Join(t.TempDir(), ".tp")
+		require.NoError(t, os.Mkdir(tpDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(tpDir, "locks"), []byte("x\n"), 0o600))
+		require.NoError(t, os.Chmod(tpDir, 0o000))
+		t.Cleanup(func() { _ = os.Chmod(tpDir, 0o755) })
+		assert.True(t, isProjectTPDir(tpDir), "a .tp/ tp cannot list may hold anything, so it anchors")
+	})
+}
