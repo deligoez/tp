@@ -165,3 +165,17 @@ func TestDashboard_DanglingInRepoSymlinkIsNotFound(t *testing.T) {
 
 	requireSameErrorAsCommand(t, srv, dir, "dangling.tasks.json", http.StatusNotFound)
 }
+
+// TestDashboard_AbsoluteSymlinkInsideTheRepoAnswersAsTheCommand: an in-repo
+// symlink whose absolute target lies inside the repository, which os.Root
+// refuses on its own, answers byte-equal to tp export --file through it.
+func TestDashboard_AbsoluteSymlinkInsideTheRepoAnswersAsTheCommand(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeTaskFileRaw(t, dir, `[]`)
+	require.NoError(t, os.Symlink(filepath.Join(dir, "spec.tasks.json"), filepath.Join(dir, "abs.tasks.json")))
+	initGitRepo(t, dir)
+	srv := startDashboard(t, dir, freePort(t))
+
+	requireSameAsCommand(t, srv, dir, "/api/export?file=abs.tasks.json", "export", "--file", "abs.tasks.json")
+}
