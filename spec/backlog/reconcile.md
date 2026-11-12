@@ -29,8 +29,17 @@ remain wrong at v1.12.0:
    regression pass, the audit prior-round section and the audit acceptance carry — in both loop
    phases; nothing recorded changes, no disposition is written, and no convergence rule changes.
    `--status` of both phases reports the epochs. It is a state-writing mode placed on the
-   task-file side's rules like every other, and refused with a round in flight (record or discard it
-   first).
+   task-file side's rules like every other, and refused with a round in flight (that round was built
+   from the lists the epoch cuts; record or discard it first) and when the spec's hash equals the
+   last recorded round's snapshot (nothing was rewritten).
+
+   An epoch changes prompts only, and that is why it is an ordinary mode and not an operator
+   decision. Convergence already reads only the trailing clean rounds, so an open row in an earlier
+   round blocks nothing today and blocks nothing after; the round cap keeps counting every recorded
+   round, the epoch's earlier ones included. Cutting a carry list errs in the blocking direction: a
+   finding that still holds is raised again and has to be settled again. In particular an audit
+   finding accepted without a change before the epoch is not carried, so the operator may be asked
+   for that acceptance a second time.
 2. **The `spec-stale` blocker names its exit as data.** Its data carries the command that clears it;
    with a round in flight whose snapshot differs from the spec, the command is the record of that
    round (or its discard, as the operator's decision), not a new emission.
@@ -46,3 +55,5 @@ remain wrong at v1.12.0:
 - Changing how a round's hash is computed or when staleness clears (v1.2.2, v1.12.0).
 - Deleting or rewriting recorded rounds.
 - Letting an epoch clear `spec-stale`: only a round that read the current text does.
+- Resetting the round cap.
+- Epic review: its carry is per unit and is its own subject.
