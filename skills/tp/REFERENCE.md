@@ -1981,12 +1981,15 @@ A GET answer is byte-equal to the command's stdout. An error answers tp's `{erro
 HTTP 400 for code 2, 404 for codes 3 and 4. No response carries a CORS header.
 
 `/api/export` takes no filesystem path from the request: `<path>` must be byte-equal to a `path` of
-`tp export --list` as the server derives it at that request, and is then read exactly as
-`tp export --file <path>` reads it from the server's working directory, payload and errors alike. Any
-other value (another spelling of a listed file, such as `./` or its absolute path, or none) answers 404 with
-code 4, the code of a named object that does not exist, and a hint naming `tp export --list`. A
-listed task file whose `spec` names a file elsewhere, or that is a symlink, is read exactly as
-`tp export` reads it.
+`tp export --list` as the server derives it at that request, and is then answered as
+`tp export --file <path>` answers it run at the repository root, which the list's paths are
+relative to: the file served is the listed one whatever directory the server started in, and the
+payload is byte-equal to that command's; an error carries its code and hint, its message naming the
+file as the server's directory reaches it. Whether a path is listed is decided from the paths
+alone, reading no other task file. Any other value (another spelling of a listed file, such as `./`
+or its absolute path, or none) answers 404 with code 4, the code of a named object that does not
+exist, and a hint naming `tp export --list`. A listed task file whose `spec` names a file
+elsewhere, or that is a symlink, is read exactly as `tp export` reads it.
 
 **Events.** `/api/events` is a server-sent event stream. While at least one page listens, the server
 derives three payloads in-process every 2 seconds and pushes each, as one line of JSON under its event
