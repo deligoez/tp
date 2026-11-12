@@ -1,0 +1,131 @@
+{
+  "spec": "spec/1.5.0.md",
+  "review_rounds": [
+    {
+      "round": 1,
+      "findings": 21,
+      "clean": false,
+      "recorded_at": "2026-11-09T12:27:45Z",
+      "file": "review-round-1.ndjson",
+      "spec_hash": "sha256:affc55962b01bb17a88e9c53d7e923916725a6aefbb16fbdca3976a87829538a",
+      "roles_hash": "sha256:0befaf26c4b1b0761ecd0afe62547a871a74e0f3af07c34e2105a37adb4b0d9d",
+      "hash_scheme": "snapshot"
+    },
+    {
+      "round": 2,
+      "findings": 11,
+      "clean": false,
+      "recorded_at": "2026-11-09T12:32:31Z",
+      "file": "review-round-2.ndjson",
+      "spec_hash": "sha256:6c6fe32456e1247b1880ff88362666f9a68287303c4129bdea9518afea1ce373",
+      "roles_hash": "sha256:0befaf26c4b1b0761ecd0afe62547a871a74e0f3af07c34e2105a37adb4b0d9d",
+      "hash_scheme": "snapshot"
+    },
+    {
+      "round": 3,
+      "findings": 10,
+      "clean": false,
+      "recorded_at": "2026-11-09T12:36:52Z",
+      "file": "review-round-3.ndjson",
+      "spec_hash": "sha256:7443e8fc2aefa3dbdb8bccf9af8159ab6b3acde33a588a3c9941ab3cb031363d",
+      "roles_hash": "sha256:0befaf26c4b1b0761ecd0afe62547a871a74e0f3af07c34e2105a37adb4b0d9d",
+      "hash_scheme": "snapshot"
+    },
+    {
+      "round": 4,
+      "findings": 9,
+      "clean": false,
+      "recorded_at": "2026-11-09T12:39:46Z",
+      "file": "review-round-4.ndjson",
+      "spec_hash": "sha256:0fc035a33bded905e88d5616bd49de3236663862f60abd9360a1b06f467baee9",
+      "roles_hash": "sha256:0befaf26c4b1b0761ecd0afe62547a871a74e0f3af07c34e2105a37adb4b0d9d",
+      "hash_scheme": "snapshot"
+    }
+  ],
+  "audit_rounds": [
+    {
+      "round": 1,
+      "findings": 4,
+      "clean": false,
+      "recorded_at": "2026-11-09T15:58:25Z",
+      "file": "audit-round-1.ndjson",
+      "spec_hash": "sha256:0fc035a33bded905e88d5616bd49de3236663862f60abd9360a1b06f467baee9",
+      "roles_hash": "sha256:730320c4db9d73cde41740c32ebcacba23380e89d7964db005f25085a432b9fd",
+      "id_scheme": "slug",
+      "converge_on": "all",
+      "hash_scheme": "snapshot"
+    },
+    {
+      "round": 2,
+      "findings": 2,
+      "clean": false,
+      "recorded_at": "2026-11-09T16:35:20Z",
+      "file": "audit-round-2.ndjson",
+      "spec_hash": "sha256:0fc035a33bded905e88d5616bd49de3236663862f60abd9360a1b06f467baee9",
+      "roles_hash": "sha256:730320c4db9d73cde41740c32ebcacba23380e89d7964db005f25085a432b9fd",
+      "id_scheme": "slug",
+      "converge_on": "all",
+      "hash_scheme": "snapshot"
+    },
+    {
+      "round": 3,
+      "findings": 3,
+      "clean": false,
+      "recorded_at": "2026-11-09T16:43:02Z",
+      "file": "audit-round-3.ndjson",
+      "spec_hash": "sha256:0fc035a33bded905e88d5616bd49de3236663862f60abd9360a1b06f467baee9",
+      "roles_hash": "sha256:730320c4db9d73cde41740c32ebcacba23380e89d7964db005f25085a432b9fd",
+      "id_scheme": "slug",
+      "converge_on": "all",
+      "hash_scheme": "snapshot"
+    },
+    {
+      "round": 4,
+      "findings": 4,
+      "clean": false,
+      "recorded_at": "2026-11-09T16:56:59Z",
+      "file": "audit-round-4.ndjson",
+      "spec_hash": "sha256:0fc035a33bded905e88d5616bd49de3236663862f60abd9360a1b06f467baee9",
+      "roles_hash": "sha256:730320c4db9d73cde41740c32ebcacba23380e89d7964db005f25085a432b9fd",
+      "id_scheme": "slug",
+      "converge_on": "all",
+      "hash_scheme": "snapshot"
+    },
+    {
+      "round": 5,
+      "findings": 3,
+      "clean": false,
+      "recorded_at": "2026-11-09T17:09:42Z",
+      "file": "audit-round-5.ndjson",
+      "spec_hash": "sha256:0fc035a33bded905e88d5616bd49de3236663862f60abd9360a1b06f467baee9",
+      "roles_hash": "sha256:730320c4db9d73cde41740c32ebcacba23380e89d7964db005f25085a432b9fd",
+      "id_scheme": "slug",
+      "converge_on": "all",
+      "hash_scheme": "snapshot"
+    },
+    {
+      "round": 6,
+      "findings": 1,
+      "clean": false,
+      "recorded_at": "2026-11-09T17:26:29Z",
+      "file": "audit-round-6.ndjson",
+      "spec_hash": "sha256:0fc035a33bded905e88d5616bd49de3236663862f60abd9360a1b06f467baee9",
+      "roles_hash": "sha256:730320c4db9d73cde41740c32ebcacba23380e89d7964db005f25085a432b9fd",
+      "id_scheme": "slug",
+      "converge_on": "all",
+      "hash_scheme": "snapshot"
+    },
+    {
+      "round": 7,
+      "findings": 0,
+      "clean": true,
+      "recorded_at": "2026-11-09T17:36:47Z",
+      "file": "audit-round-7.ndjson",
+      "spec_hash": "sha256:0fc035a33bded905e88d5616bd49de3236663862f60abd9360a1b06f467baee9",
+      "roles_hash": "sha256:730320c4db9d73cde41740c32ebcacba23380e89d7964db005f25085a432b9fd",
+      "id_scheme": "slug",
+      "converge_on": "all",
+      "hash_scheme": "snapshot"
+    }
+  ]
+}
