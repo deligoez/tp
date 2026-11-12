@@ -188,6 +188,7 @@ func newEpicReviewCmd() *cobra.Command {
 	cmd.Flags().Bool("report", false, "With --all or --milestones: list each finding class with the slices, rounds and distinct epics it was raised on")
 	cmd.Flags().String("role", "", "Emit only this role's prompt")
 	cmd.Flags().String("record", "", "Record this NDJSON findings file as the slice's next round")
+	cmd.Flags().Bool("record-inbox", false, "Record the in-flight round from the files its emission named, one per role, each row stamped with its file's role")
 	cmd.Flags().Bool("status", false, "Print the slice's convergence status")
 	cmd.Flags().Bool("check", false, "With --status: exit 0 only when the loop is done and every mechanical check passes")
 	cmd.Flags().Bool("resolve", false, "Mark one finding of the last recorded round fixed/wontfix/duplicate (positionals: 0-based index, status, evidence)")
@@ -232,6 +233,14 @@ func runEpicReview(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 	if runEpicReviewDisposition(cmd, key, args) {
+		return nil
+	}
+	if inbox, _ := cmd.Flags().GetBool("record-inbox"); inbox {
+		if cmd.Flags().Changed("record") {
+			output.Error(ExitUsage, "--record and --record-inbox exclude each other", "pass --record-inbox to record the emission's inbox files, or --record <file> for a file you made")
+			os.Exit(ExitUsage)
+		}
+		runEpicReviewRecordInbox(key)
 		return nil
 	}
 	if cmd.Flags().Changed("record") {

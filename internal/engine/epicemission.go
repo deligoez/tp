@@ -9,6 +9,20 @@ import (
 	"strings"
 )
 
+// EpicStoredPanel returns the panel round's emission stored in stateDir, in
+// panel order, and whether a snapshot is there; nil roles with stored true is
+// a snapshot written before the panel was kept.
+func EpicStoredPanel(stateDir string, round int) (roles []EpicSnapshotRole, stored bool, err error) {
+	if _, statErr := os.Stat(filepath.Join(stateDir, epicSnapshotFile(round))); os.IsNotExist(statErr) {
+		return nil, false, nil
+	}
+	snap, err := readEpicSnapshotFile(stateDir, round)
+	if err != nil {
+		return nil, true, err
+	}
+	return snap.Roles, true, nil
+}
+
 // EpicEmissionChanges compares round's emission stored in stateDir with the
 // one units and roles rebuild, over the whole panel (spec/backlog/
 // epic-reemit-guard.md): the unit keys with their hashes and blocks, the
