@@ -21,6 +21,13 @@ var (
 	ErrExplicitTaskFileMissing = errors.New("task file not found")
 )
 
+// ExplicitTaskFileMissing is discovery's error for --file naming path, a
+// path that cannot be opened, so a caller that decided it is missing without
+// asking discovery answers in the same words.
+func ExplicitTaskFileMissing(path string) error {
+	return fmt.Errorf("%w: %s", ErrExplicitTaskFileMissing, path)
+}
+
 // DiscoverTaskFile finds the task file in the given directory.
 // Priority: --file flag > TP_FILE env var > .tp/local.json active pointer >
 // auto-detect. The legacy .tp-active marker (deprecated in v0.24.0) was removed
@@ -38,7 +45,7 @@ func DiscoverTaskFile(dir, explicit string) (string, error) {
 func DiscoverTaskFileVia(dir, explicit string) (path string, viaPointer bool, err error) {
 	if explicit != "" {
 		if _, err := os.Stat(explicit); err != nil {
-			return "", false, fmt.Errorf("%w: %s", ErrExplicitTaskFileMissing, explicit)
+			return "", false, ExplicitTaskFileMissing(explicit)
 		}
 		return explicit, false, nil
 	}
