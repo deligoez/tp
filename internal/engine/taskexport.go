@@ -62,13 +62,6 @@ func TaskExportOf(start, taskFilePath string) (TaskExport, error) {
 	if err != nil {
 		return TaskExport{}, fmt.Errorf("task file %s: read task file: %w", taskFilePath, err)
 	}
-	return TaskExportOfData(start, taskFilePath, data)
-}
-
-// TaskExportOfData is TaskExportOf over data, the task file's bytes the
-// caller already read from taskFilePath, so a caller that opened the file
-// through a guard serves exactly what the guard let it read.
-func TaskExportOfData(start, taskFilePath string, data []byte) (TaskExport, error) {
 	tf, err := model.ParseTaskFile(data)
 	if err != nil {
 		return TaskExport{}, fmt.Errorf("task file %s: %w", taskFilePath, err)
