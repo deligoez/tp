@@ -163,12 +163,39 @@ func EpicPanelPath(root, stored string) string {
 // files its stored panel named (removeEpicPanelFiles), then its snapshot,
 // so the round is no longer in flight. It returns the files removed.
 func DiscardEpicEmission(stateDir string, round int, root string, panel []EpicSnapshotRole) ([]string, error) {
-	removed, err := removeEpicPanelFiles(root, panel)
+	remove := removeEpicPanelFiles
+	if panel == nil {
+		// Upgrade-window fallback only: a snapshot written before v1.10.0
+		// stored no panel, so the round's inbox files are found by name.
+		// Whenever a panel is stored, its paths are the rule — never
+		// "simplify" that path to this pattern, which cannot see a run's
+		// round-directory parts and would sweep files no emission named.
+		remove = func(string, []EpicSnapshotRole) ([]string, error) { return removeEpicInboxByName(stateDir, round) }
+	}
+	removed, err := remove(root, panel)
 	if err != nil {
 		return removed, err
 	}
 	if err := os.Remove(filepath.Join(stateDir, epicSnapshotFile(round))); err != nil && !os.IsNotExist(err) {
 		return removed, err
+	}
+	return removed, nil
+}
+
+// removeEpicInboxByName removes every inbox file of round by its name
+// pattern, <state dir>/inbox/*-r<round>.ndjson: DiscardEpicEmission's
+// fallback for a snapshot that stored no panel.
+func removeEpicInboxByName(stateDir string, round int) ([]string, error) {
+	paths, err := filepath.Glob(filepath.Join(EpicReviewInboxDir(stateDir), fmt.Sprintf("*-r%d.ndjson", round)))
+	if err != nil {
+		return nil, err
+	}
+	var removed []string
+	for _, p := range paths {
+		if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
+			return removed, err
+		}
+		removed = append(removed, p)
 	}
 	return removed, nil
 }
