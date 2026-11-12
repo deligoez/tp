@@ -119,3 +119,21 @@ func TestEpicMapRows_TheSameGraphAlwaysYieldsTheSamePositions(t *testing.T) {
 		assert.Equal(t, want, EpicMapRows(g, EpicMapLanes(g)))
 	}
 }
+
+// TestEpicMapRows_AnEpicSitsAtTheMeanRowOfItsDependencies: M1's rows are
+// r, a, b, c. In M2, y waits on c (row 3) and x on b and c (mean 2.5); in M3,
+// v waits on b and c (2.5) and u on b (2). Each milestone orders by that mean,
+// so x and u lead though the graph lists y and v first; a sum or count off by
+// one, or a product for the mean, reorders one of the two.
+func TestEpicMapRows_AnEpicSitsAtTheMeanRowOfItsDependencies(t *testing.T) {
+	g := rowsGraph([]string{"M1", "M2", "M3"},
+		rowsEpic("r", "M1"), rowsEpic("a", "M1", "r"), rowsEpic("b", "M1", "r"), rowsEpic("c", "M1", "r"),
+		rowsEpic("y", "M2", "c"), rowsEpic("x", "M2", "b", "c"),
+		rowsEpic("v", "M3", "b", "c"), rowsEpic("u", "M3", "b"),
+	)
+	assert.Equal(t, map[string][]string{
+		"M1": {"r", "a", "b", "c"},
+		"M2": {"x", "y"},
+		"M3": {"u", "v"},
+	}, EpicMapRows(g, EpicMapLanes(g)))
+}
