@@ -108,3 +108,25 @@ func TestDashboardSummary_CarriesThePlanWithAGraph(t *testing.T) {
 	assert.Equal(t, []string{"a"}, sum.Plan.Waiting)
 	assert.Equal(t, []string{"b"}, sum.Plan.MostWaitedOn)
 }
+
+// TestDashboardPlan_MostWaitedOnRanksDependentsBeforeChainLength: a has
+// three direct dependents and a chain of one, b two dependents in a chain of
+// two, and y1 one; the list ranks by dependents first, so a leads though b's
+// chain is longer, whichever of a and b the graph lists first.
+func TestDashboardPlan_MostWaitedOnRanksDependentsBeforeChainLength(t *testing.T) {
+	t.Parallel()
+	dep := func(id string) []model.EpicDep { return []model.EpicDep{{ID: id, Why: "w"}} }
+	a := model.Epic{ID: "a", Title: "A", Milestone: "M", Root: true}
+	b := model.Epic{ID: "b", Title: "B", Milestone: "M", Root: true}
+	for _, first := range [][]model.Epic{{b, a}, {a, b}} {
+		g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"M"}}, Epics: append([]model.Epic{first[0], first[1]},
+			model.Epic{ID: "x1", Title: "X1", Milestone: "M", DependsOn: dep("a")},
+			model.Epic{ID: "x2", Title: "X2", Milestone: "M", DependsOn: dep("a")},
+			model.Epic{ID: "x3", Title: "X3", Milestone: "M", DependsOn: dep("a")},
+			model.Epic{ID: "y1", Title: "Y1", Milestone: "M", DependsOn: dep("b")},
+			model.Epic{ID: "y2", Title: "Y2", Milestone: "M", DependsOn: dep("y1")},
+		)}
+		plan := DashboardPlanOf(g, anyOfStates(g), nil, defaultMatcher(t), nil)
+		assert.Equal(t, []string{"a", "b", "y1"}, plan.MostWaitedOn, "graph order %s, %s", first[0].ID, first[1].ID)
+	}
+}
