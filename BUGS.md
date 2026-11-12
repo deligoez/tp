@@ -53,7 +53,7 @@ fix needs a design choice leaves this file for a decision note.
   a recorded per-role presence marker: a new state field and a contract, so a decision. The lax half was
   seen only in fixtures; schedule it on a field case. For epic review, `--record-inbox` (v1.10.0)
   now catches a role that never ran, since it refuses a role's missing file; `--record <file>` still
-  has the gap.
+  has the gap for a non-empty hand-made file.
 - **Named `--affected-files` beyond 10 are cut per code role, and spec-coverage reads the spec only to
   10 KB.** The prompt header says `10 of 25` and, since v1.2.1, the spec cut is named in the payload
   and lands on a rune boundary. Whether to cut at all is `spec/backlog/checklist-covers-what-changed.md`.
