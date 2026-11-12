@@ -174,3 +174,15 @@ func TestTaskExport_CarriesEachLoopWithItsRounds(t *testing.T) {
 	assert.Nil(t, exp.Epic)
 	assert.Nil(t, exp.BoundAt)
 }
+
+// TestRepoRelativeTo_NamesAPathInsideTheRootRelativeToIt: a path under the
+// root prints relative to it, slash-separated; one outside it, and any path
+// when there is no root, prints as given.
+func TestRepoRelativeTo_NamesAPathInsideTheRootRelativeToIt(t *testing.T) {
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	assert.Equal(t, "spec/a.md", repoRelativeTo(root, filepath.Join(root, "spec", "a.md")))
+	outside := filepath.Join(filepath.Dir(root), "elsewhere", "b.md")
+	assert.Equal(t, filepath.ToSlash(outside), repoRelativeTo(root, outside))
+	assert.Equal(t, "spec/a.md", repoRelativeTo("", "spec/a.md"))
+}
