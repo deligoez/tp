@@ -29,6 +29,32 @@ type Role struct {
 	// RoleContextNeighboursBrief or RoleContextDependencies. Spec review and
 	// audit do not read it.
 	Context string `json:"context,omitempty"`
+	// Units lists the unit kinds tp epic review asks a graph role:
+	// RoleUnitEpics, RoleUnitGates and RoleUnitScope. Absent means epics and
+	// gates (UnitKinds), so a corpus never receives a kind it was not written
+	// for. Spec review and audit do not read it.
+	Units []string `json:"units,omitempty"`
+	// Purpose says the graph role is shown the purpose of each milestone its
+	// asked units belong to, and is re-asked a milestone's units when that
+	// purpose changes. Spec review and audit do not read it.
+	Purpose bool `json:"purpose,omitempty"`
+}
+
+// The unit kinds a graph role's Units may list, in the order a unit key's
+// prefix names them: epic:<id>, gate:<m> and scope:<m>.
+const (
+	RoleUnitEpics = "epics"
+	RoleUnitGates = "gates"
+	RoleUnitScope = "scope"
+)
+
+// UnitKinds returns the unit kinds the role is asked: its Units, or epics
+// and gates when it lists none.
+func (r *Role) UnitKinds() []string {
+	if len(r.Units) == 0 {
+		return []string{RoleUnitEpics, RoleUnitGates}
+	}
+	return r.Units
 }
 
 // The values a graph role's Context may take. RoleContextNeighboursBrief
