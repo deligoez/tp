@@ -88,3 +88,13 @@ func TestEpicScope_NoGraphExits3(t *testing.T) {
 	assert.Equal(t, 3, code)
 }
 
+// TestEpicScope_RunsUnattended: the command is read-only, so TP_UNATTENDED
+// does not fence it, and it prints the same payload.
+func TestEpicScope_RunsUnattended(t *testing.T) {
+	dir := epicGraphDir(t, epicScopeGraph)
+	unattended, stderr, code := runTPFence(t, dir, true, "epic", "scope", "m1")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	attended, _, code := runTPFence(t, dir, false, "epic", "scope", "m1")
+	require.Equal(t, 0, code)
+	assert.JSONEq(t, attended, unattended)
+}
