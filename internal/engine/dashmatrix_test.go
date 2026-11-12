@@ -29,3 +29,21 @@ func TestMilestoneMatrix_CountsEdgesBetweenMilestones(t *testing.T) {
 	assert.Equal(t, []MatrixCell{{From: "M2", To: "M1", Edges: 4, Done: 2}}, MilestoneMatrix(g, states))
 	assert.Equal(t, []MatrixCell{}, MilestoneMatrix(&model.EpicGraph{}, nil), "a graph with no edge has no cell, as a list")
 }
+
+// TestMilestoneMatrix_DoneCountsOnlyDoneDependencies: of a cell's three
+// edges, two reach the done epic a and one the planned b, so the cell counts
+// two done. A count of the undone dependencies gives one.
+func TestMilestoneMatrix_DoneCountsOnlyDoneDependencies(t *testing.T) {
+	t.Parallel()
+	g := &model.EpicGraph{
+		Milestones: [][]string{{"M1", "M2"}},
+		Epics: []model.Epic{
+			{ID: "a", Milestone: "M1"},
+			{ID: "b", Milestone: "M1"},
+			{ID: "c", Milestone: "M2", DependsOn: []model.EpicDep{{ID: "a", Why: "w"}, {ID: "b", Why: "w"}}},
+			{ID: "d", Milestone: "M2", DependsOn: []model.EpicDep{{ID: "a", Why: "w"}}},
+		},
+	}
+	states := map[string]EpicState{"a": {Status: EpicStatusDone}, "b": {Status: EpicStatusPlanned}, "c": {Status: EpicStatusPlanned}, "d": {Status: EpicStatusPlanned}}
+	assert.Equal(t, []MatrixCell{{From: "M2", To: "M1", Edges: 3, Done: 2}}, MilestoneMatrix(g, states))
+}
