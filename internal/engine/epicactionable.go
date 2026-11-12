@@ -14,28 +14,35 @@ const (
 	// NotActionableDependencies: a direct dependency of its own is not done.
 	NotActionableDependencies = "dependencies"
 	// NotActionableDependents: no open milestone's gate holds it, something
-	// depends on it, and no dependent that can move waits on conditions alone.
+	// depends on it, and no dependent that can move, other than a deferrable
+	// member, waits on conditions alone.
 	NotActionableDependents = "dependents"
+	// NotActionableDeferrable: its own milestone's gate lists it deferrable
+	// (spec/1.8.0.md §7), so no operator list waits on it.
+	NotActionableDeferrable = "deferrable"
 )
 
 // ConditionsNotActionable returns, for every condition of g that is neither
 // done nor moot (MootEpics), the reasons it is not actionable, in the order
-// NotActionableMilestone, NotActionableDependencies, NotActionableDependents;
-// an empty, non-nil list when it is actionable (spec/1.6.0.md F3). A
-// condition is actionable when its milestone is open, its direct
+// NotActionableMilestone, NotActionableDependencies, NotActionableDependents,
+// NotActionableDeferrable; an empty, non-nil list when it is actionable
+// (spec/1.6.0.md F3). A condition is actionable when it is no deferrable
+// member (IsDeferrableMember), its milestone is open, its direct
 // dependencies are done, and at least one of: it is a member (GateMembers) of
 // the gate of an open milestone, so deciding it can turn that gate green;
-// nothing depends on it; or an epic depending on it can move (not done, in an
-// open milestone or with a bound file) and has only conditions among its
-// undone direct dependencies. An epic depends on c through a plain edge or a
-// group naming it, and an unsatisfied group counts as a condition when
+// nothing depends on it; or an epic depending on it that is no deferrable
+// member can move (not done, in an open milestone or with a bound file) and
+// has only conditions among its undone direct dependencies (spec/1.8.0.md
+// §7: deferrable work waits on nothing the operator must decide). An epic
+// depends on c through a plain edge or a group naming it, and an unsatisfied
+// group counts as a condition when
 // groupCountsAsCondition says so (spec/1.7.0.md §7). The first keeps a
 // condition that holds a gate from waiting on a dependent in the milestone
 // that gate opens. states is DeriveEpicStates' result, gates MilestoneGates'
 // and bound EpicBoundFiles'. A condition of a milestone no track lists has a
 // closed milestone. tp epic ready, status and the export read this one answer.
 func ConditionsNotActionable(g *model.EpicGraph, states map[string]EpicState, gates map[string]MilestoneGate, bound map[string][]string) map[string][]string {
-	a := actionability{byID: epicsByID(g), states: states, gates: gates, bound: bound,
+	a := actionability{g: g, byID: epicsByID(g), states: states, gates: gates, bound: bound,
 		dependents: actionDependents(g, states), gated: openGateMembers(g, gates)}
 	moot := MootEpics(g, states)
 	out := map[string][]string{}
@@ -87,6 +94,7 @@ func openGateMembers(g *model.EpicGraph, gates map[string]MilestoneGate) map[str
 
 // actionability is what ConditionsNotActionable reads for each condition.
 type actionability struct {
+	g          *model.EpicGraph
 	byID       map[string]*model.Epic
 	states     map[string]EpicState
 	gates      map[string]MilestoneGate
@@ -108,18 +116,22 @@ func (a *actionability) reasons(c *model.Epic) []string {
 	if !a.gated[c.ID] && !a.unblocksADependent(c) {
 		out = append(out, NotActionableDependents)
 	}
+	if IsDeferrableMember(a.g, c) {
+		out = append(out, NotActionableDeferrable)
+	}
 	return out
 }
 
 // unblocksADependent reports whether nothing depends on c, or some epic
-// depending on it can move and waits on conditions alone.
+// depending on it that is no deferrable member can move and waits on
+// conditions alone.
 func (a *actionability) unblocksADependent(c *model.Epic) bool {
 	dependents := a.dependents[c.ID]
 	if len(dependents) == 0 {
 		return true
 	}
 	for _, w := range dependents {
-		if dependentCanMove(w, a.states, a.gates, a.bound) && a.heldOnlyByConditions(w) {
+		if !IsDeferrableMember(a.g, w) && dependentCanMove(w, a.states, a.gates, a.bound) && a.heldOnlyByConditions(w) {
 			return true
 		}
 	}
