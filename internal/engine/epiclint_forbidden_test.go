@@ -110,3 +110,20 @@ func TestLintEpicGraph_ForbiddenDependencyFailsADirectEdgeAndAnAnyOfMember(t *te
 	}
 	assert.Contains(t, forbidden[1].Message, "any-of")
 }
+
+// TestLintEpicGraph_AnEpicSelectorForbidsOnlyThatEpicsEdges: a rule from
+// the epic a to milestone M2 reports a's edge into M2 and not c's, though c
+// depends on the same M2 epic.
+func TestLintEpicGraph_AnEpicSelectorForbidsOnlyThatEpicsEdges(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"M1", "M2"}}, Epics: []model.Epic{
+		{ID: "b", Title: "B", Milestone: "M2", Root: true},
+		{ID: "a", Title: "A", Milestone: "M1", DependsOn: []model.EpicDep{{ID: "b", Why: "a reads b"}}},
+		{ID: "c", Title: "C", Milestone: "M2", DependsOn: []model.EpicDep{{ID: "b", Why: "c reads b"}}},
+	}}
+	g.ForbiddenEdges = []model.EpicForbiddenEdge{
+		forbiddenRule(model.EpicSelector{Epic: "a"}, model.EpicSelector{Milestone: "M2"}, "a ships before M2"),
+	}
+	forbidden := findingsOf(t, lintEpicForbiddenDependencies(g), EpicRuleForbiddenDependency)
+	require.Len(t, forbidden, 1)
+	assert.Equal(t, "a depends on b, which forbidden_edges[0] forbids: a ships before M2", forbidden[0].Message)
+}
