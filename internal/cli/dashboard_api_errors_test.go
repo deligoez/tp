@@ -84,3 +84,30 @@ func TestDashboard_RefusesAMissingPathThroughASymlinkOutsideTheRepo(t *testing.T
 	}
 	assert.Equal(t, 3, getDashboardError(t, srv, "/api/export?file="+url.QueryEscape("nope/deeper/z.tasks.json"), http.StatusNotFound).Code)
 }
+
+// TestDashboard_RefusesADotDotPastAnInRepoSymlinkLeadingOut: a path that
+// climbs out of an in-repo symlink with .. names, as the OS opens it, the
+// parent of the symlink's target, not the repository: lnk/../evil.tasks.json
+// with lnk pointing at a directory outside is refused 403, existing or not,
+// while the same climb out of a real in-repo directory still answers.
+func TestDashboard_RefusesADotDotPastAnInRepoSymlinkLeadingOut(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeTaskFileRaw(t, dir, `[]`)
+	initGitRepo(t, dir)
+	outside := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(outside, "inner"), 0o755))
+	data, err := os.ReadFile(filepath.Join(dir, "spec.tasks.json"))
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(outside, "evil.tasks.json"), data, 0o600))
+	require.NoError(t, os.Symlink(filepath.Join(outside, "inner"), filepath.Join(dir, "lnk")))
+	require.NoError(t, os.Mkdir(filepath.Join(dir, "sub"), 0o755))
+	srv := startDashboard(t, dir, freePort(t))
+
+	for _, file := range []string{"lnk/../evil.tasks.json", "lnk/../nope.tasks.json", "lnk/../nope/z.tasks.json", "sub/../lnk/../evil.tasks.json"} {
+		e := getDashboardError(t, srv, "/api/export?file="+url.QueryEscape(file), http.StatusForbidden)
+		assert.Contains(t, e.Error, "outside", file)
+	}
+	got, body := getPage(t, strings.TrimSuffix(srv.url, "/")+"/api/export?file="+url.QueryEscape("sub/../spec.tasks.json"))
+	assert.Equal(t, http.StatusOK, got, body)
+}
