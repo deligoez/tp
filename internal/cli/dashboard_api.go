@@ -3,12 +3,15 @@ package cli
 import (
 	"encoding/csv"
 	"errors"
+	"io/fs"
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/deligoez/tp/internal/dashboard"
 	"github.com/deligoez/tp/internal/engine"
@@ -33,27 +36,19 @@ func runErrorOf(err *epicRunError) *dashboard.Error {
 }
 
 // Export answers /api/export?file=: the task file's tp export, refused when
-// the path leaves the repository. The task file is read through the
-// repository's os.Root and exported under the path as given, so the answer
-// is tp export --file's own, payload and errors alike.
+// the path leaves the repository. The task file's bytes are read through the
+// repository's os.Root (readInRepository) and exported under the path as
+// given, so the answer is tp export --file's own, payload and errors alike.
 func (dashboardAPI) Export(file string) (any, *dashboard.Error) {
 	var payload exportPayload
 	var rerr *epicRunError
-	var data []byte
-	var err error
-	if file != "" {
-		data, err = readInRepository(file)
-	}
-	switch {
-	case file == "":
+	if file == "" {
 		payload, rerr = exportOf("", false)
-	case errors.Is(err, errOutsideRepository):
-		return nil, dashboard.Forbidden("task file "+file+" is outside the repository", dashboardOutsideHint)
-	case err != nil:
-		// Inside but unreadable, a missing file above all: the command's
-		// own error, naming the path as given.
-		payload, rerr = exportOf(file, false)
-	default:
+	} else {
+		data, derr := readInRepository(file)
+		if derr != nil {
+			return nil, derr
+		}
 		payload, rerr = exportDataOf(file, data)
 	}
 	if rerr != nil {
@@ -176,113 +171,147 @@ func dashboardHistoryQuery(q url.Values) (key engine.EpicSliceKey, from, to int,
 	return key, from, to, nil
 }
 
-// errOutsideRepository is readInRepository's refusal of a path that leaves
-// the repository.
-var errOutsideRepository = errors.New("outside the repository")
-
 // readInRepository reads the task file file names, relative to the working
-// directory or absolute, through an os.Root opened on the project root, so
-// the check and the read are one operation: a path that leaves the root, by
-// .., a symlink or an absolute name, fails with errOutsideRepository and
-// cannot be swapped for one that does between a check and an open. Any
-// other failure, a missing file or one through a missing directory, is the
-// root's own error, which the caller answers as tp export would. os.Root
-// also refuses every absolute symlink and a .. that climbs back in through a
-// symlink, even when the OS would land inside; such a path is followed as
-// the OS follows it and the result, when inside, is read through the root.
-func readInRepository(file string) ([]byte, error) {
+// directory or absolute, failing closed. The path is resolved as the OS
+// resolves it (resolveAsOS), and the bytes are only ever read through an
+// os.Root opened on the project root, under the resolved name relative to
+// it, which holds no symlink and no .., so the root re-checks the containment
+// in the same operation as the read. The answers:
+//
+//   - resolved inside the repository: the bytes the root reads; any error of
+//     that read refuses (403).
+//   - missing, or through a non-directory, at a point the OS reaches inside
+//     the repository: tp export --file's not-found error for file as given,
+//     read from nothing. These are the inputs the command's os.Stat refuses
+//     with that same error while the path stays inside.
+//   - reaching outside the repository, missing or not: refused (403).
+//   - anything that cannot be decided — too many symlinks, a component that
+//     cannot be read, a root that cannot be opened or resolved: refused (403)
+//     with its cause.
+func readInRepository(file string) ([]byte, *dashboard.Error) {
+	refuse := func(why string) *dashboard.Error {
+		return dashboard.Forbidden("task file "+file+" "+why, dashboardOutsideHint)
+	}
 	top := engine.ProjectRoot(".")
 	root, err := os.OpenRoot(top)
 	if err != nil {
-		return nil, errOutsideRepository
+		return nil, refuse("is refused: the repository root cannot be opened: " + err.Error())
 	}
 	defer func() { _ = root.Close() }()
-	if name, ok := nameInRoot(top, file); ok {
-		data, err := root.ReadFile(name)
-		if err == nil || !escapesRoot(root, err) {
-			return data, err
-		}
+	resolvedTop, missing, err := resolveAsOS(top)
+	if err == nil && missing {
+		err = os.ErrNotExist
 	}
-	name, ok := resolvedNameInRoot(top, file)
-	if !ok {
-		return nil, errOutsideRepository
+	if err != nil {
+		return nil, refuse("is refused: the repository root cannot be resolved: " + err.Error())
+	}
+	resolved, missing, err := resolveFromWorkingDirectory(file)
+	if err != nil {
+		return nil, refuse("is refused: it cannot be told whether it lies outside the repository: " + err.Error())
+	}
+	name, inside := nameInside(resolvedTop, resolved)
+	switch {
+	case !inside:
+		return nil, refuse("is outside the repository")
+	case missing:
+		return nil, runErrorOf(exportDiscoverError(engine.ExplicitTaskFileMissing(file)))
 	}
 	data, err := root.ReadFile(name)
-	if err != nil && escapesRoot(root, err) {
-		return nil, errOutsideRepository
+	if err != nil {
+		return nil, refuse("is refused: the repository cannot read it: " + err.Error())
 	}
-	return data, err
+	return data, nil
 }
 
-// escapesRoot reports whether err is root's refusal of a path that leaves
-// it. os.Root exports no sentinel for that refusal, so it is taken from the
-// error root gives for "..", which always leaves the root; without one, every
-// error counts as leaving, so a failed probe refuses rather than serves.
-func escapesRoot(root *os.Root, err error) bool {
-	_, probe := root.Stat("..")
-	sentinel := errors.Unwrap(probe)
-	return sentinel == nil || errors.Is(err, sentinel)
-}
-
-// nameInRoot is file as a name relative to top, the root's directory,
-// uncleaned so the root walks every .. as the OS does: a relative file under
-// the working directory's place in top, an absolute one with top's prefix,
-// as written or with its symlinks resolved, cut off. An absolute path under
-// neither prefix has no such name.
-func nameInRoot(top, file string) (string, bool) {
-	sep := string(filepath.Separator)
+// resolveFromWorkingDirectory is resolveAsOS over file, absolute or joined
+// to the working directory uncleaned: a lexical clean would drop lnk/..
+// before lnk is followed, and the OS follows it first.
+func resolveFromWorkingDirectory(file string) (resolved string, missing bool, err error) {
 	if !filepath.IsAbs(file) {
-		cwd, err := filepath.Abs(".")
-		if err != nil {
-			return "", false
-		}
-		prefix, err := filepath.Rel(top, cwd)
-		if err != nil {
-			return "", false
-		}
-		if prefix == "." {
-			return file, true
-		}
-		return prefix + sep + file, true
-	}
-	bases := []string{top}
-	if resolvedTop, err := filepath.EvalSymlinks(top); err == nil && resolvedTop != top {
-		bases = append(bases, resolvedTop)
-	}
-	for _, base := range bases {
-		if rest, ok := strings.CutPrefix(file, strings.TrimSuffix(base, sep)+sep); ok {
-			return rest, true
-		}
-	}
-	return "", false
-}
-
-// resolvedNameInRoot follows file, against the working directory and
-// uncleaned, through every symlink in the order the OS does, and returns the
-// result relative to top's resolved directory when it lies inside. A path
-// that does not resolve, missing or dangling, has no such name.
-func resolvedNameInRoot(top, file string) (string, bool) {
-	sep := string(filepath.Separator)
-	raw := file
-	if !filepath.IsAbs(raw) {
 		cwd, err := os.Getwd()
 		if err != nil {
-			return "", false
+			return "", false, err
 		}
-		// Concatenated, not filepath.Join: Join cleans, and a lexical clean
-		// drops lnk/.. before lnk is followed.
-		raw = cwd + sep + file
+		file = cwd + string(filepath.Separator) + file
 	}
-	resolved, err := filepath.EvalSymlinks(raw)
-	if err != nil {
-		return "", false
-	}
-	resolvedTop, err := filepath.EvalSymlinks(top)
-	if err != nil {
-		return "", false
-	}
-	if resolved == resolvedTop {
+	return resolveAsOS(file)
+}
+
+// nameInside is resolved, a path resolveAsOS returned, relative to top, the
+// resolved project root, and whether it lies inside top at all.
+func nameInside(top, resolved string) (string, bool) {
+	if resolved == top {
 		return ".", true
 	}
-	return strings.CutPrefix(resolved, strings.TrimSuffix(resolvedTop, sep)+sep)
+	return strings.CutPrefix(resolved, strings.TrimSuffix(top, string(filepath.Separator))+string(filepath.Separator))
+}
+
+// maxSymlinks is how many symlinks the OS follows resolving one path before
+// it fails with ELOOP: MAXSYMLINKS, 32, on darwin and 40 on Linux.
+func maxSymlinks() int {
+	if runtime.GOOS == "darwin" {
+		return 32
+	}
+	return 40
+}
+
+// resolveAsOS follows path, absolute and uncleaned, one component at a time
+// the way the OS resolves it: a symlink's target replaces it, relative to the
+// directory reached so far, and a .. climbs from the directory actually
+// reached, not lexically. It returns the path with every symlink resolved.
+// When a component does not exist, or the path goes on through one that is
+// not a directory, missing is true and resolved is the directory the OS had
+// reached, where it would fail with ENOENT or ENOTDIR. Following more than
+// maxSymlinks symlinks is ELOOP; any other failure to inspect a component is
+// returned as is.
+func resolveAsOS(path string) (resolved string, missing bool, err error) {
+	sep := string(filepath.Separator)
+	vol := filepath.VolumeName(path)
+	dest, rest := vol+sep, path[len(vol):]
+	links := 0
+	for {
+		rest = strings.TrimLeft(rest, sep)
+		if rest == "" {
+			return dest, false, nil
+		}
+		comp, tail, more := strings.Cut(rest, sep)
+		rest = ""
+		if more {
+			rest = sep + tail
+		}
+		switch comp {
+		case ".":
+			continue
+		case "..":
+			dest = filepath.Dir(dest)
+			continue
+		}
+		next := filepath.Join(dest, comp)
+		info, err := os.Lstat(next)
+		switch {
+		case errors.Is(err, fs.ErrNotExist):
+			return dest, true, nil
+		case err != nil:
+			return "", false, err
+		case info.Mode()&fs.ModeSymlink == 0:
+			if more && !info.IsDir() {
+				return dest, true, nil
+			}
+			dest = next
+			continue
+		}
+		links++
+		if links > maxSymlinks() {
+			return "", false, &fs.PathError{Op: "resolve", Path: path, Err: syscall.ELOOP}
+		}
+		target, err := os.Readlink(next)
+		if err != nil {
+			return "", false, err
+		}
+		if filepath.IsAbs(target) {
+			tvol := filepath.VolumeName(target)
+			dest, target = tvol+sep, target[len(tvol):]
+		}
+		rest = target + rest
+	}
 }
