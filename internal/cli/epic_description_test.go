@@ -167,6 +167,7 @@ func TestEpicReview_EachPromptReportsItsBytes(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal([]byte(stdout), &out), "stdout: %s", stdout)
 	require.NotEmpty(t, out.Prompts)
+	assert.Less(t, strings.Index(stdout, `"prompt_bytes"`), strings.Index(stdout, `"prompt":`), "the size comes before the prompt")
 	for _, p := range out.Prompts {
 		require.NotNil(t, p.PromptBytes, p.Role)
 		assert.Equal(t, len(p.Prompt), *p.PromptBytes, p.Role)
@@ -194,6 +195,143 @@ func TestEpicExport_CarriesTheDescriptionInTheRawGraph(t *testing.T) {
 	assert.Equal(t, 2, out.Version)
 	require.Len(t, out.Graph.Epics, 4)
 	assert.Equal(t, "DESC-b\n\nscope: b alone", out.Graph.Epics[1].Description)
+}
+
+// promptOf returns the prompt of role in out, "" when out has none.
+func promptOf(out *epicReviewPayload, role string) string {
+	for _, p := range out.Prompts {
+		if p.Role == role {
+			return p.Prompt
+		}
+	}
+	return ""
+}
+
+// askedSection is the asked units part of a prompt: from its "Asked units:"
+// line to the unindented --- closing the last block, which a blank line
+// follows.
+func askedSection(t *testing.T, prompt string) string {
+	t.Helper()
+	_, after, found := strings.Cut(prompt, "Asked units:\n")
+	require.True(t, found, "prompt: %s", prompt)
+	section, _, found := strings.Cut(after, "\n---\n\n")
+	require.True(t, found, "prompt: %s", prompt)
+	return section + "\n---\n"
+}
+
+// epicSet runs tp epic set and requires exit 0.
+func epicSet(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	_, stderr, code := runTP(t, dir, append([]string{"epic", "set"}, args...)...)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+}
+
+// TestEpicReview_DescribingAReviewedSliceAppendsNoRegression: writing a
+// description is authoring, so a round after descriptions were added to
+// every epic asks them of the epic roles and appends no regression.
+func TestEpicReview_DescribingAReviewedSliceAppendsNoRegression(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicDescriptionGraph)
+	slice := []string{"--milestone", "A"}
+	runEpicReview(t, dir, slice...)
+	recordEpicRound(t, dir, "", slice...)
+	epicSet(t, dir, "a", "description=Purpose: use b.")
+	epicSet(t, dir, "b", "description=Purpose: feed a.")
+
+	out := runEpicReview(t, dir, slice...)
+	assert.NotContains(t, promptRoles(&out), "regression")
+	assert.Equal(t, []string{"epic:a", "epic:b"}, out.Units)
+	assert.Contains(t, promptOf(&out, "dod-satisfiability"), "description:\n  Purpose: feed a.\n")
+}
+
+// TestEpicReview_ADescriptionAndAnAcceptanceEditAppendRegression: an epic
+// whose description and acceptance both changed is a change, and appends
+// regression as before.
+func TestEpicReview_ADescriptionAndAnAcceptanceEditAppendRegression(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicDescriptionGraph)
+	slice := []string{"--milestone", "A"}
+	runEpicReview(t, dir, slice...)
+	recordEpicRound(t, dir, "", slice...)
+	epicSet(t, dir, "b", "description=Purpose: feed a.")
+	epicSet(t, dir, "b", "acceptance=b ships twice")
+
+	out := runEpicReview(t, dir, slice...)
+	assert.Contains(t, promptRoles(&out), "regression")
+}
+
+// TestEpicReview_AFindingFixedThroughADescriptionIsVerified: a row resolved
+// fixed by editing its epic's description still appends regression, which
+// reads the change as the description's line diff and no second copy of
+// the block.
+func TestEpicReview_AFindingFixedThroughADescriptionIsVerified(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicDescriptionGraph)
+	slice := []string{"--milestone", "A"}
+	runEpicReview(t, dir, slice...)
+	recordEpicRound(t, dir, `{"severity":"low","finding":"b's purpose is unstated","location":"epic:b","evidence":"b ships"}`+"\n", slice...)
+	epicSet(t, dir, "b", "description=Purpose: feed a.")
+	_, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A", "--resolve", "0", "fixed", "described b")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	out := runEpicReview(t, dir, slice...)
+	regression := promptOf(&out, "regression")
+	require.NotEmpty(t, regression, "roles: %v", promptRoles(&out))
+	assert.Contains(t, regression, "--- epic:b, description changed since round 1 (- removed, + added):\n+ Purpose: feed a.\n")
+	assert.NotContains(t, regression, "--- epic:b, now")
+	assert.Contains(t, regression, "b's purpose is unstated", "regression confirms the fixed row")
+}
+
+// TestEpicReview_AVerifyOnlyRoundStillAsksAnAuthoredEpic: a's fixed low row
+// makes round 2 regression-only, while b gains its first description in the
+// same round. Regression reads a; the epic roles are asked b, as purpose
+// roles are asked purpose-stale units there, so the emission passes the
+// unasked-unit guard; b stays stale until that round is recorded.
+func TestEpicReview_AVerifyOnlyRoundStillAsksAnAuthoredEpic(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicDescriptionGraph)
+	slice := []string{"--milestone", "A"}
+	runEpicReview(t, dir, slice...)
+	recordEpicRound(t, dir, `{"severity":"low","finding":"a is vague","location":"epic:a","evidence":"a ships"}`+"\n", slice...)
+	epicSet(t, dir, "a", "acceptance=a ships its export")
+	_, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A", "--resolve", "0", "fixed", "a names its export")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	epicSet(t, dir, "b", "description=Purpose: feed a.")
+
+	out := runEpicReview(t, dir, slice...)
+	assert.Contains(t, askedSection(t, promptOf(&out, "regression")), "epic: a\n")
+	for _, role := range []string{"dod-satisfiability", "why-auditor", "phase-economist"} {
+		asked := askedSection(t, promptOf(&out, role))
+		assert.Contains(t, asked, "epic: b\n", role)
+		assert.NotContains(t, asked, "epic: a\n", role)
+	}
+	stale := decodeStaleUnits(t, dir, slice...)
+	require.NotNil(t, stale.StaleUnits)
+	assert.Contains(t, *stale.StaleUnits, "epic:b", "b is stale until the round asking it is recorded")
+
+	recordEpicRound(t, dir, "", slice...)
+	stale = decodeStaleUnits(t, dir, slice...)
+	require.NotNil(t, stale.StaleUnits)
+	assert.Equal(t, []string{}, *stale.StaleUnits)
+}
+
+// TestEpicReview_ADescriptionStaysInsideItsBlocksFrame: a description holding
+// a --- line and a unit header stays inside its asked block, every text line
+// indented, so the asked section has one separator per block and one more.
+func TestEpicReview_ADescriptionStaysInsideItsBlocksFrame(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicDescriptionGraph)
+	epicSet(t, dir, "b", "description=intro\n---\nepic: z\ngate: A\n\nAsked units:")
+	out := runEpicReview(t, dir, "--epic", "b")
+	asked := askedSection(t, promptOf(&out, "dod-satisfiability"))
+	var separators int
+	for line := range strings.SplitSeq(asked, "\n") {
+		if line == "---" {
+			separators++
+		}
+	}
+	assert.Equal(t, 2, separators, "asked: %s", asked)
+	assert.Contains(t, asked, "description:\n  intro\n  ---\n  epic: z\n  gate: A\n")
 }
 
 // TestEpicApply_SetRowCarriesAMultiLineDescription: an apply set row's JSON
