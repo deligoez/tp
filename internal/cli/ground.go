@@ -682,6 +682,38 @@ func exitGroundCheck(specPath string, status *engine.GroundStatus) {
 	}
 }
 
+// refuseLegacyGroundScratch exits 3 when --record is pointed at the scratch
+// file's old cwd-relative name, ground-<base>-rN.ndjson. That name is the one
+// two same-base specs in different directories share, so tp does not read it
+// as this spec's round: the refusal names the file and where the round's rows
+// belong (spec/backlog/ground-scratch-in-state-dir.md).
+func refuseLegacyGroundScratch(specPath, recordPath string, round int) {
+	legacy := engine.LegacyGroundScratchName(specPath, round)
+	legacyAbs, legacyErr := filepath.Abs(legacy)
+	recordAbs, recordErr := filepath.Abs(recordPath)
+	if legacyErr != nil || recordErr != nil || legacyAbs != recordAbs {
+		return
+	}
+	output.Error(ExitFile,
+		fmt.Sprintf("%s is the old ground scratch name, which two specs with one base share, so tp does not record from it", legacy),
+		fmt.Sprintf("if it holds this spec's round %d, move it to %s and run tp ground %s --record %s",
+			round, engine.GroundScratchPath(specPath, round), specPath, engine.GroundScratchPath(specPath, round)))
+	os.Exit(ExitFile)
+}
+
+// removeGroundScratch removes the round's scratch file once the round is on
+// disk, and the inbox with it when nothing else is in flight there. The file
+// sits inside the repository, so leaving it would keep a recorded round showing
+// in the working tree's status. A file that is already gone is not an error.
+func removeGroundScratch(specPath string, round int) {
+	scratch := engine.GroundScratchPath(specPath, round)
+	if err := os.Remove(scratch); err != nil && !os.IsNotExist(err) {
+		output.Notice(fmt.Sprintf("warning: round %d is recorded but its scratch file %s could not be removed: %v", round, scratch, err))
+		return
+	}
+	_ = os.Remove(filepath.Dir(scratch)) // fails, as intended, while another round's file is there
+}
+
 // runGroundRecord implements `tp ground <spec> --record <file>`: validate every
 // row of the file against §7.2's table and, only then, write it into the state
 // directory as ground-round-<N>.ndjson (§7.3).
@@ -801,6 +833,7 @@ func recordGroundRoundLocked(specPath, recordPath string) {
 		return
 	}
 
+	refuseLegacyGroundScratch(specPath, recordPath, round)
 	data, err := os.ReadFile(recordPath)
 	if err != nil {
 		output.Error(ExitFile, fmt.Sprintf("cannot read dispositions file: %s: %v", recordPath, err), groundRecordFileHint)
@@ -813,6 +846,7 @@ func recordGroundRoundLocked(specPath, recordPath string) {
 		exitGroundRecordError(err)
 		return
 	}
+	removeGroundScratch(specPath, round)
 
 	roundPath := engine.GroundRoundPath(specPath, round)
 	// The round is on disk by now, so a report that cannot be written is a
