@@ -451,3 +451,21 @@ func TestScope_ImplicitGateHoldsALostAlternative(t *testing.T) {
 	assert.Equal(t, []string{"a1", "y", "y1"}, closureIDs(&s))
 	assert.False(t, GateGreen(g, "m0", states), "the gate waits on y and y1 too")
 }
+
+// TestScope_UntrackedMilestonesAreCrossTrack: a milestone no track lists has
+// no track to print, and two such milestones share none, so every closure
+// milestone other than the scope's own is cross_track when either side is
+// untracked.
+func TestScope_UntrackedMilestonesAreCrossTrack(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0"}}, Epics: []model.Epic{
+		scopeEpic("u1", "u0", scopeDeps("v1", "a1")...),
+		scopeEpic("v1", "v0"),
+		scopeEpic("a1", "m0"),
+	}}
+
+	assert.Equal(t, []ScopeMilestone{
+		{Milestone: "m0", Track: scopeTrack(0), CrossTrack: true, Size: 1, Epics: []ScopeEpic{{ID: "a1"}}},
+		{Milestone: "u0", Size: 1, Epics: []ScopeEpic{{ID: "u1"}}},
+		{Milestone: "v0", CrossTrack: true, Size: 1, Epics: []ScopeEpic{{ID: "v1"}}},
+	}, scopeOf(t, g, "u0").Closure)
+}
