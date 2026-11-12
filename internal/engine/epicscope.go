@@ -75,10 +75,13 @@ type ScopeUnneeded struct {
 // ScopeShrink is one closure epic's removal shrink: for a non-member, the
 // epics that leave the closure when every edge into it is cut, itself
 // included; for a member, the epics that leave when it is dropped from the
-// gate, a gate decision. Leaves is sorted by id and Size is its length.
+// gate, a gate decision. AnyOf is the epic's any-of mark in the closure
+// (ScopeEpic.AnyOf): cutting it is choosing another alternative. Leaves is
+// sorted by id and Size is its length, the epic itself counted.
 type ScopeShrink struct {
 	Epic   string   `json:"epic"`
 	Member bool     `json:"member"`
+	AnyOf  []string `json:"any_of,omitempty"`
 	Size   int      `json:"size"`
 	Leaves []string `json:"leaves"`
 }
@@ -285,7 +288,7 @@ func (w *scopeWalk) shrink(members []string, full scopeSet, closure []ScopeMiles
 	out := []ScopeShrink{}
 	for _, m := range closure {
 		for _, e := range m.Epics {
-			row := ScopeShrink{Epic: e.ID, Member: slices.Contains(members, e.ID)}
+			row := ScopeShrink{Epic: e.ID, Member: slices.Contains(members, e.ID), AnyOf: e.AnyOf}
 			var rest scopeSet
 			if row.Member {
 				rest = w.closure(slices.DeleteFunc(slices.Clone(members), func(id string) bool { return id == e.ID }), "")
