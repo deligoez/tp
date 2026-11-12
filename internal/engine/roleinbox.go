@@ -29,7 +29,7 @@ func roleInboxDir(specPath, phase string) string {
 var legacyRoleFileRe = regexp.MustCompile(`^(review|audit)-(.+)-r([1-9][0-9]*)-([a-z0-9]+(?:-[a-z0-9]+)*)\.ndjson$`)
 
 // LegacyRoleFile reports whether path's name is a role file in the
-// pre-1.12.0 shape, and if so the inbox file it belongs at relative to its
+// pre-1.12.0 shape, its role part naming a role tp recognises, and if so the inbox file it belongs at relative to its
 // spec's directory: .tp-review/<base>/<phase>-inbox/round-<N>-<role>.ndjson.
 // The old name is never read, since two same-base specs share it.
 func LegacyRoleFile(path string) (target string, ok bool) {
@@ -39,6 +39,11 @@ func LegacyRoleFile(path string) (target string, ok bool) {
 	}
 	round, err := strconv.Atoi(m[3])
 	if err != nil {
+		return "", false
+	}
+	// Only a role tp knows: an operator's own review-spec-r2-all.ndjson has
+	// the shape and is no role file, so it is merged as before.
+	if !RoleIsRecognised(filepath.Dir(path), "", m[4]) {
 		return "", false
 	}
 	return filepath.Join(".tp-review", m[2], m[1]+"-inbox", fmt.Sprintf("round-%d-%s.ndjson", round, m[4])), true
