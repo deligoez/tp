@@ -65,9 +65,9 @@ type ScopeOutside struct {
 
 // ScopeUnneeded is one earlier milestone's gate members no other gate of the
 // graph needs, in gate order. ImplicitGates names the other gates consulted
-// that were implicit, in milestone order: such a closure holds its whole
-// milestone, so it says nothing about which of that milestone's epics are
-// needed.
+// that were implicit and held an epic, in milestone order: such a closure
+// holds its whole milestone, so it says nothing about which of that
+// milestone's epics are needed.
 type ScopeUnneeded struct {
 	Milestone     string   `json:"milestone"`
 	Epics         []string `json:"epics"`
@@ -243,8 +243,8 @@ func (w *scopeWalk) unneededEarlier(milestone string) []ScopeUnneeded {
 	return out
 }
 
-// scopeGate is one milestone's gate: whether its members are implicit, and
-// its closure.
+// scopeGate is one milestone's gate: whether its members are implicit and it
+// holds at least one epic, and its closure.
 type scopeGate struct {
 	milestone string
 	implicit  bool
@@ -264,7 +264,8 @@ func (w *scopeWalk) allGates() []scopeGate {
 	out := make([]scopeGate, 0, len(names))
 	for _, m := range names {
 		members, _ := GateMembers(w.g, m)
-		out = append(out, scopeGate{milestone: m, implicit: len(w.g.Gates[m].Members) == 0, closure: w.closure(members, "")})
+		implicit := len(w.g.Gates[m].Members) == 0 && len(members) > 0
+		out = append(out, scopeGate{milestone: m, implicit: implicit, closure: w.closure(members, "")})
 	}
 	return out
 }
