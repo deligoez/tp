@@ -1,7 +1,8 @@
 # tp — The dashboard at the size of a real plan
 
-A backlog decision for 1.13.0. The operator asked for it and delegated the design decisions for the
-night to the agent and the tp-smart session; the cycle records which calls were made that way.
+A backlog decision for 1.13.0. The operator asked for it and delegated the night's design decisions
+to the agent, which took a second opinion from the tp-smart session; the cycle records which calls
+were made that way.
 
 Class: **decision**.
 
@@ -25,47 +26,68 @@ ways (the audit and the field report are in `spec/1.13.0-measurements.md`, as co
 ## 2. Decision
 
 **Layout belongs to tp, drawing to the page.** No JavaScript library is added: 1.8.0 rejected one for
-the same reason, and the layers already exist. tp computes a layered layout in Go — layers, then a
-few barycenter sweeps to order each layer, with dummy nodes for edges that skip layers — deterministic
-and tested; the API stays read-only and returns positions; the page draws SVG and handles pan, zoom
-and full screen.
+the same reason. tp computes a layered layout in Go. A node's layer is its dependency depth;
+milestones are bands of consecutive layers, so a milestone spans as many layers as its own chains
+need — one column per milestone would stack its epics and run edges inside the column, the current
+map's failure. Within a band, layers come from the longest path among that band's epics; each layer
+is ordered by a few barycenter sweeps, ties broken by file order so the output is stable.
+
+**One read-only dashboard endpoint, not `tp epic export`.** Positions are presentation and change
+with the drawing; the export is a versioned contract. The endpoint takes a closed `view` and the
+milestone or epic it is about, and returns nodes with **layer and order as small integers**, not
+pixels, and edges listed explicitly with their marks (on the critical path, an any-of group), so the
+page computes nothing about the graph. Every parameter is matched against ids the graph holds by
+lookup and never builds a path; `view` is a closed set; `depth` is clamped; anything else is a 400.
+Those refusals are tested first, and a golden test on a small graph pins the layout.
 
 **The graph is shown in scoped views, never all at once.**
 
 1. **Milestones**: milestones as nodes, their opens-after edges between them, each with its epic
-   count, its done count and the count of edges into it from other milestones. This is the overview.
-2. **A gate's closure**: pick a milestone; what its gate pulls in, columns by milestone, the critical
+   count, its done count and the count of edges into it from other milestones. The overview.
+2. **A gate's closure**: pick a milestone; what its gate pulls in, banded by milestone, the critical
    path marked, any-of alternatives drawn as one dashed fork. It draws `tp epic scope`'s own data.
 3. **An epic's neighbourhood**: what it depends on to the left and what depends on it to the right, to
    a chosen depth (default 2). Clicking a node re-centres on it. This replaces the chain list, which
    stays as a collapsible text view.
 
-**The map becomes usable.** A full-screen control (the Fullscreen API, with the plain wheel zooming
-while in full screen and Esc leaving it); pan and pinch on touch; search and any list selection
-centre and select the epic; the drawer narrows the map instead of covering it; nodes take focus with
-a roving tabindex and Enter selects; the drawer takes focus when it opens and returns it on close;
-the first view fits the width at a readable scale.
+Edges that skip layers are drawn as plain curves first, and selecting a node highlights its edges and
+dims the rest. Routing them through dummy nodes is added only if a screenshot of a closure near the
+measured 90th-percentile size does not read without them; the measurements record which.
+
+**The map becomes usable.** A full-screen control (the Fullscreen API, the plain wheel zooming while
+in full screen, Esc leaving it); pan and pinch on touch; search and any list selection centre and
+select the epic; the drawer narrows the map instead of covering it; nodes take focus with a roving
+tabindex and Enter selects; the drawer takes focus when it opens and returns it on close; the first
+view fits the width at a readable scale.
 
 **Waiting epics answers "what is blocked, and by what".** It groups the blocked epics of open
-milestones by what they wait on, each group headed by the blocker with its state (startable, claimed,
-waiting) and the number of epics it would unblock, ordered by that number; a few groups show, the
-rest behind "show all"; blocked epics of milestones not yet open collapse into one counted row. Ids
-in it link to the drawer, and its total agrees with the KPI or the difference is named. The section
-moves below the Plan map.
+milestones by what they wait on directly; an epic waiting on three blockers appears in three groups.
+Each group is headed by its blocker, the blocker's state (startable, claimed, waiting) and the number
+of epics waiting on it directly, and groups are ordered by that number. A few groups show, the rest
+behind "show all"; blocked epics of milestones not yet open collapse into one counted row. The
+section total counts distinct epics, so group sizes do not sum to it; the total agrees with the KPI or
+the difference is named. Ids in it link to the drawer. The section moves below the Plan map.
 
-**Smaller fixes in the same release.** The "open review loops" KPI splits slices that need a round
-from slices only stale after a graph edit; list titles wrap instead of cutting to a few letters; a
-gate's threshold and purpose are readable in full; a mark on epics with a description and a
-per-milestone count of described epics; named set slices appear with milestone slices in Plan
-review; Plan review stacks into cards on a phone; the header's update time reads relative; a
-favicon.
+**Smaller fixes, as their own commit series, dropped if review is busy.** The "open review loops" KPI
+splits slices that need a round from slices only stale after a graph edit; list titles wrap instead
+of cutting to a few letters; a gate's threshold and purpose are readable in full; a mark on epics with
+a description and a per-milestone count of described epics; named set slices appear in Plan review;
+Plan review stacks into cards on a phone; the header's update time reads relative; a favicon.
+
+**Build order** follows the complaints: full screen and map behaviour, then Waiting epics, then the
+endpoint and the three views, then the smaller fixes.
+
+**Verification.** The layout and the endpoint by Go tests; pure page functions by the existing page
+tests; behaviour by re-running the audit on the same synthetic graph against a checklist with one line
+per complaint, with before-and-after screenshots in the measurements.
 
 ## 3. Alternatives
 
-- **Vendor dagre or elk.** Rejected: hundreds of kilobytes to a megabyte for a layering the graph
-  already has, a second layout derivation beside tp's, and the first dependency of the page.
-- **Draw the whole graph as a layered DAG.** Rejected as the default: at plan size it is many layers
-  wide and tall and no ordering makes it readable; the scoped views are the readable sizes.
+- **Vendor dagre or elk.** Rejected: hundreds of kilobytes to a megabyte, a second layout derivation
+  beside tp's, and the first dependency of the page.
+- **Put positions in `tp epic export`.** Rejected: presentation in a versioned contract.
+- **Draw the whole graph as a layered DAG.** Rejected as the default: at plan size no ordering makes
+  it readable; the scoped views are the readable sizes.
 - **Render descriptions as markdown.** Deferred: 1.11.0 chose escaped preformatted text, and safe
   rendering needs a sanitiser the page does not have.
 
