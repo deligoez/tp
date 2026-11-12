@@ -112,6 +112,11 @@ type Epic struct {
 	Tags       []string  `json:"tags,omitempty"`
 	DependsOn  []EpicDep `json:"depends_on,omitempty"`
 	Acceptance string    `json:"acceptance,omitempty"`
+	// Description is the epic's optional markdown text: purpose, scope,
+	// non-goals, decisions and open questions (spec/backlog/
+	// epic-description.md). tp never parses it; empty or whitespace-only is
+	// unset and is not written.
+	Description string `json:"description,omitempty"`
 	// Root says the epic has no dependency on purpose; written only when true.
 	Root bool `json:"root,omitempty"`
 	// Condition marks a precondition the operator decides rather than work;

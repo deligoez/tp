@@ -23,10 +23,10 @@ func (e *EpicNotFoundError) Error() string {
 var EpicGraphSetKeys = []string{"milestones", "opens_after", "gates", "tag_checks"}
 
 // EpicFieldSetKeys are the epic fields tp epic set <id> writes. title,
-// milestone and acceptance take the value as written; tags and depends_on
-// take JSON; root and condition take true or false. The id is not settable:
-// it is the epic's identity.
-var EpicFieldSetKeys = []string{"title", "milestone", "tags", "depends_on", "acceptance", "root", "condition"}
+// milestone, acceptance and description take the value as written, a blank
+// description unsetting it; tags and depends_on take JSON; root and condition
+// take true or false. The id is not settable: it is the epic's identity.
+var EpicFieldSetKeys = []string{"title", "milestone", "tags", "depends_on", "acceptance", "description", "root", "condition"}
 
 // ParseEpicGraphSet decodes value for one of EpicGraphSetKeys and returns the
 // mutation that replaces that whole object, or for gates.<m>.<field> the one
@@ -192,6 +192,8 @@ func epicFieldSetter(field, value string) (func(*model.Epic), error) {
 		return func(e *model.Epic) { e.Milestone = value }, nil
 	case "acceptance":
 		return func(e *model.Epic) { e.Acceptance = value }, nil
+	case "description":
+		return func(e *model.Epic) { e.Description = value }, nil
 	case "tags":
 		var tags []string
 		if err := decodeStrict(value, &tags); err != nil {

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/deligoez/tp/internal/model"
 )
@@ -30,7 +31,7 @@ var (
 	}
 	knownEpicForbiddenEdgeKeys = map[string]bool{"from": true, "to": true, "why": true}
 	knownEpicKeys              = map[string]bool{
-		"id": true, "title": true, "milestone": true, "tags": true, "depends_on": true, "acceptance": true, "root": true,
+		"id": true, "title": true, "milestone": true, "tags": true, "depends_on": true, "acceptance": true, "description": true, "root": true,
 		"condition": true, "estimate_minutes": true, "claimed": true, "done": true,
 	}
 	knownEpicGateKeys     = map[string]bool{"members": true, "deferrable": true, "threshold": true, "purpose": true, "met": true}
@@ -175,8 +176,15 @@ func unknownKeys(obj map[string]json.RawMessage, known map[string]bool, prefix, 
 
 // WriteEpicGraph writes g to tpDir/epics.json as 2-space JSON with content
 // left unescaped, through a temp file and a rename so a lock-free reader never
-// sees a partial document. The caller holds the write lock.
+// sees a partial document. A whitespace-only description is unset, so it is
+// cleared here, at the one sink every writer shares. The caller holds the
+// write lock.
 func WriteEpicGraph(tpDir string, g *model.EpicGraph) error {
+	for i := range g.Epics {
+		if strings.TrimSpace(g.Epics[i].Description) == "" {
+			g.Epics[i].Description = ""
+		}
+	}
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)
