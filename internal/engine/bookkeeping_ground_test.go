@@ -103,6 +103,17 @@ func TestAnInFlightGroundScratchFileIsRoundBookkeeping(t *testing.T) {
 	assert.Equal(t, bk["review-round-3.ndjson"].Ref, entry.Ref, "the scratch file reports its round number")
 }
 
+// TestAnInFlightRoleFileIsRoundBookkeeping is the classifier half of
+// spec/backlog/role-files-in-state-dir.md: a review or audit role file in its
+// phase's inbox is round bookkeeping and reports its round number.
+func TestAnInFlightRoleFileIsRoundBookkeeping(t *testing.T) {
+	bk := groundBookkeeping(t, "review-round-3.ndjson", "review-inbox/round-3-tester.ndjson")
+	entry, found := bk["round-3-tester.ndjson"]
+	require.True(t, found)
+	assert.Equal(t, BookkeepingRound, entry.Kind)
+	assert.Equal(t, "3", entry.Ref, "the role file reports its round number")
+}
+
 // TestNextGroundRoundIsNotNumberedByTheBookkeepingRegex is the acceptance's
 // second half: widening roundNumberRe widens the bookkeeping reference and
 // nothing else. Numbering keeps its own matcher, which is anchored on
