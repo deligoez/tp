@@ -22,5 +22,5 @@ func TestEpicEmissionChanges_CapsALongList(t *testing.T) {
 	require.NoError(t, WriteEpicReviewSnapshot(dir, 1, units("a"), nil))
 	changes, err := EpicEmissionChanges(dir, 1, units("b"), nil)
 	require.NoError(t, err)
-	assert.Equal(t, []string{"units changed: 5 (epic:u1, epic:u2, epic:u3, …)"}, changes)
+	assert.Equal(t, []string{"units changed: 5 units (epic:u1, epic:u2, epic:u3, …)"}, changes)
 }

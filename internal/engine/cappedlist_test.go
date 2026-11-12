@@ -10,6 +10,6 @@ import (
 // list into its count and the first three.
 func TestCappedList_CountsPastThree(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, "a, b, c", CappedList([]string{"a", "b", "c"}))
-	assert.Equal(t, "4 (a, b, c, …)", CappedList([]string{"a", "b", "c", "d"}))
+	assert.Equal(t, "a, b, c", CappedList([]string{"a", "b", "c"}, "roles"))
+	assert.Equal(t, "4 roles (a, b, c, …)", CappedList([]string{"a", "b", "c", "d"}, "roles"))
 }

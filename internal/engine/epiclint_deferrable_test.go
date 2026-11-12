@@ -69,7 +69,7 @@ func TestLintEpicGraph_DeferrableRequiredCapsTheRequirers(t *testing.T) {
 		dependsOn("y1", "m0", "d1"), dependsOn("z1", "m0", "d1"), dependsOn("d1", "m0"))
 	found := findingsOf(t, LintEpicGraph(g, nil), EpicRuleDeferrableRequired)
 	require.Len(t, found, 1, "%v", found)
-	assert.Contains(t, found[0].Message, "required by 4 (w1, x1, y1, …)")
+	assert.Contains(t, found[0].Message, "required by 4 epics (w1, x1, y1, …)")
 }
 
 // TestLintEpicGraph_DeferrableRequiredSkips: no warning on an epic listed as
