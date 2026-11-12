@@ -39,6 +39,12 @@ fix needs a design choice leaves this file for a decision note.
   format. All three cost a contract; the decision is which one.
 - **`tp run` never spawns a regression unit.** A round the panel emits with a regression prompt is
   driven without it. Whether a run should grade regression, and as which unit kind, is the open question.
+- **A roles-hash read error is dropped on four record and status paths.** `rolesHash, _ =
+  engine.ComputeRolesHash(...)` in `internal/cli/audit_record.go` (two sites), `review_record.go`,
+  `review_status.go` and `run_status.go` discards the error, so a role corpus that cannot be read
+  records or compares an empty hash with no word. Found by reading in the v1.8.0 audit (round 4) and
+  present since July; not yet reproduced. The test: a role file that cannot be read makes
+  `tp audit --record` (and the other three) exit with the read error instead of recording.
 
 ## Decided elsewhere, not a fix
 
