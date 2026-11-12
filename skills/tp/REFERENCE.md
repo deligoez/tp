@@ -1806,7 +1806,8 @@ The read commands write nothing and list epics in graph order, every list `[]` w
   required part, which cannot actually be deferred (no lint rule reports this); `[]` when none.
   `unneeded_earlier`: for each milestone before `<m>` in its track, the not-done members of its gate
   that the closure of no other milestone's gate holds, tracked or not; `implicit_gates` names the
-  other gates consulted that were implicit, whose closure holds their whole milestone; a milestone
+  other gates consulted that were implicit and held an epic, whose closure holds their whole
+  milestone; a milestone
   with none is left out. `critical_path` is `tp epic status`'s `milestones[m].critical_path`.
   `fingerprint` is the hex sha256 of the sorted members, the sorted ids of the closure drawn blind to
   status (every epic taken as not done, every any-of member followed) and the threshold, each part
