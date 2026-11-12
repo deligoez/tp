@@ -40,10 +40,20 @@ before 1.11.0 gets the text in its blocks and none of the new instructions. What
 description is intent, scope, non-goals, decisions and open questions; behaviour written there is
 re-reviewed on every edit and ages as unbuilt spec text does.
 
+**Prompt size.** Every epic may eventually carry a description, so a slice's epic-role prompts grow
+by description length times asked epics. The cost is shown, not capped: a slice's `--status` reports
+the bytes of the blocks a round would ask now, a proxy available before anything is emitted, and the
+emission envelope reports each role's real prompt bytes. Before matters, because an emitted round
+is frozen and taking it back is the operator's `--discard`. The peak is the first pass: describing a
+whole milestone re-asks every epic of it at once, so the guideline is to add descriptions a set of
+epics at a time and review that set as its own slice (`--epics … --name`). No size threshold and no
+description-length lint until a field run shows agents failing on size.
+
 **Release criterion, written before its field run.** A clean run on real epics whose descriptions
 were written before any role output, judged by the operator's accepts and rejects. Descriptions that
 already disagree with their acceptance are kept unreconciled for the run, with the disagreements
-recorded beforehand and held back, so the run measures whether the roles catch them.
+recorded beforehand and held back, so the run measures whether the roles catch them. The run also
+reports whether a role agent read the whole prompt on a real slice at those description lengths.
 
 ## 2. Alternatives
 
