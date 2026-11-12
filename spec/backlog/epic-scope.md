@@ -122,6 +122,11 @@ is a further reason to name a gate's members.
   the next milestone.** Dropped, not moved: the scope payload holds no later epic to answer it from,
   and a deferrable inside the closure is already required by this gate. The gate-only role asks
   instead whether the deferrable mark or the edge requiring it is the mistake.
+- **Showing the gate-only role every not-done epic of earlier milestones outside the closure.**
+  Rejected: the list is unbounded and covers one of three blind spots, since an epic delivering a
+  need can also sit in a later milestone or be done. The role is told what it is not shown and
+  states a need rather than an absence; a later field run that rejects findings as "already exists
+  elsewhere" is the count that would reopen this.
 
 ## 3. Non-goals
 
