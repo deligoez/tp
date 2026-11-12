@@ -2,6 +2,7 @@ package cli
 
 import (
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -81,7 +82,7 @@ func runRun(_ *cobra.Command, args []string) error {
 	enterTree(taskFilePath, "tp run")
 
 	opts := engine.DriverOptions{
-		Root:     ".",
+		Root:     engine.CanonicalProjectRoot(filepath.Dir(taskFilePath)),
 		TaskFile: taskFilePath,
 		Spec:     specPath,
 		Workflow: engine.EffectiveWorkflowForTaskFile(taskFilePath),
@@ -173,7 +174,7 @@ func runRunDryRun(args []string) error {
 	enterTree(taskFilePath, "tp run --dry-run")
 
 	phase, round, units, err := engine.DryRunUnits(&engine.DriverOptions{
-		Root:     ".",
+		Root:     engine.CanonicalProjectRoot(filepath.Dir(taskFilePath)),
 		TaskFile: taskFilePath,
 		Spec:     specPath,
 	})

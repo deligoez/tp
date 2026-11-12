@@ -29,19 +29,40 @@ const noRunStateHint = "start a run with tp run; --status reports the current or
 // that is still in flight instead of queueing behind it. That is the whole
 // reason the run state is written at all: §3.5 makes the file observability
 // rather than truth, and this is its one reader.
+// taskFileUnderRoot names a task file relative to its project root, which a
+// base two task files can share does not.
+func taskFileUnderRoot(root, taskFile string) string {
+	if rel, err := filepath.Rel(root, engine.CanonicalPath(taskFile)); err == nil {
+		return rel
+	}
+	return taskFile
+}
+
+// noRunStateHintFor is the no-run-state hint, naming the directory to start
+// the run from when the task file belongs to another project.
+func noRunStateHintFor(root string) string {
+	if engine.SameProjectRoot(root, ".") {
+		return noRunStateHint
+	}
+	return fmt.Sprintf("the task file belongs to the project at %s: start the run from %s with tp run there; --status reports the current or last run from anywhere", root, root)
+}
+
 func runRunStatus(args []string) error {
 	taskFilePath, specPath, _ := resolveCycle(args)
 
-	st, err := engine.ReadRunState(".", taskFilePath)
+	// The run state is keyed against the task file's project root, as the
+	// driver writes it, so a run started from a subdirectory is found here.
+	root := engine.CanonicalProjectRoot(filepath.Dir(taskFilePath))
+	st, err := engine.ReadRunState(root, taskFilePath)
 	if err != nil {
 		// A missing file is not a failure — it is the answer that no run has
 		// been driven over this cycle — so §3.5 gives it exit 3 with a hint
 		// naming the command that would produce one.
 		if errors.Is(err, os.ErrNotExist) {
 			output.Error(ExitFile,
-				fmt.Sprintf("no run state for %s", filepath.Base(taskFilePath)), noRunStateHint)
+				fmt.Sprintf("no run state for %s", taskFileUnderRoot(root, taskFilePath)), noRunStateHintFor(root))
 		} else {
-			output.Error(ExitFile, err.Error(), "delete "+engine.RunStatePath(".", taskFilePath)+" to clear a corrupt run state")
+			output.Error(ExitFile, err.Error(), "delete "+engine.RunStatePath(root, taskFilePath)+" to clear a corrupt run state")
 		}
 		os.Exit(ExitFile)
 		return nil
