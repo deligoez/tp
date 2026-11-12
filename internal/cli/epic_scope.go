@@ -41,8 +41,9 @@ type epicScopeCompact struct {
 
 // epicScopeCompactHolds is one holds_opening row without its epics.
 type epicScopeCompactHolds struct {
-	Milestone string `json:"milestone"`
-	Size      int    `json:"size"`
+	Milestone       string `json:"milestone"`
+	MembersImplicit bool   `json:"members_implicit"`
+	Size            int    `json:"size"`
 }
 
 // epicScopeCompactMilestone is one closure milestone without its epics.
@@ -127,7 +128,7 @@ func epicScopeCompactOf(scope *engine.EpicScope) epicScopeCompact {
 		out.Shrink = append(out.Shrink, epicScopeCompactShrink{Epic: r.Epic, Member: r.Member, AnyOf: r.AnyOf, Size: r.Size})
 	}
 	for _, r := range scope.HoldsOpening {
-		out.HoldsOpening = append(out.HoldsOpening, epicScopeCompactHolds{Milestone: r.Milestone, Size: r.Size})
+		out.HoldsOpening = append(out.HoldsOpening, epicScopeCompactHolds{Milestone: r.Milestone, MembersImplicit: r.MembersImplicit, Size: r.Size})
 	}
 	return out
 }
