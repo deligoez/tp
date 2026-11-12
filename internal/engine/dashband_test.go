@@ -89,3 +89,23 @@ func TestDashboardBandOf_ReadsTheRepositorysTaskFiles(t *testing.T) {
 	assert.Equal(t, 2, band.Phases[PhaseImplement], "with no graph both task files count")
 	assert.Equal(t, BandPhasesOfTaskFiles, band.PhasesOf)
 }
+
+// TestDashboardBandOf_AOneEpicGraphCountsItsEpic: a graph holding a single
+// claimed epic is a graph, so the band counts that epic and leaves the
+// unbound task file out. Reading a one-epic graph as no graph counts the file.
+func TestDashboardBandOf_AOneEpicGraphCountsItsEpic(t *testing.T) {
+	t.Parallel()
+	root := boundFilesRepo(t)
+	require.NoError(t, os.WriteFile(filepath.Join(root, "u.md"), []byte("# U\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "u.tasks.json"), []byte(`{"version":1,"spec":"u.md","tasks":[`+
+		`{"id":"t1","title":"T","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"a","source_sections":["x"]}]}`), 0o600))
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"M"}}, Epics: []model.Epic{
+		{ID: "a", Title: "A", Milestone: "M", Root: true, Claimed: &model.EpicClaim{At: time.Now().UTC(), By: "agent"}},
+	}}
+
+	band, err := DashboardBandOf(root, g)
+	require.NoError(t, err)
+	assert.Equal(t, BandPhasesOfEpics, band.PhasesOf)
+	assert.Equal(t, 1, band.Stages[EpicStatusClaimed])
+	assert.Equal(t, 0, band.Phases[PhaseImplement], "the unbound file is not counted while a graph exists")
+}
