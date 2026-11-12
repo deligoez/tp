@@ -137,3 +137,14 @@ func TestEpicMapRows_AnEpicSitsAtTheMeanRowOfItsDependencies(t *testing.T) {
 		"M3": {"u", "v"},
 	}, EpicMapRows(g, EpicMapLanes(g)))
 }
+
+// TestEpicMapRows_AnEpicWhoseDependenciesAreUnplacedComesLast: y depends only
+// on u, whose milestone no track lists, so no row places u and y follows x,
+// whose dependency a is placed, though the graph lists y first.
+func TestEpicMapRows_AnEpicWhoseDependenciesAreUnplacedComesLast(t *testing.T) {
+	g := rowsGraph([]string{"M1", "M2"},
+		rowsEpic("r", "M1"), rowsEpic("a", "M1", "r"), rowsEpic("u", "U"),
+		rowsEpic("y", "M2", "u"), rowsEpic("x", "M2", "a"),
+	)
+	assert.Equal(t, []string{"x", "y"}, EpicMapRows(g, EpicMapLanes(g))["M2"])
+}
