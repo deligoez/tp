@@ -406,9 +406,9 @@ func epicReviewPayload(run *epicReviewRun, roles []model.Role, prompts []epicRev
 		epicSliceLabel(run.key))
 	switch {
 	case len(units) == 0:
-		next = fmt.Sprintf("no unit is asked this round: record an empty file with tp epic review %s --record <empty file>", epicSliceLabel(run.key))
+		next = fmt.Sprintf("no unit is asked this round: record it empty with tp epic review %s --record-inbox, which needs no file", epicSliceLabel(run.key))
 	case built == 0:
-		next = fmt.Sprintf("no role is asked a unit of its kinds this round: record an empty file with tp epic review %s --record <empty file>", epicSliceLabel(run.key))
+		next = fmt.Sprintf("no role is asked a unit of its kinds this round: record it empty with tp epic review %s --record-inbox, which needs no file", epicSliceLabel(run.key))
 	}
 	return epicReviewResult{
 		StateDir:          epicReviewStateDirOut(run),
