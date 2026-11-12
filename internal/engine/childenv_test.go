@@ -207,6 +207,17 @@ func TestRunStateIsKeyedByTheTaskFilesLocation(t *testing.T) {
 	assert.Equal(t, filepath.Join(root, ".tp", "run-x%2Fa.json"), RunStatePath(root, x), "a nested one is keyed by its directory")
 }
 
+// TestCycleKeyCannotCollideAcrossTheRoot: a root task file whose base looks
+// like an escaped nested key, x%2Fa.tasks.json, must not share run state with
+// x/a.tasks.json, so the root base is escaped too; an ordinary name is
+// unchanged by the escape.
+func TestCycleKeyCannotCollideAcrossTheRoot(t *testing.T) {
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	assert.NotEqual(t, CycleKey(root, filepath.Join(root, "x%2Fa.tasks.json")), CycleKey(root, filepath.Join(root, "x", "a.tasks.json")))
+	assert.Equal(t, "0.35.0", CycleKey(root, filepath.Join(root, "0.35.0.tasks.json")))
+}
+
 // assertULID checks the canonical text form: 26 Crockford base32 characters
 // whose first is never above '7', since the 48-bit timestamp pads into a 50-bit
 // field.
