@@ -199,10 +199,18 @@ func runConfig(_ *cobra.Command, _ []string) error {
 
 // configEpic is tp config's epic block: the effective placeholder pattern,
 // the default when .tp/config.json does not set it, and under --resolved
-// the layer it came from (project or default). A malformed config has
-// already aborted in resolveConfigWorkflow.
+// the layer it came from (project or default). A project pattern that does
+// not compile warns and reports the default, the pattern the epic commands
+// use. A malformed config has already aborted in resolveConfigWorkflow.
 func configEpic(resolved bool) map[string]any {
 	pattern, fromProject, _ := engine.ProjectThresholdPlaceholder(engine.DiscoverTPDir("."))
+	if _, err := engine.NewPlaceholderMatcher(pattern); fromProject && err != nil {
+		// The epic commands fall back to the default for a pattern that does
+		// not compile, so the default is what tp config reports as effective.
+		fmt.Fprintf(os.Stderr, "warning: %s: the project's pattern does not compile (%v); the default pattern is in effect (tp validate --project reports it)\n",
+			engine.ThresholdPlaceholderKey, err)
+		pattern, fromProject = engine.DefaultThresholdPlaceholder, false
+	}
 	if resolved {
 		return map[string]any{"threshold_placeholder": map[string]any{"value": pattern, "source": sourceLabel(false, fromProject)}}
 	}
