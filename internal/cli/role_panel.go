@@ -15,6 +15,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -77,6 +78,19 @@ type rolePanel struct {
 	// with enabled: false — so each phase's emission can name them in
 	// skipped_roles with reason disabled-by-spec (§2.4).
 	disabled []string
+}
+
+// phaseRolesHash is engine.ComputeRolesHash for a command that stamps or
+// compares a phase's corpus hash. A role file that cannot be read aborts with
+// the file error (exit 3) resolveRolePanel raises for a malformed one, so no
+// round is recorded, and no roles_stale reported, against an empty hash.
+func phaseRolesHash(specPath, phase string) string {
+	h, err := engine.ComputeRolesHash(filepath.Dir(specPath), phase)
+	if err != nil {
+		output.Error(ExitFile, err.Error(), "repair or delete the offending role file under .tp/"+phase+"/")
+		os.Exit(ExitFile)
+	}
+	return h
 }
 
 // resolveRolePanel is the refusing wrapper over engine.ResolveRolePanel: it

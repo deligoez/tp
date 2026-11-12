@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/deligoez/tp/internal/engine"
@@ -69,7 +68,7 @@ func runReviewStatus(specPath string, check bool) error {
 	// converged, or the cap reached with every finding of the latest round
 	// dispositioned. converged stays the narrower fact it always reported.
 	done := engine.ReviewLoopDone(specPath, rounds, wf.ReviewCleanRounds, wf.ReviewMaxRounds, specHash, wf.ReviewConvergeOn)
-	rolesHash, _ := engine.ComputeRolesHash(filepath.Dir(specPath), engine.PhaseReviewers)
+	rolesHash := phaseRolesHash(specPath, engine.PhaseReviewers)
 
 	// Plain --status runs no check, so it keeps §3.2's registration rule and
 	// cannot know whether --check passes (Unverified). --check knows: a class is

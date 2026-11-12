@@ -125,14 +125,16 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 		return nil
 	}
 
+	// Reviewer corpus hash at record time (§9.2), stored on the round entry.
+	// Computed ahead of the first state write so an unreadable role file
+	// refuses the round with nothing on disk.
+	rolesHash := phaseRolesHash(specPath, engine.PhaseReviewers)
+
 	// --record creates the state directory when absent; it never writes snapshots
 	if _, err := engine.EnsureReviewState(specPath); err != nil {
 		exitStateError(err)
 		return nil
 	}
-
-	// Reviewer corpus hash at record time (§9.2), stored on the round entry.
-	rolesHash, _ := engine.ComputeRolesHash(filepath.Dir(specPath), engine.PhaseReviewers)
 
 	var st *engine.ReviewState
 	var round int

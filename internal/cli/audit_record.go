@@ -111,12 +111,17 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 		return nil
 	}
 
+	// Auditor corpus hash at record time (§9.2), computed ahead of the first
+	// state write so an unreadable role file refuses the round with nothing on
+	// disk.
+	roundRolesHash := phaseRolesHash(specPath, engine.PhaseAuditors)
+
 	if _, err := engine.EnsureReviewState(specPath); err != nil {
 		exitStateError(err)
 		return nil
 	}
 
-	st, round, roundRolesHash, lockErr := recordAuditRoundEntry(specPath, data, findings, clean, harnessNote, wfPre.AuditConvergeOn)
+	st, round, lockErr := recordAuditRoundEntry(specPath, data, findings, clean, harnessNote, wfPre.AuditConvergeOn, roundRolesHash)
 	if lockErr != nil {
 		exitStateError(lockErr)
 		return nil
@@ -215,13 +220,11 @@ func auditSignalFields(result map[string]any, specPath string, rounds []engine.R
 // audit-round-<N>.ndjson and appends the round entry to state.json under the
 // state flock (round file first, index entry second).
 //
-// It returns the auditor-corpus hash it stamped on the new round entry, so
-// §2.4's condition 5 can compare the stored hash against the value this one
-// computation produced instead of hashing the corpus a second time on the
-// --record path.
-func recordAuditRoundEntry(specPath string, data []byte, findings int, clean bool, harnessNote, convergeOn string) (st *engine.ReviewState, round int, rolesHash string, err error) {
-	// Auditor corpus hash at record time (§9.2), stored on the round entry.
-	rolesHash, _ = engine.ComputeRolesHash(filepath.Dir(specPath), engine.PhaseAuditors)
+// rolesHash is the auditor-corpus hash the caller computed once, before any
+// state write; it is stamped on the new round entry, and §2.4's condition 5
+// compares against that same value instead of hashing the corpus a second time
+// on the --record path.
+func recordAuditRoundEntry(specPath string, data []byte, findings int, clean bool, harnessNote, convergeOn, rolesHash string) (st *engine.ReviewState, round int, err error) {
 	err = engine.WithReviewStateLock(specPath, func() error {
 		loaded, loadErr := engine.LoadReviewState(specPath)
 		if loadErr != nil {
@@ -276,7 +279,7 @@ func recordAuditRoundEntry(specPath string, data []byte, findings int, clean boo
 		}
 		return engine.SaveReviewState(specPath, st)
 	})
-	return st, round, rolesHash, err
+	return st, round, err
 }
 
 // parseAuditRows parses rows with the shared line rules, returning them
@@ -410,7 +413,7 @@ func runAuditStatus(specPath string, check bool) error {
 	converged := engine.Converged(rounds, wf.AuditCleanRounds, specHash)
 	done := engine.AuditLoopDone(specPath, rounds, wf.AuditCleanRounds, wf.AuditMaxRounds, specHash)
 	stale := engine.StateStale(rounds, specHash)
-	rolesHash, _ := engine.ComputeRolesHash(filepath.Dir(specPath), engine.PhaseAuditors)
+	rolesHash := phaseRolesHash(specPath, engine.PhaseAuditors)
 
 	result := map[string]any{
 		"audit_rounds":          rounds,
