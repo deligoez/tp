@@ -111,3 +111,29 @@ func TestDashboard_RefusesADotDotPastAnInRepoSymlinkLeadingOut(t *testing.T) {
 	got, body := getPage(t, strings.TrimSuffix(srv.url, "/")+"/api/export?file="+url.QueryEscape("sub/../spec.tasks.json"))
 	assert.Equal(t, http.StatusOK, got, body)
 }
+
+// requireSameErrorAsCommand requires GET /api/export?file=<file> to answer
+// status with the error, code and hint tp export --file <file> exits with in
+// dir.
+func requireSameErrorAsCommand(t *testing.T, srv *dashboardServer, dir, file string, status int) {
+	t.Helper()
+	_, stderr, code := runTP(t, dir, "export", "--file", file)
+	require.NotEqual(t, 0, code, file)
+	var want dashboardError
+	require.NoError(t, json.Unmarshal([]byte(stderr), &want), "tp export --file %s: %s", file, stderr)
+	got := getDashboardError(t, srv, "/api/export?file="+url.QueryEscape(file), status)
+	assert.Equal(t, want, got, file)
+}
+
+// TestDashboard_MissingTaskFileNamesThePathAsGiven: a task file that does
+// not exist answers 404 with tp export's own error, naming the path as the
+// caller gave it, not a resolved absolute one.
+func TestDashboard_MissingTaskFileNamesThePathAsGiven(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeTaskFileRaw(t, dir, `[]`)
+	initGitRepo(t, dir)
+	srv := startDashboard(t, dir, freePort(t))
+
+	requireSameErrorAsCommand(t, srv, dir, "missing.tasks.json", http.StatusNotFound)
+}
