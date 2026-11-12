@@ -925,7 +925,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 ### Global flags
 | Flag | Purpose |
 |------|---------|
-| `--file <path>` | Explicit task file path |
+| `--file <path>` | Explicit task file path. Its project config (`.tp/`) is the one found from the task file's own directory (v1.12.0), and work in the tree — `done`, `close`, `commit`, `import`, `review`, `audit`, `run`, registered checks — exits 2 naming the directory to run from when that task file belongs to another project; reports (`status`, `show`, `plan`, `resume`, ...) still work from outside |
 | `--json` | Force JSON output (default when piped) |
 | `--compact` / `--no-compact` | Minimal JSON (~40% smaller) / force full output |
 | `--quiet` / `--no-quiet` | Suppress info messages / force info output |
