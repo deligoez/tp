@@ -126,6 +126,9 @@ func TestWithRunLock_LeavesTheTaskFileWriteLockFree(t *testing.T) {
 // same cycle concurrently.
 func TestWithRunLock_LockFileSurvivesRelease(t *testing.T) {
 	target := runLockTarget(t)
+	// Inside a repository: there the .tp/ the lock lands in is at the root,
+	// so its .gitignore anchors nothing that was not the root already.
+	require.NoError(t, os.MkdirAll(filepath.Join(filepath.Dir(target), ".git"), 0o750))
 
 	require.NoError(t, WithRunLock(target, func() error {
 		_, err := os.Stat(RunLockPath(target))
