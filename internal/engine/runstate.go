@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// RunState is §3.5's run state file — .tp/run-<base>.json, named per task file
+// RunState is §3.5's run state file — .tp/run-<key>.json, named per task file
 // because the run lock is per task file and two runs over different cycles in
 // one repository are permitted.
 //
@@ -54,9 +54,9 @@ type RunUnitRow struct {
 	LogPath         string   `json:"log_path"`
 }
 
-// RunStatePath returns a cycle's run state file, .tp/run-<base>.json under the
-// repository root — absolute, for the reason TP_RUN_DIR is (§3.1.1): the
-// readers of this path do not all share a working directory.
+// RunStatePath returns a cycle's run state file, .tp/run-<key>.json under the
+// project root (CycleKey) — absolute, for the reason TP_RUN_DIR is (§3.1.1):
+// the readers of this path do not all share a working directory.
 func RunStatePath(root, taskFile string) string {
 	return absoluteUnder(root, filepath.Join(".tp", "run-"+CycleKey(root, taskFile)+".json"))
 }

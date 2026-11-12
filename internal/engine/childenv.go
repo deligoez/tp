@@ -103,11 +103,11 @@ func driverEnv(u *UnitEnv) map[string]string {
 	return env
 }
 
-// RunBase returns the <base> that names a cycle's run artifacts —
-// .tp/run-<base>.json, .tp/locks/run-<base>.lock, .tp/last_failure-<base>.json
-// and .tp/rounds/<base>: the task file's name with its .tasks.json suffix
-// removed. They are named per task file (§3.5), so two cycles in one repository
-// never collide.
+// RunBase returns a task file's <base>: its name with the .tasks.json suffix
+// removed. CycleKey builds the <key> of a cycle's run artifacts from it —
+// .tp/run-<key>.json, .tp/locks/run-<key>.lock, .tp/last_failure-<key>.json —
+// and RoundDir the last segment of its round directory, so two cycles in one
+// repository never collide (§3.5).
 func RunBase(taskFile string) string {
 	return strings.TrimSuffix(filepath.Base(taskFile), ".tasks.json")
 }

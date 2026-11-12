@@ -30,7 +30,7 @@ type LastFailure struct {
 }
 
 // LastFailurePath returns a cycle's last-failure file,
-// .tp/last_failure-<base>.json under the repository root — named per task file
+// .tp/last_failure-<key>.json under the project root (CycleKey) — named per task file
 // and absolute for the same reasons the run state is (§3.5): two cycles in one
 // repository never collide, and the writers and readers of this path do not
 // share a working directory.
