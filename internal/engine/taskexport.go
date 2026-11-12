@@ -88,11 +88,16 @@ func TaskExportOf(start, taskFilePath string) (TaskExport, error) {
 }
 
 // repoRelative is path relative to start's git top level, slash-separated;
-// path itself when there is none or path lies outside it. The top level git
+// path itself when there is none or path lies outside it.
+func repoRelative(start, path string) string {
+	return repoRelativeTo(gitToplevel(start), path)
+}
+
+// repoRelativeTo is path relative to root, a git top level, slash-separated;
+// path itself when root is "" or path lies outside it. The top level git
 // prints has its symlinks resolved, so path's are resolved too before the two
 // are compared.
-func repoRelative(start, path string) string {
-	root := gitToplevel(start)
+func repoRelativeTo(root, path string) string {
 	abs, err := filepath.Abs(path)
 	if err != nil || root == "" {
 		return filepath.ToSlash(path)
