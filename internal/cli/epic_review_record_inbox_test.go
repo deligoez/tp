@@ -100,8 +100,8 @@ func TestEpicReviewRecordInbox_RefusesAMissingFileNamingTheRole(t *testing.T) {
 	_, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A", "--record-inbox")
 	require.Equal(t, 3, code, "stderr: %s", stderr)
 	msg, hint := epicErrorOf(t, stderr)
-	assert.Contains(t, msg, "role "+missing.Role+" wrote no findings file")
-	assert.Contains(t, hint, "empty file")
+	assert.Contains(t, msg, "no findings file from roles "+missing.Role+" in "+filepath.Join(out.StateDir, "inbox"))
+	assert.Contains(t, hint, "run the prompts of roles "+missing.Role+", each writing its file (empty when it finds nothing), then tp epic review --milestone A --record-inbox")
 }
 
 // TestEpicReviewRecordInbox_AcceptsEmptyFiles: every role found nothing and
@@ -136,7 +136,7 @@ func TestEpicReviewRecordInbox_ADiscardedEmissionsFilesAreNotRecorded(t *testing
 
 	_, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A", "--record-inbox")
 	require.Equal(t, 3, code, "stderr: %s", stderr)
-	assert.Contains(t, stderr, "wrote no findings file")
+	assert.Contains(t, stderr, "no findings file from roles")
 
 	writeInbox(t, &fresh, nil)
 	stdout, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A", "--record-inbox")
