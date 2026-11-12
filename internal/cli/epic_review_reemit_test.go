@@ -129,24 +129,53 @@ func TestEpicReemit_DiscardWithNoEmissionIsAStateError(t *testing.T) {
 }
 
 // TestEpicReemit_DiscardStaysOneSliceAndOneMode: --discard beside a batch
-// flag, --record, --record-inbox, --resolve or --resolve-all is a usage error.
+// flag or any other mode or narrowing flag exits 2, tp epic review's
+// invalid-combination code, and the emission stays: each call would succeed
+// alone, so the refusal is the combination's.
 func TestEpicReemit_DiscardStaysOneSliceAndOneMode(t *testing.T) {
 	t.Parallel()
 	dir := epicGraphDir(t, epicChain)
-	for _, args := range [][]string{
-		{"--milestones", "A"}, {"--all"},
-		{"--milestone", "A", "--record", "rows.ndjson"}, {"--milestone", "A", "--record-inbox"},
-		{"--milestone", "A", "--resolve", "0", "fixed"}, {"--milestone", "A", "--resolve-all", "fixed"},
+	out := runEpicReview(t, dir, "--milestone", "A")
+	snapshot := filepath.Join(dir, out.StateDir, "snapshot-round-1.json")
+	for name, args := range map[string][]string{
+		"milestones":   {"--milestones", "A"},
+		"all":          {"--all"},
+		"record":       {"--milestone", "A", "--record", "rows.ndjson"},
+		"record-inbox": {"--milestone", "A", "--record-inbox"},
+		"resolve":      {"--milestone", "A", "--resolve", "0", "fixed"},
+		"resolve-all":  {"--milestone", "A", "--resolve-all", "fixed"},
+		"status":       {"--milestone", "A", "--status"},
+		"check":        {"--milestone", "A", "--status", "--check"},
+		"history":      {"--milestone", "A", "--history"},
+		"of-epic":      {"--history", "--of-epic", "a"},
+		"report":       {"--milestone", "A", "--report"},
+		"grant-round":  {"--milestone", "A", "--grant-round"},
+		"role":         {"--milestone", "A", "--role", "why-auditor"},
+		"force":        {"--milestone", "A", "--force"},
 	} {
 		_, stderr, code := runTP(t, dir, append(append([]string{"epic", "review"}, args...), "--discard")...)
-		assert.Equal(t, 2, code, "%v: stderr: %s", args, stderr)
+		assert.Equal(t, 2, code, "%s: stderr: %s", name, stderr)
+		_, err := os.Stat(snapshot)
+		require.NoError(t, err, "%s: the emission stays", name)
 	}
 }
 
-// TestEpicReemit_ForceOnAPlainEmissionDiscardsNothing: --force means only
-// re-resolving, as in v1.9.0; on an emission it is ignored, so a changed
-// unrecorded round is still refused and the emission stays.
-func TestEpicReemit_ForceOnAPlainEmissionDiscardsNothing(t *testing.T) {
+// TestEpicReview_GrantRoundStaysAlone: --grant-round beside --record-inbox or
+// --discard exits 2 like beside every other mode.
+func TestEpicReview_GrantRoundStaysAlone(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChain)
+	for _, flag := range []string{"--record-inbox", "--discard"} {
+		_, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A", "--grant-round", flag)
+		assert.Equal(t, 2, code, "%s: stderr: %s", flag, stderr)
+		assert.Contains(t, stderr, "--grant-round takes no "+flag)
+	}
+}
+
+// TestEpicReemit_ForceWithoutResolveIsRefused: --force only re-resolves on
+// epic review, so without --resolve or --resolve-all it exits 2, naming
+// --discard for a discard, and writes nothing.
+func TestEpicReemit_ForceWithoutResolveIsRefused(t *testing.T) {
 	t.Parallel()
 	dir := epicGraphDir(t, epicChain)
 	runEpicReview(t, dir, "--milestone", "A", "--force")
