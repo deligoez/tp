@@ -12,44 +12,75 @@ import (
 	"github.com/deligoez/tp/internal/model"
 )
 
-// epicFindingContract is the row shape every graph role writes: the review
-// gate's four required keys, located on a unit of the slice (spec/1.3.0.md §5).
-const epicFindingContract = "\n\nOutput contract — write one JSON object per line (NDJSON), each with:\n" +
-	"- severity: one of critical, high, medium, low\n" +
-	"- finding: what is wrong, in English\n" +
-	"- location: \"epic:<id>\" for an asked epic, or \"gate:<milestone>\" for the asked gate; a finding on an edge belongs to its source epic\n" +
-	"- evidence: the block text you read to reach this finding\n" +
-	"Locate findings on asked units only; a context epic is not reviewed. No finding is a normal result: write an empty file.\n"
+// epicFindingContract is the row shape a graph role writes: the review gate's
+// four required keys, located on a unit of the kinds it is asked
+// (spec/1.3.0.md §5).
+func epicFindingContract(kinds map[string]bool) string {
+	var locs []string
+	for _, k := range epicUnitKinds {
+		if kinds[k.kind] {
+			locs = append(locs, k.location)
+		}
+	}
+	loc := strings.Join(locs, ", ")
+	if n := len(locs); n > 1 {
+		loc = strings.Join(locs[:n-1], ", ") + ", or " + locs[n-1]
+	}
+	if kinds[model.RoleUnitEpics] {
+		loc += "; a finding on an edge belongs to its source epic"
+	}
+	return "\n\nOutput contract — write one JSON object per line (NDJSON), each with:\n" +
+		"- severity: one of critical, high, medium, low\n" +
+		"- finding: what is wrong, in English\n" +
+		"- location: " + loc + "\n" +
+		"- evidence: the block text you read to reach this finding\n" +
+		"Locate findings on asked units only; a context epic is not reviewed. No finding is a normal result: write an empty file.\n"
+}
 
 // buildEpicReviewPrompts renders one prompt per role, in corpus order, and
 // the built-in regression prompt last when the round has something to guard.
-// A round asking no unit emits no prompt (§5). Each prompt reads task, asked
-// units, round inputs, contract, then context: on a large slice the context is
-// most of the prompt, and a reader that stops early must already have the
-// contract.
-func buildEpicReviewPrompts(run *epicReviewRun, roles []model.Role) []epicReviewPrompt {
-	if len(run.slice.Units) == 0 {
-		return []epicReviewPrompt{}
+// A round asking no unit emits no prompt (§5); a role asked no unit of its
+// kinds gets none either and is returned skipped with reason no-units. Each
+// prompt reads task, asked units, round inputs, contract, then context: on a
+// large slice the context is most of the prompt, and a reader that stops
+// early must already have the contract.
+func buildEpicReviewPrompts(run *epicReviewRun, roles []model.Role) ([]epicReviewPrompt, []engine.SkippedRole) {
+	prompts := []epicReviewPrompt{}
+	skipped := []engine.SkippedRole{}
+	if len(run.slice.Units) == 0 && len(run.carry.PurposeStale) == 0 {
+		return prompts, skipped
 	}
-	asked := epicAskedText(run) + epicDecidedText(run)
-	prompts := make([]epicReviewPrompt, 0, len(roles)+1)
-	if run.round >= 2 && run.carry.VerifyOnly {
-		// The round before fixed only non-blocking findings and left nothing
-		// open: the change is read, by regression alone.
-		return append(prompts, epicRegressionPrompt(run, asked))
-	}
+	// The round before fixed only non-blocking findings and left nothing
+	// open: the change is read by regression alone, beside any purpose
+	// role a changed purpose re-asks.
+	verifyOnly := run.round >= 2 && run.carry.VerifyOnly
 	for i := range roles {
 		role := &roles[i]
-		var b strings.Builder
-		b.WriteString(role.Instructions + "\n\n")
-		b.WriteString(asked)
-		writeEpicFocus(&b, role.Focus)
-		prompts = append(prompts, epicPromptWithTail(run, role.ID, &b, epicContextText(run, role.Context)))
+		ask := epicAskOf(run, role.UnitKinds(), role.Purpose, !verifyOnly)
+		switch {
+		case len(ask.units) > 0:
+			prompts = append(prompts, epicRolePrompt(run, role, &ask))
+		case !verifyOnly:
+			skipped = append(skipped, engine.SkippedRole{Role: role.ID, Reason: engine.SkipNoUnits})
+		}
 	}
-	if run.round >= 2 && run.carry.Regression() {
-		prompts = append(prompts, epicRegressionPrompt(run, asked))
+	if run.round >= 2 && (verifyOnly || run.carry.Regression()) {
+		ask := epicAskOf(run, epicRegressionKinds, false, true)
+		if len(ask.units) == 0 {
+			return prompts, append(skipped, engine.SkippedRole{Role: engine.RegressionRoleID, Reason: engine.SkipNoUnits})
+		}
+		prompts = append(prompts, epicRegressionPrompt(run, &ask))
 	}
-	return prompts
+	return prompts, skipped
+}
+
+// epicRolePrompt renders one corpus role's prompt over what it is asked.
+func epicRolePrompt(run *epicReviewRun, role *model.Role, ask *epicRoleAsk) epicReviewPrompt {
+	var b strings.Builder
+	b.WriteString(role.Instructions + "\n\n")
+	b.WriteString(epicAskedText(run, ask) + epicDecidedText(run, ask))
+	writeEpicFocus(&b, role.Focus)
+	return epicPromptWithTail(run, role.ID, &b, ask, epicContextText(run, role.Context, ask))
 }
 
 // epicRegressionInstructions frame the built-in regression role over a graph.
@@ -59,13 +90,14 @@ const epicRegressionInstructions = "You guard an epic graph against regressions 
 	"and that each fixed finding listed is resolved in the current text. Report only what a change lost or broke; " +
 	"finding nothing is a normal result.\n\n"
 
-// epicRegressionPrompt renders the regression role's prompt: the asked units,
-// the findings the round before resolved fixed, and the full context.
-func epicRegressionPrompt(run *epicReviewRun, asked string) epicReviewPrompt {
+// epicRegressionPrompt renders the regression role's prompt: the asked units
+// of its kinds, the findings the round before resolved fixed on them, and
+// the full context.
+func epicRegressionPrompt(run *epicReviewRun, ask *epicRoleAsk) epicReviewPrompt {
 	var b strings.Builder
 	b.WriteString(epicRegressionInstructions)
-	b.WriteString(asked)
-	b.WriteString(epicChangedText(run))
+	b.WriteString(epicAskedText(run, ask) + epicDecidedText(run, ask))
+	b.WriteString(epicChangedText(run, ask))
 	if len(run.handoff) > 0 {
 		b.WriteString("\nNamed by a changed unit — the epics its text hands work to; check each takes what it is handed, but do not review it:\n")
 		for _, c := range run.handoff {
@@ -73,58 +105,76 @@ func epicRegressionPrompt(run *epicReviewRun, asked string) epicReviewPrompt {
 		}
 		b.WriteString("---\n")
 	}
-	if len(run.carry.Fixed) == 0 {
+	fixed := ask.rows(run.carry.Fixed)
+	if len(fixed) == 0 {
 		fmt.Fprintf(&b, "\nNo finding was resolved fixed since round %d: the change is an edit, so check each changed unit against its neighbours.\n", run.round-1)
 	} else {
 		fmt.Fprintf(&b, "\nFindings round %d resolved fixed — confirm each fix holds:\n", run.round-1)
-		for _, row := range run.carry.Fixed {
+		for _, row := range fixed {
 			loc, _ := row["location"].(string)
 			finding, _ := row["finding"].(string)
 			fmt.Fprintf(&b, "- %s: %s\n", loc, finding)
 		}
 	}
-	return epicPromptWithTail(run, engine.RegressionRoleID, &b, epicContextText(run, ""))
+	return epicPromptWithTail(run, engine.RegressionRoleID, &b, ask, epicContextText(run, "", ask))
 }
 
 // epicPromptWithTail closes a role's prompt with the mechanized exclusion,
 // the finding contract and the role's output path, then the context, and
 // repeats the row keys and the path on the last line.
-func epicPromptWithTail(run *epicReviewRun, role string, b *strings.Builder, context string) epicReviewPrompt {
+func epicPromptWithTail(run *epicReviewRun, role string, b *strings.Builder, ask *epicRoleAsk, context string) epicReviewPrompt {
 	path := epicRoleOutputPath(run, role)
 	b.WriteString(mechanizedExclusionPrefix + strings.Join(engine.EpicErrorRules(), ", "))
-	b.WriteString(epicFindingContract)
+	b.WriteString(epicFindingContract(ask.kinds))
 	fmt.Fprintf(b, "\nWrite this round's findings to: %s\nProduce findings for this round only, write them to that file, then stop.\n", path)
 	b.WriteString(context)
 	fmt.Fprintf(b, "\nReminder: write one NDJSON row per finding with severity, finding, location and evidence to %s, then stop.\n", path)
 	return epicReviewPrompt{Role: role, Prompt: b.String(), OutputPath: path}
 }
 
-// epicAskedText renders the round's header and the asked units' blocks.
-func epicAskedText(run *epicReviewRun) string {
+// epicAskedText renders the round's header and the asked units' blocks, then,
+// for each of the role's kinds no unit of which is asked, that its questions
+// about that kind do not apply.
+func epicAskedText(run *epicReviewRun, ask *epicRoleAsk) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "This is epic review round %d of %s.\n\nAsked units:\n", run.round, epicSliceLabel(run.key))
-	gate := false
-	for _, u := range run.slice.Units {
+	have := map[string]bool{}
+	for _, u := range ask.units {
 		b.WriteString("---\n" + u.Block)
-		gate = gate || strings.HasPrefix(u.Key, "gate:")
+		have[engine.EpicUnitKind(u.Key)] = true
 	}
 	b.WriteString("---\n")
-	if !gate {
-		b.WriteString("\nNo gate unit is asked this round: every instruction or question about a gate does not apply; judge the epics only.\n")
+	var judged []string
+	for _, k := range epicUnitKinds {
+		if have[k.kind] {
+			judged = append(judged, k.plural)
+		}
+	}
+	for _, k := range epicUnitKinds {
+		if ask.kinds[k.kind] && !have[k.kind] {
+			fmt.Fprintf(&b, "\nNo %s unit is asked this round: every instruction or question about %s does not apply; judge the %s only.\n",
+				k.noun, k.article, strings.Join(judged, " and "))
+		}
 	}
 	return b.String()
 }
 
-// epicDecidedText lists the earlier rounds' findings on an asked unit that
-// were accepted wontfix or duplicate, each with its location and the
-// decision's evidence; with none it is empty.
-func epicDecidedText(run *epicReviewRun) string {
-	if len(run.carry.Decided) == 0 {
+// epicDecidedText lists the earlier rounds' findings on a unit the role is
+// asked that were accepted wontfix or duplicate, each with its location and
+// the decision's evidence; with none it is empty.
+func epicDecidedText(run *epicReviewRun, ask *epicRoleAsk) string {
+	var decided []engine.EpicDecision
+	for _, d := range run.carry.Decided {
+		if loc, _ := d.Row["location"].(string); ask.holds(loc) {
+			decided = append(decided, d)
+		}
+	}
+	if len(decided) == 0 {
 		return ""
 	}
 	var b strings.Builder
 	b.WriteString("\nAlready decided — do not raise these again unless the cause they name changed; \"this round\" in a decision's evidence means the round it names:\n")
-	for _, d := range run.carry.Decided {
+	for _, d := range decided {
 		loc, _ := d.Row["location"].(string)
 		finding, _ := d.Row["finding"].(string)
 		resolved, _ := d.Row["resolved"].(map[string]any)
@@ -138,9 +188,9 @@ func epicDecidedText(run *epicReviewRun) string {
 // epicChangedText shows, for each asked unit whose own block changed since
 // the round before, the block that round read and the block now, so the
 // regression role reads the change rather than reconstructing it.
-func epicChangedText(run *epicReviewRun) string {
+func epicChangedText(run *epicReviewRun, ask *epicRoleAsk) string {
 	var b strings.Builder
-	for _, u := range run.slice.Units {
+	for _, u := range ask.units {
 		before, ok := run.carry.Before[u.Key]
 		if !ok {
 			continue
@@ -154,15 +204,16 @@ func epicChangedText(run *epicReviewRun) string {
 }
 
 // epicContextText renders the context blocks a role is shown — every
-// neighbour, only the asked units' dependencies under
+// neighbour of its asked epics, only their dependencies under
 // model.RoleContextDependencies, or the dependencies in full and the
-// dependents in brief under model.RoleContextNeighboursBrief — then each
-// carried gate's block, read only, and the carried units no block shows, by
-// key.
-func epicContextText(run *epicReviewRun, scope string) string {
+// dependents in brief under model.RoleContextNeighboursBrief — then, of the
+// units of its kinds it is not asked, each gate's block, read only, and the
+// rest no block shows, by key.
+func epicContextText(run *epicReviewRun, scope string, ask *epicRoleAsk) string {
 	var b strings.Builder
 	var blocks []string
-	for _, c := range run.slice.Context {
+	context := engine.EpicCarriedContext(run.g, ask.units)
+	for _, c := range context {
 		switch {
 		case c.Dependency || scope == model.RoleContextNeighbours || scope == "":
 			blocks = append(blocks, c.Block)
@@ -177,28 +228,29 @@ func epicContextText(run *epicReviewRun, scope string) string {
 		}
 		b.WriteString("---\n")
 	}
-	for _, u := range run.carry.Carried {
-		if strings.HasPrefix(u.Key, "gate:") {
+	carried := ask.carried(run)
+	for _, u := range carried {
+		if engine.EpicUnitKind(u.Key) == model.RoleUnitGates {
 			fmt.Fprintf(&b, "\nCarried gate — unchanged since round %d; read it, do not review it:\n---\n%s---\n", run.round-1, u.Block)
 		}
 	}
-	if ids := epicCarriedByID(run); len(ids) > 0 {
+	if ids := epicCarriedByID(carried, context); len(ids) > 0 {
 		fmt.Fprintf(&b, "\nCarried — unchanged since round %d and not asked again: %s\n", run.round-1, strings.Join(ids, ", "))
 	}
 	return b.String()
 }
 
-// epicCarriedByID returns the carried epics no context block shows: an epic
-// adjacent to no asked unit, which appears by its key only (D5). A carried
+// epicCarriedByID returns the carried units no block shows: an epic adjacent
+// to no asked unit, or a scope unit, each by its key only (D5). A carried
 // gate is shown by its block instead.
-func epicCarriedByID(run *epicReviewRun) []string {
+func epicCarriedByID(carried []engine.EpicReviewUnit, context []engine.EpicContextBlock) []string {
 	shown := map[string]bool{}
-	for _, c := range run.slice.Context {
-		shown["epic:"+c.ID] = true
+	for _, c := range context {
+		shown[engine.EpicUnitPrefix+c.ID] = true
 	}
 	ids := []string{}
-	for _, u := range run.carry.Carried {
-		if !shown[u.Key] && !strings.HasPrefix(u.Key, "gate:") {
+	for _, u := range carried {
+		if !shown[u.Key] && engine.EpicUnitKind(u.Key) != model.RoleUnitGates {
 			ids = append(ids, u.Key)
 		}
 	}
@@ -256,26 +308,58 @@ func epicReviewStateDirOut(run *epicReviewRun) string {
 	return run.stateDir
 }
 
-// epicReviewPayload assembles the emission from the run and the kept prompts.
-func epicReviewPayload(run *epicReviewRun, prompts []epicReviewPrompt) epicReviewResult {
-	contextIDs := make([]string, 0, len(run.slice.Context))
-	for _, c := range run.slice.Context {
+// epicReviewPayload assembles the emission from the run and the kept prompts;
+// built is how many prompts the round built before --role narrowed them.
+func epicReviewPayload(run *epicReviewRun, roles []model.Role, prompts []epicReviewPrompt, built int) epicReviewResult {
+	units, carried := epicEmittedUnits(run, roles)
+	context := engine.EpicCarriedContext(run.g, units)
+	contextIDs := make([]string, 0, len(context))
+	for _, c := range context {
 		contextIDs = append(contextIDs, c.ID)
 	}
 	next := fmt.Sprintf("run each prompt, concatenate the rows of every output_path into one NDJSON file, then tp epic review %s --record <file>",
 		epicSliceLabel(run.key))
-	if len(run.slice.Units) == 0 {
+	switch {
+	case len(units) == 0:
 		next = fmt.Sprintf("no unit is asked this round: record an empty file with tp epic review %s --record <empty file>", epicSliceLabel(run.key))
+	case built == 0:
+		next = fmt.Sprintf("no role is asked a unit of its kinds this round: record an empty file with tp epic review %s --record <empty file>", epicSliceLabel(run.key))
 	}
 	return epicReviewResult{
 		StateDir:          epicReviewStateDirOut(run),
 		Round:             run.round,
-		Units:             engine.EpicUnitKeys(run.slice.Units),
+		Units:             engine.EpicUnitKeys(units),
 		Context:           contextIDs,
-		Carried:           engine.EpicUnitKeys(run.carry.Carried),
+		Carried:           engine.EpicUnitKeys(carried),
 		MechanicalChecks:  run.checks,
 		MechanizedClasses: engine.EpicErrorRules(),
 		Prompts:           prompts,
 		NextAction:        next,
 	}
+}
+
+// epicEmittedUnits splits the slice's units, in slice order, into those the
+// round asks some role, the carry's asked units and the purpose-stale units
+// a purpose role of their kind is asked, and the rest, carried.
+func epicEmittedUnits(run *epicReviewRun, roles []model.Role) (asked, carried []engine.EpicReviewUnit) {
+	want := map[string]bool{}
+	for _, u := range run.slice.Units {
+		want[u.Key] = true
+	}
+	for i := range roles {
+		if roles[i].Purpose {
+			ask := epicAskOf(run, roles[i].UnitKinds(), true, false)
+			for _, u := range ask.units {
+				want[u.Key] = true
+			}
+		}
+	}
+	for _, u := range run.all {
+		if want[u.Key] {
+			asked = append(asked, u)
+		} else {
+			carried = append(carried, u)
+		}
+	}
+	return asked, carried
 }

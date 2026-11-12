@@ -48,6 +48,7 @@ type epicReviewResult struct {
 // epicReviewRun carries what one emission is built from.
 type epicReviewRun struct {
 	key      engine.EpicSliceKey
+	g        *model.EpicGraph
 	tpDir    string
 	stateDir string
 	round    int
@@ -145,16 +146,16 @@ func runEpicReviewEmit(cmd *cobra.Command, key engine.EpicSliceKey) {
 		os.Exit(ExitFile)
 		return
 	}
-	prompts := buildEpicReviewPrompts(&run, roles)
+	built, skipped := buildEpicReviewPrompts(&run, roles)
 	roleName, _ := cmd.Flags().GetString("role")
 	q := roleQuery{name: roleName, given: cmd.Flags().Changed("role"), specDir: filepath.Dir(run.tpDir)}
-	prompts, skipped := filterByRole(prompts, func(p *epicReviewPrompt) string { return p.Role }, q, nil)
+	prompts, skipped := filterByRole(built, func(p *epicReviewPrompt) string { return p.Role }, q, skipped)
 	if err := writeEpicReviewEmission(&run); err != nil {
 		output.Error(ExitFile, "cannot write the epic review state: "+err.Error(), epicReviewStateHint)
 		os.Exit(ExitFile)
 		return
 	}
-	result := epicReviewPayload(&run, prompts)
+	result := epicReviewPayload(&run, roles, prompts, len(built))
 	result.SkippedRoles = skippedRolesForPayload(q.given, len(prompts), skipped)
 	if err := output.JSON(result); err != nil {
 		output.Error(ExitFile, err.Error(), internalEncodeHint)
@@ -298,7 +299,7 @@ func prepareEpicReviewRun(eg *epicReviewGraph, key engine.EpicSliceKey) (epicRev
 	}
 	context := engine.EpicCarriedContext(eg.g, carry.Asked)
 	return epicReviewRun{
-		key: key, tpDir: eg.tpDir, stateDir: stateDir, round: round, all: slice.Units, carry: carry,
+		key: key, g: eg.g, tpDir: eg.tpDir, stateDir: stateDir, round: round, all: slice.Units, carry: carry,
 		slice:   engine.EpicSlice{Units: carry.Asked, Context: context},
 		checks:  eg.checks,
 		handoff: engine.EpicHandoffContext(eg.g, &carry, context),
