@@ -29,10 +29,11 @@ func TestLintEpicGraph_DeferrableRequiredNamesDeferrableGateAndPath(t *testing.T
 	found := findingsOf(t, LintEpicGraph(g, nil), EpicRuleDeferrableRequired)
 	require.Len(t, found, 1, "%v", found)
 	assert.Equal(t, EpicSeverityWarning, found[0].Severity)
-	assert.Equal(t, []string{"a1", "d1"}, found[0].Epics)
+	assert.Equal(t, []string{"a1", "d1", "x1"}, found[0].Epics, "the deferrable, the example member and every requirer")
 	assert.Equal(t, []string{"m0"}, found[0].Names)
-	assert.Contains(t, found[0].Message, "d1")
+	assert.Contains(t, found[0].Message, "deferrable d1")
 	assert.Contains(t, found[0].Message, `"m0"`)
+	assert.Contains(t, found[0].Message, "required by x1")
 	assert.Contains(t, found[0].Message, "a1 -> x1 -> d1")
 }
 
