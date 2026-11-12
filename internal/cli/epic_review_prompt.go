@@ -126,7 +126,7 @@ func epicScopeRoundText(run *epicReviewRun, ask *epicRoleAsk) string {
 			scope.units = append(scope.units, u)
 		}
 	}
-	text := epicChangedText(run, &scope)
+	text := epicScopeChangeText(run, scope.units)
 	if fixed := scope.rows(run.carry.ScopeFixed); len(fixed) > 0 {
 		var b strings.Builder
 		fmt.Fprintf(&b, "\nFindings round %d resolved fixed on the asked scope units — confirm each fix holds:\n", run.round-1)
