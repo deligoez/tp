@@ -79,8 +79,8 @@ func TaskExportOfData(start, taskFilePath string, data []byte) (TaskExport, erro
 	if tf.Epic != "" {
 		exp.Epic = &tf.Epic
 	}
-	if data, readErr := os.ReadFile(specPath); readErr == nil { //nolint:gosec // the spec the task file names
-		exp.Sections = SpecSections(data)
+	if specData, readErr := os.ReadFile(specPath); readErr == nil { //nolint:gosec // the spec the task file names
+		exp.Sections = SpecSections(specData)
 	}
 	if exp.Tasks, err = exportTasks(tf, taskFilePath); err != nil {
 		return TaskExport{}, err
