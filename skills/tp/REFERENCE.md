@@ -1929,9 +1929,6 @@ relative to the directory the command ran in, symlinks resolved on both sides, s
 or without `--history`; 3 for a slice with no state directory; 4 for a `--from`/`--to` round the slice
 did not record. It runs under `TP_UNATTENDED`: it writes nothing.
 
-`tp epic scope <m>` exits 0 on every report, 3 with no graph file or an unreadable bound task file,
-and 4 for a milestone no track lists; it writes nothing and runs under `TP_UNATTENDED`.
-
 ## Task Export and the Dashboard (v1.8.0)
 
 ### The task file's two times
