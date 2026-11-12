@@ -156,8 +156,9 @@ func dashboardHistoryQuery(q url.Values) (key engine.EpicSliceKey, from, to int,
 
 // insideRepository reports whether file, resolved against the working
 // directory with every symlink followed, lies under the project root. A path
-// that does not exist resolves through its parent, so a missing file inside
-// the repository reaches the command's not-found error.
+// that does not exist resolves through its nearest existing ancestor, so a
+// missing file inside the repository reaches the command's not-found error
+// and one through a symlink leading out is refused like an existing one.
 func insideRepository(file string) bool {
 	root, err := filepath.EvalSymlinks(engine.ProjectRoot("."))
 	if err != nil {
@@ -167,16 +168,30 @@ func insideRepository(file string) bool {
 	if err != nil {
 		return false
 	}
-	resolved, err := filepath.EvalSymlinks(abs)
-	if err != nil {
-		if _, statErr := os.Lstat(abs); statErr == nil {
-			return false // a dangling symlink names nothing tp can check
-		}
-		resolved = abs
-		if parent, perr := filepath.EvalSymlinks(filepath.Dir(abs)); perr == nil {
-			resolved = filepath.Join(parent, filepath.Base(abs))
-		}
+	resolved, ok := resolveThroughExistingAncestor(abs)
+	if !ok {
+		return false
 	}
 	rel, err := filepath.Rel(root, resolved)
 	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+// resolveThroughExistingAncestor follows every symlink of abs: abs itself
+// when it exists, else its nearest existing ancestor with the missing rest
+// joined back on. A dangling symlink, which names nothing tp can check, is
+// not resolved.
+func resolveThroughExistingAncestor(abs string) (string, bool) {
+	missing := ""
+	for dir := abs; ; dir = filepath.Dir(dir) {
+		if resolved, err := filepath.EvalSymlinks(dir); err == nil {
+			return filepath.Join(resolved, missing), true
+		}
+		if _, err := os.Lstat(dir); err == nil {
+			return "", false // a dangling symlink
+		}
+		if parent := filepath.Dir(dir); parent == dir {
+			return abs, true
+		}
+		missing = filepath.Join(filepath.Base(dir), missing)
+	}
 }
