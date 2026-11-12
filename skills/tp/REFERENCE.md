@@ -161,7 +161,7 @@ child's exit code and one spend number and nothing else it said. `tp resume` sta
 authority on whether the cycle is finished — `tp run` holds no opinion of its own.
 
 It resolves the task file exactly as `tp resume` does (spec positional, `--file`, or discovery) and
-takes a **run-scoped** lock at `.tp/locks/run-<base>.lock`, distinct from the task-file write lock
+takes a **run-scoped** lock at `.tp/locks/run-<key>.lock` (`<key>`: see Run state below), distinct from the task-file write lock
 and held for the whole run, so a second `tp run` over the same task file exits 4. It never holds the
 task-file write lock while a child is in flight — that lock stays the children's, taken and released
 by each `tp` write they make.
@@ -247,13 +247,18 @@ the driver kills nothing.
 ### Run state, logs and `--status`
 
 Run state lives at `.tp/run-<key>.json` (git-ignored, named per task file because the run lock is
-per task file). `<key>` is the task file's base for a task file at the project root, and for one
-below it its directory and base escaped into one name (`x/a.tasks.json` → `x%2Fa`, v1.12.0), so two
-same-base task files in different directories never share run state; the run lock
+per task file). `<key>` is the task file's base, path-escaped (unchanged for an ordinary name), for
+a task file at the project root, and for one below it its directory and base escaped into one name
+(`x/a.tasks.json` → `x%2Fa`, v1.12.0), so two same-base task files in different directories, or a
+root file named `x%2Fa.tasks.json`, never share run state. The run lock
 (`.tp/locks/run-<key>.lock`) and the last-failure record (`.tp/last_failure-<key>.json`) use the
-same key, and the round directories the same location. A nested task file's round collected under
-the pre-1.12.0 `.tp/rounds/<base>/` is not read after the upgrade: the driver spawns that round's
-role units again, and `scripts/clean-emissions.sh` reports the old directory:
+same key, all three computed against the task file's project root and kept in its `.tp/`, so a run
+started from a subdirectory is the one `tp run --status` reports from the root. A nested task
+file's round collected under the pre-1.12.0 `.tp/rounds/<base>/<phase>-r<N>` is not read after the
+upgrade: the driver spawns that round's role units again, and once the respawned round is recorded
+the old directory can be deleted by hand. `scripts/clean-emissions.sh` reports it as an
+`old-layout round dir` (with the tp plugin installed, run
+`${CLAUDE_PLUGIN_ROOT}/scripts/clean-emissions.sh` from the project root). The run state:
 
 ```json
 {"run_id": "", "started_at": "", "phase": "", "stop_reason": null,
@@ -276,7 +281,7 @@ spend key from the final line and never reads a log into any context.
 `tp run --status` reports `{phase, run_id, started_at, units_done, wall_clock_seconds, spend_usd,
 caps: {max_units, max_wall_clock_seconds, max_budget_usd}, last_unit: {…the whole row…},
 stop_reason, run_state}`. `run_state` is `stopped` once `stop_reason` is set, otherwise `in_flight`
-when `.tp/locks/run-<base>.lock` is held and `crashed` when it is not — the lock is the only evidence
+when `.tp/locks/run-<key>.lock` is held and `crashed` when it is not — the lock is the only evidence
 separating the last two. On a stop in the audit phase it also carries `spec_coverage_clean_rounds`,
 `role_streaks` and `divergence`, verbatim from `tp audit --status`; when the auditor role corpus
 cannot be read those three are left out and `audit_signals_omitted` names the read error. Under `--compact` `stop_reason`
@@ -443,7 +448,7 @@ is reported and changes nothing, so a failing `notify_cmd` never changes the run
 ### `last_failure`
 
 When a unit exits non-zero, or closes with a failed quality gate, tp records **one** object at
-`.tp/last_failure-<base>.json`: `{unit_kind, unit_id, phase, exit_code, summary, at}`. It has two
+`.tp/last_failure-<key>.json`: `{unit_kind, unit_id, phase, exit_code, summary, at}`. It has two
 writers, because the two triggers are visible to different processes:
 
 - `tp done` writes it when the quality gate **it** ran fails, with the gate's own output as
@@ -623,7 +628,7 @@ A repo-root `.tp/` directory holds workflow policy shared across every spec, so 
 
 **Discovery**: walk up to the first `.git` boundary; the `.tp/` there is the project config (single deterministic anchor). The walk starts from the **task file's directory** whenever a command has a task file (`--file`, `TP_FILE`, the active pointer, auto-detection, or for review and audit the task file beside the spec), and from the working directory only when it has none (v1.12.0; before, always the working directory, so `--file` naming another tree's task file ran this tree's `quality_gate`, caps and checks against it). The `.tp/local.json` the `active` pointer and the flag `defaults` come from stays the working directory's, since it is read to find the task file; `notify_cmd` follows the task file. The role corpus is found from the spec's directory, as before. A `config.json` that exists but cannot be read or parsed is an **error (exit 3)** on every command that uses the project layer, never "no project config".
 
-**Project root and work in the tree (v1.12.0).** A task file's **project root** is the directory holding the project `.tp/` discovery stops at; with none, the git top level; with neither, the task file's own directory. A `.tp/` is a **project** `.tp/` when it is empty or holds anything beyond what a lock or a run writes as a side effect (`locks/`, `rounds/`, `runs/`, `run-*.json`, `last_failure-*.json`): one that exists only because such a write needed somewhere to put its files is skipped by discovery and never becomes a root. Inside a repository those writes land in the root's `.tp/` and give it tp's `.gitignore`; outside any repository and project they write no `.gitignore`, so the directory stays a side-effect one. With no project `.tp/` and no repository at all, **the first deliberate write decides the root**: `tp init` writes `.tp/.gitignore` in the working directory it runs from (the directory above `docs/` for `tp init docs/spec.md`), and every task file below it then belongs to that project; a task file no such write anchors is its own directory's.
+**Project root and work in the tree (v1.12.0).** A task file's **project root** is the directory holding the project `.tp/` discovery stops at; with none, the git top level; with neither, the task file's own directory. A `.tp/` is a **project** `.tp/` when it is empty or holds anything beyond what a lock or a run writes as a side effect (`.gitignore`, `locks/`, `rounds/`, `runs/`, `run-*.json`, `last_failure-*.json`), recognised by name whatever the `.gitignore` says: one that exists only because such a write needed somewhere to put its files is skipped by discovery and never becomes a root. That includes the nested `.tp/` tp 1.11's locks left beside a task file outside a repository (`docs/.tp/` with `.gitignore` and `locks/`), which can be deleted. Inside a repository those writes land in the root's `.tp/`; outside any repository and project they write no `.gitignore`. With no project `.tp/` and no repository at all, **the first deliberate write decides the root**: `tp init` writes `.tp/.gitignore` and, there only, an empty `.tp/config.json` (`{}`, no setting) in the working directory it runs from (the directory above `docs/` for `tp init docs/spec.md`), and every task file below it then belongs to that project; a task file no such write anchors is its own directory's.
 
 A **mode** whose work happens in the working tree exits **3** (a file error: the task file belongs to another project) when the task file it resolved, by its own rule, has a project root other than the working directory's, with a hint naming the directory to run it from. The tree modes are `tp done`, `tp close`, `tp commit`, `tp import`, `tp run` and `tp run --dry-run` (its next units come from the oracle, which reads the working tree's git status), `tp review`'s emission, `--perspective`, `--verify` and `--record` (it runs the registered checks), `tp audit`'s emission (refused before changed-file detection), and any registered check wherever it runs. For a review or audit with no task file the spec itself is what is compared. Modes that read only the task file and its state work from outside: `tp status`, `tp show`, `tp list`, `tp plan`, `tp next`, `tp resume` (which then classifies the task file's tree), `tp config`, `tp run --status`, `tp review --status`/`--merge`/`--resolve`/`--resolve-all`/`--report`, `tp audit --status`/`--record`. Every mode is placed in `internal/cli/command_sides.go`; one test fails on a mode left unplaced, and another drives every tree mode with a foreign task file every way it can be given one (a positional spec, `--file`, `TP_FILE`, the active pointer).
 
@@ -989,7 +994,7 @@ A row carrying no `kind` on a claim verdict is rejected naming `kind`, before th
 | 0 | the invocation completed |
 | 1 | a row failed validation, **or** the round would record no row at all — the payload's rows plus the carried rows both zero. An empty payload whose every unit carries is not this case and exits 0 |
 | 2 | usage: `--check` without `--status`, two of `--units`/`--status`/`--record` together, `--record` with no path argument, `--force` on a mode other than the emission, or a discarding `--force` under `TP_UNATTENDED` |
-| 3 | file or corrupt state: an emission over an unrecorded round whose spec changed (without `--force`), a `--record` path that does not exist, a `--record` path that is the pre-1.12.0 scratch name `ground-<base>-r<N>.ndjson` in the working directory (never read; the hint names `.tp-review/<base>/ground-inbox/round-<N>.ndjson` to move it to), no prior emission for the round, an unreadable preceding round, or a state directory holding an unparseable `state.json`. An unreadable preceding round is a **notice at emit** (exit 0) and a refusal at `--record` — the round is decided at the record |
+| 3 | file or corrupt state: an emission over an unrecorded round whose spec changed (without `--force`), a `--record` path that does not exist, a `--record` path that is the pre-1.12.0 scratch name `ground-<base>-r<N>.ndjson` in the working directory (never read; the hint names `.tp-review/<base>/ground-inbox/round-<N>.ndjson` to move it to), and for `tp review` and `tp audit` too: a tree mode whose task file (or spec) belongs to another project (the cross-tree refusal, naming the directory to run from), a `.tp/config.json` of that project that cannot be read or parsed, and `--merge` of an input named in the pre-1.12.0 role-file shape `<phase>-<base>-r<N>-<role>.ndjson` whose `<role>` is a role tp knows (the hint names the inbox file to move it to; any other name in that shape merges as before), no prior emission for the round, an unreadable preceding round, or a state directory holding an unparseable `state.json`. An unreadable preceding round is a **notice at emit** (exit 0) and a refusal at `--record` — the round is decided at the record |
 | 4 | the write lock could not be taken within `lock_timeout_seconds` |
 
 The lock's target is the **spec path**, not the state file: `.tp/locks/<spec-file>-<hash>.lock`,
