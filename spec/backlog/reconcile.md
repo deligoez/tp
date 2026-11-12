@@ -37,7 +37,9 @@ remain wrong at v1.12.0:
    decision. Convergence already reads only the trailing clean rounds, so an open row in an earlier
    round blocks nothing today and blocks nothing after; the round cap keeps counting every recorded
    round, the epoch's earlier ones included. Cutting a carry list errs in the blocking direction: a
-   finding that still holds is raised again and has to be settled again. In particular an audit
+   finding that still holds is raised again and has to be settled again — the carry list is what keeps
+   an unresolved high from being re-raised today (`BUGS.md`), so cutting it at an epoch makes the old
+   text's highs visible to the new text's roles. In particular an audit
    finding accepted without a change before the epoch is not carried, so the operator may be asked
    for that acceptance a second time.
 2. **The `spec-stale` blocker names its exit as data.** Its data carries the command that clears it;
