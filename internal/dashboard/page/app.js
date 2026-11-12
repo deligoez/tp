@@ -975,7 +975,7 @@
       return { x: v.x + (cx - r.left) / r.width * v.w, y: v.y + (cy - r.top) / r.height * v.h };
     };
     el.addEventListener("wheel", (ev) => {
-      if (!(ev.ctrlKey || ev.metaKey) || !v) return;
+      if (!(ev.ctrlKey || ev.metaKey || document.body.classList.contains("mapfs")) || !v) return;
       ev.preventDefault();
       const p = toSvg(ev.clientX, ev.clientY);
       zoomAt(Math.exp(Math.max(-80, Math.min(80, ev.deltaY)) * 0.01), p.x, p.y);
@@ -1025,6 +1025,37 @@
       },
     };
   })();
+
+  // Full screen (dashboard-ux.md §2): a card's button asks the Fullscreen
+  // API for the page and marks the card to fill it, so the drawer still opens
+  // beside it; Esc, which the browser handles, leaves it. Where the API is
+  // missing the card fills the window alone and Esc unmarks it. While a card
+  // fills the screen the plain wheel zooms it.
+  function setFullScreen(card) {
+    document.querySelectorAll(".card.fs").forEach((c) => { if (c !== card) c.classList.remove("fs"); });
+    if (card) card.classList.add("fs");
+    document.body.classList.toggle("mapfs", !!card);
+    document.querySelectorAll("[data-fs]").forEach((b) => {
+      const on = !!card && b.dataset.fs === card.id;
+      b.setAttribute("aria-pressed", String(on));
+      b.textContent = on ? "Exit full screen" : "Full screen";
+    });
+  }
+  document.addEventListener("click", (ev) => {
+    const b = ev.target.closest && ev.target.closest("[data-fs]");
+    if (!b) return;
+    const card = $(b.dataset.fs);
+    if (card.classList.contains("fs")) {
+      if (document.fullscreenElement) document.exitFullscreen();
+      setFullScreen(null);
+      return;
+    }
+    setFullScreen(card);
+    const root = document.documentElement;
+    if (root.requestFullscreen && !document.fullscreenElement) root.requestFullscreen().catch(() => { /* the card fills the window alone */ });
+  });
+  document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement) setFullScreen(null); });
+  document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && !document.fullscreenElement && document.body.classList.contains("mapfs") && $("drawer").hidden) setFullScreen(null); });
 
   // mapHit reads everything under the pointer: an epic's mark or id wins,
   // then a neighbour edge, then the rest of an epic's row, so an edge drawn
@@ -1091,7 +1122,7 @@
     '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path d="M1 7.5H14" stroke="var(--accent)" stroke-dasharray="3 2"/></svg>one of a group</span>' +
     '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path class="edge in" d="M1 7.5H14"/></svg>in: what it depends on</span>' +
     '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path class="edge out" d="M1 7.5H14"/></svg>out: what depends on it</span>' +
-    '<span class="help">Click an epic for its chain, again to clear; Neighbours narrows it to one step each way. Drag to pan; Ctrl or ⌘ with the wheel, or a pinch, zooms.</span>';
+    '<span class="help">Click an epic for its chain, again to clear; Neighbours narrows it to one step each way. Drag to pan; Ctrl or ⌘ with the wheel, or a pinch, zooms; in full screen the wheel alone zooms and Esc leaves.</span>';
 
   // ---------- the selected epic: its chain, its drawer (§4, §11) ----------
   // Selecting an epic on the map, in a now list or in the drawer draws its

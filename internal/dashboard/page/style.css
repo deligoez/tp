@@ -244,6 +244,11 @@ button.pcell[aria-pressed="true"] { background: var(--color-accent-wash); border
 .toolbar h2 { display: flex; align-items: center; gap: var(--space-xs); margin-right: var(--space-xs); font: 600 var(--text-md)/1.3 var(--font-display); }
 .map { position: relative; height: min(70vh, 660px); background-color: var(--sunk); background-image: radial-gradient(circle at 1px 1px, var(--color-rule-2) 1px, transparent 1.5px); background-size: 16px 16px; cursor: grab; touch-action: pan-y; overflow: hidden; }
 .map.drag { cursor: grabbing; }
+/* full screen: the marked card fills the window, beside the drawer when it is open */
+body.mapfs { overflow: hidden; }
+body.mapfs .card.fs { position: fixed; inset: 0; z-index: var(--z-dropdown); border-radius: 0; border: 0; display: flex; flex-direction: column; }
+body.mapfs .card.fs .map { flex: 1; height: auto; }
+body.mapfs .card.fs .legend { max-height: 30vh; overflow: auto; }
 .map svg { display: block; width: 100%; height: 100%; user-select: none; }
 .map .lanelab { font: 600 13px var(--font-display); fill: var(--muted); }
 .map .msbox { fill: var(--surface); stroke: var(--line); }
