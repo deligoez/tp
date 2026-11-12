@@ -82,3 +82,9 @@ func TestEpicScope_UnknownMilestoneExits4(t *testing.T) {
 	assert.Contains(t, stderr, "zz")
 }
 
+// TestEpicScope_NoGraphExits3: with no graph file the loader exits 3.
+func TestEpicScope_NoGraphExits3(t *testing.T) {
+	_, _, code := runTP(t, epicGraphDir(t, ""), "epic", "scope", "m1")
+	assert.Equal(t, 3, code)
+}
+
