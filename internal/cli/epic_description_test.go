@@ -59,6 +59,48 @@ func TestEpicReviewStatus_ADescriptionEditReAsksTheDescribedEpicAlone(t *testing
 	assert.Equal(t, []string{"epic:b"}, *stale.StaleUnits)
 }
 
+// epicDescribedSlice is milestone A (a, b) gated with a threshold, so it
+// holds a scope unit, and milestone B (c, d), where a depends on c and d on
+// b: c and d are A's context. Every epic carries a description naming it,
+// a's a long one.
+func epicDescribedSlice(longA string) string {
+	return `{
+  "version": 1,
+  "milestones": [["A", "B"]],
+  "gates": {"A": {"members": [], "threshold": "ten users"}},
+  "epics": [
+    {"id": "a", "title": "A step", "milestone": "A", "depends_on": [{"id": "b", "why": "a reads b"}, {"id": "c", "why": "a runs on c"}], "acceptance": "a ships", "description": "DESC-a ` + longA + `"},
+    {"id": "b", "title": "B step", "milestone": "A", "root": true, "acceptance": "b ships", "description": "DESC-b\n\nscope: b alone"},
+    {"id": "c", "title": "C step", "milestone": "B", "root": true, "acceptance": "c ships", "description": "DESC-c"},
+    {"id": "d", "title": "D step", "milestone": "B", "depends_on": [{"id": "b", "why": "d extends b"}], "acceptance": "d ships", "description": "DESC-d"}
+  ]
+}
+`
+}
+
+// TestEpicReview_PromptsShowTheAskedEpicsDescriptionsOnly is the prompt
+// rule: every role asked epics reads each asked epic's description once, in
+// full however long, inside that epic's block; no prompt shows a context
+// epic's description, and gate-scope's prompt shows none at all.
+func TestEpicReview_PromptsShowTheAskedEpicsDescriptionsOnly(t *testing.T) {
+	t.Parallel()
+	long := strings.Repeat("long purpose text ", 400)
+	dir := epicGraphDir(t, epicDescribedSlice(long))
+
+	out := runEpicReview(t, dir, "--milestone", "A")
+	require.Contains(t, promptRoles(&out), "gate-scope")
+	for _, p := range out.Prompts {
+		if p.Role == "gate-scope" {
+			assert.NotContains(t, p.Prompt, "DESC-", "gate-scope reads no description")
+			continue
+		}
+		assert.Equal(t, 1, strings.Count(p.Prompt, "DESC-a "+strings.TrimSpace(long)), "%s reads a's description once, in full", p.Role)
+		assert.Equal(t, 1, strings.Count(p.Prompt, "description:\n  DESC-b\n\n  scope: b alone\n"), "%s reads b's description in b's block", p.Role)
+		assert.NotContains(t, p.Prompt, "DESC-c", "%s: c is context", p.Role)
+		assert.NotContains(t, p.Prompt, "DESC-d", "%s: d is context", p.Role)
+	}
+}
+
 // TestEpicApply_SetRowCarriesAMultiLineDescription: an apply set row's JSON
 // string value carries multi-line markdown with no shell quoting, and the
 // file keeps it byte for byte.
