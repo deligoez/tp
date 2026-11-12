@@ -16,7 +16,8 @@
 #   v1.6.0 epic files it gave the same verdict for every mutant as a whole-package run,
 #   in under a third of the time.
 # - The copy is fresh and outside the repo so a run never touches round state, and the
-#   reports land under TP_MUT_OUT, which survives a reboot (/tmp does not).
+#   reports land under TP_MUT_OUT, which survives a reboot (/tmp does not). The copy and
+#   the run's own build cache are removed when the run ends.
 # - Workers are pinned: the engine suite is itself parallel, so more workers on one
 #   machine buy timeouts, not speed.
 # - The mutator set matches what gremlins ran here before (arithmetic, comparison,
@@ -50,6 +51,11 @@ fi
 sha=$(git -C "$repo" rev-parse --short HEAD)
 run="$out_root/$sha-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$run"
+# Every mutant is a fresh build, so a run writes tens of GB of build cache. It gets a
+# cache of its own, and the cache and the copied tree are removed when the run ends;
+# the reports under $run stay.
+export GOCACHE="$run/gocache"
+trap 'rm -rf "$run/gocache" "$run/tree"' EXIT
 rsync -a --exclude .git/ "$repo/" "$run/tree/"
 printf '%s\n' "${files[@]}" > "$run/files.txt"
 
