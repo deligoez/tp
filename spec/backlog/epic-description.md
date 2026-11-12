@@ -28,9 +28,14 @@ shell quoting is needed; `tp epic set <id> description=<text>` takes short text.
 - `dod-satisfiability`, `why-auditor` and `phase-economist` read it as the primary text of the epic
   under review: whether the acceptance satisfies its purpose and scope, whether the edges' whys
   agree with its decisions, whether the placement fits its purpose. Every such sentence is
-  conditional on the epic having one. The acceptance stays the contract the gate checks; a
-  contradiction between a description and an acceptance or an edge is a finding. A missing
-  description is not a finding, and an open question a description lists is not reported back.
+  conditional on the epic having one. The acceptance stays the contract the gate checks, so
+  whatever a description says about the acceptance or an edge is checked against them wherever it
+  is said, an open-questions list included, and a conflict is a finding: a conflict the authors
+  already know about still has to end in the acceptance. A missing description is not a finding,
+  and an open question that leaves the acceptance and the edges as they stand is not reported back.
+  (The first field run had a narrower guard — listed open questions not reported at all — and it
+  suppressed known conflicts the authors had listed as open questions; it was narrowed after that
+  run.)
 - `gate-scope` does not read it in this release; its prompt, hash and cost stay as in 1.9.0.
 - `tp epic export` carries it in the raw graph (additive), and the dashboard's epic detail shows it
   as preformatted text, escaped and never rendered as markup.
