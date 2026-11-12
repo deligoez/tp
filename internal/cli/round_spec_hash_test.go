@@ -203,3 +203,34 @@ func TestReviewRecord_EmitThenRecordUnchangedStillConverges(t *testing.T) {
 	assert.Equal(t, true, status["converged"])
 	assert.Equal(t, float64(2), status["consecutive_clean"])
 }
+
+// TestRecord_AHistoryNeverEmittedStaysStale is spec/backlog/hand-recorded-
+// staleness.md: in a phase whose every round was recorded with no emission, a
+// record is accepted but clears no staleness, and its output says why and
+// names the emission that would bind a round to the text.
+func TestRecord_AHistoryNeverEmittedStaysStale(t *testing.T) {
+	t.Parallel()
+	for _, phase := range []string{"review", "audit"} {
+		t.Run(phase, func(t *testing.T) {
+			t.Parallel()
+			dir, _ := specProject(t)
+			empty := emptyRecordFile(t, dir)
+
+			var out map[string]any
+			var stderr string
+			for i := 1; i <= 2; i++ {
+				var stdout string
+				var code int
+				stdout, stderr, code = runTP(t, dir, phase, "spec.md", "--record", empty)
+				require.Equal(t, 0, code, "a record with no emission is still accepted: %s", stderr)
+				require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+			}
+			assert.Equal(t, true, out["stale"], "no round has read the spec")
+			assert.Equal(t, false, out["converged"], "so two clean records do not converge it")
+			assert.Contains(t, stderr, "no emission", "the record says why staleness stays")
+			assert.Contains(t, stderr, "tp "+phase+" spec.md", "and names the emission that binds a round to the text")
+
+			assert.Equal(t, true, loopStatus(t, dir, phase)["stale"], "--status agrees")
+		})
+	}
+}
