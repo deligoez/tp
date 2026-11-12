@@ -405,3 +405,19 @@ func TestScope_OptionalEpicInheritsItsAlternativesMark(t *testing.T) {
 		{Milestone: "n0", Track: 1, CrossTrack: true, Size: 1, Epics: []ScopeEpic{{ID: "c0", AnyOf: group}}},
 	}, s.Closure)
 }
+
+// TestScope_MootEpicsAreNotOutside: the lost alternative of a satisfied
+// group, and what only it needed, are moot (MootEpics): no work waits on
+// them, so outside leaves them out.
+func TestScope_MootEpicsAreNotOutside(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0"}}, Epics: []model.Epic{
+		scopeEpic("a1", "m0", scopeAnyOf("x", "y")),
+		scopeEpic("x", "m0"),
+		scopeEpic("y", "m0", scopeDeps("y1")...),
+		scopeEpic("y1", "m0"),
+		scopeEpic("z", "m0"),
+	}, Gates: map[string]model.EpicGate{"m0": {Members: []string{"a1"}}}}
+	g.Epics[1].Done = scopeDone()
+
+	assert.Equal(t, []ScopeOutside{{ID: "z"}}, scopeOf(t, g, "m0").Outside)
+}
