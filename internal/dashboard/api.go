@@ -10,7 +10,8 @@ import (
 // in-process, by the code the commands use. Each method answers the payload
 // the command prints, or the error the command would exit with.
 type API interface {
-	// Export is tp export --file file's payload; an empty file is discovery's.
+	// Export is tp export --file file's payload for a file tp export --list
+	// lists, and an absent object's error for any other.
 	Export(file string) (any, *Error)
 	// History is tp epic review <slice> --history's payload for the slice and
 	// rounds the query names.

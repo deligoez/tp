@@ -3,15 +3,12 @@ package cli
 import (
 	"encoding/csv"
 	"errors"
-	"io/fs"
+	"fmt"
 	"net/url"
-	"os"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/deligoez/tp/internal/dashboard"
 	"github.com/deligoez/tp/internal/engine"
@@ -27,30 +24,23 @@ type dashboardAPI struct{}
 // one the command would refuse.
 const dashboardHistoryHint = "name one slice as tp epic review does: ?milestone=<m>, ?epic=<id> or ?epics=<ids>[&name=<name>], with &from=<a>&to=<b> together or neither"
 
-// dashboardOutsideHint answers a task file path that leaves the repository.
-const dashboardOutsideHint = "pass ?file= a task file inside this repository, relative to the directory tp dashboard runs in"
+// dashboardUnlistedHint answers a /api/export file that is not a listed path.
+const dashboardUnlistedHint = "pass ?file= a path exactly as tp export --list prints it"
 
 // runErrorOf converts a command's exit error into the endpoint's answer.
 func runErrorOf(err *epicRunError) *dashboard.Error {
 	return dashboard.NewError(err.code, err.msg, err.hint)
 }
 
-// Export answers /api/export?file=: the task file's tp export, refused when
-// the path leaves the repository. The task file's bytes are read through the
-// repository's os.Root (readInRepository) and exported under the path as
-// given, so the answer is tp export --file's own, payload and errors alike.
+// Export answers /api/export?file=: tp export --file file's answer, payload
+// or error, when file is exactly the path of a row tp export --list prints
+// now. Any other value names no task file the dashboard serves and answers
+// as an absent object (code 4), so the request never picks a filesystem path.
 func (dashboardAPI) Export(file string) (any, *dashboard.Error) {
-	var payload exportPayload
-	var rerr *epicRunError
-	if file == "" {
-		payload, rerr = exportOf("", false)
-	} else {
-		data, derr := readInRepository(file)
-		if derr != nil {
-			return nil, derr
-		}
-		payload, rerr = exportDataOf(file, data)
+	if !listedTaskFile(file) {
+		return nil, dashboard.NewError(ExitState, fmt.Sprintf("task file %q is not one tp export --list lists", file), dashboardUnlistedHint)
 	}
+	payload, rerr := exportOf(file, false)
 	if rerr != nil {
 		return nil, runErrorOf(rerr)
 	}
@@ -171,147 +161,9 @@ func dashboardHistoryQuery(q url.Values) (key engine.EpicSliceKey, from, to int,
 	return key, from, to, nil
 }
 
-// readInRepository reads the task file file names, relative to the working
-// directory or absolute, failing closed. The path is resolved as the OS
-// resolves it (resolveAsOS), and the bytes are only ever read through an
-// os.Root opened on the project root, under the resolved name relative to
-// it, which holds no symlink and no .., so the root re-checks the containment
-// in the same operation as the read. The answers:
-//
-//   - resolved inside the repository: the bytes the root reads; any error of
-//     that read refuses (403).
-//   - missing, or through a non-directory, at a point the OS reaches inside
-//     the repository: tp export --file's not-found error for file as given,
-//     read from nothing. These are the inputs the command's os.Stat refuses
-//     with that same error while the path stays inside.
-//   - reaching outside the repository, missing or not: refused (403).
-//   - anything that cannot be decided — too many symlinks, a component that
-//     cannot be read, a root that cannot be opened or resolved: refused (403)
-//     with its cause.
-func readInRepository(file string) ([]byte, *dashboard.Error) {
-	refuse := func(why string) *dashboard.Error {
-		return dashboard.Forbidden("task file "+file+" "+why, dashboardOutsideHint)
-	}
-	top := engine.ProjectRoot(".")
-	root, err := os.OpenRoot(top)
-	if err != nil {
-		return nil, refuse("is refused: the repository root cannot be opened: " + err.Error())
-	}
-	defer func() { _ = root.Close() }()
-	resolvedTop, missing, err := resolveAsOS(top)
-	if err == nil && missing {
-		err = os.ErrNotExist
-	}
-	if err != nil {
-		return nil, refuse("is refused: the repository root cannot be resolved: " + err.Error())
-	}
-	resolved, missing, err := resolveFromWorkingDirectory(file)
-	if err != nil {
-		return nil, refuse("is refused: it cannot be told whether it lies outside the repository: " + err.Error())
-	}
-	name, inside := nameInside(resolvedTop, resolved)
-	switch {
-	case !inside:
-		return nil, refuse("is outside the repository")
-	case missing:
-		return nil, runErrorOf(exportDiscoverError(engine.ExplicitTaskFileMissing(file)))
-	}
-	data, err := root.ReadFile(name)
-	if err != nil {
-		return nil, refuse("is refused: the repository cannot read it: " + err.Error())
-	}
-	return data, nil
-}
-
-// resolveFromWorkingDirectory is resolveAsOS over file, absolute or joined
-// to the working directory uncleaned: a lexical clean would drop lnk/..
-// before lnk is followed, and the OS follows it first.
-func resolveFromWorkingDirectory(file string) (resolved string, missing bool, err error) {
-	if !filepath.IsAbs(file) {
-		cwd, err := os.Getwd()
-		if err != nil {
-			return "", false, err
-		}
-		file = cwd + string(filepath.Separator) + file
-	}
-	return resolveAsOS(file)
-}
-
-// nameInside is resolved, a path resolveAsOS returned, relative to top, the
-// resolved project root, and whether it lies inside top at all.
-func nameInside(top, resolved string) (string, bool) {
-	if resolved == top {
-		return ".", true
-	}
-	return strings.CutPrefix(resolved, strings.TrimSuffix(top, string(filepath.Separator))+string(filepath.Separator))
-}
-
-// maxSymlinks is how many symlinks the OS follows resolving one path before
-// it fails with ELOOP: MAXSYMLINKS, 32, on darwin and 40 on Linux.
-func maxSymlinks() int {
-	if runtime.GOOS == "darwin" {
-		return 32
-	}
-	return 40
-}
-
-// resolveAsOS follows path, absolute and uncleaned, one component at a time
-// the way the OS resolves it: a symlink's target replaces it, relative to the
-// directory reached so far, and a .. climbs from the directory actually
-// reached, not lexically. It returns the path with every symlink resolved.
-// When a component does not exist, or the path goes on through one that is
-// not a directory, missing is true and resolved is the directory the OS had
-// reached, where it would fail with ENOENT or ENOTDIR. Following more than
-// maxSymlinks symlinks is ELOOP; any other failure to inspect a component is
-// returned as is.
-func resolveAsOS(path string) (resolved string, missing bool, err error) {
-	sep := string(filepath.Separator)
-	vol := filepath.VolumeName(path)
-	dest, rest := vol+sep, path[len(vol):]
-	links := 0
-	for {
-		rest = strings.TrimLeft(rest, sep)
-		if rest == "" {
-			return dest, false, nil
-		}
-		comp, tail, more := strings.Cut(rest, sep)
-		rest = ""
-		if more {
-			rest = sep + tail
-		}
-		switch comp {
-		case ".":
-			continue
-		case "..":
-			dest = filepath.Dir(dest)
-			continue
-		}
-		next := filepath.Join(dest, comp)
-		info, err := os.Lstat(next)
-		switch {
-		case errors.Is(err, fs.ErrNotExist):
-			return dest, true, nil
-		case err != nil:
-			return "", false, err
-		case info.Mode()&fs.ModeSymlink == 0:
-			if more && !info.IsDir() {
-				return dest, true, nil
-			}
-			dest = next
-			continue
-		}
-		links++
-		if links > maxSymlinks() {
-			return "", false, &fs.PathError{Op: "resolve", Path: path, Err: syscall.ELOOP}
-		}
-		target, err := os.Readlink(next)
-		if err != nil {
-			return "", false, err
-		}
-		if filepath.IsAbs(target) {
-			tvol := filepath.VolumeName(target)
-			dest, target = tvol+sep, target[len(tvol):]
-		}
-		rest = target + rest
-	}
+// listedTaskFile is whether file is, byte for byte, the path of a row of
+// tp export --list as the server derives it now, the list the export-list
+// event pushes.
+func listedTaskFile(file string) bool {
+	return slices.ContainsFunc(engine.TaskFileListOf(".").Files, func(row engine.TaskFileRow) bool { return row.Path == file })
 }
