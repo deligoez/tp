@@ -88,12 +88,13 @@ type ScopeShrink struct {
 }
 
 // ScopeMilestone is one milestone's part of a closure: its track's index in
-// the graph's tracks (-1 for a milestone no track lists), and its epics in
-// graph order. CrossTrack says the track is not the scope milestone's:
-// information, which lint leaves free by design, never an error.
+// the graph's tracks (absent for a milestone no track lists), and its epics
+// in graph order. CrossTrack says the milestone, not the scope's own, shares
+// no track with it, as two untracked milestones never do: information, which
+// lint leaves free by design, never an error.
 type ScopeMilestone struct {
 	Milestone  string      `json:"milestone"`
-	Track      int         `json:"track"`
+	Track      *int        `json:"track,omitempty"`
 	CrossTrack bool        `json:"cross_track,omitempty"`
 	Size       int         `json:"size"`
 	Epics      []ScopeEpic `json:"epics"`
@@ -189,12 +190,13 @@ type scopeWalk struct {
 	pos    map[string]milestonePos
 	// moot marks each moot epic (MootEpics), which counts nowhere.
 	moot map[string]bool
-	// home is the scope milestone's track.
-	home int
+	// milestone is the scope's milestone, home its track (nil untracked).
+	milestone string
+	home      *int
 }
 
 func newScopeWalk(g *model.EpicGraph, states map[string]EpicState, milestone string) *scopeWalk {
-	w := &scopeWalk{g: g, states: states, epics: epicsByID(g), pos: milestonePositions(g), moot: MootEpics(g, states)}
+	w := &scopeWalk{g: g, states: states, epics: epicsByID(g), pos: milestonePositions(g), moot: MootEpics(g, states), milestone: milestone}
 	w.home = w.track(milestone)
 	return w
 }
@@ -427,15 +429,16 @@ func (w *scopeWalk) compose(set scopeSet) []ScopeMilestone {
 			continue
 		}
 		track := w.track(m)
-		out = append(out, ScopeMilestone{Milestone: m, Track: track, CrossTrack: track != w.home, Size: len(epics), Epics: epics})
+		cross := m != w.milestone && (track == nil || w.home == nil || *track != *w.home)
+		out = append(out, ScopeMilestone{Milestone: m, Track: track, CrossTrack: cross, Size: len(epics), Epics: epics})
 	}
 	return out
 }
 
-// track returns m's track index, -1 for a milestone no track lists.
-func (w *scopeWalk) track(m string) int {
+// track returns m's track index, nil for a milestone no track lists.
+func (w *scopeWalk) track(m string) *int {
 	if p, ok := w.pos[m]; ok {
-		return p.track
+		return &p.track
 	}
-	return -1
+	return nil
 }
