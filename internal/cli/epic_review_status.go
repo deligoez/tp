@@ -55,10 +55,16 @@ func epicReviewPolicy(tpDir string) engine.EpicReviewPolicy {
 func readEpicReviewPolicy(tpDir string) (engine.EpicReviewPolicy, *epicRunError) {
 	pc, _, err := engine.LoadProjectConfig(tpDir)
 	if err != nil {
-		return engine.EpicReviewPolicy{}, &epicRunError{code: ExitFile, msg: err.Error(), hint: "fix .tp/config.json"}
+		return engine.EpicReviewPolicy{}, malformedConfigRunError(err)
 	}
 	wf := engine.ResolveWorkflowLayers(&model.WorkflowOverride{}, &pc.Workflow)
 	return engine.EpicReviewPolicy{CleanRounds: wf.ReviewCleanRounds, MaxRounds: wf.ReviewMaxRounds, ConvergeOn: wf.ReviewConvergeOn}, nil
+}
+
+// malformedConfigRunError is the exit-3 error for a .tp/config.json that
+// cannot be read, the one tp epic export and the dashboard's events carry.
+func malformedConfigRunError(err error) *epicRunError {
+	return &epicRunError{code: ExitFile, msg: err.Error(), hint: "fix .tp/config.json"}
 }
 
 // epicReviewLoop reads the slice's loop verdict, exiting 3 on unreadable state.

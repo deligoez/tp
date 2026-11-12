@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/csv"
+	"errors"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -105,6 +106,10 @@ func dashboardSummaryPayload(hasGraph bool) dashboard.Payload {
 		g = eg.g
 	}
 	sum, err := engine.DashboardSummaryOf(tpDir, g)
+	if mce := (*engine.MalformedConfigError)(nil); errors.As(err, &mce) {
+		p.Err = runErrorOf(malformedConfigRunError(mce))
+		return p
+	}
 	if err != nil {
 		// task-file-hint: an unreadable round file or task file
 		p.Err = dashboard.NewError(ExitFile, err.Error(), epicBoundFileHint)
