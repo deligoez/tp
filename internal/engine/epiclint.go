@@ -34,6 +34,10 @@ const (
 	// EpicRuleGateMemberDeferrable is the error on an epic a gate lists both
 	// as a member and as deferrable: deferrable epics never hold a gate.
 	EpicRuleGateMemberDeferrable = "gate-member-deferrable"
+	// EpicRuleDeferrableRequired is the warning on a deferrable epic a gate
+	// member reaches through plain edges: the gate cannot go green without
+	// it, so the deferral changes nothing.
+	EpicRuleDeferrableRequired = "deferrable-required"
 )
 
 // Tag and warning rules of the epic graph lint (spec/1.3.0.md §4).
@@ -142,6 +146,7 @@ func LintEpicGraph(g *model.EpicGraph, unknown []EpicGraphUnknownKey) []EpicLint
 	out = append(out, lintEpicMilestones(g)...)
 	out = append(out, lintEpicOpensAfter(g)...)
 	out = append(out, lintEpicGateMembers(g)...)
+	out = append(out, lintEpicDeferrableRequired(g)...)
 	out = append(out, lintEpicTagChecks(g)...)
 	out = append(out, lintEpicNoDependencies(g)...)
 	out = append(out, lintEpicThinWhy(g)...)
