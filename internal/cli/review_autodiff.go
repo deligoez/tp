@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/deligoez/tp/internal/engine"
@@ -51,18 +50,6 @@ func buildChangedSectionsBlock(dr *engine.DiffResult, sinceLabel string) string 
 		total += len(sect)
 	}
 	return b.String()
-}
-
-// newestEarlierSnapshot returns the newest snapshot with round < r, or (0, "")
-// when none exists.
-func newestEarlierSnapshot(specPath string, r int) (round int, path string) {
-	for k := r - 1; k >= 1; k-- {
-		p := filepath.Join(engine.ReviewStateDir(specPath), fmt.Sprintf("snapshot-round-%d.md", k))
-		if _, err := os.Stat(p); err == nil {
-			return k, p
-		}
-	}
-	return 0, ""
 }
 
 // diffLinesOf reads and frontmatter-blanks a spec file for section diffing. A

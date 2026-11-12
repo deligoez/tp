@@ -73,7 +73,7 @@ func runReviewRegression(specPath, diffFrom, findingsPath string, q roleQuery) e
 			return nil
 		}
 		r := len(st.ReviewRounds) + 1
-		if snapRound, snapPath := newestEarlierSnapshot(specPath, r); snapPath != "" {
+		if snapRound, snapPath := engine.NewestEarlierSnapshot(specPath, r); snapPath != "" {
 			dr = engine.DiffSections(diffLinesOf(snapPath), diffLinesOf(specPath))
 			sinceLabel = fmt.Sprintf("round %d", snapRound)
 			baselinePath = snapPath
@@ -146,9 +146,8 @@ func collectFixedFindings(specPath string, st *engine.ReviewState) []reviewFindi
 			continue
 		}
 		for _, row := range rows {
-			f := findingFromRow(row)
-			if f.Resolved != nil && f.Resolved.Status == "fixed" {
-				fixed = append(fixed, f)
+			if engine.ReviewRowFixed(row) {
+				fixed = append(fixed, findingFromRow(row))
 			}
 		}
 	}

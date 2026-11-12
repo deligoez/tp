@@ -1040,7 +1040,7 @@ func buildReviewPrompts(specPath string, panel *rolePanel, elems *engine.Structu
 		diffBlock = buildChangedSectionsBlock(&diffDr, diffLabel)
 		baselinePath = diffFrom
 	case !noState && round >= 2:
-		if snapRound, snapPath := newestEarlierSnapshot(specPath, round); snapPath != "" {
+		if snapRound, snapPath := engine.NewestEarlierSnapshot(specPath, round); snapPath != "" {
 			diffDr = engine.DiffSections(diffLinesOf(snapPath), diffLinesOf(specPath))
 			diffLabel = fmt.Sprintf("round %d", snapRound)
 			diffBlock = buildChangedSectionsBlock(&diffDr, diffLabel)
@@ -1072,20 +1072,23 @@ func buildReviewPrompts(specPath string, panel *rolePanel, elems *engine.Structu
 	}
 
 	// Auto-append the regression prompt as a 4th entry when the round has
-	// something to guard: a non-empty diff or at least one fixed finding.
+	// something to guard: a non-empty diff or at least one fixed finding. The
+	// condition is engine.RegressionCarried, the one tp run's oracle reads to
+	// spawn the regression unit.
+	var fixed []reviewFinding
 	if !noState && round >= 2 {
-		fixed := collectFixedFindings(specPath, reviewSt)
-		if diffBlock != "" || len(fixed) > 0 {
-			if len(fixed) > regressionFixedFindingsCap {
-				fixed = fixed[:regressionFixedFindingsCap]
-			}
-			prompts = append(prompts, reviewPrompt{
-				Role:     "regression",
-				Category: "regression",
-				Prompt:   buildRegressionPrompt(&diffDr, diffLabel, baselinePath, fixed),
-			})
-			regressionIncluded = true
+		fixed = collectFixedFindings(specPath, reviewSt)
+	}
+	if engine.RegressionCarried(round, noState, &diffDr, len(fixed)) {
+		if len(fixed) > regressionFixedFindingsCap {
+			fixed = fixed[:regressionFixedFindingsCap]
 		}
+		prompts = append(prompts, reviewPrompt{
+			Role:     engine.RegressionRoleID,
+			Category: "regression",
+			Prompt:   buildRegressionPrompt(&diffDr, diffLabel, baselinePath, fixed),
+		})
+		regressionIncluded = true
 	}
 
 	// Prompt exclusion: reviewers stop looking for mechanized classes (§3.2).
@@ -2131,7 +2134,7 @@ func loadReviewRoundState(cmd *cobra.Command, specPath string, round int, findin
 // snapshot-round-N.md on disk — a round opened by a typo that no prompt ever
 // came from, and over an edited spec, a round-N snapshot replaced by text no
 // reviewer read. The changed-sections baseline does not need it first:
-// newestEarlierSnapshot searches only the rounds below the one being emitted.
+// engine.NewestEarlierSnapshot searches only the rounds below the one being emitted.
 func writeReviewRoundSnapshot(cmd *cobra.Command, specPath string, round int) {
 	specBytes, readErr := os.ReadFile(specPath)
 	if readErr != nil {
