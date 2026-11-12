@@ -133,9 +133,14 @@ physical() {
 # review role writes by hand, .tp/epic-review/<state dir>/inbox/<role>-r<N>.ndjson
 # (spec/1.7.0.md section 1): a state directory is a SHA-256 in hex, a role id
 # is lowercase words joined by hyphens, a round is 1 or more.
+#
+# The ground scratch file is the other hand-written name, since it moved into
+# the spec's state directory (spec/backlog/ground-scratch-in-state-dir.md):
+# .tp-review/<base>/ground-inbox/round-<N>.ndjson, beside the recorded ground
+# rounds and apart from them.
 inbox_name() {
 	printf '%s\n' "$1" |
-		grep -Eq '(^|/)\.tp/epic-review/[0-9a-f]{64}/inbox/[a-z0-9]+(-[a-z0-9]+)*-r[1-9][0-9]*\.ndjson$'
+		grep -Eq '(^|/)\.tp/epic-review/[0-9a-f]{64}/inbox/[a-z0-9]+(-[a-z0-9]+)*-r[1-9][0-9]*\.ndjson$|(^|/)\.tp-review/[^/]+/ground-inbox/round-[1-9][0-9]*\.ndjson$'
 }
 
 # inbox_allowed reports whether a write may pass the fence as an epic review
