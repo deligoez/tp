@@ -122,6 +122,36 @@ func TestEpicReview_ARoleWithNoUnitOfItsKindsIsSkipped(t *testing.T) {
 	require.Equal(t, 0, code, "stdout: %s stderr: %s", stdout, stderr)
 }
 
+// TestEpicReview_AKindNoRoleReadsHasNoUnit: a corpus whose every role takes
+// only epics produces no gate and no scope unit, in emission, status and
+// export alike.
+func TestEpicReview_AKindNoRoleReadsHasNoUnit(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChainThreshold)
+	writeEpicRoles(t, dir, map[string]string{"placer": purposeRoles["placer"]})
+	out := runEpicReview(t, dir, "--milestone", "A")
+	assert.Equal(t, []string{"epic:a", "epic:b", "epic:c", "epic:d"}, out.Units)
+	status, _, _ := runTP(t, dir, "epic", "review", "--milestone", "A", "--status")
+	assert.NotContains(t, status, "gate:A")
+	export, _, code := runTP(t, dir, "epic", "export")
+	require.Equal(t, 0, code)
+	assert.NotContains(t, export, `"gate:A"`)
+	assert.NotContains(t, export, `"scope:A"`)
+}
+
+// TestEpicReview_AnUnreadableCorpusFailsTheStatus: a role file that does not
+// parse is an exit-3 error in --status, not a corpus read as empty.
+func TestEpicReview_AnUnreadableCorpusFailsTheStatus(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChainThreshold)
+	writeEpicRoles(t, dir, map[string]string{"broken": `{"id": "broken", "title": "B", "instructions": "I", "units": []}`})
+	_, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A", "--status")
+	assert.Equal(t, 3, code)
+	assert.Contains(t, stderr, "epic-reviewers")
+	_, _, code = runTP(t, dir, "epic", "review", "--all", "--status")
+	assert.Equal(t, 3, code)
+}
+
 // TestEpicReview_AScopeFindingRecords: a row located at scope:<m> is a unit of
 // the slice, so --record takes it.
 func TestEpicReview_AScopeFindingRecords(t *testing.T) {
