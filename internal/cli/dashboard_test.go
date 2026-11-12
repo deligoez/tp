@@ -80,9 +80,16 @@ type dashboardServer struct {
 // prints, and stops the child when the test ends.
 func startDashboard(t *testing.T, dir string, port int) *dashboardServer {
 	t.Helper()
+	return startDashboardEnv(t, dir, port, nil)
+}
+
+// startDashboardEnv is startDashboard with extra appended to the child's
+// environment, PWD=<a symlinked path> to start it in a logical directory.
+func startDashboardEnv(t *testing.T, dir string, port int, extra []string) *dashboardServer {
+	t.Helper()
 	cmd := exec.Command(binaryPath, "--json", "dashboard", "--port", strconv.Itoa(port))
 	cmd.Dir = dir
-	cmd.Env = dashboardEnv(false)
+	cmd.Env = append(dashboardEnv(false), extra...)
 	stdout, err := cmd.StdoutPipe()
 	require.NoError(t, err)
 	stderr := &lockedBuffer{}
