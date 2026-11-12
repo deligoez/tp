@@ -149,7 +149,11 @@ func writeScopeTail(b *strings.Builder, s *EpicScope) {
 	fmt.Fprintf(b, "deferrable_in_closure: %s\n", scopeListOrNone(s.DeferrableInClosure, ", "))
 	holds := make([]string, 0, len(s.HoldsOpening))
 	for _, h := range s.HoldsOpening {
-		holds = append(holds, h.Milestone+": "+strings.Join(h.Epics, ", "))
+		mode := "explicit gate"
+		if h.MembersImplicit {
+			mode = "implicit gate"
+		}
+		holds = append(holds, h.Milestone+" ("+mode+"): "+strings.Join(h.Epics, ", "))
 	}
 	b.WriteString("holds_opening: " + scopeListOrNone(holds, "; ") + "\n")
 	fmt.Fprintf(b, "critical_path (by count): %s\n", strings.Join(s.CriticalPath.ByCount, " -> "))

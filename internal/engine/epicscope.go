@@ -69,9 +69,13 @@ type ScopeOutside struct {
 // the scope's closure does not need; Size is their number. A deferrable is
 // no member, so it is never listed.
 type ScopeHoldsOpening struct {
-	Milestone string   `json:"milestone"`
-	Size      int      `json:"size"`
-	Epics     []string `json:"epics"`
+	Milestone string `json:"milestone"`
+	// MembersImplicit says the predecessor's gate names no members: only
+	// then is making an epic deferrable there a move, since an explicit
+	// member was named on purpose and may not be deferrable.
+	MembersImplicit bool     `json:"members_implicit"`
+	Size            int      `json:"size"`
+	Epics           []string `json:"epics"`
 }
 
 // ScopeShrink is one closure epic's removal shrink: for a non-member, the
@@ -255,7 +259,7 @@ func (w *scopeWalk) holdsOpening(milestone string, full scopeSet) []ScopeHoldsOp
 		}
 		if len(ids) > 0 {
 			sort.Strings(ids)
-			out = append(out, ScopeHoldsOpening{Milestone: p, Size: len(ids), Epics: ids})
+			out = append(out, ScopeHoldsOpening{Milestone: p, MembersImplicit: len(w.g.Gates[p].Members) == 0, Size: len(ids), Epics: ids})
 		}
 	}
 	return out
