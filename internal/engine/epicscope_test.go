@@ -234,3 +234,26 @@ func TestScope_UnneededEarlier(t *testing.T) {
 		{Milestone: "m0", Epics: []string{"a2"}, ImplicitLater: []string{"m2"}},
 	}, s.UnneededEarlier, "another track's need for a2 does not count, and m1's b1 is needed by m2")
 }
+
+// TestScope_Fingerprint: the fingerprint is stable while nothing it covers
+// changes, changes with a rewritten threshold even when the closure is
+// identical, and changes with the closure.
+func TestScope_Fingerprint(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0"}}, Epics: []model.Epic{
+		scopeEpic("a1", "m0", scopeDeps("a2")...),
+		scopeEpic("a2", "m0"),
+		scopeEpic("a3", "m0"),
+	}, Gates: map[string]model.EpicGate{"m0": {Members: []string{"a1"}, Threshold: "ten users"}}}
+
+	first := scopeOf(t, g, "m0")
+	assert.Len(t, first.Fingerprint, 64)
+	assert.Equal(t, first.Fingerprint, scopeOf(t, g, "m0").Fingerprint, "stable on a rerun")
+
+	g.Gates["m0"] = model.EpicGate{Members: []string{"a1"}, Threshold: "twenty users"}
+	rewritten := scopeOf(t, g, "m0")
+	assert.Equal(t, closureIDs(&first), closureIDs(&rewritten))
+	assert.NotEqual(t, first.Fingerprint, rewritten.Fingerprint, "a rewritten threshold is a change")
+
+	g.Epics[1].Done = scopeDone()
+	assert.NotEqual(t, rewritten.Fingerprint, scopeOf(t, g, "m0").Fingerprint, "a smaller closure is a change")
+}
