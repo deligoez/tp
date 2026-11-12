@@ -167,6 +167,20 @@ func worktreeFiles(t *testing.T, dir string) map[string]string {
 	return tree
 }
 
+// TestWorktreeFiles_NeverReadsGit pins that worktreeFiles skips .git rather
+// than reading it and dropping it afterwards: git's background maintenance
+// creates and removes lock files under .git/objects while a test walks the
+// tree, and a release run failed reading one that had just gone.
+func TestWorktreeFiles_NeverReadsGit(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".git", "objects"), 0o700))
+	locked := filepath.Join(dir, ".git", "objects", "maintenance.lock")
+	require.NoError(t, os.WriteFile(locked, []byte("x"), 0o000))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.txt"), []byte("a"), 0o600))
+	assert.Equal(t, map[string]string{filepath.Join(dir, "a.txt"): "a"}, worktreeFiles(t, dir))
+}
+
 // assertHasHint checks that a tp error on stderr carries a non-empty hint.
 func assertHasHint(t *testing.T, stderr string) {
 	t.Helper()
