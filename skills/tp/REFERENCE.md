@@ -1690,8 +1690,10 @@ never its lines as fields or edges. The built-in `dod-satisfiability`, `why-audi
 `phase-economist` read a description, when the asked epic has one, as the primary text of the epic
 under review: whether the acceptance satisfies its purpose and scope, whether the edges' whys agree
 with its decisions, whether the placement fits its purpose. The acceptance stays the contract the
-gate checks; a contradiction between the description and the acceptance or an edge is a finding; a
-missing description is not, and an open question the description lists is not reported back.
+gate checks; whatever a description says about the acceptance or an edge is checked against them
+wherever it is said, an open-questions list included, and a conflict is a finding. A missing
+description is not a finding, and an open question that leaves the acceptance and the edges as they
+stand is not reported back.
 `gate-scope` does not read it. A corpus ejected before v1.11.0 gets the text in its blocks and none
 of these instructions until it is ejected again. What belongs in a description is intent, scope,
 non-goals, decisions and open questions; behaviour written there is re-reviewed on every edit and
