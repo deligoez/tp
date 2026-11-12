@@ -1973,14 +1973,20 @@ It writes nothing to the repository and loads nothing remote.
 | any method but `GET` | 405 with `Allow: GET` |
 | `/`, `/style.css`, `/app.js` | the page |
 | `/api/events` | the event stream below |
-| `/api/export?file=<path>` | `tp export --file <path>`'s JSON, uncompacted |
+| `/api/export?file=<path>`, `<path>` a `tp export --list` row's `path` | `tp export --file <path>`'s JSON, uncompacted |
 | `/api/history?milestone=<m>` (or `epic=`, `epics=`, with `name=`, and `from=`/`to=`) | that slice's `tp epic review --history` JSON |
 | `/api/epic-history?epic=<id>` | `tp epic review --history --of-epic <id>`'s JSON |
 
 A GET answer is byte-equal to the command's stdout. An error answers tp's `{error, code, hint}`:
-HTTP 400 for code 2, 404 for codes 3 and 4, and 403 with code 2 for a `file` that resolves outside the
-repository (a relative `..`, an absolute path, or a symlink pointing out). No response carries a CORS
-header.
+HTTP 400 for code 2, 404 for codes 3 and 4. No response carries a CORS header.
+
+`/api/export` takes no filesystem path from the request: `<path>` must be byte-equal to a `path` of
+`tp export --list` as the server derives it at that request, and is then read exactly as
+`tp export --file <path>` reads it from the server's working directory, payload and errors alike. Any
+other value (another spelling of a listed file, such as `./` or its absolute path, or none) answers 404 with
+code 4, the code of a named object that does not exist, and a hint naming `tp export --list`. A
+listed task file whose `spec` names a file elsewhere, or that is a symlink, is read exactly as
+`tp export` reads it.
 
 **Events.** `/api/events` is a server-sent event stream. While at least one page listens, the server
 derives three payloads in-process every 2 seconds and pushes each, as one line of JSON under its event
