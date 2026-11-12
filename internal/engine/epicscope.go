@@ -36,9 +36,6 @@ type EpicScope struct {
 	// left out, in graph order, computed the same way under implicit members,
 	// which leave the deferrable and condition epics out.
 	Outside []ScopeOutside `json:"outside"`
-	// NoDependents is the ids of Outside no epic of the graph depends on, by
-	// plain edge or as an any-of member.
-	NoDependents []string `json:"no_dependents"`
 	// DeferrableInClosure is the gate's deferrable epics the closure
 	// requires (ScopeEpic): the members reach them through plain edges
 	// alone, so they cannot actually be deferred. In the gate's deferrable
@@ -55,11 +52,13 @@ type EpicScope struct {
 }
 
 // ScopeOutside is one epic outside the closure, marked when its gate lists
-// it deferrable or it is a condition.
+// it deferrable, when it is a condition, and when no depends_on entry of the
+// graph names it, by plain edge or as an any-of member.
 type ScopeOutside struct {
-	ID         string `json:"id"`
-	Deferrable bool   `json:"deferrable,omitempty"`
-	Condition  bool   `json:"condition,omitempty"`
+	ID           string `json:"id"`
+	Deferrable   bool   `json:"deferrable,omitempty"`
+	Condition    bool   `json:"condition,omitempty"`
+	NoDependents bool   `json:"no_dependents,omitempty"`
 }
 
 // ScopeUnneeded is one earlier milestone's gate members no other gate of the
@@ -129,7 +128,7 @@ func MilestoneScope(g *model.EpicGraph, states map[string]EpicState, estimates m
 		UnneededEarlier:     w.unneededEarlier(milestone),
 		CriticalPath:        CriticalPath(g, states, estimates, milestone),
 	}
-	s.Outside, s.NoDependents = w.outside(milestone, deferrable, full)
+	s.Outside = w.outside(milestone, deferrable, full)
 	s.Fingerprint = scopeFingerprint(members, blindClosure(w.epics, members), g.Gates[milestone].Threshold)
 	return s
 }
@@ -266,9 +265,8 @@ func (w *scopeWalk) allGates() []scopeGate {
 }
 
 // outside returns milestone's not-done epics full misses, in graph order,
-// each marked deferrable or condition, and the ids of those no depends_on
-// entry of the graph names.
-func (w *scopeWalk) outside(milestone string, deferrable []string, full scopeSet) (outside []ScopeOutside, noDependents []string) {
+// each marked (ScopeOutside).
+func (w *scopeWalk) outside(milestone string, deferrable []string, full scopeSet) []ScopeOutside {
 	named := map[string]bool{}
 	for i := range w.g.Epics {
 		for _, d := range w.g.Epics[i].DependsOn {
@@ -278,18 +276,15 @@ func (w *scopeWalk) outside(milestone string, deferrable []string, full scopeSet
 			}
 		}
 	}
-	outside, noDependents = []ScopeOutside{}, []string{}
+	outside := []ScopeOutside{}
 	for i := range w.g.Epics {
 		e := &w.g.Epics[i]
 		if e.Milestone != milestone || w.epics[e.ID] != e || !w.open(e.ID) || full.in[e.ID] {
 			continue
 		}
-		outside = append(outside, ScopeOutside{ID: e.ID, Deferrable: slices.Contains(deferrable, e.ID), Condition: e.Condition})
-		if !named[e.ID] {
-			noDependents = append(noDependents, e.ID)
-		}
+		outside = append(outside, ScopeOutside{ID: e.ID, Deferrable: slices.Contains(deferrable, e.ID), Condition: e.Condition, NoDependents: !named[e.ID]})
 	}
-	return outside, noDependents
+	return outside
 }
 
 // shrink returns the removal shrink rows of full's epics, listed in closure
