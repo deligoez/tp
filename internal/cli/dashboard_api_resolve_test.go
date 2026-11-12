@@ -53,3 +53,19 @@ func TestDashboard_RefusesALongInRepoSymlinkChainLeadingOut(t *testing.T) {
 	requireRefusedAsOutside(t, srv, first)
 }
 
+// TestDashboard_RefusesASymlinkChainPastTheOSLimit: a chain of 33 in-repo
+// symlinks, past the OS's own limit, whose last link points outside the
+// repository is refused as well.
+func TestDashboard_RefusesASymlinkChainPastTheOSLimit(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeTaskFileRaw(t, dir, `[]`)
+	initGitRepo(t, dir)
+	outside := filepath.Join(t.TempDir(), "outside.tasks.json")
+	require.NoError(t, os.WriteFile(outside, []byte(`[]`), 0o600))
+	first := linkChain(t, dir, 33, outside)
+	srv := startDashboard(t, dir, freePort(t))
+
+	requireRefusedAsOutside(t, srv, first)
+}
+
