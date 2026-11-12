@@ -76,28 +76,30 @@ func TestEpicReview_AnOpenFindingReasksItsUnit(t *testing.T) {
 	assert.NotEmpty(t, r2.Prompts)
 }
 
+// regressionSlice is milestone A with round 1 recorded clean and round 2
+// recorded holding one low row on epic:a, pre-resolved status: the
+// disposition lands before round 3 is emitted, as dispositions do.
+func regressionSlice(t *testing.T, status string) string {
+	t.Helper()
+	dir := epicGraphDir(t, epicChain)
+	r1 := runEpicReview(t, dir, "--milestone", "A")
+	writeEpicRound(t, dir, &r1, "")
+	r2 := runEpicReview(t, dir, "--milestone", "A")
+	writeEpicRound(t, dir, &r2, `{"severity":"low","finding":"a's title is terse","location":"epic:a","evidence":"title: A","resolved":{"status":"`+
+		status+`","evidence":"decided"}}`+"\n")
+	return dir
+}
+
 // TestEpicReview_RegressionFollowsAFixedResolution is §9 row 17: after a clean,
 // unedited round 2 no regression prompt runs; once the round-2 row is resolved
 // fixed, round 3 re-asks its unit (D2) and appends regression. Appending it on
 // a changed slice alone would miss the second case.
 func TestEpicReview_RegressionFollowsAFixedResolution(t *testing.T) {
 	t.Parallel()
-	dir := epicGraphDir(t, epicChain)
-
-	r1 := runEpicReview(t, dir, "--milestone", "A")
-	writeEpicRound(t, dir, &r1, "")
-	r2 := runEpicReview(t, dir, "--milestone", "A")
-	row := `{"severity":"low","finding":"a's title is terse","location":"epic:a","evidence":"title: A","resolved":{"status":"%s","evidence":"decided"}}` + "\n"
-	writeEpicRound(t, dir, &r2, strings.Replace(row, "%s", "wontfix", 1))
-
-	r3 := runEpicReview(t, dir, "--milestone", "A")
+	r3 := runEpicReview(t, regressionSlice(t, "wontfix"), "--milestone", "A")
 	assert.NotContains(t, promptRoles(&r3), "regression", "a clean, unedited round 2 guards nothing")
 
-	writeEpicRound(t, dir, &r2, strings.Replace(row, "%s", "fixed", 1))
-	// Re-disposing round 2's row adds regression to the unrecorded round 3's
-	// panel, which the re-emission guard reads as a change: --force discards
-	// the emission the first disposition built.
-	r3 = runEpicReview(t, dir, "--milestone", "A", "--force")
+	r3 = runEpicReview(t, regressionSlice(t, "fixed"), "--milestone", "A")
 	assert.Equal(t, []string{"epic:a"}, r3.Units, "a fixed finding's unit is asked again")
 	roles := promptRoles(&r3)
 	require.NotEmpty(t, roles)
