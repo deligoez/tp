@@ -483,6 +483,7 @@ button.pcell[aria-pressed="true"] { background: var(--color-accent-wash); border
 .dbody dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px var(--space-md); margin: 0; font-size: var(--text-sm); }
 .dbody dt { color: var(--muted); }
 .dbody dd { margin: 0; min-width: 0; overflow-wrap: anywhere; white-space: pre-line; }
+.ddesc { font: 400 var(--text-sm)/1.6 var(--mono); background: var(--sunk); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius-input); padding: var(--space-sm) 14px; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 24em; overflow: auto; }
 .dmeta { display: flex; flex-wrap: wrap; gap: var(--space-2xs) var(--space-sm); align-items: center; font-size: var(--text-sm); color: var(--muted); }
 .critpill { color: var(--crit); border: 1px solid var(--crit); border-radius: 999px; padding: 0 var(--space-xs); font-size: var(--text-xs); }
 .stepper.e3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }

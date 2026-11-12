@@ -21,6 +21,9 @@
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const plural = (n, one, many) => n + " " + (n === 1 ? one : many);
+  // descHTML shows an epic's description as escaped preformatted text: it is
+  // markdown, and the page renders no markup from it.
+  const descHTML = (s) => '<div><h4>Description</h4><pre class="ddesc">' + esc(s) + "</pre></div>";
 
   // live holds, per event, the last good payload and the error pushed after
   // it, if any; graph records whether tp pushed the epic export at all.
@@ -1274,6 +1277,7 @@
     $("dbody").innerHTML = '<div><div class="dmeta"><code>' + esc(id) + "</code><span>" + (e.condition ? "condition" : "work epic") + "</span>" + (crit ? '<span class="critpill">on the critical path</span>' : "") + "</div><h3>" + esc(e.title) + "</h3></div>" +
       (e.condition ? '<p class="impact">A condition: it takes no spec, and the operator records it with <code>tp epic done ' + esc(id) + ' --evidence</code>.</p>' : epicStepper(e, ge.claimed !== undefined ? ge : null)) +
       "<dl>" + fields.map(([k, v]) => "<dt>" + esc(k) + "</dt><dd>" + esc(v) + "</dd>").join("") + "</dl>" +
+      (String(ge.description || "").trim() ? descHTML(ge.description) : "") +
       (e.condition ? "" : "<div><h4>Specs bound to it</h4>" + ((e.files || []).length ? '<ul class="elist">' + e.files.map(fileLine).join("") + "</ul>" : none("None yet: tp init <spec> --epic " + id + " binds one.")) + "</div>") +
       "<div><h4>Depends on</h4>" + (deps ? '<ul class="elist">' + deps + "</ul>" : none("Nothing.")) + "</div>" +
       "<div><h4>Depended on by</h4>" + (needs ? '<ul class="elist">' + needs + "</ul>" : none("Nothing.")) + "</div>" +
