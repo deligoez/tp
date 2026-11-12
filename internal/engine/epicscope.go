@@ -39,9 +39,10 @@ type EpicScope struct {
 	// NoDependents is the ids of Outside no epic of the graph depends on, by
 	// plain edge or as an any-of member.
 	NoDependents []string `json:"no_dependents"`
-	// DeferrableInClosure is the gate's deferrable epics that are in the
-	// closure anyway, since a member depends on them: they cannot actually be
-	// deferred. In the gate's deferrable order.
+	// DeferrableInClosure is the gate's deferrable epics the closure
+	// requires (ScopeEpic): the members reach them through plain edges
+	// alone, so they cannot actually be deferred. In the gate's deferrable
+	// order, [] when none.
 	DeferrableInClosure []string `json:"deferrable_in_closure"`
 	// UnneededEarlier is, for each milestone before this one in its track,
 	// in track order, the not-done members of its gate that the closure of
@@ -123,7 +124,7 @@ func MilestoneScope(g *model.EpicGraph, states map[string]EpicState, estimates m
 		MembersImplicit:     len(g.Gates[milestone].Members) == 0,
 		Closure:             closure,
 		Shrink:              w.shrink(members, full, closure),
-		DeferrableInClosure: slices.DeleteFunc(slices.Clone(deferrable), func(id string) bool { return !full.in[id] }),
+		DeferrableInClosure: full.required(deferrable),
 		UnneededEarlier:     w.unneededEarlier(milestone),
 		CriticalPath:        CriticalPath(g, states, estimates, milestone),
 	}
@@ -310,6 +311,18 @@ func (w *scopeWalk) shrink(members []string, full scopeSet, closure []ScopeMiles
 		}
 		return out[i].Epic < out[j].Epic
 	})
+	return out
+}
+
+// required returns the ids of ids s requires, in their order: in s and with
+// no any-of mark (ScopeEpic.AnyOf). Never nil.
+func (s scopeSet) required(ids []string) []string {
+	out := []string{}
+	for _, id := range ids {
+		if s.in[id] && s.anyOf[id] == nil {
+			out = append(out, id)
+		}
+	}
 	return out
 }
 
