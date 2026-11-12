@@ -1525,7 +1525,7 @@ its own, so the set may grow without changing directory. `--status` names it as
 
 | File | Written by | Content |
 |------|------------|---------|
-| `snapshot-round-<N>.json` | emission | each unit's hash and block text as round N read it, and each slice milestone's purpose as `purposes` (v1.9.0); a unit's hash covers its own block and, for an epic, the blocks of its direct dependencies, an any-of group's members included (v1.7.0), a dependency's without its description (v1.11.0) |
+| `snapshot-round-<N>.json` | emission | each unit's hash and block text as round N read it, and each slice milestone's purpose as `purposes` (v1.9.0); a unit's hash covers its own block and, for an epic, the blocks of its direct dependencies, an any-of group's members included (v1.7.0), a dependency's without its description (v1.11.0); per epic unit, `own_rests` and `tails` (v1.11.0) hash its own block without the description and the dependency blocks its hash covers |
 | `round-<N>.ndjson` | `--record` | the round's findings, each with `severity`, `finding`, `location` (`epic:<id>`, `gate:<m>` or `scope:<m>`) and `evidence`; `--resolve` writes dispositions into the last one |
 | `key.json` | emission (v1.5.0) | the slice's key, `{kind, value?, ids?, name?}` with `kind` one of `epic`, `milestone`, `epics`; `tp epic export` lists it |
 | `grant.json` | `--grant-round` (v1.7.0) | `{round}`, the one round past the cap the operator granted; recording that round spends it |
@@ -1676,9 +1676,14 @@ close the block's `---` frame; context epics, full or brief, show none, and `gat
 holds none. Writing a description is authoring, not a change for regression: a unit whose only
 difference from the round before is its own description is asked again of the roles reading its
 kind but appends no regression role, and a regression-only round still asks it of them, as a purpose
-change asks purpose roles. A finding on it resolved `fixed` appends regression as before, which reads
-that unit's change as the description's line diff (`- ` removed, `+ ` added, unchanged lines as
-context) instead of the before-and-now copies other changes keep. The hand-off context compares a
+change asks purpose roles. That difference is told by hash, never by the text's shape: the unit's
+hash moved while its `own_rests` and `tails` hashes match the snapshot's (against a snapshot from
+before v1.11.0, which holds neither, the block before must equal the own block without the
+description), so an acceptance or why that merely looks like a description section is a change. A
+finding on it resolved `fixed` appends regression as before. Regression's `Changed since round N:`
+lists each changed unit in its own form: the block as that round read it and as it reads now, or,
+for a description-only change, the description's line diff in hunks (`- ` removed, `+ ` added, one
+unchanged line on either side of a change, `…` for each run of unchanged lines left out). The hand-off context compares a
 changed title and acceptance with the ones the round before read, so a description naming an epic
 hides no hand-off. `--history` reads a description edit as a change of the field `description`,
 never its lines as fields or edges. The built-in `dod-satisfiability`, `why-auditor` and
