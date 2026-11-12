@@ -17,19 +17,22 @@ type epicScopeResult struct {
 	CriticalPath epicPathReport `json:"critical_path"`
 }
 
-// epicScopeCompact is the payload under --compact: the fingerprint first,
-// the members (or "implicit" and their count), the closure's size per
-// milestone, the shrink rows without leaves, and the critical path's length
-// by count. It drops the closure's epic lists, outside, no_dependents,
-// deferrable_in_closure, unneeded_earlier and both critical path chains.
+// epicScopeCompact is the payload under --compact, a strict subset of the
+// full one: the fingerprint first, the members' mode and count with their
+// list only for an explicit gate, the closure's size per milestone, the
+// shrink rows without leaves, deferrable_in_closure when not empty, and the
+// critical path by count. It drops the closure's epic lists, outside,
+// unneeded_earlier, an implicit gate's member list and the path by estimate.
 type epicScopeCompact struct {
-	Fingerprint        string                      `json:"fingerprint"`
-	Milestone          string                      `json:"milestone"`
-	Members            any                         `json:"members"`
-	MemberCount        *int                        `json:"member_count,omitempty"`
-	Closure            []epicScopeCompactMilestone `json:"closure"`
-	Shrink             []epicScopeCompactShrink    `json:"shrink"`
-	CriticalPathLength int                         `json:"critical_path_length"`
+	Fingerprint     string                      `json:"fingerprint"`
+	Milestone       string                      `json:"milestone"`
+	Members         []string                    `json:"members,omitempty"`
+	MembersImplicit bool                        `json:"members_implicit"`
+	MemberCount     int                         `json:"member_count"`
+	Closure         []epicScopeCompactMilestone `json:"closure"`
+	Shrink          []epicScopeCompactShrink    `json:"shrink"`
+	Deferrable      []string                    `json:"deferrable_in_closure,omitempty"`
+	CriticalPath    epicPathReport              `json:"critical_path"`
 }
 
 // epicScopeCompactMilestone is one closure milestone without its epics.
@@ -89,19 +92,21 @@ func runEpicScope(_ *cobra.Command, args []string) error {
 	return nil
 }
 
-// epicScopeCompactOf projects scope onto its --compact payload.
+// epicScopeCompactOf projects scope onto its --compact payload, a strict
+// subset of the full one.
 func epicScopeCompactOf(scope *engine.EpicScope) epicScopeCompact {
 	out := epicScopeCompact{
-		Fingerprint:        scope.Fingerprint,
-		Milestone:          scope.Milestone,
-		Members:            scope.Members,
-		Closure:            make([]epicScopeCompactMilestone, 0, len(scope.Closure)),
-		Shrink:             make([]epicScopeCompactShrink, 0, len(scope.Shrink)),
-		CriticalPathLength: len(scope.CriticalPath.ByCount),
+		Fingerprint:     scope.Fingerprint,
+		Milestone:       scope.Milestone,
+		MembersImplicit: scope.MembersImplicit,
+		MemberCount:     scope.MemberCount,
+		Closure:         make([]epicScopeCompactMilestone, 0, len(scope.Closure)),
+		Shrink:          make([]epicScopeCompactShrink, 0, len(scope.Shrink)),
+		CriticalPath:    epicPathReport{ByCount: scope.CriticalPath.ByCount},
+		Deferrable:      scope.DeferrableInClosure,
 	}
-	if scope.MembersImplicit {
-		n := len(scope.Members)
-		out.Members, out.MemberCount = "implicit", &n
+	if !scope.MembersImplicit {
+		out.Members = scope.Members
 	}
 	for _, m := range scope.Closure {
 		out.Closure = append(out.Closure, epicScopeCompactMilestone{Milestone: m.Milestone, Track: m.Track, CrossTrack: m.CrossTrack, Size: m.Size})
