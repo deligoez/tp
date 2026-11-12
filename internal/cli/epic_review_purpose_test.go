@@ -60,7 +60,7 @@ func convergedPurposeSlice(t *testing.T, corpus map[string]string) string {
 }
 
 // TestEpicReview_APurposeReasksOnlyThePurposeRoles: writing a purpose on a
-// converged slice leaves it pending in purpose_stale, asks only the roles
+// converged slice leaves it pending in purpose_stale_units, asks only the roles
 // with purpose: true, each its own kinds, delivers the purpose once as a
 // header, and skips the rest with no-units; that round records and closes,
 // and an unchanged purpose asks nothing again.
