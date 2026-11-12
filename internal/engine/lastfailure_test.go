@@ -124,3 +124,22 @@ func TestReadLastFailure_TreatsAnUnparseableRecordAsAbsent(t *testing.T) {
 
 	assert.Nil(t, ReadLastFailure(root, taskFile))
 }
+
+// TestClearLastFailure_ReportsARemoveItCouldNotMake: clearing a matching
+// record that cannot be removed is an error, not a silent success. The record
+// would otherwise stay behind and be reported as the cycle's last failure after
+// the unit it names has succeeded.
+func TestClearLastFailure_ReportsARemoveItCouldNotMake(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root can unlink from a read-only directory, so the fixture is not unremovable")
+	}
+	root, taskFile := lastFailureRoot(t)
+	require.NoError(t, WriteLastFailure(root, taskFile,
+		&LastFailure{UnitKind: UnitImplement, UnitID: "alpha", ExitCode: 1, Summary: "s"}))
+	dir := filepath.Dir(LastFailurePath(root, taskFile))
+	require.NoError(t, os.Chmod(dir, 0o500))
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o750) })
+
+	require.Error(t, ClearLastFailure(root, taskFile, UnitImplement, "alpha"))
+	assert.NotNil(t, ReadLastFailure(root, taskFile), "the record is still there")
+}
