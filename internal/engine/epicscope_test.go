@@ -28,6 +28,11 @@ func scopeDeps(ids ...string) []model.EpicDep {
 	return deps
 }
 
+// scopeAnyOf is one any-of group over ids.
+func scopeAnyOf(ids ...string) model.EpicDep {
+	return model.EpicDep{AnyOf: ids, Why: "needs one"}
+}
+
 // scopeDone is a done record.
 func scopeDone() *model.EpicDone {
 	return &model.EpicDone{At: time.Date(2026, 1, 5, 9, 0, 0, 0, time.UTC), Evidence: "shipped"}
@@ -92,4 +97,36 @@ func TestScope_ClosureCutAtDoneEpic(t *testing.T) {
 	assert.Equal(t, []string{"a1", "a2"}, closureIDs(s))
 	require.Len(t, s.Closure, 1)
 	assert.Equal(t, 2, s.Closure[0].Size)
+}
+
+// TestScope_AnyOfGroup: an unsatisfied group brings in every not-done member,
+// each marked with its group, since choosing one is the operator's call; an
+// epic a plain edge also reaches carries no mark; a satisfied group brings in
+// nothing.
+func TestScope_AnyOfGroup(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0"}}, Epics: []model.Epic{
+		scopeEpic("a1", "m0", scopeAnyOf("a2", "a3")),
+		scopeEpic("a2", "m0"),
+		scopeEpic("a3", "m0"),
+		scopeEpic("b1", "m0", scopeAnyOf("b2", "b3")),
+		scopeEpic("b2", "m0"),
+		scopeEpic("b3", "m0"),
+		scopeEpic("c1", "m0", scopeAnyOf("c2", "c3"), scopeDeps("c3")[0]),
+		scopeEpic("c2", "m0"),
+		scopeEpic("c3", "m0"),
+	}, Gates: map[string]model.EpicGate{"m0": {Members: []string{"a1", "b1", "c1"}}}}
+	g.Epics[4].Done = scopeDone()
+
+	s := scopeOf(t, g, "m0")
+
+	require.Len(t, s.Closure, 1)
+	assert.Equal(t, []ScopeEpic{
+		{ID: "a1"},
+		{ID: "a2", AnyOf: []string{"a2", "a3"}},
+		{ID: "a3", AnyOf: []string{"a2", "a3"}},
+		{ID: "b1"},
+		{ID: "c1"},
+		{ID: "c2", AnyOf: []string{"c2", "c3"}},
+		{ID: "c3"},
+	}, s.Closure[0].Epics)
 }
