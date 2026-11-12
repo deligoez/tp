@@ -45,13 +45,14 @@ func MilestoneStates(g *model.EpicGraph, states map[string]EpicState, matcher *P
 			}
 			seen[m] = true
 			done, members := gateMembersCount(g, m, states)
+			gate := g.Gates[m]
 			out = append(out, MilestoneState{
 				Milestone:   m,
 				Open:        gates[m].Open,
 				WaitingOn:   MilestoneWaitingOn(after[m], gates),
 				MembersDone: done,
 				Members:     members,
-				Threshold:   thresholdState(g.Gates[m], matcher),
+				Threshold:   thresholdState(&gate, matcher),
 			})
 		}
 	}
@@ -75,7 +76,7 @@ func gateMembersCount(g *model.EpicGraph, milestone string, states map[string]Ep
 }
 
 // thresholdState is the gate's threshold state.
-func thresholdState(gate model.EpicGate, matcher *PlaceholderMatcher) string {
+func thresholdState(gate *model.EpicGate, matcher *PlaceholderMatcher) string {
 	switch {
 	case gate.Met != nil:
 		return ThresholdStateMet

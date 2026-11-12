@@ -305,7 +305,8 @@ func lintEpicDangling(g *model.EpicGraph) []EpicLintFinding {
 		}
 	}
 	for _, name := range sortedMapKeys(g.Gates) {
-		out = append(out, lintGateDangling(name, g.Gates[name], ids, milestones)...)
+		gate := g.Gates[name]
+		out = append(out, lintGateDangling(name, &gate, ids, milestones)...)
 	}
 	for _, tag := range sortedMapKeys(g.TagChecks) {
 		if p := g.TagChecks[tag].ProvidedBy; !ids[p] {
@@ -318,7 +319,7 @@ func lintEpicDangling(g *model.EpicGraph) []EpicLintFinding {
 	return out
 }
 
-func lintGateDangling(name string, gate model.EpicGate, ids, milestones map[string]bool) []EpicLintFinding {
+func lintGateDangling(name string, gate *model.EpicGate, ids, milestones map[string]bool) []EpicLintFinding {
 	var out []EpicLintFinding
 	if !milestones[name] {
 		f := epicNamedError(EpicRuleDanglingReference,
