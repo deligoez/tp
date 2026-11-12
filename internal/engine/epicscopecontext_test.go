@@ -45,7 +45,7 @@ func TestEpicScopeContext_EachEpicOnceWithItsMarks(t *testing.T) {
 	assert.Contains(t, text, "- x [any_of: x, y] Store X\n")
 	assert.Contains(t, text, "- c1 [outside, condition, no_dependents] Probe\n")
 	assert.Contains(t, text, "deferrable_in_closure: d1\n")
-	assert.Contains(t, text, "holds_opening: m0: a9\n")
+	assert.Contains(t, text, "holds_opening: m0 (explicit gate): a9\n")
 	assert.Contains(t, text, "critical_path (by count): a0 -> b1\n")
 	assert.Contains(t, text, "\n* b1 [member] size 5: a0, b1, d1, x, y\n")
 	assert.NotContains(t, text, "Spare", "a9 is outside m1's closure and milestone; it appears only by id")

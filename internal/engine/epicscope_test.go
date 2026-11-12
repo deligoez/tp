@@ -253,7 +253,7 @@ func TestScope_HoldsOpeningListsWhatTheClosureDoesNotNeed(t *testing.T) {
 	}}
 	g.Epics[3].Done = scopeDone()
 
-	assert.Equal(t, []ScopeHoldsOpening{{Milestone: "m0", Size: 2, Epics: []string{"a2", "a3"}}},
+	assert.Equal(t, []ScopeHoldsOpening{{Milestone: "m0", MembersImplicit: false, Size: 2, Epics: []string{"a2", "a3"}}},
 		scopeOf(t, g, "m1").HoldsOpening, "a1 is needed, a4 is done, a2 and a3 hold m1 for nothing")
 }
 
@@ -269,7 +269,8 @@ func TestScope_HoldsOpeningLeavesDeferrablesOut(t *testing.T) {
 		"m1": {Members: []string{"b1"}},
 	}}
 
-	assert.Equal(t, []ScopeHoldsOpening{{Milestone: "m0", Size: 1, Epics: []string{"a1"}}}, scopeOf(t, g, "m1").HoldsOpening)
+	assert.Equal(t, []ScopeHoldsOpening{{Milestone: "m0", MembersImplicit: true, Size: 1, Epics: []string{"a1"}}}, scopeOf(t, g, "m1").HoldsOpening,
+		"an implicit predecessor's row says so")
 }
 
 // TestScope_HoldsOpeningConsultsOnlyTheDirectPredecessors: the milestone the
