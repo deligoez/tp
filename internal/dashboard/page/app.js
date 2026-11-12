@@ -1048,6 +1048,16 @@
       else { v.h = v.w * r.height / r.width; apply(); }
     }).observe(el);
     return {
+      // centre takes the view to the drawing point p (tpPure.centreView),
+      // once the layout settles, as an opening drawer narrows the map.
+      centre(p) {
+        requestAnimationFrame(() => {
+          const r = el.getBoundingClientRect();
+          if (!v || !p || !r.width) return;
+          v = tpPure.centreView({ ...v, h: v.w * r.height / r.width }, p, r.width);
+          apply();
+        });
+      },
       // bounds takes the drawing's size; the first drawing is fitted, later
       // ones keep the reader's view.
       bounds(W, H) {
@@ -1138,7 +1148,26 @@
     b.setAttribute("aria-pressed", String(mapView.tracks.has(i)));
     drawMap();
   });
-  $("map-q").addEventListener("input", (ev) => { mapView.q = ev.target.value; drawMap(); });
+  // The search dims what does not match and centres its first match; Enter
+  // selects that match and brings the map into view.
+  const firstMatch = () => {
+    const q = fold(mapView.q.trim());
+    return q && mapView.geo ? mapView.geo.placed.find((e) => searchHit(e, q)) || null : null;
+  };
+  $("map-q").addEventListener("input", (ev) => {
+    mapView.q = ev.target.value;
+    drawMap();
+    const hit = firstMatch();
+    if (hit) mapPort.centre(mapView.geo.pos[hit.id]);
+  });
+  $("map-q").addEventListener("keydown", (ev) => {
+    const hit = ev.key === "Enter" && firstMatch();
+    if (!hit) return;
+    ev.preventDefault();
+    mapView.selected = null;
+    selectEpic(hit.id, true);
+    $("mapcard").scrollIntoView({ block: "nearest" });
+  });
   $("f-edges").addEventListener("click", () => {
     mapView.edges = !mapView.edges;
     $("f-edges").setAttribute("aria-pressed", String(mapView.edges));
@@ -1170,10 +1199,14 @@
   const ESTEPS = [["claimed", "Claimed"], ["bound", "Bound"], ["done", "Done"]];
   const PHASE_NAME = Object.fromEntries(PHASES);
 
-  function selectEpic(id) {
+  // selectEpic selects id, or clears the selection when id is the selected
+  // epic or null; centre takes the map to it, as a selection made outside
+  // the map does.
+  function selectEpic(id, centre) {
     mapView.selected = id && id !== mapView.selected ? id : null;
     drawMap();
     drawSelected();
+    if (centre && mapView.selected && mapView.geo) mapPort.centre(mapView.geo.pos[mapView.selected]);
   }
 
   const graphEpic = (g, id) => ((g.graph && g.graph.epics) || []).find((e) => e.id === id) || null;
@@ -1366,7 +1399,7 @@
     const a = ev.target.closest && ev.target.closest("[data-epic]");
     if (a) {
       mapView.selected = null;
-      selectEpic(a.dataset.epic);
+      selectEpic(a.dataset.epic, true);
       return;
     }
     const s = ev.target.closest && ev.target.closest("#dbody [data-spec]");

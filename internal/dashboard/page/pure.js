@@ -20,6 +20,15 @@
     return { x: -VIEW_PAD, y: -VIEW_PAD, w: bw / s, h: bh / s };
   };
 
+  // centreView is v moved to centre the drawing point p in a box rw pixels
+  // wide: at v's zoom, or zoomed in to SCALE.min when v is further out.
+  P.centreView = function (v, p, rw) {
+    const f = rw / v.w < P.SCALE.min ? rw / P.SCALE.min / v.w : 1;
+    const w = v.w * f;
+    const h = v.h * f;
+    return { x: p.x - w / 2, y: p.y - h / 2, w, h };
+  };
+
   // pinchView is the view after two fingers moved from a0 and b0 to a1 and
   // b1 (pixels from the box's top left, the box rw by rh) over the view v0
   // they started on: zoomed by the ratio of their spans, with the drawing
