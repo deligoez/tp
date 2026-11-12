@@ -41,26 +41,39 @@ func epicDescriptionOnly(prev *epicSnapshot, u *EpicReviewUnit, before, hashBefo
 	return before == u.ownRest && epicHash(before+u.hashTail) == hashBefore
 }
 
-// EpicDescriptionDiff renders the change between the descriptions of two
-// blocks of one epic as a line diff: "- " a removed line, "+ " an added one,
-// "  " one both hold.
-func EpicDescriptionDiff(beforeBlock, nowBlock string) string {
-	_, before, _ := splitEpicDescription(beforeBlock)
-	_, now, _ := splitEpicDescription(nowBlock)
-	return lineDiff(descriptionLines(before), descriptionLines(now))
+// EpicDescriptionDiff renders how the description of an Authored epic unit
+// changed from the block before to u's block, as hunks of a line diff: "- "
+// a removed line, "+ " an added one, "  " one unchanged line of context on
+// either side of a change, and "…" for each run of unchanged lines left out.
+// The own block without the description is the same in both, so each
+// description is what follows it; no text is parsed for its shape.
+func EpicDescriptionDiff(before string, u *EpicReviewUnit) string {
+	return lineHunks(descriptionLines(strings.TrimPrefix(before, u.ownRest)), descriptionLines(strings.TrimPrefix(u.Block, u.ownRest)))
 }
 
-// descriptionLines splits a description into lines; none for an empty one.
-func descriptionLines(desc string) []string {
-	if desc == "" {
+// descriptionLines returns the text lines of a rendered description section
+// (epicDescriptionBlock), un-indented; none for an empty section.
+func descriptionLines(section string) []string {
+	body, found := strings.CutPrefix(section, epicDescriptionHeader+"\n")
+	if !found {
 		return nil
 	}
-	return strings.Split(desc, "\n")
+	lines := strings.Split(strings.TrimSuffix(body, "\n"), "\n")
+	for i := range lines {
+		lines[i] = strings.TrimPrefix(lines[i], epicDescriptionIndent)
+	}
+	return lines
 }
 
-// lineDiff renders a against b through their longest common subsequence,
+// diffOp is one line of a line diff: kind ' ', '-' or '+', and the line.
+type diffOp struct {
+	kind byte
+	line string
+}
+
+// lineDiffOps diffs a against b through their longest common subsequence,
 // removals before additions at each point they differ.
-func lineDiff(a, b []string) string {
+func lineDiffOps(a, b []string) []diffOp {
 	lcs := make([][]int, len(a)+1)
 	for i := range lcs {
 		lcs[i] = make([]int, len(b)+1)
@@ -74,20 +87,49 @@ func lineDiff(a, b []string) string {
 			}
 		}
 	}
-	var out strings.Builder
+	var ops []diffOp
 	i, j := 0, 0
 	for i < len(a) || j < len(b) {
 		switch {
 		case i < len(a) && j < len(b) && a[i] == b[j]:
-			out.WriteString("  " + a[i] + "\n")
+			ops = append(ops, diffOp{' ', a[i]})
 			i, j = i+1, j+1
 		case i < len(a) && (j == len(b) || lcs[i+1][j] >= lcs[i][j+1]):
-			out.WriteString("- " + a[i] + "\n")
+			ops = append(ops, diffOp{'-', a[i]})
 			i++
 		default:
-			out.WriteString("+ " + b[j] + "\n")
+			ops = append(ops, diffOp{'+', b[j]})
 			j++
 		}
+	}
+	return ops
+}
+
+// lineHunks renders a's diff to b keeping every change and the one
+// unchanged line on either side of it; each run of other unchanged lines
+// becomes one "…" line.
+func lineHunks(a, b []string) string {
+	ops := lineDiffOps(a, b)
+	keep := make([]bool, len(ops))
+	for k, op := range ops {
+		if op.kind != ' ' {
+			for n := max(k-1, 0); n <= min(k+1, len(ops)-1); n++ {
+				keep[n] = true
+			}
+		}
+	}
+	var out strings.Builder
+	elided := false
+	for k, op := range ops {
+		if !keep[k] {
+			if !elided {
+				out.WriteString("…\n")
+			}
+			elided = true
+			continue
+		}
+		elided = false
+		out.WriteString(string(op.kind) + " " + op.line + "\n")
 	}
 	return out.String()
 }

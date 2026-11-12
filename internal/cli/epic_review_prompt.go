@@ -278,13 +278,13 @@ func epicChangedText(run *epicReviewRun, ask *epicRoleAsk) string {
 			continue
 		}
 		if b.Len() == 0 {
-			fmt.Fprintf(&b, "\nChanged since round %d — each unit as that round read it, then as it reads now:\n", run.round-1)
+			fmt.Fprintf(&b, "\nChanged since round %d:\n", run.round-1)
 		}
 		if run.carry.Authored[u.Key] {
-			fmt.Fprintf(&b, "--- %s, description changed since round %d (- removed, + added):\n%s", u.Key, run.round-1, engine.EpicDescriptionDiff(before, u.Block))
+			fmt.Fprintf(&b, "--- %s, its description only, as a line diff (- removed, + added, … unchanged lines left out):\n%s", u.Key, engine.EpicDescriptionDiff(before, &u))
 			continue
 		}
-		fmt.Fprintf(&b, "--- %s, round %d\n%s--- %s, now\n%s", u.Key, run.round-1, before, u.Key, u.Block)
+		fmt.Fprintf(&b, "--- %s, as round %d read it:\n%s--- %s, as it reads now:\n%s", u.Key, run.round-1, before, u.Key, u.Block)
 	}
 	return b.String()
 }
