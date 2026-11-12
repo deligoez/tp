@@ -96,7 +96,7 @@ func epicOfEpicOf(id string) (epicOfEpicResult, *epicRunError) {
 }
 
 // epicHistoryNoStateHint answers a slice no round was ever emitted for.
-const epicHistoryNoStateHint = "the slice has no recorded round yet: emit one with tp epic review <slice> and record it with --record <file>"
+const epicHistoryNoStateHint = "the slice has no recorded round yet: emit one with tp epic review <slice> and record it with tp epic review <slice> --record-inbox"
 
 // runEpicReviewHistoryIfSet prints the slice's history when --history is
 // set, and reports whether it did. --from or --to without it, or one without

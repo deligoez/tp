@@ -146,7 +146,7 @@ func epicResolveTarget(key engine.EpicSliceKey) (run epicReviewRun, path string,
 	path, round = engine.EpicReviewLastRoundPath(run.stateDir)
 	if round == 0 {
 		output.Error(ExitFile, "no recorded round to resolve for "+epicSliceLabel(key),
-			fmt.Sprintf("record a round first with tp epic review %s --record <file>", epicSliceLabel(key)))
+			fmt.Sprintf("record a round first with tp epic review %s --record-inbox", epicSliceLabel(key)))
 		os.Exit(ExitFile)
 	}
 	refuseEpicResolveInFlight(&run, round)

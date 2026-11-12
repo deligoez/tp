@@ -192,7 +192,7 @@ func epicStatusNextAction(key engine.EpicSliceKey, st *engine.EpicReviewStatus, 
 	case st.CapReached:
 		return "the round cap is reached: " + epicBudgetHint(key)
 	case st.InFlightRound > 0:
-		return fmt.Sprintf("record round %d: tp epic review %s --record <file>", st.InFlightRound, label)
+		return fmt.Sprintf("record round %d: tp epic review %s --record-inbox", st.InFlightRound, label)
 	}
 	return fmt.Sprintf("emit round %d: tp epic review %s", st.Round+1, label)
 }
