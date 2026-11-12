@@ -6,7 +6,9 @@
 # the third, `<phase>-round-N.ndjson`, and commits all three together. A round
 # that was emitted and never recorded therefore leaves two files behind that
 # nothing references, and re-emitting an unrecorded round is idempotent, so
-# removing them costs one command to restore.
+# removing them costs one command to restore. A ground round's in-flight
+# scratch file, `ground-inbox/round-N.ndjson` under the same state directory, is
+# judged on the same terms, against the round files one directory up.
 #
 # THREE GUARDS, and they fail independently on purpose:
 #
@@ -37,7 +39,7 @@ while [ $# -gt 0 ]; do
     --apply)          APPLY=1; shift ;;
     --min-age-hours)  MIN_AGE_HOURS="${2:?--min-age-hours needs a number}"; shift 2 ;;
     --root)           ROOT="${2:?--root needs a path}"; shift 2 ;;
-    -h|--help)        sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help)        sed -n '2,29p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *)                echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -70,6 +72,11 @@ while IFS= read -r f; do
     *audit*)  phase=audit  ;;
     *)        phase=review ;;
   esac
+  # The ground scratch file: its round files are in the state directory above.
+  if [ "$(basename "$dir")" = ground-inbox ]; then
+    phase=ground
+    dir=$(dirname "$dir")
+  fi
 
   # Guard 1 — the round is recorded, so these two files are its evidence.
   if [ -f "$dir/$phase-round-$round.ndjson" ]; then
@@ -87,7 +94,7 @@ while IFS= read -r f; do
   fi
 
   removable+=("$f")
-done < <(find "$ROOT" -type f \( -name 'floor-*round-*.txt' -o -name 'snapshot-*round-*.md' \) | sort)
+done < <(find "$ROOT" -type f \( -name 'floor-*round-*.txt' -o -name 'snapshot-*round-*.md' -o -path '*/ground-inbox/round-*.ndjson' \) | sort)
 
 echo "kept: $kept_recorded recorded · $kept_tracked tracked · $kept_young younger than ${MIN_AGE_HOURS}h"
 
