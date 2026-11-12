@@ -166,7 +166,7 @@ func runReviewStatus(specPath string, check bool) error {
 	// mechanize candidates are derived here from the recorded rounds by the same
 	// threshold --record uses, so the mechanize branch is reachable on --status too.
 	blockingUnresolved := len(rounds) > 0 && !rounds[len(rounds)-1].Clean
-	result["next_action"] = engine.ReviewNextAction(specPath, done, blockingUnresolved,
+	result["next_action"] = engine.ReviewNextAction(engine.RepoRelative(specPath), done, blockingUnresolved,
 		mechanizeClassesFromRounds(specPath, rounds, mechanized), engine.LatestRoundFile(specPath, rounds), verdict)
 
 	if jsonErr := output.JSON(result); jsonErr != nil {

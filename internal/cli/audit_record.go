@@ -167,7 +167,7 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 	// converged and clean-but-not-converged branches render.
 	done := engine.AuditLoopDone(specPath, st.AuditRounds, wf.AuditCleanRounds, wf.AuditMaxRounds, specHash)
 	addLoopDone(result, done)
-	result["next_action"] = engine.AuditNextAction(specPath, done, clean, findings, engine.LatestRoundFile(specPath, st.AuditRounds))
+	result["next_action"] = engine.AuditNextAction(engine.RepoRelative(specPath), done, clean, findings, engine.LatestRoundFile(specPath, st.AuditRounds))
 	return output.JSON(result)
 }
 
@@ -477,7 +477,7 @@ func runAuditStatus(specPath string, check bool) error {
 	if n := len(rounds); n > 0 {
 		latestClean, latestFindings = rounds[n-1].Clean, rounds[n-1].Findings
 	}
-	result["next_action"] = engine.AuditNextAction(specPath, done, latestClean, latestFindings, engine.LatestRoundFile(specPath, rounds))
+	result["next_action"] = engine.AuditNextAction(engine.RepoRelative(specPath), done, latestClean, latestFindings, engine.LatestRoundFile(specPath, rounds))
 
 	if jsonErr := output.JSON(result); jsonErr != nil {
 		// Exiting, not falling through: without this the process printed a
