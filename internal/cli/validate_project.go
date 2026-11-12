@@ -175,11 +175,15 @@ func runValidateProject() error {
 	if len(skipped) > 0 {
 		result["skipped"] = skipped
 	}
+	// A failed encode is returned on both paths, so --strict reports it too
+	// instead of exiting 1 with neither payload nor message.
+	if err := output.JSON(result); err != nil {
+		return err
+	}
 	if validateStrict && len(deviations) > 0 {
-		_ = output.JSON(result)
 		os.Exit(ExitValidation)
 	}
-	return output.JSON(result)
+	return nil
 }
 
 // refuseUncompiledPlaceholder exits 1 naming epic.threshold_placeholder and
