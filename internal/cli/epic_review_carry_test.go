@@ -94,7 +94,10 @@ func TestEpicReview_RegressionFollowsAFixedResolution(t *testing.T) {
 	assert.NotContains(t, promptRoles(&r3), "regression", "a clean, unedited round 2 guards nothing")
 
 	writeEpicRound(t, dir, &r2, strings.Replace(row, "%s", "fixed", 1))
-	r3 = runEpicReview(t, dir, "--milestone", "A")
+	// Re-disposing round 2's row adds regression to the unrecorded round 3's
+	// panel, which the re-emission guard reads as a change: --force discards
+	// the emission the first disposition built.
+	r3 = runEpicReview(t, dir, "--milestone", "A", "--force")
 	assert.Equal(t, []string{"epic:a"}, r3.Units, "a fixed finding's unit is asked again")
 	roles := promptRoles(&r3)
 	require.NotEmpty(t, roles)

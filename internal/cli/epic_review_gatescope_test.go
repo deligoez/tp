@@ -56,8 +56,11 @@ func ejectedThreeRoles(t *testing.T, dir string) {
 }
 
 // TestEpicReview_AnUnrecordedRoundReemitsAgainstTheCurrentCorpus answers how
-// an emitted, unrecorded round re-emits: rebuilt from the current graph and
-// corpus, not replayed, so a role added to the corpus meanwhile is in it.
+// an emitted, unrecorded round re-emits once a role joined the corpus: the
+// changed panel refuses the re-emission at exit 3, and the operator's
+// --force discards the old emission and rebuilds the round from the current
+// graph and corpus, not replayed, so the new role is in it
+// (spec/backlog/epic-reemit-guard.md).
 func TestEpicReview_AnUnrecordedRoundReemitsAgainstTheCurrentCorpus(t *testing.T) {
 	t.Parallel()
 	dir := epicGraphDir(t, epicChainThreshold)
@@ -68,7 +71,10 @@ func TestEpicReview_AnUnrecordedRoundReemitsAgainstTheCurrentCorpus(t *testing.T
 	files, err := engine.DefaultEpicCorpusFiles()
 	require.NoError(t, err)
 	writeEpicRoles(t, dir, map[string]string{"gate-scope": string(files[3].Data)})
-	again := runEpicReview(t, dir, "--milestone", "A")
+	_, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A")
+	require.Equal(t, 3, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "roles added: gate-scope")
+	again := runEpicReview(t, dir, "--milestone", "A", "--force")
 	assert.Equal(t, 1, again.Round, "the same, unrecorded round")
 	assert.Contains(t, promptRoles(&again), "gate-scope")
 	assert.Contains(t, again.Units, "scope:A")

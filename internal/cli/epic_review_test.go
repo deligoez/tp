@@ -121,7 +121,9 @@ func TestEpicReview_BuiltInRolesRunUntilTheDirectoryReplacesThem(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(rolesDir, "edge-reader.json"),
 		[]byte(`{"id": "edge-reader", "title": "Edge reader", "instructions": "Read every edge."}`), 0o600))
 
-	out = runEpicReview(t, dir, "--epic", "b")
+	// The new corpus changes the unrecorded round's panel, so re-emitting
+	// it is the operator's --force discard (spec/backlog/epic-reemit-guard.md).
+	out = runEpicReview(t, dir, "--epic", "b", "--force")
 	assert.Equal(t, []string{"edge-reader"}, promptRoles(&out))
 }
 
