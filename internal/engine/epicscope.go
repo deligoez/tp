@@ -45,11 +45,11 @@ type EpicScope struct {
 	// alone, so they cannot actually be deferred. In the gate's deferrable
 	// order, [] when none.
 	DeferrableInClosure []string `json:"deferrable_in_closure"`
-	// UnneededEarlier is, for each milestone before this one in its track,
-	// in track order, the not-done members of its gate that the closure of
-	// no other gate of the graph, any track or none, contains; a milestone
-	// with none is left out.
-	UnneededEarlier []ScopeUnneeded `json:"unneeded_earlier"`
+	// HoldsOpening is, for each gate this milestone opens after directly
+	// (EffectiveOpensAfter), in that order, its not-done members this
+	// milestone's closure does not contain: they hold this milestone's
+	// opening for nothing. A gate with none is left out.
+	HoldsOpening []ScopeHoldsOpening `json:"holds_opening"`
 	// CriticalPath is the milestone's own critical path (CriticalPath), the
 	// command's to render as tp epic status renders it.
 	CriticalPath EpicCriticalPath `json:"-"`
@@ -65,15 +65,13 @@ type ScopeOutside struct {
 	NoDependents bool   `json:"no_dependents,omitempty"`
 }
 
-// ScopeUnneeded is one earlier milestone's gate members no other gate of the
-// graph needs, in gate order. ImplicitGates names the other gates consulted
-// that were implicit and held an epic, in milestone order: such a closure
-// holds its whole milestone, so it says nothing about which of that
-// milestone's epics are needed.
-type ScopeUnneeded struct {
-	Milestone     string   `json:"milestone"`
-	Epics         []string `json:"epics"`
-	ImplicitGates []string `json:"implicit_gates"`
+// ScopeHoldsOpening is one direct predecessor's gate members, sorted, that
+// the scope's closure does not need; Size is their number. A deferrable is
+// no member, so it is never listed.
+type ScopeHoldsOpening struct {
+	Milestone string   `json:"milestone"`
+	Size      int      `json:"size"`
+	Epics     []string `json:"epics"`
 }
 
 // ScopeShrink is one closure epic's removal shrink: for a non-member, the
@@ -132,7 +130,7 @@ func MilestoneScope(g *model.EpicGraph, states map[string]EpicState, estimates m
 		Closure:             closure,
 		Shrink:              w.shrink(members, full, closure),
 		DeferrableInClosure: full.required(deferrable),
-		UnneededEarlier:     w.unneededEarlier(milestone),
+		HoldsOpening:        w.holdsOpening(milestone, full),
 		CriticalPath:        CriticalPath(g, states, estimates, milestone),
 	}
 	s.Outside = w.outside(milestone, deferrable, full)
@@ -236,60 +234,24 @@ type scopeSet struct {
 	anyOf map[string][]string
 }
 
-// unneededEarlier returns the ScopeUnneeded rows of the milestones before
-// milestone in its track, each member checked against the closure of every
-// other gate (allGates), any track or none; none for a milestone no track
-// lists.
-func (w *scopeWalk) unneededEarlier(milestone string) []ScopeUnneeded {
-	out := []ScopeUnneeded{}
-	p, ok := w.pos[milestone]
-	if !ok {
-		return out
-	}
-	gates := w.allGates()
-	for _, e := range w.g.Milestones[p.track][:p.index] {
-		row := ScopeUnneeded{Milestone: e, Epics: []string{}, ImplicitGates: []string{}}
-		for _, o := range gates {
-			if o.milestone != e && o.implicit {
-				row.ImplicitGates = append(row.ImplicitGates, o.milestone)
-			}
-		}
-		members, _ := GateMembers(w.g, e)
+// holdsOpening returns the ScopeHoldsOpening rows of the gates milestone
+// opens after directly: each one's not-done effective members full does not
+// contain, sorted. The predecessors' own predecessors, and what any other
+// gate needs, are no input.
+func (w *scopeWalk) holdsOpening(milestone string, full scopeSet) []ScopeHoldsOpening {
+	out := []ScopeHoldsOpening{}
+	for _, p := range EffectiveOpensAfter(w.g)[milestone] {
+		members, _ := GateMembers(w.g, p)
+		ids := []string{}
 		for _, id := range members {
-			if w.open(id) && !slices.ContainsFunc(gates, func(o scopeGate) bool { return o.milestone != e && o.closure.in[id] }) {
-				row.Epics = append(row.Epics, id)
+			if w.open(id) && !full.in[id] && !slices.Contains(ids, id) {
+				ids = append(ids, id)
 			}
 		}
-		if len(row.Epics) > 0 {
-			out = append(out, row)
+		if len(ids) > 0 {
+			sort.Strings(ids)
+			out = append(out, ScopeHoldsOpening{Milestone: p, Size: len(ids), Epics: ids})
 		}
-	}
-	return out
-}
-
-// scopeGate is one milestone's gate: whether its members are implicit and it
-// holds at least one epic, and its closure.
-type scopeGate struct {
-	milestone string
-	implicit  bool
-	closure   scopeSet
-}
-
-// allGates returns the gate of every milestone, once: tracked or not, in
-// milestone order (milestoneOrder), then any other milestone the gates map
-// names, by name.
-func (w *scopeWalk) allGates() []scopeGate {
-	names := milestoneOrder(w.g)
-	for _, m := range slices.Sorted(maps.Keys(w.g.Gates)) {
-		if !slices.Contains(names, m) {
-			names = append(names, m)
-		}
-	}
-	out := make([]scopeGate, 0, len(names))
-	for _, m := range names {
-		members, _ := GateMembers(w.g, m)
-		implicit := len(w.g.Gates[m].Members) == 0 && len(members) > 0
-		out = append(out, scopeGate{milestone: m, implicit: implicit, closure: w.closure(members, "")})
 	}
 	return out
 }
