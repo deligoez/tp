@@ -60,8 +60,24 @@ func readEpicReviewPolicy(tpDir string) (engine.EpicReviewPolicy, *epicRunError)
 		return engine.EpicReviewPolicy{}, malformedConfigRunError(err)
 	}
 	wf := engine.ResolveWorkflowLayers(&model.WorkflowOverride{}, &pc.Workflow)
-	return engine.EpicReviewPolicy{CleanRounds: wf.ReviewCleanRounds, MaxRounds: wf.ReviewMaxRounds, ConvergeOn: wf.ReviewConvergeOn,
-		PurposeKinds: engine.EpicPurposeKinds(filepath.Dir(tpDir))}, nil
+	kinds, rerr := readEpicCorpusKinds(tpDir)
+	if rerr != nil {
+		return engine.EpicReviewPolicy{}, rerr
+	}
+	return engine.EpicReviewPolicy{CleanRounds: wf.ReviewCleanRounds, MaxRounds: wf.ReviewMaxRounds, ConvergeOn: wf.ReviewConvergeOn, Kinds: kinds}, nil
+}
+
+// epicCorpusHint answers a graph-review corpus that cannot be read.
+const epicCorpusHint = "fix the role files under .tp/epic-reviewers/"
+
+// readEpicCorpusKinds resolves the kinds the graph-review corpus reads; a
+// corpus that cannot be read is an exit-3 error in every reader.
+func readEpicCorpusKinds(tpDir string) (engine.EpicCorpusKinds, *epicRunError) {
+	kinds, err := engine.ResolveEpicCorpusKinds(filepath.Dir(tpDir))
+	if err != nil {
+		return engine.EpicCorpusKinds{}, &epicRunError{code: ExitFile, msg: err.Error(), hint: epicCorpusHint}
+	}
+	return kinds, nil
 }
 
 // malformedConfigRunError is the exit-3 error for a .tp/config.json that

@@ -16,10 +16,6 @@ var epicUnitKinds = []struct {
 	{model.RoleUnitScope, `"scope:<milestone>" for the asked scope unit, the gate taken whole`, "scope", "a gate's scope", "scope units"},
 }
 
-// epicRegressionKinds are the unit kinds the built-in regression role reads:
-// a corpus role's default, so a scope unit alone never appends it.
-var epicRegressionKinds = []string{model.RoleUnitEpics, model.RoleUnitGates}
-
 // epicRoleAsk is what one role is asked this round: its kinds, and in slice
 // order the units of those kinds the carry asks, plus, for a role with
 // purpose: true, those whose milestone's purpose changed
@@ -30,16 +26,17 @@ type epicRoleAsk struct {
 	units []engine.EpicReviewUnit
 }
 
-// epicAskOf builds one role's ask over run: carried says whether the carry's
-// asked units count, purpose whether the purpose-stale ones do.
-func epicAskOf(run *epicReviewRun, kinds []string, purpose, carried bool) epicRoleAsk {
+// epicAskOf builds one role's ask over run: the carry's asked units of the
+// role's kinds, only those of carried's kinds when carried is not nil, and,
+// when purpose is set, the purpose-stale ones of its kinds.
+func epicAskOf(run *epicReviewRun, kinds []string, purpose bool, carried map[string]bool) epicRoleAsk {
 	ask := epicRoleAsk{kinds: map[string]bool{}}
 	for _, k := range kinds {
 		ask.kinds[k] = true
 	}
 	want := map[string]bool{}
-	if carried {
-		for _, u := range run.slice.Units {
+	for _, u := range run.slice.Units {
+		if carried == nil || carried[engine.EpicUnitKind(u.Key)] {
 			want[u.Key] = true
 		}
 	}
@@ -54,6 +51,18 @@ func epicAskOf(run *epicReviewRun, kinds []string, purpose, carried bool) epicRo
 		}
 	}
 	return ask
+}
+
+// markAsked adds the role's asked unit keys to asked.
+func (a *epicRoleAsk) markAsked(asked map[string]bool) {
+	for _, u := range a.units {
+		asked[u.Key] = true
+	}
+}
+
+// scopeOnly reports whether scope is the role's only kind.
+func (a *epicRoleAsk) scopeOnly() bool {
+	return len(a.kinds) == 1 && a.kinds[model.RoleUnitScope]
 }
 
 // holds reports whether the role is asked the unit key names.

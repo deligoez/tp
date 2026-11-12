@@ -168,7 +168,10 @@ func runEpicReviewEmit(cmd *cobra.Command, key engine.EpicSliceKey) {
 	if rerr := readEpicReviewStates(&run); rerr != nil {
 		exitEpicRunError(rerr)
 	}
-	built, skipped := buildEpicReviewPrompts(&run, roles)
+	built, skipped, rerr := buildEpicReviewPrompts(&run, roles)
+	if rerr != nil {
+		exitEpicRunError(rerr)
+	}
 	roleName, _ := cmd.Flags().GetString("role")
 	q := roleQuery{name: roleName, given: cmd.Flags().Changed("role"), specDir: filepath.Dir(run.tpDir)}
 	prompts, skipped := filterByRole(built, func(p *epicReviewPrompt) string { return p.Role }, q, skipped)
@@ -261,6 +264,9 @@ type epicReviewGraph struct {
 	tpDir  string
 	g      *model.EpicGraph
 	checks []engine.EpicMechanicalCheck
+	// kinds is what the graph-review corpus reads; a slice holds no unit
+	// of a kind no role reads.
+	kinds engine.EpicCorpusKinds
 }
 
 // epicRunError is a slice that cannot be prepared, with the exit code and
@@ -298,7 +304,11 @@ func readEpicReviewGraph() (epicReviewGraph, *epicRunError) {
 	if err != nil {
 		return epicReviewGraph{}, &epicRunError{code: ExitFile, msg: err.Error(), hint: epicGraphFileHint}
 	}
-	return epicReviewGraph{tpDir: tpDir, g: g, checks: engine.EpicMechanicalChecks(engine.LintEpicGraph(g, unknown))}, nil
+	kinds, rerr := readEpicCorpusKinds(tpDir)
+	if rerr != nil {
+		return epicReviewGraph{}, rerr
+	}
+	return epicReviewGraph{tpDir: tpDir, g: g, checks: engine.EpicMechanicalChecks(engine.LintEpicGraph(g, unknown)), kinds: kinds}, nil
 }
 
 // prepareEpicReviewRun derives key's slice over eg and its round, writing
@@ -313,6 +323,7 @@ func prepareEpicReviewRun(eg *epicReviewGraph, key engine.EpicSliceKey) (epicRev
 		}
 		return epicReviewRun{}, &epicRunError{code: ExitState, msg: err.Error(), hint: hint}
 	}
+	slice.Units = engine.FilterEpicUnits(slice.Units, eg.kinds.Units)
 	stateDir := engine.EpicReviewStateDir(eg.tpDir, key)
 	round := engine.EpicReviewNextRound(stateDir)
 	carry, err := engine.EpicReviewCarry(stateDir, round, slice.Units)

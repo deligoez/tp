@@ -43,35 +43,62 @@ func epicFindingContract(kinds map[string]bool) string {
 // kinds gets none either and is returned skipped with reason no-units. Each
 // prompt reads task, asked units, round inputs, contract, then context: on a
 // large slice the context is most of the prompt, and a reader that stops
-// early must already have the contract.
-func buildEpicReviewPrompts(run *epicReviewRun, roles []model.Role) ([]epicReviewPrompt, []engine.SkippedRole) {
+// early must already have the contract. It refuses a round in which a unit
+// it lists is asked of no prompt (epicUnaskedError): recording such a round
+// would converge a unit nobody read.
+func buildEpicReviewPrompts(run *epicReviewRun, roles []model.Role) ([]epicReviewPrompt, []engine.SkippedRole, *epicRunError) {
 	prompts := []epicReviewPrompt{}
 	skipped := []engine.SkippedRole{}
-	if units, _ := epicEmittedUnits(run, roles); len(units) == 0 {
-		return prompts, skipped
+	units, _ := epicEmittedUnits(run, roles)
+	if len(units) == 0 {
+		return prompts, skipped, nil
 	}
-	// The round before fixed only non-blocking findings and left nothing
-	// open: the change is read by regression alone, beside any purpose
-	// role a changed purpose re-asks.
+	// The round before fixed only non-blocking findings on epic and gate
+	// units and left nothing open there: that change is read by regression
+	// alone, beside the roles asked a scope unit or a changed purpose.
 	verifyOnly := run.round >= 2 && run.carry.VerifyOnly
+	carried := map[string]bool(nil)
+	if verifyOnly {
+		carried = map[string]bool{model.RoleUnitScope: true}
+	}
+	asked := map[string]bool{}
 	for i := range roles {
 		role := &roles[i]
-		ask := epicAskOf(run, role.UnitKinds(), role.Purpose, !verifyOnly)
+		ask := epicAskOf(run, role.UnitKinds(), role.Purpose, carried)
 		switch {
 		case len(ask.units) > 0:
 			prompts = append(prompts, epicRolePrompt(run, role, &ask))
+			ask.markAsked(asked)
 		case !verifyOnly:
 			skipped = append(skipped, engine.SkippedRole{Role: role.ID, Reason: engine.SkipNoUnits})
 		}
 	}
 	if run.round >= 2 && (verifyOnly || run.carry.Regression()) {
-		ask := epicAskOf(run, epicRegressionKinds, false, true)
+		ask := epicAskOf(run, engine.EpicRegressionKinds, false, nil)
 		if len(ask.units) == 0 {
-			return prompts, append(skipped, engine.SkippedRole{Role: engine.RegressionRoleID, Reason: engine.SkipNoUnits})
+			skipped = append(skipped, engine.SkippedRole{Role: engine.RegressionRoleID, Reason: engine.SkipNoUnits})
+		} else {
+			prompts = append(prompts, epicRegressionPrompt(run, &ask))
+			ask.markAsked(asked)
 		}
-		prompts = append(prompts, epicRegressionPrompt(run, &ask))
 	}
-	return prompts, skipped
+	return prompts, skipped, epicUnaskedError(units, asked)
+}
+
+// epicUnaskedError is the refusal of a round listing a unit no prompt asks,
+// or nil when every unit has a reader (the H1 invariant).
+func epicUnaskedError(units []engine.EpicReviewUnit, asked map[string]bool) *epicRunError {
+	var missing []string
+	for _, u := range units {
+		if !asked[u.Key] {
+			missing = append(missing, u.Key)
+		}
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+	return &epicRunError{code: ExitState, msg: "epic review round asks no role these units: " + strings.Join(missing, ", "),
+		hint: "add a graph role whose units key lists each unit's kind to .tp/epic-reviewers/, or remove the unit from the slice"}
 }
 
 // epicRolePrompt renders one corpus role's prompt over what it is asked.
@@ -79,12 +106,38 @@ func epicRolePrompt(run *epicReviewRun, role *model.Role, ask *epicRoleAsk) epic
 	var b strings.Builder
 	b.WriteString(role.Instructions + "\n\n")
 	b.WriteString(epicAskedText(run, ask))
-	if role.Purpose {
+	if role.Purpose && !ask.scopeOnly() {
 		b.WriteString(epicPurposeText(ask))
 	}
 	b.WriteString(epicDecidedText(run, ask))
+	b.WriteString(epicScopeRoundText(run, ask))
 	writeEpicFocus(&b, role.Focus)
 	return epicPromptWithTail(run, role.ID, &b, ask, epicContextText(run, role.Context, ask))
+}
+
+// epicScopeRoundText is what a role asked a scope unit reads of the round
+// before, as regression reads it of an epic: each asked scope unit's block
+// as that round read it and as it reads now, and the findings on one that
+// round resolved fixed, to confirm.
+func epicScopeRoundText(run *epicReviewRun, ask *epicRoleAsk) string {
+	scope := epicRoleAsk{kinds: ask.kinds}
+	for _, u := range ask.units {
+		if engine.EpicUnitKind(u.Key) == model.RoleUnitScope {
+			scope.units = append(scope.units, u)
+		}
+	}
+	text := epicChangedText(run, &scope)
+	if fixed := scope.rows(run.carry.ScopeFixed); len(fixed) > 0 {
+		var b strings.Builder
+		fmt.Fprintf(&b, "\nFindings round %d resolved fixed on the asked scope units — confirm each fix holds:\n", run.round-1)
+		for _, row := range fixed {
+			loc, _ := row["location"].(string)
+			finding, _ := row["finding"].(string)
+			fmt.Fprintf(&b, "- %s: %s\n", loc, finding)
+		}
+		text += b.String()
+	}
+	return text
 }
 
 // epicRegressionInstructions frame the built-in regression role over a graph.
@@ -376,7 +429,7 @@ func epicEmittedUnits(run *epicReviewRun, roles []model.Role) (asked, carried []
 	}
 	for i := range roles {
 		if roles[i].Purpose {
-			ask := epicAskOf(run, roles[i].UnitKinds(), true, false)
+			ask := epicAskOf(run, roles[i].UnitKinds(), true, map[string]bool{})
 			for _, u := range ask.units {
 				want[u.Key] = true
 			}

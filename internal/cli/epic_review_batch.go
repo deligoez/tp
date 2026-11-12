@@ -189,7 +189,10 @@ func prepareEpicBatchItem(setup *epicBatchSetup, key engine.EpicSliceKey) (item 
 	if rerr := readEpicReviewStates(&run); rerr != nil {
 		return epicBatchItem{}, rerr.msg
 	}
-	built, skipped := buildEpicReviewPrompts(&run, setup.roles)
+	built, skipped, rerr := buildEpicReviewPrompts(&run, setup.roles)
+	if rerr != nil {
+		return epicBatchItem{}, rerr.msg
+	}
 	prompts, skipped := filterByRole(built, func(p *epicReviewPrompt) string { return p.Role }, setup.query, skipped)
 	result := epicReviewPayload(&run, setup.roles, prompts, len(built))
 	rec := engine.EpicSliceKeyRecordOf(key)
