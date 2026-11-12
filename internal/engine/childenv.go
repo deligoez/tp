@@ -149,7 +149,9 @@ func RoundDir(root, taskFile, phase string, round int) string {
 func CycleKey(root, taskFile string) string {
 	rel := taskFileDirUnder(root, taskFile)
 	if rel == "" {
-		return RunBase(taskFile)
+		// Escaped too, so a root base that looks like an escaped nested key
+		// (x%2Fa.tasks.json) cannot share x/a.tasks.json's run state.
+		return url.PathEscape(RunBase(taskFile))
 	}
 	return url.PathEscape(filepath.ToSlash(rel) + "/" + RunBase(taskFile))
 }
