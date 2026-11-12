@@ -147,12 +147,33 @@ func EpicStoredPath(root, path string) string {
 	if err != nil || filepath.IsAbs(rel) || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return path
 	}
-	for _, p := range paths {
-		if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
-			return nil, err
+	return filepath.ToSlash(rel)
+}
+
+// EpicPanelPath resolves a stored output path against root.
+func EpicPanelPath(root, stored string) string {
+	if filepath.IsAbs(stored) {
+		return stored
+	}
+	return filepath.Join(root, filepath.FromSlash(stored))
+}
+
+// RemoveEpicPanelFiles removes exactly the files a stored panel named, each
+// resolved against root, and returns the paths it removed. A snapshot from
+// before the panel was kept names none.
+func RemoveEpicPanelFiles(root string, panel []EpicSnapshotRole) ([]string, error) {
+	var removed []string
+	for _, r := range panel {
+		p := EpicPanelPath(root, r.OutputPath)
+		err := os.Remove(p)
+		switch {
+		case err == nil:
+			removed = append(removed, p)
+		case !os.IsNotExist(err):
+			return removed, err
 		}
 	}
-	return paths, nil
+	return removed, nil
 }
 
 // EpicRoleFileHashes returns, by role id, the hash of each active graph role's
