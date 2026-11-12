@@ -46,6 +46,13 @@ func runEpicReviewRecord(key engine.EpicSliceKey, recordPath string) {
 		os.Exit(ExitFile)
 	}
 	findings, problems := epicRecordProblems(data, run.all)
+	recordEpicRoundData(&run, data, findings, problems)
+}
+
+// recordEpicRoundData refuses data at exit 1 when problems names any line,
+// else records it as the slice's next round and prints the payload: the tail
+// --record and --record-inbox share.
+func recordEpicRoundData(run *epicReviewRun, data []byte, findings int, problems []string) {
 	if len(problems) > 0 {
 		output.Error(ExitValidation, "findings file refused, no round recorded: "+strings.Join(problems, "; "), epicRecordRowHint)
 		os.Exit(ExitValidation)
@@ -61,11 +68,11 @@ func runEpicReviewRecord(key engine.EpicSliceKey, recordPath string) {
 		os.Exit(ExitFile)
 	}
 	result := epicRecordResult{
-		StateDir: epicReviewStateDirOut(&run),
+		StateDir: epicReviewStateDirOut(run),
 		Round:    round,
 		Findings: findings,
 		NextAction: fmt.Sprintf("round %d recorded: emit the next round with tp epic review %s",
-			round, epicSliceLabel(key)),
+			round, epicSliceLabel(run.key)),
 	}
 	if err := output.JSON(result); err != nil {
 		output.Error(ExitFile, err.Error(), internalEncodeHint)
