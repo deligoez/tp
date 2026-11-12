@@ -14,12 +14,12 @@ import (
 )
 
 // epicRecordRowHint answers a findings file tp epic review --record refused.
-const epicRecordRowHint = "fix every line the message names: each row carries severity, finding, location and evidence, and location is epic:<id> for a unit of the slice or gate:<m> for its gate unit"
+const epicRecordRowHint = "fix every line the message names: each row carries severity, finding, location and evidence, and location is epic:<id> for a unit of the slice, gate:<m> for its gate unit or scope:<m> for its scope unit"
 
 // epicRecordFileHint answers an unreadable --record path. The shared
 // recordFileMissingHint names the reviewers'/auditors' results file and rules
 // out a spec or task file, none of which tp epic review takes.
-const epicRecordFileHint = "check the --record path — it takes the epic review findings NDJSON, one row per finding with severity, finding, location (epic:<id> or gate:<m>) and evidence"
+const epicRecordFileHint = "check the --record path — it takes the epic review findings NDJSON, one row per finding with severity, finding, location (epic:<id>, gate:<m> or scope:<m>) and evidence"
 
 // epicRecordResult is tp epic review --record's payload.
 type epicRecordResult struct {
