@@ -18,14 +18,16 @@ type epicScopeResult struct {
 }
 
 // epicScopeCompact is the payload under --compact, a strict subset of the
-// full one: the fingerprint first, the members' mode and count with their
-// list only for an explicit gate, the closure's size per milestone, the
-// shrink rows without leaves, deferrable_in_closure when not empty, and the
-// critical path by count. It drops the closure's epic lists, outside,
-// unneeded_earlier, an implicit gate's member list and the path by estimate.
+// full one: the fingerprint first, the purpose (null when unset), the
+// members' mode and count with their list only for an explicit gate, the
+// closure's size per milestone, the shrink rows without leaves,
+// deferrable_in_closure when not empty, and the critical path by count. It
+// drops the closure's epic lists, outside, unneeded_earlier, an implicit
+// gate's member list and the path by estimate.
 type epicScopeCompact struct {
 	Fingerprint     string                      `json:"fingerprint"`
 	Milestone       string                      `json:"milestone"`
+	Purpose         *string                     `json:"purpose"`
 	Members         []string                    `json:"members,omitempty"`
 	MembersImplicit bool                        `json:"members_implicit"`
 	MemberCount     int                         `json:"member_count"`
@@ -98,6 +100,7 @@ func epicScopeCompactOf(scope *engine.EpicScope) epicScopeCompact {
 	out := epicScopeCompact{
 		Fingerprint:     scope.Fingerprint,
 		Milestone:       scope.Milestone,
+		Purpose:         scope.Purpose,
 		MembersImplicit: scope.MembersImplicit,
 		MemberCount:     scope.MemberCount,
 		Closure:         make([]epicScopeCompactMilestone, 0, len(scope.Closure)),
