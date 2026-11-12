@@ -24,7 +24,13 @@ var allowedRoleKeys = map[string]bool{
 	"focus":        true,
 	"domains":      true,
 	"context":      true,
+	"units":        true,
+	"purpose":      true,
 }
+
+// roleUnitValues are the unit kinds a role's units key may list; only tp
+// epic review reads the key.
+var roleUnitValues = map[string]bool{model.RoleUnitEpics: true, model.RoleUnitGates: true, model.RoleUnitScope: true}
 
 // roleContextValues are the values a role's context key may take: absent or
 // "neighbours" shows every neighbour, "neighbours-brief" every dependency in
@@ -69,7 +75,13 @@ func ParseRoleBytes(data []byte, stem string) (model.Role, error) {
 	// Reject any top-level key outside the schema, naming the offender (§3.4).
 	for key := range raw {
 		if !allowedRoleKeys[key] {
-			return model.Role{}, fmt.Errorf("unknown top-level key %q (allowed: id, title, instructions, focus, domains, context)", key)
+			return model.Role{}, fmt.Errorf("unknown top-level key %q (allowed: id, title, instructions, focus, domains, context, units, purpose)", key)
+		}
+	}
+	if rawUnits, ok := raw["units"]; ok {
+		var kinds []string
+		if err := json.Unmarshal(rawUnits, &kinds); err != nil || len(kinds) == 0 {
+			return model.Role{}, fmt.Errorf("field \"units\" must list at least one of epics, gates, scope; leave it out for epics and gates")
 		}
 	}
 
@@ -116,6 +128,12 @@ func validateRole(role *model.Role, stem string) error {
 	if !roleContextValues[role.Context] {
 		return fmt.Errorf("role %q field \"context\" is %q (allowed: %s, %s, %s)", role.ID, role.Context,
 			model.RoleContextNeighbours, model.RoleContextNeighboursBrief, model.RoleContextDependencies)
+	}
+	for _, kind := range role.Units {
+		if !roleUnitValues[kind] {
+			return fmt.Errorf("role %q field \"units\" lists %q (allowed: %s, %s, %s)", role.ID, kind,
+				model.RoleUnitEpics, model.RoleUnitGates, model.RoleUnitScope)
+		}
 	}
 	return nil
 }
