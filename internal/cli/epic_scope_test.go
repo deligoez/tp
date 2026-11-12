@@ -31,7 +31,7 @@ func TestEpicScope_Payload(t *testing.T) {
 	var out map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal([]byte(stdout), &out), stdout)
 	for _, key := range []string{"milestone", "fingerprint", "members", "members_implicit", "member_count", "closure", "shrink",
-		"outside", "deferrable_in_closure", "unneeded_earlier", "critical_path"} {
+		"outside", "deferrable_in_closure", "holds_opening", "critical_path"} {
 		assert.Contains(t, out, key)
 	}
 	assert.Regexp(t, `^\{\s*"fingerprint"`, stdout, "the fingerprint comes first")
@@ -39,12 +39,13 @@ func TestEpicScope_Payload(t *testing.T) {
 	assert.JSONEq(t, `1`, string(out["member_count"]))
 	assert.JSONEq(t, `null`, string(out["purpose"]), "an unset purpose prints null")
 	assert.JSONEq(t, `[
-	  {"milestone": "m0", "track": 0, "size": 1, "epics": [{"id": "a0"}]},
-	  {"milestone": "m1", "track": 0, "size": 1, "epics": [{"id": "a1"}]},
-	  {"milestone": "n0", "track": 1, "cross_track": true, "size": 1, "epics": [{"id": "b0"}]}
+	  {"milestone": "m0", "track_index": 0, "size": 1, "epics": [{"id": "a0"}]},
+	  {"milestone": "m1", "track_index": 0, "size": 1, "epics": [{"id": "a1"}]},
+	  {"milestone": "n0", "track_index": 1, "cross_track": true, "size": 1, "epics": [{"id": "b0"}]}
 	]`, string(out["closure"]))
 	assert.JSONEq(t, `[{"id": "a2", "no_dependents": true}]`, string(out["outside"]))
 	assert.JSONEq(t, `[]`, string(out["deferrable_in_closure"]))
+	assert.JSONEq(t, `[]`, string(out["holds_opening"]), "m0's only member a0 is in m1's closure")
 	assert.JSONEq(t, `{"by_count": ["a0", "a1"], "by_estimate": {"chain": ["b0", "a1"], "estimate_minutes": 150}}`,
 		string(out["critical_path"]))
 }
@@ -66,9 +67,9 @@ func TestEpicScope_Compact(t *testing.T) {
 	require.Equal(t, 0, code, "stderr: %s", stderr)
 	assert.JSONEq(t, `{"fingerprint": "`+fullOut.Fingerprint+`", "milestone": "m1", "purpose": null, "members": ["a1"],
 	  "members_implicit": false, "member_count": 1,
-	  "closure": [{"milestone": "m0", "track": 0, "size": 1}, {"milestone": "m1", "track": 0, "size": 1},
-	    {"milestone": "n0", "track": 1, "cross_track": true, "size": 1}],
-	  "shrink": [{"epic": "a1", "member": true, "size": 3}],
+	  "closure": [{"milestone": "m0", "track_index": 0, "size": 1}, {"milestone": "m1", "track_index": 0, "size": 1},
+	    {"milestone": "n0", "track_index": 1, "cross_track": true, "size": 1}],
+	  "shrink": [{"epic": "a1", "member": true, "size": 3}], "holds_opening": [],
 	  "critical_path": {"by_count": ["a0", "a1"]}}`, stdout)
 	assert.Regexp(t, `^\{\s*"fingerprint"`, stdout, "the fingerprint comes first")
 
@@ -94,7 +95,8 @@ const epicScopeImplicitGraph = `{"version": 1, "milestones": [["m0", "m1"]],
     {"id": "b2", "title": "B2", "milestone": "m1", "depends_on": [{"id": "b4", "why": "needs it"}]},
     {"id": "b3", "title": "B3", "milestone": "m1", "root": true},
     {"id": "b4", "title": "B4", "milestone": "m0", "root": true},
-    {"id": "d1", "title": "D1", "milestone": "m1", "root": true}
+    {"id": "d1", "title": "D1", "milestone": "m1", "root": true},
+    {"id": "a9", "title": "A9", "milestone": "m0", "root": true}
   ]}`
 
 // TestEpicScope_CompactIsASubsetOfFull: every key path the compact payload
@@ -116,6 +118,8 @@ func TestEpicScope_CompactIsASubsetOfFull(t *testing.T) {
 			if name == "implicit" {
 				assert.Contains(t, compact, "deferrable_in_closure")
 				assert.Equal(t, "prove the import path", compact.(map[string]any)["purpose"], "compact keeps a written purpose")
+				assert.Equal(t, []any{map[string]any{"milestone": "m0", "size": float64(1)}}, compact.(map[string]any)["holds_opening"],
+					"m0's a9 holds m1 for nothing; compact keeps the count, not the ids")
 			}
 		})
 	}
