@@ -97,9 +97,10 @@ func parseGatesSet(value string) (func(*model.EpicGraph) error, error) {
 }
 
 // EpicGateFieldSetKeys are the gate fields tp epic set gates.<m>.<field>
-// writes: threshold takes the text as written, deferrable and members a
-// comma-separated id list, empty to clear (members [] is the implicit list).
-var EpicGateFieldSetKeys = []string{"threshold", "deferrable", "members"}
+// writes: threshold and purpose take the text as written, deferrable and
+// members a comma-separated id list, empty to clear (members [] is the
+// implicit list).
+var EpicGateFieldSetKeys = []string{"threshold", "purpose", "deferrable", "members"}
 
 // parseGateFieldSet decodes value for gates.<m>.<field>, rest being
 // <m>.<field>, and returns the mutation editing that one gate: it creates the
@@ -137,6 +138,8 @@ func gateFieldSetter(field, value string) (func(*model.EpicGate), error) {
 	switch field {
 	case "threshold":
 		return func(gate *model.EpicGate) { gate.Threshold = value }, nil
+	case "purpose":
+		return func(gate *model.EpicGate) { gate.Purpose = value }, nil
 	case "deferrable":
 		ids := SplitEpicIDs(value)
 		return func(gate *model.EpicGate) { gate.Deferrable = ids }, nil
