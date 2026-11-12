@@ -82,6 +82,23 @@ func TestEpicReview_EachRoleIsAskedOnlyItsUnitKinds(t *testing.T) {
 	assert.Contains(t, scope, `"scope:<milestone>"`, "the finding contract names the scope location")
 }
 
+// TestEpicReview_AScopeUnitBringsTheLiveScope: a role asked scope:<m> reads
+// the live scope as context, each epic once in its brief form; a role not
+// asked it does not.
+func TestEpicReview_AScopeUnitBringsTheLiveScope(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChainThreshold)
+	writeEpicRoles(t, dir, scopeAndPlainRoles)
+
+	out := runEpicReview(t, dir, "--milestone", "A")
+	require.Equal(t, []string{"plain", "scope-only"}, promptRoles(&out))
+	assert.NotContains(t, out.Prompts[0].Prompt, "Scope of gate A")
+	scope := out.Prompts[1].Prompt
+	assert.Contains(t, scope, "Scope of gate A")
+	assert.Contains(t, scope, "\n- a [member] A\n  acceptance: a ships\n  depends_on: b: a needs b\n")
+	assert.Contains(t, scope, "critical_path (by count): d -> c -> b -> a\n")
+}
+
 // TestEpicReview_ARoleWithNoUnitOfItsKindsIsSkipped: an epic slice holds no
 // scope unit, so the scope-only role gets no prompt and is named in
 // skipped_roles with no-units; the slice still converges.
