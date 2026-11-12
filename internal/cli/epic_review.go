@@ -341,7 +341,7 @@ func refuseEpicRoleMissing(q roleQuery, roles []model.Role) {
 	}
 	output.Error(ExitUsage, "the built-in graph role "+q.name+" is not in this project's corpus: .tp/epic-reviewers/ replaces the built-in graph roles and holds no "+q.name+".json",
 		"a corpus ejected before the role shipped lacks it: re-eject with tp init --eject-roles --graph --force, which overwrites the ejected files, or copy "+
-			q.name+".json into .tp/epic-reviewers/; the next round then asks it, and an unrecorded round's re-emission needs --force to discard the emission the old corpus built")
+			q.name+".json into .tp/epic-reviewers/; the next round then asks it, and an unrecorded round the old corpus built is recorded first or, as the operator's decision, discarded with tp epic review <slice> --discard")
 	os.Exit(ExitUsage)
 }
 
@@ -350,7 +350,7 @@ func refuseEpicRoleMissing(q roleQuery, roles []model.Role) {
 // and makes the inbox the prompts name (spec/1.7.0.md §1), with the
 // .tp/.gitignore entry that keeps it untracked. It removes nothing there, so a
 // role that already wrote its file keeps it through an identical
-// re-emission; only a --force discard removes the round's inbox files.
+// re-emission; only --discard removes the files a round's emission named.
 func writeEpicReviewEmission(run *epicReviewRun, panel []engine.EpicSnapshotRole) error {
 	if err := engine.WriteEpicReviewSnapshot(run.stateDir, run.round, run.all, panel); err != nil {
 		return err

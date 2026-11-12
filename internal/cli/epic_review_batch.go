@@ -172,7 +172,7 @@ func loadEpicBatchSetup(cmd *cobra.Command) epicBatchSetup {
 // prepareEpicBatchItem prepares key's emission without writing it, or says
 // why the slice cannot emit: it fails to prepare, its loop is done, it is at
 // its cap, or its unrecorded emission changed (emission-changed), which a
-// one-slice --force discards and a batch never does.
+// one-slice --discard removes and a batch never does.
 func prepareEpicBatchItem(setup *epicBatchSetup, key engine.EpicSliceKey) (item epicBatchItem, skipReason string) {
 	run, rerr := prepareEpicReviewRun(&setup.graph, key)
 	if rerr != nil {
