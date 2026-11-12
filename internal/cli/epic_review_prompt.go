@@ -237,6 +237,11 @@ func epicContextText(run *epicReviewRun, scope string, ask *epicRoleAsk) string 
 	if ids := epicCarriedByID(carried, context); len(ids) > 0 {
 		fmt.Fprintf(&b, "\nCarried — unchanged since round %d and not asked again: %s\n", run.round-1, strings.Join(ids, ", "))
 	}
+	for _, u := range ask.units {
+		if engine.EpicUnitKind(u.Key) == model.RoleUnitScope {
+			b.WriteString(engine.EpicScopeContext(run.g, run.states, u.Milestone))
+		}
+	}
 	return b.String()
 }
 

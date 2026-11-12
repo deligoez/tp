@@ -57,6 +57,25 @@ type epicReviewRun struct {
 	carry    engine.EpicCarry
 	checks   []engine.EpicMechanicalCheck
 	handoff  []engine.EpicContextBlock // epics a changed unit's text names, for regression
+	// states are the epics' derived states, read only when the slice holds
+	// a scope unit, whose live scope a role asked it reads as context.
+	states map[string]engine.EpicState
+}
+
+// readEpicReviewStates derives the epics' states into run when its slice
+// holds a scope unit; an unreadable bound task file is an exit-3 error.
+func readEpicReviewStates(run *epicReviewRun) *epicRunError {
+	if !slices.ContainsFunc(run.all, func(u engine.EpicReviewUnit) bool { return engine.EpicUnitKind(u.Key) == model.RoleUnitScope }) {
+		return nil
+	}
+	bound, err := engine.EpicBoundFiles(run.tpDir)
+	if err == nil {
+		run.states, err = engine.DeriveEpicStates(run.g, bound)
+	}
+	if err != nil {
+		return &epicRunError{code: ExitFile, msg: err.Error(), hint: epicBoundFileHint}
+	}
+	return nil
 }
 
 func newEpicReviewCmd() *cobra.Command {
@@ -145,6 +164,9 @@ func runEpicReviewEmit(cmd *cobra.Command, key engine.EpicSliceKey) {
 		output.Error(ExitFile, err.Error(), "fix the role files under .tp/epic-reviewers/")
 		os.Exit(ExitFile)
 		return
+	}
+	if rerr := readEpicReviewStates(&run); rerr != nil {
+		exitEpicRunError(rerr)
 	}
 	built, skipped := buildEpicReviewPrompts(&run, roles)
 	roleName, _ := cmd.Flags().GetString("role")
