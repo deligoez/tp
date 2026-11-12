@@ -30,6 +30,13 @@ A row with no resolution whose unit is no longer in the slice refuses the emissi
 the rows; the way out is `--resolve`. A row resolved `fixed` on a vanished unit passes, since the
 removal was the fix. Part B's refusal for a unit no role reads follows the same distinction.
 
+Dispositions are frozen while a round is out: `--resolve` or `--resolve-all` on any row an emitted,
+unrecorded round was built from is refused (exit 3), naming both ways forward — record that round
+as emitted, after which the disposition takes effect from the next round, or discard it with
+`--force`, the operator's decision. A disposition therefore never changes an emission behind the
+prompts already handed out, and the guard needs no disposition comparison. Emitting many slices at
+once freezes each slice's dispositions until it is recorded or discarded.
+
 ## 2. Alternatives
 
 - **Leave it and document it.** A re-emit that works today keeps working; the risk is agents
