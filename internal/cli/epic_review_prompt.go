@@ -47,7 +47,7 @@ func epicFindingContract(kinds map[string]bool) string {
 func buildEpicReviewPrompts(run *epicReviewRun, roles []model.Role) ([]epicReviewPrompt, []engine.SkippedRole) {
 	prompts := []epicReviewPrompt{}
 	skipped := []engine.SkippedRole{}
-	if len(run.slice.Units) == 0 && len(run.carry.PurposeStale) == 0 {
+	if units, _ := epicEmittedUnits(run, roles); len(units) == 0 {
 		return prompts, skipped
 	}
 	// The round before fixed only non-blocking findings and left nothing
@@ -78,7 +78,11 @@ func buildEpicReviewPrompts(run *epicReviewRun, roles []model.Role) ([]epicRevie
 func epicRolePrompt(run *epicReviewRun, role *model.Role, ask *epicRoleAsk) epicReviewPrompt {
 	var b strings.Builder
 	b.WriteString(role.Instructions + "\n\n")
-	b.WriteString(epicAskedText(run, ask) + epicDecidedText(run, ask))
+	b.WriteString(epicAskedText(run, ask))
+	if role.Purpose {
+		b.WriteString(epicPurposeText(ask))
+	}
+	b.WriteString(epicDecidedText(run, ask))
 	writeEpicFocus(&b, role.Focus)
 	return epicPromptWithTail(run, role.ID, &b, ask, epicContextText(run, role.Context, ask))
 }
@@ -155,6 +159,25 @@ func epicAskedText(run *epicReviewRun, ask *epicRoleAsk) string {
 			fmt.Fprintf(&b, "\nNo %s unit is asked this round: every instruction or question about %s does not apply; judge the %s only.\n",
 				k.noun, k.article, strings.Join(judged, " and "))
 		}
+	}
+	return b.String()
+}
+
+// epicPurposeText is a purpose role's header: one line per milestone its
+// asked units belong to that has a purpose, in the order the units name
+// them, each once; with none it is empty.
+func epicPurposeText(ask *epicRoleAsk) string {
+	var b strings.Builder
+	seen := map[string]bool{}
+	for _, u := range ask.units {
+		if u.Purpose == "" || seen[u.Milestone] {
+			continue
+		}
+		if len(seen) == 0 {
+			b.WriteString("\nMilestone purposes:\n")
+		}
+		seen[u.Milestone] = true
+		b.WriteString("- " + u.Milestone + ": " + u.Purpose + "\n")
 	}
 	return b.String()
 }
