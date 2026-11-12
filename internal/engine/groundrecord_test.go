@@ -306,3 +306,23 @@ func TestTheAllowedKeySetIsExactlySection72sTable(t *testing.T) {
 	assert.ElementsMatch(t, inSpec, allowed,
 		"the accepted top-level keys are exactly the fields §7.2's table names")
 }
+
+// TestARoundWithNothingCarriedIsWrittenAsHandedIn: the round file is the
+// payload's own bytes, and only a carry appends to them. Round 1 carries
+// nothing, so a payload whose last row has no trailing newline is written
+// without one; terminating it is the carry's job, done only when there is a row
+// to append after it.
+func TestARoundWithNothingCarriedIsWrittenAsHandedIn(t *testing.T) {
+	specPath := groundEmittedDir(t, 1)
+	payload := groundNumberedRow(t, 1)
+	require.NotEqual(t, byte('\n'), payload[len(payload)-1],
+		"the fixture only discriminates while the payload is unterminated")
+
+	_, carried, err := RecordGroundRound(specPath, 1, payload, nil)
+	require.NoError(t, err)
+	require.Empty(t, carried, "round 1 carries nothing")
+
+	written, err := os.ReadFile(GroundRoundPath(specPath, 1))
+	require.NoError(t, err)
+	assert.Equal(t, string(payload), string(written))
+}
