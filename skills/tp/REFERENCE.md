@@ -285,7 +285,7 @@ the `runner.env` merge so an `env` entry can never override them:
 |---|---|
 | `TP_RUN_ID` | the run's ULID (26 Crockford characters) |
 | `TP_RUN_DIR` | absolute `.tp/runs/$TP_RUN_ID` — logs and escalation records |
-| `TP_ROUND_DIR` | `.tp/rounds/<base>/$TP_PHASE-r$TP_ROUND`, keyed by the **cycle** rather than the run, so a round survives a driver death |
+| `TP_ROUND_DIR` | `.tp/rounds/<dir>/<base>/$TP_PHASE-r$TP_ROUND`, keyed by the **cycle** rather than the run, so a round survives a driver death; `<dir>` is the task file's directory relative to the project root, empty for a task file at the root (v1.12.0), so two same-base task files in different directories never share a round |
 | `TP_FILE` | the resolved task file, so a child works the target the driver resolved |
 | `TP_UNIT_ID`, `TP_UNIT_KIND`, `TP_UNIT_SEQ` | the unit's id, kind and attempt sequence |
 | `TP_PHASE`, `TP_ROUND` | the cycle's phase and round |
@@ -522,7 +522,7 @@ Output includes `reordered` (bool) and `skipped` (count of already-done entries)
 
 ## Review File Management
 
-You manage findings files yourself. Each emitted prompt carries an **`output_path`** (`review-<base>-r<N>-<role>.ndjson` / `audit-<base>-r<N>-<role>.ndjson`, relative to the working directory, where `<base>` is the spec's filename without its extension — the slug `.tp-review/<base>/` uses and the shape `ground-<base>-rN.ndjson` already has, so two specs reviewed in one directory do not overwrite each other's role files) and names that file in its text, so the merge glob is predictable rather than invented. Inside a `tp run` unit — where `TP_ROUND_DIR` is set — the same field instead carries `$TP_ROUND_DIR/role-<role>.ndjson.part`, the single path that unit is allowed to write and the one the driver renames when it exits 0; the name above is what you get everywhere else. Convention:
+You manage findings files yourself. Each emitted prompt carries an **`output_path`** (`review-<base>-r<N>-<role>.ndjson` / `audit-<base>-r<N>-<role>.ndjson`, relative to the working directory, where `<base>` is the spec's filename without its extension — the slug `.tp-review/<base>/` uses, so two specs reviewed in one directory do not overwrite each other's role files; two same-base specs in different directories reviewed from one working directory still share them) and names that file in its text, so the merge glob is predictable rather than invented. Inside a `tp run` unit — where `TP_ROUND_DIR` is set — the same field instead carries `$TP_ROUND_DIR/role-<role>.ndjson.part`, the single path that unit is allowed to write and the one the driver renames when it exits 0; the name above is what you get everywhere else. Convention:
 ```
 spec/
   feature.md                    # spec (keep)
@@ -833,7 +833,7 @@ its place in Workflow A are in [SKILL.md](SKILL.md); this section is the record'
 
 | mode | stdout | shape |
 |------|--------|-------|
-| `tp ground <spec>` | JSON | `{spec, round, snapshot, floor, output_path, floor_size, carried, prompt}` — one `prompt` **string**, not review's `prompts[]` array. Grounding asks one question of every unit, so there is no panel, no role and no `--role`. `floor_size` is the **floor, not the ask**: the ask is the difference, `floor_size - carried`, and the prompt states it in words |
+| `tp ground <spec>` | JSON | `{spec, round, snapshot, floor, output_path, floor_size, carried, prompt}` — one `prompt` **string**, not review's `prompts[]` array. Grounding asks one question of every unit, so there is no panel, no role and no `--role`. `floor_size` is the **floor, not the ask**: the ask is the difference, `floor_size - carried`, and the prompt states it in words. `output_path` is `<spec dir>/.tp-review/<base>/ground-inbox/round-<N>.ndjson` (v1.12.0): in the spec's own state directory, so same-base specs in different directories never share it, and apart from the recorded `ground-round-<N>.ndjson`. `--record` removes it once the round is on disk, and exits 3 when pointed at the pre-1.12.0 name `ground-<base>-r<N>.ndjson` in the working directory, naming the path to move it to; that name is never read, since a file there may be another spec's. The plugin's `PreToolUse` fence lets exactly this name through, as it does the epic review inbox |
 | `--units` | **plain text** | one line per floor unit, `<unit_id>\t<text_sha>\t<text>`, in emission order. It writes nothing and emits no round, and it derives from the spec as it stands rather than from a snapshot — which is why every line carries its own hash: a spec edited since the emission disagrees with the index visibly |
 | `--record <file>` | JSON | `{spec, round, floor, file, rows, carried}` — `rows` counts the payload's rows, `carried` the dispositions the carry brought forward |
 | `--status` | JSON | `{spec, round, emitted, dispositioned, reader_added, off_floor, cut, by_verdict}` for the latest **emitted** round. `emitted` is the same quantity `tp review`'s `ungrounded.floor_size` reports — one number, two names, and the `ungrounded` section below says where they meet |
