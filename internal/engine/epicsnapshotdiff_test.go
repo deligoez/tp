@@ -114,3 +114,17 @@ func TestEpicSnapshotDiff_AHashOnlySnapshotCarriesNoTextAndSaysSo(t *testing.T) 
 	assert.Empty(t, diff.WhysChanged)
 	assert.Empty(t, diff.FieldsChanged)
 }
+
+// TestEpicSnapshotDiff_AFieldAddedReadsAsAChangeFromEmpty: round 2's block of
+// a carries an acceptance round 1's did not, so the later block holds more
+// fields than the earlier; the diff lists the acceptance as changed from "".
+func TestEpicSnapshotDiff_AFieldAddedReadsAsAChangeFromEmpty(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	require.NoError(t, WriteEpicReviewSnapshot(dir, 1, snapshotUnits(model.Epic{ID: "a", Title: "A", Milestone: "M"})))
+	require.NoError(t, WriteEpicReviewSnapshot(dir, 2, snapshotUnits(model.Epic{ID: "a", Title: "A", Milestone: "M", Acceptance: "a ships"})))
+
+	diff, err := EpicReviewRoundsDiff(dir, 1, 2)
+	require.NoError(t, err)
+	assert.Equal(t, []EpicFieldChange{{Unit: "epic:a", Field: "acceptance", Before: "", After: "a ships"}}, diff.FieldsChanged)
+}
