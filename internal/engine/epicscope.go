@@ -98,10 +98,12 @@ type ScopeMilestone struct {
 	Epics      []ScopeEpic `json:"epics"`
 }
 
-// ScopeEpic is one epic of a closure. AnyOf is the unsatisfied any-of group
-// that brought it in, the first the walk met, when only groups did: an epic
-// a member is, or a plain edge reaches, is needed whatever the operator
-// chooses and carries none.
+// ScopeEpic is one epic of a closure. A required epic, one the not-done
+// members reach through unsatisfied plain edges alone, carries no AnyOf: it
+// is needed whatever the operator chooses. Every other epic is optional and
+// AnyOf is the group of the alternative it hangs from: the group that
+// reached it, or the mark of the epic whose plain edge did, the first in
+// walk order when two groups reach it.
 type ScopeEpic struct {
 	ID    string   `json:"id"`
 	AnyOf []string `json:"any_of,omitempty"`
@@ -335,24 +337,33 @@ func (w *scopeWalk) open(id string) bool {
 // any-of group to every member, a satisfied one nowhere (spec/1.7.0.md §7).
 // A moot epic needs no check of its own, as on CriticalPath's chains: a gate
 // holds none, only a moot epic has a plain edge to one, and a satisfied group
-// is not walked.
+// is not walked. The required part, what plain edges alone reach, carries no
+// mark; every other epic is optional and keeps the mark walk gave it.
 func (w *scopeWalk) closure(members []string, cut string) scopeSet {
+	set := w.walk(members, cut, false)
+	for id := range w.walk(members, cut, true).in {
+		delete(set.anyOf, id)
+	}
+	return set
+}
+
+// walk is closure's breadth-first pass: plainOnly follows plain edges alone.
+// An epic takes its mark when first reached, in walk order: the group of an
+// any-of entry that reaches it, or through a plain edge the mark of the epic
+// it hangs from, so what only an alternative needs carries that
+// alternative's group.
+func (w *scopeWalk) walk(members []string, cut string, plainOnly bool) scopeSet {
 	set := scopeSet{in: map[string]bool{}, anyOf: map[string][]string{}}
-	plain := map[string]bool{}
 	queue := []string{}
-	add := func(id string, group []string) {
-		if (cut != "" && id == cut) || !w.open(id) {
+	add := func(id string, mark []string) {
+		if (cut != "" && id == cut) || !w.open(id) || set.in[id] {
 			return
 		}
-		if group == nil {
-			plain[id] = true
-		} else if set.anyOf[id] == nil {
-			set.anyOf[id] = group
+		set.in[id] = true
+		if mark != nil {
+			set.anyOf[id] = mark
 		}
-		if !set.in[id] {
-			set.in[id] = true
-			queue = append(queue, id)
-		}
+		queue = append(queue, id)
 	}
 	for _, id := range members {
 		add(id, nil)
@@ -361,24 +372,20 @@ func (w *scopeWalk) closure(members []string, cut string) scopeSet {
 		id := queue[0]
 		queue = queue[1:]
 		for _, d := range w.epics[id].DependsOn {
-			w.follow(d, add)
+			if !epicDepSatisfied(d, w.states) && (!plainOnly || !d.IsGroup()) {
+				w.follow(d, set.anyOf[id], add)
+			}
 		}
-	}
-	for id := range plain {
-		delete(set.anyOf, id)
 	}
 	return set
 }
 
-// follow hands add the epics one depends_on entry still holds its epic on:
-// a plain edge's epic, or every member of an unsatisfied group with the
+// follow hands add the epics one unsatisfied depends_on entry names: a plain
+// edge's epic with the mark it inherits, or every member of a group with the
 // group.
-func (w *scopeWalk) follow(d model.EpicDep, add func(id string, group []string)) {
-	if epicDepSatisfied(d, w.states) {
-		return
-	}
+func (w *scopeWalk) follow(d model.EpicDep, inherited []string, add func(id string, mark []string)) {
 	if !d.IsGroup() {
-		add(d.ID, nil)
+		add(d.ID, inherited)
 		return
 	}
 	group := d.Members()
