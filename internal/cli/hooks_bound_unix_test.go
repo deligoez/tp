@@ -32,13 +32,32 @@ func killHookGroup(pid int) error {
 // zombie answers kill(pid, 0) on Linux and darwin alike, so on Linux, where a
 // container's init may never reap the orphan, its /proc state decides.
 func processAlive(pid int) bool {
-	if err := syscall.Kill(pid, 0); err != nil && !errors.Is(err, syscall.EPERM) {
+	return processAliveReading(pid, os.ReadFile)
+}
+
+// processAliveReading is processAlive with the /proc read handed in, so a test
+// can reap the process between the signal probe and the read, the window a
+// reaper hits by chance on a loaded machine.
+func processAliveReading(pid int, readFile func(string) ([]byte, error)) bool {
+	if !signalable(pid) {
 		return false
 	}
-	stat, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/stat")
+	stat, err := readFile("/proc/" + strconv.Itoa(pid) + "/stat")
 	if err != nil {
-		return true
+		// No stat file is one of two things: an OS with no /proc (darwin),
+		// where the probe above has already answered, or a zombie its reaper
+		// collected between that probe and this read. Probing again tells them
+		// apart; reading the miss as "running" failed the hook-bound test on a
+		// loaded runner, where reaping lags just enough to land in the window.
+		return signalable(pid)
 	}
 	fields := bytes.Fields(stat[bytes.LastIndexByte(stat, ')')+1:])
 	return len(fields) == 0 || string(fields[0]) != "Z"
+}
+
+// signalable reports whether kill(pid, 0) finds a process, running or zombie.
+// EPERM is a process that exists and belongs to someone else.
+func signalable(pid int) bool {
+	err := syscall.Kill(pid, 0)
+	return err == nil || errors.Is(err, syscall.EPERM)
 }
