@@ -613,3 +613,19 @@ func TestBuildNextUnits_RecordUnitForAOneRolePanel(t *testing.T) {
 	require.NotNil(t, round)
 	assert.Equal(t, 1, *round)
 }
+
+// TestBuildNextUnits_NoRecordedRoundMeansNoDisposition: only a recorded round
+// can owe a resolve unit. With nothing recorded there is no round 0 to read, so
+// even a merged file holding an undisposed finding at round 0's directory does
+// not take the phase from round 1's role panel.
+func TestBuildNextUnits_NoRecordedRoundMeansNoDisposition(t *testing.T) {
+	root, taskFile, spec := nextUnitsRepo(t)
+	tf := &model.TaskFile{Spec: spec, Tasks: []model.Task{}}
+	writeRoundFile(t, root, taskFile, PhaseReview, 0, "merged.ndjson", ndjson(`{"id":"f"}`))
+
+	units, round := BuildNextUnits(root, taskFile, spec, PhaseReview, tf, nil, nil)
+	assert.Equal(t, []string{"implementer", "tester", "architect"}, unitIDs(units),
+		"round 1 is collected, and nothing recorded owes a disposition")
+	require.NotNil(t, round)
+	assert.Equal(t, 1, *round)
+}
