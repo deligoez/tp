@@ -60,7 +60,7 @@ func TestEpicReviewSlice_ScopeUnitIsStatusBlind(t *testing.T) {
 	u, ok := scopeUnitOf(t, g, EpicSliceKey{Milestone: "A"})
 	require.True(t, ok)
 	assert.Equal(t, scopeOf(t, g, "A").Fingerprint, u.Hash)
-	assert.Equal(t, "scope: A\nmembers: a, b\ndeferrable: d\nthreshold: ten users\npurpose: prove the chain\nclosure: a, b, c, d\n", u.Block)
+	assert.Equal(t, "scope: A\nmembers: a, b\ndeferrable: d\nthreshold: ten users\npurpose: prove the chain\nclosure (status-blind): a, b, c, d\n", u.Block)
 
 	g.Epics[2].Done = scopeDone()
 	closed, _ := scopeUnitOf(t, g, EpicSliceKey{Milestone: "A"})
