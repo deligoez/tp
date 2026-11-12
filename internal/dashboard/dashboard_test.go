@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os/exec"
 	"regexp"
 	"strings"
 	"testing"
@@ -390,6 +391,32 @@ func TestPage_AWaitingEpicNamesItsAnyOfGroups(t *testing.T) {
 	_, script := pageText(t)
 	assert.Contains(t, script, ".blocked_by_any_of")
 	assert.Contains(t, script, `"one of "`)
+}
+
+// TestPage_DrawsAnEpicsDescriptionAsEscapedPreformattedText is the drawer's
+// description (spec/backlog/epic-description.md): the graph epic's
+// description goes through descHTML, which wraps the escaped text in a <pre>
+// and renders no markup. With node on PATH the page's own esc and descHTML
+// run on a description holding a script and HTML, which come out as text.
+func TestPage_DrawsAnEpicsDescriptionAsEscapedPreformattedText(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Contains(t, script, "descHTML(ge.description)")
+	var defs []string
+	for line := range strings.SplitSeq(script, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "const esc = ") || strings.HasPrefix(strings.TrimSpace(line), "const descHTML = ") {
+			defs = append(defs, line)
+		}
+	}
+	require.Len(t, defs, 2, "the page defines esc and descHTML on one line each")
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node is not on PATH: the static half above ran")
+	}
+	prog := strings.Join(defs, "\n") + "\nprocess.stdout.write(descHTML(\"<script>alert(1)</script>\\n<b>bold</b> & 'q'\"));\n"
+	out, err := exec.CommandContext(t.Context(), node, "-e", prog).Output()
+	require.NoError(t, err)
+	assert.Equal(t, `<div><h4>Description</h4><pre class="ddesc">&lt;script&gt;alert(1)&lt;/script&gt;`+"\n"+`&lt;b&gt;bold&lt;/b&gt; &amp; &#39;q&#39;</pre></div>`, string(out))
 }
 
 // TestPage_DrawsTheEpicDrawerItsChainAndTheMatrix is §4 and §11 at the page:
