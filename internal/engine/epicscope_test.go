@@ -178,3 +178,34 @@ func TestScope_Shrink(t *testing.T) {
 		{Epic: "z", Size: 2, Leaves: []string{"z", "z1"}},
 	}, s.Shrink)
 }
+
+// TestScope_OutsideAndNoDependents: outside is the milestone's not-done
+// epics the closure misses, and no_dependents the part of it no epic depends
+// on, by plain edge or as an any-of member. Under implicit members both are
+// empty by definition, and outside_implicit says why.
+func TestScope_OutsideAndNoDependents(t *testing.T) {
+	cond := scopeEpic("c1", "m0")
+	cond.Condition = true
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0", "m1"}}, Epics: []model.Epic{
+		scopeEpic("a1", "m0", scopeDeps("a2")...),
+		scopeEpic("a2", "m0"),
+		scopeEpic("a3", "m0"),
+		scopeEpic("a4", "m0"),
+		scopeEpic("a5", "m0", scopeDeps("a4")...),
+		scopeEpic("a6", "m0"),
+		cond,
+		scopeEpic("b0", "m1", scopeAnyOf("c1", "a2")),
+	}, Gates: map[string]model.EpicGate{"m0": {Members: []string{"a1"}}}}
+	g.Epics[5].Done = scopeDone()
+
+	s := scopeOf(t, g, "m0")
+	assert.Equal(t, []string{"a3", "a4", "a5", "c1"}, s.Outside)
+	assert.False(t, s.OutsideImplicit)
+	assert.Equal(t, []string{"a3", "a5"}, s.NoDependents)
+
+	g.Gates = nil
+	s = scopeOf(t, g, "m0")
+	assert.Equal(t, []string{}, s.Outside)
+	assert.True(t, s.OutsideImplicit)
+	assert.Equal(t, []string{}, s.NoDependents)
+}
