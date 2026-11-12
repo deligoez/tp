@@ -545,8 +545,9 @@ owns the spec written for it; the graph is designed and reviewed the way a spec 
   graph role over the asked epics, with their neighbours as context, and runs the spec loop's rules:
   record, carry unchanged units, converge, cap. The built-in roles ask whether an epic's definition of
   done names a capability none of its dependencies provides (`dod-satisfiability`), whether each
-  `why` is a reason (`why-auditor`), and whether an epic sits where the plan needs it
-  (`phase-economist`); `regression` joins a round that follows a change.
+  `why` is a reason (`why-auditor`), whether an epic sits where the plan needs it
+  (`phase-economist`), and whether a gate taken whole is the work its threshold and purpose need,
+  missing and surplus both (`gate-scope`); `regression` joins a round that follows a change.
 - **Bound to the work.** A task file names its epic (`tp init <spec> --epic <id>`, `tp set --epic
   <id>`), and the epic's status is derived from its bound files whenever it is read: `planned`,
   `claimed`, `specced`, `in_progress`, and `done` once every bound file reaches `release`. Nothing is
