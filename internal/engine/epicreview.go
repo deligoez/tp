@@ -91,6 +91,12 @@ type epicSnapshot struct {
 	Blocks   map[string]string  `json:"blocks,omitempty"`
 	Purposes map[string]string  `json:"purposes,omitempty"`
 	Roles    []EpicSnapshotRole `json:"roles"`
+	// OwnRests and Tails hold, per epic unit (v1.11.0), the hash of its own
+	// block without the description and of the dependency blocks its hash
+	// covers, so the next carry tells a description-only change by hash.
+	// A snapshot written before v1.11.0 holds neither.
+	OwnRests map[string]string `json:"own_rests,omitempty"`
+	Tails    map[string]string `json:"tails,omitempty"`
 }
 
 // EpicSnapshotRole is one role of an emission's panel, in panel order: its
@@ -107,10 +113,14 @@ type EpicSnapshotRole struct {
 // the panel roles.
 func newEpicSnapshot(round int, units []EpicReviewUnit, roles []EpicSnapshotRole) epicSnapshot {
 	snap := epicSnapshot{Round: round, Units: make(map[string]string, len(units)), Blocks: make(map[string]string, len(units)), Purposes: map[string]string{},
-		Roles: append([]EpicSnapshotRole{}, roles...)}
+		Roles: append([]EpicSnapshotRole{}, roles...), OwnRests: map[string]string{}, Tails: map[string]string{}}
 	for _, u := range units {
 		snap.Units[u.Key] = u.Hash
 		snap.Blocks[u.Key] = u.Block
+		if u.ownRest != "" {
+			snap.OwnRests[u.Key] = epicHash(u.ownRest)
+			snap.Tails[u.Key] = epicHash(u.hashTail)
+		}
 		if u.Purpose != "" {
 			snap.Purposes[u.Milestone] = u.Purpose
 		}

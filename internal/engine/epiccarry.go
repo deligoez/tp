@@ -106,7 +106,7 @@ func (c *EpicCarry) place(u *EpicReviewUnit, prev *epicSnapshot, reask bool) {
 	hash, ok := prev.Units[u.Key]
 	changed := !ok || hash != u.Hash
 	before, had := prev.Blocks[u.Key]
-	authored := changed && ok && had && epicDescriptionOnly(before, u, hash)
+	authored := changed && ok && had && epicDescriptionOnly(prev, u, before, hash)
 	c.Changed = c.Changed || changed && !authored && epicRegressionKind(u.Key)
 	if !changed && !reask {
 		c.Carried = append(c.Carried, *u)

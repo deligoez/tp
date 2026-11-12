@@ -24,17 +24,21 @@ func splitEpicDescription(block string) (rest, desc string, ok bool) {
 	return strings.Join(lines[:i], "\n") + "\n", strings.Join(body, "\n"), true
 }
 
-// epicDescriptionOnly reports whether unit u differs from the round before
-// only in its own description: its block without the description is the
-// one before read, and the block before with u's dependency blocks hashes
-// to the hash before, so no dependency moved either.
-func epicDescriptionOnly(before string, u *EpicReviewUnit, hashBefore string) bool {
-	if before == u.Block {
+// epicDescriptionOnly reports whether epic unit u, whose hash moved since
+// prev, differs from it only in its own description. It compares hashes, not
+// text: the hash of u's own block without the description and of its
+// dependency blocks against the ones prev stored. A snapshot from before
+// v1.11.0 stored neither and could hold no description, so there the block
+// before must equal u's own block without the description, and that block
+// with u's dependency blocks must hash to the hash before.
+func epicDescriptionOnly(prev *epicSnapshot, u *EpicReviewUnit, before, hashBefore string) bool {
+	if u.ownRest == "" {
 		return false
 	}
-	restBefore, _, _ := splitEpicDescription(before)
-	restNow, _, _ := splitEpicDescription(u.Block)
-	return restBefore == restNow && epicHash(before+u.hashTail) == hashBefore
+	if rest, kept := prev.OwnRests[u.Key]; kept {
+		return rest == epicHash(u.ownRest) && prev.Tails[u.Key] == epicHash(u.hashTail)
+	}
+	return before == u.ownRest && epicHash(before+u.hashTail) == hashBefore
 }
 
 // EpicDescriptionDiff renders the change between the descriptions of two

@@ -35,9 +35,12 @@ type EpicReviewUnit struct {
 	Hash      string
 	Milestone string
 	Purpose   string
-	// hashTail is what an epic unit's hash covers after its own block,
-	// its dependencies' blocks, so a carry can tell a change of the own
-	// block alone (epicDescriptionOnly).
+	// ownRest is an epic unit's own block without its description, and
+	// hashTail what its hash covers after the own block, its dependencies'
+	// blocks; a snapshot keeps the hash of each, so a carry tells a
+	// description-only change without reading the block's text
+	// (epicDescriptionOnly). Both are empty on a gate or scope unit.
+	ownRest  string
 	hashTail string
 }
 
@@ -293,7 +296,8 @@ func epicDependentBrief(e *model.Epic, asked map[string]bool) string {
 // dependent relies on what its dependency delivers, its acceptance, so a
 // description edit re-asks the described epic alone.
 func epicUnit(e *model.Epic, byID map[string]*model.Epic) EpicReviewUnit {
-	block := epicBlock(e) + epicDescriptionBlock(e.Description)
+	rest := epicBlock(e)
+	block := rest + epicDescriptionBlock(e.Description)
 	var tail strings.Builder
 	for _, d := range e.DependsOn {
 		for _, id := range d.Names() {
@@ -302,7 +306,7 @@ func epicUnit(e *model.Epic, byID map[string]*model.Epic) EpicReviewUnit {
 			}
 		}
 	}
-	return EpicReviewUnit{Key: EpicUnitPrefix + e.ID, Block: block, Hash: epicHash(block + tail.String()), Milestone: e.Milestone, hashTail: tail.String()}
+	return EpicReviewUnit{Key: EpicUnitPrefix + e.ID, Block: block, Hash: epicHash(block + tail.String()), Milestone: e.Milestone, ownRest: rest, hashTail: tail.String()}
 }
 
 // epicBlock renders an epic's id, title, milestone, condition when true, tags,
