@@ -521,3 +521,40 @@ func TestBuildNextUnits_NoRecordUnitWhenTheRoundIsAlreadyRecorded(t *testing.T) 
 	units, _ = BuildNextUnits(root, taskFile, spec, PhaseReview, tf, nil, nil)
 	assert.Empty(t, units, "round 1 already has its recorded entry")
 }
+
+// regressionDueRepo is nextUnitsRepo with round 1's snapshot written beside a
+// spec whose one section has changed since, so RegressionDue holds for round 2.
+// frontmatter is prepended to the spec as is, so a test can deactivate roles.
+func regressionDueRepo(t *testing.T, frontmatter string) (root, taskFile, spec string) {
+	t.Helper()
+	root, taskFile, spec = nextUnitsRepo(t)
+	require.NoError(t, os.WriteFile(spec, []byte(frontmatter+"# S\n## 1. A\nnew\n"), 0o600))
+	require.NoError(t, os.MkdirAll(ReviewStateDir(spec), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(ReviewStateDir(spec), "snapshot-round-1.md"),
+		[]byte("# S\n## 1. A\nold\n"), 0o600))
+	return root, taskFile, spec
+}
+
+// TestBuildNextUnits_NoRegressionUnitInTheAuditPhase: regression is a review
+// prompt, so an audit round never gets a regression unit, even on a state where
+// RegressionDue holds for the round it collects. The review half is the
+// control: the same state does give the review round its regression unit.
+func TestBuildNextUnits_NoRegressionUnitInTheAuditPhase(t *testing.T) {
+	root, taskFile, spec := regressionDueRepo(t, "")
+	tf := &model.TaskFile{Spec: spec, Tasks: []model.Task{}}
+	st := &ReviewState{
+		ReviewRounds: []ReviewRound{{Round: 1}},
+		AuditRounds:  []ReviewRound{{Round: 1}},
+	}
+	require.True(t, RegressionDue(spec, 2, st), "the fixture must make the predicate hold for round 2")
+
+	review, _ := BuildNextUnits(root, taskFile, spec, PhaseReview, tf, st, nil)
+	assert.Equal(t, []string{"implementer", "tester", "architect", RegressionRoleID}, unitIDs(review),
+		"the control: review round 2 carries regression")
+
+	audit, round := BuildNextUnits(root, taskFile, spec, PhaseAudit, tf, st, nil)
+	require.NotNil(t, round)
+	require.Equal(t, 2, *round, "the audit phase is collecting round 2 too")
+	assert.Equal(t, []string{"spec-coverage", "security", "maintainability-conventions"}, unitIDs(audit),
+		"an audit round spawns no regression unit")
+}
