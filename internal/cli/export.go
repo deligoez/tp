@@ -62,14 +62,20 @@ func runExport(cmd *cobra.Command, _ []string) error {
 func exportOf(explicit string, compact bool) (exportPayload, *epicRunError) {
 	path, err := engine.DiscoverTaskFile(".", explicit)
 	if err != nil {
-		hint := exportNoTaskFileHint
-		if errors.Is(err, engine.ErrMultipleTaskFiles) {
-			hint = "pass --file with one of the task files the message names"
-		}
-		return exportPayload{}, &epicRunError{code: ExitFile, msg: err.Error(), hint: hint}
+		return exportPayload{}, exportDiscoverError(err)
 	}
 	exp, err := engine.TaskExportOf(".", path)
 	return exportResultOf(&exp, err, compact)
+}
+
+// exportDiscoverError is the error tp export exits with when discovery
+// fails with err.
+func exportDiscoverError(err error) *epicRunError {
+	hint := exportNoTaskFileHint
+	if errors.Is(err, engine.ErrMultipleTaskFiles) {
+		hint = "pass --file with one of the task files the message names"
+	}
+	return &epicRunError{code: ExitFile, msg: err.Error(), hint: hint}
 }
 
 // exportDataOf is exportOf's uncompacted payload for the task file at path
