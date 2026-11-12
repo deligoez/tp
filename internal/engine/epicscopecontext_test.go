@@ -77,3 +77,24 @@ func TestEpicScopeContext_ShowsOnlyMilestonesWithClosureEpics(t *testing.T) {
 	assert.Contains(t, text, "* b size 2: b, c\n")
 	assert.NotContains(t, text, "outside the closure")
 }
+
+// TestEpicScopeContext_TheSmallestScopeInFull: one member epic with no edge
+// and nothing to shrink, defer, hold or chain renders exactly so.
+func TestEpicScopeContext_TheSmallestScopeInFull(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0"}}, Epics: []model.Epic{
+		{ID: "a", Title: "A", Milestone: "m0"},
+	}, Gates: map[string]model.EpicGate{"m0": {Members: []string{"a"}, Threshold: "t"}}}
+	states, err := DeriveEpicStates(g, nil)
+	require.NoError(t, err)
+
+	assert.Equal(t, "\nScope of gate m0 — the live tp epic scope measurement behind the asked scope unit; its epics are context, not units:\n"+
+		"members: explicit, 1\n"+
+		"closure, then the milestone's epics outside it, each epic once:\n"+
+		"--- m0 (track 0), 1 in the closure\n"+
+		"- a [member] A\n"+
+		"shrink — the epics that leave the closure when the epic is cut, or dropped from the gate when a member, largest first:\n"+
+		"(none)\n"+
+		"deferrable_in_closure: none\n"+
+		"holds_opening: none\n"+
+		"critical_path (by count): a\n", EpicScopeContext(g, states, "m0"))
+}
