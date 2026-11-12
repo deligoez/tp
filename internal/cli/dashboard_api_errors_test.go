@@ -85,12 +85,12 @@ func TestDashboard_DanglingInRepoSymlinkIsNotFound(t *testing.T) {
 	requireSameErrorAsCommand(t, srv, dir, "dangling.tasks.json")
 }
 
-// TestDashboard_AbsoluteSymlinkInsideTheRepoAnswersAsTheCommand: a listed
-// TestDashboard_AbsoluteSymlinkInsideTheRepoAnswersAsTheCommand: a task file
-// that is a symlink with an absolute target inside the repository is listed
-// under the path tp export --list prints for it, and that path answers
-// byte-equal to tp export --file; the link's own name, not listed, does not.
-func TestDashboard_AbsoluteSymlinkInsideTheRepoAnswersAsTheCommand(t *testing.T) {
+// TestDashboard_AbsoluteSymlinkInsideTheRepoIsServedOnlyUnderItsListedPath:
+// a task file that is a symlink with an absolute target inside the
+// repository is listed under the path tp export --list prints for it, and
+// that path answers byte-equal to tp export --file; the link's own name, not
+// listed, answers 404 with code 4.
+func TestDashboard_AbsoluteSymlinkInsideTheRepoIsServedOnlyUnderItsListedPath(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	writeTaskFileRaw(t, dir, `[]`)
