@@ -50,4 +50,5 @@ func TestEpicScopeContext_EachEpicOnceWithItsMarks(t *testing.T) {
 	assert.Contains(t, text, "\n* b1 [member] size 5: a0, b1, d1, x, y\n")
 	assert.NotContains(t, text, "Spare", "a9 is outside m1's closure and milestone; it appears only by id")
 	assert.NotContains(t, text, "Shipped", "a done epic is not shown")
+	assert.NotContains(t, text, "(none)", "a scope with shrink rows prints no empty shrink")
 }
