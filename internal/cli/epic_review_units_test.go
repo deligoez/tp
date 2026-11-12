@@ -95,7 +95,7 @@ func TestEpicReview_AScopeUnitBringsTheLiveScope(t *testing.T) {
 	assert.NotContains(t, out.Prompts[0].Prompt, "Scope of gate A")
 	scope := out.Prompts[1].Prompt
 	assert.Contains(t, scope, "Scope of gate A")
-	assert.Contains(t, scope, "\n- a [member] A\n  acceptance: a ships\n  depends_on: b: a needs b\n")
+	assert.Contains(t, scope, "\n- a [member] A\n  acceptance: a ships\n  depends_on: b\n")
 	assert.Contains(t, scope, "critical_path (by count): d -> c -> b -> a\n")
 }
 
@@ -120,6 +120,34 @@ func TestEpicReview_ARoleWithNoUnitOfItsKindsIsSkipped(t *testing.T) {
 	}
 	stdout, stderr, code := runTP(t, dir, "epic", "review", "--epic", "b", "--status", "--check")
 	require.Equal(t, 0, code, "stdout: %s stderr: %s", stdout, stderr)
+}
+
+// TestEpicReview_TheMechanizedLineGoesOnlyToEpicAndGateReaders: a role that
+// reads only the scope unit is not told which lint classes are mechanized.
+func TestEpicReview_TheMechanizedLineGoesOnlyToEpicAndGateReaders(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChainThreshold)
+	writeEpicRoles(t, dir, scopeAndPlainRoles)
+	out := runEpicReview(t, dir, "--milestone", "A")
+	require.Equal(t, []string{"plain", "scope-only"}, promptRoles(&out))
+	assert.Contains(t, out.Prompts[0].Prompt, "Mechanically checked classes")
+	assert.NotContains(t, out.Prompts[1].Prompt, "Mechanically checked classes")
+}
+
+// TestEpicReview_AChangedScopeUnitShowsItsBlockBefore: a scope unit whose
+// block changed is shown to its role as the round before read it and as it
+// reads now.
+func TestEpicReview_AChangedScopeUnitShowsItsBlockBefore(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChainThreshold)
+	writeEpicRoles(t, dir, scopeAndPlainRoles)
+	recordEpicRows(t, dir, "")
+	setGateField(t, dir, "gates.A.threshold=twenty users")
+	out := runEpicReview(t, dir, "--milestone", "A")
+	require.Equal(t, []string{"plain", "scope-only", "regression"}, promptRoles(&out))
+	scope := out.Prompts[1]
+	assert.Contains(t, scope.Prompt, "--- scope:A, round 1\nscope: A\nmembers: a, b\nthreshold: ten users\n")
+	assert.Contains(t, scope.Prompt, "--- scope:A, now\nscope: A\nmembers: a, b\nthreshold: twenty users\n")
 }
 
 // TestEpicReview_AKindNoRoleReadsHasNoUnit: a corpus whose every role takes
