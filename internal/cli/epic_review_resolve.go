@@ -166,7 +166,7 @@ func refuseEpicResolveInFlight(run *epicReviewRun, round int) {
 	}
 	label := epicSliceLabel(run.key)
 	exitEpicRunError(&epicRunError{code: ExitFile,
-		msg: fmt.Sprintf("epic review round %d of %s is emitted and unrecorded, and it was built from round %d's dispositions: they stay as they are until it is recorded, after which a disposition takes effect from the next round, or discarded",
+		msg: fmt.Sprintf("dispositions are frozen while round %d of %s is emitted and unrecorded: it was built from round %d's",
 			run.round, label, round),
 		hint: epicWaysForward(label)})
 }
