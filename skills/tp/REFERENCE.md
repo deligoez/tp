@@ -103,7 +103,7 @@ Resolves the task file by the discovery order (a spec argument wins and uses its
 | `blockers` | `{code, class, message, data}` in fixed code order |
 | `next_units` (v0.35.0) | ordered `[]` of `{kind, id, brief_command}` — the units a driver should execute **now**. `[]` when the phase is blocked, awaiting an operator decision, or `release`. Concurrency is not repeated per entry: it is fixed per kind (see [Unattended Run](#unattended-run-v0350)) |
 | `round` (v0.35.0) | the round `next_units` belongs to — the round being collected for role units, the round just recorded for the resolve/fix kinds — and `null` outside a round-based phase |
-| `last_failure` (v0.35.0) | `{unit_kind, unit_id, phase, exit_code, summary, at}` from `.tp/last_failure-<base>.json`, or `null`. Advisory: it never changes which unit runs next |
+| `last_failure` (v0.35.0) | `{unit_kind, unit_id, phase, exit_code, summary, at}` from `.tp/last_failure-<key>.json`, or `null`. Advisory: it never changes which unit runs next |
 
 `next_units`, `round` and `phase` are the whole machine surface — a driver parses those three and nothing else. `next_action` stays the human-facing summary, and its `command`/`brief_command`/`payload` render `next_units[0]` when the array is non-empty. `tp brief` surfaces `last_failure` too, so a fresh unit sees the wall the previous attempt hit.
 
@@ -246,8 +246,14 @@ the driver kills nothing.
 
 ### Run state, logs and `--status`
 
-Run state lives at `.tp/run-<base>.json` (git-ignored, named per task file because the run lock is
-per task file):
+Run state lives at `.tp/run-<key>.json` (git-ignored, named per task file because the run lock is
+per task file). `<key>` is the task file's base for a task file at the project root, and for one
+below it its directory and base escaped into one name (`x/a.tasks.json` → `x%2Fa`, v1.12.0), so two
+same-base task files in different directories never share run state; the run lock
+(`.tp/locks/run-<key>.lock`) and the last-failure record (`.tp/last_failure-<key>.json`) use the
+same key, and the round directories the same location. A nested task file's round collected under
+the pre-1.12.0 `.tp/rounds/<base>/` is not read after the upgrade: the driver spawns that round's
+role units again, and `scripts/clean-emissions.sh` reports the old directory:
 
 ```json
 {"run_id": "", "started_at": "", "phase": "", "stop_reason": null,
@@ -522,7 +528,7 @@ Output includes `reordered` (bool) and `skipped` (count of already-done entries)
 
 ## Review File Management
 
-You manage findings files yourself. Each emitted prompt carries an **`output_path`** (`review-<base>-r<N>-<role>.ndjson` / `audit-<base>-r<N>-<role>.ndjson`, relative to the working directory, where `<base>` is the spec's filename without its extension — the slug `.tp-review/<base>/` uses, so two specs reviewed in one directory do not overwrite each other's role files; two same-base specs in different directories reviewed from one working directory still share them) and names that file in its text, so the merge glob is predictable rather than invented. Inside a `tp run` unit — where `TP_ROUND_DIR` is set — the same field instead carries `$TP_ROUND_DIR/role-<role>.ndjson.part`, the single path that unit is allowed to write and the one the driver renames when it exits 0; the name above is what you get everywhere else. Convention:
+You manage findings files yourself. Each emitted prompt carries an **`output_path`** (`<spec dir>/.tp-review/<base>/review-inbox/round-<N>-<role>.ndjson` / `.../audit-inbox/round-<N>-<role>.ndjson`, v1.12.0: the phase's inbox in the spec's own state directory, so no two specs share a role file even when their bases match; the inbox is apart from the recorded rounds, `--record` removes a round's files from it once the round is on disk, and the plugin's write fence lets exactly these names through. The pre-1.12.0 cwd-relative `<phase>-<base>-r<N>-<role>.ndjson` is never read: `--merge` exits 3 on an input in that shape, naming the inbox file to move it to) and names that file in its text, so the merge glob is predictable rather than invented. Inside a `tp run` unit — where `TP_ROUND_DIR` is set — the same field instead carries `$TP_ROUND_DIR/role-<role>.ndjson.part`, the single path that unit is allowed to write and the one the driver renames when it exits 0; the name above is what you get everywhere else. Convention:
 ```
 spec/
   feature.md                    # spec (keep)
