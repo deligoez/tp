@@ -6,40 +6,6 @@ backlog sidecars (`spec/backlog/ARCHIVE.md` gives the sha to read them at). Fix 
 from the repro, watch it fail, fix, gate, review the diff, commit, **delete the line**. A defect whose
 fix needs a design choice leaves this file for a decision note.
 
-## Silent loss of work, or output that lies
-
-- **A phase whose entire recorded history was hand-recorded, with no emission, still clears
-  `spec-stale` at `--record`.** With no round that ever read text, staleness falls back to comparing
-  the last recorded round's stored hash, which is the pre-v1.2.2 answer. The field case is closed: a
-  converged loop always emits, and since v1.2.2 a round carries the hash of its own emission snapshot,
-  so recording without emitting no longer clears staleness there. Closing this case too flips the
-  seven tests that pin the staleness contract for hand-driven fixtures, so it is a decision.
-
-- **The project config layer resolves from the process working directory, not from the task file.**
-  `ProjectWorkflowOverride` discovers `.tp/` from `.`, so with `--file` (or `TP_FILE`) naming a task
-  file in another project tree, that plan is driven by the *current* project's `quality_gate`, round
-  caps, `commit_strategy` and registered checks: `tp done --file ../other/x.tasks.json` runs this
-  project's gate command against that plan, the same silent-wrong-target family as the stale pointer
-  fixed in v1.2.0. Seen from a test: with no `.tp/` beside the task file, resume still named the check
-  gate, because discovery reached tp's own `.tp/config.json` from the test process. The option —
-  resolve the project layer from the task file's directory — changes documented resolution precedence,
-  so it is a decision.
-
-## Wrong or missing guidance
-
-- **Two specs with the same base in different directories share the ground scratch file** when
-  grounded from one working directory (`x/a.md` and `y/a.md` both write `ground-a-r1.ndjson`; their
-  state directories do not collide, since those are per spec directory). The base in the name already
-  separates two different bases; separating two directories needs something derived from the path,
-  and that is the decision: a path-derived slug makes the same spec reached as `x/a.md`, `./x/a.md`
-  and an absolute path name three different scratch files, which `--record` then cannot find, and
-  moving the file under the per-spec state directory changes what the dirty-state classifier and
-  `--record` each treat as a round artifact, and refusing when the scratch file already on disk
-  belongs to a different spec path needs the file to say whose it is, which is a change to its own
-  format. All three cost a contract; the decision is which one.
-- **`tp run` never spawns a regression unit.** A round the panel emits with a regression prompt is
-  driven without it. Whether a run should grade regression, and as which unit kind, is the open question.
-
 ## Decided elsewhere, not a fix
 
 - **`tp review --check` converges with roles that never ran.** A role that found nothing writes no
