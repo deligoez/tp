@@ -316,6 +316,7 @@ func TestScope_LaterGateChangeFreesEarlierMembers(t *testing.T) {
 	g.Gates["m1"] = model.EpicGate{Members: []string{"b1"}}
 	assert.Equal(t, []ScopeHoldsOpening{{Milestone: "m0", Size: 1, Epics: []string{"a2"}}}, scopeOf(t, g, "m1").HoldsOpening)
 }
+
 // TestScope_Fingerprint: the fingerprint hashes a status-blind closure, so
 // closing an epic does not move it; it is blind to the members' order, moves
 // with a rewritten threshold, and moves with the graph's edges.
@@ -538,4 +539,3 @@ func TestScope_ClosureMarksDeferrableEpics(t *testing.T) {
 	assert.Equal(t, []ScopeEpic{{ID: "a1"}, {ID: "d", AnyOf: group, Deferrable: true}, {ID: "e", AnyOf: group}}, s.Closure[0].Epics)
 	assert.Equal(t, []string{}, s.DeferrableInClosure)
 }
-

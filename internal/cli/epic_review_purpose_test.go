@@ -28,24 +28,22 @@ type epicPurposeStatus struct {
 	PurposeStale []string `json:"purpose_stale"`
 }
 
-func epicPurposeStatusOf(t *testing.T, dir string) (epicPurposeStatus, int) {
+func epicPurposeStatusOf(t *testing.T, dir string) (st epicPurposeStatus, code int) {
 	t.Helper()
 	stdout, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A", "--status", "--check")
 	require.Contains(t, []int{0, 1}, code, "stderr: %s", stderr)
-	var st epicPurposeStatus
 	require.NoError(t, json.Unmarshal([]byte(stdout), &st), stdout)
 	return st, code
 }
 
 // recordEpicRows emits A's next round and records rows as it.
-func recordEpicRows(t *testing.T, dir, rows string) epicReviewPayload {
+func recordEpicRows(t *testing.T, dir, rows string) {
 	t.Helper()
-	out := runEpicReview(t, dir, "--milestone", "A")
+	runEpicReview(t, dir, "--milestone", "A")
 	path := filepath.Join(t.TempDir(), "rows.ndjson")
 	require.NoError(t, os.WriteFile(path, []byte(rows), 0o600))
 	_, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A", "--record", path)
 	require.Equal(t, 0, code, "stderr: %s", stderr)
-	return out
 }
 
 // convergedPurposeSlice is milestone A of epicChainThreshold under corpus,

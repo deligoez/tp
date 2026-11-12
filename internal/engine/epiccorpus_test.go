@@ -15,8 +15,8 @@ func epicRoleIDs(t *testing.T, root string) []string {
 	roles, err := ResolveEpicRoleCorpus(root)
 	require.NoError(t, err)
 	ids := make([]string, 0, len(roles))
-	for _, r := range roles {
-		ids = append(ids, r.ID)
+	for i := range roles {
+		ids = append(ids, roles[i].ID)
 	}
 	return ids
 }
