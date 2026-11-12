@@ -256,27 +256,30 @@ func specCoverageTasksFor(t *testing.T, stdout, path string) []string {
 // each task's commit_sha with git show, and that call used to run with no
 // cmd.Dir — so the revision was looked up in the PROCESS cwd's repository
 // instead of the one holding the spec. Auditing a spec from another checkout
-// then mapped every task to zero files, and because an empty mapping is
-// indistinguishable from "no task carries a usable commit_sha", spec-coverage
-// silently took its fallback file list at exit 0 with an empty stderr. Every
-// sibling git call in the audit path sets cmd.Dir; this one has to as well.
+// then mapped every task to zero files at exit 0.
+//
+// Since spec/backlog/project-layer-from-task-file.md an audit from another
+// checkout is refused outright, because its agents would read this tree; the
+// lookup's own directory is pinned by the engine test of the same name. What
+// stays here is the audit run from the repository it audits, which maps the
+// task, and the refusal from the other one, which names where to run it.
 func TestAudit_TaskFileMappingComesFromTheAuditedRepo(t *testing.T) {
 	t.Parallel()
 	audited := auditedRepoWithMappedTask(t)
 
-	// The caller's cwd: a different repository, which knows nothing of the
-	// audited repo's commits.
-	caller := t.TempDir()
-	initGitRepo(t, caller)
-
-	stdout, stderr, code := runTP(t, caller, "audit",
-		filepath.Join(audited, "spec.md"), "--affected-from-tasks")
+	stdout, stderr, code := runTP(t, audited, "audit", "spec.md", "--affected-from-tasks")
 	require.Equal(t, 0, code, "stderr: %s", stderr)
-
 	assert.Equal(t, []string{"t1"}, specCoverageTasksFor(t, stdout, "auth_helper.go"),
 		"the task mapping comes from the repository holding the spec")
 	assert.NotContains(t, stderr, "contributes no file mapping",
 		"a resolvable commit produces no advisory")
+
+	// The caller's cwd: a different repository.
+	caller := t.TempDir()
+	initGitRepo(t, caller)
+	_, stderr, code = runTP(t, caller, "audit", filepath.Join(audited, "spec.md"), "--affected-from-tasks")
+	assert.Equal(t, 2, code, "an audit of another checkout's spec is refused: %s", stderr)
+	assert.Contains(t, stderr, "run it from", "and the refusal names where to run it")
 }
 
 // TestAudit_TaskFileMappingWarnsOnUnknownCommit: a commit_sha git cannot

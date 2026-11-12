@@ -117,9 +117,13 @@ func TestCommitDropsAlreadyTrackedLockFiles(t *testing.T) {
 	require.Equal(t, 0, code, "claim: %s", stderr)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "out.txt"), []byte("work\n"), 0o600))
 
-	// From the SUBDIRECTORY: pathspecs resolve against the current directory,
-	// so this is where a missing :(top) shows up.
-	_, stderr, code = runTPIn(t, nested, "--file", filepath.Join(dir, "spec.tasks.json"), "commit", "t1", "implemented")
+	// From a SUBDIRECTORY: pathspecs resolve against the current directory,
+	// so this is where a missing :(top) shows up. Not from `sub`, which holds
+	// its own .tp/ and so is a project of its own: a commit there for this
+	// project's task file is refused (spec/backlog/project-layer-from-task-file.md).
+	work := filepath.Join(dir, "work")
+	require.NoError(t, os.MkdirAll(work, 0o755))
+	_, stderr, code = runTPIn(t, work, "--file", filepath.Join(dir, "spec.tasks.json"), "commit", "t1", "implemented")
 	require.Equal(t, 0, code, "commit: %s", stderr)
 
 	tracked := gitOut(t, dir, "ls-files")
