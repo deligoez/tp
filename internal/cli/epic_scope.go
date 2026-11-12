@@ -21,9 +21,10 @@ type epicScopeResult struct {
 // full one: the fingerprint first, the purpose (null when unset), the
 // members' mode and count with their list only for an explicit gate, the
 // closure's size per milestone, the shrink rows without leaves,
-// deferrable_in_closure when not empty, and the critical path by count. It
-// drops the closure's epic lists, outside, unneeded_earlier, an implicit
-// gate's member list and the path by estimate.
+// deferrable_in_closure when not empty, each holds_opening row's milestone
+// and size, and the critical path by count. It drops the closure's epic
+// lists, outside, the holds_opening ids, an implicit gate's member list and
+// the path by estimate.
 type epicScopeCompact struct {
 	Fingerprint     string                      `json:"fingerprint"`
 	Milestone       string                      `json:"milestone"`
@@ -34,7 +35,14 @@ type epicScopeCompact struct {
 	Closure         []epicScopeCompactMilestone `json:"closure"`
 	Shrink          []epicScopeCompactShrink    `json:"shrink"`
 	Deferrable      []string                    `json:"deferrable_in_closure,omitempty"`
+	HoldsOpening    []epicScopeCompactHolds     `json:"holds_opening"`
 	CriticalPath    epicPathReport              `json:"critical_path"`
+}
+
+// epicScopeCompactHolds is one holds_opening row without its epics.
+type epicScopeCompactHolds struct {
+	Milestone string `json:"milestone"`
+	Size      int    `json:"size"`
 }
 
 // epicScopeCompactMilestone is one closure milestone without its epics.
@@ -105,6 +113,7 @@ func epicScopeCompactOf(scope *engine.EpicScope) epicScopeCompact {
 		MemberCount:     scope.MemberCount,
 		Closure:         make([]epicScopeCompactMilestone, 0, len(scope.Closure)),
 		Shrink:          make([]epicScopeCompactShrink, 0, len(scope.Shrink)),
+		HoldsOpening:    make([]epicScopeCompactHolds, 0, len(scope.HoldsOpening)),
 		CriticalPath:    epicPathReport{ByCount: scope.CriticalPath.ByCount},
 		Deferrable:      scope.DeferrableInClosure,
 	}
@@ -116,6 +125,9 @@ func epicScopeCompactOf(scope *engine.EpicScope) epicScopeCompact {
 	}
 	for _, r := range scope.Shrink {
 		out.Shrink = append(out.Shrink, epicScopeCompactShrink{Epic: r.Epic, Member: r.Member, AnyOf: r.AnyOf, Size: r.Size})
+	}
+	for _, r := range scope.HoldsOpening {
+		out.HoldsOpening = append(out.HoldsOpening, epicScopeCompactHolds{Milestone: r.Milestone, Size: r.Size})
 	}
 	return out
 }
