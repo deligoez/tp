@@ -174,6 +174,7 @@ func runEpicReviewEmit(cmd *cobra.Command, key engine.EpicSliceKey) {
 	}
 	roleName, _ := cmd.Flags().GetString("role")
 	q := roleQuery{name: roleName, given: cmd.Flags().Changed("role"), specDir: filepath.Dir(run.tpDir)}
+	refuseEpicRoleMissing(q, roles)
 	prompts, skipped := filterByRole(built, func(p *epicReviewPrompt) string { return p.Role }, q, skipped)
 	if err := writeEpicReviewEmission(&run); err != nil {
 		output.Error(ExitFile, "cannot write the epic review state: "+err.Error(), epicReviewStateHint)
@@ -186,6 +187,25 @@ func runEpicReviewEmit(cmd *cobra.Command, key engine.EpicSliceKey) {
 		output.Error(ExitFile, err.Error(), internalEncodeHint)
 		os.Exit(ExitFile)
 	}
+}
+
+// refuseEpicRoleMissing exits 2 when --role names a built-in graph role the
+// active corpus does not hold: a populated .tp/epic-reviewers/ replaces the
+// built-ins, so a corpus ejected before that role shipped lacks it, and a bare
+// "unknown role" would hide why.
+func refuseEpicRoleMissing(q roleQuery, roles []model.Role) {
+	if !q.given || !slices.Contains(engine.EpicBuiltinRoleIDs(), q.name) {
+		return
+	}
+	for i := range roles {
+		if roles[i].ID == q.name {
+			return
+		}
+	}
+	output.Error(ExitUsage, "the built-in graph role "+q.name+" is not in this project's corpus: .tp/epic-reviewers/ replaces the built-in graph roles and holds no "+q.name+".json",
+		"a corpus ejected before the role shipped lacks it: re-eject with tp init --eject-roles --graph --force, which overwrites the ejected files, or copy "+
+			q.name+".json into .tp/epic-reviewers/; the next emission, an unrecorded round's re-emission included, then asks it")
+	os.Exit(ExitUsage)
 }
 
 // writeEpicReviewEmission records an emission in the slice's state directory:

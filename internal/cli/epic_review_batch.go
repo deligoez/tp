@@ -159,6 +159,7 @@ func loadEpicBatchSetup(cmd *cobra.Command) epicBatchSetup {
 		os.Exit(ExitFile)
 	}
 	roleName, _ := cmd.Flags().GetString("role")
+	refuseEpicRoleMissing(roleQuery{name: roleName, given: cmd.Flags().Changed("role")}, roles)
 	return epicBatchSetup{
 		graph:  eg,
 		policy: epicReviewPolicy(eg.tpDir),
