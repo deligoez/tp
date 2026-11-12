@@ -495,3 +495,21 @@ func TestScope_UnneededEarlierCountsUntrackedGates(t *testing.T) {
 
 	assert.Equal(t, []ScopeUnneeded{}, scopeOf(t, g, "m1").UnneededEarlier)
 }
+
+// TestScope_ClosureMarksDeferrableEpics: a closure row whose epic the gate
+// lists deferrable says so, optional or required; deferrable_in_closure
+// still lists only the required ones.
+func TestScope_ClosureMarksDeferrableEpics(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0"}}, Epics: []model.Epic{
+		scopeEpic("a1", "m0", scopeAnyOf("d", "e")),
+		scopeEpic("d", "m0"),
+		scopeEpic("e", "m0"),
+	}, Gates: map[string]model.EpicGate{"m0": {Members: []string{"a1"}, Deferrable: []string{"d"}}}}
+
+	s := scopeOf(t, g, "m0")
+
+	group := []string{"d", "e"}
+	require.Len(t, s.Closure, 1)
+	assert.Equal(t, []ScopeEpic{{ID: "a1"}, {ID: "d", AnyOf: group, Deferrable: true}, {ID: "e", AnyOf: group}}, s.Closure[0].Epics)
+	assert.Equal(t, []string{}, s.DeferrableInClosure)
+}
