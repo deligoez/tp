@@ -78,6 +78,33 @@ func TestParseRoleBytes_NeighboursBriefIsAContext(t *testing.T) {
 	assert.Contains(t, err.Error(), "neighbours-brief")
 }
 
+// TestParseRoleBytes_UnitsAndPurpose: a graph role's units is a non-empty
+// list drawn from epics, gates and scope, absent meaning epics and gates; an
+// unknown kind or an empty list is refused; purpose is a boolean.
+func TestParseRoleBytes_UnitsAndPurpose(t *testing.T) {
+	role, err := ParseRoleBytes([]byte(`{"id":"r","title":"T","instructions":"I","units":["scope"],"purpose":true}`), "r")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"scope"}, role.Units)
+	assert.True(t, role.Purpose)
+	assert.Equal(t, []string{"scope"}, role.UnitKinds())
+
+	role, err = ParseRoleBytes([]byte(`{"id":"r","title":"T","instructions":"I"}`), "r")
+	require.NoError(t, err)
+	assert.False(t, role.Purpose)
+	assert.Equal(t, []string{"epics", "gates"}, role.UnitKinds(), "absent units is today's epics and gates")
+
+	for name, body := range map[string]string{
+		"empty list":   `"units":[]`,
+		"unknown kind": `"units":["epics","edges"]`,
+		"not a list":   `"units":"scope"`,
+		"not a bool":   `"purpose":"yes"`,
+	} {
+		_, err := ParseRoleBytes([]byte(`{"id":"r","title":"T","instructions":"I",`+body+`}`), "r")
+		require.Error(t, err, name)
+		assert.Regexp(t, `units|purpose`, err.Error(), name)
+	}
+}
+
 // TestParseRoleBytes_UnknownKey rejects any top-level key outside §3.3, naming it.
 func TestParseRoleBytes_UnknownKey(t *testing.T) {
 	// An attempt to declare an output field is an unknown key.
