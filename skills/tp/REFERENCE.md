@@ -1563,7 +1563,11 @@ deferrables, the threshold, the purpose and the sorted ids of the closure, on a 
 `closure (status-blind):`. Closing an epic is progress and never re-asks it. A scope unit is asked of
 the roles whose `units` list `scope`, in every round, a regression-only one included; a finding on it
 resolved `fixed` re-asks it of them with that finding to confirm, and a block that changed is shown
-as the round before read it and as it reads now. Known limit: an edit inside the closure that leaves
+once, as the asked unit, followed by the change itself: each of `members`, `deferrable`,
+`threshold` and `purpose` that differs, old → new, and the closure as `+id` added and `−id` removed
+(epic and gate units keep the before-and-now copies regression reads). An open finding on a unit of
+a kind the corpus no longer reads refuses the emission at exit 4, naming the unit, the row and the
+kind, until a role reading that kind is restored or the row is dispositioned with `--resolve`. Known limit: an edit inside the closure that leaves
 its id set, the members, the deferrables, the threshold and the purpose unchanged — a rewritten
 acceptance or why — does not re-ask the scope unit; the epic units it changes are re-asked as
 before. The gate's purpose is what scopes missing work: a purpose that names what the milestone
@@ -1588,7 +1592,9 @@ kinds gets no prompt and is named in `skipped_roles` with reason `no-units`. An 
 listed units include one no prompt asks is refused at exit 4 naming it, so a round can never record
 a unit nobody read. A round in which no role is asked anything prints `next_action` naming an empty
 `--record`. An emitted round that is not yet recorded is rebuilt on every re-emission from the
-current graph and corpus, so a role added meanwhile is in it. The built-ins: `dod-satisfiability`
+current graph and corpus, unlike spec review, which refuses to overwrite a changed in-flight
+emission: a role added meanwhile is in it, and after a corpus or graph change, rows an agent already
+wrote against the old emission may cite units the rebuilt snapshot no longer has. The built-ins: `dod-satisfiability`
 and `why-auditor` keep both default kinds, `phase-economist` takes `epics` alone with
 `purpose: true`, and `gate-scope` takes `scope` alone with `purpose: true`; the gate questions
 `phase-economist` used to ask moved to `gate-scope`.
@@ -1616,8 +1622,9 @@ Each prompt reads, in order: the role's instructions, the asked units (and, for 
 which none is asked, a line saying that kind's questions do not apply), a purpose role's purpose
 header, the earlier rounds'
 `wontfix`/`duplicate` decisions on them with their round and evidence, the role's focus questions
-and any round input (regression's fixed findings, each asked unit whose own block changed shown as the
-round before read it and as it reads now, and the blocks of the epics a changed unit's title or
+and any round input (regression's fixed findings, each asked epic or gate unit whose own block
+changed shown as the round before read it and as it reads now, a scope role's fixed findings and
+each changed scope unit's field-by-field change, and the blocks of the epics a changed unit's title or
 acceptance newly names, the work the change hands on; a name the unit's text already held is not
 shown), the output contract and the file to write, then
 the context, and a last line repeating the row keys and the file. A role file's optional `context`
