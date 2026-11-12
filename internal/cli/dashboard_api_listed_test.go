@@ -85,3 +85,32 @@ func TestDashboard_ExportAnswersOnlyAPathTheListLists(t *testing.T) {
 	}
 }
 
+// TestDashboard_ExportAnswersEveryListedPathAsTheCommand: every path tp
+// export --list prints answers byte-equal to tp export --file <path>, from
+// the repository's directory and from a working directory reached through
+// a symlink.
+func TestDashboard_ExportAnswersEveryListedPathAsTheCommand(t *testing.T) {
+	t.Parallel()
+	dir := exportRepo(t)
+	require.NoError(t, os.Mkdir(filepath.Join(dir, "sub"), 0o755))
+	writeTaskFileRaw(t, filepath.Join(dir, "sub"), `[]`)
+	link := filepath.Join(t.TempDir(), "linked")
+	require.NoError(t, os.Symlink(dir, link))
+
+	for _, run := range []struct {
+		cwd string
+		env []string
+	}{{dir, nil}, {link, []string{"PWD=" + link}}} {
+		srv := startDashboardEnv(t, run.cwd, freePort(t), run.env)
+		paths := listedPaths(t, run.cwd, run.env)
+		require.ElementsMatch(t, []string{"spec.tasks.json", "sub/spec.tasks.json"}, paths)
+		for _, p := range paths {
+			stdout, stderr, code := runTPEnv(t, run.cwd, run.env, "export", "--file", p)
+			require.Equal(t, 0, code, stderr)
+			status, body := getPage(t, strings.TrimSuffix(srv.url, "/")+"/api/export?file="+url.QueryEscape(p))
+			require.Equal(t, http.StatusOK, status, body)
+			assert.Equal(t, stdout, body, "GET /api/export?file=%s from %s differs from tp export --file", p, run.cwd)
+		}
+	}
+}
+
