@@ -19,7 +19,7 @@ type epicBatchStatusRow struct {
 	Round        int                        `json:"round"`
 	State        string                     `json:"state"`
 	StaleUnits   []string                   `json:"stale_units"`
-	PurposeStale []string                   `json:"purpose_stale"`
+	PurposeStale []string                   `json:"purpose_stale_units"`
 	Open         map[string]int             `json:"open"`
 	OpenByRole   map[string]int             `json:"open_by_role"`
 	Grantable    bool                       `json:"grantable"`

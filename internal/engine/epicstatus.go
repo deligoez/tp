@@ -82,7 +82,8 @@ type EpicReviewStatus struct {
 	// PurposeStale names, in slice order, the units of a purpose role's
 	// kinds (EpicReviewPolicy.Kinds) whose hash is unchanged but
 	// whose milestone's purpose differs from the last recorded round's
-	// snapshot; Stale holds while either list is not empty.
+	// snapshot; Stale holds while either list is not empty; --status and tp epic
+	// export print it as purpose_stale_units.
 	PurposeStale  []string
 	InFlightRound int
 	CapReached    bool

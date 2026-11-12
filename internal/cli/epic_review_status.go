@@ -20,7 +20,7 @@ type epicStatusResult struct {
 	DoneBy           *string                      `json:"done_by"`
 	Stale            bool                         `json:"stale"`
 	StaleUnits       []string                     `json:"stale_units"`
-	PurposeStale     []string                     `json:"purpose_stale"`
+	PurposeStale     []string                     `json:"purpose_stale_units"`
 	InFlightRound    *int                         `json:"in_flight_round"`
 	MechanicalChecks []engine.EpicMechanicalCheck `json:"mechanical_checks"`
 	ConvergeOn       string                       `json:"converge_on"`
