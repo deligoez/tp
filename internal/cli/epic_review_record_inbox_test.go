@@ -118,23 +118,25 @@ func TestEpicReviewRecordInbox_AcceptsEmptyFiles(t *testing.T) {
 	assert.Contains(t, stdout, `"findings": 0`)
 }
 
-// TestEpicReviewRecordInbox_ADiscardedEmissionsFilesAreNotRecorded: after a
-// --force discard the old emission's inbox files are gone, so the new
-// round's --record-inbox cannot pick up rows written against old prompts:
-// it refuses until each role of the new emission writes its file.
+// TestEpicReviewRecordInbox_ADiscardedEmissionsFilesAreNotRecorded: after
+// --discard the old emission's files are gone, so the round emitted after it
+// cannot pick up rows written against old prompts: --record-inbox refuses
+// until each role of the new emission writes its file.
 func TestEpicReviewRecordInbox_ADiscardedEmissionsFilesAreNotRecorded(t *testing.T) {
 	t.Parallel()
 	dir := epicGraphDir(t, epicChain)
 	old := runEpicReview(t, dir, "--milestone", "A")
 	writeInbox(t, &old, map[string]string{old.Prompts[0].Role: inboxRow("")})
 	rewriteEpicGraph(t, dir, strings.Replace(epicChain, `"title": "D"`, `"title": "D renamed"`, 1))
-	fresh := runEpicReview(t, dir, "--milestone", "A", "--force")
+	_, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A", "--discard")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	fresh := runEpicReview(t, dir, "--milestone", "A")
 	for _, p := range old.Prompts {
 		_, err := os.Stat(p.OutputPath)
 		assert.True(t, os.IsNotExist(err), "%s's old file is removed", p.Role)
 	}
 
-	_, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A", "--record-inbox")
+	_, stderr, code = runTP(t, dir, "epic", "review", "--milestone", "A", "--record-inbox")
 	require.Equal(t, 3, code, "stderr: %s", stderr)
 	assert.Contains(t, stderr, "no findings file from roles")
 

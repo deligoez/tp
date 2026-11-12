@@ -54,7 +54,7 @@ func TestEpicReemit_AGraphEditRefusesTheReemit(t *testing.T) {
 	msg, hint := epicErrorOf(t, stderr)
 	assert.Contains(t, msg, "round 1")
 	assert.Contains(t, msg, "units changed: epic:c, epic:d", "c's hash covers d's block too")
-	inbox, force := strings.Index(hint, "tp epic review --milestone A --record-inbox"), strings.Index(hint, "tp epic review --milestone A --force")
+	inbox, force := strings.Index(hint, "tp epic review --milestone A --record-inbox"), strings.Index(hint, "tp epic review --milestone A --discard")
 	require.GreaterOrEqual(t, inbox, 0, hint)
 	require.Greater(t, force, inbox, "recording as emitted comes first, the discard second: %s", hint)
 	assert.Contains(t, hint, "operator's decision")
@@ -77,10 +77,11 @@ func TestEpicReemit_ARoleFileEditRefusesTheReemit(t *testing.T) {
 	assert.Contains(t, msg, "role files changed: plain")
 }
 
-// TestEpicReemit_ForceDiscardsTheEmissionAndItsInboxFiles: --force emits
-// over the changed graph and removes the inbox files the old emission named,
-// so no row written against the old prompts can be recorded later.
-func TestEpicReemit_ForceDiscardsTheEmissionAndItsInboxFiles(t *testing.T) {
+// TestEpicReemit_DiscardRemovesTheEmissionAndItsFiles: --discard removes the
+// unrecorded emission and the role files it named and emits nothing; the
+// plain emission after it is a fresh round 1 over the changed graph, so no
+// row written against the old prompts can be recorded later.
+func TestEpicReemit_DiscardRemovesTheEmissionAndItsFiles(t *testing.T) {
 	t.Parallel()
 	dir := epicGraphDir(t, epicChain)
 	out := runEpicReview(t, dir, "--milestone", "A")
@@ -89,33 +90,70 @@ func TestEpicReemit_ForceDiscardsTheEmissionAndItsInboxFiles(t *testing.T) {
 	require.NoError(t, os.WriteFile(written, []byte(`{"severity":"low","finding":"f","location":"epic:d","evidence":"e"}`+"\n"), 0o600))
 	rewriteEpicGraph(t, dir, strings.Replace(epicChain, `"title": "D"`, `"title": "D renamed"`, 1))
 
-	stdout, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A", "--force")
+	stdout, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A", "--discard")
 	require.Equal(t, 0, code, "stderr: %s", stderr)
-	assert.Contains(t, stderr, "--force")
-	var again epicReviewPayload
-	require.NoError(t, json.Unmarshal([]byte(stdout), &again), stdout)
-	assert.Equal(t, 1, again.Round)
+	assert.Contains(t, stderr, "--discard: discarded epic review round 1's unrecorded emission of --milestone A; removed 1 role file(s) it named")
+	assert.NotContains(t, stdout, `"prompts"`, "a discard emits nothing")
 	_, err := os.Stat(written)
-	assert.True(t, os.IsNotExist(err), "the old emission's inbox file is removed")
+	assert.True(t, os.IsNotExist(err), "the old emission's file is removed")
+	_, err = os.Stat(filepath.Join(dir, out.StateDir, "snapshot-round-1.json"))
+	assert.True(t, os.IsNotExist(err), "the emission's snapshot is removed")
 
-	_, stderr, code = runTP(t, dir, "epic", "review", "--milestone", "A")
-	assert.Equal(t, 0, code, "the new emission is the stored one now: %s", stderr)
+	again := runEpicReview(t, dir, "--milestone", "A")
+	assert.Equal(t, 1, again.Round)
 }
 
-// TestEpicReemit_ForceUnderUnattendedEscalates: discarding an emission is
-// the operator's decision, escalated as discard-emission; a --force with
-// nothing to discard is accepted there as everywhere.
-func TestEpicReemit_ForceUnderUnattendedEscalates(t *testing.T) {
+// TestEpicReemit_DiscardUnderUnattendedEscalates: discarding an emission is
+// the operator's decision, escalated as discard-emission, and writes nothing.
+func TestEpicReemit_DiscardUnderUnattendedEscalates(t *testing.T) {
 	t.Parallel()
 	dir := epicGraphDir(t, epicChain)
-	_, stderr, code := runTPEnv(t, dir, []string{"TP_UNATTENDED=1"}, "epic", "review", "--milestone", "A", "--force")
-	require.Equal(t, 0, code, "nothing to discard: %s", stderr)
-	rewriteEpicGraph(t, dir, strings.Replace(epicChain, `"title": "D"`, `"title": "D renamed"`, 1))
-
-	_, stderr, code = runTPEnv(t, dir, []string{"TP_UNATTENDED=1"}, "epic", "review", "--milestone", "A", "--force")
+	out := runEpicReview(t, dir, "--milestone", "A")
+	_, stderr, code := runTPEnv(t, dir, []string{"TP_UNATTENDED=1"}, "epic", "review", "--milestone", "A", "--discard")
 	require.Equal(t, 2, code, "stderr: %s", stderr)
 	_, hint := epicErrorOf(t, stderr)
-	assert.Contains(t, hint, "--decision discard-emission")
+	assert.Contains(t, hint, "tp escalate --decision discard-emission")
+	_, err := os.Stat(filepath.Join(dir, out.StateDir, "snapshot-round-1.json"))
+	assert.NoError(t, err, "the emission stays")
+}
+
+// TestEpicReemit_DiscardWithNoEmissionIsAStateError: with no unrecorded
+// emission there is nothing to discard: exit 4, nothing written.
+func TestEpicReemit_DiscardWithNoEmissionIsAStateError(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChain)
+	_, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A", "--discard")
+	require.Equal(t, 4, code, "stderr: %s", stderr)
+	_, err := os.Stat(filepath.Join(dir, ".tp", "epic-review"))
+	assert.True(t, os.IsNotExist(err), "no state directory is created")
+}
+
+// TestEpicReemit_DiscardStaysOneSliceAndOneMode: --discard beside a batch
+// flag, --record, --record-inbox, --resolve or --resolve-all is a usage error.
+func TestEpicReemit_DiscardStaysOneSliceAndOneMode(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChain)
+	for _, args := range [][]string{
+		{"--milestones", "A"}, {"--all"},
+		{"--milestone", "A", "--record", "rows.ndjson"}, {"--milestone", "A", "--record-inbox"},
+		{"--milestone", "A", "--resolve", "0", "fixed"}, {"--milestone", "A", "--resolve-all", "fixed"},
+	} {
+		_, stderr, code := runTP(t, dir, append(append([]string{"epic", "review"}, args...), "--discard")...)
+		assert.Equal(t, 2, code, "%v: stderr: %s", args, stderr)
+	}
+}
+
+// TestEpicReemit_ForceOnAPlainEmissionDiscardsNothing: --force means only
+// re-resolving, as in v1.9.0; on an emission it is ignored, so a changed
+// unrecorded round is still refused and the emission stays.
+func TestEpicReemit_ForceOnAPlainEmissionDiscardsNothing(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChain)
+	runEpicReview(t, dir, "--milestone", "A", "--force")
+	rewriteEpicGraph(t, dir, strings.Replace(epicChain, `"title": "D"`, `"title": "D renamed"`, 1))
+	_, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A", "--force")
+	require.Equal(t, 3, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "its emission changed since")
 }
 
 // TestEpicReemit_ForceBesideResolveKeepsItsMeaning: beside --resolve, --force
@@ -147,7 +185,7 @@ func TestEpicReemit_BatchSkipsAChangedSlice(t *testing.T) {
 	reason := epicSkippedReasons(&out)["A"]
 	assert.True(t, strings.HasPrefix(reason, "emission-changed: "), reason)
 	assert.Contains(t, reason, "units changed: epic:c, epic:d")
-	assert.Contains(t, reason, "tp epic review --milestone A --force")
+	assert.Contains(t, reason, "tp epic review --milestone A --discard")
 	require.Len(t, out.Slices, 1, "B still emits")
 	assert.Equal(t, 1, out.Slices[0].Round)
 }
