@@ -15,8 +15,9 @@ type DashboardPlan struct {
 	Figures DashboardFigures `json:"figures"`
 	// Ready is tp epic ready's list, in its order.
 	Ready []string `json:"ready"`
-	// OperatorConditions is DashboardOperatorConditions over tp epic
-	// ready's actionable conditions.
+	// OperatorConditions is tp epic ready's actionable conditions, which
+	// leave out a deferrable condition and one only deferrable work waits on
+	// (ConditionsNotActionable).
 	OperatorConditions []string `json:"operator_conditions"`
 	// OperatorGroups is DashboardOperatorGroups: the any-of groups of
 	// conditions the operator settles by choosing one.
@@ -66,7 +67,7 @@ func DashboardPlanOf(g *model.EpicGraph, states map[string]EpicState, bound map[
 	r := EpicReady(g, states, bound, false)
 	f := WorkFigures(g, states, r.Ready, "")
 	plan.Ready = append(plan.Ready, r.Ready...)
-	plan.OperatorConditions = DashboardOperatorConditions(g, states, r.Conditions)
+	plan.OperatorConditions = append(plan.OperatorConditions, r.Conditions...)
 	plan.OperatorGroups = DashboardOperatorGroups(g, states)
 	plan.Waiting = DashboardWaiting(g, states, "")
 	plan.MostWaitedOn = mostWaitedOn(g, states)
