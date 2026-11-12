@@ -52,3 +52,28 @@ func TestEpicScopeContext_EachEpicOnceWithItsMarks(t *testing.T) {
 	assert.NotContains(t, text, "Shipped", "a done epic is not shown")
 	assert.NotContains(t, text, "(none)", "a scope with shrink rows prints no empty shrink")
 }
+
+// TestEpicScopeContext_ShowsOnlyMilestonesWithClosureEpics: a milestone with
+// no closure epic prints no section, a tracked one names its track, an epic
+// with no mark and an edge prints both bare, the last epic prints no empty
+// edge line, a shrink row with no mark is bare, and a milestone with nothing
+// outside its closure prints no outside section.
+func TestEpicScopeContext_ShowsOnlyMilestonesWithClosureEpics(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0", "m1"}}, Epics: []model.Epic{
+		{ID: "z", Title: "Z", Milestone: "m0"},
+		{ID: "a", Title: "A", Milestone: "m1", DependsOn: scopeDeps("b")},
+		{ID: "b", Title: "B", Milestone: "m1", DependsOn: scopeDeps("c")},
+		{ID: "c", Title: "C", Milestone: "m1"},
+	}, Gates: map[string]model.EpicGate{"m1": {Members: []string{"a"}, Threshold: "t"}}}
+	states, err := DeriveEpicStates(g, nil)
+	require.NoError(t, err)
+
+	require.Len(t, MilestoneScope(g, states, nil, "m1").Closure, 1)
+	text := EpicScopeContext(g, states, "m1")
+	assert.NotContains(t, text, "--- m0", "m0 holds no closure epic")
+	assert.Contains(t, text, "--- m1 (track 0), 3 in the closure\n")
+	assert.Contains(t, text, "- b B\n  depends_on: c\n")
+	assert.Contains(t, text, "- c C\nshrink", "c has no edge, so no depends_on line")
+	assert.Contains(t, text, "* b size 2: b, c\n")
+	assert.NotContains(t, text, "outside the closure")
+}
