@@ -79,11 +79,14 @@ func EpicReviewLastRoundPath(stateDir string) (path string, round int) {
 	return filepath.Join(stateDir, epicRoundFile(round)), round
 }
 
-// epicSnapshot is the file an emission writes: each unit's hash, by key.
+// epicSnapshot is the file an emission writes: each unit's hash, by key, and
+// the purpose of each of the slice's milestones that has one. A snapshot
+// written before purposes were kept has none, which reads as none set.
 type epicSnapshot struct {
-	Round  int               `json:"round"`
-	Units  map[string]string `json:"units"`
-	Blocks map[string]string `json:"blocks,omitempty"`
+	Round    int               `json:"round"`
+	Units    map[string]string `json:"units"`
+	Blocks   map[string]string `json:"blocks,omitempty"`
+	Purposes map[string]string `json:"purposes,omitempty"`
 }
 
 // WriteEpicReviewSnapshot records the unit hashes of round's emission in
@@ -92,10 +95,13 @@ type epicSnapshot struct {
 // hash, so a later round can show what changed. The snapshot stays in the
 // state directory and is never printed (§5).
 func WriteEpicReviewSnapshot(stateDir string, round int, units []EpicReviewUnit) error {
-	snap := epicSnapshot{Round: round, Units: make(map[string]string, len(units)), Blocks: make(map[string]string, len(units))}
+	snap := epicSnapshot{Round: round, Units: make(map[string]string, len(units)), Blocks: make(map[string]string, len(units)), Purposes: map[string]string{}}
 	for _, u := range units {
 		snap.Units[u.Key] = u.Hash
 		snap.Blocks[u.Key] = u.Block
+		if u.Purpose != "" {
+			snap.Purposes[u.Milestone] = u.Purpose
+		}
 	}
 	data, err := json.MarshalIndent(snap, "", "  ")
 	if err != nil {
