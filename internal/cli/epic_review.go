@@ -2,9 +2,12 @@ package cli
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -60,6 +63,58 @@ type epicReviewRun struct {
 	// states are the epics' derived states, read only when the slice holds
 	// a scope unit, whose live scope a role asked it reads as context.
 	states map[string]engine.EpicState
+	// dropped are the slice's units of a kind no role of the corpus reads,
+	// left out of all (epicDroppedRowsError).
+	dropped []engine.EpicReviewUnit
+}
+
+// epicDroppedUnits returns, in order, the units of all that read leaves out.
+func epicDroppedUnits(all, read []engine.EpicReviewUnit) []engine.EpicReviewUnit {
+	kept := map[string]bool{}
+	for _, u := range read {
+		kept[u.Key] = true
+	}
+	var out []engine.EpicReviewUnit
+	for _, u := range all {
+		if !kept[u.Key] {
+			out = append(out, u)
+		}
+	}
+	return out
+}
+
+// epicDroppedRowsError refuses a round whose last recorded round left a row
+// open on a unit no role of the corpus reads any more: the unit is gone from
+// the slice, so without the refusal its open row would vanish and the slice
+// could converge over it. nil when there is none.
+func epicDroppedRowsError(run *epicReviewRun) *epicRunError {
+	keys := map[string]bool{}
+	for _, u := range run.dropped {
+		keys[u.Key] = true
+	}
+	rows, err := engine.EpicOpenRowsOn(run.stateDir, run.round, keys)
+	if err != nil {
+		return &epicRunError{code: ExitFile, msg: err.Error(), hint: epicRoundFileHint}
+	}
+	if len(rows) == 0 {
+		return nil
+	}
+	var open, kinds, indices []string
+	for _, r := range rows {
+		loc, _ := r.Row["location"].(string)
+		sev, _ := r.Row["severity"].(string)
+		finding, _ := r.Row["finding"].(string)
+		open = append(open, fmt.Sprintf("%s, round %d row %d (%s): %s", loc, run.round-1, r.Index, sev, finding))
+		if kind := engine.EpicUnitKind(loc); !slices.Contains(kinds, kind) {
+			kinds = append(kinds, kind)
+		}
+		indices = append(indices, strconv.Itoa(r.Index))
+	}
+	return &epicRunError{code: ExitState,
+		msg: fmt.Sprintf("epic review round %d of %s cannot emit: no role of the corpus reads the %s kind, and the round before left these findings open on such units: %s",
+			run.round, epicSliceLabel(run.key), strings.Join(kinds, ", "), strings.Join(open, "; ")),
+		hint: fmt.Sprintf("restore a role whose units key lists %s in .tp/epic-reviewers/, or dispose of the rows: tp epic review %s --resolve %s <fixed|wontfix|duplicate> \"<evidence>\"",
+			strings.Join(kinds, ", "), epicSliceLabel(run.key), strings.Join(indices, ","))}
 }
 
 // readEpicReviewStates derives the epics' states into run when its slice
@@ -164,6 +219,9 @@ func runEpicReviewEmit(cmd *cobra.Command, key engine.EpicSliceKey) {
 		output.Error(ExitFile, err.Error(), "fix the role files under .tp/epic-reviewers/")
 		os.Exit(ExitFile)
 		return
+	}
+	if rerr := epicDroppedRowsError(&run); rerr != nil {
+		exitEpicRunError(rerr)
 	}
 	if rerr := readEpicReviewStates(&run); rerr != nil {
 		exitEpicRunError(rerr)
@@ -343,7 +401,9 @@ func prepareEpicReviewRun(eg *epicReviewGraph, key engine.EpicSliceKey) (epicRev
 		}
 		return epicReviewRun{}, &epicRunError{code: ExitState, msg: err.Error(), hint: hint}
 	}
-	slice.Units = engine.FilterEpicUnits(slice.Units, eg.kinds.Units)
+	read := engine.FilterEpicUnits(slice.Units, eg.kinds.Units)
+	dropped := epicDroppedUnits(slice.Units, read)
+	slice.Units = read
 	stateDir := engine.EpicReviewStateDir(eg.tpDir, key)
 	round := engine.EpicReviewNextRound(stateDir)
 	carry, err := engine.EpicReviewCarry(stateDir, round, slice.Units)
@@ -352,7 +412,7 @@ func prepareEpicReviewRun(eg *epicReviewGraph, key engine.EpicSliceKey) (epicRev
 	}
 	context := engine.EpicCarriedContext(eg.g, carry.Asked)
 	return epicReviewRun{
-		key: key, g: eg.g, tpDir: eg.tpDir, stateDir: stateDir, round: round, all: slice.Units, carry: carry,
+		key: key, g: eg.g, tpDir: eg.tpDir, stateDir: stateDir, dropped: dropped, round: round, all: slice.Units, carry: carry,
 		slice:   engine.EpicSlice{Units: carry.Asked, Context: context},
 		checks:  eg.checks,
 		handoff: engine.EpicHandoffContext(eg.g, &carry, context),

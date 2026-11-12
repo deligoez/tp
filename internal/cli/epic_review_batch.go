@@ -187,6 +187,9 @@ func prepareEpicBatchItem(setup *epicBatchSetup, key engine.EpicSliceKey) (item 
 		msg, hint := epicCapRefusal(key, &st)
 		return epicBatchItem{}, msg + ": " + hint
 	}
+	if rerr := epicDroppedRowsError(&run); rerr != nil {
+		return epicBatchItem{}, rerr.msg + ": " + rerr.hint
+	}
 	if rerr := readEpicReviewStates(&run); rerr != nil {
 		return epicBatchItem{}, rerr.msg
 	}
