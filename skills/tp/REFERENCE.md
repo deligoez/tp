@@ -265,7 +265,8 @@ caps: {max_units, max_wall_clock_seconds, max_budget_usd}, last_unit: {…the wh
 stop_reason, run_state}`. `run_state` is `stopped` once `stop_reason` is set, otherwise `in_flight`
 when `.tp/locks/run-<base>.lock` is held and `crashed` when it is not — the lock is the only evidence
 separating the last two. On a stop in the audit phase it also carries `spec_coverage_clean_rounds`,
-`role_streaks` and `divergence`, verbatim from `tp audit --status`. Under `--compact` `stop_reason`
+`role_streaks` and `divergence`, verbatim from `tp audit --status`; when the auditor role corpus
+cannot be read those three are left out and `audit_signals_omitted` names the read error. Under `--compact` `stop_reason`
 and the cap totals survive and `last_unit` — its log path with it — is stripped.
 
 ### The child environment
