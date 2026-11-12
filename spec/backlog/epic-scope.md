@@ -50,11 +50,18 @@ reviewer finds unaided, and how many of its findings the operator rejects.
 
 The first half has reported, one run per arm: the scope reviewer raised the held-back questions the
 criterion named, and the control, given the same measurement with the gate asked, returned nothing.
-The scope prompt also said what the milestone was for, and the control's did not. That weakens the
-earlier lean toward a question inside `phase-economist`, whose "is the gate minimal" frame the
-control followed, and opens two choices this note does not settle: a separate gate-only role, and
-an input naming the milestone's purpose. The second half, the operator's rejections, has not
-reported; until it does, no behaviour is written for Part B.
+The arms differed twice — the scope prompt asked the second direction and also said what the
+milestone was for — so the control's silence does not say which mattered. The scope arm also
+returned first-direction cuts, the question the control answered with nothing, which points at
+the purpose. A third arm settles it: `phase-economist`'s gate unit with the same measurement and the
+same one-line purpose, nothing else changed.
+
+The lean, not yet the decision: a separate gate-only role owning both directions, with
+`phase-economist`'s gate question moving to it, since the scope pass has its own trigger (a changed
+fingerprint) and its own input (Part A's output); and an optional `gates.<m>.purpose`, kept apart
+from the threshold and entering the fingerprint. Both are user-visible changes for the operator,
+decided with the third arm's result and the operator's rejections counted per direction. Until
+then no behaviour is written for Part B.
 
 **Consequences.** An operator can ask what a gate pulls in, and which few epics to cut or split,
 without running a review round. Review state, convergence and the role corpus do not change in
@@ -73,9 +80,10 @@ built-in graph roles.
 - **"Single dependent inside the closure" as the cut signal.** Rejected for removal shrink: on the
   field graph it flagged a large share of the closure, while shrink singled out the few epics the
   operator went on to decide about.
-- **A fourth built-in "scope" role.** Open in Part B: `phase-economist`'s gate unit already asks
-  the first direction ("is the gate minimal"), but the trial's control followed that frame and
-  raised none of the second.
+- **The second direction as a question inside `phase-economist`.** Leaning against (Part B): the
+  scope pass runs on a changed fingerprint with Part A's output as input, which no other graph role
+  needs, and two built-in roles asking "is the gate minimal" at one location is the overlap this
+  list rejects.
 - **A new finding state or the condition mechanism for operator-held findings.** Rejected: a
   condition is plan content and a finding is review state. Findings already wait: `tp epic apply` is a
   separate act, and accepting one without a change is the operator's decision. Routing a class to
