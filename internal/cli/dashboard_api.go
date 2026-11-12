@@ -32,15 +32,19 @@ func runErrorOf(err *epicRunError) *dashboard.Error {
 	return dashboard.NewError(err.code, err.msg, err.hint)
 }
 
-// Export answers /api/export?file=: tp export --file file's answer, payload
-// or error, when file is exactly the path of a row tp export --list prints
-// now. Any other value names no task file the dashboard serves and answers
-// as an absent object (code 4), so the request never picks a filesystem path.
+// Export answers /api/export?file=: when file is exactly the path of a row
+// tp export --list prints now, tp export --file file's answer, payload or
+// error, read from the repository root the list's paths are relative to,
+// whatever directory the server started in. Any other value names no task
+// file the dashboard serves and answers as an absent object (code 4), so
+// the request never picks a filesystem path. Membership is decided from the
+// paths alone; no other task file is read.
 func (dashboardAPI) Export(file string) (any, *dashboard.Error) {
-	if !listedTaskFile(file) {
+	open, listed := engine.ListedTaskFile(".", file)
+	if !listed {
 		return nil, dashboard.NewError(ExitState, fmt.Sprintf("task file %q is not one tp export --list lists", file), dashboardUnlistedHint)
 	}
-	payload, rerr := exportOf(file, false)
+	payload, rerr := exportOf(open, false)
 	if rerr != nil {
 		return nil, runErrorOf(rerr)
 	}
@@ -159,11 +163,4 @@ func dashboardHistoryQuery(q url.Values) (key engine.EpicSliceKey, from, to int,
 		}
 	}
 	return key, from, to, nil
-}
-
-// listedTaskFile is whether file is, byte for byte, the path of a row of
-// tp export --list as the server derives it now, the list the export-list
-// event pushes.
-func listedTaskFile(file string) bool {
-	return slices.ContainsFunc(engine.TaskFileListOf(".").Files, func(row engine.TaskFileRow) bool { return row.Path == file })
 }
