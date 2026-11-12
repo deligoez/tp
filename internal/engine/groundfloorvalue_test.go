@@ -120,3 +120,23 @@ func TestAReaderAddedRowIsNotComparedToTheFloor(t *testing.T) {
 	require.Len(t, rows, 1)
 	assert.Nil(t, rows[0].UnitID)
 }
+
+// TestAOneUnitFloorStillChecksTheJoinKey: a floor of a single unit is a floor,
+// not the absence of one. The empty floor is the shape-check-only reading, and
+// a spec whose floor holds exactly one unit must not fall into it, or a row
+// naming that unit with a fabricated hash records unrefused.
+func TestAOneUnitFloorStillChecksTheJoinKey(t *testing.T) {
+	specPath := groundEmittedDir(t, 1)
+	floor := []FloorIndexRow{{ID: "u1", Anchor: "§1", TextSHA: "0123456789ab", Ordinal: 1, Bytes: 24}}
+	payload := groundRecordPayload(groundWireRow(t, groundClaimRow(), map[string]any{
+		"unit_id":  "u1",
+		"anchor":   "§1",
+		"text_sha": "deadbeef0000",
+	}, nil))
+
+	_, _, err := RecordGroundRound(specPath, 1, payload, floor)
+
+	var rowErr *GroundRowError
+	require.ErrorAs(t, err, &rowErr, "a row naming the floor's one unit with another hash is refused")
+	assert.Equal(t, "text_sha", rowErr.Field)
+}
