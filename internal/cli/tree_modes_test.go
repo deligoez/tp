@@ -102,6 +102,12 @@ func treeModeWays(f *treeFixture) map[string]map[string]way {
 			"TP_FILE": {args: []string{"review", f.spec}, env: fileEnv},
 			"active":  {args: []string{"review", f.nestedSpec}},
 		},
+		"tp review --perspective": {
+			"spec":    {args: []string{"review", f.spec, "--perspective", "regression"}},
+			"--file":  {args: []string{"review", f.spec, "--perspective", "regression", "--file", f.taskFile}},
+			"TP_FILE": {args: []string{"review", f.spec, "--perspective", "regression"}, env: fileEnv},
+			"active":  {args: []string{"review", f.nestedSpec, "--perspective", "regression"}},
+		},
 		"tp review --record": {
 			"spec":    {args: []string{"review", f.spec, "--record", f.findings}},
 			"--file":  {args: []string{"review", f.spec, "--record", f.findings, "--file", f.taskFile}},
