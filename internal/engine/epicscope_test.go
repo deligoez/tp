@@ -376,3 +376,25 @@ func TestScope_LaterGateChangeFreesEarlierMembers(t *testing.T) {
 	assert.Equal(t, []ScopeUnneeded{{Milestone: "m0", Epics: []string{"a2"}, ImplicitGates: []string{}}},
 		scopeOf(t, g, "m1").UnneededEarlier)
 }
+
+// TestScope_OptionalEpicInheritsItsAlternativesMark: an epic that only an
+// any-of alternative needs, through a plain edge, is optional too and carries
+// the alternative's group; what the members need through plain edges alone
+// carries none.
+func TestScope_OptionalEpicInheritsItsAlternativesMark(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0"}, {"n0"}}, Epics: []model.Epic{
+		scopeEpic("b1", "m0", scopeAnyOf("b3", "c0"), scopeDeps("b2")[0]),
+		scopeEpic("b2", "m0"),
+		scopeEpic("b3", "m0", scopeDeps("x")...),
+		scopeEpic("x", "m0"),
+		scopeEpic("c0", "n0"),
+	}, Gates: map[string]model.EpicGate{"m0": {Members: []string{"b1"}}}}
+
+	s := scopeOf(t, g, "m0")
+
+	group := []string{"b3", "c0"}
+	assert.Equal(t, []ScopeMilestone{
+		{Milestone: "m0", Track: 0, Size: 4, Epics: []ScopeEpic{{ID: "b1"}, {ID: "b2"}, {ID: "b3", AnyOf: group}, {ID: "x", AnyOf: group}}},
+		{Milestone: "n0", Track: 1, CrossTrack: true, Size: 1, Epics: []ScopeEpic{{ID: "c0", AnyOf: group}}},
+	}, s.Closure)
+}
