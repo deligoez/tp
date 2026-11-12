@@ -105,6 +105,8 @@ func TestEpicReview_BuiltInRolesRunUntilTheDirectoryReplacesThem(t *testing.T) {
 
 	out := runEpicReview(t, dir, "--epic", "b")
 	assert.Equal(t, []string{"dod-satisfiability", "why-auditor", "phase-economist"}, promptRoles(&out))
+	assert.Equal(t, map[string]string{"gate-scope": "no-units"}, epicSkipped(t, dir, "--epic", "b"),
+		"the fourth built-in role, gate-scope, has no scope unit on an epic slice")
 	assert.Equal(t, []string{"epic:b"}, out.Units)
 	assert.Equal(t, []string{"a", "c"}, out.Context)
 	for _, p := range out.Prompts {
