@@ -50,6 +50,7 @@ func recordSignalRound(t *testing.T, dir string, flags []string, rows ...string)
 	if len(rows) > 0 {
 		body = strings.Join(rows, "\n") + "\n"
 	}
+	markRoundEmitted(t, dir, "audit")
 	f := filepath.Join(dir, "results.ndjson")
 	require.NoError(t, os.WriteFile(f, []byte(body), 0o600))
 	args := append([]string{"audit", "spec.md", "--record", f}, flags...)
@@ -454,6 +455,7 @@ func TestAuditGate_ResumeIsUnchangedByTheDivergence(t *testing.T) {
 	empty := filepath.Join(dir, "review.ndjson")
 	require.NoError(t, os.WriteFile(empty, nil, 0o600))
 	for range 2 {
+		markRoundEmitted(t, dir, "review")
 		_, stderr, code = runTP(t, dir, "review", "spec.md", "--record", empty)
 		require.Equal(t, 0, code, "stderr: %s", stderr)
 	}

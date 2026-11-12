@@ -225,9 +225,12 @@ func TestCompact_ReviewOmitsHarnessKeepsNextAction(t *testing.T) {
 	dir := t.TempDir()
 	rec := writeHarnessSpec(t, dir)
 
-	// Two differing notes -> harness_stale would be true.
+	// Two differing notes -> harness_stale would be true. Every round is
+	// emitted first, so the loop reaches the cap converged rather than refused.
+	markRoundEmitted(t, dir, "review")
 	_, stderr, code := runTP(t, dir, "review", "spec.md", "--record", rec, "--harness-note", "first")
 	require.Equal(t, 0, code, "%s", stderr)
+	markRoundEmitted(t, dir, "review")
 	_, stderr, code = runTP(t, dir, "review", "spec.md", "--record", rec, "--harness-note", "second")
 	require.Equal(t, 0, code, "%s", stderr)
 
@@ -249,6 +252,7 @@ func TestCompact_ReviewOmitsHarnessKeepsNextAction(t *testing.T) {
 	assert.Equal(t, "second", full["harness_note"], "harness_note present without --compact")
 
 	// --record --compact: a differing note keeps the round stale; still omitted.
+	markRoundEmitted(t, dir, "review")
 	stdout, _, code = runTP(t, dir, "review", "spec.md", "--record", rec, "--harness-note", "third", "--compact")
 	require.Equal(t, 0, code)
 	rout := parseStatusJSON(t, stdout)
@@ -259,6 +263,7 @@ func TestCompact_ReviewOmitsHarnessKeepsNextAction(t *testing.T) {
 	assert.Contains(t, rout, "next_action", "next_action retained on --record --compact")
 
 	// --record without --compact: the differing note surfaces both fields.
+	markRoundEmitted(t, dir, "review")
 	stdout, _, code = runTP(t, dir, "review", "spec.md", "--record", rec, "--harness-note", "fourth")
 	require.Equal(t, 0, code)
 	rfull := parseStatusJSON(t, stdout)

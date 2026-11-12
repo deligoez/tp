@@ -187,7 +187,11 @@ func TestAuditConvergeOn_InvalidStoredInProjectConfigExitsValidation(t *testing.
 	assert.Equal(t, 1, code, "--status exits ExitValidation on an illegal project-config value")
 	assertQuotesTheStoredValue(t, stderr)
 
-	_, stderr, code = auditRecord(t, dir, `{"id":"a","status":"PASS"}`+"\n")
+	// Recorded with no emission on purpose: what is measured is that the
+	// refusal leaves no state directory, and an emission would create one.
+	results := filepath.Join(dir, "results.ndjson")
+	require.NoError(t, os.WriteFile(results, []byte(`{"id":"a","status":"PASS"}`+"\n"), 0o600))
+	_, stderr, code = runTPFence(t, dir, false, "audit", "spec.md", "--record", results)
 	assert.Equal(t, 1, code, "--record exits ExitValidation on an illegal project-config value")
 	assertQuotesTheStoredValue(t, stderr)
 

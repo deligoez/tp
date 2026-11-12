@@ -52,6 +52,7 @@ func fiveRowsOfClass(class string) []string {
 // stdout of `tp review spec.md --record`.
 func recordSuppressionRound(t *testing.T, dir string, rows ...string) string {
 	t.Helper()
+	markRoundEmitted(t, dir, "review")
 	f := filepath.Join(dir, "findings.ndjson")
 	require.NoError(t, os.WriteFile(f, []byte(strings.Join(rows, "\n")+"\n"), 0o600))
 	stdout, stderr, code := runTP(t, dir, "review", "spec.md", "--record", f)

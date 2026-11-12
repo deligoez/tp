@@ -24,6 +24,7 @@ import (
 // they pass either way.
 func auditRecord(t *testing.T, dir, ndjsonContent string) (out map[string]any, stderr string, code int) {
 	t.Helper()
+	markRoundEmitted(t, dir, "audit")
 	f := filepath.Join(dir, "results.ndjson")
 	require.NoError(t, os.WriteFile(f, []byte(ndjsonContent), 0o600))
 	var stdout string

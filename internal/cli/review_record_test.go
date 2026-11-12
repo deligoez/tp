@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -10,8 +11,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// recordRound records ndjsonContent as the next review round of dir/spec.md,
+// as a round that was emitted first (markRoundEmitted).
 func recordRound(t *testing.T, dir, ndjsonContent string) (out map[string]any, stderr string, code int) {
 	t.Helper()
+	markRoundEmitted(t, dir, "review")
 	f := filepath.Join(dir, "findings.ndjson")
 	require.NoError(t, os.WriteFile(f, []byte(ndjsonContent), 0o600))
 	var stdout string
@@ -20,6 +24,37 @@ func recordRound(t *testing.T, dir, ndjsonContent string) (out map[string]any, s
 		require.NoError(t, json.Unmarshal([]byte(stdout), &out))
 	}
 	return out, stderr, code
+}
+
+// markRoundEmitted stands in for the emission a fixture skips when it records
+// rounds only to reach a state: it writes the snapshot `tp <phase> spec.md`
+// writes for the round about to be recorded, from dir/spec.md as it stands,
+// unless that snapshot is already on disk or there is no spec to snapshot.
+//
+// A record clears staleness only through the snapshot of its own emission
+// (spec/backlog/hand-recorded-staleness.md), so a fixture that reaches a
+// converged state by recording needs one per round. The snapshot is written
+// rather than the emission run, because an emission also runs the registered
+// checks, and several fixtures count their runs.
+func markRoundEmitted(t *testing.T, dir, phase string) {
+	t.Helper()
+	body, err := os.ReadFile(filepath.Join(dir, "spec.md"))
+	if err != nil {
+		return
+	}
+	stateDir := filepath.Join(dir, ".tp-review", "spec")
+	recorded, err := filepath.Glob(filepath.Join(stateDir, phase+"-round-*.ndjson"))
+	require.NoError(t, err)
+	name := fmt.Sprintf("snapshot-round-%d.md", len(recorded)+1)
+	if phase != "review" {
+		name = fmt.Sprintf("snapshot-%s-round-%d.md", phase, len(recorded)+1)
+	}
+	snapshot := filepath.Join(stateDir, name)
+	if _, statErr := os.Stat(snapshot); statErr == nil {
+		return
+	}
+	require.NoError(t, os.MkdirAll(stateDir, 0o750))
+	require.NoError(t, os.WriteFile(snapshot, body, 0o600))
 }
 
 func TestReviewRecord_Lifecycle(t *testing.T) {
