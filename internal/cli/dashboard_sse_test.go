@@ -3,6 +3,7 @@ package cli_test
 import (
 	"bufio"
 	"encoding/json"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -229,6 +230,33 @@ func TestDashboard_WarnsOnceAboutAnUncompilablePlaceholder(t *testing.T) {
 	events := openEvents(t, srv)
 	collectEvents(events, 2*dashboardTick+dashboardTick/2)
 	assert.Equal(t, 1, strings.Count(srv.stderr.String(), "using the default placeholder pattern"), "stderr: %s", srv.stderr.String())
+}
+
+// TestDashboard_InterruptEndsAnOpenStreamCleanlyAndExitsZero is §1's
+// "serves until interrupted": SIGINT with a page listening ends the event
+// stream with a complete response, not a cut connection, and the process
+// exits 0.
+func TestDashboard_InterruptEndsAnOpenStreamCleanlyAndExitsZero(t *testing.T) {
+	t.Parallel()
+	dir := dashboardRepo(t, false)
+	srv := startDashboard(t, dir, freePort(t))
+	resp, err := http.Get(strings.TrimSuffix(srv.url, "/") + "/api/events") //nolint:gosec,noctx // the test's own loopback child
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+	first := make([]byte, 1)
+	_, err = io.ReadFull(resp.Body, first)
+	require.NoError(t, err, "the stream sends the first state")
+
+	require.NoError(t, srv.cmd.Process.Signal(os.Interrupt))
+	read := make(chan error, 1)
+	go func() { _, err := io.ReadAll(resp.Body); read <- err }()
+	select {
+	case err := <-read:
+		require.NoError(t, err, "the stream ends with a complete response; stderr: %s", srv.stderr.String())
+	case <-time.After(10 * time.Second):
+		t.Fatal("the stream was still open ten seconds after SIGINT")
+	}
+	require.NoError(t, srv.cmd.Wait(), "tp dashboard exits 0 on SIGINT; stderr: %s", srv.stderr.String())
 }
 
 // waitForEvent returns the first event named name within three ticks.
