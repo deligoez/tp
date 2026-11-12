@@ -154,6 +154,12 @@ func epicExport() (*epicExportResult, *epicRunError) {
 		return nil, &epicRunError{code: ExitFile, msg: err.Error(), hint: epicBoundFileHint}
 	}
 	tpDir := engine.DiscoverTPDir(".")
+	// The review policy reads .tp/config.json first: a malformed config is
+	// the export's exit-3 error, not a placeholder fallback warned about.
+	policy, rerr := readEpicReviewPolicy(tpDir)
+	if rerr != nil {
+		return nil, rerr
+	}
 	matcher := epicPlaceholderMatcher(tpDir)
 	plan, err := epicPlanStatus(g, states, bound, trackedMilestones(g), matcher, false)
 	if err != nil {
@@ -162,10 +168,6 @@ func epicExport() (*epicExportResult, *epicRunError) {
 	files, err := engine.EpicFileStates(tpDir, bound)
 	if err != nil {
 		return fail(err)
-	}
-	policy, rerr := readEpicReviewPolicy(tpDir)
-	if rerr != nil {
-		return nil, rerr
 	}
 	reviewSlices, err := engine.EpicReviewSlices(tpDir, g, policy)
 	if err != nil {
