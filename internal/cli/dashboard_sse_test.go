@@ -218,6 +218,30 @@ func TestDashboard_PushesAMalformedProjectConfigAndKeepsServing(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
+// TestDashboard_SummaryNamesAMalformedProjectConfig is §2's failure for the
+// summary event: a .tp/config.json broken while the server runs is pushed
+// with the error and hint the export event carries, naming the config, not
+// the bound task file.
+func TestDashboard_SummaryNamesAMalformedProjectConfig(t *testing.T) {
+	t.Parallel()
+	dir := dashboardRepo(t, true)
+	srv := startDashboard(t, dir, freePort(t))
+	events := openEvents(t, srv)
+	require.Contains(t, eventNames(collectEvents(events, dashboardTick)), "summary")
+
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".tp", "config.json"), []byte("{"), 0o600))
+	failed := waitForEvent(t, events, "summary")
+	var e struct {
+		Error string `json:"error"`
+		Code  int    `json:"code"`
+		Hint  string `json:"hint"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(failed.data), &e), failed.data)
+	assert.Contains(t, e.Error, "config.json")
+	assert.Equal(t, 3, e.Code)
+	assert.Equal(t, "fix .tp/config.json", e.Hint)
+}
+
 // TestDashboard_WarnsOnceAboutAnUncompilablePlaceholder is §2's live
 // derivation over a threshold_placeholder that does not compile: the export
 // falls back to the default pattern on every tick, and the server's stderr
