@@ -144,9 +144,11 @@ func addAuditSignals(result map[string]any, specPath string, cleanRounds int) {
 		rounds = st.AuditRounds
 	}
 	// An auditor corpus that cannot be read is one more such failure: the
-	// signals are omitted rather than computed against an empty hash.
+	// signals are omitted rather than computed against an empty hash, and the
+	// report names why, so the omission is not silent.
 	rolesHash, err := engine.ComputeRolesHash(filepath.Dir(specPath), engine.PhaseAuditors)
 	if err != nil {
+		result["audit_signals_omitted"] = "the auditor role corpus cannot be read: " + err.Error()
 		return
 	}
 	auditSignalFields(result, specPath, rounds, cleanRounds,
