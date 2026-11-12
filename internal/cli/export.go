@@ -78,13 +78,6 @@ func exportDiscoverError(err error) *epicRunError {
 	return &epicRunError{code: ExitFile, msg: err.Error(), hint: hint}
 }
 
-// exportDataOf is exportOf's uncompacted payload for the task file at path
-// whose bytes the caller already read, data.
-func exportDataOf(path string, data []byte) (exportPayload, *epicRunError) {
-	exp, err := engine.TaskExportOfData(".", path, data)
-	return exportResultOf(&exp, err, false)
-}
-
 // exportResultOf renders exp, or converts err, the export's failure, into
 // the error tp export exits with.
 func exportResultOf(exp *engine.TaskExport, err error, compact bool) (exportPayload, *epicRunError) {
