@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestInitEjectRolesGraph_WritesOnlyEpicReviewers ejects the three built-in
+// TestInitEjectRolesGraph_WritesOnlyEpicReviewers ejects the four built-in
 // graph roles into .tp/epic-reviewers/ and leaves .tp/reviewers/ untouched
 // (spec/1.3.0.md §5, Roles).
 func TestInitEjectRolesGraph_WritesOnlyEpicReviewers(t *testing.T) {
