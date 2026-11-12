@@ -84,7 +84,10 @@ func TestResume_Bookkeeping_ConfigFile(t *testing.T) {
 	t.Parallel()
 	dir := setupHCRepoWithClosedTask(t)
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".tp"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, ".tp", "config.json"), []byte("{}\n"), 0o600))
+	// Content no tp write produced: outside a repository tp init already
+	// anchors the project with an empty {} config, so writing that again
+	// would leave nothing dirty.
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".tp", "config.json"), []byte(`{"workflow":{}}`+"\n"), 0o600))
 
 	res := resumeResult(t, dir)
 	bk := bookkeepingByPath(res)
