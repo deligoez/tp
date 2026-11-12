@@ -60,3 +60,18 @@ func TestPure_TheFirstViewFitsTheWidthAtAReadableScale(t *testing.T) {
 		{"x": -8, "y": -8, "w": 933.3333333333334, "h": 440}
 	]`, got)
 }
+
+// TestPage_TheMapGoesFullScreen is the map's full-screen control
+// (spec/backlog/dashboard-ux.md §2): a toolbar button asks the Fullscreen API
+// for the page and marks the map to fill it, leaving full screen (Esc, which
+// the browser handles) unmarks it, and while full screen the plain wheel
+// zooms, as Ctrl or ⌘ with the wheel does outside it.
+func TestPage_TheMapGoesFullScreen(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	assert.Contains(t, page, `id="f-full"`)
+	for _, s := range []string{"requestFullscreen(", "exitFullscreen(", `"fullscreenchange"`, "document.fullscreenElement", `"mapfs"`} {
+		assert.Contains(t, script, s)
+	}
+	assert.Contains(t, page, "body.mapfs")
+}
