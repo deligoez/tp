@@ -66,6 +66,18 @@
       "id_scheme": "slug",
       "converge_on": "all",
       "hash_scheme": "snapshot"
+    },
+    {
+      "round": 3,
+      "findings": 2,
+      "clean": false,
+      "recorded_at": "2026-11-12T05:14:44Z",
+      "file": "audit-round-3.ndjson",
+      "spec_hash": "sha256:690dbe60ad5186e0bf57e7b9a0daca9a508b1543a08d09a2623a95c3b6cd94e1",
+      "roles_hash": "sha256:730320c4db9d73cde41740c32ebcacba23380e89d7964db005f25085a432b9fd",
+      "id_scheme": "slug",
+      "converge_on": "all",
+      "hash_scheme": "snapshot"
     }
   ]
 }
