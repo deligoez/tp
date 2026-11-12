@@ -130,3 +130,22 @@ func TestScope_AnyOfGroup(t *testing.T) {
 		{ID: "c3"},
 	}, s.Closure[0].Epics)
 }
+
+// TestScope_CrossTrackMarked: the closure is composed in milestone order,
+// each milestone carrying its track, and a milestone of another track than
+// the scope's is marked cross_track as information.
+func TestScope_CrossTrackMarked(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0", "m1"}, {"n0"}}, Epics: []model.Epic{
+		scopeEpic("a1", "m1", scopeDeps("b0", "a0")...),
+		scopeEpic("a0", "m0"),
+		scopeEpic("b0", "n0"),
+	}, Gates: map[string]model.EpicGate{"m1": {Members: []string{"a1"}}}}
+
+	s := scopeOf(t, g, "m1")
+
+	assert.Equal(t, []ScopeMilestone{
+		{Milestone: "m0", Track: 0, Size: 1, Epics: []ScopeEpic{{ID: "a0"}}},
+		{Milestone: "m1", Track: 0, Size: 1, Epics: []ScopeEpic{{ID: "a1"}}},
+		{Milestone: "n0", Track: 1, CrossTrack: true, Size: 1, Epics: []ScopeEpic{{ID: "b0"}}},
+	}, s.Closure)
+}
