@@ -21,12 +21,14 @@ type EpicScope struct {
 
 // ScopeMilestone is one milestone's part of a closure: its track's index in
 // the graph's tracks (-1 for a milestone no track lists), and its epics in
-// graph order.
+// graph order. CrossTrack says the track is not the scope milestone's:
+// information, which lint leaves free by design, never an error.
 type ScopeMilestone struct {
-	Milestone string      `json:"milestone"`
-	Track     int         `json:"track"`
-	Size      int         `json:"size"`
-	Epics     []ScopeEpic `json:"epics"`
+	Milestone  string      `json:"milestone"`
+	Track      int         `json:"track"`
+	CrossTrack bool        `json:"cross_track,omitempty"`
+	Size       int         `json:"size"`
+	Epics      []ScopeEpic `json:"epics"`
 }
 
 // ScopeEpic is one epic of a closure. AnyOf is the unsatisfied any-of group
@@ -42,7 +44,7 @@ type ScopeEpic struct {
 // result, and estimates, EpicEstimates' (nil leaves the critical path by
 // estimate out).
 func MilestoneScope(g *model.EpicGraph, states map[string]EpicState, estimates map[string]int, milestone string) EpicScope {
-	w := newScopeWalk(g, states)
+	w := newScopeWalk(g, states, milestone)
 	members, _ := GateMembers(g, milestone)
 	full := w.closure(members, "")
 	return EpicScope{
@@ -60,10 +62,14 @@ type scopeWalk struct {
 	states map[string]EpicState
 	epics  map[string]*model.Epic
 	pos    map[string]milestonePos
+	// home is the scope milestone's track.
+	home int
 }
 
-func newScopeWalk(g *model.EpicGraph, states map[string]EpicState) *scopeWalk {
-	return &scopeWalk{g: g, states: states, epics: epicsByID(g), pos: milestonePositions(g)}
+func newScopeWalk(g *model.EpicGraph, states map[string]EpicState, milestone string) *scopeWalk {
+	w := &scopeWalk{g: g, states: states, epics: epicsByID(g), pos: milestonePositions(g)}
+	w.home = w.track(milestone)
+	return w
 }
 
 // scopeSet is one closure: the epics in it, and the any-of group each epic
@@ -153,7 +159,8 @@ func (w *scopeWalk) compose(set scopeSet) []ScopeMilestone {
 		if len(epics) == 0 {
 			continue
 		}
-		out = append(out, ScopeMilestone{Milestone: m, Track: w.track(m), Size: len(epics), Epics: epics})
+		track := w.track(m)
+		out = append(out, ScopeMilestone{Milestone: m, Track: track, CrossTrack: track != w.home, Size: len(epics), Epics: epics})
 	}
 	return out
 }
