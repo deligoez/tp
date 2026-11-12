@@ -161,3 +161,57 @@ func TestEpicReviewRecordInbox_BesideRecordIsAUsageError(t *testing.T) {
 	_, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A", "--record-inbox", "--record", "rows.ndjson")
 	assert.Equal(t, 2, code, "stderr: %s", stderr)
 }
+
+// storedPanel reads round's panel from the slice's snapshot.
+func storedPanel(t *testing.T, dir string, out *epicReviewPayload, round int) []struct {
+	ID         string `json:"id"`
+	OutputPath string `json:"output_path"`
+} {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(dir, out.StateDir, "snapshot-round-"+string(rune('0'+round))+".json"))
+	require.NoError(t, err)
+	var snap struct {
+		Roles []struct {
+			ID         string `json:"id"`
+			OutputPath string `json:"output_path"`
+		} `json:"roles"`
+	}
+	require.NoError(t, json.Unmarshal(data, &snap))
+	return snap.Roles
+}
+
+// TestEpicReviewRecordInbox_AMovedRepositoryStillRecords: the snapshot
+// stores each output path relative to the repository root, so after the
+// repository moves, the role files written at the new place record.
+func TestEpicReviewRecordInbox_AMovedRepositoryStillRecords(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChain)
+	out := runEpicReview(t, dir, "--milestone", "A")
+	panel := storedPanel(t, dir, &out, 1)
+	require.NotEmpty(t, panel)
+	moved := dir + "-moved"
+	require.NoError(t, os.Rename(dir, moved))
+	for _, r := range panel {
+		require.False(t, filepath.IsAbs(r.OutputPath), "stored relative: %s", r.OutputPath)
+		require.NoError(t, os.WriteFile(filepath.Join(moved, filepath.FromSlash(r.OutputPath)), nil, 0o600))
+	}
+
+	stdout, stderr, code := runTP(t, moved, "epic", "review", "--milestone", "A", "--record-inbox")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.Contains(t, stdout, `"round": 1`)
+}
+
+// TestEpicReviewRecordInbox_ASkippedLineIsNamedByFileAndLine: a line the
+// reader cannot parse refuses the round at exit 1, naming the file as stored
+// and the line.
+func TestEpicReviewRecordInbox_ASkippedLineIsNamedByFileAndLine(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChain)
+	out := runEpicReview(t, dir, "--milestone", "A")
+	first := storedPanel(t, dir, &out, 1)[0]
+	writeInbox(t, &out, map[string]string{first.ID: inboxRow("") + "not json\n"})
+
+	_, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A", "--record-inbox")
+	require.Equal(t, 1, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, first.OutputPath+" (role "+first.ID+") line 2: invalid JSON")
+}
