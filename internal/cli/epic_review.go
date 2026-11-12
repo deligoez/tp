@@ -230,12 +230,13 @@ func runEpicReview(cmd *cobra.Command, args []string) error {
 	}
 	refuseEpicReportOutsideBatch(cmd)
 	key := epicReviewSliceKey(cmd)
-	if runEpicReviewHistoryIfSet(cmd, key) {
-		return nil
-	}
 	if discard, _ := cmd.Flags().GetBool("discard"); discard {
 		refuseEpicDiscardBeside(cmd)
 		runEpicReviewDiscard(key)
+		return nil
+	}
+	refuseEpicForceAlone(cmd)
+	if runEpicReviewHistoryIfSet(cmd, key) {
 		return nil
 	}
 	if runEpicReviewDisposition(cmd, key, args) {

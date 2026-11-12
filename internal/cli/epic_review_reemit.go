@@ -128,12 +128,29 @@ func runEpicReviewDiscard(key engine.EpicSliceKey) {
 	}
 }
 
-// refuseEpicDiscardBeside exits 2 when --discard comes with a mode that
-// writes a round or a disposition: a discard is one decision on one slice.
+// refuseEpicForceAlone exits 2, the invalid-combination code, when --force
+// comes without --resolve or --resolve-all: on epic review it only
+// re-resolves, and a discard is --discard's.
+func refuseEpicForceAlone(cmd *cobra.Command) {
+	if !cmd.Flags().Changed("force") || cmd.Flags().Changed("resolve") || cmd.Flags().Changed("resolve-all") {
+		return
+	}
+	output.Error(ExitUsage, "--force only re-resolves on epic review (with --resolve or --resolve-all); to discard an unrecorded emission use tp epic review <slice> --discard",
+		"drop --force, or add --resolve <index> or --resolve-all to re-resolve findings that already carry a disposition")
+	os.Exit(ExitUsage)
+}
+
+// epicDiscardAlone lists the flags --discard refuses beside it: every other
+// mode and the flags that narrow one, since a discard is one decision on one
+// slice and its own call. The batch flags are epicBatchRefused's.
+var epicDiscardAlone = []string{"record", "record-inbox", "resolve", "resolve-all", "status", "check", "history", "report", "grant-round", "role", "force"}
+
+// refuseEpicDiscardBeside exits 2, the invalid-combination code, when
+// --discard comes with a flag of epicDiscardAlone.
 func refuseEpicDiscardBeside(cmd *cobra.Command) {
-	for _, name := range []string{"record", "record-inbox", "resolve", "resolve-all"} {
+	for _, name := range epicDiscardAlone {
 		if cmd.Flags().Changed(name) {
-			output.Error(ExitUsage, "--discard takes no --"+name+": it removes an unrecorded emission and does nothing else",
+			output.Error(ExitUsage, "--discard takes no --"+name+": it removes an unrecorded emission and is its own call",
 				"discard with tp epic review <slice> --discard, then run the other mode on its own")
 			os.Exit(ExitUsage)
 		}
