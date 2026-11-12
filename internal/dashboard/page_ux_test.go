@@ -100,3 +100,24 @@ func TestPage_TheMapTakesTouch(t *testing.T) {
 	assert.Contains(t, script, "tpPure.pinchView(")
 	assert.Contains(t, page, "touch-action: none")
 }
+
+// TestPure_CentringKeepsTheZoomUnlessItIsUnreadable: taking the view to an
+// epic centres it at the current zoom, zoomed in to the readable scale when
+// the view was further out.
+func TestPure_CentringKeepsTheZoomUnlessItIsUnreadable(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([P.centreView({ x: 0, y: 0, w: 400, h: 200 }, { x: 1000, y: 500 }, 400), P.centreView({ x: 0, y: 0, w: 1200, h: 600 }, { x: 1000, y: 500 }, 400)]);`)
+	assert.JSONEq(t, `[{"x": 800, "y": 400, "w": 400, "h": 200}, {"x": 800, "y": 400, "w": 400, "h": 200}]`, got)
+}
+
+// TestPage_SearchAndListsTakeTheMapToTheEpic is the map's selection rule
+// (spec/backlog/dashboard-ux.md §2): the search centres its first match as
+// it is typed and selects it on Enter, and selecting an epic from any list
+// centres it on the map.
+func TestPage_SearchAndListsTakeTheMapToTheEpic(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Contains(t, script, "tpPure.centreView(")
+	assert.Contains(t, script, `$("map-q").addEventListener("keydown"`)
+	assert.Contains(t, script, "selectEpic(a.dataset.epic, true)")
+}
