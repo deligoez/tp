@@ -81,6 +81,20 @@ func TestEpicCarry_OverAV1100SnapshotADescriptionWithAnAcceptanceEditIsAChange(t
 	assert.True(t, carry.Regression())
 }
 
+// TestEpicCarry_OverAV1100SnapshotADescriptionBesideADependencyEditIsAChange:
+// over the same snapshot, a's description added while its dependency b's
+// acceptance changed is a change: a's hash moved for b too, so a is not
+// Authored and regression runs.
+func TestEpicCarry_OverAV1100SnapshotADescriptionBesideADependencyEditIsAChange(t *testing.T) {
+	before := epicDescribedGraph()
+	after := epicDescribedGraph()
+	after.Epics[0].Description = "Purpose: read b."
+	after.Epics[1].Acceptance = "b ships twice"
+	carry := carryAfterLegacy(t, before, after, EpicSliceKey{Epic: "a"})
+	assert.Empty(t, carry.Authored)
+	assert.True(t, carry.Regression())
+}
+
 // rootEpicGraph is one root epic b with acceptance acc and no description.
 func rootEpicGraph(acc string) *model.EpicGraph {
 	return &model.EpicGraph{Version: 1, Milestones: [][]string{{"A"}},
