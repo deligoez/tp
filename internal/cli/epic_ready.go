@@ -140,16 +140,23 @@ func epicPlaceholderMatcher(tpDir string) *engine.PlaceholderMatcher {
 	if err == nil {
 		return matcher
 	}
+	// Keyed by the message, so the dashboard's ticks repeat nothing and a
+	// different broken pattern still warns.
+	msg := placeholderFallbackWarning(err)
+	noticeOnce(msg, msg)
+	matcher, _ = engine.NewPlaceholderMatcher(engine.DefaultThresholdPlaceholder)
+	return matcher
+}
+
+// placeholderFallbackWarning is the one wording of the warning every command
+// prints when it falls back to the default placeholder pattern over err,
+// naming epic.threshold_placeholder once.
+func placeholderFallbackWarning(err error) string {
 	msg := err.Error()
 	if !strings.HasPrefix(msg, engine.ThresholdPlaceholderKey) {
 		msg = engine.ThresholdPlaceholderKey + ": " + msg
 	}
-	// Keyed by the message, so the dashboard's ticks repeat nothing and a
-	// different broken pattern still warns.
-	msg = "warning: " + msg + "; using the default placeholder pattern (tp validate --project reports it)"
-	noticeOnce(msg, msg)
-	matcher, _ = engine.NewPlaceholderMatcher(engine.DefaultThresholdPlaceholder)
-	return matcher
+	return "warning: " + msg + "; using the default placeholder pattern (tp validate --project reports it)"
 }
 
 // epicReadyReport turns r's ids into the payload's entries, telling a gate
