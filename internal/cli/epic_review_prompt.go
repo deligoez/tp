@@ -402,7 +402,7 @@ func epicReviewPayload(run *epicReviewRun, roles []model.Role, prompts []epicRev
 	for _, c := range context {
 		contextIDs = append(contextIDs, c.ID)
 	}
-	next := fmt.Sprintf("run each prompt, concatenate the rows of every output_path into one NDJSON file, then tp epic review %s --record <file>",
+	next := fmt.Sprintf("run each prompt, each role writing its output_path (an empty file when it finds nothing), then tp epic review %s --record-inbox",
 		epicSliceLabel(run.key))
 	switch {
 	case len(units) == 0:
