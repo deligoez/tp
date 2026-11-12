@@ -107,6 +107,7 @@ type epicBatchResult struct {
 type epicBatchItem struct {
 	run    epicReviewRun
 	result epicReviewResult
+	panel  []engine.EpicSnapshotRole
 }
 
 // epicBatchSetup is what every slice of a batch emission shares.
@@ -135,7 +136,7 @@ func runEpicReviewBatchEmit(cmd *cobra.Command, scope epicBatchScope) {
 		items = append(items, item)
 	}
 	for i := range items {
-		if err := writeEpicReviewEmission(&items[i].run); err != nil {
+		if err := writeEpicReviewEmission(&items[i].run, items[i].panel); err != nil {
 			result.Skipped = append(result.Skipped, epicBatchSkip{
 				Key: engine.EpicSliceKeyRecordOf(items[i].run.key), Reason: "cannot write the epic review state: " + err.Error(),
 			})
@@ -169,8 +170,9 @@ func loadEpicBatchSetup(cmd *cobra.Command) epicBatchSetup {
 }
 
 // prepareEpicBatchItem prepares key's emission without writing it, or says
-// why the slice cannot emit: it fails to prepare, its loop is done, or it is
-// at its cap.
+// why the slice cannot emit: it fails to prepare, its loop is done, it is at
+// its cap, or its unrecorded emission changed (emission-changed), which a
+// one-slice --force discards and a batch never does.
 func prepareEpicBatchItem(setup *epicBatchSetup, key engine.EpicSliceKey) (item epicBatchItem, skipReason string) {
 	run, rerr := prepareEpicReviewRun(&setup.graph, key)
 	if rerr != nil {
@@ -187,20 +189,21 @@ func prepareEpicBatchItem(setup *epicBatchSetup, key engine.EpicSliceKey) (item 
 		msg, hint := epicCapRefusal(key, &st)
 		return epicBatchItem{}, msg + ": " + hint
 	}
-	if rerr := epicDroppedRowsError(&run); rerr != nil {
+	em, rerr := buildEpicEmission(&run, setup.roles)
+	if rerr != nil {
 		return epicBatchItem{}, rerr.msg + ": " + rerr.hint
 	}
-	if rerr := readEpicReviewStates(&run); rerr != nil {
+	changes, rerr := epicEmissionChanges(&run, em.panel)
+	switch {
+	case rerr != nil:
 		return epicBatchItem{}, rerr.msg
+	case len(changes) > 0:
+		return epicBatchItem{}, epicEmissionChangedReason
 	}
-	built, skipped, rerr := buildEpicReviewPrompts(&run, setup.roles)
-	if rerr != nil {
-		return epicBatchItem{}, rerr.msg
-	}
-	prompts, skipped := filterByRole(built, func(p *epicReviewPrompt) string { return p.Role }, setup.query, skipped)
-	result := epicReviewPayload(&run, setup.roles, prompts, len(built))
+	prompts, skipped := filterByRole(em.built, func(p *epicReviewPrompt) string { return p.Role }, setup.query, em.skipped)
+	result := epicReviewPayload(&run, setup.roles, prompts, len(em.built))
 	rec := engine.EpicSliceKeyRecordOf(key)
 	result.Key = &rec
 	result.SkippedRoles = skippedRolesForPayload(setup.query.given, len(prompts), skipped)
-	return epicBatchItem{run: run, result: result}, ""
+	return epicBatchItem{run: run, result: result, panel: em.panel}, ""
 }

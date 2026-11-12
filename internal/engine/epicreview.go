@@ -81,21 +81,33 @@ func EpicReviewLastRoundPath(stateDir string) (path string, round int) {
 
 // epicSnapshot is the file an emission writes: each unit's hash, by key, and
 // the purpose of each of the slice's milestones that has one. A snapshot
-// written before purposes were kept has none, which reads as none set.
+// written before purposes were kept has none, which reads as none set. Roles
+// is the panel the emission built, whatever --role printed; a snapshot
+// written before roles were kept holds none (nil), and is compared on what it
+// holds (spec/backlog/epic-reemit-guard.md).
 type epicSnapshot struct {
-	Round    int               `json:"round"`
-	Units    map[string]string `json:"units"`
-	Blocks   map[string]string `json:"blocks,omitempty"`
-	Purposes map[string]string `json:"purposes,omitempty"`
+	Round    int                `json:"round"`
+	Units    map[string]string  `json:"units"`
+	Blocks   map[string]string  `json:"blocks,omitempty"`
+	Purposes map[string]string  `json:"purposes,omitempty"`
+	Roles    []EpicSnapshotRole `json:"roles"`
 }
 
-// WriteEpicReviewSnapshot records the unit hashes of round's emission in
-// stateDir, creating the directory, through an atomic rename so a partial
-// snapshot is never left on disk. Each unit's block text is kept beside its
-// hash, so a later round can show what changed. The snapshot stays in the
-// state directory and is never printed (§5).
-func WriteEpicReviewSnapshot(stateDir string, round int, units []EpicReviewUnit) error {
-	snap := epicSnapshot{Round: round, Units: make(map[string]string, len(units)), Blocks: make(map[string]string, len(units)), Purposes: map[string]string{}}
+// EpicSnapshotRole is one role of an emission's panel, in panel order: its
+// id, the hash of its role file (EpicRoleFileHashes; RolesHashBuiltin for the
+// built-in regression role, which is no file) and the output path its prompt
+// named.
+type EpicSnapshotRole struct {
+	ID         string `json:"id"`
+	Hash       string `json:"hash"`
+	OutputPath string `json:"output_path"`
+}
+
+// newEpicSnapshot builds the snapshot of round's emission over units and
+// the panel roles.
+func newEpicSnapshot(round int, units []EpicReviewUnit, roles []EpicSnapshotRole) epicSnapshot {
+	snap := epicSnapshot{Round: round, Units: make(map[string]string, len(units)), Blocks: make(map[string]string, len(units)), Purposes: map[string]string{},
+		Roles: append([]EpicSnapshotRole{}, roles...)}
 	for _, u := range units {
 		snap.Units[u.Key] = u.Hash
 		snap.Blocks[u.Key] = u.Block
@@ -103,7 +115,16 @@ func WriteEpicReviewSnapshot(stateDir string, round int, units []EpicReviewUnit)
 			snap.Purposes[u.Milestone] = u.Purpose
 		}
 	}
-	data, err := json.MarshalIndent(snap, "", "  ")
+	return snap
+}
+
+// WriteEpicReviewSnapshot records the unit hashes and the panel of round's
+// emission in stateDir, creating the directory, through an atomic rename so
+// a partial snapshot is never left on disk. Each unit's block text is kept
+// beside its hash, so a later round can show what changed. The snapshot stays
+// in the state directory and is never printed (§5).
+func WriteEpicReviewSnapshot(stateDir string, round int, units []EpicReviewUnit, roles []EpicSnapshotRole) error {
+	data, err := json.MarshalIndent(newEpicSnapshot(round, units, roles), "", "  ")
 	if err != nil {
 		return err
 	}

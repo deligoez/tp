@@ -154,27 +154,6 @@ type EpicIndexedRow struct {
 	Row   map[string]any
 }
 
-// EpicOpenRowsOn returns the rows of the round before round, the last
-// recorded one, that are not accepted and sit on a unit keys names, each with
-// its index: the rows that re-ask those units. Before round 2 there is none.
-func EpicOpenRowsOn(stateDir string, round int, keys map[string]bool) ([]EpicIndexedRow, error) {
-	if round < 2 || len(keys) == 0 {
-		return nil, nil
-	}
-	path := filepath.Join(stateDir, epicRoundFile(round-1))
-	rows, ok := readNDJSONRows(path)
-	if !ok {
-		return nil, fmt.Errorf("epic review round file %s cannot be read as NDJSON", path)
-	}
-	var out []EpicIndexedRow
-	for i, row := range rows {
-		if loc, _ := row["location"].(string); keys[loc] && !RowAccepted(row) {
-			out = append(out, EpicIndexedRow{Index: i, Row: row})
-		}
-	}
-	return out, nil
-}
-
 // readPriorRows collects the round before's fixed rows into c, an epic or
 // gate unit's into Fixed and any other into ScopeFixed, and returns the unit
 // keys an open row names. Only the epic and gate rows decide VerifyOnly.

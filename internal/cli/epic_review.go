@@ -84,37 +84,76 @@ func epicDroppedUnits(all, read []engine.EpicReviewUnit) []engine.EpicReviewUnit
 }
 
 // epicDroppedRowsError refuses a round whose last recorded round left a row
-// open on a unit no role of the corpus reads any more: the unit is gone from
-// the slice, so without the refusal its open row would vanish and the slice
-// could converge over it. nil when there is none.
+// with no resolution on a unit no role of the corpus reads any more: the unit
+// is gone from the slice, so without the refusal its open row would vanish
+// and the slice could converge over it. A row resolved fixed passes, since
+// the change that dropped the unit can be its fix. nil when there is none.
 func epicDroppedRowsError(run *epicReviewRun) *epicRunError {
 	keys := map[string]bool{}
 	for _, u := range run.dropped {
 		keys[u.Key] = true
 	}
-	rows, err := engine.EpicOpenRowsOn(run.stateDir, run.round, keys)
+	rows, err := engine.EpicUnresolvedRows(run.stateDir, run.round, func(loc string) bool { return keys[loc] })
 	if err != nil {
 		return &epicRunError{code: ExitFile, msg: err.Error(), hint: epicRoundFileHint}
 	}
 	if len(rows) == 0 {
 		return nil
 	}
-	var open, kinds, indices []string
+	open, indices := epicRowList(rows, run.round-1)
+	var kinds []string
+	for _, r := range rows {
+		loc, _ := r.Row["location"].(string)
+		if kind := engine.EpicUnitKind(loc); !slices.Contains(kinds, kind) {
+			kinds = append(kinds, kind)
+		}
+	}
+	return &epicRunError{code: ExitState,
+		msg: fmt.Sprintf("epic review round %d of %s cannot emit: no role of the corpus reads the %s kind, and the round before left these findings open on such units: %s",
+			run.round, epicSliceLabel(run.key), strings.Join(kinds, ", "), open),
+		hint: fmt.Sprintf("restore a role whose units key lists %s in .tp/epic-reviewers/, or dispose of the rows: tp epic review %s --resolve %s <fixed|wontfix|duplicate> \"<evidence>\"",
+			strings.Join(kinds, ", "), epicSliceLabel(run.key), indices)}
+}
+
+// epicVanishedRowsError refuses a round whose last recorded round left a row
+// with no resolution on a unit the slice no longer holds: an epic deleted
+// from the graph or moved out of the slice took the unit, and the row would
+// vanish with it (spec/backlog/epic-reemit-guard.md). A row resolved fixed
+// passes: moving or deleting an epic is the normal fix for a placement or
+// surplus finding. Units dropped for their kind are epicDroppedRowsError's.
+func epicVanishedRowsError(run *epicReviewRun) *epicRunError {
+	held := map[string]bool{}
+	for _, u := range slices.Concat(run.all, run.dropped) {
+		held[u.Key] = true
+	}
+	rows, err := engine.EpicUnresolvedRows(run.stateDir, run.round, func(loc string) bool { return !held[loc] })
+	if err != nil {
+		return &epicRunError{code: ExitFile, msg: err.Error(), hint: epicRoundFileHint}
+	}
+	if len(rows) == 0 {
+		return nil
+	}
+	open, indices := epicRowList(rows, run.round-1)
+	return &epicRunError{code: ExitState,
+		msg: fmt.Sprintf("epic review round %d of %s cannot emit: the round before left these findings open on units the slice no longer holds: %s",
+			run.round, epicSliceLabel(run.key), open),
+		hint: fmt.Sprintf("dispose of the rows: tp epic review %s --resolve %s <fixed|wontfix|duplicate> \"<evidence>\", fixed when removing the unit was the fix",
+			epicSliceLabel(run.key), indices)}
+}
+
+// epicRowList renders rows of round as the refusals name them, joined, and
+// their indices comma-separated, as --resolve takes them.
+func epicRowList(rows []engine.EpicIndexedRow, round int) (list, indices string) {
+	open := make([]string, 0, len(rows))
+	index := make([]string, 0, len(rows))
 	for _, r := range rows {
 		loc, _ := r.Row["location"].(string)
 		sev, _ := r.Row["severity"].(string)
 		finding, _ := r.Row["finding"].(string)
-		open = append(open, fmt.Sprintf("%s, round %d row %d (%s): %s", loc, run.round-1, r.Index, sev, finding))
-		if kind := engine.EpicUnitKind(loc); !slices.Contains(kinds, kind) {
-			kinds = append(kinds, kind)
-		}
-		indices = append(indices, strconv.Itoa(r.Index))
+		open = append(open, fmt.Sprintf("%s, round %d row %d (%s): %s", loc, round, r.Index, sev, finding))
+		index = append(index, strconv.Itoa(r.Index))
 	}
-	return &epicRunError{code: ExitState,
-		msg: fmt.Sprintf("epic review round %d of %s cannot emit: no role of the corpus reads the %s kind, and the round before left these findings open on such units: %s",
-			run.round, epicSliceLabel(run.key), strings.Join(kinds, ", "), strings.Join(open, "; ")),
-		hint: fmt.Sprintf("restore a role whose units key lists %s in .tp/epic-reviewers/, or dispose of the rows: tp epic review %s --resolve %s <fixed|wontfix|duplicate> \"<evidence>\"",
-			strings.Join(kinds, ", "), epicSliceLabel(run.key), strings.Join(indices, ","))}
+	return strings.Join(open, "; "), strings.Join(index, ",")
 }
 
 // readEpicReviewStates derives the epics' states into run when its slice
@@ -153,7 +192,7 @@ func newEpicReviewCmd() *cobra.Command {
 	cmd.Flags().Bool("check", false, "With --status: exit 0 only when the loop is done and every mechanical check passes")
 	cmd.Flags().Bool("resolve", false, "Mark one finding of the last recorded round fixed/wontfix/duplicate (positionals: 0-based index, status, evidence)")
 	cmd.Flags().Bool("resolve-all", false, "Mark every unresolved finding of the last recorded round with a status (positionals: status, evidence)")
-	cmd.Flags().Bool("force", false, "With --resolve or --resolve-all: re-resolve findings that already carry a disposition")
+	cmd.Flags().Bool("force", false, "With --resolve or --resolve-all: re-resolve findings that already carry a disposition; on an emission: discard the unrecorded round's changed emission and its inbox files, and emit again (the operator's decision)")
 	cmd.Flags().Bool("history", false, "Print the slice's recorded rounds, each with its findings by role and its difference from the round before, then the difference to the current graph")
 	cmd.Flags().Int("from", 0, "With --history and --to: the earlier of the two rounds to diff")
 	cmd.Flags().Int("to", 0, "With --history and --from: the later of the two rounds to diff")
@@ -210,7 +249,8 @@ func runEpicReview(cmd *cobra.Command, args []string) error {
 }
 
 // runEpicReviewEmit emits the slice's next round: its prompts, narrowed by
-// --role, and the emission's state.
+// --role, and the emission's state. An unrecorded round whose emission
+// changed is refused unless --force discards it (guardEpicEmission).
 func runEpicReviewEmit(cmd *cobra.Command, key engine.EpicSliceKey) {
 	run := loadEpicReviewRun(key)
 	refuseEpicReviewAtCap(&run)
@@ -220,31 +260,55 @@ func runEpicReviewEmit(cmd *cobra.Command, key engine.EpicSliceKey) {
 		os.Exit(ExitFile)
 		return
 	}
-	if rerr := epicDroppedRowsError(&run); rerr != nil {
-		exitEpicRunError(rerr)
-	}
-	if rerr := readEpicReviewStates(&run); rerr != nil {
-		exitEpicRunError(rerr)
-	}
-	built, skipped, rerr := buildEpicReviewPrompts(&run, roles)
+	em, rerr := buildEpicEmission(&run, roles)
 	if rerr != nil {
 		exitEpicRunError(rerr)
 	}
 	roleName, _ := cmd.Flags().GetString("role")
 	q := roleQuery{name: roleName, given: cmd.Flags().Changed("role"), specDir: filepath.Dir(run.tpDir)}
 	refuseEpicRoleMissing(q, roles)
-	prompts, skipped := filterByRole(built, func(p *epicReviewPrompt) string { return p.Role }, q, skipped)
-	if err := writeEpicReviewEmission(&run); err != nil {
+	force, _ := cmd.Flags().GetBool("force")
+	guardEpicEmission(&run, em.panel, force)
+	prompts, skipped := filterByRole(em.built, func(p *epicReviewPrompt) string { return p.Role }, q, em.skipped)
+	if err := writeEpicReviewEmission(&run, em.panel); err != nil {
 		output.Error(ExitFile, "cannot write the epic review state: "+err.Error(), epicReviewStateHint)
 		os.Exit(ExitFile)
 		return
 	}
-	result := epicReviewPayload(&run, roles, prompts, len(built))
+	result := epicReviewPayload(&run, roles, prompts, len(em.built))
 	result.SkippedRoles = skippedRolesForPayload(q.given, len(prompts), skipped)
 	if err := output.JSON(result); err != nil {
 		output.Error(ExitFile, err.Error(), internalEncodeHint)
 		os.Exit(ExitFile)
 	}
+}
+
+// epicEmission is one round's prompts before --role narrows them, the roles
+// skipped, and the panel the snapshot stores.
+type epicEmission struct {
+	built   []epicReviewPrompt
+	skipped []engine.SkippedRole
+	panel   []engine.EpicSnapshotRole
+}
+
+// buildEpicEmission refuses a round the round before left open rows for on
+// units the slice no longer reads or holds, then builds its prompts and
+// panel. It writes nothing.
+func buildEpicEmission(run *epicReviewRun, roles []model.Role) (epicEmission, *epicRunError) {
+	for _, check := range []func(*epicReviewRun) *epicRunError{epicDroppedRowsError, epicVanishedRowsError, readEpicReviewStates} {
+		if rerr := check(run); rerr != nil {
+			return epicEmission{}, rerr
+		}
+	}
+	built, skipped, rerr := buildEpicReviewPrompts(run, roles)
+	if rerr != nil {
+		return epicEmission{}, rerr
+	}
+	panel, rerr := epicPanel(run, built)
+	if rerr != nil {
+		return epicEmission{}, rerr
+	}
+	return epicEmission{built: built, skipped: skipped, panel: panel}, nil
 }
 
 // refuseEpicRoleMissing exits 2 when --role names a built-in graph role the
@@ -262,17 +326,18 @@ func refuseEpicRoleMissing(q roleQuery, roles []model.Role) {
 	}
 	output.Error(ExitUsage, "the built-in graph role "+q.name+" is not in this project's corpus: .tp/epic-reviewers/ replaces the built-in graph roles and holds no "+q.name+".json",
 		"a corpus ejected before the role shipped lacks it: re-eject with tp init --eject-roles --graph --force, which overwrites the ejected files, or copy "+
-			q.name+".json into .tp/epic-reviewers/; the next emission, an unrecorded round's re-emission included, then asks it")
+			q.name+".json into .tp/epic-reviewers/; the next round then asks it, and an unrecorded round's re-emission needs --force to discard the emission the old corpus built")
 	os.Exit(ExitUsage)
 }
 
 // writeEpicReviewEmission records an emission in the slice's state directory:
-// the round's unit snapshot and the slice's key (spec/1.5.0.md §7), and makes
-// the inbox the prompts name (spec/1.7.0.md §1), with the .tp/.gitignore entry
-// that keeps it untracked. It removes nothing there, so a role that already
-// wrote its file keeps it through a re-emission.
-func writeEpicReviewEmission(run *epicReviewRun) error {
-	if err := engine.WriteEpicReviewSnapshot(run.stateDir, run.round, run.all); err != nil {
+// the round's unit snapshot and panel and the slice's key (spec/1.5.0.md §7),
+// and makes the inbox the prompts name (spec/1.7.0.md §1), with the
+// .tp/.gitignore entry that keeps it untracked. It removes nothing there, so a
+// role that already wrote its file keeps it through an identical
+// re-emission; only a --force discard removes the round's inbox files.
+func writeEpicReviewEmission(run *epicReviewRun, panel []engine.EpicSnapshotRole) error {
+	if err := engine.WriteEpicReviewSnapshot(run.stateDir, run.round, run.all, panel); err != nil {
 		return err
 	}
 	if err := engine.WriteEpicSliceKey(run.stateDir, run.key); err != nil {

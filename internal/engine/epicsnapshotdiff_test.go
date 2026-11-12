@@ -24,6 +24,11 @@ func snapshotUnits(epics ...model.Epic) []EpicReviewUnit {
 	return units
 }
 
+// writeUnitSnapshot writes round's snapshot over units with an empty panel.
+func writeUnitSnapshot(dir string, round int, units []EpicReviewUnit) error {
+	return WriteEpicReviewSnapshot(dir, round, units, nil)
+}
+
 // TestEpicSnapshotDiff_ListsUnitEdgeWhyAndFieldChanges is spec/1.8.0.md §11's
 // difference and §18 row 9's diff: between two recorded rounds it lists the
 // units added and removed, the edges added and removed, and each why and
@@ -48,8 +53,8 @@ func TestEpicSnapshotDiff_ListsUnitEdgeWhyAndFieldChanges(t *testing.T) {
 		}},
 		model.Epic{ID: "d", Title: "D", Milestone: "M"},
 	)
-	require.NoError(t, WriteEpicReviewSnapshot(dir, 1, round1))
-	require.NoError(t, WriteEpicReviewSnapshot(dir, 2, round2))
+	require.NoError(t, writeUnitSnapshot(dir, 1, round1))
+	require.NoError(t, writeUnitSnapshot(dir, 2, round2))
 
 	diff, err := EpicReviewRoundsDiff(dir, 1, 2)
 	require.NoError(t, err)
@@ -73,8 +78,8 @@ func TestEpicSnapshotDiff_AWhyEditIsAWhyChangeWithBothTexts(t *testing.T) {
 	before := model.Epic{ID: "b", Title: "B", Milestone: "M", DependsOn: []model.EpicDep{{ID: "a", Why: "old why"}}}
 	after := before
 	after.DependsOn = []model.EpicDep{{ID: "a", Why: "new why"}}
-	require.NoError(t, WriteEpicReviewSnapshot(dir, 1, snapshotUnits(a, before)))
-	require.NoError(t, WriteEpicReviewSnapshot(dir, 2, snapshotUnits(a, after)))
+	require.NoError(t, writeUnitSnapshot(dir, 1, snapshotUnits(a, before)))
+	require.NoError(t, writeUnitSnapshot(dir, 2, snapshotUnits(a, after)))
 
 	diff, err := EpicReviewRoundsDiff(dir, 1, 2)
 	require.NoError(t, err)
@@ -96,7 +101,7 @@ func TestEpicSnapshotDiff_AHashOnlySnapshotCarriesNoTextAndSaysSo(t *testing.T) 
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, epicSnapshotFile(1)),
 		[]byte(`{"round": 1, "units": {"epic:a": "h1", "epic:b": "h2", "epic:c": "h3"}}`+"\n"), 0o600))
-	require.NoError(t, WriteEpicReviewSnapshot(dir, 2, snapshotUnits(
+	require.NoError(t, writeUnitSnapshot(dir, 2, snapshotUnits(
 		model.Epic{ID: "a", Title: "A", Milestone: "M"},
 		model.Epic{ID: "b", Title: "B", Milestone: "M", DependsOn: []model.EpicDep{{ID: "a", Why: "why"}}},
 		model.Epic{ID: "d", Title: "D", Milestone: "M"},
@@ -121,8 +126,8 @@ func TestEpicSnapshotDiff_AHashOnlySnapshotCarriesNoTextAndSaysSo(t *testing.T) 
 func TestEpicSnapshotDiff_AFieldAddedReadsAsAChangeFromEmpty(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	require.NoError(t, WriteEpicReviewSnapshot(dir, 1, snapshotUnits(model.Epic{ID: "a", Title: "A", Milestone: "M"})))
-	require.NoError(t, WriteEpicReviewSnapshot(dir, 2, snapshotUnits(model.Epic{ID: "a", Title: "A", Milestone: "M", Acceptance: "a ships"})))
+	require.NoError(t, writeUnitSnapshot(dir, 1, snapshotUnits(model.Epic{ID: "a", Title: "A", Milestone: "M"})))
+	require.NoError(t, writeUnitSnapshot(dir, 2, snapshotUnits(model.Epic{ID: "a", Title: "A", Milestone: "M", Acceptance: "a ships"})))
 
 	diff, err := EpicReviewRoundsDiff(dir, 1, 2)
 	require.NoError(t, err)
@@ -136,8 +141,8 @@ func TestEpicSnapshotDiff_AFieldAddedReadsAsAChangeFromEmpty(t *testing.T) {
 func TestEpicSnapshotDiff_AMultiLineFieldChangesAsOneValue(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	require.NoError(t, WriteEpicReviewSnapshot(dir, 1, snapshotUnits(model.Epic{ID: "a", Title: "A", Milestone: "M", Acceptance: "a ships\nunder load"})))
-	require.NoError(t, WriteEpicReviewSnapshot(dir, 2, snapshotUnits(model.Epic{ID: "a", Title: "A", Milestone: "M", Acceptance: "a ships\nunder twice the load"})))
+	require.NoError(t, writeUnitSnapshot(dir, 1, snapshotUnits(model.Epic{ID: "a", Title: "A", Milestone: "M", Acceptance: "a ships\nunder load"})))
+	require.NoError(t, writeUnitSnapshot(dir, 2, snapshotUnits(model.Epic{ID: "a", Title: "A", Milestone: "M", Acceptance: "a ships\nunder twice the load"})))
 
 	diff, err := EpicReviewRoundsDiff(dir, 1, 2)
 	require.NoError(t, err)
