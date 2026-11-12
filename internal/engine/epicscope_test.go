@@ -209,20 +209,27 @@ func TestScope_OutsideAndNoDependents(t *testing.T) {
 	assert.Equal(t, []string{"a3"}, s.NoDependents)
 }
 
-// TestScope_DeferrableInClosure: a deferrable epic a member depends on is in
+// TestScope_DeferrableInClosure: a deferrable epic the members require is in
 // the closure, so it cannot actually be deferred, and is listed as such; one
-// no member reaches stays outside.
+// only an any-of alternative needs is optional and not listed, and one no
+// member reaches stays outside. A gate with no deferrable epics lists none,
+// as [] rather than null.
 func TestScope_DeferrableInClosure(t *testing.T) {
 	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0"}}, Epics: []model.Epic{
-		scopeEpic("a1", "m0", scopeDeps("d1")...),
+		scopeEpic("a1", "m0", scopeDeps("d1")[0], scopeAnyOf("d3", "a2")),
+		scopeEpic("a2", "m0"),
 		scopeEpic("d1", "m0"),
 		scopeEpic("d2", "m0"),
-	}, Gates: map[string]model.EpicGate{"m0": {Members: []string{"a1"}, Deferrable: []string{"d1", "d2"}}}}
+		scopeEpic("d3", "m0"),
+	}, Gates: map[string]model.EpicGate{"m0": {Members: []string{"a1"}, Deferrable: []string{"d1", "d2", "d3"}}}}
 
 	s := scopeOf(t, g, "m0")
 
 	assert.Equal(t, []string{"d1"}, s.DeferrableInClosure)
 	assert.Equal(t, []ScopeOutside{{ID: "d2", Deferrable: true}}, s.Outside)
+
+	g.Gates = map[string]model.EpicGate{"m0": {Members: []string{"a1"}}}
+	assert.Equal(t, []string{}, scopeOf(t, g, "m0").DeferrableInClosure)
 }
 
 // TestScope_UnneededEarlier: for each milestone before the scope's in its
