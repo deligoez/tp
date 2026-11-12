@@ -132,3 +132,14 @@ func TestSpecSections_ASpecWithNoPreambleHasNoSectionZero(t *testing.T) {
 	assert.Equal(t, "§1", got[0].Anchor)
 	assert.Equal(t, "1. First", got[0].Heading)
 }
+
+// TestSpecSections_ANumberedTitleOpensNoSection: the H1 "1. Title" titles
+// §0 though it carries a number; only a level-2 or deeper heading opens a
+// section, so the next one is §2 and no §1 exists.
+func TestSpecSections_ANumberedTitleOpensNoSection(t *testing.T) {
+	got := SpecSections([]byte("# 1. Title\n\nIntro\n\n## 2. Next\n\nBody\n"))
+	require.Len(t, got, 2)
+	assert.Equal(t, "§0", got[0].Anchor)
+	assert.Equal(t, "1. Title", got[0].Heading)
+	assert.Equal(t, "§2", got[1].Anchor)
+}
