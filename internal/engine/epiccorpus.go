@@ -12,7 +12,7 @@ import (
 const PhaseEpicReviewers = "epic-reviewers"
 
 // epicCorpusOrder is the §5 built-in graph role table, in emitted panel order.
-var epicCorpusOrder = []string{"dod-satisfiability", "why-auditor", "phase-economist"}
+var epicCorpusOrder = []string{"dod-satisfiability", "why-auditor", "phase-economist", "gate-scope"}
 
 // DefaultEpicCorpusFiles returns the built-in graph role files in panel order,
 // each with its raw JSON bytes so eject writes byte-identical copies.
@@ -32,7 +32,7 @@ func DefaultEpicCorpusFiles() ([]DefaultRoleFile, error) {
 // ResolveEpicRoleCorpus returns the active graph-review roles. A populated
 // .tp/epic-reviewers/ replaces the built-ins outright: every file is an active
 // role, sorted by file name, and `domains` is not read. With no such directory,
-// or one holding no .json file, the three built-in roles run.
+// or one holding no .json file, the four built-in roles run.
 func ResolveEpicRoleCorpus(startDir string) ([]model.Role, error) {
 	roles, populated, err := LoadRoleCorpus(startDir, PhaseEpicReviewers)
 	if err != nil || populated {
