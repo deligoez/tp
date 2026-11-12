@@ -234,3 +234,51 @@ func TestRecord_AHistoryNeverEmittedStaysStale(t *testing.T) {
 		})
 	}
 }
+
+// TestStalenessClearsThroughTheRoundsOwnEmission is the end-to-end pair of
+// spec/backlog/hand-recorded-staleness.md, through the real commands and no
+// fixture standing in for an emission: an edit leaves the spec stale, and the
+// round emitted from the edited text and recorded clears it.
+func TestStalenessClearsThroughTheRoundsOwnEmission(t *testing.T) {
+	t.Parallel()
+	dir, specPath := specProject(t)
+	empty := emptyRecordFile(t, dir)
+	emitAndRecord := func() map[string]any {
+		_, stderr, code := runTP(t, dir, "review", "spec.md")
+		require.Equal(t, 0, code, "emission: %s", stderr)
+		stdout, stderr, code := runTP(t, dir, "review", "spec.md", "--record", empty)
+		require.Equal(t, 0, code, "record: %s", stderr)
+		assert.NotContains(t, stderr, "no emission", "an emitted round says nothing about emitting")
+		var out map[string]any
+		require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+		return out
+	}
+	assert.Equal(t, false, emitAndRecord()["stale"], "the round read the spec as it stands")
+
+	require.NoError(t, os.WriteFile(specPath, []byte(specV2), 0o600))
+	require.Equal(t, true, loopStatus(t, dir, "review")["stale"], "the edit makes the spec stale")
+	assert.Equal(t, false, emitAndRecord()["stale"], "the round emitted from the edit clears it")
+	assert.Equal(t, false, loopStatus(t, dir, "review")["stale"])
+}
+
+// TestStalenessStaysThroughARecordWithNoEmission is the other half: after an
+// edit, a record with no emission before it leaves the spec stale, and stderr
+// says why and names the emission that would bind a round to the text.
+func TestStalenessStaysThroughARecordWithNoEmission(t *testing.T) {
+	t.Parallel()
+	dir, specPath := specProject(t)
+	empty := emptyRecordFile(t, dir)
+	_, stderr, code := runTP(t, dir, "review", "spec.md")
+	require.Equal(t, 0, code, "emission: %s", stderr)
+	_, stderr, code = runTP(t, dir, "review", "spec.md", "--record", empty)
+	require.Equal(t, 0, code, "record: %s", stderr)
+
+	require.NoError(t, os.WriteFile(specPath, []byte(specV2), 0o600))
+	stdout, stderr, code := runTP(t, dir, "review", "spec.md", "--record", empty)
+	require.Equal(t, 0, code, "a record with no emission is accepted: %s", stderr)
+	var out map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+	assert.Equal(t, true, out["stale"])
+	assert.Contains(t, stderr, "recorded with no emission", "the record says why the spec stays stale")
+	assert.Contains(t, stderr, "tp review spec.md", "and names the emission that binds a round to the text")
+}
