@@ -17,12 +17,13 @@ func cleanEpicGraph() *model.EpicGraph {
 	return &model.EpicGraph{
 		Version:    1,
 		Milestones: [][]string{{"A", "B"}, {"L1"}},
-		Gates:      map[string]model.EpicGate{"A": {Members: []string{"a"}, Deferrable: []string{"b"}}},
+		Gates:      map[string]model.EpicGate{"A": {Members: []string{"a"}, Deferrable: []string{"q"}}},
 		TagChecks:  map[string]model.EpicTagCheck{"ui": {ProvidedBy: "c"}},
 		Epics: []model.Epic{
 			{ID: "a", Title: "A", Milestone: "A", Tags: []string{"ui"}, DependsOn: []model.EpicDep{{ID: "b", Why: "b first"}}},
 			{ID: "b", Title: "B", Milestone: "A", DependsOn: []model.EpicDep{{ID: "c", Why: "c first"}}},
 			{ID: "c", Title: "C", Milestone: "A"},
+			{ID: "q", Title: "Q", Milestone: "A", DependsOn: []model.EpicDep{{ID: "c", Why: "c first"}}},
 		},
 	}
 }
