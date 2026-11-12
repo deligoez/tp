@@ -78,10 +78,11 @@ Triage every piece of work before touching it; the operator confirms the track.
 A fix that turns out to need a design choice stops and becomes a decision. Repairs to a spec after
 its first round delete or narrow; they do not add requirements.
 
-Open work is `BUGS.md` (the fix track), then the six decision candidates in `spec/backlog/` —
-`checklist-covers-what-changed.md`, then `reconcile.md`, then `epic-scope.md`, then
-`deferrable-required.md`, `epic-reemit-guard.md` and `epic-role-attribution.md`; `tp dashboard` and
-the lifecycle timestamps shipped in v1.8.0 (`spec/1.8.0.md`), and `spec/backlog/ARCHIVE.md` holds the
+Open work is `BUGS.md` (the fix track), then the five decision candidates in `spec/backlog/` —
+`checklist-covers-what-changed.md`, then `reconcile.md`, then `deferrable-required.md`,
+`epic-reemit-guard.md` and `epic-role-attribution.md`; `tp epic scope` and the `gate-scope` graph
+role shipped in v1.9.0 (`spec/backlog/epic-scope.md`, `spec/1.9.0-measurements.md`), `tp dashboard`
+and the lifecycle timestamps in v1.8.0 (`spec/1.8.0.md`), and `spec/backlog/ARCHIVE.md` holds the
 rest. The epic layer's deferred pilot items are in `spec/1.3.0-measurements.md`.
 
 ## Rules
