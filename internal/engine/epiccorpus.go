@@ -14,6 +14,11 @@ const PhaseEpicReviewers = "epic-reviewers"
 // epicCorpusOrder is the §5 built-in graph role table, in emitted panel order.
 var epicCorpusOrder = []string{"dod-satisfiability", "why-auditor", "phase-economist", "gate-scope"}
 
+// EpicBuiltinRoleIDs returns the built-in graph role ids in panel order.
+func EpicBuiltinRoleIDs() []string {
+	return append([]string(nil), epicCorpusOrder...)
+}
+
 // DefaultEpicCorpusFiles returns the built-in graph role files in panel order,
 // each with its raw JSON bytes so eject writes byte-identical copies.
 func DefaultEpicCorpusFiles() ([]DefaultRoleFile, error) {
