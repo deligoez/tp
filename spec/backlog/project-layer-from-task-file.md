@@ -60,6 +60,37 @@ further design choice: the three left are named with their reasons.
 `ProjectRoot` (`projectconfig.go`) already computes the root the decision defines: the directory
 holding the `.tp/` discovery stops at, else the git top level, else the start directory itself.
 
+**Settled in review round 1.**
+
+- *Sides are per mode, not per command.* `internal/cli/command_sides.go` places each command's
+  default mode and each mode a flag selects. In the tree: `done`, `close`, `commit`, `import`,
+  `run`, `run --dry-run`, review's emission, `--perspective`, `--verify` and `--record` (it runs the
+  registered checks), and audit's emission. `--dry-run` stays in the tree because its next units
+  come from the oracle, which reads the working tree's git status, and the unexplained-changes
+  blocker can empty the batch. `run --status` reads only the run state and the run lock, so it is
+  on the file side, with review's `--status`, `--merge`, `--resolve`, `--resolve-all`, `--report` and
+  audit's `--status` and `--record`. A registered check refuses at its own sink wherever it runs.
+- *Exit 3, not 2.* The refusal is a file error: the file named belongs to another project. Under
+  `tp run`, exit 2 means "escalate an operator decision", and nothing about the refusal is the
+  operator's to decide. An unreadable project config is exit 3 too.
+- *One resolver.* The check takes the task file the mode has already resolved, by that mode's own
+  rule (`discoverWriteTarget`, `resolveCycle`, the import plan's spec, `ResolveWorkflow` for review
+  and audit, or the spec itself when none resolves); it resolves nothing itself. A check that
+  resolves by another route can approve a target the mode does not use, which is how `tp run
+  <foreign spec>` was let through. One test drives every tree mode with a foreign task file every
+  way it can be given one: a positional spec, `--file`, `TP_FILE`, the active pointer. Audit's
+  check runs before changed-file detection, so a foreign spec is refused rather than reported as
+  "no changed files".
+- *A side-effect `.tp/` is no anchor.* A `.tp/` holding only `locks/`, `rounds/`, `runs/`,
+  `run-*.json` or `last_failure-*.json` exists because a lock or a run needed somewhere to write,
+  and discovery skips it; outside any repository such writes add no `.gitignore`, which would
+  make it one. With no project `.tp/` and no repository, the first deliberate write decides the
+  root: `tp init` anchors the project in the working directory it runs from. A task file no such
+  write anchors is its own directory's root.
+- *Run state follows the location too.* `run-<key>.json`, `locks/run-<key>.lock` and
+  `last_failure-<key>.json` use `CycleKey`: the base for a task file at the root, its directory and
+  base path-escaped (`x%2Fa`) for one below, as the round directories are keyed.
+
 **Consequences.** Resolution precedence in REFERENCE changes. Driving another tree's plan with
 `--file` keeps working for reports and stops for work in the tree, which until now ran against the
 wrong project and exited 0.
