@@ -137,3 +137,17 @@ func TestDashboard_MissingTaskFileNamesThePathAsGiven(t *testing.T) {
 
 	requireSameErrorAsCommand(t, srv, dir, "missing.tasks.json", http.StatusNotFound)
 }
+
+// TestDashboard_DotDotThroughAMissingDirectoryAnswersAsTheCommand:
+// nope/../spec.tasks.json stays inside the repository, and since the OS
+// cannot open a path through a directory that does not exist, it answers
+// tp export's not-found error, not the outside-the-repository refusal.
+func TestDashboard_DotDotThroughAMissingDirectoryAnswersAsTheCommand(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeTaskFileRaw(t, dir, `[]`)
+	initGitRepo(t, dir)
+	srv := startDashboard(t, dir, freePort(t))
+
+	requireSameErrorAsCommand(t, srv, dir, "nope/../spec.tasks.json", http.StatusNotFound)
+}
