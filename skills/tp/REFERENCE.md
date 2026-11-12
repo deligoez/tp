@@ -1780,6 +1780,37 @@ The read commands write nothing and list epics in graph order, every list `[]` w
   lists per milestone. `--all` lifts the open-milestone rule.
 - **`tp epic gate <m>`**: `{milestone, green, members: [{id, state, status}], deferrable: [{id,
   status}], threshold?, met?, threshold_changed?}`, `state` `green` or `red`.
+- **`tp epic scope <m>`**: `{milestone, fingerprint, members, members_implicit, closure:
+  [{milestone, track, cross_track?, size, epics: [{id, any_of?}]}], shrink: [{epic, member, any_of?,
+  size, leaves}], outside: [{id, deferrable?, condition?}], no_dependents, deferrable_in_closure,
+  unneeded_earlier: [{milestone, epics, implicit_gates}], critical_path: {by_count, by_estimate:
+  {chain, estimate_minutes}}}`. `members` is `GateMembers`' list, `members_implicit` true when the
+  gate names none. `closure` is the not-done epics the not-done members reach through `depends_on`
+  entries not yet satisfied, members included and cut at done epics, per milestone in milestone order
+  (`track` -1 for a milestone no track lists); `cross_track` marks another track's milestone, as
+  information. An unsatisfied any-of group brings in every not-done member; `any_of` on an epic is
+  the first such group that brought it in, absent when a member or a plain edge also needs it.
+  `shrink` holds, for each closure epic that takes another with it, the epics that leave: for a
+  non-member, when every edge into it is cut; for a member (`member: true`), when it is dropped from
+  the gate. `size` counts the epic itself, `leaves` is sorted, rows go by size descending, then id.
+  `outside` is the milestone's not-done epics the closure misses, in graph order, under implicit
+  members too (they leave deferrable and condition epics out); `no_dependents` the ids of those no
+  `depends_on` entry of the graph names, plain or as an any-of member; `deferrable_in_closure` the
+  gate's `deferrable` epics the closure holds, which cannot actually be deferred (no lint rule reports
+  this). `unneeded_earlier`: for each milestone before `<m>` in its track, the not-done members of its
+  gate that no other tracked gate's closure holds, any track; `implicit_gates` names the other gates
+  consulted that were implicit, whose closure holds their whole milestone; a milestone with none is
+  left out. `critical_path` is `tp epic status`'s `milestones[m].critical_path`. `fingerprint` is the
+  hex sha256 of the sorted members, the sorted ids of the closure drawn blind to status (every epic
+  taken as not done, every any-of member followed) and the threshold, each part labelled and
+  length-prefixed: closing an epic or reordering the members leaves it, a rewritten threshold or a
+  change in the epics the members reach moves it. `--compact` prints `{fingerprint, milestone,
+  members, member_count?, closure: [{milestone, track, cross_track?, size}], shrink: [{epic, member,
+  any_of?, size}], critical_path_length}`, `members` reading `"implicit"` with `member_count` under an
+  implicit gate; it drops the closure's epic lists, `members_implicit`, `outside`, `no_dependents`,
+  `deferrable_in_closure`, `unneeded_earlier`, each shrink row's `leaves` and both critical path
+  chains, `critical_path_length` being the by-count chain's length. It writes nothing and runs under
+  `TP_UNATTENDED`.
 - **`tp epic status [--milestone <m>] [--open]`**: `{critical_path: {by_count}, milestones: [...]}`.
   The top-level `by_count` is the longest chain of not-done epics in the whole graph, in work order,
   counted in work epics; ties go to the chain ending earlier in graph order; v1.7.0: at an
