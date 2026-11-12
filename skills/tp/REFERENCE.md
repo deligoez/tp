@@ -714,7 +714,7 @@ tp:
 Reviewer and auditor roles are project-owned JSON files under the repo-root `.tp/` (discovered via the git-boundary anchor, committed to VCS):
 
 - `.tp/reviewers/*.json` — `tp review` roles; `.tp/auditors/*.json` — `tp audit` roles. The phase is inferred from the directory.
-- Schema (one shared parser/validator): `id` (MUST equal the filename stem, `^[a-z0-9]+(-[a-z0-9]+)*$`, not the reserved `regression`), `title`, `instructions`, `focus` (string[], optional), `domains` (string[], optional — default: every domain), `context` (`neighbours`, `neighbours-brief` or `dependencies`, optional; read only by `tp epic review`, see Epic Graph). Any other top-level key is a validation error — tp owns the finding output contract.
+- Schema (one shared parser/validator): `id` (MUST equal the filename stem, `^[a-z0-9]+(-[a-z0-9]+)*$`, not the reserved `regression`), `title`, `instructions`, `focus` (string[], optional), `domains` (string[], optional — default: every domain), `context` (`neighbours`, `neighbours-brief` or `dependencies`, optional; read only by `tp epic review`, see Epic Graph), `units` (a non-empty list of `epics`, `gates`, `scope`, optional — default `epics` and `gates`; read only by `tp epic review`) and `purpose` (boolean, optional — default false; read only by `tp epic review`). Any other top-level key is a validation error — tp owns the finding output contract.
 - The embedded default auditor prompts changed in v0.31.2 (language-neutral wording). Every eject writes an advisory to stderr — `note: these roles are starting points; rewrite their focus for your project's stack and conventions.` — suppressed by `--quiet` but not by JSON mode; the eject JSON payload keys stay exactly `ejected` and `domain`.
 
 | Command / flag | Meaning |
@@ -754,7 +754,7 @@ tp does **not** guard against deactivating a role that has open findings — no 
 
 `--merge` is the read because `tp review --status`/`--report` compute `overlap_report` over the **latest recorded round only** and therefore can never span the two rounds. The relabelled `role` travels into whatever you `--record`, so record a copy with the corpus id restored if round history should keep it. No flag or config supports the recipe — it is the existing instrument read along a second axis.
 
-**Transparency fields (v0.29.0, §9):** prompt emission (`tp review`/`tp audit`) reports `skipped_roles: [{role, reason}]` naming every corpus role it did not emit (`reason` ∈ `no-checklist-items` / `no-spec-change` / `domain-mismatch` / `no-baseline` / `disabled-by-spec`, plus `role-filter` for each emitted role `--role` narrowed away — under a driver (`TP_RUN_ID` set), only a prompt no sibling unit covers, today review's `regression`; `[]` when none skipped). Merge/`--status` summary adds `attribution_excludes: ["regression"]` **only** when excluding the built-in `regression` role causes `merged_count` to exceed the overlap-report finding count (omitted otherwise). `tp audit --merge`/`--status` emit their own `overlap_report` over non-PASS rows clustered by `(item_id, category)` with the same `{role, unique, shared, trim_candidate}` shape.
+**Transparency fields (v0.29.0, §9):** prompt emission (`tp review`/`tp audit`) reports `skipped_roles: [{role, reason}]` naming every corpus role it did not emit (`reason` ∈ `no-checklist-items` / `no-spec-change` / `domain-mismatch` / `no-baseline` / `disabled-by-spec`, plus `role-filter` for each emitted role `--role` narrowed away — under a driver (`TP_RUN_ID` set), only a prompt no sibling unit covers, today review's `regression`; `[]` when none skipped; `tp epic review` adds `no-units` for a graph role asked no unit of its kinds, Epic Graph). Merge/`--status` summary adds `attribution_excludes: ["regression"]` **only** when excluding the built-in `regression` role causes `merged_count` to exceed the overlap-report finding count (omitted otherwise). `tp audit --merge`/`--status` emit their own `overlap_report` over non-PASS rows clustered by `(item_id, category)` with the same `{role, unique, shared, trim_candidate}` shape.
 
 
 **`--role` payload contract (v0.36.0).** `--role <name>` narrows a `tp review`/`tp audit` emission to
@@ -1403,6 +1403,7 @@ so it changes only through the `tp epic` writers.
 | `epics[].claimed` | `{at, by}` | written by `tp epic claim`; ignored while a file is bound |
 | `epics[].done` | `{at, evidence}` | written by `tp epic done`, only on an epic with no bound file |
 | `gates.<milestone>.threshold` | string | the exit condition in the operator's words, written before the work |
+| `gates.<milestone>.purpose` | string, optional (v1.9.0) | why the milestone exists, in the operator's words, kept apart from the threshold; `tp epic set gates.<m>.purpose=<text>` writes it and an empty value clears it; empty or only whitespace counts as unset everywhere. It enters the `tp epic scope` fingerprint and reaches only graph roles with `purpose: true`; no lint rule reads it |
 | `gates.<milestone>.met` | `{at, evidence, threshold}` | written by `tp epic gate --met`, copying the threshold it was judged against |
 | a task file's `epic` | epic id, top-level | binds the file (v1.5.0): `tp init --epic`, `tp set --epic` (`""` removes it); refused for an id the graph does not hold, a condition or a done epic. `tp import` keeps it with its `bound_at` when the document has no `epic` key, as it keeps `workflow`, and keeps `bound_at` when the document names the same epic; a document naming another epic is refused at exit 1 and nothing is written (v1.8.0) |
 | a task file's `bound_at`, `imported_at` | RFC 3339 UTC, top-level (v1.8.0) | the time the file was bound and last imported; see *The task file's two times* |
@@ -1522,8 +1523,8 @@ its own, so the set may grow without changing directory. `--status` names it as
 
 | File | Written by | Content |
 |------|------------|---------|
-| `snapshot-round-<N>.json` | emission | each unit's hash and block text as round N read it; a unit's hash covers its own block and, for an epic, the blocks of its direct dependencies, an any-of group's members included (v1.7.0) |
-| `round-<N>.ndjson` | `--record` | the round's findings, each with `severity`, `finding`, `location` (`epic:<id>` or `gate:<m>`) and `evidence`; `--resolve` writes dispositions into the last one |
+| `snapshot-round-<N>.json` | emission | each unit's hash and block text as round N read it, and each slice milestone's purpose as `purposes` (v1.9.0); a unit's hash covers its own block and, for an epic, the blocks of its direct dependencies, an any-of group's members included (v1.7.0) |
+| `round-<N>.ndjson` | `--record` | the round's findings, each with `severity`, `finding`, `location` (`epic:<id>`, `gate:<m>` or `scope:<m>`) and `evidence`; `--resolve` writes dispositions into the last one |
 | `key.json` | emission (v1.5.0) | the slice's key, `{kind, value?, ids?, name?}` with `kind` one of `epic`, `milestone`, `epics`; `tp epic export` lists it |
 | `grant.json` | `--grant-round` (v1.7.0) | `{round}`, the one round past the cap the operator granted; recording that round spends it |
 
@@ -1538,20 +1539,61 @@ operator's decision, lets it emit and record one more round with the ordinary ca
 prompt, and recording that round spends the grant. It prints `{state_dir, round, next_action}`; a
 slice below its cap, unchanged since its last round, done, or already granted exits 4 and writes
 nothing, and it takes one slice at a time, no other mode beside it (exit 2).
-`--status` (v1.8.0) also prints `stale_units`, the unit keys (`epic:<id>`, `gate:<m>`) whose hash
-differs from the last recorded round's snapshot, in slice order — `[]` on a fresh slice, every unit
-before a round is recorded; since a unit's hash covers its dependencies' blocks, editing an epic names
-every unit whose hash covers it — `open_by_role`, the last round's undisposed findings counted by role
-(`unattributed` for none), summing to the same total as `open`, `max_rounds`, the resolved cap or
-`null` uncapped, and `grants_spent`, the recorded rounds past the cap.
-With no `.tp/epic-reviewers/` the three built-in graph roles run (`dod-satisfiability`,
-`why-auditor`, `phase-economist`); a populated directory replaces them. From round 2 the built-in
-`regression` role is appended whenever an asked unit changed or the round before resolved a finding
-`fixed`; when that round left nothing open and fixed no blocking finding, regression is the round's
-only role.
+`--status` (v1.8.0) also prints `stale_units`, the unit keys (`epic:<id>`, `gate:<m>`, `scope:<m>`)
+whose hash differs from the last recorded round's snapshot, in slice order — `[]` on a fresh slice,
+every unit before a round is recorded; since a unit's hash covers its dependencies' blocks, editing an
+epic names every unit whose hash covers it — `purpose_stale` (v1.9.0, below), `open_by_role`, the
+last round's undisposed findings counted by role (`unattributed` for none), summing to the same
+total as `open`, `max_rounds`, the resolved cap or `null` uncapped, and `grants_spent`, the recorded
+rounds past the cap.
+With no `.tp/epic-reviewers/` the four built-in graph roles run (`dod-satisfiability`,
+`why-auditor`, `phase-economist`, `gate-scope`); a populated directory replaces them. From round 2
+the built-in `regression` role is appended whenever an asked unit changed or the round before
+resolved a finding `fixed`; when that round left nothing open and fixed no blocking finding,
+regression is the round's only role, beside any purpose role a changed purpose re-asks (below).
 
-Each prompt reads, in order: the role's instructions, the asked units (and, when none is a gate, a
-line saying gate questions do not apply), the earlier rounds'
+**The gate taken whole (v1.9.0).** A slice that asks `gate:<m>` also asks `scope:<m>`, after every
+gate unit, while the gate has a `threshold` or a `purpose`; with neither there is no scope unit, and
+writing either later creates it. Its hash is the `tp epic scope <m>` fingerprint, and its block holds
+only what that fingerprint covers, every part blind to status: the sorted members, the sorted
+deferrables, the threshold, the purpose and the sorted ids of the status-blind closure. Closing an
+epic is progress and never re-asks it. Known limit: an edit inside the closure that leaves its id
+set, the members, the deferrables, the threshold and the purpose unchanged — a rewritten acceptance or
+why — does not re-ask the scope unit; the epic units it changes are re-asked as before. The first
+emission after an upgrade to v1.9.0 finds one new, so stale, scope unit in every slice whose gate
+has a threshold or a purpose; a slice already at its cap is then `grantable`, each needing its own
+`--grant-round`, which the cap does not waive.
+
+**Which units a role is asked.** A graph role file's optional `units` lists the unit kinds it is
+asked, a non-empty list drawn from `epics`, `gates` and `scope`; absent, it is `epics` and `gates`,
+so a custom or ejected corpus never receives a scope unit it was not written for. Each role is asked
+the asked units of its kinds only: the "no gate unit is asked" line, the carried-gate blocks and the
+carried-by-key list follow its kinds, as the finding contract's locations do. A role asked no unit of
+its kinds gets no prompt and is named in `skipped_roles` with reason `no-units`; the regression role
+reads `epics` and `gates`, so a round whose only changed unit is a scope unit names it there too. A
+round in which no role is asked anything prints `next_action` naming an empty `--record`. The
+built-ins: `dod-satisfiability` and `why-auditor` keep both default kinds, `phase-economist` takes
+`epics` alone with `purpose: true`, and `gate-scope` takes `scope` alone with `purpose: true`; the
+gate questions `phase-economist` used to ask moved to `gate-scope`.
+
+**The purpose (v1.9.0).** A role file's optional `purpose: true` gives the role, once, a header
+naming the purpose of each milestone its asked units belong to that has one. The round snapshot keeps
+each slice milestone's purpose (`purposes`); when a milestone's purpose changes, removal included,
+since the last recorded round, every unit of that milestone of a purpose role's kinds is asked of
+that role again, although its hash is unchanged. That is no unit change: it appends no regression
+role and sets no regression-only round. Until such a round is recorded, `--status` lists those units
+in `purpose_stale` (`[]` when none; a unit already in `stale_units` is not repeated), the slice is
+`stale`, so neither converged nor done and, at its cap, `grantable`, and the batch `--status` rows
+carry the same `purpose_stale`. A snapshot written before v1.9.0 holds no purposes, which reads as
+none set, so an upgrade that writes no purpose re-asks nothing. The switch is per role: a purpose
+reaches only the roles whose file says `purpose: true`, the price of keeping it away from the roles
+no trial gave it to. A custom or ejected corpus gets these mechanisms, not the built-in text: a
+corpus ejected before v1.9.0 keeps the old `phase-economist`, gate focus included, and has no
+`gate-scope` until it is ejected again or the file is added.
+
+Each prompt reads, in order: the role's instructions, the asked units (and, for each of its kinds of
+which none is asked, a line saying that kind's questions do not apply), a purpose role's purpose
+header, the earlier rounds'
 `wontfix`/`duplicate` decisions on them with their round and evidence, the role's focus questions
 and any round input (regression's fixed findings, each asked unit whose own block changed shown as the
 round before read it and as it reads now, and the blocks of the epics a changed unit's title or
@@ -1567,8 +1609,12 @@ in full); `dod-satisfiability` and `why-auditor` ship with `dependencies`, and
 An any-of group's every member is one edge away from its epic (v1.7.0): asking the epic shows the
 members as dependencies, asking a member shows the epic as a dependent, its brief listing the group
 as `one of {A, B}: <why>`.
-A carried gate's block is shown read-only in the context of
-every prompt. Each prompt's `output_path` is the absolute `<state dir>/inbox/<role>-r<N>.ndjson`
+A carried gate's block is shown read-only in the context of every prompt whose role takes gate
+units, and the carried units no block shows are listed by key. A prompt asking `scope:<m>` adds, as
+context and never in a hash, the live `tp epic scope <m>` measurement: every closure epic and every
+epic of `<m>` outside the closure once, by its title, acceptance and edges with their whys, marked
+`member`, `any_of`, `deferrable`, `outside`, `condition` or `no_dependents`, then the shrink rows,
+`deferrable_in_closure`, `holds_opening` and the critical path by count. Each prompt's `output_path` is the absolute `<state dir>/inbox/<role>-r<N>.ndjson`
 in the slice's inbox (v1.7.0; until then a cwd-relative `epic-review-<hash prefix>-r<N>-<role>.ndjson`),
 the same path the prompt names; inside a `tp run` unit it is the `$TP_ROUND_DIR` path instead.
 The emission creates the inbox and removes nothing in it, so re-emitting and per-role emission keep
@@ -1588,7 +1634,7 @@ listed twice is one slice.
 | Call | Reads | Payload |
 |------|-------|---------|
 | emission | each listed milestone; `--all`: every milestone the tracks hold, in track order | `{slices: [{key, <emission>...}...], skipped: [{key, reason}]}` |
-| `--status [--check]` | each listed milestone; `--all`: every slice directory, in track order | `{slices: [{key, round, state, stale_units, open, open_by_role, grantable, max_rounds, grants_spent, next_action}]}` |
+| `--status [--check]` | each listed milestone; `--all`: every slice directory, in track order | `{slices: [{key, round, state, stale_units, purpose_stale, open, open_by_role, grantable, max_rounds, grants_spent, next_action}]}` |
 | `--report` | each listed milestone; `--all`: every slice directory, in track order | `{classes: [{class, epics, slices: [{key, rounds}]}]}` |
 
 `--milestones` keeps the order given. Under `--all`, track order lists each milestone slice where
