@@ -61,6 +61,16 @@ func TestLintEpicGraph_DeferrableRequiredListsEveryRequirer(t *testing.T) {
 	assert.Equal(t, []string{"a1", "a2", "d1", "x1", "y1"}, found[0].Epics)
 }
 
+// TestLintEpicGraph_DeferrableRequiredNamesAnEpicOnce: the example member
+// a1 is also a direct requirer, and Epics lists it once.
+func TestLintEpicGraph_DeferrableRequiredNamesAnEpicOnce(t *testing.T) {
+	g := deferrableLintGraph([]string{"a1"}, []string{"d1"}, dependsOn("a1", "m0", "d1"), dependsOn("d1", "m0"))
+	found := findingsOf(t, LintEpicGraph(g, nil), EpicRuleDeferrableRequired)
+	require.Len(t, found, 1, "%v", found)
+	assert.Equal(t, []string{"a1", "d1"}, found[0].Epics)
+	assert.Contains(t, found[0].Message, "required by a1:")
+}
+
 // TestLintEpicGraph_DeferrableRequiredCapsTheRequirers: four requirers are
 // counted past the third.
 func TestLintEpicGraph_DeferrableRequiredCapsTheRequirers(t *testing.T) {
