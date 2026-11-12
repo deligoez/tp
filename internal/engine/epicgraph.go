@@ -176,14 +176,16 @@ func unknownKeys(obj map[string]json.RawMessage, known map[string]bool, prefix, 
 
 // WriteEpicGraph writes g to tpDir/epics.json as 2-space JSON with content
 // left unescaped, through a temp file and a rename so a lock-free reader never
-// sees a partial document. A whitespace-only description is unset, so it is
-// cleared here, at the one sink every writer shares. The caller holds the
-// write lock.
+// sees a partial document. A description's CRLF line ends become LF and a
+// whitespace-only one is unset, both here, at the one sink every writer
+// shares, so one text is one description. The caller holds the write lock.
 func WriteEpicGraph(tpDir string, g *model.EpicGraph) error {
 	for i := range g.Epics {
-		if strings.TrimSpace(g.Epics[i].Description) == "" {
-			g.Epics[i].Description = ""
+		desc := strings.ReplaceAll(g.Epics[i].Description, "\r\n", "\n")
+		if strings.TrimSpace(desc) == "" {
+			desc = ""
 		}
+		g.Epics[i].Description = desc
 	}
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
