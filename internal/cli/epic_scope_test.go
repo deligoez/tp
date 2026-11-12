@@ -37,6 +37,7 @@ func TestEpicScope_Payload(t *testing.T) {
 	assert.Regexp(t, `^\{\s*"fingerprint"`, stdout, "the fingerprint comes first")
 	assert.JSONEq(t, `["a1"]`, string(out["members"]))
 	assert.JSONEq(t, `1`, string(out["member_count"]))
+	assert.JSONEq(t, `null`, string(out["purpose"]), "an unset purpose prints null")
 	assert.JSONEq(t, `[
 	  {"milestone": "m0", "track": 0, "size": 1, "epics": [{"id": "a0"}]},
 	  {"milestone": "m1", "track": 0, "size": 1, "epics": [{"id": "a1"}]},
@@ -63,7 +64,7 @@ func TestEpicScope_Compact(t *testing.T) {
 
 	stdout, stderr, code := runTP(t, dir, "--compact", "epic", "scope", "m1")
 	require.Equal(t, 0, code, "stderr: %s", stderr)
-	assert.JSONEq(t, `{"fingerprint": "`+fullOut.Fingerprint+`", "milestone": "m1", "members": ["a1"],
+	assert.JSONEq(t, `{"fingerprint": "`+fullOut.Fingerprint+`", "milestone": "m1", "purpose": null, "members": ["a1"],
 	  "members_implicit": false, "member_count": 1,
 	  "closure": [{"milestone": "m0", "track": 0, "size": 1}, {"milestone": "m1", "track": 0, "size": 1},
 	    {"milestone": "n0", "track": 1, "cross_track": true, "size": 1}],
@@ -81,9 +82,10 @@ func TestEpicScope_Compact(t *testing.T) {
 }
 
 // epicScopeImplicitGraph is a synthetic graph whose m1 gate names no members
-// and lists d1 deferrable, which the member b1 requires anyway.
+// and lists d1 deferrable, which the member b1 requires anyway, under a
+// written purpose.
 const epicScopeImplicitGraph = `{"version": 1, "milestones": [["m0", "m1"]],
-  "gates": {"m1": {"members": [], "deferrable": ["d1"], "threshold": "ten users"}},
+  "gates": {"m1": {"members": [], "deferrable": ["d1"], "threshold": "ten users", "purpose": "prove the import path"}},
   "epics": [
     {"id": "a0", "title": "A0", "milestone": "m0", "root": true},
     {"id": "b1", "title": "B1", "milestone": "m1", "depends_on": [
@@ -113,6 +115,7 @@ func TestEpicScope_CompactIsASubsetOfFull(t *testing.T) {
 			assertJSONSubset(t, "$", compact, full)
 			if name == "implicit" {
 				assert.Contains(t, compact, "deferrable_in_closure")
+				assert.Equal(t, "prove the import path", compact.(map[string]any)["purpose"], "compact keeps a written purpose")
 			}
 		})
 	}
