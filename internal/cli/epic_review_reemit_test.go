@@ -178,11 +178,45 @@ func TestEpicReview_GrantRoundStaysAlone(t *testing.T) {
 func TestEpicReemit_ForceWithoutResolveIsRefused(t *testing.T) {
 	t.Parallel()
 	dir := epicGraphDir(t, epicChain)
-	runEpicReview(t, dir, "--milestone", "A", "--force")
-	rewriteEpicGraph(t, dir, strings.Replace(epicChain, `"title": "D"`, `"title": "D renamed"`, 1))
 	_, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A", "--force")
+	require.Equal(t, 2, code, "stderr: %s", stderr)
+	msg, _ := epicErrorOf(t, stderr)
+	assert.Equal(t, "--force only re-resolves on epic review (with --resolve or --resolve-all); to discard an unrecorded emission use tp epic review <slice> --discard", msg)
+	_, err := os.Stat(filepath.Join(dir, ".tp", "epic-review"))
+	assert.True(t, os.IsNotExist(err), "nothing is written")
+}
+
+// TestEpicReemit_DiscardOnAPreReleaseSnapshotRemovesTheRoundsInbox: a
+// snapshot from before v1.10.0 stores no panel, so --discard falls back to
+// the round's inbox files by name; the stale rows the roles wrote are gone,
+// and the next emission's --record-inbox refuses for the missing files
+// rather than recording them.
+func TestEpicReemit_DiscardOnAPreReleaseSnapshotRemovesTheRoundsInbox(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChain)
+	out := runEpicReview(t, dir, "--milestone", "A")
+	require.Len(t, out.Prompts, 3)
+	path := filepath.Join(dir, out.StateDir, "snapshot-round-1.json")
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	var snap map[string]any
+	require.NoError(t, json.Unmarshal(data, &snap))
+	delete(snap, "roles")
+	stripped, err := json.Marshal(snap)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path, stripped, 0o600))
+	for _, p := range out.Prompts {
+		require.NoError(t, os.WriteFile(p.OutputPath, []byte(`{"severity":"high","finding":"stale","location":"epic:d","evidence":"e"}`+"\n"), 0o600))
+	}
+
+	stdout, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A", "--discard")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.Contains(t, stdout, `"files_removed": 3`)
+
+	runEpicReview(t, dir, "--milestone", "A")
+	_, stderr, code = runTP(t, dir, "epic", "review", "--milestone", "A", "--record-inbox")
 	require.Equal(t, 3, code, "stderr: %s", stderr)
-	assert.Contains(t, stderr, "its emission changed since")
+	assert.Contains(t, stderr, "no findings file from roles")
 }
 
 // TestEpicReemit_ForceBesideResolveKeepsItsMeaning: beside --resolve, --force
