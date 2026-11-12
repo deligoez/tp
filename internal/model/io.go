@@ -14,7 +14,12 @@ func ReadTaskFile(path string) (*TaskFile, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read task file: %w", err)
 	}
+	return ParseTaskFile(data)
+}
 
+// ParseTaskFile parses the bytes of a .tasks.json file, for a caller that
+// read them itself.
+func ParseTaskFile(data []byte) (*TaskFile, error) {
 	// First pass: extract version with lenient parsing (accepts int, string, or missing).
 	var raw struct {
 		Version json.RawMessage `json:"version"`
