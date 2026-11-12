@@ -23,6 +23,15 @@ type EpicScope struct {
 	// Shrink is each closure epic's removal shrink that takes at least one
 	// other epic with it, by size descending, then id.
 	Shrink []ScopeShrink `json:"shrink"`
+	// Outside is the milestone's not-done epics the closure misses, in graph
+	// order. Under implicit members it is empty by definition and
+	// OutsideImplicit says so, rather than leaving [] to read as a measured
+	// result.
+	Outside         []string `json:"outside"`
+	OutsideImplicit bool     `json:"outside_implicit,omitempty"`
+	// NoDependents is the part of Outside no epic of the graph depends on, by
+	// plain edge or as an any-of member; empty under implicit members.
+	NoDependents []string `json:"no_dependents"`
 }
 
 // ScopeShrink is one closure epic's removal shrink: for a non-member, the
@@ -65,13 +74,47 @@ func MilestoneScope(g *model.EpicGraph, states map[string]EpicState, estimates m
 	members, _ := GateMembers(g, milestone)
 	full := w.closure(members, "")
 	closure := w.compose(full)
-	return EpicScope{
+	implicit := len(g.Gates[milestone].Members) == 0
+	s := EpicScope{
 		Milestone:       milestone,
 		Members:         members,
-		MembersImplicit: len(g.Gates[milestone].Members) == 0,
+		MembersImplicit: implicit,
 		Closure:         closure,
 		Shrink:          w.shrink(members, full, closure),
+		Outside:         []string{},
+		OutsideImplicit: implicit,
+		NoDependents:    []string{},
 	}
+	if !implicit {
+		s.Outside, s.NoDependents = w.outside(milestone, full)
+	}
+	return s
+}
+
+// outside returns milestone's not-done epics full misses, in graph order,
+// and the part of them no depends_on entry of the graph names.
+func (w *scopeWalk) outside(milestone string, full scopeSet) (outside, noDependents []string) {
+	named := map[string]bool{}
+	for i := range w.g.Epics {
+		for _, d := range w.g.Epics[i].DependsOn {
+			named[d.ID] = true
+			for _, id := range d.Members() {
+				named[id] = true
+			}
+		}
+	}
+	outside, noDependents = []string{}, []string{}
+	for i := range w.g.Epics {
+		e := &w.g.Epics[i]
+		if e.Milestone != milestone || w.epics[e.ID] != e || !w.open(e.ID) || full.in[e.ID] {
+			continue
+		}
+		outside = append(outside, e.ID)
+		if !named[e.ID] {
+			noDependents = append(noDependents, e.ID)
+		}
+	}
+	return outside, noDependents
 }
 
 // shrink returns the removal shrink rows of full's epics, listed in closure
