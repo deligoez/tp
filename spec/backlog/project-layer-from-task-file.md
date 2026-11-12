@@ -89,7 +89,17 @@ holding the `.tp/` discovery stops at, else the git top level, else the start di
   write anchors is its own directory's root.
 - *Run state follows the location too.* `run-<key>.json`, `locks/run-<key>.lock` and
   `last_failure-<key>.json` use `CycleKey`: the base for a task file at the root, its directory and
-  base path-escaped (`x%2Fa`) for one below, as the round directories are keyed.
+  base path-escaped (`x%2Fa`) for one below, as the round directories are keyed. The root base is
+  escaped too, so a root `x%2Fa.tasks.json` cannot share `x/a.tasks.json`'s state, and the key is
+  computed against the project root for the lock and the state alike.
+
+**Settled after review round 2.** `.gitignore` counts as a side-effect entry by name, whatever it
+says, so the nested `docs/.tp/` (`.gitignore` and `locks/`) that tp 1.11's locks left outside a
+repository is no root; `tp init` anchors a project outside a repository with an empty
+`.tp/config.json`. Release-note draft line: *Upgrading outside a git repository: a `docs/.tp/`
+left beside a task file by tp 1.11 is no longer a project root. Delete it with `rm -r docs/.tp`
+once `ls -A docs/.tp` shows nothing but `.gitignore` and `locks/` — never if it holds
+`config.json`, `local.json`, `reviewers/`, `auditors/` or `epics.json`.*
 
 **Consequences.** Resolution precedence in REFERENCE changes. Driving another tree's plan with
 `--file` keeps working for reports and stops for work in the tree, which until now ran against the
