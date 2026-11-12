@@ -116,14 +116,15 @@ func TestEpicReview_BuiltInRolesRunUntilTheDirectoryReplacesThem(t *testing.T) {
 		assert.NotEmpty(t, p.OutputPath)
 	}
 
-	rolesDir := filepath.Join(dir, ".tp", "epic-reviewers")
+	// The directory goes into a project whose round is not out yet: a corpus
+	// change under an unrecorded round is the re-emission guard's case.
+	replaced := epicGraphDir(t, epicChain)
+	rolesDir := filepath.Join(replaced, ".tp", "epic-reviewers")
 	require.NoError(t, os.Mkdir(rolesDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(rolesDir, "edge-reader.json"),
 		[]byte(`{"id": "edge-reader", "title": "Edge reader", "instructions": "Read every edge."}`), 0o600))
 
-	// The new corpus changes the unrecorded round's panel, so re-emitting
-	// it is the operator's --force discard (spec/backlog/epic-reemit-guard.md).
-	out = runEpicReview(t, dir, "--epic", "b", "--force")
+	out = runEpicReview(t, replaced, "--epic", "b")
 	assert.Equal(t, []string{"edge-reader"}, promptRoles(&out))
 }
 
