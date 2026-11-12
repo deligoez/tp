@@ -85,7 +85,8 @@ func (r *dashRepo) plan(tpDir string, g *model.EpicGraph) (DashboardPlan, error)
 		return DashboardPlan{}, err
 	}
 	wf := ResolveWorkflowLayers(&model.WorkflowOverride{}, &pc.Workflow)
-	policy := EpicReviewPolicy{CleanRounds: wf.ReviewCleanRounds, MaxRounds: wf.ReviewMaxRounds, ConvergeOn: wf.ReviewConvergeOn}
+	policy := EpicReviewPolicy{CleanRounds: wf.ReviewCleanRounds, MaxRounds: wf.ReviewMaxRounds, ConvergeOn: wf.ReviewConvergeOn,
+		PurposeKinds: EpicPurposeKinds(filepath.Dir(tpDir))}
 	reviewSlices, err := EpicReviewSlices(tpDir, g, policy)
 	if err != nil {
 		return DashboardPlan{}, err

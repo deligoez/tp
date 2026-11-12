@@ -13,6 +13,30 @@ type EpicReviewPolicy struct {
 	CleanRounds int
 	MaxRounds   int // 0 is uncapped
 	ConvergeOn  string
+	// PurposeKinds are the unit kinds a role with purpose: true is asked
+	// (EpicPurposeKinds): a unit of one of them whose milestone's purpose
+	// changed waits on that role's re-ask, so the slice is stale until it is
+	// recorded. Empty, no purpose change holds a slice open.
+	PurposeKinds map[string]bool
+}
+
+// EpicPurposeKinds returns the unit kinds the roles with purpose: true are
+// asked, over the graph-review corpus resolved from startDir; none when the
+// corpus cannot be read, which the emission itself reports.
+func EpicPurposeKinds(startDir string) map[string]bool {
+	kinds := map[string]bool{}
+	roles, err := ResolveEpicRoleCorpus(startDir)
+	if err != nil {
+		return kinds
+	}
+	for i := range roles {
+		if roles[i].Purpose {
+			for _, k := range roles[i].UnitKinds() {
+				kinds[k] = true
+			}
+		}
+	}
+	return kinds
 }
 
 // EpicReviewStatus is a slice's loop verdict, read live from its state
@@ -28,7 +52,12 @@ type EpicReviewStatus struct {
 	// StaleUnits names, in slice order, the units whose hash differs from
 	// the last recorded round's snapshot or has none there (spec/1.8.0.md
 	// §5): every unit before a round is recorded, none on a fresh slice.
-	StaleUnits    []string
+	StaleUnits []string
+	// PurposeStale names, in slice order, the units of a purpose role's
+	// kinds (EpicReviewPolicy.PurposeKinds) whose hash is unchanged but
+	// whose milestone's purpose differs from the last recorded round's
+	// snapshot; Stale holds while either list is not empty.
+	PurposeStale  []string
 	InFlightRound int
 	CapReached    bool
 	Undisposed    int
@@ -74,11 +103,12 @@ func EpicReviewLoopStatus(stateDir string, units []EpicReviewUnit, p EpicReviewP
 		}
 		rounds = append(rounds, rows)
 	}
-	stale, staleUnits, err := epicSliceStale(stateDir, st.Round, units)
+	staleUnits, purposeStale, err := epicSliceStale(stateDir, st.Round, units, p.PurposeKinds)
 	if err != nil {
 		return EpicReviewStatus{}, err
 	}
-	st.Stale, st.StaleUnits = stale, staleUnits
+	st.StaleUnits, st.PurposeStale = staleUnits, purposeStale
+	st.Stale = st.Round < 1 || len(staleUnits) > 0 || len(purposeStale) > 0
 	st.Open, st.OpenByRole = map[string]int{"critical": 0, "high": 0, "medium": 0, "low": 0}, map[string]int{}
 	if len(rounds) > 0 {
 		epicCountOpen(&st, rounds[len(rounds)-1])
@@ -181,26 +211,29 @@ func epicCapUndisposed(rows []map[string]any, convergeOn string) (undisposed, bl
 	return undisposed, blockingFixed
 }
 
-// epicSliceStale reports whether any unit's hash differs from the snapshot of
-// the last recorded round, or has none recorded (D7), and names each such
-// unit. No recorded round records no hash, so the slice is stale and every
-// unit is named.
-func epicSliceStale(stateDir string, round int, units []EpicReviewUnit) (stale bool, changed []string, err error) {
-	changed = []string{}
+// epicSliceStale names each unit whose hash differs from the snapshot of the
+// last recorded round, or has none recorded (D7), and each other unit of
+// purposeKinds whose milestone's purpose differs from that snapshot's. No
+// recorded round records no hash, so every unit is named changed.
+func epicSliceStale(stateDir string, round int, units []EpicReviewUnit, purposeKinds map[string]bool) (changed, purposeStale []string, err error) {
+	changed, purposeStale = []string{}, []string{}
 	if round < 1 {
 		for _, u := range units {
 			changed = append(changed, u.Key)
 		}
-		return true, changed, nil
+		return changed, purposeStale, nil
 	}
-	snap, err := readEpicSnapshot(stateDir, round)
+	snap, err := readEpicSnapshotFile(stateDir, round)
 	if err != nil {
-		return false, nil, err
+		return nil, nil, err
 	}
 	for _, u := range units {
-		if hash, ok := snap[u.Key]; !ok || hash != u.Hash {
+		switch hash, ok := snap.Units[u.Key]; {
+		case !ok || hash != u.Hash:
 			changed = append(changed, u.Key)
+		case purposeKinds[EpicUnitKind(u.Key)] && snap.Purposes[u.Milestone] != u.Purpose:
+			purposeStale = append(purposeStale, u.Key)
 		}
 	}
-	return len(changed) > 0, changed, nil
+	return changed, purposeStale, nil
 }
