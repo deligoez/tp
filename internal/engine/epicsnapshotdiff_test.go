@@ -128,3 +128,20 @@ func TestEpicSnapshotDiff_AFieldAddedReadsAsAChangeFromEmpty(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []EpicFieldChange{{Unit: "epic:a", Field: "acceptance", Before: "", After: "a ships"}}, diff.FieldsChanged)
 }
+
+// TestEpicSnapshotDiff_AMultiLineFieldChangesAsOneValue: a's acceptance runs
+// over two lines and only its second changes; the block's continuation line
+// joins the field it continues, so the diff lists one acceptance change with
+// both whole texts.
+func TestEpicSnapshotDiff_AMultiLineFieldChangesAsOneValue(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	require.NoError(t, WriteEpicReviewSnapshot(dir, 1, snapshotUnits(model.Epic{ID: "a", Title: "A", Milestone: "M", Acceptance: "a ships\nunder load"})))
+	require.NoError(t, WriteEpicReviewSnapshot(dir, 2, snapshotUnits(model.Epic{ID: "a", Title: "A", Milestone: "M", Acceptance: "a ships\nunder twice the load"})))
+
+	diff, err := EpicReviewRoundsDiff(dir, 1, 2)
+	require.NoError(t, err)
+	assert.Equal(t, []EpicFieldChange{{
+		Unit: "epic:a", Field: "acceptance", Before: "a ships\nunder load", After: "a ships\nunder twice the load",
+	}}, diff.FieldsChanged)
+}
