@@ -59,7 +59,9 @@ func runInit(_ *cobra.Command, args []string) error {
 	specPath := args[0]
 	if initEpic != "" {
 		fenceEpicOperatorWrite("tp init --epic", engine.EscalateEpicBinding)
-		exitOnEpicBindingRefusal(initEpic)
+		// The new task file sits beside the spec, so its project is the spec's
+		// directory's.
+		exitOnEpicBindingRefusal(initEpic, filepath.Dir(specPath))
 	}
 	// An unrecognized strategy is refused before anything is written: stored,
 	// it would only surface later as a warning on the surfaces that read it.
@@ -108,7 +110,7 @@ func runInit(_ *cobra.Command, args []string) error {
 			BoundAt: boundAtFor(initEpic, now),
 		}
 
-		fenceQualityGateInit(initQualityGate)
+		fenceQualityGateInit(initQualityGate, taskFilePath)
 		if initQualityGate != "" {
 			qg := initQualityGate
 			tf.Workflow.QualityGate = &qg

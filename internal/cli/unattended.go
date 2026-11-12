@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/deligoez/tp/internal/engine"
 	"github.com/deligoez/tp/internal/model"
@@ -108,7 +109,7 @@ func fenceQualityGateImport(targetPath string, incoming *model.WorkflowOverride)
 	if !engine.Unattended() {
 		return
 	}
-	project := engine.ProjectWorkflowOverride()
+	project := engine.ProjectWorkflowOverride(filepath.Dir(targetPath))
 	var existing model.WorkflowOverride
 	if o, err := engine.LoadTaskWorkflowOverride(targetPath); err == nil {
 		existing = o
@@ -125,12 +126,12 @@ func fenceQualityGateImport(targetPath string, incoming *model.WorkflowOverride)
 // fenceQualityGateInit applies the change rule to tp init --quality-gate. A
 // new task file resolves the project layer's gate without the flag, so naming
 // that same gate changes nothing and naming any other one is refused.
-func fenceQualityGateInit(gate string) {
+func fenceQualityGateInit(gate, taskFilePath string) {
 	if !engine.Unattended() || gate == "" {
 		return
 	}
 	var empty model.WorkflowOverride
-	project := engine.ProjectWorkflowOverride()
+	project := engine.ProjectWorkflowOverride(filepath.Dir(taskFilePath))
 	if gate != engine.ResolveWorkflowLayers(&empty, &project).QualityGate {
 		refuseUnattendedQualityGate("tp init --quality-gate",
 			"omit --quality-gate and the new task file inherits the resolved gate")
@@ -256,12 +257,14 @@ const (
 // task-level write can change. The --project form does not call it at all: that
 // write lands under every base, so no single base's layers decide it.
 func fenceOverrideLayers() (task, project model.WorkflowOverride) {
+	start := "."
 	if path, err := engine.DiscoverTaskFile(".", flagFile); err == nil {
+		start = filepath.Dir(path)
 		if o, loadErr := engine.LoadTaskWorkflowOverride(path); loadErr == nil {
 			task = o
 		}
 	}
-	return task, engine.ProjectWorkflowOverride()
+	return task, engine.ProjectWorkflowOverride(start)
 }
 
 // refuseUnattendedAuditConvergeOnProject reports a tp set --workflow --project
@@ -369,7 +372,7 @@ func fenceAuditConvergeOnImport(targetPath string, incoming *model.WorkflowOverr
 	if !engine.Unattended() {
 		return
 	}
-	project := engine.ProjectWorkflowOverride()
+	project := engine.ProjectWorkflowOverride(filepath.Dir(targetPath))
 	var existing model.WorkflowOverride
 	if o, err := engine.LoadTaskWorkflowOverride(targetPath); err == nil {
 		existing = o

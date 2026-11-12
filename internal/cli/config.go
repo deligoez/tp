@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 
 	"github.com/spf13/cobra"
@@ -53,7 +54,7 @@ func sourceLabel(fromOverride, fromProject bool) string {
 // notify_cmd, which is per-operator and can only come from .tp/local.json, so
 // it reports local or default and never override or project (§7).
 func resolvedConfig(wf *model.Workflow, override *model.WorkflowOverride) map[string]any {
-	project := engine.ProjectWorkflowOverride()
+	project := engine.ProjectWorkflowOverride(configStart())
 	vs := func(value any, o, p bool) map[string]any {
 		return map[string]any{"value": value, "source": sourceLabel(o, p)}
 	}
@@ -147,10 +148,22 @@ func surfaceConfigWarnings() {
 	}
 }
 
+// configStart is where tp config discovers the project layer: the active or
+// --file task file's directory, since the layer belongs to the task file
+// (spec/backlog/project-layer-from-task-file.md), and the working directory
+// only when no task file resolves.
+func configStart() string {
+	if taskFilePath, err := engine.DiscoverTaskFile(".", flagFile); err == nil && taskFilePath != "" {
+		return filepath.Dir(taskFilePath)
+	}
+	return "."
+}
+
 // resolveConfigWorkflow resolves the effective workflow for tp config: the
-// project config (from CWD) layered under the active/--file task file's own
-// workflow override. A missing task file yields the project layer alone. A
-// malformed config aborts with exit 3 and a repair-or-delete hint.
+// task file's project config layered under the active/--file task file's own
+// workflow override. A missing task file yields the working directory's
+// project layer alone. A malformed config aborts with exit 3 and a
+// repair-or-delete hint.
 func resolveConfigWorkflow() (model.Workflow, model.WorkflowOverride) {
 	var override model.WorkflowOverride
 	if taskFilePath, err := engine.DiscoverTaskFile(".", flagFile); err == nil && taskFilePath != "" {
@@ -158,7 +171,7 @@ func resolveConfigWorkflow() (model.Workflow, model.WorkflowOverride) {
 		// re-reads and aborts with exit 3 on a truly malformed config.
 		override, _ = engine.LoadTaskWorkflowOverride(taskFilePath)
 	}
-	wf, warnings, err := engine.ResolveEffectiveWorkflow(".", &override)
+	wf, warnings, err := engine.ResolveEffectiveWorkflow(configStart(), &override)
 	if err != nil {
 		var mce *engine.MalformedConfigError
 		if errors.As(err, &mce) {
@@ -185,7 +198,7 @@ func runConfig(_ *cobra.Command, _ []string) error {
 	// commit_strategy is a strategy-reading surface: warn on an unrecognized value
 	// or an hc-absent hc strategy, and expose the concrete builtin/hc behavior
 	// after auto resolution (§5.2).
-	effective := warnCommitStrategy(override.CommitStrategy, engine.ProjectWorkflowOverride().CommitStrategy)
+	effective := warnCommitStrategy(override.CommitStrategy, engine.ProjectWorkflowOverride(configStart()).CommitStrategy)
 	if configResolved {
 		result := resolvedConfig(&wf, &override)
 		result["epic"] = configEpic(true)
@@ -203,7 +216,7 @@ func runConfig(_ *cobra.Command, _ []string) error {
 // not compile warns and reports the default, the pattern the epic commands
 // use. A malformed config has already aborted in resolveConfigWorkflow.
 func configEpic(resolved bool) map[string]any {
-	pattern, fromProject, _ := engine.ProjectThresholdPlaceholder(engine.DiscoverTPDir("."))
+	pattern, fromProject, _ := engine.ProjectThresholdPlaceholder(engine.DiscoverTPDir(configStart()))
 	if _, err := engine.NewPlaceholderMatcher(pattern); fromProject && err != nil {
 		// The epic commands fall back to the default for a pattern that does
 		// not compile, so the default is what tp config reports as effective.

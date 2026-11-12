@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/deligoez/tp/internal/engine"
@@ -30,7 +31,11 @@ func runSetEpic(args []string, id string) error {
 		os.Exit(ExitUsage)
 	}
 	if id != "" {
-		exitOnEpicBindingRefusal(id)
+		start := "."
+		if p, err := engine.DiscoverTaskFile(".", flagFile); err == nil {
+			start = filepath.Dir(p)
+		}
+		exitOnEpicBindingRefusal(id, start)
 	}
 	taskFilePath, err := discoverWriteTarget()
 	if err != nil {
@@ -77,8 +82,10 @@ func boundAtFor(id string, now time.Time) *time.Time {
 
 // exitOnEpicBindingRefusal exits 1 when §2 refuses binding a task file to
 // epic id, and 3 when the graph file cannot be read; it returns otherwise.
-func exitOnEpicBindingRefusal(id string) {
-	err := engine.CheckEpicBinding(engine.ProjectConfigDir("."), id)
+// The graph is the task file's project's, discovered from start, the task
+// file's directory (spec/backlog/project-layer-from-task-file.md).
+func exitOnEpicBindingRefusal(id, start string) {
+	err := engine.CheckEpicBinding(engine.ProjectConfigDir(start), id)
 	if err == nil {
 		return
 	}

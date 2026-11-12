@@ -2,6 +2,7 @@ package cli
 
 import (
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -161,7 +162,7 @@ func runPlan(_ *cobra.Command, _ []string) error {
 	if !planMinimal {
 		override := tf.Workflow
 		engine.ClampWorkflowRanges(&override)
-		project := engine.ProjectWorkflowOverride()
+		project := engine.ProjectWorkflowOverride(filepath.Dir(taskFilePath))
 		wf := engine.ResolveWorkflowLayers(&override, &project)
 		wfPtr = &wf
 	}

@@ -134,7 +134,7 @@ func runValidateProject() error {
 	}
 
 	refuseUncompiledPlaceholder(tpDir)
-	project := engine.ProjectWorkflowOverride()
+	project := engine.ProjectWorkflowOverride(".")
 	files, scanErr := engine.ScanProjectTaskFiles(root)
 
 	deviations := make([]map[string]any, 0)

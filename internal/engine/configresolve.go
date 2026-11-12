@@ -77,13 +77,19 @@ func LocalFlagDefaults() map[string]bool {
 	return lc.Defaults
 }
 
-// ProjectWorkflowOverride returns the project config's workflow override
-// discovered from the working directory, or an empty override when no .tp/ or
-// config exists or the config is unreadable (best-effort; commands that must
-// abort on a malformed config call LoadProjectConfig directly). Exported so
-// tp config --resolved can attribute each field to the project layer.
-func ProjectWorkflowOverride() model.WorkflowOverride {
-	tpDir := DiscoverTPDir(".")
+// ProjectWorkflowOverride returns the workflow override of the project config
+// discovered from start, or an empty override when no .tp/ or config exists or
+// the config is unreadable. start is the task file's directory wherever a task
+// file is in play, since the project layer belongs to the task file
+// (spec/backlog/project-layer-from-task-file.md); "." only where none is.
+//
+// It stays best-effort: an unreadable config is refused once, before a
+// command that uses the layer does its work (ProjectConfigError, which the CLI
+// asks for every such command), so the readers below it need not each repeat
+// the refusal. Exported so tp config --resolved can attribute each field to
+// the project layer.
+func ProjectWorkflowOverride(start string) model.WorkflowOverride {
+	tpDir := DiscoverTPDir(start)
 	if tpDir == "" {
 		return model.WorkflowOverride{}
 	}
@@ -148,22 +154,56 @@ func pickRaw(layers []json.RawMessage, def json.RawMessage) json.RawMessage {
 }
 
 // EffectiveWorkflowForTaskFile resolves the effective workflow for a task file:
-// the project config discovered from the working directory layered under the
-// task file's own presence-tracked workflow override. Best-effort — a missing
-// or unreadable config or task file contributes no overrides — so a task file
-// that omits quality_gate runs the project quality_gate.
-// EffectiveWorkflowForTaskFile resolves the effective workflow for a task file:
-// the project config discovered from the working directory layered under the
-// task file's own presence-tracked workflow override. Best-effort — a missing
-// or unreadable config or task file contributes no overrides — so a task file
-// that omits quality_gate runs the project quality_gate.
+// the project config discovered from the task file's own directory layered
+// under the task file's presence-tracked workflow override. Best-effort — a
+// missing or unreadable config or task file contributes no overrides — so a
+// task file that omits quality_gate runs its project's quality_gate.
 func EffectiveWorkflowForTaskFile(taskFilePath string) model.Workflow {
 	override, _ := LoadTaskWorkflowOverride(taskFilePath)
 	clampWorkflowRanges(&override)
-	project := ProjectWorkflowOverride()
+	start := filepath.Dir(taskFilePath)
+	project := ProjectWorkflowOverride(start)
 	wf := ResolveWorkflowLayers(&override, &project)
-	wf.NotifyCmd = LocalNotifyCmd(".")
+	wf.NotifyCmd = LocalNotifyCmd(start)
 	return wf
+}
+
+// ProjectConfigError reports a project config, discovered from start, that
+// exists but cannot be read or parsed — nil when there is none or it loads.
+// A command that uses the project layer refuses on it rather than running as
+// if there were no project config (spec/backlog/project-layer-from-task-file.md).
+func ProjectConfigError(start string) error {
+	tpDir := DiscoverTPDir(start)
+	if tpDir == "" {
+		return nil
+	}
+	_, _, err := LoadProjectConfig(tpDir)
+	return err
+}
+
+// SameProjectRoot reports whether two directories share a project root
+// (ProjectRoot), compared after symlink resolution, so /tmp and /private/tmp
+// name one root.
+func SameProjectRoot(a, b string) bool {
+	return canonicalDir(ProjectRoot(a)) == canonicalDir(ProjectRoot(b))
+}
+
+// canonicalDir is a directory's absolute, symlink-resolved form, or the best
+// form available when it cannot be resolved.
+func canonicalDir(dir string) string {
+	if abs, err := filepath.Abs(dir); err == nil {
+		dir = abs
+	}
+	if resolved, err := filepath.EvalSymlinks(dir); err == nil {
+		return resolved
+	}
+	return dir
+}
+
+// CanonicalProjectRoot is ProjectRoot(start) in canonicalDir's form, the
+// spelling a refusal names.
+func CanonicalProjectRoot(start string) string {
+	return canonicalDir(ProjectRoot(start))
 }
 
 // LocalNotifyCmd returns the notify_cmd recorded in the .tp/local.json

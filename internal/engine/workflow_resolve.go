@@ -14,14 +14,15 @@ import (
 // <spec-base>.tasks.json is used; when neither exists, defaults apply.
 // Returns the workflow and the task file path it came from ("" for defaults).
 func ResolveWorkflow(specPath, explicitFile string) (wf model.Workflow, source string) {
-	// The project config (discovered once from the working directory) is layered
-	// under the task file's own sparse workflow override, so a thinned task file
-	// inherits project policy. With no .tp/ this reduces to the v0.23.0 behavior.
-	project := ProjectWorkflowOverride()
-
+	// The project config is layered under the task file's own sparse workflow
+	// override, so a thinned task file inherits project policy. It is the task
+	// file's project, discovered from the task file's directory; only with no
+	// task file at all does it come from the working directory. With no .tp/
+	// this reduces to the v0.23.0 behavior.
 	if tfPath, err := DiscoverTaskFile(".", explicitFile); err == nil {
 		if tf, readErr := model.ReadTaskFile(tfPath); readErr == nil && specMatches(tfPath, tf.Spec, specPath) {
 			override, _ := LoadTaskWorkflowOverride(tfPath)
+			project := ProjectWorkflowOverride(filepath.Dir(tfPath))
 			return ResolveWorkflowLayers(&override, &project), tfPath
 		}
 	}
@@ -29,9 +30,11 @@ func ResolveWorkflow(specPath, explicitFile string) (wf model.Workflow, source s
 	adjacent := SpecAdjacentTaskFile(specPath)
 	if _, err := model.ReadTaskFile(adjacent); err == nil {
 		override, _ := LoadTaskWorkflowOverride(adjacent)
+		project := ProjectWorkflowOverride(filepath.Dir(adjacent))
 		return ResolveWorkflowLayers(&override, &project), adjacent
 	}
 
+	project := ProjectWorkflowOverride(".")
 	return ResolveWorkflowLayers(&model.WorkflowOverride{}, &project), ""
 }
 

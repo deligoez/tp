@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 
 	"github.com/spf13/cobra"
@@ -81,7 +82,7 @@ func runBrief(cmd *cobra.Command, args []string) error {
 	effective := resolveEffectiveStrategy(taskFilePath)
 	override := tf.Workflow
 	engine.ClampWorkflowRanges(&override)
-	project := engine.ProjectWorkflowOverride()
+	project := engine.ProjectWorkflowOverride(filepath.Dir(taskFilePath))
 	wf := engine.ResolveWorkflowLayers(&override, &project)
 
 	b, err := engine.BuildBrief(tf, task, specPath, effective, wf.QualityGate, briefPrior, priorSet, flagCompact)

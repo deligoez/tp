@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/deligoez/tp/internal/engine"
 )
@@ -20,7 +21,7 @@ func resolveEffectiveStrategy(taskFilePath string) string {
 	// the command's own model.ReadTaskFile then aborts with exit 3 on a truly
 	// malformed file, so dropping the error here loses no safety (cf. config.go).
 	taskOverride, _ := engine.LoadTaskWorkflowOverride(taskFilePath)
-	project := engine.ProjectWorkflowOverride()
+	project := engine.ProjectWorkflowOverride(filepath.Dir(taskFilePath))
 	return warnCommitStrategy(taskOverride.CommitStrategy, project.CommitStrategy)
 }
 
