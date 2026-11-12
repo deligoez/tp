@@ -139,7 +139,8 @@ func TestDashboard_ExportServesATaskFileAddedWhileItRuns(t *testing.T) {
 // answers each listed path as tp export --file <path> run at the root, never
 // the file the path would name from its own directory: the ignored
 // sub/sub/spec.tasks.json, whose spec holds a secret, is not served for
-// ?file=sub/spec.tasks.json, listed or deleted.
+// ?file=sub/spec.tasks.json, listed or deleted, and the deleted one answers
+// the command's error byte for byte, its message naming sub/spec.tasks.json.
 func TestDashboard_ExportReadsAListedPathFromTheRepositoryRoot(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
@@ -170,9 +171,36 @@ func TestDashboard_ExportReadsAListedPathFromTheRepositoryRoot(t *testing.T) {
 	path := "/api/export?file=sub%2Fspec.tasks.json"
 	_, body := getPage(t, strings.TrimSuffix(srv.url, "/")+path)
 	assert.NotContains(t, body, secret)
-	got := getDashboardError(t, srv, path, http.StatusNotFound)
-	assert.Equal(t, want.Code, got.Code)
-	assert.Equal(t, want.Hint, got.Hint)
+	assert.Equal(t, want, getDashboardError(t, srv, path, http.StatusNotFound))
+}
+
+// TestDashboard_ExportFromBelowTheRootMatchesTheRootCommand: a server
+// started in a subdirectory, directly or through a symlink to it, answers
+// /api/export?file=<p> byte-equal to tp export --file <p> run at the
+// repository root, an uncommitted change to the task file included, so the
+// paths, brief commands, keep-list and closure entries read as at the root.
+func TestDashboard_ExportFromBelowTheRootMatchesTheRootCommand(t *testing.T) {
+	t.Parallel()
+	dir := exportRepo(t)
+	_, stderr, code := runTP(t, dir, "add", `{"id":"t2","title":"Y","description":"the second task","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"y done","source_sections":["## 2. Y"]}`)
+	require.Equal(t, 0, code, stderr)
+	sub := filepath.Join(dir, "sub")
+	require.NoError(t, os.Mkdir(sub, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(sub, "notes.txt"), []byte("x\n"), 0o600))
+	link := filepath.Join(t.TempDir(), "linked")
+	require.NoError(t, os.Symlink(sub, link))
+	want, stderr, code := runTP(t, dir, "export", "--file", "spec.tasks.json")
+	require.Equal(t, 0, code, stderr)
+
+	for _, run := range []struct {
+		cwd string
+		env []string
+	}{{sub, nil}, {link, []string{"PWD=" + link}}} {
+		srv := startDashboardEnv(t, run.cwd, freePort(t), run.env)
+		status, body := getPage(t, strings.TrimSuffix(srv.url, "/")+"/api/export?file=spec.tasks.json")
+		require.Equal(t, http.StatusOK, status, body)
+		assert.Equal(t, want, body, "GET /api/export?file=spec.tasks.json from %s differs from tp export --file run at the root", run.cwd)
+	}
 }
 
 // TestDashboard_ExportReadsNoOtherTaskFile: whether a path is listed is
