@@ -149,3 +149,32 @@ func TestScope_CrossTrackMarked(t *testing.T) {
 		{Milestone: "n0", Track: 1, CrossTrack: true, Size: 1, Epics: []ScopeEpic{{ID: "b0"}}},
 	}, s.Closure)
 }
+
+// TestScope_Shrink: a non-member's row is what leaves the closure when every
+// edge into it is cut, a member's what leaves when it is dropped from the
+// gate, marked as a member; an epic that takes only itself prints no row,
+// and rows sort by size, then id.
+func TestScope_Shrink(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0"}}, Epics: []model.Epic{
+		scopeEpic("a1", "m0", scopeDeps("x", "y", "s")...),
+		scopeEpic("b1", "m0", scopeDeps("z", "s")...),
+		scopeEpic("x", "m0", scopeDeps("x1", "x2")...),
+		scopeEpic("x1", "m0"),
+		scopeEpic("x2", "m0"),
+		scopeEpic("y", "m0"),
+		scopeEpic("z", "m0", scopeDeps("z1")...),
+		scopeEpic("z1", "m0"),
+		scopeEpic("s", "m0", scopeDeps("s1")...),
+		scopeEpic("s1", "m0"),
+	}, Gates: map[string]model.EpicGate{"m0": {Members: []string{"a1", "b1"}}}}
+
+	s := scopeOf(t, g, "m0")
+
+	assert.Equal(t, []ScopeShrink{
+		{Epic: "a1", Member: true, Size: 5, Leaves: []string{"a1", "x", "x1", "x2", "y"}},
+		{Epic: "b1", Member: true, Size: 3, Leaves: []string{"b1", "z", "z1"}},
+		{Epic: "x", Size: 3, Leaves: []string{"x", "x1", "x2"}},
+		{Epic: "s", Size: 2, Leaves: []string{"s", "s1"}},
+		{Epic: "z", Size: 2, Leaves: []string{"z", "z1"}},
+	}, s.Shrink)
+}
