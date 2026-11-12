@@ -90,3 +90,17 @@ func TestDashboardSeries_AnUnknownBindingTimeStaysUnknown(t *testing.T) {
 
 	assert.Equal(t, []SeriesDay{{Date: "2026-11-10", Specced: 1, Unknown: 2}}, seriesOf(t, root, g))
 }
+
+// TestDashboardSeries_AnUnboundUnclaimedEpicCountsAsPlanned: p has no claim
+// and no bound file, so on every day of the series it is planned, never
+// specced at a zero time nor claimed nor unknown; e's claim alone sets the
+// series' one day.
+func TestDashboardSeries_AnUnboundUnclaimedEpicCountsAsPlanned(t *testing.T) {
+	t.Parallel()
+	root := boundFilesRepo(t)
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"M"}}, Epics: []model.Epic{
+		{ID: "e", Title: "E", Milestone: "M", Root: true, Claimed: &model.EpicClaim{At: seriesDay(1, 9), By: "agent"}},
+		{ID: "p", Title: "P", Milestone: "M", Root: true},
+	}}
+	assert.Equal(t, []SeriesDay{{Date: "2026-11-01", Planned: 1, Claimed: 1}}, seriesOf(t, root, g))
+}
