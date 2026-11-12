@@ -8,6 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/deligoez/tp/internal/engine"
 )
 
 // TestEpicReview_GateScopeJudgesTheScopeUnitAlone: the built-in gate-scope
@@ -36,6 +38,57 @@ func TestEpicReview_GateScopeJudgesTheScopeUnitAlone(t *testing.T) {
 		assert.NotContains(t, p.Prompt, "Milestone purposes:", "%s does not get the purpose", p.Role)
 		assert.NotContains(t, p.Prompt, "scope: A\n", "%s is not asked the scope unit", p.Role)
 	}
+}
+
+// ejectedThreeRoles is a corpus ejected before gate-scope shipped: the other
+// three built-in roles, by file.
+func ejectedThreeRoles(t *testing.T, dir string) {
+	t.Helper()
+	files, err := engine.DefaultEpicCorpusFiles()
+	require.NoError(t, err)
+	roles := map[string]string{}
+	for _, f := range files {
+		if f.ID != "gate-scope" {
+			roles[f.ID] = string(f.Data)
+		}
+	}
+	writeEpicRoles(t, dir, roles)
+}
+
+// TestEpicReview_AnUnrecordedRoundReemitsAgainstTheCurrentCorpus answers how
+// an emitted, unrecorded round re-emits: rebuilt from the current graph and
+// corpus, not replayed, so a role added to the corpus meanwhile is in it.
+func TestEpicReview_AnUnrecordedRoundReemitsAgainstTheCurrentCorpus(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChainThreshold)
+	ejectedThreeRoles(t, dir)
+	first := runEpicReview(t, dir, "--milestone", "A")
+	assert.NotContains(t, first.Units, "scope:A", "no role reads a scope unit yet")
+
+	files, err := engine.DefaultEpicCorpusFiles()
+	require.NoError(t, err)
+	writeEpicRoles(t, dir, map[string]string{"gate-scope": string(files[3].Data)})
+	again := runEpicReview(t, dir, "--milestone", "A")
+	assert.Equal(t, 1, again.Round, "the same, unrecorded round")
+	assert.Contains(t, promptRoles(&again), "gate-scope")
+	assert.Contains(t, again.Units, "scope:A")
+	only := runEpicReview(t, dir, "--milestone", "A", "--role", "gate-scope")
+	assert.Equal(t, []string{"gate-scope"}, promptRoles(&only))
+}
+
+// TestEpicReview_ABuiltInRoleMissingFromAnEjectedCorpusSaysWhy: --role
+// gate-scope over a corpus ejected before it shipped names the cause and the
+// way forward instead of a bare unknown role.
+func TestEpicReview_ABuiltInRoleMissingFromAnEjectedCorpusSaysWhy(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChainThreshold)
+	ejectedThreeRoles(t, dir)
+	_, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A", "--role", "gate-scope")
+	assert.Equal(t, 2, code)
+	assert.Contains(t, stderr, "built-in graph role gate-scope is not in this project's corpus")
+	assert.Contains(t, stderr, "tp init --eject-roles --graph --force")
+	_, stderr, _ = runTP(t, dir, "epic", "review", "--milestone", "A", "--role", "no-such-role")
+	assert.Contains(t, stderr, "unknown role: no-such-role", "a name tp never shipped keeps the plain refusal")
 }
 
 // TestEpicReview_AnEpicSliceConvergesWithGateScopeSkipped: an epic slice holds
