@@ -71,43 +71,39 @@ func TaskFileListOf(start string) TaskFileList {
 }
 
 // ListedTaskFile is whether shown is, byte for byte, the path of a row
-// TaskFileListOf(start) lists, and the name that opens that row's file from
-// start: shown read against the repository root, which list paths are
-// relative to, whatever directory start is. It enumerates the paths alone
-// and reads no task file, so asking costs one git ls-files.
-func ListedTaskFile(start, shown string) (open string, listed bool) {
-	root := gitToplevel(start)
+// TaskFileListOf(start) lists; root, the repository root list paths are
+// relative to; and open, the name that opens that row's file from the working
+// directory whatever directory start is. It enumerates the paths alone and
+// reads no task file, so asking costs one git ls-files.
+func ListedTaskFile(start, shown string) (open, root string, listed bool) {
+	root = gitToplevel(start)
 	if root == "" {
-		return "", false
+		return "", "", false
 	}
 	for _, path := range repoTaskFiles(root) {
 		if repoRelativeTo(root, path) == shown {
-			return openFrom(start, root, shown), true
+			return openFrom(start, root, shown), root, true
 		}
 	}
-	return "", false
+	return "", "", false
 }
 
 // openFrom spells shown, a list path relative to root, as a path that opens
-// the same file from start: unchanged at the root itself, and relative to
-// start's resolved directory below it. A list path that is absolute, a link
-// whose target lies outside the repository, is its own name.
+// the same file from start: unchanged when start resolves to the root itself,
+// and its absolute path under the root anywhere else, so no relative spelling
+// is read against a logical working directory a symlink makes differ from the
+// resolved one. A list path that is absolute, a link whose target lies outside
+// the repository, is its own name.
 func openFrom(start, root, shown string) string {
 	if filepath.IsAbs(shown) {
 		return shown
 	}
-	target := filepath.Join(root, filepath.FromSlash(shown))
-	dir, err := filepath.Abs(start)
-	if err != nil {
-		return target
+	if dir, err := filepath.Abs(start); err == nil {
+		if resolved, evalErr := filepath.EvalSymlinks(dir); evalErr == nil && resolved == root {
+			return shown
+		}
 	}
-	if resolved, evalErr := filepath.EvalSymlinks(dir); evalErr == nil {
-		dir = resolved
-	}
-	if rel, relErr := filepath.Rel(dir, target); relErr == nil {
-		return rel
-	}
-	return target
+	return filepath.Join(root, filepath.FromSlash(shown))
 }
 
 // taskFileRow reads the row of the task file at path, shown as the list

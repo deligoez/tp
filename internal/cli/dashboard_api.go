@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -34,21 +35,33 @@ func runErrorOf(err *epicRunError) *dashboard.Error {
 
 // Export answers /api/export?file=: when file is exactly the path of a row
 // tp export --list prints now, tp export --file file's answer, payload or
-// error, read from the repository root the list's paths are relative to,
-// whatever directory the server started in. Any other value names no task
-// file the dashboard serves and answers as an absent object (code 4), so
-// the request never picks a filesystem path. Membership is decided from the
-// paths alone; no other task file is read.
+// error, as that command run at the repository root the list's paths are
+// relative to answers it, whatever directory the server started in. Any
+// other value names no task file the dashboard serves and answers as an
+// absent object (code 4), so the request never picks a filesystem path.
+// Membership is decided from the paths alone; no other task file is read.
 func (dashboardAPI) Export(file string) (any, *dashboard.Error) {
-	open, listed := engine.ListedTaskFile(".", file)
+	open, root, listed := engine.ListedTaskFile(".", file)
 	if !listed {
 		return nil, dashboard.NewError(ExitState, fmt.Sprintf("task file %q is not one tp export --list lists", file), dashboardUnlistedHint)
 	}
-	payload, rerr := exportOf(open, false)
+	payload, rerr := exportAtRoot(root, open, file)
 	if rerr != nil {
 		return nil, runErrorOf(rerr)
 	}
 	return payload, nil
+}
+
+// exportAtRoot is tp export --file shown run at root, the repository root:
+// every path the payload derives is read against root, open names the file
+// from the working directory, and a file gone since it was listed is named
+// shown, as the command at the root names it.
+func exportAtRoot(root, open, shown string) (exportPayload, *epicRunError) {
+	if _, err := os.Stat(open); err != nil {
+		return exportPayload{}, exportDiscoverError(engine.ExplicitTaskFileMissing(shown))
+	}
+	exp, err := engine.TaskExportOf(root, open)
+	return exportResultOf(&exp, err, false)
 }
 
 // History answers /api/history: the slice's tp epic review --history.
