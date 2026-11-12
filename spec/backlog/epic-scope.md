@@ -29,21 +29,24 @@ milestone of the same track, and a milestone's own critical path is
    group brings in every member, each marked with its group, since choosing one is the operator's
    call. The cross-track part that lint leaves free by design appears here as information, never
    as an error;
-3. the milestone's epics outside the closure (empty by definition under implicit members, and said
-   so rather than printed as `[]`);
+3. the milestone's not-done epics outside the closure, each marked when it is a deferrable or a
+   condition, which under implicit members is where those sit; and the gate's deferrables that are
+   inside the closure anyway, since a member depending on one means it cannot be deferred;
 4. the *removal shrink* of each closure epic whose removal takes at least one other epic with it:
    for an epic that is not a member, the epics that leave the closure when every edge into it is
    cut; for a member, the epics that leave when it is dropped from the gate, marked as a member
-   since that row is a gate decision. Sorted by size, so the few epics that carry most of the
-   closure come first, and an epic that takes only itself prints no row;
-5. the epics outside the closure with no dependents at all;
-6. epics an earlier milestone's gate holds that no later gate's closure contains, naming which later
-   gates were implicit, since an implicit gate's closure contains everything;
+   since that row is a gate decision. An any-of alternative's row carries its group, since that cut
+   is a choice rather than a split. Sorted by size, so the few epics that carry most of the closure
+   come first, and an epic that takes only itself prints no row;
+5. those outside epics that nothing depends on;
+6. epics an earlier milestone's gate holds that no other gate's closure contains, in any track,
+   naming which of those gates were implicit, since an implicit gate's closure holds its whole
+   milestone;
 7. the milestone's own critical path, by count and by estimate, repeated here so a reader needs one
    call;
-8. a `fingerprint` over the member list, the closure's id set, the path's id sequence and the
-   threshold text, so "unchanged since the last round" is a string compare and a rewritten
-   threshold counts as a change even when the closure is identical.
+8. a `fingerprint` over the sorted members, the closure taken blind to status, and the threshold
+   text, so "unchanged since the last round" is a string compare, a rewritten threshold counts as a
+   change, and closing an epic, which is progress and not a scope change, does not.
 
 **Decision, Part B — the gate as a whole.** Whether graph review gains the second direction —
 *what work does the threshold need that the closure lacks* — was settled by a field trial: Part A's
