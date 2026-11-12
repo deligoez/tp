@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -30,7 +31,7 @@ func assertResolveFrozen(t *testing.T, dir string, args ...string) {
 	require.Equal(t, 3, code, "stderr: %s", stderr)
 	msg, hint := epicErrorOf(t, stderr)
 	assert.Contains(t, msg, "round 2")
-	inbox, force := strings.Index(hint, "tp epic review --milestone A --record-inbox"), strings.Index(hint, "tp epic review --milestone A --force")
+	inbox, force := strings.Index(hint, "tp epic review --milestone A --record-inbox"), strings.Index(hint, "tp epic review --milestone A --discard")
 	require.GreaterOrEqual(t, inbox, 0, hint)
 	assert.Greater(t, force, inbox, hint)
 	assert.Contains(t, hint, "operator's decision")
@@ -94,6 +95,74 @@ func TestEpicReviewFreeze_RecordingFirstLetsTheDispositionThrough(t *testing.T) 
 	stdout, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A", "--resolve", "0", "wontfix", "accepted")
 	require.Equal(t, 0, code, "stderr: %s", stderr)
 	assert.Contains(t, stdout, `"round": 2`)
+}
+
+// TestEpicReviewFreeze_DiscardingLiftsTheFreeze: --discard removes the round
+// out and emits nothing, so the disposition goes through, and the next
+// emission is built from it.
+func TestEpicReviewFreeze_DiscardingLiftsTheFreeze(t *testing.T) {
+	t.Parallel()
+	dir, _ := frozenSlice(t)
+	_, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A", "--discard")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	stdout, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A", "--resolve", "0", "wontfix", "accepted")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.Contains(t, stdout, `"round": 1`)
+	again := runEpicReview(t, dir, "--milestone", "A")
+	assert.Equal(t, 2, again.Round)
+	assert.NotContains(t, again.Units, "epic:d", "the accepted row no longer re-asks d")
+}
+
+// emptyRecord records an empty hand-made file over milestone A's round out.
+func emptyRecord(t *testing.T, dir string) (stderr string, code int) {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "empty.ndjson")
+	require.NoError(t, os.WriteFile(path, nil, 0o600))
+	_, stderr, code = runTP(t, dir, "epic", "review", "--milestone", "A", "--record", path)
+	return stderr, code
+}
+
+// TestEpicReviewRecord_AnEmptyFileOverAnInboxRoundIsRefused: the emission
+// named role files, and an empty hand-made file would record roles that never
+// ran as having found nothing; --record-inbox proves they ran.
+func TestEpicReviewRecord_AnEmptyFileOverAnInboxRoundIsRefused(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChain)
+	runEpicReview(t, dir, "--milestone", "A")
+	stderr, code := emptyRecord(t, dir)
+	require.Equal(t, 3, code, "stderr: %s", stderr)
+	_, hint := epicErrorOf(t, stderr)
+	assert.Contains(t, hint, "tp epic review --milestone A --record-inbox")
+	assert.Contains(t, hint, "tp epic review --milestone A --discard")
+}
+
+// TestEpicReviewRecord_AnEmptyFileStaysAllowedWhereNoRoleWasNamed: a round
+// whose emission asked no role, and a snapshot from before the panel was
+// kept, still record an empty hand-made file.
+func TestEpicReviewRecord_AnEmptyFileStaysAllowedWhereNoRoleWasNamed(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChain)
+	r1 := runEpicReview(t, dir, "--milestone", "A")
+	writeEpicRound(t, dir, &r1, "")
+	r2 := runEpicReview(t, dir, "--milestone", "A")
+	require.Empty(t, r2.Prompts, "round 2 asks no role")
+	stderr, code := emptyRecord(t, dir)
+	assert.Equal(t, 0, code, "an empty panel: %s", stderr)
+
+	old := epicGraphDir(t, epicChain)
+	out := runEpicReview(t, old, "--milestone", "A")
+	path := filepath.Join(old, out.StateDir, "snapshot-round-1.json")
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	var snap map[string]any
+	require.NoError(t, json.Unmarshal(data, &snap))
+	delete(snap, "roles")
+	stripped, err := json.Marshal(snap)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path, stripped, 0o600))
+	stderr, code = emptyRecord(t, old)
+	assert.Equal(t, 0, code, "a snapshot from before the panel: %s", stderr)
 }
 
 // TestEpicReemit_APurposeChangeUnderAPlacerOnlyCorpusRefuses: no role reads
