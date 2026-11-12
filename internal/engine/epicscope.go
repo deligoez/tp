@@ -44,8 +44,9 @@ type EpicScope struct {
 	// deferred. In the gate's deferrable order.
 	DeferrableInClosure []string `json:"deferrable_in_closure"`
 	// UnneededEarlier is, for each milestone before this one in its track,
-	// in track order, the not-done members of its gate that no closure of a
-	// later gate of the track contains; a milestone with none is left out.
+	// in track order, the not-done members of its gate that the closure of
+	// no other gate of the graph, any track, contains; a milestone with none
+	// is left out.
 	UnneededEarlier []ScopeUnneeded `json:"unneeded_earlier"`
 	// CriticalPath is the milestone's own critical path (CriticalPath), the
 	// command's to render as tp epic status renders it.
@@ -60,14 +61,15 @@ type ScopeOutside struct {
 	Condition  bool   `json:"condition,omitempty"`
 }
 
-// ScopeUnneeded is one earlier milestone's gate members no later gate of the
-// track needs, in gate order. ImplicitLater names the later milestones whose
-// gates were implicit: such a closure holds its whole milestone, so it says
-// nothing about which of that milestone's epics are needed.
+// ScopeUnneeded is one earlier milestone's gate members no other gate of the
+// graph needs, in gate order. ImplicitGates names the other gates consulted
+// that were implicit, in track order: such a closure holds its whole
+// milestone, so it says nothing about which of that milestone's epics are
+// needed.
 type ScopeUnneeded struct {
 	Milestone     string   `json:"milestone"`
 	Epics         []string `json:"epics"`
-	ImplicitLater []string `json:"implicit_later"`
+	ImplicitGates []string `json:"implicit_gates"`
 }
 
 // ScopeShrink is one closure epic's removal shrink: for a non-member, the
@@ -197,37 +199,54 @@ type scopeSet struct {
 }
 
 // unneededEarlier returns the ScopeUnneeded rows of the milestones before
-// milestone in its track; none for a milestone no track lists.
+// milestone in its track, each member checked against the closure of every
+// other tracked gate, any track; none for a milestone no track lists.
 func (w *scopeWalk) unneededEarlier(milestone string) []ScopeUnneeded {
 	out := []ScopeUnneeded{}
 	p, ok := w.pos[milestone]
 	if !ok {
 		return out
 	}
-	track := w.g.Milestones[p.track]
-	closures := map[string]scopeSet{}
-	for _, m := range track {
-		if _, done := closures[m]; !done {
-			members, _ := GateMembers(w.g, m)
-			closures[m] = w.closure(members, "")
-		}
-	}
-	for i, e := range track[:p.index] {
-		row := ScopeUnneeded{Milestone: e, Epics: []string{}, ImplicitLater: []string{}}
-		later := track[i+1:]
-		for _, l := range later {
-			if len(w.g.Gates[l].Members) == 0 && !slices.Contains(row.ImplicitLater, l) {
-				row.ImplicitLater = append(row.ImplicitLater, l)
+	gates := w.trackedGates()
+	for _, e := range w.g.Milestones[p.track][:p.index] {
+		row := ScopeUnneeded{Milestone: e, Epics: []string{}, ImplicitGates: []string{}}
+		for _, o := range gates {
+			if o.milestone != e && o.implicit {
+				row.ImplicitGates = append(row.ImplicitGates, o.milestone)
 			}
 		}
 		members, _ := GateMembers(w.g, e)
 		for _, id := range members {
-			if w.open(id) && !slices.ContainsFunc(later, func(l string) bool { return closures[l].in[id] }) {
+			if w.open(id) && !slices.ContainsFunc(gates, func(o scopeGate) bool { return o.milestone != e && o.closure.in[id] }) {
 				row.Epics = append(row.Epics, id)
 			}
 		}
 		if len(row.Epics) > 0 {
 			out = append(out, row)
+		}
+	}
+	return out
+}
+
+// scopeGate is one tracked milestone's gate: whether its members are
+// implicit, and its closure.
+type scopeGate struct {
+	milestone string
+	implicit  bool
+	closure   scopeSet
+}
+
+// trackedGates returns the gate of every milestone a track lists, once, in
+// track order.
+func (w *scopeWalk) trackedGates() []scopeGate {
+	out := []scopeGate{}
+	for _, track := range w.g.Milestones {
+		for _, m := range track {
+			if slices.ContainsFunc(out, func(o scopeGate) bool { return o.milestone == m }) {
+				continue
+			}
+			members, _ := GateMembers(w.g, m)
+			out = append(out, scopeGate{milestone: m, implicit: len(w.g.Gates[m].Members) == 0, closure: w.closure(members, "")})
 		}
 	}
 	return out
