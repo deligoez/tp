@@ -54,7 +54,7 @@ type epicScopeCompactShrink struct {
 func newEpicScopeCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "scope <milestone>",
-		Short: "Report what a milestone's gate pulls in: members, the closure per milestone, outside epics, removal shrink, unneeded earlier members, the critical path and a fingerprint; writes nothing",
+		Short: "Report what a milestone's gate pulls in; writes nothing",
 		Args:  cobra.ExactArgs(1),
 		RunE:  runEpicScope,
 	}
