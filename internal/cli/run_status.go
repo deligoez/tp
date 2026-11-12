@@ -143,7 +143,12 @@ func addAuditSignals(result map[string]any, specPath string, cleanRounds int) {
 	if st != nil && err == nil {
 		rounds = st.AuditRounds
 	}
-	rolesHash, _ := engine.ComputeRolesHash(filepath.Dir(specPath), engine.PhaseAuditors)
+	// An auditor corpus that cannot be read is one more such failure: the
+	// signals are omitted rather than computed against an empty hash.
+	rolesHash, err := engine.ComputeRolesHash(filepath.Dir(specPath), engine.PhaseAuditors)
+	if err != nil {
+		return
+	}
 	auditSignalFields(result, specPath, rounds, cleanRounds,
 		engine.StateStale(rounds, specHash),
 		engine.Converged(rounds, cleanRounds, specHash),
