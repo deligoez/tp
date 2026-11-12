@@ -130,3 +130,22 @@ func TestDashboardPlan_MostWaitedOnRanksDependentsBeforeChainLength(t *testing.T
 		assert.Equal(t, []string{"a", "b", "y1"}, plan.MostWaitedOn, "graph order %s, %s", first[0].ID, first[1].ID)
 	}
 }
+
+// TestDashboardSummary_ThePlanReadsTheProjectsPlaceholderPattern: the
+// project's pattern ^draft: makes gate A's "draft: later" a placeholder, one
+// rewrite in the operator queue though a's work is not done; under the
+// default pattern the text reads as written and the queue is empty.
+func TestDashboardSummary_ThePlanReadsTheProjectsPlaceholderPattern(t *testing.T) {
+	t.Parallel()
+	root := boundFilesRepo(t)
+	tpDir := filepath.Join(root, ".tp")
+	require.NoError(t, os.MkdirAll(tpDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(tpDir, "config.json"), []byte(`{"epic":{"threshold_placeholder":"^draft:"}}`), 0o600))
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"A"}}, Epics: []model.Epic{
+		{ID: "a", Title: "A", Milestone: "A", Root: true},
+	}, Gates: map[string]model.EpicGate{"A": {Threshold: "draft: later"}}}
+
+	sum, err := DashboardSummaryOf(tpDir, g)
+	require.NoError(t, err)
+	assert.Equal(t, 1, sum.Plan.Figures.OperatorQueue)
+}
