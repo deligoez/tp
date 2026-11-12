@@ -84,11 +84,12 @@ func TestHandler_ServesThePageScriptAndStylesFromTheEmbed(t *testing.T) {
 	}
 }
 
-// pageText is the page, its script and its styles as the handler serves them.
+// pageText is the page, its scripts and its styles as the handler serves
+// them; script is app.js alone.
 func pageText(t *testing.T) (page, script string) {
 	t.Helper()
 	var all strings.Builder
-	for _, path := range []string{"/", "/app.js", "/style.css"} {
+	for _, path := range []string{"/", "/pure.js", "/app.js", "/style.css"} {
 		resp := serve(t, http.MethodGet, "127.0.0.1:7377", path)
 		require.Equal(t, http.StatusOK, resp.StatusCode, path)
 		body, err := io.ReadAll(resp.Body)
