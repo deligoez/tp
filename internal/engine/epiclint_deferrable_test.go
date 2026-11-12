@@ -80,6 +80,10 @@ func TestLintEpicGraph_DeferrableRequiredCapsTheRequirers(t *testing.T) {
 func TestLintEpicGraph_DeferrableRequiredSkips(t *testing.T) {
 	doneMember := dependsOn("a1", "m0", "d1")
 	doneMember.Done = epicDoneRecord()
+	doneX := dependsOn("x1", "m0", "d1")
+	doneX.Done = epicDoneRecord()
+	doneD := dependsOn("d1", "m0")
+	doneD.Done = epicDoneRecord()
 	anyOf := dependsOn("a1", "m0")
 	anyOf.Root = false
 	anyOf.DependsOn = []model.EpicDep{{AnyOf: []string{"d1", "o1"}, Why: "a1 needs one of them"}}
@@ -90,6 +94,10 @@ func TestLintEpicGraph_DeferrableRequiredSkips(t *testing.T) {
 			anyOf, dependsOn("d1", "m0"), dependsOn("o1", "m0")),
 		"requiring member done": deferrableLintGraph([]string{"a1"}, []string{"d1"},
 			doneMember, dependsOn("d1", "m0")),
+		"done intermediate": deferrableLintGraph([]string{"a1"}, []string{"d1"},
+			dependsOn("a1", "m0", "x1"), doneX, dependsOn("d1", "m0")),
+		"done deferrable": deferrableLintGraph([]string{"a1"}, []string{"d1"},
+			dependsOn("a1", "m0", "d1"), doneD),
 	}
 	for name, g := range cases {
 		assert.Empty(t, findingsOf(t, LintEpicGraph(g, nil), EpicRuleDeferrableRequired), name)
