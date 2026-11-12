@@ -40,10 +40,7 @@ func epicPurposeStatusOf(t *testing.T, dir string) (st epicPurposeStatus, code i
 func recordEpicRows(t *testing.T, dir, rows string) {
 	t.Helper()
 	runEpicReview(t, dir, "--milestone", "A")
-	path := filepath.Join(t.TempDir(), "rows.ndjson")
-	require.NoError(t, os.WriteFile(path, []byte(rows), 0o600))
-	_, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A", "--record", path)
-	require.Equal(t, 0, code, "stderr: %s", stderr)
+	recordEpicRound(t, dir, rows, "--milestone", "A")
 }
 
 // convergedPurposeSlice is milestone A of epicChainThreshold under corpus,

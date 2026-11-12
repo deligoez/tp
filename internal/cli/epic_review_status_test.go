@@ -2,8 +2,10 @@ package cli_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -47,11 +49,52 @@ func epicCheckCode(t *testing.T, dir string, slice ...string) int {
 	return code
 }
 
-// recordEpicRound records rows as the slice's next round through --record.
+// recordEpicRound records rows as the slice's next round through --record;
+// an empty round goes through recordEpicEmpty, as a clean panel records it.
 func recordEpicRound(t *testing.T, dir, rows string, slice ...string) {
 	t.Helper()
+	if strings.TrimSpace(rows) == "" {
+		recordEpicEmpty(t, dir, slice...)
+		return
+	}
 	path := epicRecordFile(t, dir, rows)
 	_, stderr, code := runTP(t, dir, append(append([]string{"epic", "review"}, slice...), "--record", path)...)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+}
+
+// recordEpicEmpty records the slice's in-flight round as finding nothing:
+// when its emission named role files, each is written empty and the round
+// recorded through --record-inbox, since an empty hand-made file is refused
+// there; otherwise, with no emission or an empty panel, an empty --record.
+func recordEpicEmpty(t *testing.T, dir string, slice ...string) {
+	t.Helper()
+	stdout, stderr, code := runTP(t, dir, append(append([]string{"epic", "review"}, slice...), "--status")...)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var st struct {
+		StateDir string `json:"state_dir"`
+		Round    int    `json:"round"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &st), stdout)
+	var snap struct {
+		Roles []struct {
+			OutputPath string `json:"output_path"`
+		} `json:"roles"`
+	}
+	if data, err := os.ReadFile(filepath.Join(dir, st.StateDir, fmt.Sprintf("snapshot-round-%d.json", st.Round+1))); err == nil {
+		require.NoError(t, json.Unmarshal(data, &snap))
+	}
+	mode := []string{"--record", epicRecordFile(t, dir, "")}
+	if len(snap.Roles) > 0 {
+		for _, r := range snap.Roles {
+			path := r.OutputPath
+			if !filepath.IsAbs(path) {
+				path = filepath.Join(dir, path)
+			}
+			require.NoError(t, os.WriteFile(path, nil, 0o600))
+		}
+		mode = []string{"--record-inbox"}
+	}
+	_, stderr, code = runTP(t, dir, append(append([]string{"epic", "review"}, slice...), mode...)...)
 	require.Equal(t, 0, code, "stderr: %s", stderr)
 }
 

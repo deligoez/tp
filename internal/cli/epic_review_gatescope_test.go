@@ -106,8 +106,7 @@ func TestEpicReview_AnEpicSliceConvergesWithGateScopeSkipped(t *testing.T) {
 	assert.Equal(t, "no-units", epicSkipped(t, dir, "--epic", "b")["gate-scope"], "round 1 asks b, which gate-scope takes no kind of")
 	for range 2 {
 		runEpicReview(t, dir, "--epic", "b")
-		_, stderr, code := runTP(t, dir, "epic", "review", "--epic", "b", "--record", empty)
-		require.Equal(t, 0, code, "stderr: %s", stderr)
+		recordEpicEmpty(t, dir, "--epic", "b")
 	}
 	_, stderr, code := runTP(t, dir, "epic", "review", "--epic", "b", "--status", "--check")
 	assert.Equal(t, 0, code, "stderr: %s", stderr)

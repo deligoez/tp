@@ -116,8 +116,7 @@ func TestEpicReview_ARoleWithNoUnitOfItsKindsIsSkipped(t *testing.T) {
 	require.NoError(t, os.WriteFile(empty, nil, 0o600))
 	for range 2 {
 		runEpicReview(t, dir, "--epic", "b")
-		_, stderr, code := runTP(t, dir, "epic", "review", "--epic", "b", "--record", empty)
-		require.Equal(t, 0, code, "stderr: %s", stderr)
+		recordEpicEmpty(t, dir, "--epic", "b")
 	}
 	stdout, stderr, code := runTP(t, dir, "epic", "review", "--epic", "b", "--status", "--check")
 	require.Equal(t, 0, code, "stdout: %s stderr: %s", stdout, stderr)
