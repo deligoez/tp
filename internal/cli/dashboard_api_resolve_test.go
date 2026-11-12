@@ -102,3 +102,18 @@ func TestDashboard_MissingFileThroughAnAbsoluteInRepoSymlinkIsNotFound(t *testin
 	}
 }
 
+// TestDashboard_MissingFileUnderASymlinkedPrefixIsNotFound: an absolute path
+// through a symlink outside the repository that points at it, naming a file
+// the repository does not hold, answers tp export's not-found error.
+func TestDashboard_MissingFileUnderASymlinkedPrefixIsNotFound(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeTaskFileRaw(t, dir, `[]`)
+	initGitRepo(t, dir)
+	link := filepath.Join(t.TempDir(), "link")
+	require.NoError(t, os.Symlink(dir, link))
+	srv := startDashboard(t, dir, freePort(t))
+
+	requireSameErrorAsCommand(t, srv, dir, filepath.Join(link, "missing.tasks.json"))
+}
+
