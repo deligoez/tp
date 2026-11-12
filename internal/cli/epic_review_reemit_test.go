@@ -54,8 +54,10 @@ func TestEpicReemit_AGraphEditRefusesTheReemit(t *testing.T) {
 	msg, hint := epicErrorOf(t, stderr)
 	assert.Contains(t, msg, "round 1")
 	assert.Contains(t, msg, "units changed: epic:c, epic:d", "c's hash covers d's block too")
-	assert.Contains(t, hint, "--force")
-	assert.Contains(t, hint, "--record")
+	inbox, force := strings.Index(hint, "tp epic review --milestone A --record-inbox"), strings.Index(hint, "tp epic review --milestone A --force")
+	require.GreaterOrEqual(t, inbox, 0, hint)
+	require.Greater(t, force, inbox, "recording as emitted comes first, the discard second: %s", hint)
+	assert.Contains(t, hint, "operator's decision")
 }
 
 // TestEpicReemit_ARoleFileEditRefusesTheReemit: the panel is part of the
@@ -142,7 +144,10 @@ func TestEpicReemit_BatchSkipsAChangedSlice(t *testing.T) {
 	rewriteEpicGraph(t, dir, strings.Replace(epicChain, `"title": "D"`, `"title": "D renamed"`, 1))
 
 	out := runEpicBatch(t, dir, "--milestones", "A,B")
-	assert.Equal(t, map[string]string{"A": "emission-changed"}, epicSkippedReasons(&out))
+	reason := epicSkippedReasons(&out)["A"]
+	assert.True(t, strings.HasPrefix(reason, "emission-changed: "), reason)
+	assert.Contains(t, reason, "units changed: epic:c, epic:d")
+	assert.Contains(t, reason, "tp epic review --milestone A --force")
 	require.Len(t, out.Slices, 1, "B still emits")
 	assert.Equal(t, 1, out.Slices[0].Round)
 }
