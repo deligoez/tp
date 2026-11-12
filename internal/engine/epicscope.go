@@ -13,13 +13,14 @@ import (
 // EpicScope is what one milestone's gate pulls in (spec/backlog/epic-scope.md
 // §1, Part A), derived from the graph and writing nothing.
 type EpicScope struct {
-	Milestone string `json:"milestone"`
-	// Fingerprint hashes the member set, the id set of the closure drawn
-	// blind to status (blindClosure) and the threshold text, so "unchanged
+	// Fingerprint, first so a reader can stop after it, hashes the member
+	// set, the id set of the closure drawn blind to status (blindClosure)
+	// and the threshold text, so "unchanged
 	// since the last scope pass" is a string compare that closing an epic
 	// does not move, and a rewritten threshold is a change even when the
 	// closure is identical.
 	Fingerprint string `json:"fingerprint"`
+	Milestone   string `json:"milestone"`
 	// Members is the gate's effective members (GateMembers); MembersImplicit
 	// says the gate names none, so they are every epic of the milestone that
 	// is neither a condition nor deferrable.
