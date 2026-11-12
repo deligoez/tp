@@ -122,7 +122,7 @@ func TestEpicReviewSlice_BlocksShowConditionAndThreshold(t *testing.T) {
 	g.Gates = map[string]model.EpicGate{"A": {Members: []string{"a"}, Threshold: "p95 under 200ms"}}
 	s, err := EpicReviewSlice(g, EpicSliceKey{Milestone: "A"})
 	require.NoError(t, err)
-	require.Len(t, s.Units, 5)
+	require.Len(t, s.Units, 6, "four epics, the gate, and the scope unit a threshold brings")
 
 	assert.Contains(t, s.Units[1].Block, "condition: true\n")
 	assert.NotContains(t, s.Units[0].Block, "condition:", "a is not a condition")
