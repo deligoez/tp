@@ -78,10 +78,13 @@ Triage every piece of work before touching it; the operator confirms the track.
 A fix that turns out to need a design choice stops and becomes a decision. Repairs to a spec after
 its first round delete or narrow; they do not add requirements.
 
-Open work is `BUGS.md` (the fix track), then the four decided notes in `spec/backlog/` —
-`run-regression-unit.md`, `hand-recorded-staleness.md`, `ground-scratch-in-state-dir.md` and
-`project-layer-from-task-file.md` — then the decision candidates `checklist-covers-what-changed.md`
-and `reconcile.md`; the epic `description` shipped in v1.11.0
+Open work is `BUGS.md` (the fix track), then the decision candidates in `spec/backlog/` —
+`checklist-covers-what-changed.md`, then `reconcile.md`; the regression unit under `tp run`,
+staleness only through a round's own emission, the ground scratch file and the review and audit
+role files in the spec's state directory, and the project layer from the task file shipped in
+v1.12.0 (`spec/backlog/run-regression-unit.md`, `hand-recorded-staleness.md`,
+`ground-scratch-in-state-dir.md`, `role-files-in-state-dir.md`, `project-layer-from-task-file.md`,
+`spec/1.12.0-measurements.md`), the epic `description` shipped in v1.11.0
 (`spec/backlog/epic-description.md`, `spec/1.11.0-measurements.md`), `deferrable-required`, the
 epic review re-emit guard and `--record-inbox` in v1.10.0
 (`spec/backlog/deferrable-required.md`, `epic-reemit-guard.md`, `epic-role-attribution.md`,
