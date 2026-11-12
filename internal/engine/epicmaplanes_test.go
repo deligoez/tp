@@ -66,3 +66,12 @@ func TestEpicMapLanes_ACycleStillPlacesEveryMilestoneOnce(t *testing.T) {
 	assert.ElementsMatch(t, []string{"A", "B"}, placed)
 	assert.Len(t, got.Columns, 2)
 }
+
+// TestEpicMapLanes_ASingleTriggeredMilestoneIsTheOnlyLane: T, the one
+// milestone, carries an explicit []: no chain is left for a main lane, and T
+// alone fills the triggered lane.
+func TestEpicMapLanes_ASingleTriggeredMilestoneIsTheOnlyLane(t *testing.T) {
+	got := EpicMapLanes(lanesGraph([][]string{{"T"}}, map[string][]string{"T": {}}))
+	assert.Equal(t, []MapLane{{Kind: MapLaneTriggered, Milestones: []string{"T"}}}, got.Lanes)
+	assert.Equal(t, map[string]int{"T": 0}, got.Columns)
+}
