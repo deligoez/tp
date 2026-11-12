@@ -3,7 +3,9 @@ package engine
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"unicode"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -155,4 +157,117 @@ func TestParseEpicBlock_ReadsADescriptionBackAsOneField(t *testing.T) {
 	assert.Equal(t, "B step", p.fields["title"])
 	assert.Equal(t, map[string]string{"c": "b extends c"}, p.edges)
 	assert.Equal(t, []string{"c"}, p.edgeOrder)
+}
+
+// blockDiff is the snapshot diff of one epic unit whose block went from
+// before to after.
+func blockDiff(before, after string) EpicGraphDiff {
+	return diffEpicSnapshots(
+		epicSnapshot{Units: map[string]string{"epic:b": "h1"}, Blocks: map[string]string{"epic:b": before}},
+		epicSnapshot{Units: map[string]string{"epic:b": "h2"}, Blocks: map[string]string{"epic:b": after}})
+}
+
+// TestEpicDescription_AwkwardTextRoundTripsAsOneField: each description a
+// block parser could misread renders, parses back to the text it holds (its
+// trailing newline dropped), and reads in --history as exactly one field
+// changed, no edge or why touched.
+func TestEpicDescription_AwkwardTextRoundTripsAsOneField(t *testing.T) {
+	for name, desc := range map[string]string{
+		"blank lines inside":  "first\n\n\nlast",
+		"a description: line": "intro\ndescription:\nmore",
+		"field and edge":      "title: x\n- c: y\nacceptance: z",
+		"unit headers":        "epic: x\ngate: m\n---\nscope: m",
+		"tabs":                "\tindented\nmid\tdle\t",
+		"trailing newline":    "ends with a newline\n",
+	} {
+		plain := epicDescribedGraph()
+		described := epicDescribedGraph()
+		described.Epics[1].Description = desc
+		block := epicUnitOf(t, described, "epic:b").Block
+		want := strings.TrimRight(desc, "\n")
+		if name == "tabs" {
+			want = strings.TrimRightFunc(desc, unicode.IsSpace)
+		}
+
+		p := parseEpicBlock(block)
+		assert.Equal(t, want, p.fields["description"], name)
+		assert.Equal(t, "b ships", p.fields["acceptance"], name)
+		assert.Equal(t, map[string]string{"c": "b extends c"}, p.edges, name)
+		d := blockDiff(epicUnitOf(t, plain, "epic:b").Block, block)
+		require.Len(t, d.FieldsChanged, 1, name)
+		assert.Equal(t, "description", d.FieldsChanged[0].Field, name)
+		assert.Equal(t, want, d.FieldsChanged[0].After, name)
+		assert.Empty(t, d.EdgesAdded, name)
+		assert.Empty(t, d.EdgesRemoved, name)
+		assert.Empty(t, d.WhysChanged, name)
+	}
+}
+
+// TestParseEpicBlock_ADescriptionLineInAnAcceptanceStaysAContinuation: a
+// description: line opens a description only as the block's last section,
+// so one inside a multi-line acceptance continues it, and --history reads
+// the acceptance whole.
+func TestParseEpicBlock_ADescriptionLineInAnAcceptanceStaysAContinuation(t *testing.T) {
+	plain := epicDescribedGraph()
+	edited := epicDescribedGraph()
+	edited.Epics[1].Acceptance = "ships\ndescription:\nfoo"
+	block := epicUnitOf(t, edited, "epic:b").Block
+
+	p := parseEpicBlock(block)
+	assert.Equal(t, "ships\ndescription:\nfoo", p.fields["acceptance"])
+	assert.NotContains(t, p.fields, "description")
+	d := blockDiff(epicUnitOf(t, plain, "epic:b").Block, block)
+	require.Len(t, d.FieldsChanged, 1)
+	assert.Equal(t, EpicFieldChange{Unit: "epic:b", Field: "acceptance", Before: "b ships", After: "ships\ndescription:\nfoo"}, d.FieldsChanged[0])
+}
+
+// TestWriteEpicGraph_NormalisesCRLFDescriptions: the same text saved with
+// CRLF and with LF line ends is one description, so it hashes identically.
+func TestWriteEpicGraph_NormalisesCRLFDescriptions(t *testing.T) {
+	hashOf := func(desc string) (string, string) {
+		dir := t.TempDir()
+		g := epicDescribedGraph()
+		g.Epics[1].Description = desc
+		require.NoError(t, WriteEpicGraph(dir, g))
+		loaded, _, err := LoadEpicGraph(dir)
+		require.NoError(t, err)
+		return loaded.Epics[1].Description, epicUnitOf(t, loaded, "epic:b").Hash
+	}
+	crlfText, crlf := hashOf("## Purpose\r\nfirst\r\n\r\nsecond\r\n")
+	lfText, lf := hashOf("## Purpose\nfirst\n\nsecond\n")
+	assert.Equal(t, lf, crlf)
+	assert.Equal(t, lfText, crlfText)
+	assert.NotContains(t, crlfText, "\r")
+}
+
+// TestEpicHandoffContext_ADescriptionDoesNotHideANewlyNamedEpic: the
+// hand-off compares the changed title and acceptance with the ones the round
+// before read, so a description that already named d does not hide the
+// acceptance newly handing d work.
+func TestEpicHandoffContext_ADescriptionDoesNotHideANewlyNamedEpic(t *testing.T) {
+	before := epicDescribedGraph()
+	before.Epics[1].Description = "d will take the export later"
+	beforeBlock := epicUnitOf(t, before, "epic:b").Block
+	now := epicDescribedGraph()
+	now.Epics[1].Description = before.Epics[1].Description
+	now.Epics[1].Acceptance = "b ships and hands the export to d"
+	carry := EpicCarry{Asked: []EpicReviewUnit{epicUnitOf(t, now, "epic:b")}, Before: map[string]string{"epic:b": beforeBlock}}
+
+	out := EpicHandoffContext(now, &carry, nil)
+	ids := make([]string, 0, len(out))
+	for _, c := range out {
+		ids = append(ids, c.ID)
+	}
+	assert.Equal(t, []string{"d"}, ids)
+}
+
+// TestEpicDescriptionDiff_ShowsRemovedAndAddedLines: a description-only
+// change renders as its line diff, unchanged lines kept as context.
+func TestEpicDescriptionDiff_ShowsRemovedAndAddedLines(t *testing.T) {
+	g := epicDescribedGraph()
+	g.Epics[1].Description = "keep\nold line\ntail"
+	before := epicUnitOf(t, g, "epic:b").Block
+	g.Epics[1].Description = "keep\nnew line\ntail\nadded"
+	now := epicUnitOf(t, g, "epic:b").Block
+	assert.Equal(t, "  keep\n- old line\n+ new line\n  tail\n+ added\n", EpicDescriptionDiff(before, now))
 }
