@@ -31,7 +31,9 @@
 # the repository root, i.e. a nested task file's round, which the driver now
 # keys as `.tp/rounds/<dir>/<base>/` and no longer reads. Guard 3 applies.
 #
-# Dry run by default. Nothing is deleted without --apply.
+# Each path is printed with its reason. Dry run by default. Nothing is deleted
+# without --apply. Run it from the project root; with the tp plugin installed it
+# is ${CLAUDE_PLUGIN_ROOT}/scripts/clean-emissions.sh.
 #
 # Usage:
 #   scripts/clean-emissions.sh                     # report what it would remove
@@ -50,7 +52,7 @@ while [ $# -gt 0 ]; do
     --apply)          APPLY=1; shift ;;
     --min-age-hours)  MIN_AGE_HOURS="${2:?--min-age-hours needs a number}"; shift 2 ;;
     --root)           ROOT="${2:?--root needs a path}"; shift 2 ;;
-    -h|--help)        sed -n '2,39p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help)        sed -n '2,41p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *)                echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -74,6 +76,7 @@ now=$(date +%s)
 cutoff=$(( MIN_AGE_HOURS * 3600 ))
 
 removable=()
+reasons=()
 kept_recorded=0
 kept_tracked=0
 kept_young=0
@@ -114,7 +117,15 @@ if [ -d "$ROOT" ]; then
       kept_young=$(( kept_young + 1 )); continue
     fi
 
-    removable+=("$f")
+    if [ "$inbox" -eq 1 ]; then
+      if [ -f "$dir/$phase-round-$round.ndjson" ]; then reason="recorded inbox file"; else reason="unrecorded inbox file"; fi
+    else
+      case "$base" in
+        floor-*) reason="orphan floor" ;;
+        *)       reason="orphan snapshot" ;;
+      esac
+    fi
+    removable+=("$f"); reasons+=("$reason")
   done < <(find "$ROOT" -type f \( -name 'floor-*round-*.txt' -o -name 'snapshot-*round-*.md' \
     -o -path '*/ground-inbox/round-*.ndjson' -o -path '*/review-inbox/round-*.ndjson' -o -path '*/audit-inbox/round-*.ndjson' \) | sort)
 fi
@@ -127,7 +138,7 @@ if [ -d "$ROUNDS" ]; then
     if [ $(( now - $(newest "$d") )) -lt "$cutoff" ]; then
       kept_young=$(( kept_young + 1 )); continue
     fi
-    removable+=("$d")
+    removable+=("$d"); reasons+=("old-layout round dir")
   done < <(find "$ROUNDS" -mindepth 2 -maxdepth 2 -type d \( -name 'review-r[0-9]*' -o -name 'audit-r[0-9]*' \) | sort)
 fi
 
@@ -138,7 +149,9 @@ if [ ${#removable[@]} -eq 0 ]; then
   exit 0
 fi
 
-printf '%s\n' "${removable[@]}"
+for i in "${!removable[@]}"; do
+  printf '%s  %s\n' "${removable[$i]}" "${reasons[$i]}"
+done
 echo "${#removable[@]} path(s)"
 
 if [ "$APPLY" -eq 1 ]; then
