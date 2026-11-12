@@ -583,20 +583,18 @@ func ConsecutiveClean(rounds []ReviewRound) int {
 // at its record time, and is compared exactly as before.
 //
 // When NO round of the phase ever read text — a whole history recorded by hand
-// with no emission, which the fixtures in this repository do — there is no
-// reading to compare with, so the comparison falls back to the last recorded
-// round's stored hash: the answer tp gave before this marker existed. It is
-// the best evidence available, and it keeps an edit after the last record
-// visible rather than reporting a spec nothing has read as fresh. The cost is
-// that in such a history a hand --record still clears staleness, which no
-// round tp can see has read anything.
+// with no emission — nothing has read the current spec, so it is stale
+// whatever it holds: a record clears staleness only through the snapshot of
+// its own emission (spec/backlog/hand-recorded-staleness.md). Only a v1.2.2+
+// record writes the no-emission marker, so a history recorded before it is
+// unmarked, counts as read text above, and never reaches this case.
 func StateStale(rounds []ReviewRound, currentHash string) bool {
 	if len(rounds) == 0 {
 		return false
 	}
 	latest := latestRoundThatReadText(rounds)
 	if latest == nil {
-		latest = &rounds[len(rounds)-1]
+		return true
 	}
 	return latest.SpecHash != currentHash
 }
