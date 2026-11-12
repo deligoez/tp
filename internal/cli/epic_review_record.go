@@ -46,7 +46,28 @@ func runEpicReviewRecord(key engine.EpicSliceKey, recordPath string) {
 		os.Exit(ExitFile)
 	}
 	findings, problems := epicRecordProblems(data, run.all)
+	if findings == 0 {
+		refuseEpicEmptyRecord(&run)
+	}
 	recordEpicRoundData(&run, data, findings, problems)
+}
+
+// refuseEpicEmptyRecord exits 3 when an empty hand-made file would record a
+// round whose emission named role files: it would record roles that never ran
+// as having found nothing, where --record-inbox proves they ran. A round with
+// no emission, one emitted before the panel was kept, or one whose panel is
+// empty records an empty file as before.
+func refuseEpicEmptyRecord(run *epicReviewRun) {
+	panel, _, err := engine.EpicStoredPanel(run.stateDir, run.round)
+	if err != nil || len(panel) == 0 {
+		return
+	}
+	label := epicSliceLabel(run.key)
+	exitEpicRunError(&epicRunError{code: ExitFile,
+		msg: fmt.Sprintf("an empty file cannot record epic review round %d of %s: its emission named %d role file(s), and an empty file would record roles that never ran as having found nothing",
+			run.round, label, len(panel)),
+		hint: fmt.Sprintf("record the files the roles wrote with tp epic review %s --record-inbox, which proves they ran, or, as the operator's decision, discard the emission with tp epic review %s --discard, then emit again",
+			label, label)})
 }
 
 // recordEpicRoundData refuses data at exit 1 when problems names any line,
