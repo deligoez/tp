@@ -184,13 +184,13 @@ func TestAuditRoleFilterNamesEveryNarrowedRole(t *testing.T) {
 	assert.False(t, compact.present, "--compact without --role still omits skipped_roles")
 }
 
-// TestReviewRoleFilterUnderDriverNamesOnlyUncoveredPrompts: a tp run driver
-// partitions the panel across sibling units on purpose, so a driven unit's
-// `--role implementer` names under role-filter only the prompt no sibling
-// covers -- regression, which belongs to no corpus and is never a unit --
-// and not tester or architect, each of which is its own unit. The same call
-// by hand still names all three.
-func TestReviewRoleFilterUnderDriverNamesOnlyUncoveredPrompts(t *testing.T) {
+// TestReviewRoleFilterUnderDriverNamesNoCoveredPrompt: a tp run driver
+// partitions the round across sibling units on purpose, regression included
+// when the round carries it (spec/backlog/run-regression-unit.md), so a driven
+// unit's `--role implementer` names nothing under role-filter: tester,
+// architect and regression are each their own unit. The same call by hand
+// still names all three, and under --compact the empty list is omitted.
+func TestReviewRoleFilterUnderDriverNamesNoCoveredPrompt(t *testing.T) {
 	t.Parallel()
 	dir := roundTwoWithFixedFinding(t)
 	narrow := []string{"review", "spec.md", "--role", "implementer"}
@@ -202,13 +202,13 @@ func TestReviewRoleFilterUnderDriverNamesOnlyUncoveredPrompts(t *testing.T) {
 		"regression": roleFilterReason,
 	}, byHand.skipped, "by hand every narrowed-away role is named")
 
-	for _, extra := range [][]string{nil, {"--compact"}} {
-		driven := readEmissionIn(t, dir, drivenUnit, append(append([]string{}, narrow...), extra...)...)
-		require.Equal(t, []string{"implementer"}, driven.roles, "%v", extra)
-		require.True(t, driven.present, "%v: the uncovered prompt keeps skipped_roles in the payload", extra)
-		assert.Equal(t, map[string]string{"regression": roleFilterReason}, driven.skipped,
-			"%v: a driven unit names only the prompt no sibling unit covers", extra)
-	}
+	driven := readEmissionIn(t, dir, drivenUnit, narrow...)
+	require.Equal(t, []string{"implementer"}, driven.roles)
+	assert.True(t, driven.present, "without --compact skipped_roles is always present")
+	assert.Empty(t, driven.skipped, "every other emitted prompt is a sibling unit, regression included")
+
+	compact := readEmissionIn(t, dir, drivenUnit, append(append([]string{}, narrow...), "--compact")...)
+	assert.False(t, compact.present, "an empty skipped_roles is omitted under --compact")
 }
 
 // TestAuditRoleFilterUnderDriverNamesNoSibling: every prompt tp audit emits
