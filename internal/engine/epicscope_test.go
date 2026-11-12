@@ -209,3 +209,28 @@ func TestScope_OutsideAndNoDependents(t *testing.T) {
 	assert.True(t, s.OutsideImplicit)
 	assert.Equal(t, []string{}, s.NoDependents)
 }
+
+// TestScope_UnneededEarlier: for each milestone before the scope's in its
+// track, the not-done members of its gate no later gate's closure of the
+// track contains, naming the later gates that were implicit; a milestone
+// with none prints no row.
+func TestScope_UnneededEarlier(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0", "m1", "m2"}, {"n0"}}, Epics: []model.Epic{
+		scopeEpic("a1", "m0"),
+		scopeEpic("a2", "m0"),
+		scopeEpic("a3", "m0"),
+		scopeEpic("b1", "m1", scopeDeps("a1")...),
+		scopeEpic("c1", "m2", scopeDeps("b1")...),
+		scopeEpic("d1", "n0", scopeDeps("a2")...),
+	}, Gates: map[string]model.EpicGate{
+		"m0": {Members: []string{"a1", "a2", "a3"}},
+		"m1": {Members: []string{"b1"}},
+	}}
+	g.Epics[2].Done = scopeDone()
+
+	s := scopeOf(t, g, "m2")
+
+	assert.Equal(t, []ScopeUnneeded{
+		{Milestone: "m0", Epics: []string{"a2"}, ImplicitLater: []string{"m2"}},
+	}, s.UnneededEarlier, "another track's need for a2 does not count, and m1's b1 is needed by m2")
+}
