@@ -3,6 +3,8 @@ package engine
 import (
 	"slices"
 	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/deligoez/tp/internal/model"
 )
@@ -11,6 +13,11 @@ import (
 // §1, Part A), derived from the graph and writing nothing.
 type EpicScope struct {
 	Milestone string `json:"milestone"`
+	// Fingerprint hashes the member list in order, the closure's id set, the
+	// critical path by count and the threshold text, so "unchanged since the
+	// last scope pass" is a string compare and a rewritten threshold is a
+	// change even when the closure is identical.
+	Fingerprint string `json:"fingerprint"`
 	// Members is the gate's effective members (GateMembers); MembersImplicit
 	// says the gate names none, so they are every epic of the milestone that
 	// is neither a condition nor deferrable.
@@ -36,6 +43,9 @@ type EpicScope struct {
 	// in track order, the not-done members of its gate that no closure of a
 	// later gate of the track contains; a milestone with none is left out.
 	UnneededEarlier []ScopeUnneeded `json:"unneeded_earlier"`
+	// CriticalPath is the milestone's own critical path (CriticalPath), the
+	// command's to render as tp epic status renders it.
+	CriticalPath EpicCriticalPath `json:"-"`
 }
 
 // ScopeUnneeded is one earlier milestone's gate members no later gate of the
@@ -99,11 +109,35 @@ func MilestoneScope(g *model.EpicGraph, states map[string]EpicState, estimates m
 		OutsideImplicit: implicit,
 		NoDependents:    []string{},
 		UnneededEarlier: w.unneededEarlier(milestone),
+		CriticalPath:    CriticalPath(g, states, estimates, milestone),
 	}
 	if !implicit {
 		s.Outside, s.NoDependents = w.outside(milestone, full)
 	}
+	s.Fingerprint = scopeFingerprint(members, full, s.CriticalPath.ByCount, g.Gates[milestone].Threshold)
 	return s
+}
+
+// scopeFingerprint hashes members in order, the ids of full sorted, path in
+// order and threshold, each id quoted (strconv.Quote) and each list on a line
+// of its own, so no two inputs share one canonical string.
+func scopeFingerprint(members []string, full scopeSet, path []string, threshold string) string {
+	ids := make([]string, 0, len(full.in))
+	for id := range full.in {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	var b strings.Builder
+	for _, list := range [][]string{members, ids, path, {threshold}} {
+		for i, s := range list {
+			if i > 0 {
+				b.WriteByte(',')
+			}
+			b.WriteString(strconv.Quote(s))
+		}
+		b.WriteByte('\n')
+	}
+	return epicHash(b.String())
 }
 
 // scopeWalk walks depends_on edges backwards from a gate's members through
