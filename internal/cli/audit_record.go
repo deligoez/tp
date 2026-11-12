@@ -173,7 +173,23 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 	done := engine.AuditLoopDone(specPath, st.AuditRounds, wf.AuditCleanRounds, wf.AuditMaxRounds, specHash)
 	addLoopDone(result, done)
 	result["next_action"] = engine.AuditNextAction(engine.RepoRelative(specPath), done, clean, findings, engine.LatestRoundFile(specPath, st.AuditRounds))
+	noteRecordWithoutEmission(engine.PhaseAudit, specPath, &st.AuditRounds[round-1], stale)
 	return output.JSON(result)
+}
+
+// noteRecordWithoutEmission says, on stderr, why a round just recorded with no
+// emission of its own leaves the spec stale, and names the emission that would
+// bind a round to the text: a record clears staleness only through the
+// snapshot of its own emission (spec/backlog/hand-recorded-staleness.md). It
+// is silent when an earlier round already read the current text, since then
+// nothing is left stale for the record to clear.
+func noteRecordWithoutEmission(phase, specPath string, entry *engine.ReviewRound, stale bool) {
+	if !stale || entry.HashScheme != engine.HashSchemeNoEmission {
+		return
+	}
+	spec := engine.RepoRelative(specPath)
+	output.Notice(fmt.Sprintf("%s round %d was recorded with no emission, so it certifies no reading of %s and spec-stale stays set; emit the next round with `tp %s %s`, run its roles and record their findings",
+		phase, entry.Round, spec, phase, spec))
 }
 
 // auditSignalFields writes §2.5's three fields onto an audit payload:
