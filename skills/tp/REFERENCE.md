@@ -335,7 +335,7 @@ agent:
 | `tp set --workflow run_max_*=` **above** the resolved value | exit 2, same shape |
 | `tp import --force` | exit 2, same shape |
 | accepting a finding without a change — `wontfix`/`duplicate` on a critical or high review finding, or on any audit finding, at `--resolve` or `--resolve-all` | exit 2, escalates under `--decision accept-finding`; `fixed` is not fenced, nor is `tp audit --record` carrying an earlier acceptance forward (see Dispositions) |
-| `--force` on a `tp ground`/`tp review`/`tp audit` emission that would discard an unrecorded round | exit 2, escalates under `--decision discard-emission`: sibling role units grade one emission concurrently |
+| `--force` on a `tp ground`/`tp review`/`tp audit`/`tp epic review` emission that would discard an unrecorded round | exit 2, escalates under `--decision discard-emission`: sibling role units grade one emission concurrently |
 | `tp set --workflow runner=` / `tp set --local notify_cmd=`, at **any** layer | exit 2, `names a command the driver executes and cannot be set under TP_UNATTENDED, at any layer` |
 | a change of `quality_gate` — **any** `tp set --workflow quality_gate=` write, at either layer; at `tp import`, `tp init --quality-gate` and `tp config --extract`, a write that **changes the gate that resolves** (carrying the current gate forward passes) | exit 2, `<what> changes the quality gate every close runs, which is a user-approved decision refused under TP_UNATTENDED`; the hint names that sink's own exit and escalates under `--decision skip-gate`, since a rewritten gate is a skipped one |
 | a write of `audit_converge_on` that relaxes the audit gate (v0.37.0) — at `tp set --workflow`, `tp import` and `tp config --extract`, one that **changes the resolved value to `blocking`**; at `tp set --workflow --project`, **any** write of `blocking` | exit 2. The three change-rule sinks say `<what> changes the resolved audit_converge_on from <before> to blocking, which relaxes the audit gate and is a user-approved decision refused under TP_UNATTENDED`; the `--project` sink names no resolved value and says `<what> writes blocking into the layer every base resolves through, including bases tp cannot enumerate; blocking is the value that relaxes the audit gate, …`. Each hint names that sink's own exits and escalates under `--decision audit-converge-on` |
@@ -1592,10 +1592,23 @@ mechanized-classes line reaches only roles that read epics or gates. A role aske
 kinds gets no prompt and is named in `skipped_roles` with reason `no-units`. An emission whose
 listed units include one no prompt asks is refused at exit 4 naming it, so a round can never record
 a unit nobody read. A round in which no role is asked anything prints `next_action` naming an empty
-`--record`. An emitted round that is not yet recorded is rebuilt on every re-emission from the
-current graph and corpus, unlike spec review, which refuses to overwrite a changed in-flight
-emission: a role added meanwhile is in it, and after a corpus or graph change, rows an agent already
-wrote against the old emission may cite units the rebuilt snapshot no longer has. The built-ins: `dod-satisfiability`
+`--record`. Re-emitting an emitted round that is not yet recorded is guarded as spec review's is
+(v1.10.0): the round snapshot stores the emitted panel (`roles`: each role's id, the sha256 of its
+role file, CRLF-normalized, `builtin` for regression, and its `output_path`) beside the units, blocks
+and purposes, and a re-emission compares the stored emission with the rebuilt one over the whole
+panel, whatever `--role` it names. Identical, it is idempotent; different — a unit added, removed
+or changed, a purpose changed, a role added or removed or its file edited — it exits 3 naming the
+round and what changed, and `--force` discards the emission, removes the round's inbox files
+(`<role>-r<N>.ndjson`), says so on stderr and emits again: the operator's decision, exit 2 under
+`TP_UNATTENDED` (`discard-emission`). Beside `--resolve` or `--resolve-all`, `--force` keeps its
+meaning, re-resolving a disposed row. A snapshot from before v1.10.0 holds no `roles` and is
+compared on the units, blocks and purposes it holds. Progress is no change: blocks and the scope
+fingerprint are blind to status, so closing work between an emission and its re-emission refuses
+nothing; a disposition that changes what the round asks, such as a row re-resolved `fixed` that
+appends regression, does. A row of the last recorded round with no resolution on a unit the slice
+no longer holds — an epic deleted, or moved out of the slice — refuses the emission at exit 4,
+naming the rows, with `--resolve` as the way out; a row resolved `fixed` there passes, since moving
+or deleting an epic is the normal fix. The built-ins: `dod-satisfiability`
 and `why-auditor` keep both default kinds, `phase-economist` takes `epics` alone with
 `purpose: true`, and `gate-scope` takes `scope` alone with `purpose: true`; the gate questions
 `phase-economist` used to ask moved to `gate-scope`.
@@ -1648,8 +1661,8 @@ left out), then the shrink rows, `deferrable_in_closure`, `holds_opening` and th
 count; done epics and other milestones' epics outside the closure are not shown. Each prompt's `output_path` is the absolute `<state dir>/inbox/<role>-r<N>.ndjson`
 in the slice's inbox (v1.7.0; until then a cwd-relative `epic-review-<hash prefix>-r<N>-<role>.ndjson`),
 the same path the prompt names; inside a `tp run` unit it is the `$TP_ROUND_DIR` path instead.
-The emission creates the inbox and removes nothing in it, so re-emitting and per-role emission keep
-a file a role already wrote. `.tp/.gitignore` ignores every inbox (`epic-review/*/inbox/`), and the
+The emission creates the inbox and removes nothing in it, so an identical re-emission and per-role
+emission keep a file a role already wrote; only a `--force` discard removes the round's files. `.tp/.gitignore` ignores every inbox (`epic-review/*/inbox/`), and the
 plugin's write-deny hook lets exactly that name through, for any writer, when the path's physical
 form (symlinks resolved; a `..` segment or a symlink at the name is refused) is that name too;
 every other path under the state directory stays refused. Spec review's and audit's output paths
@@ -1680,7 +1693,10 @@ policy and the role corpus are read once and every slice is prepared before any 
 state, so an unknown `--role` exits 2 with no slice written. A
 slice that cannot emit is listed under `skipped`, in the order met, and the rest still emit: done
 (`reason` names `done_by`), at its cap (the one-slice refusal's message and hint), failing to
-prepare (a milestone no track lists, an unreadable round), or failing to write its state.
+prepare (a milestone no track lists, an unreadable round, a refusal such as open rows on a unit the
+slice no longer reads or holds, message and hint), an unrecorded emission that changed (`reason`
+`emission-changed`; a batch never discards, the one-slice `--force` does), or failing to write its
+state.
 
 A `--status` row is the one-slice `--status` cut to those keys, `state` one of `tp epic export`'s
 loop states (`none`, `open`, `in_flight`, `stale`, `cap_reached`, `done`). A slice whose key is
