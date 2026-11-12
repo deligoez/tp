@@ -8,14 +8,19 @@ import (
 )
 
 // TestEpicReview_ASliceWithoutAGateSaysSo: a slice that asks no gate unit
-// tells every role that its gate questions do not apply; a slice that asks
-// one does not.
+// tells every role that takes gate units that its gate questions do not
+// apply, and phase-economist, which takes none, nothing; a slice that asks one
+// tells no role.
 func TestEpicReview_ASliceWithoutAGateSaysSo(t *testing.T) {
 	t.Parallel()
 	dir := epicGraphDir(t, epicChainGatedOnD)
 	without := runEpicReview(t, dir, "--epics", "b")
 	require.NotEmpty(t, without.Prompts)
 	for _, p := range without.Prompts {
+		if p.Role == "phase-economist" {
+			assert.NotContains(t, p.Prompt, "No gate unit is asked")
+			continue
+		}
 		assert.Contains(t, p.Prompt, "No gate unit is asked", "%s", p.Role)
 	}
 	with := runEpicReview(t, dir, "--milestone", "A")

@@ -123,8 +123,8 @@ func TestEpicReview_RegressionRoundsKeepThePhaseEconomistBrief(t *testing.T) {
 }
 
 // TestEpicReview_ACarriedGateStaysVisible: a carried gate is not asked, but its
-// deferrable list is what a placement reader needs to see, so its block stays
-// in the prompt as read-only context.
+// block stays in the prompt as read-only context for every role that takes
+// gate units; phase-economist takes only epics, so it is not shown one.
 func TestEpicReview_ACarriedGateStaysVisible(t *testing.T) {
 	t.Parallel()
 	dir := epicGraphDir(t, strings.Replace(epicChain, `"epics": [`,
@@ -139,6 +139,10 @@ func TestEpicReview_ACarriedGateStaysVisible(t *testing.T) {
 	require.Contains(t, r2.Carried, "gate:A")
 	require.NotEmpty(t, r2.Prompts)
 	for _, p := range r2.Prompts {
+		if p.Role == "phase-economist" {
+			assert.NotContains(t, p.Prompt, "Carried gate", "phase-economist takes no gate units")
+			continue
+		}
 		assert.Contains(t, p.Prompt, "deferrable: c\n", "%s sees the carried gate's block", p.Role)
 	}
 }
