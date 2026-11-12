@@ -187,7 +187,9 @@ disposition, while the floor is empty but `cut` is positive, and while the lates
 1. `tp ground <spec>` — emits **one** prompt (the envelope carries `prompt`, a string, where review
    and audit carry `prompts[]`: grounding asks one question of every unit, so there is no panel and
    no role), writes `snapshot-ground-round-N.md` and `floor-ground-round-N.txt` beside it, and names
-   `ground-<base>-rN.ndjson` as the file the unit writes.
+   `.tp-review/<base>/ground-inbox/round-N.ndjson` as the file the unit writes (v1.12.0; before, a
+   cwd-relative `ground-<base>-rN.ndjson` that two same-base specs shared). `--record` refuses that
+   old name, saying where to move the file, and removes the scratch file once the round is recorded.
 2. Spawn **one** sub-agent on that prompt. It needs no file list — the prompt names the snapshot it
    was derived from, and `tp ground <spec> --units` prints every floor unit's full text when the unit
    needs to know where a unit ends. The prompt's own isolation clause is the ground one: it permits
