@@ -163,3 +163,27 @@ func TestResume_NextActionCommandsAreRepoRelativeAndRunFromASubdirectory(t *test
 		assert.Equal(t, 0, code, "%v from a subdirectory: %s", args, stderr)
 	}
 }
+
+// TestLoopStatus_NextActionNamesTheSpecRepoRelativeFromASubdirectory: tp
+// audit and tp review --status, run from a subdirectory over the spec's
+// repo-relative path, name the spec in next_action as tp resume does —
+// repo-relative, not as the absolute path the argument resolved to.
+func TestLoopStatus_NextActionNamesTheSpecRepoRelativeFromASubdirectory(t *testing.T) {
+	t.Parallel()
+	dir := repoRelativeRepo(t, `[]`)
+	initGitRepo(t, dir)
+	sub := filepath.Join(dir, "sub")
+	for cmd, want := range map[string]string{
+		"audit":  "run the next audit round: tp audit spec/s.md --record <file>",
+		"review": "run the next review round: tp review spec/s.md --record <file>",
+	} {
+		out, stderr, code := runTP(t, sub, cmd, "spec/s.md", "--status")
+		require.Equal(t, 0, code, "tp %s --status from a subdirectory: %s", cmd, stderr)
+		var payload struct {
+			NextAction string `json:"next_action"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(out), &payload), out)
+		assert.Equal(t, want, payload.NextAction, "tp %s", cmd)
+		assertNoAbsolutePath(t, dir, []string{payload.NextAction})
+	}
+}
