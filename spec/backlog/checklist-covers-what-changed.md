@@ -20,18 +20,25 @@ says when the audited universe itself looks wrong.
 ## 2. Decision
 
 1. **Rank by churn.** The code roles' list is ordered by lines added plus deleted, descending, ties by
-   path; files without a measured diff come last, in path order.
+   path. The diff is taken with external diff disabled and its revision guarded where it becomes a
+   git argument; a renamed file ranks by its own churn under its new path; files without a measured
+   diff, binaries included, come last, in path order.
 2. **A named list is not cut.** When `--affected-files` or `--affected-from-tasks` replaced the
-   universe, the code roles get the whole list.
+   universe, the code roles get the whole list. That removes a bound: a long named list goes whole
+   into every code role's prompt. It is the operator's list and their choice, and the payload reports
+   its size so the cost is visible before fan-out.
 3. **Say so when anything is cut.** Each prompt entry in the payload carries the pool its list was
    cut from; a cut below the auto-detect cap prints a notice on stderr.
-4. **The recorded round says what was graded.** At emission tp keeps each code role's pool size beside
-   the round's snapshot; at `--record` it counts the distinct files each role graded, and `--record`,
-   `--status` and `next_action` report "graded N of M" per role. The stored file is a round artifact
-   the dirty-state classifier, `scripts/clean-emissions.sh` and the write fence know by name.
+4. **The recorded round says what was graded.** N counts the distinct files a role returned a
+   `file_check` row for, whatever its verdict, so a file read and found clean counts as graded; M is
+   the pool the role's list was cut from. M is kept from emission to record in an existing in-flight
+   place if the emission has one; a new round artifact only if it has none, and then the dirty-state
+   classifier, `scripts/clean-emissions.sh` and the write fence learn its name. At `--record` both
+   land in the round's entry in the state file, which `--record`, `--status` and `next_action` read
+   to report "graded N of M" per role.
 5. **Say so when the universe looks wrong.** A notice when files reach the range only through a merge
    (`--first-parent` sees fewer), and when the auto-detected universe and the files the plan's tasks
-   touched differ.
+   touched differ. Each notice goes to stderr and into the payload.
 
 ## 3. Alternatives
 
