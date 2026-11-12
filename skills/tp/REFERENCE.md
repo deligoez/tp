@@ -1780,17 +1780,18 @@ The read commands write nothing and list epics in graph order, every list `[]` w
   lists per milestone. `--all` lifts the open-milestone rule.
 - **`tp epic gate <m>`**: `{milestone, green, members: [{id, state, status}], deferrable: [{id,
   status}], threshold?, met?, threshold_changed?}`, `state` `green` or `red`.
-- **`tp epic scope <m>`**: `{fingerprint, milestone, members, members_implicit, member_count,
-  closure: [{milestone, track?, cross_track?, size, epics: [{id, any_of?, deferrable?}]}], shrink:
-  [{epic, member,
-  any_of?, size, leaves}], outside: [{id, deferrable?, condition?, no_dependents?}],
-  deferrable_in_closure, unneeded_earlier: [{milestone, epics, implicit_gates}], critical_path:
-  {by_count, by_estimate: {chain, estimate_minutes}}}`. `members` is `GateMembers`' list,
-  `members_implicit` true when the gate names none, `member_count` its length. `closure` is the
+- **`tp epic scope <m>`**: `{fingerprint, milestone, purpose, members, members_implicit,
+  member_count, closure: [{milestone, track_index?, cross_track?, size, epics: [{id, any_of?,
+  deferrable?}]}], shrink: [{epic, member, any_of?, size, leaves}], outside: [{id, deferrable?,
+  condition?, no_dependents?}], deferrable_in_closure, holds_opening: [{milestone, size, epics}],
+  critical_path: {by_count, by_estimate: {chain, estimate_minutes}}}`. `purpose` is the gate's
+  `purpose` trimmed, `null` when it is unset, empty or only whitespace. `members` is `GateMembers`'
+  list, `members_implicit` true when the gate names none, `member_count` its length. `closure` is the
   not-done epics the not-done members reach through `depends_on` entries not yet satisfied, members
   included, cut at done epics and never entering a moot one, per milestone in milestone order;
-  `track` is absent for a milestone no track lists, and `cross_track` marks every milestone other
-  than `<m>` that shares no track with it (two untracked milestones share none), as information.
+  `track_index` is the index of the milestone's track in `milestones`, absent for a milestone no track lists, and
+  `cross_track` marks every milestone other than `<m>` that shares no track with it (two untracked
+  milestones share none), as information.
   The *required* part is what the members reach through plain edges alone and carries no `any_of`;
   every other closure epic is optional and its `any_of` is the group of the alternative it hangs
   from: the unsatisfied group that reached it, or the mark of the epic whose plain edge did, the
@@ -1804,21 +1805,25 @@ The read commands write nothing and list epics in graph order, every list `[]` w
   condition epics out); `no_dependents: true` marks one no `depends_on` entry of the graph names,
   plain or as an any-of member. `deferrable_in_closure` is the gate's `deferrable` epics in the
   required part, which cannot actually be deferred (no lint rule reports this); `[]` when none.
-  `unneeded_earlier`: for each milestone before `<m>` in its track, the not-done members of its gate
-  that the closure of no other milestone's gate holds, tracked or not; `implicit_gates` names the
-  other gates consulted that were implicit and held an epic, whose closure holds their whole
-  milestone; a milestone
-  with none is left out. `critical_path` is `tp epic status`'s `milestones[m].critical_path`.
+  `holds_opening`: for each gate `<m>` opens after directly (its effective `opens_after`, not their
+  predecessors in turn), in that order, the gate's not-done effective members `<m>`'s closure does not
+  contain, sorted, with their count as `size`; a gate with none is left out. They hold `<m>`'s
+  opening for nothing: each row is a list of candidates to make deferrable in the predecessor's
+  gate, not epics to delete, and a deferrable is no member, so it is never listed. What other gates
+  need is no input, so a row for a product milestone that follows another can legitimately be long.
+  `critical_path` is `tp epic status`'s `milestones[m].critical_path`.
   `fingerprint` is the hex sha256 of the sorted members, the sorted ids of the closure drawn blind to
-  status (every epic taken as not done, every any-of member followed) and the threshold, each part
-  labelled and length-prefixed: closing an epic, satisfying a group or reordering the members leaves
-  it, a rewritten threshold or a change in the epics the members reach moves it. `--compact` prints
-  a strict subset of the same keys, the fingerprint still first: `{fingerprint, milestone, members?,
-  members_implicit, member_count, closure: [{milestone, track?, cross_track?, size}], shrink: [{epic,
-  member, any_of?, size}], deferrable_in_closure?, critical_path: {by_count}}`; it drops an implicit
-  gate's `members` list, the closure's epic lists, each shrink row's `leaves`, `outside`,
-  `unneeded_earlier`, an empty `deferrable_in_closure` and `by_estimate`. It writes nothing and runs
-  under `TP_UNATTENDED`.
+  status (every epic taken as not done, every any-of member followed), the threshold, the sorted
+  deferrables and the purpose, each part labelled and length-prefixed, an unset purpose adding no
+  part: closing an epic, satisfying a group or reordering the members or the deferrables leaves it;
+  a rewritten threshold or purpose, a changed deferrable list or a change in the epics the members
+  reach moves it. `--compact` prints a strict subset of the same keys, the fingerprint still first:
+  `{fingerprint, milestone, purpose, members?, members_implicit, member_count, closure: [{milestone,
+  track_index?, cross_track?, size}], shrink: [{epic, member, any_of?, size}],
+  deferrable_in_closure?, holds_opening: [{milestone, size}], critical_path: {by_count}}`; it drops an
+  implicit gate's `members` list, the closure's epic lists, each shrink row's `leaves`, `outside`,
+  each holds_opening row's `epics`, an empty `deferrable_in_closure` and `by_estimate`. It writes
+  nothing and runs under `TP_UNATTENDED`.
 - **`tp epic status [--milestone <m>] [--open]`**: `{critical_path: {by_count}, milestones: [...]}`.
   The top-level `by_count` is the longest chain of not-done epics in the whole graph, in work order,
   counted in work epics; ties go to the chain ending earlier in graph order; v1.7.0: at an
