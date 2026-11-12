@@ -34,17 +34,12 @@ type promptFraming struct {
 // roleOutputPath returns the file one role writes this round's findings to —
 // the emitted prompt's output_path and the path §10.4's line names in its body.
 //
-// Outside a run the name is <phase>-<base>-r<round>-<role>.ndjson, relative to
-// wherever the operator is standing, which is what the interactive loop
-// collects. The spec's base is in the name because this file is not under the
-// per-spec state directory, so with the phase, the round and the role alone,
-// two specs reviewed or audited from one directory named one file per role and
-// the second panel's findings overwrote the first's with no error anywhere. The
-// base is engine.SpecBaseName, the slug ReviewStateDir names the state
-// directory by, so the scratch file and the recorded round agree about which
-// spec they belong to. Two same-base specs in different directories still
-// share the name; ground's scratch file moved into the state directory for
-// that reason (engine.GroundScratchPath), and this one has not.
+// Outside a run the file is engine.RoleInboxPath, the phase's inbox in the
+// spec's own state directory: <spec dir>/.tp-review/<base>/<phase>-inbox/
+// round-<round>-<role>.ndjson. Its identity comes from location, so two specs
+// reviewed or audited from one directory never share a role file even when
+// their bases match (spec/backlog/role-files-in-state-dir.md); the old
+// cwd-relative <phase>-<base>-r<round>-<role>.ndjson is never read.
 //
 // Inside a run TP_ROUND_DIR is set, and §6.3 puts a role's findings at
 // $TP_ROUND_DIR/role-<role>.ndjson.part — the single path the reviewer and
@@ -56,7 +51,7 @@ func roleOutputPath(phase, specPath string, round int, role string) string {
 	if roundDir := os.Getenv(engine.EnvRoundDir); roundDir != "" {
 		return engine.RoleFindingsPartPath(roundDir, role)
 	}
-	return fmt.Sprintf("%s-%s-r%d-%s.ndjson", phase, engine.SpecBaseName(specPath), round, role)
+	return engine.RoleInboxPath(specPath, phase, round, role)
 }
 
 // renderFraming produces the framing block appended to a role prompt. It states

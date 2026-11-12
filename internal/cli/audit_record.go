@@ -126,6 +126,7 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 		exitStateError(lockErr)
 		return nil
 	}
+	removeRoundInbox(specPath, engine.PhaseAudit, round)
 
 	wf, _ := engine.ResolveWorkflow(specPath, flagFile)
 	// converged and stale are computed once, so the payload and §2.4's
@@ -175,6 +176,15 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 	result["next_action"] = engine.AuditNextAction(engine.RepoRelative(specPath), done, clean, findings, engine.LatestRoundFile(specPath, st.AuditRounds))
 	noteRecordWithoutEmission(engine.PhaseAudit, specPath, &st.AuditRounds[round-1], stale)
 	return output.JSON(result)
+}
+
+// removeRoundInbox removes the just-recorded round's role files from the
+// phase's inbox (spec/backlog/role-files-in-state-dir.md). The round is on
+// disk by now, so a file that cannot be removed is a notice, not a failure.
+func removeRoundInbox(specPath, phase string, round int) {
+	if err := engine.RemoveRoundInbox(specPath, phase, round); err != nil {
+		output.Notice(fmt.Sprintf("warning: %s round %d is recorded but its role files could not be removed: %v", phase, round, err))
+	}
 }
 
 // noteRecordWithoutEmission says, on stderr, why a round just recorded with no

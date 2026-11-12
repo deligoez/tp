@@ -198,6 +198,7 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 		exitStateError(lockErr)
 		return nil
 	}
+	removeRoundInbox(specPath, engine.PhaseReview, round)
 
 	// Mechanize candidates across all recorded rounds including this one
 	roundFindings := make([][]map[string]any, 0, len(st.ReviewRounds))
