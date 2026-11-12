@@ -14,13 +14,15 @@ import (
 // §1, Part A), derived from the graph and writing nothing.
 type EpicScope struct {
 	// Fingerprint, first so a reader can stop after it, hashes the member
-	// set, the id set of the closure drawn blind to status (blindClosure)
-	// and the threshold text, so "unchanged
+	// set, the id set of the closure drawn blind to status (blindClosure),
+	// the threshold text, the deferrable set and the purpose, so "unchanged
 	// since the last scope pass" is a string compare that closing an epic
 	// does not move, and a rewritten threshold is a change even when the
 	// closure is identical.
 	Fingerprint string `json:"fingerprint"`
 	Milestone   string `json:"milestone"`
+	// Purpose is the gate's purpose (GatePurpose), null when it is unset.
+	Purpose *string `json:"purpose"`
 	// Members is the gate's effective members (GateMembers); MembersImplicit
 	// says the gate names none, so they are every epic of the milestone that
 	// is neither a condition nor deferrable; MemberCount is their number.
@@ -134,15 +136,33 @@ func MilestoneScope(g *model.EpicGraph, states map[string]EpicState, estimates m
 		CriticalPath:        CriticalPath(g, states, estimates, milestone),
 	}
 	s.Outside = w.outside(milestone, deferrable, full)
-	s.Fingerprint = scopeFingerprint(members, blindClosure(w.epics, members), g.Gates[milestone].Threshold)
+	if purpose := GatePurpose(g, milestone); purpose != "" {
+		s.Purpose = &purpose
+	}
+	s.Fingerprint = gateScopeFingerprint(g, milestone, w.epics)
 	return s
 }
 
+// GatePurpose returns milestone's gate purpose trimmed: "" when the gate has
+// none, or one that is only whitespace, which counts as unset everywhere.
+func GatePurpose(g *model.EpicGraph, milestone string) string {
+	return strings.TrimSpace(g.Gates[milestone].Purpose)
+}
+
+// gateScopeFingerprint is milestone's scope fingerprint (EpicScope), computed
+// from the graph's shape alone: no state enters it. epics is the graph's
+// epics by id (epicsByID).
+func gateScopeFingerprint(g *model.EpicGraph, milestone string, epics map[string]*model.Epic) string {
+	members, deferrable := GateMembers(g, milestone)
+	return scopeFingerprint(members, blindClosure(epics, members), g.Gates[milestone].Threshold, deferrable, GatePurpose(g, milestone))
+}
+
 // scopeFingerprint hashes the members sorted, the status-blind closure's ids
-// sorted, and the threshold. Each part is labelled and counted and each item
-// length-prefixed, so an id moving between parts cannot collide and a new
-// part is an additive change.
-func scopeFingerprint(members, closure []string, threshold string) string {
+// sorted, the threshold, the deferrables sorted and the purpose, which a
+// blank one leaves out as a part. Each part is labelled and counted and each
+// item length-prefixed, so an id moving between parts cannot collide and a
+// new part is an additive change.
+func scopeFingerprint(members, closure []string, threshold string, deferrable []string, purpose string) string {
 	var b strings.Builder
 	part := func(label string, items []string) {
 		fmt.Fprintf(&b, "%s:%d\n", label, len(items))
@@ -153,6 +173,10 @@ func scopeFingerprint(members, closure []string, threshold string) string {
 	part("members", slices.Sorted(slices.Values(members)))
 	part("closure", closure)
 	part("threshold", []string{threshold})
+	part("deferrable", slices.Sorted(slices.Values(deferrable)))
+	if purpose != "" {
+		part("purpose", []string{purpose})
+	}
 	return epicHash(b.String())
 }
 
