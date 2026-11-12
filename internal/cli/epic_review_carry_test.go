@@ -46,7 +46,7 @@ func TestEpicReview_UnchangedUnitsAreCarried(t *testing.T) {
 	assert.Empty(t, r2.Units, "round 2 asks no unit")
 	assert.Empty(t, r2.Prompts, "round 2 emits no prompts")
 	assert.Equal(t, []string{"epic:a", "epic:b", "epic:c", "epic:d", "gate:A"}, r2.Carried)
-	assert.Contains(t, r2.NextAction, "empty file")
+	assert.Contains(t, r2.NextAction, "tp epic review --milestone A --record-inbox, which needs no file")
 	writeEpicRound(t, dir, &r2, "")
 
 	editEpicGraph(t, dir, "b needs c", "b needs c's parser")
