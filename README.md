@@ -258,7 +258,7 @@ tp epic ready                  # Work epics that can start, ranked by downstream
 tp epic status                 # Critical path; per milestone: open, waiting_on, counts, gate, ready, blocked with held_by (--milestone, --open, --compact)
 tp epic import <file>          # Replace the graph with a file (--force over one holding epics); reports its lint findings
 tp epic review --epic <id>     # One prompt per graph role over a slice (or --milestone <m>, --epics <ids> [--name]; --role narrows)
-tp epic review --epic <id> --record-inbox # Record the round from the role files its emission named, each row stamped with its role
+tp epic review <slice> --record-inbox # Record the round from the role files its emission named, each row stamped with its role
 tp epic review --all           # Every milestone's round in one payload (or --milestones <m,m>; --status reads every slice)
 tp epic review --report --all  # Each finding class with the slices, rounds and distinct epics it was raised on
 tp epic review --epic <id> --history # A slice's recorded rounds with findings by role and the graph diff between them (--from/--to; --of-epic <id>: one epic's edges across every slice)
