@@ -128,9 +128,45 @@ func RunDir(root, runID string) string {
 // that path resolved under the repository root, absolute for the reason
 // TP_RUN_DIR is: a child, and the Stop hook that reads the same path, must not
 // have to assume its own working directory.
+//
+// The cycle is named by the task file's location, not its base alone: its
+// directory relative to root, then its base, so x/a.tasks.json and
+// y/a.tasks.json never share a round directory and a task file at the root
+// keeps .tp/rounds/<base>. A shared one handed the second cycle the first
+// cycle's role files as finished roles (spec/backlog/ground-scratch-in-state-dir.md).
 func RoundDir(root, taskFile, phase string, round int) string {
 	name := phase + "-r" + strconv.Itoa(round)
-	return absoluteUnder(root, filepath.Join(".tp", "rounds", RunBase(taskFile), name))
+	return absoluteUnder(root, filepath.Join(".tp", "rounds", taskFileDirUnder(root, taskFile), RunBase(taskFile), name))
+}
+
+// taskFileDirUnder returns the task file's directory relative to root, or ""
+// when it is root itself or lies outside it — the latter spelled through a
+// symlink of root's path too, which is why both are resolved before giving up.
+func taskFileDirUnder(root, taskFile string) string {
+	for _, resolve := range []func(string) (string, error){filepath.Abs, evalAbs} {
+		r, rootErr := resolve(root)
+		d, dirErr := resolve(filepath.Dir(taskFile))
+		if rootErr != nil || dirErr != nil {
+			continue
+		}
+		rel, err := filepath.Rel(r, d)
+		if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			if rel == "." {
+				return ""
+			}
+			return rel
+		}
+	}
+	return ""
+}
+
+// evalAbs is filepath.Abs followed by symlink resolution.
+func evalAbs(p string) (string, error) {
+	abs, err := filepath.Abs(p)
+	if err != nil {
+		return "", err
+	}
+	return filepath.EvalSymlinks(abs)
 }
 
 // absoluteUnder joins rel under root and makes the result absolute, falling
