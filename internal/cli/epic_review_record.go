@@ -49,7 +49,7 @@ func runEpicReviewRecord(key engine.EpicSliceKey, recordPath string) {
 	if findings == 0 {
 		refuseEpicEmptyRecord(&run)
 	}
-	recordEpicRoundData(&run, data, findings, problems)
+	recordEpicRoundData(&run, data, findings, problems, epicRecordRowHint)
 }
 
 // refuseEpicEmptyRecord exits 3 when an empty hand-made file would record a
@@ -73,9 +73,9 @@ func refuseEpicEmptyRecord(run *epicReviewRun) {
 // recordEpicRoundData refuses data at exit 1 when problems names any line,
 // else records it as the slice's next round and prints the payload: the tail
 // --record and --record-inbox share.
-func recordEpicRoundData(run *epicReviewRun, data []byte, findings int, problems []string) {
+func recordEpicRoundData(run *epicReviewRun, data []byte, findings int, problems []string, hint string) {
 	if len(problems) > 0 {
-		output.Error(ExitValidation, "findings file refused, no round recorded: "+strings.Join(problems, "; "), epicRecordRowHint)
+		output.Error(ExitValidation, "findings file refused, no round recorded: "+strings.Join(problems, "; "), hint)
 		os.Exit(ExitValidation)
 	}
 	round, err := engine.RecordEpicReviewRound(run.stateDir, data)
@@ -128,6 +128,9 @@ func epicRecordProblems(data []byte, units []engine.EpicReviewUnit) (findings in
 	return findings, problems
 }
 
+// epicNoUnitProblem is how a row problem says its location is no unit.
+const epicNoUnitProblem = "names no unit of the slice"
+
 // epicRecordRowProblem returns what is wrong with one row, or "".
 func epicRecordRowProblem(line string, legal map[string]bool) string {
 	var row map[string]any
@@ -138,7 +141,7 @@ func epicRecordRowProblem(line string, legal map[string]bool) string {
 		return missingFieldsClause(missing)
 	}
 	if loc, _ := row["location"].(string); !legal[loc] {
-		return fmt.Sprintf("location %q names no unit of the slice", loc)
+		return fmt.Sprintf("location %q "+epicNoUnitProblem, loc)
 	}
 	return ""
 }

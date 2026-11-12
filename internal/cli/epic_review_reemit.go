@@ -52,8 +52,13 @@ func epicEmissionChanges(run *epicReviewRun, panel []engine.EpicSnapshotRole) ([
 // ends in, naming its two ways forward in order: record it as emitted, or,
 // the operator's decision, discard it and emit again.
 func epicWaysForward(label string) string {
-	return fmt.Sprintf("record the round as emitted with tp epic review %s --record-inbox, or, as the operator's decision, discard it with tp epic review %s --discard, then emit again",
-		label, label)
+	return fmt.Sprintf("record the round as emitted with tp epic review %s --record-inbox, or, %s", label, epicDiscardWay(label))
+}
+
+// epicDiscardWay is the discard half of epicWaysForward, for a refusal whose
+// round can no longer be recorded as emitted.
+func epicDiscardWay(label string) string {
+	return fmt.Sprintf("as the operator's decision, discard it with tp epic review %s --discard, then emit again", label)
 }
 
 // epicChangedError is the refusal of a re-emission whose emission changed.

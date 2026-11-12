@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 
 	"github.com/deligoez/tp/internal/engine"
 )
@@ -50,10 +52,17 @@ func runEpicReviewRecordInbox(key engine.EpicSliceKey) {
 			findings++
 		}
 	}
+	hint := epicRecordRowHint
 	if len(problems) == 0 {
 		_, problems = epicRecordProblems(data.Bytes(), run.all)
+		if slices.ContainsFunc(problems, func(p string) bool { return strings.Contains(p, epicNoUnitProblem) }) {
+			// A graph edit while the round was out took a unit its rows
+			// name: the round cannot be recorded as emitted any more.
+			hint = "fix a mistyped location in its file; if the graph lost the unit while the round was out, the round cannot be recorded as emitted: " +
+				epicDiscardWay(epicSliceLabel(run.key))
+		}
 	}
-	recordEpicRoundData(&run, data.Bytes(), findings, problems)
+	recordEpicRoundData(&run, data.Bytes(), findings, problems, hint)
 }
 
 // epicInboxPanel returns the stored panel of run's in-flight round, its paths
@@ -85,7 +94,8 @@ func epicInboxPanel(run *epicReviewRun) []engine.EpicSnapshotRole {
 		}
 	}
 	if len(missing) > 0 {
-		roles := engine.CappedList(missing)
+		// Every role is named: the hint tells the agent to write each file.
+		roles := strings.Join(missing, ", ")
 		exitEpicRunError(&epicRunError{code: ExitFile,
 			msg: fmt.Sprintf("epic review round %d of %s cannot be recorded from the inbox: no findings file from roles %s in %s",
 				run.round, label, roles, dir),
