@@ -6,6 +6,21 @@ backlog sidecars (`spec/backlog/ARCHIVE.md` gives the sha to read them at). Fix 
 from the repro, watch it fail, fix, gate, review the diff, commit, **delete the line**. A defect whose
 fix needs a design choice leaves this file for a decision note.
 
+## Needs an operator decision
+
+- **An unresolved high review finding is converged away by empty rounds.** Convergence counts only the
+  trailing clean rounds, each judged on its own rows, while the next round's prompts list the open
+  finding under "UNRESOLVED findings from previous rounds — DO NOT re-report". So a high nobody fixed
+  or disposed of is not raised again and `--status --check` exits 0. Repro (v1.12.0, scratch git repo,
+  two-section spec, `tp init` and commit): emit round 1, record one row
+  `{"role":"r","severity":"high","finding":"Rule 1 is ambiguous","location":"§2","evidence":"line 9","class":"ambiguity"}`;
+  emit round 2 (its prompt carries the row under DO NOT re-report) and record an empty file; same for
+  round 3; the spec is unchanged throughout. `tp review spec.md --status --check` exits 0,
+  `converged: true`, `consecutive_clean: 2`, `next_action` "decompose the spec…". Failing test:
+  that sequence must not converge. The fix changes a convergence rule (an open blocking row in any
+  round of the current text blocks, or the carry list stops telling roles not to re-raise unresolved
+  rows), so it is the operator's choice, not a fix-track change.
+
 ## Decided elsewhere, not a fix
 
 - **`tp review --check` converges with roles that never ran.** A role that found nothing writes no
