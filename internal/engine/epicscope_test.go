@@ -469,3 +469,19 @@ func TestScope_UntrackedMilestonesAreCrossTrack(t *testing.T) {
 		{Milestone: "v0", CrossTrack: true, Size: 1, Epics: []ScopeEpic{{ID: "v1"}}},
 	}, scopeOf(t, g, "u0").Closure)
 }
+
+// TestScope_UnneededEarlierCountsUntrackedGates: the gate of a milestone no
+// track lists is a gate too, so an earlier member whose only consumer it is
+// counts as needed.
+func TestScope_UnneededEarlierCountsUntrackedGates(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0", "m1"}}, Epics: []model.Epic{
+		scopeEpic("a1", "m0"),
+		scopeEpic("b1", "m1"),
+		scopeEpic("u1", "u0", scopeDeps("a1")...),
+	}, Gates: map[string]model.EpicGate{
+		"m0": {Members: []string{"a1"}},
+		"m1": {Members: []string{"b1"}},
+	}}
+
+	assert.Equal(t, []ScopeUnneeded{}, scopeOf(t, g, "m1").UnneededEarlier)
+}
