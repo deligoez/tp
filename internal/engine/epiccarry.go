@@ -29,6 +29,12 @@ type EpicCarry struct {
 	// no blocking finding, at least one non-blocking one: the change must still
 	// be read, but by the regression role alone.
 	VerifyOnly bool
+	// PurposeStale holds, in slice order, the units Asked does not hold whose
+	// milestone's purpose changed since the round before's snapshot
+	// (spec/backlog/epic-scope.md, Part B). Only a role with purpose: true is
+	// asked them; a purpose change is no unit change, so they set neither
+	// Changed nor VerifyOnly.
+	PurposeStale []EpicReviewUnit
 }
 
 // EpicDecision is one earlier row accepted wontfix or duplicate, and the
