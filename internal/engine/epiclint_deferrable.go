@@ -40,7 +40,7 @@ func lintEpicDeferrableRequired(g *model.EpicGraph) []EpicLintFinding {
 			requirers := req.requirersOf(g, d, adj)
 			f := epicWarning(EpicRuleDeferrableRequired, fmt.Sprintf(
 				"deferrable %s of the gate of %q is required by %s: for example the member %s reaches it through %s, so the gate cannot go green without it",
-				d, m, CappedList(requirers), p.member, p.path), append([]string{d, p.member}, requirers...)...)
+				d, m, CappedList(requirers, "epics"), p.member, p.path), append([]string{d, p.member}, requirers...)...)
 			f.Names = []string{m}
 			out = append(out, f)
 		}

@@ -42,7 +42,7 @@ func EpicEmissionChanges(stateDir string, round int, units []EpicReviewUnit, rol
 	now := newEpicSnapshot(round, units, roles)
 	changes := epicUnitChanges(&old, &now)
 	if p := epicPurposeChanges(old.Purposes, now.Purposes); len(p) > 0 {
-		changes = append(changes, "purposes changed: "+CappedList(p))
+		changes = append(changes, "purposes changed: "+CappedList(p, "milestones"))
 	}
 	if old.Roles != nil {
 		changes = append(changes, epicRoleChanges(old.Roles, now.Roles)...)
@@ -61,7 +61,7 @@ func epicUnitChanges(old, now *epicSnapshot) []string {
 			changed = append(changed, k)
 		}
 	}
-	return labelled([]string{"units added: ", "units removed: ", "units changed: "}, added, removed, changed)
+	return labelled("units", []string{"units added: ", "units removed: ", "units changed: "}, added, removed, changed)
 }
 
 // epicPurposeChanges lists, sorted, the milestones whose purpose differs, an
@@ -88,7 +88,7 @@ func epicRoleChanges(old, now []EpicSnapshotRole) []string {
 			changed = append(changed, id)
 		}
 	}
-	return labelled([]string{"roles added: ", "roles removed: ", "role files changed: "}, added, removed, changed)
+	return labelled("roles", []string{"roles added: ", "roles removed: ", "role files changed: "}, added, removed, changed)
 }
 
 // roleHashes maps each role's id to its hash.
@@ -118,12 +118,13 @@ func keyDifference(old, now map[string]string) (added, removed, both []string) {
 	return added, removed, both
 }
 
-// labelled renders each non-empty list after its label, capped (CappedList).
-func labelled(labels []string, lists ...[]string) []string {
+// labelled renders each non-empty list after its label, capped as noun
+// (CappedList).
+func labelled(noun string, labels []string, lists ...[]string) []string {
 	var out []string
 	for i, l := range lists {
 		if len(l) > 0 {
-			out = append(out, labels[i]+CappedList(l))
+			out = append(out, labels[i]+CappedList(l, noun))
 		}
 	}
 	return out
