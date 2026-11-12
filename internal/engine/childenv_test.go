@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -181,6 +182,29 @@ func TestRoundDir_KeyedByTheTaskFilesLocation(t *testing.T) {
 	assert.Equal(t, RoundDir(root, x, PhaseReview, 1),
 		RoundDir(root, filepath.Join(root, "x", ".", "a.tasks.json"), PhaseReview, 1),
 		"a second spelling of the same task file names the same directory")
+}
+
+// TestRunStateIsKeyedByTheTaskFilesLocation is item 8 of the round-1 fixes
+// to spec/backlog/ground-scratch-in-state-dir.md: the run state, the run lock
+// and the last-failure record name the cycle the way its round directory
+// does, so two same-base task files in different directories never share
+// them, and a task file at the root keeps today's names.
+func TestRunStateIsKeyedByTheTaskFilesLocation(t *testing.T) {
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	require.NoError(t, os.MkdirAll(filepath.Join(root, ".git"), 0o750))
+	x := filepath.Join(root, "x", "a.tasks.json")
+	y := filepath.Join(root, "y", "a.tasks.json")
+	top := filepath.Join(root, "a.tasks.json")
+
+	assert.NotEqual(t, RunStatePath(root, x), RunStatePath(root, y))
+	assert.NotEqual(t, LastFailurePath(root, x), LastFailurePath(root, y))
+	assert.NotEqual(t, RunLockPath(x), RunLockPath(y))
+
+	assert.Equal(t, filepath.Join(root, ".tp", "run-a.json"), RunStatePath(root, top), "a root task file keeps its name")
+	assert.Equal(t, filepath.Join(root, ".tp", "last_failure-a.json"), LastFailurePath(root, top))
+	assert.Equal(t, filepath.Join(root, ".tp", "locks", "run-a.lock"), RunLockPath(top))
+	assert.Equal(t, filepath.Join(root, ".tp", "run-x%2Fa.json"), RunStatePath(root, x), "a nested one is keyed by its directory")
 }
 
 // assertULID checks the canonical text form: 26 Crockford base32 characters

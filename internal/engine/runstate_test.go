@@ -72,8 +72,8 @@ func TestRunStatePath_IsPerTaskFileUnderTheTPDir(t *testing.T) {
 	root := t.TempDir()
 
 	path := RunStatePath(root, filepath.Join(root, "spec", "0.35.0.tasks.json"))
-	assert.Equal(t, filepath.Join(root, ".tp", "run-0.35.0.json"), path,
-		"the run state is .tp/run-<base>.json, with <base> the task file minus .tasks.json")
+	assert.Equal(t, filepath.Join(root, ".tp", "run-spec%2F0.35.0.json"), path,
+		"the run state is .tp/run-<key>.json, with <key> the task file's directory and base (CycleKey)")
 	assert.True(t, filepath.IsAbs(path), "the path is absolute, like TP_RUN_DIR")
 
 	other := RunStatePath(root, filepath.Join(root, "spec", "0.36.0.tasks.json"))
