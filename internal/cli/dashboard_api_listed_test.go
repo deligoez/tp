@@ -114,3 +114,19 @@ func TestDashboard_ExportAnswersEveryListedPathAsTheCommand(t *testing.T) {
 	}
 }
 
+// TestDashboard_ExportServesATaskFileAddedWhileItRuns: the list is derived
+// at each request, so a task file written after the server started is
+// fetchable once tp export --list lists it.
+func TestDashboard_ExportServesATaskFileAddedWhileItRuns(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeTaskFileRaw(t, dir, `[]`)
+	initGitRepo(t, dir)
+	srv := startDashboard(t, dir, freePort(t))
+	requireNotListed(t, srv, "later/spec.tasks.json", "\x00")
+
+	require.NoError(t, os.Mkdir(filepath.Join(dir, "later"), 0o755))
+	writeTaskFileRaw(t, filepath.Join(dir, "later"), `[]`)
+	require.Contains(t, listedPaths(t, dir, nil), "later/spec.tasks.json")
+	requireSameAsCommand(t, srv, dir, "/api/export?file=later%2Fspec.tasks.json", "export", "--file", "later/spec.tasks.json")
+}
