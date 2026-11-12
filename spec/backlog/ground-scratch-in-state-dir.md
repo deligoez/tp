@@ -23,6 +23,30 @@ Before building, check whether `TP_ROUND_DIR` under a run is derived from the ta
 the same way; if two same-base specs share a round directory, review and audit role parts collide
 too, and the fix covers them.
 
+**Checked before the build (2026-11-12, at 59975e14).**
+
+- *`TP_ROUND_DIR` collides the same way.* `RoundDir` (`internal/engine/childenv.go`) is
+  `<root>/.tp/rounds/<base>/<phase>-r<N>`, where `<base>` is `RunBase`, the task file's name with
+  `.tasks.json` removed. `x/a.tasks.json` and `y/a.tasks.json` therefore share every round
+  directory. The directory is keyed by the cycle and outlives a run on purpose, so the second
+  cycle's oracle reads the first cycle's `role-<id>.ndjson` as its own finished roles and its
+  record unit merges them. The fix covers it.
+- *How it is covered.* The round directory stays under `.tp/rounds/`, which `.tp/.gitignore`
+  ignores, and is keyed by the task file's location: its directory relative to the project root,
+  then its base. A task file at the root keeps today's path. Moving it into the spec's state
+  directory instead would turn role parts and `merged.ndjson`, which `review-resolve` keeps writing
+  into, from ignored run artifacts into tracked bookkeeping that a commit under `hc` picks up. The
+  rejected path-derived slug is a different case: there the name is one an agent is told to write
+  and the operator retypes, while here tp derives the directory from the task file path it has
+  already resolved, so `x/a.tasks.json`, `./x/a.tasks.json` and an absolute spelling name one
+  directory.
+- *Left out.* `run-<base>.json`, `locks/run-<base>.lock` and `last_failure-<base>.json` are keyed
+  by the same base and collide the same way between two such task files; they are run state, not
+  round artifacts, and stay as they are here.
+- *The plugin.* `hooks/pre-tool-use-write-deny.sh` denies every write under `.tp-review/`, so the
+  scratch file in its new place is granted there by exact shape, as the epic review inbox file is.
+  That is plugin content (1.12.0).
+
 **Consequences.** The path in the ground prompt changes. An in-flight scratch file now sits inside
 the repository under the spec, so it shows in the working tree's status until `--record`, which
 removes it. A plugin hook change is plugin content and a version bump.
