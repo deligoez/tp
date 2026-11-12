@@ -135,7 +135,7 @@ func epicScopeUnit(g *model.EpicGraph, milestone string, byID map[string]*model.
 	if purpose != "" {
 		b.WriteString("purpose: " + purpose + "\n")
 	}
-	b.WriteString("closure: " + strings.Join(blindClosure(byID, members), ", ") + "\n")
+	b.WriteString("closure (status-blind): " + strings.Join(blindClosure(byID, members), ", ") + "\n")
 	return EpicReviewUnit{Key: ScopeUnitPrefix + milestone, Block: b.String(), Hash: gateScopeFingerprint(g, milestone, byID), Milestone: milestone}, true
 }
 
