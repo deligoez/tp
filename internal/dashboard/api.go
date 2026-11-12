@@ -46,12 +46,6 @@ func NewError(code int, msg, hint string) *Error {
 	return &Error{Status: status, Message: msg, Code: code, Hint: hint}
 }
 
-// Forbidden is a request for a path outside the repository: refused with a
-// usage error's code, since the request, not the repository, is at fault.
-func Forbidden(msg, hint string) *Error {
-	return &Error{Status: http.StatusForbidden, Message: msg, Code: 2, Hint: hint}
-}
-
 // apiHandlers maps each endpoint path to the handler answering it.
 func apiHandlers(api API) map[string]func(url.Values) (any, *Error) {
 	return map[string]func(url.Values) (any, *Error){
