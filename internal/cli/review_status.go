@@ -201,6 +201,11 @@ func registeredChecksList(wf *model.Workflow) []map[string]any {
 func runMechanicalChecks(wf *model.Workflow, taskFilePath string) (results []map[string]any, allPass bool) {
 	results = make([]map[string]any, 0, len(wf.Checks))
 	allPass = true
+	// The sink every registered check runs through, so a check is never run
+	// here for another project's task file whichever command reached it.
+	if len(wf.Checks) > 0 {
+		refuseForeignTree(taskFilePath, "a registered check")
+	}
 	if taskFilePath != "" {
 		dir := gateDir(taskFilePath)
 		timeout := time.Duration(wf.EffectiveGateTimeoutSeconds()) * time.Second

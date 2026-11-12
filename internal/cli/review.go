@@ -672,6 +672,9 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 	}
 
 	wfChecks, checksTaskFile := engine.ResolveWorkflow(specPath, flagFile)
+	// The panel's agents read this tree, so a task file of another project,
+	// found beside the spec rather than through --file, is refused too.
+	refuseForeignTree(checksTaskFile, "tp review")
 
 	prompts, regressionIncluded, skippedRoles := buildReviewPrompts(specPath, &panel, elems, specContent, round, summary, affectedFiles, finalRound, &wfChecks, diffFrom, noState, reviewSt)
 

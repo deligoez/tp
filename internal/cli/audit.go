@@ -348,7 +348,8 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	// §10.6 loop budget for prompt framing: the audit round being emitted
 	// (one past the last recorded), the consecutive clean rounds so far, and
 	// the resolved workflow caps.
-	auditWf, _ := engine.ResolveWorkflow(specPath, flagFile)
+	auditWf, auditTaskFile := engine.ResolveWorkflow(specPath, flagFile)
+	refuseForeignTree(auditTaskFile, "tp audit")
 	auditRound := 1
 	auditConsecutive := 0
 	if st, err := engine.LoadReviewState(specPath); err == nil && st != nil {

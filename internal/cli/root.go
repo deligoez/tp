@@ -63,6 +63,7 @@ INCREMENTAL (1 task at a time):
 	cmd.PersistentPreRun = func(c *cobra.Command, _ []string) {
 		applyFlagDefaults(c)
 		output.Configure(flagJSON, flagQuiet, flagNoColor)
+		checkTaskFileProject(c)
 	}
 
 	// Command groups
