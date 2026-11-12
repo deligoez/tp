@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -103,6 +105,42 @@ func TestEpicScope_IgnoresDescriptions(t *testing.T) {
 	ctx := EpicScopeContext(described, nil, "A")
 	assert.Equal(t, EpicScopeContext(plain, nil, "A"), ctx)
 	assert.NotContains(t, ctx, "described")
+}
+
+// TestEpicBuiltinRoles_ReadADescriptionAsThePrimaryText is the role rule:
+// dod-satisfiability, why-auditor and phase-economist each read a
+// description, when the epic has one, as its primary text for their own
+// question, keep the acceptance as the gate's contract, report a
+// contradiction, and report neither a missing description nor a listed open
+// question; gate-scope's text does not change and names no description.
+func TestEpicBuiltinRoles_ReadADescriptionAsThePrimaryText(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
+	roles, err := ResolveEpicRoleCorpus(root)
+	require.NoError(t, err)
+	own := map[string]string{
+		"dod-satisfiability": "whether the acceptance satisfies the purpose and scope it states",
+		"why-auditor":        "whether each edge's why agrees with the decisions it records",
+		"phase-economist":    "whether the epic's placement fits the purpose it states",
+	}
+	for i := range roles {
+		text := roles[i].Instructions
+		question, reads := own[roles[i].ID]
+		if !reads {
+			assert.NotContains(t, text, "description", roles[i].ID)
+			continue
+		}
+		for _, want := range []string{
+			"When an asked epic's block carries a description, read it as the primary text of that epic",
+			question,
+			"the acceptance stays the contract the gate checks",
+			"A contradiction between the description and the acceptance or an edge is a finding",
+			"A missing description is not a finding",
+			"an open question the description lists is not one to report back",
+		} {
+			assert.Contains(t, text, want, roles[i].ID)
+		}
+	}
 }
 
 // TestParseEpicBlock_ReadsADescriptionBackAsOneField: a snapshot diff reads
