@@ -75,3 +75,15 @@ func TestEpicMapLanes_ASingleTriggeredMilestoneIsTheOnlyLane(t *testing.T) {
 	assert.Equal(t, []MapLane{{Kind: MapLaneTriggered, Milestones: []string{"T"}}}, got.Lanes)
 	assert.Equal(t, map[string]int{"T": 0}, got.Columns)
 }
+
+// TestEpicMapLanes_OneMilestoneParallelLanesKeepFileOrder: beside the M chain,
+// P and Q are each a track of one milestone, two parallel lanes of one, in
+// the order the graph lists them.
+func TestEpicMapLanes_OneMilestoneParallelLanesKeepFileOrder(t *testing.T) {
+	got := EpicMapLanes(lanesGraph([][]string{{"M1", "M2"}, {"P"}, {"Q"}}, nil))
+	assert.Equal(t, []MapLane{
+		{Kind: MapLaneMain, Milestones: []string{"M1", "M2"}},
+		{Kind: MapLaneParallel, Milestones: []string{"P"}},
+		{Kind: MapLaneParallel, Milestones: []string{"Q"}},
+	}, got.Lanes)
+}
