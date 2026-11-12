@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/deligoez/tp/internal/model"
 )
@@ -151,10 +152,8 @@ func taskFilePhases(paths []string) ([]string, error) {
 // false when none is a known phase.
 func earliestPhase(phases []string) (string, bool) {
 	for _, p := range bandPhases {
-		for _, q := range phases {
-			if p == q {
-				return p, true
-			}
+		if slices.Contains(phases, p) {
+			return p, true
 		}
 	}
 	return "", false
