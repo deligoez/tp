@@ -56,10 +56,10 @@ func ejectedThreeRoles(t *testing.T, dir string) {
 }
 
 // TestEpicReview_AnUnrecordedRoundReemitsAgainstTheCurrentCorpus answers how
-// an emitted, unrecorded round re-emits once a role joined the corpus: the
-// changed panel refuses the re-emission at exit 3, and the operator's
-// --force discards the old emission and rebuilds the round from the current
-// graph and corpus, not replayed, so the new role is in it
+// a role that joins the corpus reaches the review: the round out is recorded
+// first, then the next round is built from the current graph and corpus, not
+// replayed, so the new role and the scope unit it reads are in it. A corpus
+// change under a round still out is the re-emission guard's
 // (spec/backlog/epic-reemit-guard.md).
 func TestEpicReview_AnUnrecordedRoundReemitsAgainstTheCurrentCorpus(t *testing.T) {
 	t.Parallel()
@@ -67,17 +67,15 @@ func TestEpicReview_AnUnrecordedRoundReemitsAgainstTheCurrentCorpus(t *testing.T
 	ejectedThreeRoles(t, dir)
 	first := runEpicReview(t, dir, "--milestone", "A")
 	assert.NotContains(t, first.Units, "scope:A", "no role reads a scope unit yet")
+	writeEpicRound(t, dir, &first, "")
 
 	files, err := engine.DefaultEpicCorpusFiles()
 	require.NoError(t, err)
 	writeEpicRoles(t, dir, map[string]string{"gate-scope": string(files[3].Data)})
-	_, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A")
-	require.Equal(t, 3, code, "stderr: %s", stderr)
-	assert.Contains(t, stderr, "roles added: gate-scope")
-	again := runEpicReview(t, dir, "--milestone", "A", "--force")
-	assert.Equal(t, 1, again.Round, "the same, unrecorded round")
-	assert.Contains(t, promptRoles(&again), "gate-scope")
-	assert.Contains(t, again.Units, "scope:A")
+	next := runEpicReview(t, dir, "--milestone", "A")
+	assert.Equal(t, 2, next.Round)
+	assert.Contains(t, promptRoles(&next), "gate-scope")
+	assert.Contains(t, next.Units, "scope:A")
 	only := runEpicReview(t, dir, "--milestone", "A", "--role", "gate-scope")
 	assert.Equal(t, []string{"gate-scope"}, promptRoles(&only))
 }
