@@ -479,7 +479,7 @@ python3 -c 'import json,sys,collections;print(collections.Counter((r.get("severi
 ```
 
 The glob is `audit-round-*.ndjson` on purpose: it is the recorded round, and it excludes the raw
-per-role files (`audit-<base>-r<N>-<role>.ndjson`) a round may sit beside, which would double-count.
+per-role files a round may leave in `audit-inbox/` beside it, which would double-count.
 Run against tp's own corpus it reports
 `Counter({'warning': 22, 'info': 17, 'error': 3})` for v0.35.0 and
 `Counter({'warning': 44, 'info': 32, 'error': 15})` for v0.36.0.
