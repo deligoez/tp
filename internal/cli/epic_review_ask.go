@@ -27,8 +27,9 @@ type epicRoleAsk struct {
 }
 
 // epicAskOf builds one role's ask over run: the carry's asked units of the
-// role's kinds, only those of carried's kinds when carried is not nil, and,
-// when purpose is set, the purpose-stale ones of its kinds.
+// role's kinds, only those of carried's kinds or authored (a description-only
+// change, EpicCarry.Authored) when carried is not nil, and, when purpose is
+// set, the purpose-stale ones of its kinds.
 func epicAskOf(run *epicReviewRun, kinds []string, purpose bool, carried map[string]bool) epicRoleAsk {
 	ask := epicRoleAsk{kinds: map[string]bool{}}
 	for _, k := range kinds {
@@ -36,7 +37,7 @@ func epicAskOf(run *epicReviewRun, kinds []string, purpose bool, carried map[str
 	}
 	want := map[string]bool{}
 	for _, u := range run.slice.Units {
-		if carried == nil || carried[engine.EpicUnitKind(u.Key)] {
+		if carried == nil || carried[engine.EpicUnitKind(u.Key)] || run.carry.Authored[u.Key] {
 			want[u.Key] = true
 		}
 	}

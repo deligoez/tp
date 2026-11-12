@@ -41,6 +41,12 @@ type EpicCarry struct {
 	// asked them; a purpose change is no unit change, so they set neither
 	// Changed nor VerifyOnly.
 	PurposeStale []EpicReviewUnit
+	// Authored holds the keys of the asked units whose only change since the
+	// round before is their own description (spec/backlog/
+	// epic-description.md). Writing a description is authoring: it sets no
+	// Changed, and a regression-only round still asks these units of the
+	// roles reading their kind, as a purpose change asks purpose roles.
+	Authored map[string]bool
 }
 
 // EpicRegressionKinds are the unit kinds the built-in regression role reads.
@@ -82,24 +88,40 @@ func EpicReviewCarry(stateDir string, round int, units []EpicReviewUnit) (EpicCa
 	if err != nil {
 		return EpicCarry{}, err
 	}
-	for _, u := range units {
-		hash, ok := prev.Units[u.Key]
-		changed := !ok || hash != u.Hash
-		c.Changed = c.Changed || changed && epicRegressionKind(u.Key)
-		if !changed && !reask[u.Key] {
-			c.Carried = append(c.Carried, u)
-			continue
-		}
-		c.Asked = append(c.Asked, u)
-		if before, had := prev.Blocks[u.Key]; had && before != u.Block {
-			c.Before[u.Key] = before
-		}
+	for i := range units {
+		c.place(&units[i], &prev, reask[units[i].Key])
 	}
 	c.PurposeStale = epicPurposeStale(prev.Purposes, units, c.Asked)
 	if err := c.readDecided(stateDir, round); err != nil {
 		return EpicCarry{}, err
 	}
 	return c, nil
+}
+
+// place carries u or asks it. A unit whose hash moved is asked and sets
+// Changed, unless only its own description moved (epicDescriptionOnly): that
+// is authoring, read by the roles asking its kind, so it is Authored and
+// appends no regression; a fixed row on it still does, through Fixed.
+func (c *EpicCarry) place(u *EpicReviewUnit, prev *epicSnapshot, reask bool) {
+	hash, ok := prev.Units[u.Key]
+	changed := !ok || hash != u.Hash
+	before, had := prev.Blocks[u.Key]
+	authored := changed && ok && had && epicDescriptionOnly(before, u, hash)
+	c.Changed = c.Changed || changed && !authored && epicRegressionKind(u.Key)
+	if !changed && !reask {
+		c.Carried = append(c.Carried, *u)
+		return
+	}
+	c.Asked = append(c.Asked, *u)
+	if authored {
+		if c.Authored == nil {
+			c.Authored = map[string]bool{}
+		}
+		c.Authored[u.Key] = true
+	}
+	if had && before != u.Block {
+		c.Before[u.Key] = before
+	}
 }
 
 // epicPurposeStale returns, in units' order, the units outside skip whose
