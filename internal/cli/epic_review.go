@@ -26,11 +26,12 @@ const epicReviewStateHint = "check that the .tp/epic-review/ state directory exi
 
 // epicReviewPrompt is one graph role's prompt in a tp epic review emission.
 type epicReviewPrompt struct {
-	Role   string `json:"role"`
-	Prompt string `json:"prompt"`
+	Role string `json:"role"`
 	// PromptBytes is len(Prompt), the role's real prompt size
-	// (spec/backlog/epic-description.md, Prompt size).
+	// (spec/backlog/epic-description.md, Prompt size), printed before the
+	// prompt so a reader sees it without reading the prompt through.
 	PromptBytes int    `json:"prompt_bytes"`
+	Prompt      string `json:"prompt"`
 	OutputPath  string `json:"output_path"`
 }
 
