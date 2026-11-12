@@ -48,24 +48,24 @@ func TestDashboardWaiting_LeavesDeferrableMembersOut(t *testing.T) {
 	assert.Equal(t, 2, WorkFigures(g, states, nil, "M").Blocked, "the CLI figure keeps counting f")
 }
 
-// TestDashboardOperatorConditions_LeavesConditionsOnlyDeferrableWorkWaitsOn:
-// c, dc and free are all actionable to tp epic ready, whose list stays as it
-// is. The dashboard's operator rows show free alone: dc is a deferrable
-// member, and c's only undone dependent is the deferrable f.
-func TestDashboardOperatorConditions_LeavesConditionsOnlyDeferrableWorkWaitsOn(t *testing.T) {
+// TestEpicReady_LeavesConditionsOnlyDeferrableWorkWaitsOn is §7: of the
+// conditions c, dc and free, tp epic ready's operator conditions, which the
+// dashboard's operator rows show, hold free alone: dc is a deferrable member,
+// and c's only undone dependent is the deferrable f.
+func TestEpicReady_LeavesConditionsOnlyDeferrableWorkWaitsOn(t *testing.T) {
 	g := deferrableGraph()
 	states := anyOfStates(g, "r")
-	actionable := EpicReady(g, states, nil, false).Conditions
-	assert.ElementsMatch(t, []string{"c", "free", "dc"}, actionable)
-	assert.Equal(t, []string{"free"}, DashboardOperatorConditions(g, states, actionable))
+	assert.Equal(t, []string{"free"}, EpicReady(g, states, nil, false).Conditions)
+	reasons := ConditionsNotActionable(g, states, MilestoneGates(g, states), nil)
+	assert.Equal(t, []string{NotActionableDependents}, reasons["c"])
+	assert.Equal(t, []string{NotActionableDeferrable}, reasons["dc"])
 }
 
-// TestDashboardOperatorConditions_KeepsAConditionWorkWaitsOn: once v also
-// depends on c, a dependent that is no deferrable member waits on it, so c
-// is shown.
-func TestDashboardOperatorConditions_KeepsAConditionWorkWaitsOn(t *testing.T) {
+// TestEpicReady_KeepsAConditionWorkWaitsOn: once v depends on c alone, a
+// dependent that is no deferrable member waits on it, so c is actionable.
+func TestEpicReady_KeepsAConditionWorkWaitsOn(t *testing.T) {
 	g := deferrableGraph()
-	g.Epics[2].DependsOn = append(g.Epics[2].DependsOn, model.EpicDep{ID: "c", Why: "c first"})
+	g.Epics[2].DependsOn = []model.EpicDep{{ID: "c", Why: "c first"}}
 	states := anyOfStates(g, "r")
-	assert.Equal(t, []string{"c", "free"}, DashboardOperatorConditions(g, states, []string{"c", "free"}))
+	assert.Equal(t, []string{"c", "free"}, EpicReady(g, states, nil, false).Conditions)
 }
