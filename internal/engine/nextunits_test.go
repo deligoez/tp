@@ -558,3 +558,22 @@ func TestBuildNextUnits_NoRegressionUnitInTheAuditPhase(t *testing.T) {
 	assert.Equal(t, []string{"spec-coverage", "security", "maintainability-conventions"}, unitIDs(audit),
 		"an audit round spawns no regression unit")
 }
+
+// TestBuildNextUnits_NoRegressionUnitForAnEmptyPanel: regression joins a panel,
+// it never makes one. A spec that deactivates every reviewer keeps returning
+// nothing on a round where RegressionDue holds, so the emptiness stays the
+// no-units stop a human sees instead of a run that reviews with regression alone.
+func TestBuildNextUnits_NoRegressionUnitForAnEmptyPanel(t *testing.T) {
+	root, taskFile, spec := regressionDueRepo(t, "---\ntp:\n  review_roles:\n"+
+		"    implementer:\n      enabled: false\n"+
+		"    tester:\n      enabled: false\n"+
+		"    architect:\n      enabled: false\n---\n")
+	tf := &model.TaskFile{Spec: spec, Tasks: []model.Task{}}
+	st := &ReviewState{ReviewRounds: []ReviewRound{{Round: 1}}}
+	require.True(t, RegressionDue(spec, 2, st), "the fixture must make the predicate hold for round 2")
+
+	units, round := BuildNextUnits(root, taskFile, spec, PhaseReview, tf, st, nil)
+	assert.Empty(t, units, "a wholly deactivated panel gets no regression unit")
+	require.NotNil(t, round)
+	assert.Equal(t, 2, *round)
+}
