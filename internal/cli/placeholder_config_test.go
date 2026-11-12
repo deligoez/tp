@@ -92,6 +92,28 @@ func TestConfig_ReportsTheDefaultForAPlaceholderThatDoesNotCompile(t *testing.T)
 	}
 }
 
+// TestConfig_WarnsOnAnUncompilablePlaceholderAsTheEpicCommandsDo: tp config
+// words its warning about a placeholder pattern that does not compile
+// exactly as tp epic ready does, and like every other notice it is silent
+// under --quiet.
+func TestConfig_WarnsOnAnUncompilablePlaceholderAsTheEpicCommandsDo(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, thresholdRewriteGraph)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".tp", "config.json"),
+		[]byte(`{"workflow":{},"epic":{"threshold_placeholder":"(["}}`), 0o600))
+
+	_, ready, code := runTP(t, dir, "epic", "ready")
+	require.Equal(t, 0, code, "stderr: %s", ready)
+	_, config, code := runTP(t, dir, "config")
+	require.Equal(t, 0, code, "stderr: %s", config)
+	assert.Contains(t, ready, "epic.threshold_placeholder")
+	assert.Equal(t, ready, config, "tp config words the warning as tp epic ready does")
+
+	_, quiet, code := runTP(t, dir, "config", "--quiet")
+	require.Equal(t, 0, code, "stderr: %s", quiet)
+	assert.Empty(t, quiet, "--quiet silences the warning")
+}
+
 // TestConfigExtract_KeepsTheThresholdPlaceholder: tp config --extract --force
 // rewrites .tp/config.json with the hoisted workflow and the epic block
 // intact.
