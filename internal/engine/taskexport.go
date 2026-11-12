@@ -58,7 +58,18 @@ type ExportTask struct {
 // a ground round or a graph that cannot be, is an error; an absent or
 // unreadable spec has no sections.
 func TaskExportOf(start, taskFilePath string) (TaskExport, error) {
-	tf, err := model.ReadTaskFile(taskFilePath)
+	data, err := os.ReadFile(taskFilePath)
+	if err != nil {
+		return TaskExport{}, fmt.Errorf("task file %s: read task file: %w", taskFilePath, err)
+	}
+	return TaskExportOfData(start, taskFilePath, data)
+}
+
+// TaskExportOfData is TaskExportOf over data, the task file's bytes the
+// caller already read from taskFilePath, so a caller that opened the file
+// through a guard serves exactly what the guard let it read.
+func TaskExportOfData(start, taskFilePath string, data []byte) (TaskExport, error) {
+	tf, err := model.ParseTaskFile(data)
 	if err != nil {
 		return TaskExport{}, fmt.Errorf("task file %s: %w", taskFilePath, err)
 	}
