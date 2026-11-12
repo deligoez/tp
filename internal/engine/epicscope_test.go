@@ -332,3 +332,47 @@ func TestScope_ShrinkMemberAnotherMemberNeeds(t *testing.T) {
 		{Epic: "b2", Size: 2, Leaves: []string{"b2", "b3"}},
 	}, scopeOf(t, g, "m0").Shrink)
 }
+
+// TestScope_ControlEpicLeavesWithItsChain is a synthetic scenario: a
+// condition hangs from a chain a member reaches, so the shrink row of the
+// chain's head carries it; once the edge into that chain is removed, the
+// condition leaves the closure with the chain and shows outside, marked.
+func TestScope_ControlEpicLeavesWithItsChain(t *testing.T) {
+	cond := scopeEpic("c1", "m0")
+	cond.Condition = true
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0"}}, Epics: []model.Epic{
+		scopeEpic("a1", "m0", scopeDeps("x", "y")...),
+		scopeEpic("x", "m0", scopeDeps("c1")...),
+		scopeEpic("y", "m0"),
+		cond,
+	}, Gates: map[string]model.EpicGate{"m0": {Members: []string{"a1"}}}}
+
+	before := scopeOf(t, g, "m0")
+	assert.Contains(t, closureIDs(&before), "c1")
+	assert.Contains(t, before.Shrink, ScopeShrink{Epic: "x", Size: 2, Leaves: []string{"c1", "x"}})
+
+	g.Epics[0].DependsOn = scopeDeps("y")
+	after := scopeOf(t, g, "m0")
+	assert.Equal(t, []string{"a1", "y"}, closureIDs(&after))
+	assert.Equal(t, []ScopeOutside{{ID: "x"}, {ID: "c1", Condition: true}}, after.Outside)
+}
+
+// TestScope_LaterGateChangeFreesEarlierMembers is a synthetic scenario: a
+// later gate drops the member that was the only consumer of an earlier
+// gate's member, which then shows in unneeded_earlier.
+func TestScope_LaterGateChangeFreesEarlierMembers(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0", "m1"}}, Epics: []model.Epic{
+		scopeEpic("a1", "m0"),
+		scopeEpic("a2", "m0"),
+		scopeEpic("b1", "m1", scopeDeps("a1")...),
+		scopeEpic("b2", "m1", scopeDeps("a2")...),
+	}, Gates: map[string]model.EpicGate{
+		"m0": {Members: []string{"a1", "a2"}},
+		"m1": {Members: []string{"b1", "b2"}},
+	}}
+	assert.Equal(t, []ScopeUnneeded{}, scopeOf(t, g, "m1").UnneededEarlier)
+
+	g.Gates["m1"] = model.EpicGate{Members: []string{"b1"}}
+	assert.Equal(t, []ScopeUnneeded{{Milestone: "m0", Epics: []string{"a2"}, ImplicitGates: []string{}}},
+		scopeOf(t, g, "m1").UnneededEarlier)
+}
