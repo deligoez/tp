@@ -130,3 +130,44 @@ func TestDashboard_ExportServesATaskFileAddedWhileItRuns(t *testing.T) {
 	require.Contains(t, listedPaths(t, dir, nil), "later/spec.tasks.json")
 	requireSameAsCommand(t, srv, dir, "/api/export?file=later%2Fspec.tasks.json", "export", "--file", "later/spec.tasks.json")
 }
+
+// TestDashboard_ExportReadsAListedPathFromTheRepositoryRoot: list paths are
+// relative to the repository root, so a server started in a subdirectory
+// answers each listed path as tp export --file <path> run at the root, never
+// the file the path would name from its own directory: the ignored
+// sub/sub/spec.tasks.json, whose spec holds a secret, is not served for
+// ?file=sub/spec.tasks.json, listed or deleted.
+func TestDashboard_ExportReadsAListedPathFromTheRepositoryRoot(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeTaskFileRaw(t, dir, `[]`)
+	sub := filepath.Join(dir, "sub")
+	nested := filepath.Join(sub, "sub")
+	require.NoError(t, os.MkdirAll(nested, 0o755))
+	writeTaskFileRaw(t, sub, `[]`)
+	writeTaskFileRaw(t, nested, `[]`)
+	const secret = "ignored-nested-task-file-secret"
+	require.NoError(t, os.WriteFile(filepath.Join(nested, "spec.md"), []byte("# "+secret+"\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".gitignore"), []byte("sub/sub/\n"), 0o600))
+	initGitRepo(t, dir)
+	paths := listedPaths(t, dir, nil)
+	require.ElementsMatch(t, []string{"spec.tasks.json", "sub/spec.tasks.json"}, paths)
+	srv := startDashboard(t, sub, freePort(t))
+
+	for _, p := range paths {
+		requireSameAsCommand(t, srv, dir, "/api/export?file="+url.QueryEscape(p), "export", "--file", p)
+	}
+
+	require.NoError(t, os.Remove(filepath.Join(sub, "spec.tasks.json")))
+	require.Contains(t, listedPaths(t, dir, nil), "sub/spec.tasks.json")
+	_, stderr, code := runTP(t, dir, "export", "--file", "sub/spec.tasks.json")
+	require.Equal(t, 3, code, stderr)
+	var want dashboardError
+	require.NoError(t, json.Unmarshal([]byte(stderr), &want), stderr)
+	path := "/api/export?file=sub%2Fspec.tasks.json"
+	_, body := getPage(t, strings.TrimSuffix(srv.url, "/")+path)
+	assert.NotContains(t, body, secret)
+	got := getDashboardError(t, srv, path, http.StatusNotFound)
+	assert.Equal(t, want.Code, got.Code)
+	assert.Equal(t, want.Hint, got.Hint)
+}
