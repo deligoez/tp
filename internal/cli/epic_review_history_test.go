@@ -3,7 +3,6 @@ package cli_test
 import (
 	"encoding/json"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -46,21 +45,6 @@ type epicHistoryPayload struct {
 		FromRound int             `json:"from_round"`
 		Diff      epicHistoryDiff `json:"diff"`
 	} `json:"current"`
-}
-
-// snapshotTree maps every file under dir to its content.
-func snapshotTree(t *testing.T, dir string) map[string]string {
-	t.Helper()
-	tree := map[string]string{}
-	require.NoError(t, filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return err
-		}
-		data, err := os.ReadFile(path)
-		tree[path] = string(data)
-		return err
-	}))
-	return tree
 }
 
 // stripSnapshotBlocks rewrites round's snapshot of the only slice under dir
@@ -188,11 +172,11 @@ func TestEpicReviewHistory_CompactKeepsEveryChangeAndDropsTheContext(t *testing.
 func TestEpicReviewHistory_ReadOnlyUnattendedAndExits3WithoutState(t *testing.T) {
 	t.Parallel()
 	dir, slice := twoRoundSlice(t)
-	before := snapshotTree(t, dir)
+	before := worktreeFiles(t, dir)
 	stdout, stderr, code := runTPFence(t, dir, true, append([]string{"epic", "review"}, append(slice, "--history")...)...)
 	require.Equal(t, 0, code, "stderr: %s", stderr)
 	assert.Contains(t, stdout, `"rounds"`)
-	assert.Equal(t, before, snapshotTree(t, dir), "--history writes nothing")
+	assert.Equal(t, before, worktreeFiles(t, dir), "--history writes nothing")
 
 	fresh := epicGraphDir(t, epicChain)
 	_, stderr, code = runTP(t, fresh, "epic", "review", "--milestone", "A", "--history")
