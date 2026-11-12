@@ -101,6 +101,78 @@ func TestEpicReview_PromptsShowTheAskedEpicsDescriptionsOnly(t *testing.T) {
 	}
 }
 
+// epicAskedBytes runs tp epic review <args> --status and returns the
+// asked_block_bytes of the payload, or of each batch row; a missing key
+// fails.
+func epicAskedBytes(t *testing.T, dir string, args ...string) []int {
+	t.Helper()
+	stdout, stderr, code := runTP(t, dir, append(append([]string{"epic", "review"}, args...), "--status")...)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var out struct {
+		AskedBlockBytes *int `json:"asked_block_bytes"`
+		Slices          []struct {
+			AskedBlockBytes *int `json:"asked_block_bytes"`
+		} `json:"slices"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out), "stdout: %s", stdout)
+	if out.Slices == nil {
+		require.NotNil(t, out.AskedBlockBytes, "--status carries asked_block_bytes: %s", stdout)
+		return []int{*out.AskedBlockBytes}
+	}
+	sizes := make([]int, 0, len(out.Slices))
+	for _, row := range out.Slices {
+		require.NotNil(t, row.AskedBlockBytes, "each batch row carries asked_block_bytes: %s", stdout)
+		sizes = append(sizes, *row.AskedBlockBytes)
+	}
+	return sizes
+}
+
+// TestEpicReviewStatus_ReportsTheBytesOfTheBlocksARoundWouldAsk is the size
+// proxy (spec/backlog/epic-description.md, Prompt size): before any round the
+// slice asks every unit, after a recorded round with nothing changed it asks
+// none, and describing b asks b's block alone, the description's bytes
+// included; a batch row reports what the slice's own --status does.
+func TestEpicReviewStatus_ReportsTheBytesOfTheBlocksARoundWouldAsk(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicDescriptionGraph)
+	slice := []string{"--milestone", "A"}
+
+	first := epicAskedBytes(t, dir, slice...)[0]
+	assert.Positive(t, first)
+	assert.Equal(t, []int{first}, epicAskedBytes(t, dir, "--milestones", "A"))
+	runEpicReview(t, dir, slice...)
+	recordEpicRound(t, dir, "", slice...)
+	assert.Equal(t, []int{0}, epicAskedBytes(t, dir, slice...), "a fresh slice asks nothing")
+
+	_, stderr, code := runTP(t, dir, "epic", "set", "b", "description=Purpose: feed a.")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	bBlock := "epic: b\ntitle: B step\nmilestone: A\nacceptance: b ships\ndescription:\n  Purpose: feed a.\n"
+	assert.Equal(t, []int{len(bBlock)}, epicAskedBytes(t, dir, slice...))
+	assert.Equal(t, []int{len(bBlock)}, epicAskedBytes(t, dir, "--all"))
+}
+
+// TestEpicReview_EachPromptReportsItsBytes: the emission names each role's
+// real prompt size beside the prompt, in bytes.
+func TestEpicReview_EachPromptReportsItsBytes(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicDescribedSlice("text"))
+	stdout, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var out struct {
+		Prompts []struct {
+			Role        string `json:"role"`
+			Prompt      string `json:"prompt"`
+			PromptBytes *int   `json:"prompt_bytes"`
+		} `json:"prompts"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out), "stdout: %s", stdout)
+	require.NotEmpty(t, out.Prompts)
+	for _, p := range out.Prompts {
+		require.NotNil(t, p.PromptBytes, p.Role)
+		assert.Equal(t, len(p.Prompt), *p.PromptBytes, p.Role)
+	}
+}
+
 // TestEpicApply_SetRowCarriesAMultiLineDescription: an apply set row's JSON
 // string value carries multi-line markdown with no shell quoting, and the
 // file keeps it byte for byte.
