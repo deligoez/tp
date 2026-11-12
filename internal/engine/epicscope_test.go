@@ -49,6 +49,11 @@ func closureIDs(s *EpicScope) []string {
 	return out
 }
 
+// scopeTrack is a closure milestone's track index.
+func scopeTrack(n int) *int {
+	return &n
+}
+
 // scopeEpic is a work epic of milestone m.
 func scopeEpic(id, m string, deps ...model.EpicDep) model.Epic {
 	return model.Epic{ID: id, Title: id, Milestone: m, DependsOn: deps}
@@ -144,9 +149,9 @@ func TestScope_CrossTrackMarked(t *testing.T) {
 	s := scopeOf(t, g, "m1")
 
 	assert.Equal(t, []ScopeMilestone{
-		{Milestone: "m0", Track: 0, Size: 1, Epics: []ScopeEpic{{ID: "a0"}}},
-		{Milestone: "m1", Track: 0, Size: 1, Epics: []ScopeEpic{{ID: "a1"}}},
-		{Milestone: "n0", Track: 1, CrossTrack: true, Size: 1, Epics: []ScopeEpic{{ID: "b0"}}},
+		{Milestone: "m0", Track: scopeTrack(0), Size: 1, Epics: []ScopeEpic{{ID: "a0"}}},
+		{Milestone: "m1", Track: scopeTrack(0), Size: 1, Epics: []ScopeEpic{{ID: "a1"}}},
+		{Milestone: "n0", Track: scopeTrack(1), CrossTrack: true, Size: 1, Epics: []ScopeEpic{{ID: "b0"}}},
 	}, s.Closure)
 }
 
@@ -401,8 +406,8 @@ func TestScope_OptionalEpicInheritsItsAlternativesMark(t *testing.T) {
 
 	group := []string{"b3", "c0"}
 	assert.Equal(t, []ScopeMilestone{
-		{Milestone: "m0", Track: 0, Size: 4, Epics: []ScopeEpic{{ID: "b1"}, {ID: "b2"}, {ID: "b3", AnyOf: group}, {ID: "x", AnyOf: group}}},
-		{Milestone: "n0", Track: 1, CrossTrack: true, Size: 1, Epics: []ScopeEpic{{ID: "c0", AnyOf: group}}},
+		{Milestone: "m0", Track: scopeTrack(0), Size: 4, Epics: []ScopeEpic{{ID: "b1"}, {ID: "b2"}, {ID: "b3", AnyOf: group}, {ID: "x", AnyOf: group}}},
+		{Milestone: "n0", Track: scopeTrack(1), CrossTrack: true, Size: 1, Epics: []ScopeEpic{{ID: "c0", AnyOf: group}}},
 	}, s.Closure)
 }
 
