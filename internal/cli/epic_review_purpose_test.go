@@ -121,6 +121,27 @@ func TestEpicReview_ACorpusWithoutAPurposeRoleIsNotReasked(t *testing.T) {
 	assert.Empty(t, out.Units)
 }
 
+// TestEpicReview_APurposeReaskCarriesItsDecisions: a unit re-asked only for a
+// changed purpose still shows its earlier wontfix decision, and a row on it
+// records.
+func TestEpicReview_APurposeReaskCarriesItsDecisions(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChainThreshold)
+	writeEpicRoles(t, dir, purposeRoles)
+	recordEpicRows(t, dir, `{"severity":"medium","finding":"a sits early","location":"epic:a","evidence":"title: A","role":"placer","resolved":{"status":"wontfix","evidence":"kept by choice"}}`+"\n")
+	setGateField(t, dir, "gates.A.purpose=prove the chain end to end")
+
+	out := runEpicReview(t, dir, "--milestone", "A")
+	require.Equal(t, "placer", out.Prompts[0].Role)
+	assert.Contains(t, out.Prompts[0].Prompt, "Already decided")
+	assert.Contains(t, out.Prompts[0].Prompt, "- epic:a: a sits early — round 1, wontfix: kept by choice\n")
+
+	rows := filepath.Join(t.TempDir(), "rows.ndjson")
+	require.NoError(t, os.WriteFile(rows, []byte(`{"severity":"low","finding":"b reads late for the purpose","location":"epic:b","evidence":"title: B","role":"placer"}`+"\n"), 0o600))
+	_, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A", "--record", rows)
+	assert.Equal(t, 0, code, "a row on a purpose-stale unit records: %s", stderr)
+}
+
 // TestEpicReview_RemovingAPurposeReasks: a purpose removed is a purpose
 // changed, so the purpose roles are asked again.
 func TestEpicReview_RemovingAPurposeReasks(t *testing.T) {
