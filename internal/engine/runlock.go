@@ -115,7 +115,7 @@ func WithRunLock(taskFile string, fn func() error) error {
 	// fatal: the lock still works, and refusing to take it would be a worse
 	// trade, but swallowing it silently reproduced the symptom this call exists
 	// to prevent.
-	if err := EnsureTPGitignore(ProjectConfigDir(filepath.Dir(taskFile))); err != nil {
+	if err := ensureSideEffectGitignore(filepath.Dir(taskFile)); err != nil {
 		output.Notice(fmt.Sprintf("warning: could not write .tp/.gitignore (%v); .tp/locks/ may show up as an untracked change", err))
 	}
 

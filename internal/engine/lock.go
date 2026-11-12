@@ -51,6 +51,18 @@ func WithFileLock(path string, fn func() error) error {
 	return WithFileLockTimeout(path, effectiveLockTimeoutSeconds(path), fn)
 }
 
+// ensureSideEffectGitignore writes tp's .gitignore into the .tp/ a lock or a
+// run puts its artifacts in for start, when SideEffectTPDir says it may: never
+// outside any repository and project, where it would turn a .tp/ that exists
+// only because of the lock into a project anchor.
+func ensureSideEffectGitignore(start string) error {
+	tpDir, gitignore := SideEffectTPDir(start)
+	if !gitignore {
+		return nil
+	}
+	return EnsureTPGitignore(tpDir)
+}
+
 // WithFileLockTimeout is the retry-with-backoff core: it loops TryLock with a
 // short, capped backoff until timeoutSeconds elapse, then returns a
 // *LockTimeoutError. Callers that already hold the resolved timeout (or want a
@@ -66,7 +78,7 @@ func WithFileLockTimeout(path string, timeoutSeconds int, fn func() error) error
 	// that never ran tp init, one locked write now leaves an untracked
 	// .tp/locks/<target>.lock behind, and tp resume reports an unexplained
 	// change the agent cannot clear by committing.
-	if err := EnsureTPGitignore(ProjectConfigDir(filepath.Dir(path))); err != nil {
+	if err := ensureSideEffectGitignore(filepath.Dir(path)); err != nil {
 		// Not fatal: the lock still works, and refusing to take it would be a
 		// worse trade. But swallowing it reproduced the symptom this call
 		// exists to prevent, with nothing on the record saying why.
@@ -135,7 +147,7 @@ func effectiveLockTimeoutSeconds(path string) int {
 // for a given target path. The name pairs the target's base name with a short
 // hash of its absolute path, so it is human-readable while staying unique.
 func LockFilePath(target string) string {
-	tpDir := ProjectConfigDir(filepath.Dir(target))
+	tpDir, _ := SideEffectTPDir(filepath.Dir(target))
 	abs := target
 	if a, err := filepath.Abs(target); err == nil {
 		abs = a
