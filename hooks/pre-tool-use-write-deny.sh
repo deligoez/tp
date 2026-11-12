@@ -137,10 +137,12 @@ physical() {
 # The ground scratch file is the other hand-written name, since it moved into
 # the spec's state directory (spec/backlog/ground-scratch-in-state-dir.md):
 # .tp-review/<base>/ground-inbox/round-<N>.ndjson, beside the recorded ground
-# rounds and apart from them.
+# rounds and apart from them. So are review and audit role files outside a run
+# (spec/backlog/role-files-in-state-dir.md):
+# .tp-review/<base>/{review,audit}-inbox/round-<N>-<role>.ndjson.
 inbox_name() {
 	printf '%s\n' "$1" |
-		grep -Eq '(^|/)\.tp/epic-review/[0-9a-f]{64}/inbox/[a-z0-9]+(-[a-z0-9]+)*-r[1-9][0-9]*\.ndjson$|(^|/)\.tp-review/[^/]+/ground-inbox/round-[1-9][0-9]*\.ndjson$'
+		grep -Eq '(^|/)\.tp/epic-review/[0-9a-f]{64}/inbox/[a-z0-9]+(-[a-z0-9]+)*-r[1-9][0-9]*\.ndjson$|(^|/)\.tp-review/[^/]+/ground-inbox/round-[1-9][0-9]*\.ndjson$|(^|/)\.tp-review/[^/]+/(review|audit)-inbox/round-[1-9][0-9]*-[a-z0-9]+(-[a-z0-9]+)*\.ndjson$'
 }
 
 # inbox_allowed reports whether a write may pass the fence as an epic review
