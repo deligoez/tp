@@ -267,7 +267,9 @@ func epicDecidedText(run *epicReviewRun, ask *epicRoleAsk) string {
 
 // epicChangedText shows, for each asked unit whose own block changed since
 // the round before, the block that round read and the block now, so the
-// regression role reads the change rather than reconstructing it.
+// regression role reads the change rather than reconstructing it. A unit
+// whose only change is its description shows that description's line diff
+// instead: the asked block above already is the block now.
 func epicChangedText(run *epicReviewRun, ask *epicRoleAsk) string {
 	var b strings.Builder
 	for _, u := range ask.units {
@@ -277,6 +279,10 @@ func epicChangedText(run *epicReviewRun, ask *epicRoleAsk) string {
 		}
 		if b.Len() == 0 {
 			fmt.Fprintf(&b, "\nChanged since round %d — each unit as that round read it, then as it reads now:\n", run.round-1)
+		}
+		if run.carry.Authored[u.Key] {
+			fmt.Fprintf(&b, "--- %s, description changed since round %d (- removed, + added):\n%s", u.Key, run.round-1, engine.EpicDescriptionDiff(before, u.Block))
+			continue
 		}
 		fmt.Fprintf(&b, "--- %s, round %d\n%s--- %s, now\n%s", u.Key, run.round-1, before, u.Key, u.Block)
 	}
