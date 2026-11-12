@@ -35,8 +35,8 @@ func getDashboardError(t *testing.T, srv *dashboardServer, path string, status i
 
 // TestDashboard_GetAnswersTpsErrorAndRefusesOutsideTheRepo is §2's GET on a
 // bad request: an unknown file or slice answers tp's error, code and hint, a
-// malformed query is a usage error, and a task file outside the repository —
-// named by a relative path, an absolute one or a symlink inside — is refused.
+// malformed query is a usage error, and a task file outside the repository,
+// by a relative path or an absolute one, is not listed and so not served.
 func TestDashboard_GetAnswersTpsErrorAndRefusesOutsideTheRepo(t *testing.T) {
 	t.Parallel()
 	dir, _ := twoRoundSlice(t)
@@ -45,71 +45,18 @@ func TestDashboard_GetAnswersTpsErrorAndRefusesOutsideTheRepo(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join(dir, "spec.tasks.json"))
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(outside, data, 0o600))
-	require.NoError(t, os.Symlink(outside, filepath.Join(dir, "link.tasks.json")))
 	rel, err := filepath.Rel(dir, outside)
 	require.NoError(t, err)
 	srv := startDashboard(t, dir, freePort(t))
 
-	assert.Equal(t, 3, getDashboardError(t, srv, "/api/export?file=missing.tasks.json", http.StatusNotFound).Code)
 	assert.Equal(t, 4, getDashboardError(t, srv, "/api/history?milestone=Z", http.StatusNotFound).Code)
 	assert.Equal(t, 3, getDashboardError(t, srv, "/api/history?epic=a", http.StatusNotFound).Code)
 	for _, bad := range []string{"/api/history", "/api/history?milestone=A&epic=a", "/api/history?milestone=A&from=1", "/api/history?milestone=A&name=n", "/api/history?milestone=A&from=x&to=2", "/api/epic-history"} {
 		assert.Equal(t, 2, getDashboardError(t, srv, bad, http.StatusBadRequest).Code, bad)
 	}
-	for _, file := range []string{rel, outside, "link.tasks.json"} {
-		e := getDashboardError(t, srv, "/api/export?file="+url.QueryEscape(file), http.StatusForbidden)
-		assert.Equal(t, 2, e.Code, file)
-		assert.Contains(t, e.Error, "outside", file)
+	for _, file := range []string{"missing.tasks.json", rel, outside} {
+		requireNotListed(t, srv, file, "\x00")
 	}
-}
-
-// TestDashboard_RefusesAMissingPathThroughASymlinkOutsideTheRepo: a task
-// file named through an in-repo symlink to a directory outside the
-// repository is refused 403 whether the rest of the path exists or not, so
-// the answer does not tell a caller which outside directories exist; a
-// missing path inside the repository still reaches tp's not-found error.
-func TestDashboard_RefusesAMissingPathThroughASymlinkOutsideTheRepo(t *testing.T) {
-	t.Parallel()
-	dir := t.TempDir()
-	writeTaskFileRaw(t, dir, `[]`)
-	initGitRepo(t, dir)
-	outside := t.TempDir()
-	require.NoError(t, os.Mkdir(filepath.Join(outside, "realdir"), 0o755))
-	require.NoError(t, os.Symlink(outside, filepath.Join(dir, "lnk")))
-	srv := startDashboard(t, dir, freePort(t))
-
-	for _, file := range []string{"lnk/realdir/x.tasks.json", "lnk/nope/y.tasks.json", "lnk/nope/deeper/z.tasks.json"} {
-		e := getDashboardError(t, srv, "/api/export?file="+url.QueryEscape(file), http.StatusForbidden)
-		assert.Contains(t, e.Error, "outside", file)
-	}
-	assert.Equal(t, 3, getDashboardError(t, srv, "/api/export?file="+url.QueryEscape("nope/deeper/z.tasks.json"), http.StatusNotFound).Code)
-}
-
-// TestDashboard_RefusesADotDotPastAnInRepoSymlinkLeadingOut: a path that
-// climbs out of an in-repo symlink with .. names, as the OS opens it, the
-// parent of the symlink's target, not the repository: lnk/../evil.tasks.json
-// with lnk pointing at a directory outside is refused 403, existing or not,
-// while the same climb out of a real in-repo directory still answers.
-func TestDashboard_RefusesADotDotPastAnInRepoSymlinkLeadingOut(t *testing.T) {
-	t.Parallel()
-	dir := t.TempDir()
-	writeTaskFileRaw(t, dir, `[]`)
-	initGitRepo(t, dir)
-	outside := t.TempDir()
-	require.NoError(t, os.Mkdir(filepath.Join(outside, "inner"), 0o755))
-	data, err := os.ReadFile(filepath.Join(dir, "spec.tasks.json"))
-	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(filepath.Join(outside, "evil.tasks.json"), data, 0o600))
-	require.NoError(t, os.Symlink(filepath.Join(outside, "inner"), filepath.Join(dir, "lnk")))
-	require.NoError(t, os.Mkdir(filepath.Join(dir, "sub"), 0o755))
-	srv := startDashboard(t, dir, freePort(t))
-
-	for _, file := range []string{"lnk/../evil.tasks.json", "lnk/../nope.tasks.json", "lnk/../nope/z.tasks.json", "sub/../lnk/../evil.tasks.json"} {
-		e := getDashboardError(t, srv, "/api/export?file="+url.QueryEscape(file), http.StatusForbidden)
-		assert.Contains(t, e.Error, "outside", file)
-	}
-	got, body := getPage(t, strings.TrimSuffix(srv.url, "/")+"/api/export?file="+url.QueryEscape("sub/../spec.tasks.json"))
-	assert.Equal(t, http.StatusOK, got, body)
 }
 
 // requireSameErrorAsCommand requires GET /api/export?file=<file> to answer
@@ -125,36 +72,8 @@ func requireSameErrorAsCommand(t *testing.T, srv *dashboardServer, dir, file str
 	assert.Equal(t, want, got, file)
 }
 
-// TestDashboard_MissingTaskFileNamesThePathAsGiven: a task file that does
-// not exist answers 404 with tp export's own error, naming the path as the
-// caller gave it, not a resolved absolute one.
-func TestDashboard_MissingTaskFileNamesThePathAsGiven(t *testing.T) {
-	t.Parallel()
-	dir := t.TempDir()
-	writeTaskFileRaw(t, dir, `[]`)
-	initGitRepo(t, dir)
-	srv := startDashboard(t, dir, freePort(t))
-
-	requireSameErrorAsCommand(t, srv, dir, "missing.tasks.json")
-}
-
-// TestDashboard_DotDotThroughAMissingDirectoryAnswersAsTheCommand:
-// nope/../spec.tasks.json stays inside the repository, and since the OS
-// cannot open a path through a directory that does not exist, it answers
-// tp export's not-found error, not the outside-the-repository refusal.
-func TestDashboard_DotDotThroughAMissingDirectoryAnswersAsTheCommand(t *testing.T) {
-	t.Parallel()
-	dir := t.TempDir()
-	writeTaskFileRaw(t, dir, `[]`)
-	initGitRepo(t, dir)
-	srv := startDashboard(t, dir, freePort(t))
-
-	requireSameErrorAsCommand(t, srv, dir, "nope/../spec.tasks.json")
-}
-
-// TestDashboard_DanglingInRepoSymlinkIsNotFound: an in-repo symlink whose
-// in-repo target does not exist names nothing outside the repository and
-// answers tp export's not-found error.
+// TestDashboard_DanglingInRepoSymlinkIsNotFound: a listed task file that is
+// a symlink to nothing answers tp export --file's own not-found error.
 func TestDashboard_DanglingInRepoSymlinkIsNotFound(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
@@ -166,9 +85,11 @@ func TestDashboard_DanglingInRepoSymlinkIsNotFound(t *testing.T) {
 	requireSameErrorAsCommand(t, srv, dir, "dangling.tasks.json")
 }
 
-// TestDashboard_AbsoluteSymlinkInsideTheRepoAnswersAsTheCommand: an in-repo
-// symlink whose absolute target lies inside the repository, which os.Root
-// refuses on its own, answers byte-equal to tp export --file through it.
+// TestDashboard_AbsoluteSymlinkInsideTheRepoAnswersAsTheCommand: a listed
+// TestDashboard_AbsoluteSymlinkInsideTheRepoAnswersAsTheCommand: a task file
+// that is a symlink with an absolute target inside the repository is listed
+// under the path tp export --list prints for it, and that path answers
+// byte-equal to tp export --file; the link's own name, not listed, does not.
 func TestDashboard_AbsoluteSymlinkInsideTheRepoAnswersAsTheCommand(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
@@ -177,5 +98,10 @@ func TestDashboard_AbsoluteSymlinkInsideTheRepoAnswersAsTheCommand(t *testing.T)
 	initGitRepo(t, dir)
 	srv := startDashboard(t, dir, freePort(t))
 
-	requireSameAsCommand(t, srv, dir, "/api/export?file=abs.tasks.json", "export", "--file", "abs.tasks.json")
+	paths := listedPaths(t, dir, nil)
+	require.NotContains(t, paths, "abs.tasks.json")
+	for _, p := range paths {
+		requireSameAsCommand(t, srv, dir, "/api/export?file="+url.QueryEscape(p), "export", "--file", p)
+	}
+	requireNotListed(t, srv, "abs.tasks.json", "\x00")
 }
