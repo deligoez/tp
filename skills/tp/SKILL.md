@@ -590,6 +590,11 @@ from a done record.
    `tp epic gate <m> --met --evidence "<text or URL>"`. List under `deferrable` the work that waits on
    a trigger that may never come, so it never holds the milestone. Edit one gate with
    `tp epic set gates.<m>.threshold=<text>` (or `.deferrable=`, `.members=`), which keeps its `met`.
+   **What a gate pulls in** is `tp epic scope <m>`: the closure its members reach, the epics that
+   carry most of it, and earlier gates' members no other gate needs. It writes nothing and runs
+   unattended;
+   its `fingerprint` changes only when the members, the graph's shape under them or the threshold do,
+   so compare it to tell whether a scope pass is due.
    **A placeholder threshold** (`[threshold]`, `<exit condition>`, `TBD`; `.tp/config.json`'s
    `epic.threshold_placeholder` replaces the default pattern) is not one the operator can measure:
    `tp epic lint` warns `gate-threshold-unwritten` on an unmet gate carrying one, and `tp epic ready`,
