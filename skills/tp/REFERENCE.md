@@ -1754,8 +1754,9 @@ The read commands write nothing and list epics in graph order, every list `[]` w
 - **`not_actionable`** (v1.6.0): on every undone condition that is not actionable, every reason that
   holds, in this order: `milestone` (its milestone is not open), `dependencies` (a direct dependency
   of its own is not done), `dependents` (no open milestone's gate holds it and no dependent that can
-  move waits on it and on conditions alone). Absent on an actionable condition; a condition never
-  carries `waiting_on`, which is a milestone's key.
+  move waits on it and on conditions alone; v1.8.0: a dependent `deferrable` in its milestone's gate
+  does not count), `deferrable` (v1.8.0: its own milestone's gate lists it `deferrable`). Absent on
+  an actionable condition; a condition never carries `waiting_on`, which is a milestone's key.
 - **moot** (v1.7.0): an undone epic is moot when no gate holds it (a member of any milestone's
   gate), at least one `depends_on` entry names it, every any-of group naming it is satisfied, and
   every plain edge naming it comes from a moot epic, so what only a lost alternative needed is moot
@@ -1799,8 +1800,10 @@ The read commands write nothing and list epics in graph order, every list `[]` w
   is `claimed`, blocked ones too. The status counts and `share_done` cover work epics only:
   `share_done` is `done` over the milestone's work epics to two places, 0 with none, and a done
   condition counts in `conditions_done` alone. `blocked` is each not-done epic with a dependency not
-  done: `blocked_by` every such dependency once, `held_by` the conditions among them (v1.6.0), as
-  export's epics, `blocked_by_any_of` and `held_by_any_of` the export's group lists (v1.7.0), and
+  done, less the epics `deferrable` in the milestone's gate (v1.8.0; export's own `epics[]` item
+  for one still says `blocked` and `blocked_by`): `blocked_by` every such dependency once,
+  `held_by` the conditions among them (v1.6.0), as export's epics, `blocked_by_any_of` and
+  `held_by_any_of` the export's group lists (v1.7.0), and
   on a condition `not_actionable`, or `moot: true` on a moot one (v1.7.0). `by_count` runs in work
   order, the gate member last, `[]` when every member is done; ties go to the earlier gate member,
   then the earlier dependency; at an unsatisfied any-of group the chain goes through the member with
@@ -2017,9 +2020,9 @@ contract:
   open_loops, throughput}` over work epics, `operator_queue` counting actionable conditions, those
   groups, gates awaiting `--met`, threshold rewrites and the slices whose `grantable` is true,
   `open_loops` the epic review slices not `done`, `throughput` `[{week, done}]` over every
-  milestone. The dashboard layer also leaves `deferrable` gate members out of `waiting` and drops a
-  condition only deferrable work waits on from `operator_conditions`; `tp epic status`, `ready` and
-  `export` are unchanged by it. Empty with no graph.
+  milestone. `waiting` leaves `deferrable` gate members out, as `tp epic status`'s and `export`'s
+  `blocked` do, and `operator_conditions` is `tp epic ready`'s actionable conditions (v1.8.0: none
+  deferrable, none only deferrable work waits on). Empty with no graph.
 - `series`: work epics per stage per UTC day, `[{date, planned, claimed, specced, in_progress, done,
   unknown}]`, from the first recorded event's day to the last's. An epic is claimed at `claimed.at`,
   specced at the earliest `bound_at` of its bound files when every one carries it, in progress at the
