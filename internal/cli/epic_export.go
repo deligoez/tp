@@ -163,7 +163,11 @@ func epicExport() (*epicExportResult, *epicRunError) {
 	if err != nil {
 		return fail(err)
 	}
-	reviewSlices, err := engine.EpicReviewSlices(tpDir, g, epicReviewPolicy(tpDir))
+	policy, rerr := readEpicReviewPolicy(tpDir)
+	if rerr != nil {
+		return nil, rerr
+	}
+	reviewSlices, err := engine.EpicReviewSlices(tpDir, g, policy)
 	if err != nil {
 		return fail(err)
 	}

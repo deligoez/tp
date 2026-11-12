@@ -43,13 +43,22 @@ func epicMaxRoundsOut(maxRounds int) *int {
 // review_max_rounds from the project layer over the built-in default; a
 // malformed project config exits 3.
 func epicReviewPolicy(tpDir string) engine.EpicReviewPolicy {
+	policy, rerr := readEpicReviewPolicy(tpDir)
+	if rerr != nil {
+		exitEpicRunError(rerr)
+	}
+	return policy
+}
+
+// readEpicReviewPolicy is epicReviewPolicy for a caller that must not exit,
+// such as the dashboard: a malformed project config is an exit-3 error.
+func readEpicReviewPolicy(tpDir string) (engine.EpicReviewPolicy, *epicRunError) {
 	pc, _, err := engine.LoadProjectConfig(tpDir)
 	if err != nil {
-		output.Error(ExitFile, err.Error(), "fix .tp/config.json")
-		os.Exit(ExitFile)
+		return engine.EpicReviewPolicy{}, &epicRunError{code: ExitFile, msg: err.Error(), hint: "fix .tp/config.json"}
 	}
 	wf := engine.ResolveWorkflowLayers(&model.WorkflowOverride{}, &pc.Workflow)
-	return engine.EpicReviewPolicy{CleanRounds: wf.ReviewCleanRounds, MaxRounds: wf.ReviewMaxRounds, ConvergeOn: wf.ReviewConvergeOn}
+	return engine.EpicReviewPolicy{CleanRounds: wf.ReviewCleanRounds, MaxRounds: wf.ReviewMaxRounds, ConvergeOn: wf.ReviewConvergeOn}, nil
 }
 
 // epicReviewLoop reads the slice's loop verdict, exiting 3 on unreadable state.
