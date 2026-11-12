@@ -28,9 +28,9 @@ func TestInitEjectRolesGraph_WritesOnlyEpicReviewers(t *testing.T) {
 
 	var out map[string]any
 	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
-	require.Len(t, out["ejected"].([]any), 3, "the three built-in graph roles")
+	require.Len(t, out["ejected"].([]any), 4, "the four built-in graph roles")
 
-	for _, id := range []string{"dod-satisfiability", "why-auditor", "phase-economist"} {
+	for _, id := range []string{"dod-satisfiability", "why-auditor", "phase-economist", "gate-scope"} {
 		data, err := os.ReadFile(filepath.Join(dir, ".tp", "epic-reviewers", id+".json"))
 		require.NoError(t, err)
 		var role map[string]any
