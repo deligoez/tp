@@ -33,10 +33,15 @@ func runErrorOf(err *epicRunError) *dashboard.Error {
 }
 
 // Export answers /api/export?file=: the task file's tp export, refused when
-// the path resolves outside the repository.
+// the path resolves outside the repository. The export reads the resolved
+// path the containment check passed, never the raw one.
 func (dashboardAPI) Export(file string) (any, *dashboard.Error) {
-	if file != "" && !insideRepository(file) {
-		return nil, dashboard.Forbidden("task file "+file+" is outside the repository", dashboardOutsideHint)
+	if file != "" {
+		resolved, ok := resolveInsideRepository(file)
+		if !ok {
+			return nil, dashboard.Forbidden("task file "+file+" is outside the repository", dashboardOutsideHint)
+		}
+		file = resolved
 	}
 	payload, err := exportOf(file, false)
 	if err != nil {
@@ -159,44 +164,70 @@ func dashboardHistoryQuery(q url.Values) (key engine.EpicSliceKey, from, to int,
 	return key, from, to, nil
 }
 
-// insideRepository reports whether file, resolved against the working
-// directory with every symlink followed, lies under the project root. A path
-// that does not exist resolves through its nearest existing ancestor, so a
-// missing file inside the repository reaches the command's not-found error
-// and one through a symlink leading out is refused like an existing one.
-func insideRepository(file string) bool {
+// resolveInsideRepository resolves file the way the OS will when tp opens
+// it, against the working directory with every symlink followed, and
+// returns that path when it lies under the project root. Containment is
+// checked on the resolved path and the caller opens that same path, so the
+// check and the open cannot diverge: a lexical clean would drop lnk/.. before
+// lnk is followed, while the OS follows lnk first and climbs out of its
+// target. A path that does not exist resolves through its nearest existing
+// ancestor, so a missing file inside the repository reaches the command's
+// not-found error and one through a symlink leading out is refused like an
+// existing one.
+func resolveInsideRepository(file string) (string, bool) {
 	root, err := filepath.EvalSymlinks(engine.ProjectRoot("."))
 	if err != nil {
-		return false
+		return "", false
 	}
-	abs, err := filepath.Abs(file)
-	if err != nil {
-		return false
+	raw := file
+	if !filepath.IsAbs(raw) {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return "", false
+		}
+		// Concatenated, not filepath.Join: Join cleans, and cleaning is the
+		// lexical .. this resolution exists to avoid.
+		raw = cwd + string(filepath.Separator) + file
 	}
-	resolved, ok := resolveThroughExistingAncestor(abs)
+	resolved, ok := resolveThroughExistingAncestor(raw)
 	if !ok {
-		return false
+		return "", false
 	}
 	rel, err := filepath.Rel(root, resolved)
-	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", false
+	}
+	return resolved, true
 }
 
-// resolveThroughExistingAncestor follows every symlink of abs: abs itself
-// when it exists, else its nearest existing ancestor with the missing rest
-// joined back on. A dangling symlink, which names nothing tp can check, is
-// not resolved.
-func resolveThroughExistingAncestor(abs string) (string, bool) {
-	missing := ""
-	for dir := abs; ; dir = filepath.Dir(dir) {
+// resolveThroughExistingAncestor follows every symlink of the uncleaned
+// absolute path raw in the order the OS does: raw itself when it exists,
+// else its nearest existing ancestor with the missing rest joined back on.
+// Ancestors are cut textually, since filepath.Dir cleans. A dangling symlink,
+// which names nothing tp can check, is not resolved, and neither is a
+// missing rest that climbs with .., which the OS would not open either.
+func resolveThroughExistingAncestor(raw string) (string, bool) {
+	sep := string(filepath.Separator)
+	var missing []string
+	for dir := raw; ; {
 		if resolved, err := filepath.EvalSymlinks(dir); err == nil {
-			return filepath.Join(resolved, missing), true
+			if slices.Contains(missing, "..") {
+				return "", false
+			}
+			return filepath.Join(append([]string{resolved}, missing...)...), true
 		}
 		if _, err := os.Lstat(dir); err == nil {
 			return "", false // a dangling symlink
 		}
-		if parent := filepath.Dir(dir); parent == dir {
-			return abs, true
+		trimmed := strings.TrimRight(dir, sep)
+		i := strings.LastIndex(trimmed, sep)
+		if i < 0 {
+			return "", false
 		}
-		missing = filepath.Join(filepath.Base(dir), missing)
+		missing = append([]string{trimmed[i+1:]}, missing...)
+		dir = trimmed[:i]
+		if dir == "" {
+			dir = sep
+		}
 	}
 }
