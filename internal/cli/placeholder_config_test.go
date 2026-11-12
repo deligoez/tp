@@ -69,7 +69,7 @@ func TestConfig_ShowsTheThresholdPlaceholder(t *testing.T) {
 // TestConfig_ReportsTheDefaultForAPlaceholderThatDoesNotCompile: a project
 // pattern that does not compile is not the effective one, so tp config
 // prints the default the epic commands use, --resolved names the default
-// layer, and stderr says the project's pattern does not compile.
+// layer, and stderr says the default pattern is in use.
 func TestConfig_ReportsTheDefaultForAPlaceholderThatDoesNotCompile(t *testing.T) {
 	t.Parallel()
 	dir := writePlaceholderConfig(t, `{"workflow":{},"epic":{"threshold_placeholder":"(unclosed"}}`)
@@ -88,7 +88,7 @@ func TestConfig_ReportsTheDefaultForAPlaceholderThatDoesNotCompile(t *testing.T)
 		}
 		assert.JSONEq(t, want, string(payload.Epic["threshold_placeholder"]), "%v", args)
 		assert.Contains(t, stderr, "epic.threshold_placeholder", "%v", args)
-		assert.Contains(t, stderr, "does not compile", "%v", args)
+		assert.Contains(t, stderr, "using the default placeholder pattern", "%v", args)
 	}
 }
 
