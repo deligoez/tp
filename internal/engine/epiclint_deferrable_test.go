@@ -46,9 +46,37 @@ func TestLintEpicGraph_DeferrableRequiredImplicitGate(t *testing.T) {
 	assert.Contains(t, found[0].Message, "b1 -> d1")
 }
 
+// TestLintEpicGraph_DeferrableRequiredListsEveryRequirer: a1 needs d1 through
+// x1 and y1, and the member a2 needs it directly, so fixing one path leaves
+// the warning standing. Every direct requirer in the required set is listed,
+// in graph order, with one member path as the example.
+func TestLintEpicGraph_DeferrableRequiredListsEveryRequirer(t *testing.T) {
+	g := deferrableLintGraph([]string{"a1", "a2"}, []string{"d1"},
+		dependsOn("a1", "m0", "x1", "y1"), dependsOn("a2", "m0", "d1"), dependsOn("x1", "m0", "d1"),
+		dependsOn("y1", "m0", "d1"), dependsOn("d1", "m0"), dependsOn("z1", "m0", "d1"))
+	found := findingsOf(t, LintEpicGraph(g, nil), EpicRuleDeferrableRequired)
+	require.Len(t, found, 1, "%v", found)
+	assert.Contains(t, found[0].Message, "required by a2, x1, y1:", "z1 needs d1 but no member reaches z1")
+	assert.Contains(t, found[0].Message, "a1 -> x1 -> d1")
+	assert.Equal(t, []string{"a1", "a2", "d1", "x1", "y1"}, found[0].Epics)
+}
+
+// TestLintEpicGraph_DeferrableRequiredCapsTheRequirers: four requirers are
+// counted past the third.
+func TestLintEpicGraph_DeferrableRequiredCapsTheRequirers(t *testing.T) {
+	g := deferrableLintGraph([]string{"a1"}, []string{"d1"},
+		dependsOn("a1", "m0", "w1", "x1", "y1", "z1"), dependsOn("w1", "m0", "d1"), dependsOn("x1", "m0", "d1"),
+		dependsOn("y1", "m0", "d1"), dependsOn("z1", "m0", "d1"), dependsOn("d1", "m0"))
+	found := findingsOf(t, LintEpicGraph(g, nil), EpicRuleDeferrableRequired)
+	require.Len(t, found, 1, "%v", found)
+	assert.Contains(t, found[0].Message, "required by 4 (w1, x1, y1, …)")
+}
+
 // TestLintEpicGraph_DeferrableRequiredSkips: no warning on an epic listed as
 // member and deferrable (gate-member-deferrable's), on a deferrable reached
-// only through an any-of alternative, or when the member reaching it is done.
+// only through an any-of alternative, when the member reaching it is done,
+// when the only path runs through a done epic (a1 -> x1, done, -> d1), or
+// when the deferrable itself is done.
 func TestLintEpicGraph_DeferrableRequiredSkips(t *testing.T) {
 	doneMember := dependsOn("a1", "m0", "d1")
 	doneMember.Done = epicDoneRecord()
