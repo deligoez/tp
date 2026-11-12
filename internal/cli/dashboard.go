@@ -95,7 +95,7 @@ func serveDashboard(parent context.Context, ln net.Listener) error {
 		shutdownErr <- srv.Shutdown(shutdown)
 	}()
 	if err := srv.Serve(ln); !errors.Is(err, http.ErrServerClosed) {
-		return err
+		return fmt.Errorf("serving the dashboard on %s: %w", ln.Addr(), err)
 	}
 	// Serve returns as soon as Shutdown starts; the drain is awaited here.
 	if err := <-shutdownErr; err != nil {
