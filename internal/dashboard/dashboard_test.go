@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -397,7 +398,8 @@ func TestPage_AWaitingEpicNamesItsAnyOfGroups(t *testing.T) {
 // description (spec/backlog/epic-description.md): the graph epic's
 // description goes through descHTML, which wraps the escaped text in a <pre>
 // and renders no markup. With node on PATH the page's own esc and descHTML
-// run on a description holding a script and HTML, which come out as text.
+// run on a description holding a script and HTML, which come out as text;
+// without node it skips locally and fails under CI, where it must run.
 func TestPage_DrawsAnEpicsDescriptionAsEscapedPreformattedText(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
@@ -410,6 +412,9 @@ func TestPage_DrawsAnEpicsDescriptionAsEscapedPreformattedText(t *testing.T) {
 	}
 	require.Len(t, defs, 2, "the page defines esc and descHTML on one line each")
 	node, err := exec.LookPath("node")
+	if err != nil && os.Getenv("CI") != "" {
+		t.Fatal("node is not on PATH under CI (CI is set, as GitHub Actions sets CI=true): the escaping check must run there")
+	}
 	if err != nil {
 		t.Skip("node is not on PATH: the static half above ran")
 	}
