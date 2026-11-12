@@ -143,3 +143,19 @@ func TestSpecSections_ANumberedTitleOpensNoSection(t *testing.T) {
 	assert.Equal(t, "1. Title", got[0].Heading)
 	assert.Equal(t, "§2", got[1].Anchor)
 }
+
+// TestSpecHeadingSlug_HyphensJoinWordsAndNothingLeftIsSection: a run of
+// non-letters becomes one hyphen between words, never a leading one, even
+// after a one-letter first word; a heading with no letter or digit is
+// "section", and one with a single letter is that letter.
+func TestSpecHeadingSlug_HyphensJoinWordsAndNothingLeftIsSection(t *testing.T) {
+	for heading, want := range map[string]string{
+		"A b":       "a-b",
+		"— Notes":   "notes",
+		"Non-goals": "non-goals",
+		"???":       "section",
+		"X":         "x",
+	} {
+		assert.Equal(t, want, specHeadingSlug(heading), heading)
+	}
+}
