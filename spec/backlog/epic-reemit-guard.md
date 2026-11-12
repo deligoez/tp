@@ -10,7 +10,12 @@ Class: **decision**. A behaviour change on epic review emission.
 the current graph and role corpus. Spec review and audit do the opposite: an emission whose input
 changed is refused, and discarding it is the operator's `--force` (`discard-emission`). Agents may
 hold the old prompts while the round is out, so a rebuild after a graph or corpus edit can record
-their rows against a round with different roles or units. Nothing reports it.
+their rows against a round with different roles or units. Nothing reports it. Concretely, rows an
+agent already wrote against the old emission may cite units the rebuilt snapshot no longer has.
+
+The same class predates it: deleting an epic from the graph takes that epic's open review rows with
+it, so state can cite a unit that no longer exists. A decision here should say whether it covers
+that case too.
 
 **Decision (candidate).** Guard the epic emission the way spec review is guarded: a re-emit whose
 units, blocks or corpus differ from the stored emission is refused, and `--force` discards it as
