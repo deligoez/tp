@@ -117,3 +117,17 @@ func TestDashboard_MissingFileUnderASymlinkedPrefixIsNotFound(t *testing.T) {
 	requireSameErrorAsCommand(t, srv, dir, filepath.Join(link, "missing.tasks.json"))
 }
 
+// TestDashboard_PathThroughAFileIsNotFound: a path that continues past an
+// in-repo task file, which the OS refuses as not a directory, answers tp
+// export's not-found error, with a trailing slash too.
+func TestDashboard_PathThroughAFileIsNotFound(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeTaskFileRaw(t, dir, `[]`)
+	initGitRepo(t, dir)
+	srv := startDashboard(t, dir, freePort(t))
+
+	for _, file := range []string{"spec.tasks.json/x.tasks.json", "spec.tasks.json/"} {
+		requireSameErrorAsCommand(t, srv, dir, file)
+	}
+}
