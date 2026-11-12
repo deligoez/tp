@@ -25,12 +25,15 @@ type EpicSliceKey struct {
 // "scope:<m>" (spec/backlog/epic-scope.md, Part B). Hash covers the unit's
 // own block and, for an epic, the blocks of its direct dependencies; a scope
 // unit's hash is its scope fingerprint. Milestone is the milestone the unit
-// belongs to: the epic's, or the gate's.
+// belongs to: the epic's, or the gate's; Purpose is that milestone's gate
+// purpose (GatePurpose), which no hash covers: a changed purpose re-asks the
+// roles that take it (EpicCarry.PurposeStale) without changing the unit.
 type EpicReviewUnit struct {
 	Key       string
 	Block     string
 	Hash      string
 	Milestone string
+	Purpose   string
 }
 
 // The unit key prefixes, one per kind a graph role's units may list.
@@ -102,6 +105,9 @@ func EpicReviewSlice(g *model.EpicGraph, key EpicSliceKey) (EpicSlice, error) {
 		if u, ok := epicScopeUnit(g, m, byID); ok {
 			s.Units = append(s.Units, u)
 		}
+	}
+	for i := range s.Units {
+		s.Units[i].Purpose = GatePurpose(g, s.Units[i].Milestone)
 	}
 	s.Context = epicSliceContext(g, asked)
 	return s, nil
