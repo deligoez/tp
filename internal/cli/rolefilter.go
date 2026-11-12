@@ -50,23 +50,26 @@ type roleQuery struct {
 	siblings map[string]bool
 }
 
-// withSiblingUnits records the panel's active roles as the ones a driver
-// covers with sibling units, when a driver runs this invocation (TP_RUN_ID
-// set). By hand it returns q unchanged.
+// withSiblingUnits records the panel's active roles, plus the built-in roles
+// the round carries, as the ones a driver covers with sibling units, when a
+// driver runs this invocation (TP_RUN_ID set). By hand it returns q unchanged.
 //
-// The driver partitions the panel across role units on purpose -- one unit
-// per active role, resolved by the same engine.ResolveRolePanel -- so naming
-// the siblings under role-filter in every unit's brief is per-unit noise. What
-// a driven unit cannot learn from any sibling is a prompt NO unit covers, which
-// today is review's built-in regression role: it is emitted and belongs to no
-// corpus. filterByRole lists only those.
-func (q roleQuery) withSiblingUnits(panel *rolePanel) roleQuery {
+// The driver partitions the round across role units on purpose -- one unit
+// per active role, resolved by the same engine.ResolveRolePanel, and one for
+// review's built-in regression role when engine.RegressionCarried says the
+// round carries it -- so naming the siblings under role-filter in every unit's
+// brief is per-unit noise. What a driven unit cannot learn from any sibling is
+// a prompt NO unit covers; filterByRole lists only those.
+func (q roleQuery) withSiblingUnits(panel *rolePanel, builtins ...string) roleQuery {
 	if os.Getenv(engine.EnvRunID) == "" {
 		return q
 	}
-	q.siblings = make(map[string]bool, len(panel.roles))
+	q.siblings = make(map[string]bool, len(panel.roles)+len(builtins))
 	for i := range panel.roles {
 		q.siblings[panel.roles[i].ID] = true
+	}
+	for _, id := range builtins {
+		q.siblings[id] = true
 	}
 	return q
 }

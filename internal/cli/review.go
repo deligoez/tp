@@ -678,7 +678,11 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 	prompts = appendClausesReview(prompts)
 	// An unknown --role exits 2 here, so the round snapshot is written only
 	// after it: a refusal leaves the state directory exactly as it found it.
-	prompts, skippedRoles = filterReviewPrompts(prompts, roleQueryFor(specPath, roleFilter, roleGiven).withSiblingUnits(&panel), skippedRoles)
+	var builtinUnits []string
+	if regressionIncluded {
+		builtinUnits = append(builtinUnits, engine.RegressionRoleID)
+	}
+	prompts, skippedRoles = filterReviewPrompts(prompts, roleQueryFor(specPath, roleFilter, roleGiven).withSiblingUnits(&panel, builtinUnits...), skippedRoles)
 	if !noState {
 		writeReviewRoundSnapshot(cmd, specPath, round)
 	}
