@@ -149,7 +149,27 @@ func epicResolveTarget(key engine.EpicSliceKey) (run epicReviewRun, path string,
 			fmt.Sprintf("record a round first with tp epic review %s --record <file>", epicSliceLabel(key)))
 		os.Exit(ExitFile)
 	}
+	refuseEpicResolveInFlight(&run, round)
 	return run, path, round
+}
+
+// refuseEpicResolveInFlight exits 3, writing nothing, while round's successor
+// is emitted and unrecorded: that round was built from round's dispositions
+// (its carry, regression and decided rows), so they stay frozen until it is
+// recorded or discarded (spec/backlog/epic-reemit-guard.md). Only the last
+// recorded round can be resolved, so freezing it covers every row the
+// emission read.
+func refuseEpicResolveInFlight(run *epicReviewRun, round int) {
+	_, inFlight, err := engine.EpicStoredPanel(run.stateDir, run.round)
+	if err != nil || !inFlight {
+		return
+	}
+	label := epicSliceLabel(run.key)
+	exitEpicRunError(&epicRunError{code: ExitFile,
+		msg: fmt.Sprintf("epic review round %d of %s is emitted and unrecorded, and it was built from round %d's dispositions: they stay as they are until it is recorded or discarded",
+			run.round, label, round),
+		hint: fmt.Sprintf("record round %d as emitted with tp epic review %s --record-inbox, and the disposition then takes effect from the next round; or, as the operator's decision, discard it with tp epic review %s --force",
+			run.round, label, label)})
 }
 
 // epicRefuseResolved exits 1 when the finding already carries a disposition
