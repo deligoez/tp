@@ -1,6 +1,9 @@
 package engine
 
 import (
+	"slices"
+	"sort"
+
 	"github.com/deligoez/tp/internal/model"
 )
 
@@ -17,6 +20,20 @@ type EpicScope struct {
 	// included, per milestone in milestone order (milestoneOrder), listing
 	// only milestones with at least one.
 	Closure []ScopeMilestone `json:"closure"`
+	// Shrink is each closure epic's removal shrink that takes at least one
+	// other epic with it, by size descending, then id.
+	Shrink []ScopeShrink `json:"shrink"`
+}
+
+// ScopeShrink is one closure epic's removal shrink: for a non-member, the
+// epics that leave the closure when every edge into it is cut, itself
+// included; for a member, the epics that leave when it is dropped from the
+// gate, a gate decision. Leaves is sorted by id and Size is its length.
+type ScopeShrink struct {
+	Epic   string   `json:"epic"`
+	Member bool     `json:"member"`
+	Size   int      `json:"size"`
+	Leaves []string `json:"leaves"`
 }
 
 // ScopeMilestone is one milestone's part of a closure: its track's index in
@@ -47,12 +64,55 @@ func MilestoneScope(g *model.EpicGraph, states map[string]EpicState, estimates m
 	w := newScopeWalk(g, states, milestone)
 	members, _ := GateMembers(g, milestone)
 	full := w.closure(members, "")
+	closure := w.compose(full)
 	return EpicScope{
 		Milestone:       milestone,
 		Members:         members,
 		MembersImplicit: len(g.Gates[milestone].Members) == 0,
-		Closure:         w.compose(full),
+		Closure:         closure,
+		Shrink:          w.shrink(members, full, closure),
 	}
+}
+
+// shrink returns the removal shrink rows of full's epics, listed in closure
+// order, that take another epic with them.
+func (w *scopeWalk) shrink(members []string, full scopeSet, closure []ScopeMilestone) []ScopeShrink {
+	out := []ScopeShrink{}
+	for _, m := range closure {
+		for _, e := range m.Epics {
+			row := ScopeShrink{Epic: e.ID, Member: slices.Contains(members, e.ID)}
+			var rest scopeSet
+			if row.Member {
+				rest = w.closure(slices.DeleteFunc(slices.Clone(members), func(id string) bool { return id == e.ID }), "")
+			} else {
+				rest = w.closure(members, e.ID)
+			}
+			row.Leaves = full.minus(rest)
+			row.Size = len(row.Leaves)
+			if slices.ContainsFunc(row.Leaves, func(id string) bool { return id != e.ID }) {
+				out = append(out, row)
+			}
+		}
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].Size != out[j].Size {
+			return out[i].Size > out[j].Size
+		}
+		return out[i].Epic < out[j].Epic
+	})
+	return out
+}
+
+// minus returns the ids of s not in o, sorted.
+func (s scopeSet) minus(o scopeSet) []string {
+	out := []string{}
+	for id := range s.in {
+		if !o.in[id] {
+			out = append(out, id)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // scopeWalk walks depends_on edges backwards from a gate's members through
