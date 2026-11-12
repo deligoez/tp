@@ -61,8 +61,8 @@ func runDashboard(cmd *cobra.Command, _ []string) error {
 	addr := net.JoinHostPort(dashboard.Host, strconv.Itoa(dashboardPort))
 	ln, err := (&net.ListenConfig{}).Listen(cmd.Context(), "tcp", addr)
 	if err != nil {
-		output.Error(ExitValidation, fmt.Sprintf("port %d is taken: %v", dashboardPort, err),
-			fmt.Sprintf("stop the process holding port %d, or pass --port naming a free one", dashboardPort))
+		msg, hint := dashboard.ListenFailure(dashboardPort, err)
+		output.Error(ExitValidation, msg, hint)
 		os.Exit(ExitValidation)
 	}
 	url := "http://" + addr + "/"
