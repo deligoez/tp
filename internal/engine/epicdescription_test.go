@@ -261,13 +261,23 @@ func TestEpicHandoffContext_ADescriptionDoesNotHideANewlyNamedEpic(t *testing.T)
 	assert.Equal(t, []string{"d"}, ids)
 }
 
-// TestEpicDescriptionDiff_ShowsRemovedAndAddedLines: a description-only
-// change renders as its line diff, unchanged lines kept as context.
-func TestEpicDescriptionDiff_ShowsRemovedAndAddedLines(t *testing.T) {
+// describedDiff renders b's description diff from before to now.
+func describedDiff(t *testing.T, before, now string) string {
+	t.Helper()
 	g := epicDescribedGraph()
-	g.Epics[1].Description = "keep\nold line\ntail"
-	before := epicUnitOf(t, g, "epic:b").Block
-	g.Epics[1].Description = "keep\nnew line\ntail\nadded"
-	now := epicUnitOf(t, g, "epic:b").Block
-	assert.Equal(t, "  keep\n- old line\n+ new line\n  tail\n+ added\n", EpicDescriptionDiff(before, now))
+	g.Epics[1].Description = before
+	block := epicUnitOf(t, g, "epic:b").Block
+	g.Epics[1].Description = now
+	u := epicUnitOf(t, g, "epic:b")
+	return EpicDescriptionDiff(block, &u)
+}
+
+// TestEpicDescriptionDiff_ShowsHunksWithOneContextLine: a description-only
+// change renders as hunks, each change with one unchanged line on either
+// side and one … line for each run of unchanged lines left out.
+func TestEpicDescriptionDiff_ShowsHunksWithOneContextLine(t *testing.T) {
+	assert.Equal(t, "…\n  c\n- d\n+ X\n  e\n…\n  i\n+ added\n",
+		describedDiff(t, "a\nb\nc\nd\ne\nf\ng\nh\ni", "a\nb\nc\nX\ne\nf\ng\nh\ni\nadded"))
+	assert.Equal(t, "+ first\n+ second\n", describedDiff(t, "", "first\nsecond"), "a first description is all added")
+	assert.Equal(t, "  keep\n- old line\n+ new line\n  tail\n", describedDiff(t, "keep\nold line\ntail", "keep\nnew line\ntail"))
 }
