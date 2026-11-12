@@ -1883,10 +1883,14 @@ The read commands write nothing and list epics in graph order, every list `[]` w
   required part, which cannot actually be deferred (no lint rule reports this); `[]` when none.
   `holds_opening`: for each gate `<m>` opens after directly (its effective `opens_after`, not their
   predecessors in turn), in that order, the gate's not-done effective members `<m>`'s closure does not
-  contain, sorted, with their count as `size`; a gate with none is left out. They hold `<m>`'s
-  opening for nothing: each row is a list of candidates to make deferrable in the predecessor's
-  gate, not epics to delete, and a deferrable is no member, so it is never listed. What other gates
-  need is no input, so a row for a product milestone that follows another can legitimately be long.
+  contain, sorted, with their count as `size` and `members_implicit` saying whether that gate names
+  no members; a gate with none is left out. They hold `<m>`'s opening for nothing, and are not epics
+  to delete; a deferrable is no member, so it is never listed. The lever depends on the
+  predecessor's gate: under an implicit one, make the epic deferrable there; under an explicit one
+  the only structural move is removing the epic from that gate's `members` (it cannot be both member
+  and deferrable), a decision about the predecessor that its own scope unit asks, not `<m>`'s. What
+  other gates need is no input, so a row for a product milestone that follows another can
+  legitimately be long.
   `critical_path` is `tp epic status`'s `milestones[m].critical_path`.
   `fingerprint` is the hex sha256 of the sorted members, the sorted ids of the closure drawn blind to
   status (every epic taken as not done, every any-of member followed), the threshold, the sorted
