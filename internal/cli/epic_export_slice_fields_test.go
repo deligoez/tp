@@ -59,6 +59,6 @@ func TestEpicExport_EachSliceCarriesItsStatusReviewFields(t *testing.T) {
 		got = append(got, k)
 	}
 	slices.Sort(got)
-	assert.Equal(t, []string{"dir", "grantable", "grants_spent", "key", "max_rounds", "open_by_role", "round", "stale_units", "state"}, got,
+	assert.Equal(t, []string{"dir", "grantable", "grants_spent", "key", "max_rounds", "open_by_role", "purpose_stale_units", "round", "stale_units", "state"}, got,
 		"no per-round history enters the export")
 }

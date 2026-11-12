@@ -25,7 +25,7 @@ type epicPurposeStatus struct {
 	Done         bool     `json:"done"`
 	Stale        bool     `json:"stale"`
 	StaleUnits   []string `json:"stale_units"`
-	PurposeStale []string `json:"purpose_stale"`
+	PurposeStale []string `json:"purpose_stale_units"`
 }
 
 func epicPurposeStatusOf(t *testing.T, dir string) (st epicPurposeStatus, code int) {
@@ -76,7 +76,9 @@ func TestEpicReview_APurposeReasksOnlyThePurposeRoles(t *testing.T) {
 	assert.Equal(t, []string{"epic:a", "epic:b", "epic:c", "epic:d"}, st.PurposeStale, "the placer's epics wait on the purpose")
 
 	batch, _, _ := runTP(t, dir, "epic", "review", "--all", "--status")
-	assert.Contains(t, batch, `"purpose_stale": [`, "the batch row shows it too")
+	assert.Contains(t, batch, `"purpose_stale_units": [`, "the batch row shows it too")
+	export, _, _ := runTP(t, dir, "epic", "export")
+	assert.Contains(t, export, `"purpose_stale_units": [`, "tp epic export's slices carry it")
 
 	out := runEpicReview(t, dir, "--milestone", "A")
 	assert.Equal(t, []string{"placer", "scope-judge"}, promptRoles(&out), "no regression: a purpose change is no unit change")
