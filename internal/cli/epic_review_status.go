@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/deligoez/tp/internal/engine"
 	"github.com/deligoez/tp/internal/model"
@@ -19,6 +20,7 @@ type epicStatusResult struct {
 	DoneBy           *string                      `json:"done_by"`
 	Stale            bool                         `json:"stale"`
 	StaleUnits       []string                     `json:"stale_units"`
+	PurposeStale     []string                     `json:"purpose_stale"`
 	InFlightRound    *int                         `json:"in_flight_round"`
 	MechanicalChecks []engine.EpicMechanicalCheck `json:"mechanical_checks"`
 	ConvergeOn       string                       `json:"converge_on"`
@@ -58,7 +60,8 @@ func readEpicReviewPolicy(tpDir string) (engine.EpicReviewPolicy, *epicRunError)
 		return engine.EpicReviewPolicy{}, malformedConfigRunError(err)
 	}
 	wf := engine.ResolveWorkflowLayers(&model.WorkflowOverride{}, &pc.Workflow)
-	return engine.EpicReviewPolicy{CleanRounds: wf.ReviewCleanRounds, MaxRounds: wf.ReviewMaxRounds, ConvergeOn: wf.ReviewConvergeOn}, nil
+	return engine.EpicReviewPolicy{CleanRounds: wf.ReviewCleanRounds, MaxRounds: wf.ReviewMaxRounds, ConvergeOn: wf.ReviewConvergeOn,
+		PurposeKinds: engine.EpicPurposeKinds(filepath.Dir(tpDir))}, nil
 }
 
 // malformedConfigRunError is the exit-3 error for a .tp/config.json that
@@ -125,6 +128,7 @@ func runEpicReviewStatus(key engine.EpicSliceKey, check bool) {
 		Done:             st.Done,
 		Stale:            st.Stale,
 		StaleUnits:       st.StaleUnits,
+		PurposeStale:     st.PurposeStale,
 		MechanicalChecks: run.checks,
 		ConvergeOn:       epicReviewPolicy(run.tpDir).ConvergeOn,
 		Open:             st.Open,
