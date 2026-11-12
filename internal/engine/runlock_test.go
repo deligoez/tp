@@ -172,6 +172,8 @@ func TestWithRunLock_GitignoreWarningIsANotice(t *testing.T) {
 
 	blockGitignore := func(target string) {
 		t.Helper()
+		// Inside a repository, where the run lock writes tp's .gitignore.
+		require.NoError(t, os.MkdirAll(filepath.Join(filepath.Dir(target), ".git"), 0o755))
 		require.NoError(t, os.MkdirAll(filepath.Join(filepath.Dir(target), ".tp", ".gitignore"), 0o755))
 	}
 
