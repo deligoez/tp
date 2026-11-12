@@ -82,6 +82,14 @@ tested with it, whose purpose-fed rows were all accepted. The other graph roles 
 giving it to all of them would rest on uniformity, a simplicity argument and not a trial result.
 Part B is built after Part A, whose output is its input.
 
+**Release criterion for the gate-only role, written before its held-out run.** A clean field run on a
+gate the role text was not tuned on, with a purpose the operator writes before seeing any role
+output, judged by what the operator accepts and rejects per group. The role's place on missing work
+goes back to the operator if that run returns no accepted missing-work row, or if the operator
+rejects most of what it returns. A named obligation the role does not reach on the tuned gate is a
+documented recall limit, not this trigger: the role reads a gate against what its threshold and
+purpose name and is not a domain audit of each obligation.
+
 **Consequences.** An operator can ask what a gate pulls in, and which few epics to cut or split,
 without running a review round. Review state, convergence and the role corpus do not change in
 Part A. A project can trial its own scope role today: a populated `.tp/epic-reviewers/` replaces the
