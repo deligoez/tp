@@ -68,7 +68,7 @@ func BuildNextUnits(root, taskFilePath, specPath, phase string, tf *model.TaskFi
 	case PhaseDecompose:
 		units = append(units, newNextUnit(UnitDecompose, SpecBaseName(specPath), target))
 	case PhaseReview, PhaseAudit:
-		units, round = roundBasedUnits(root, phase, recorded, target)
+		units, round = roundBasedUnits(root, phase, recorded, target, st)
 	}
 	return soloIfNotConcurrent(units), round
 }
@@ -105,7 +105,12 @@ func recordedRounds(phase string, st *ReviewState) (int, bool) {
 // collected round — the two cases §4.1 separates with its non-empty guard. Only
 // the second gets the round's record unit; the first keeps returning nothing, so
 // its emptiness stays a no-units stop a human sees.
-func roundBasedUnits(root, phase string, recorded int, target UnitTarget) (units []NextUnit, round *int) {
+//
+// The panel is every prompt the round emits, not only the corpus: a review
+// round that carries the built-in regression prompt (RegressionDue, the same
+// answer the emission reads) gets a regression unit of the phase's role kind
+// after the corpus roles, in the emission's order.
+func roundBasedUnits(root, phase string, recorded int, target UnitTarget, st *ReviewState) (units []NextUnit, round *int) {
 	roleKind, corpusPhase := UnitReviewRole, PhaseReviewers
 	if phase == PhaseAudit {
 		roleKind, corpusPhase = UnitAuditRole, PhaseAuditors
@@ -121,6 +126,9 @@ func roundBasedUnits(root, phase string, recorded int, target UnitTarget) (units
 	collecting := recorded + 1
 	dir := RoundDir(root, target.TaskFile, phase, collecting)
 	panel := roleUnits(roleKind, target.Spec, corpusPhase, target)
+	if len(panel) > 0 && phase == PhaseReview && RegressionDue(target.Spec, collecting, st) {
+		panel = append(panel, newNextUnit(roleKind, RegressionRoleID, target))
+	}
 	pending := make([]NextUnit, 0, len(panel))
 	for _, unit := range panel {
 		if roleKind.DurableWrite(UnitTarget{RoundDir: dir, ID: unit.ID}) {
