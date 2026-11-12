@@ -955,13 +955,12 @@
     let drag = null;
     let moved = false;
     const apply = () => { if (v) svg.setAttribute("viewBox", v.x + " " + v.y + " " + v.w + " " + v.h); };
+    // fit shows the drawing's width at a readable scale (tpPure.initialView);
+    // what does not fit is panned to.
     function fit() {
       const r = el.getBoundingClientRect();
       if (!r.width || !r.height) return;
-      const ar = r.width / r.height;
-      const W = size.W + 10;
-      const H = size.H + 10;
-      v = W / H > ar ? { x: -5, y: -5, w: W, h: W / ar } : { x: -5, y: -5, w: H * ar, h: H };
+      v = tpPure.initialView(size.W, size.H, r.width, r.height);
       apply();
     }
     function zoomAt(f, px, py) {
