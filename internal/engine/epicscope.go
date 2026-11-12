@@ -23,9 +23,10 @@ type EpicScope struct {
 	Milestone   string `json:"milestone"`
 	// Members is the gate's effective members (GateMembers); MembersImplicit
 	// says the gate names none, so they are every epic of the milestone that
-	// is neither a condition nor deferrable.
+	// is neither a condition nor deferrable; MemberCount is their number.
 	Members         []string `json:"members"`
 	MembersImplicit bool     `json:"members_implicit"`
+	MemberCount     int      `json:"member_count"`
 	// Closure is the not-done epics the not-done members reach, members
 	// included, per milestone in milestone order (milestoneOrder), listing
 	// only milestones with at least one.
@@ -123,6 +124,7 @@ func MilestoneScope(g *model.EpicGraph, states map[string]EpicState, estimates m
 		Milestone:           milestone,
 		Members:             members,
 		MembersImplicit:     len(g.Gates[milestone].Members) == 0,
+		MemberCount:         len(members),
 		Closure:             closure,
 		Shrink:              w.shrink(members, full, closure),
 		DeferrableInClosure: full.required(deferrable),
