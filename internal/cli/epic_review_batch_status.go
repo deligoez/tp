@@ -20,12 +20,15 @@ type epicBatchStatusRow struct {
 	State        string                     `json:"state"`
 	StaleUnits   []string                   `json:"stale_units"`
 	PurposeStale []string                   `json:"purpose_stale_units"`
-	Open         map[string]int             `json:"open"`
-	OpenByRole   map[string]int             `json:"open_by_role"`
-	Grantable    bool                       `json:"grantable"`
-	MaxRounds    *int                       `json:"max_rounds"`
-	GrantsSpent  int                        `json:"grants_spent"`
-	NextAction   string                     `json:"next_action"`
+	// AskedBlockBytes is the slice's --status asked_block_bytes; 0 on a
+	// slice the graph no longer holds, which asks nothing.
+	AskedBlockBytes int            `json:"asked_block_bytes"`
+	Open            map[string]int `json:"open"`
+	OpenByRole      map[string]int `json:"open_by_role"`
+	Grantable       bool           `json:"grantable"`
+	MaxRounds       *int           `json:"max_rounds"`
+	GrantsSpent     int            `json:"grants_spent"`
+	NextAction      string         `json:"next_action"`
 }
 
 // epicBatchStatusResult is a batch --status's payload.
@@ -116,17 +119,18 @@ func epicBatchStatusRowOf(eg *epicReviewGraph, policy engine.EpicReviewPolicy, d
 	}
 	st := epicBatchLoop(run.stateDir, run.all, policy)
 	return epicBatchStatusRow{
-		Key:          d.Key,
-		Round:        st.Round,
-		State:        engine.EpicSliceLoop(&st, true).State,
-		StaleUnits:   st.StaleUnits,
-		PurposeStale: st.PurposeStale,
-		Open:         st.Open,
-		OpenByRole:   st.OpenByRole,
-		Grantable:    st.Grantable,
-		MaxRounds:    epicMaxRoundsOut(st.MaxRounds),
-		GrantsSpent:  st.GrantsSpent,
-		NextAction:   epicStatusNextAction(key, &st, checksPass),
+		Key:             d.Key,
+		Round:           st.Round,
+		State:           engine.EpicSliceLoop(&st, true).State,
+		StaleUnits:      st.StaleUnits,
+		PurposeStale:    st.PurposeStale,
+		AskedBlockBytes: epicAskedBlockBytes(&run),
+		Open:            st.Open,
+		OpenByRole:      st.OpenByRole,
+		Grantable:       st.Grantable,
+		MaxRounds:       epicMaxRoundsOut(st.MaxRounds),
+		GrantsSpent:     st.GrantsSpent,
+		NextAction:      epicStatusNextAction(key, &st, checksPass),
 	}, st.Done
 }
 
