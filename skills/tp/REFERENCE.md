@@ -1781,7 +1781,8 @@ The read commands write nothing and list epics in graph order, every list `[]` w
 - **`tp epic gate <m>`**: `{milestone, green, members: [{id, state, status}], deferrable: [{id,
   status}], threshold?, met?, threshold_changed?}`, `state` `green` or `red`.
 - **`tp epic scope <m>`**: `{fingerprint, milestone, members, members_implicit, member_count,
-  closure: [{milestone, track?, cross_track?, size, epics: [{id, any_of?}]}], shrink: [{epic, member,
+  closure: [{milestone, track?, cross_track?, size, epics: [{id, any_of?, deferrable?}]}], shrink:
+  [{epic, member,
   any_of?, size, leaves}], outside: [{id, deferrable?, condition?, no_dependents?}],
   deferrable_in_closure, unneeded_earlier: [{milestone, epics, implicit_gates}], critical_path:
   {by_count, by_estimate: {chain, estimate_minutes}}}`. `members` is `GateMembers`' list,
@@ -1793,7 +1794,8 @@ The read commands write nothing and list epics in graph order, every list `[]` w
   The *required* part is what the members reach through plain edges alone and carries no `any_of`;
   every other closure epic is optional and its `any_of` is the group of the alternative it hangs
   from: the unsatisfied group that reached it, or the mark of the epic whose plain edge did, the
-  first in walk order when two groups reach it. `shrink` holds, for each closure epic that takes
+  first in walk order when two groups reach it. `deferrable: true` marks a closure epic the gate
+  lists `deferrable`, required or optional. `shrink` holds, for each closure epic that takes
   another with it, the epics that leave: for a non-member, when every edge into it is cut; for a
   member (`member: true`), when it is dropped from the gate; `any_of` is the epic's closure mark.
   `size` counts the epic itself, `leaves` is sorted, rows go by size descending, then id; the rows
