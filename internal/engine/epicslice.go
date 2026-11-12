@@ -20,13 +20,38 @@ type EpicSliceKey struct {
 	Name      string
 }
 
-// EpicReviewUnit is one unit of a slice: an epic, keyed "epic:<id>", or a
-// milestone's gate, keyed "gate:<m>". Hash covers the unit's own block and,
-// for an epic, the blocks of its direct dependencies.
+// EpicReviewUnit is one unit of a slice: an epic, keyed "epic:<id>", a
+// milestone's gate, keyed "gate:<m>", or the gate taken whole, keyed
+// "scope:<m>" (spec/backlog/epic-scope.md, Part B). Hash covers the unit's
+// own block and, for an epic, the blocks of its direct dependencies; a scope
+// unit's hash is its scope fingerprint. Milestone is the milestone the unit
+// belongs to: the epic's, or the gate's.
 type EpicReviewUnit struct {
-	Key   string
-	Block string
-	Hash  string
+	Key       string
+	Block     string
+	Hash      string
+	Milestone string
+}
+
+// The unit key prefixes, one per kind a graph role's units may list.
+const (
+	EpicUnitPrefix  = "epic:"
+	GateUnitPrefix  = "gate:"
+	ScopeUnitPrefix = "scope:"
+)
+
+// EpicUnitKind returns the role unit kind (model.RoleUnitEpics, Gates or
+// Scope) a unit key names; "" for a key of no kind.
+func EpicUnitKind(key string) string {
+	switch {
+	case strings.HasPrefix(key, EpicUnitPrefix):
+		return model.RoleUnitEpics
+	case strings.HasPrefix(key, GateUnitPrefix):
+		return model.RoleUnitGates
+	case strings.HasPrefix(key, ScopeUnitPrefix):
+		return model.RoleUnitScope
+	}
+	return ""
 }
 
 // EpicContextBlock is the block of an epic shown below the units as context.
@@ -68,12 +93,44 @@ func EpicReviewSlice(g *model.EpicGraph, key EpicSliceKey) (EpicSlice, error) {
 		s.Units = append(s.Units, epicUnit(byID[id], byID))
 	}
 	after := EffectiveOpensAfter(g)
-	for _, m := range sliceGates(g, key, asked) {
+	gates := sliceGates(g, key, asked)
+	for _, m := range gates {
 		block := epicGateBlock(g, m, after)
-		s.Units = append(s.Units, EpicReviewUnit{Key: "gate:" + m, Block: block, Hash: epicHash(block)})
+		s.Units = append(s.Units, EpicReviewUnit{Key: GateUnitPrefix + m, Block: block, Hash: epicHash(block), Milestone: m})
+	}
+	for _, m := range gates {
+		if u, ok := epicScopeUnit(g, m, byID); ok {
+			s.Units = append(s.Units, u)
+		}
 	}
 	s.Context = epicSliceContext(g, asked)
 	return s, nil
+}
+
+// epicScopeUnit builds milestone's scope:<m> unit, which exists only while
+// its gate has a threshold or a purpose: its block holds what the scope
+// fingerprint hashes, all of it blind to status, so progress never reads as
+// a change, and its hash is that fingerprint.
+func epicScopeUnit(g *model.EpicGraph, milestone string, byID map[string]*model.Epic) (EpicReviewUnit, bool) {
+	gate := g.Gates[milestone]
+	purpose := GatePurpose(g, milestone)
+	if gate.Threshold == "" && purpose == "" {
+		return EpicReviewUnit{}, false
+	}
+	members, deferrable := GateMembers(g, milestone)
+	var b strings.Builder
+	b.WriteString("scope: " + milestone + "\nmembers: " + strings.Join(slices.Sorted(slices.Values(members)), ", ") + "\n")
+	if len(deferrable) > 0 {
+		b.WriteString("deferrable: " + strings.Join(slices.Sorted(slices.Values(deferrable)), ", ") + "\n")
+	}
+	if gate.Threshold != "" {
+		b.WriteString("threshold: " + gate.Threshold + "\n")
+	}
+	if purpose != "" {
+		b.WriteString("purpose: " + purpose + "\n")
+	}
+	b.WriteString("closure: " + strings.Join(blindClosure(byID, members), ", ") + "\n")
+	return EpicReviewUnit{Key: ScopeUnitPrefix + milestone, Block: b.String(), Hash: gateScopeFingerprint(g, milestone, byID), Milestone: milestone}, true
 }
 
 // sliceGates names the gate units a slice asks, sorted: every milestone has a
@@ -232,7 +289,7 @@ func epicUnit(e *model.Epic, byID map[string]*model.Epic) EpicReviewUnit {
 			}
 		}
 	}
-	return EpicReviewUnit{Key: "epic:" + e.ID, Block: block, Hash: epicHash(hashed.String())}
+	return EpicReviewUnit{Key: EpicUnitPrefix + e.ID, Block: block, Hash: epicHash(hashed.String()), Milestone: e.Milestone}
 }
 
 // epicBlock renders an epic's id, title, milestone, condition when true, tags,
