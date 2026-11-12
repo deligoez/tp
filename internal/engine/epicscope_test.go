@@ -322,6 +322,32 @@ func TestScope_Fingerprint(t *testing.T) {
 	assert.Equal(t, grouped, scopeOf(t, g, "m0").Fingerprint, "satisfying a group is no change")
 }
 
+// TestScope_FingerprintCoversDeferrableAndPurpose: the sorted deferrable
+// list and the purpose are parts of the fingerprint; the deferrable order is
+// no change, and a purpose empty or only whitespace counts as unset.
+func TestScope_FingerprintCoversDeferrableAndPurpose(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0"}}, Epics: []model.Epic{
+		scopeEpic("a1", "m0"), scopeEpic("d1", "m0"), scopeEpic("d2", "m0"),
+	}, Gates: map[string]model.EpicGate{"m0": {Members: []string{"a1"}, Threshold: "ten users"}}}
+	bare := scopeOf(t, g, "m0").Fingerprint
+
+	g.Gates["m0"] = model.EpicGate{Members: []string{"a1"}, Threshold: "ten users", Deferrable: []string{"d1", "d2"}}
+	deferred := scopeOf(t, g, "m0").Fingerprint
+	assert.NotEqual(t, bare, deferred, "a new deferrable is a change")
+	g.Gates["m0"] = model.EpicGate{Members: []string{"a1"}, Threshold: "ten users", Deferrable: []string{"d2", "d1"}}
+	assert.Equal(t, deferred, scopeOf(t, g, "m0").Fingerprint, "reordering the deferrables is no change")
+
+	g.Gates["m0"] = model.EpicGate{Members: []string{"a1"}, Threshold: "ten users", Purpose: "  "}
+	assert.Equal(t, bare, scopeOf(t, g, "m0").Fingerprint, "a blank purpose is unset")
+	assert.Nil(t, scopeOf(t, g, "m0").Purpose, "a blank purpose is unset in the payload")
+
+	g.Gates["m0"] = model.EpicGate{Members: []string{"a1"}, Threshold: "ten users", Purpose: "prove the import path"}
+	purposed := scopeOf(t, g, "m0")
+	assert.NotEqual(t, bare, purposed.Fingerprint, "a written purpose is a change")
+	require.NotNil(t, purposed.Purpose)
+	assert.Equal(t, "prove the import path", *purposed.Purpose)
+}
+
 // TestScope_ShrinkMarksAnyOfAlternative: the row of an epic an any-of group
 // alone brought in carries the group, since cutting it is choosing the
 // other alternative; size counts the epic itself.
