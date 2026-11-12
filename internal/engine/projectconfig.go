@@ -521,12 +521,15 @@ func ProjectRoot(start string) string {
 
 // isProjectTPDir reports whether a .tp/ directory anchors a project: it is
 // empty (made on purpose), or it holds anything beyond the artifacts tp writes
-// as a side effect of a lock or a run — locks/, rounds/, runs/, run-*.json and
-// last_failure-*.json. A .tp/ that holds only those exists because some write
-// needed somewhere to put them, and it must never become a project root and
-// shift the root a task file belongs to (spec/backlog/project-layer-from-task-
-// file.md). A deliberate write — tp init's .gitignore, a config, a corpus, the
-// graph, local.json — makes it one.
+// as a side effect of a lock or a run — .gitignore, locks/, rounds/, runs/,
+// run-*.json and last_failure-*.json. A .tp/ that holds only those exists
+// because some write needed somewhere to put them, and it must never become a
+// project root and shift the root a task file belongs to
+// (spec/backlog/project-layer-from-task-file.md). Recognition is by name, not
+// content: tp 1.11's locks wrote .gitignore beside a nested task file, and a
+// user may have edited it since, so whatever it says it marks a side-effect
+// directory. A deliberate write — a config, a corpus, the graph, local.json,
+// and tp init's anchor (EnsureProjectAnchor) — makes it one.
 func isProjectTPDir(tpDir string) bool {
 	entries, err := os.ReadDir(tpDir)
 	if err != nil {
@@ -535,7 +538,7 @@ func isProjectTPDir(tpDir string) bool {
 	for _, e := range entries {
 		name := e.Name()
 		switch {
-		case name == "locks" || name == "rounds" || name == "runs":
+		case name == ".gitignore" || name == "locks" || name == "rounds" || name == "runs":
 		case strings.HasPrefix(name, "run-") && strings.HasSuffix(name, ".json"):
 		case strings.HasPrefix(name, "last_failure-") && strings.HasSuffix(name, ".json"):
 		default:
@@ -543,6 +546,23 @@ func isProjectTPDir(tpDir string) bool {
 		}
 	}
 	return len(entries) == 0
+}
+
+// EnsureProjectAnchor makes tpDir a project .tp/ when nothing else does and
+// there is no repository to root the project: it writes an empty project
+// config, {}, which resolves as no project setting at all. tp init calls it,
+// which is how, with no project .tp/ and no repository, the first deliberate
+// write decides the root. Inside a repository the root is the top level
+// whatever .tp/ holds, so nothing is written there.
+func EnsureProjectAnchor(tpDir string) error {
+	if FindGitBoundary(filepath.Dir(tpDir)) != "" || isProjectTPDir(tpDir) {
+		return nil
+	}
+	path := filepath.Join(tpDir, "config.json")
+	if _, err := os.Stat(path); err == nil {
+		return nil
+	}
+	return os.WriteFile(path, []byte("{}\n"), 0o600)
 }
 
 // SideEffectTPDir is where a lock or a run puts its artifacts for start: the

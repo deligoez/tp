@@ -141,6 +141,11 @@ func runInit(_ *cobra.Command, args []string) error {
 		os.Exit(ExitFile)
 		return nil
 	}
+	if err := engine.EnsureProjectAnchor(tpDir); err != nil {
+		output.Error(ExitFile, err.Error(), "check that the .tp/ directory named above is writable")
+		os.Exit(ExitFile)
+		return nil
+	}
 
 	warnUnresolvedGate(taskFilePath)
 	warnPointerNamesAnother(taskFilePath)
