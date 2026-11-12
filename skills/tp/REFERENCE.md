@@ -641,7 +641,9 @@ in the block, or a value that is not a string, warns and is ignored. `tp config`
 source}` with `source` `project` or `default`, and `tp config --extract` keeps the block. A pattern that
 does not compile is refused by `tp validate --project` alone (exit 1, naming the key and the compile
 error); `tp epic lint`, `ready`, `status` and `export` print one warning naming the key on stderr and
-fall back to the default, and so do they when `.tp/config.json` cannot be read.
+fall back to the default, and `tp config` warns that the project's pattern does not compile and prints
+the default, `--resolved` with `source` `default`. When `.tp/config.json` cannot be read, `lint`,
+`ready` and `status` warn and fall back too; `tp epic export` exits 3.
 
 ## State Directory (`.tp-review/`)
 
