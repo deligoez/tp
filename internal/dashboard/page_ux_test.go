@@ -75,3 +75,28 @@ func TestPage_TheMapGoesFullScreen(t *testing.T) {
 	}
 	assert.Contains(t, page, "body.mapfs")
 }
+
+// TestPure_APinchZoomsAboutTheFingersAndFollowsThem is touch on the map
+// (spec/backlog/dashboard-ux.md §2): two fingers moving apart zoom in by the
+// ratio of their spans, and the drawing point under their first midpoint
+// stays under their current one, so two fingers moving together pan.
+func TestPure_APinchZoomsAboutTheFingersAndFollowsThem(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const r = (v) => Object.fromEntries(Object.entries(v).map(([k, x]) => [k, Math.round(x * 100) / 100]));
+const v0 = { x: 0, y: 0, w: 400, h: 200 };
+out([
+  r(P.pinchView(v0, { x: 100, y: 100 }, { x: 300, y: 100 }, { x: 50, y: 100 }, { x: 350, y: 100 }, 400, 200)),
+  r(P.pinchView(v0, { x: 100, y: 100 }, { x: 300, y: 100 }, { x: 150, y: 150 }, { x: 350, y: 150 }, 400, 200)),
+]);`)
+	assert.JSONEq(t, `[{"x": 66.67, "y": 33.33, "w": 266.67, "h": 133.33}, {"x": -50, "y": -50, "w": 400, "h": 200}]`, got)
+}
+
+// TestPage_TheMapTakesTouch: a touch pans the map with one finger and pinches
+// it with two, so the map no longer leaves touch to the page.
+func TestPage_TheMapTakesTouch(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	assert.NotContains(t, script, `ev.pointerType === "touch") return`)
+	assert.Contains(t, script, "tpPure.pinchView(")
+	assert.Contains(t, page, "touch-action: none")
+}
