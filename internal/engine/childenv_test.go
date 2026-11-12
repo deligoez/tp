@@ -54,8 +54,8 @@ func TestChildEnv_DocumentedVariables(t *testing.T) {
 	assert.True(t, filepath.IsAbs(env[EnvRunDir]), "TP_RUN_DIR is absolute")
 	assert.Equal(t, filepath.Join(root, ".tp", "runs", unit.RunID), env[EnvRunDir])
 
-	assert.Equal(t, filepath.Join(root, ".tp", "rounds", "0.35.0", "review-r3"), env[EnvRoundDir],
-		"TP_ROUND_DIR is derived from the task file's base, the phase and the round")
+	assert.Equal(t, filepath.Join(root, ".tp", "rounds", "spec", "0.35.0", "review-r3"), env[EnvRoundDir],
+		"TP_ROUND_DIR is derived from the task file's location and base, the phase and the round")
 	assert.Equal(t, "3", env[EnvRound])
 
 	assert.Equal(t, unit.TaskFile, env[EnvTaskFile], "the child works the file the driver resolved")
