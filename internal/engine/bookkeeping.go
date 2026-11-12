@@ -27,8 +27,10 @@ const (
 // state predicates, while this one is DeriveBookkeeping's, which classifies
 // every dirty path under .tp-review/ on the path prefix alone and would
 // otherwise report a ground round by filename where its siblings report "3".
-// Numbering is not shared — that is groundRoundFileRe's, anchored.
-var roundNumberRe = regexp.MustCompile(`(?:review|audit|snapshot|ground)-round-(\d+)`)
+// Numbering is not shared — that is groundRoundFileRe's, anchored. A bare
+// round-N at the start of the name is the in-flight ground scratch file,
+// ground-inbox/round-N.ndjson (GroundScratchPath).
+var roundNumberRe = regexp.MustCompile(`(?:^|review-|audit-|snapshot-|ground-)round-(\d+)`)
 
 // DeriveBookkeeping splits the dirty working-tree paths into tp-owned
 // bookkeeping entries (§5.2) and the remaining unexplained-change candidates.
