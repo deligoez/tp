@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"unicode"
 
 	"github.com/deligoez/tp/internal/model"
 )
@@ -281,11 +282,14 @@ func epicDependentBrief(e *model.Epic, asked map[string]bool) string {
 	return b.String()
 }
 
-// epicUnit builds an epic's unit, hashing its block and the block of each
-// epic its entries name, a group's members included (spec/1.7.0.md §7); a
-// dependency the graph does not hold adds nothing to the hash.
+// epicUnit builds an epic's unit, hashing its own block and the block of
+// each epic its entries name, a group's members included (spec/1.7.0.md §7);
+// a dependency the graph does not hold adds nothing to the hash. Only the
+// own block carries a description (spec/backlog/epic-description.md): a
+// dependent relies on what its dependency delivers, its acceptance, so a
+// description edit re-asks the described epic alone.
 func epicUnit(e *model.Epic, byID map[string]*model.Epic) EpicReviewUnit {
-	block := epicBlock(e)
+	block := epicBlock(e) + epicDescriptionBlock(e.Description)
 	var hashed strings.Builder
 	hashed.WriteString(block)
 	for _, d := range e.DependsOn {
@@ -322,6 +326,35 @@ func epicBlock(e *model.Epic) string {
 	}
 	return b.String()
 }
+
+// epicDescriptionBlock renders a description below an epic's own block: a
+// description: line, then each line of the text indented two spaces, a blank
+// line left empty, the text's surrounding blank lines and trailing space
+// dropped. A blank description renders nothing, so an undescribed epic's
+// block keeps its bytes. The indent keeps every text line from reading as a
+// field or an edge (parseEpicBlock).
+func epicDescriptionBlock(desc string) string {
+	desc = strings.Trim(strings.TrimRightFunc(desc, unicode.IsSpace), "\n")
+	if strings.TrimSpace(desc) == "" {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString(epicDescriptionHeader + "\n")
+	for line := range strings.SplitSeq(desc, "\n") {
+		if strings.TrimSpace(line) != "" {
+			b.WriteString(epicDescriptionIndent + line)
+		}
+		b.WriteString("\n")
+	}
+	return b.String()
+}
+
+// epicDescriptionHeader opens a block's description; epicDescriptionIndent
+// prefixes each of its lines.
+const (
+	epicDescriptionHeader = "description:"
+	epicDescriptionIndent = "  "
+)
 
 // epicDepName names a depends_on entry in a block or a table: a plain edge
 // by its id, a group as one of {A, B} (spec/1.7.0.md §7).
