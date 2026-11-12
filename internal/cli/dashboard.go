@@ -75,19 +75,31 @@ func runDashboard(cmd *cobra.Command, _ []string) error {
 }
 
 // serveDashboard serves the dashboard on ln until the process is interrupted
-// or terminated, then shuts the server down.
+// or terminated, then ends every open event stream and awaits the server's
+// shutdown, returning its error.
 func serveDashboard(parent context.Context, ln net.Listener) error {
 	ctx, stop := signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	srv := &http.Server{Handler: dashboard.Handler(ln.Addr().(*net.TCPAddr).Port, dashboardAPI{}), ReadHeaderTimeout: 10 * time.Second}
+	srv := &http.Server{
+		Handler:           dashboard.Handler(ln.Addr().(*net.TCPAddr).Port, dashboardAPI{}),
+		ReadHeaderTimeout: 10 * time.Second,
+		// Every request's context ends with the signal, so an open event
+		// stream returns and its response completes before Shutdown drains.
+		BaseContext: func(net.Listener) context.Context { return ctx },
+	}
+	shutdownErr := make(chan error, 1)
 	go func() {
 		<-ctx.Done()
 		shutdown, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		defer cancel()
-		_ = srv.Shutdown(shutdown)
+		shutdownErr <- srv.Shutdown(shutdown)
 	}()
 	if err := srv.Serve(ln); !errors.Is(err, http.ErrServerClosed) {
 		return err
+	}
+	// Serve returns as soon as Shutdown starts; the drain is awaited here.
+	if err := <-shutdownErr; err != nil {
+		return fmt.Errorf("shutting the dashboard down: %w", err)
 	}
 	return nil
 }
