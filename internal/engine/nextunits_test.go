@@ -577,3 +577,20 @@ func TestBuildNextUnits_NoRegressionUnitForAnEmptyPanel(t *testing.T) {
 	require.NotNil(t, round)
 	assert.Equal(t, 2, *round)
 }
+
+// TestBuildNextUnits_RegressionUnitJoinsAOneRolePanel: the non-empty guard is
+// "at least one role", not "more than one". A spec that keeps a single reviewer
+// gets exactly one regression unit after it on a round where RegressionDue
+// holds.
+func TestBuildNextUnits_RegressionUnitJoinsAOneRolePanel(t *testing.T) {
+	root, taskFile, spec := regressionDueRepo(t, "---\ntp:\n  review_roles:\n"+
+		"    tester:\n      enabled: false\n"+
+		"    architect:\n      enabled: false\n---\n")
+	tf := &model.TaskFile{Spec: spec, Tasks: []model.Task{}}
+	st := &ReviewState{ReviewRounds: []ReviewRound{{Round: 1}}}
+	require.True(t, RegressionDue(spec, 2, st), "the fixture must make the predicate hold for round 2")
+
+	units, _ := BuildNextUnits(root, taskFile, spec, PhaseReview, tf, st, nil)
+	assert.Equal(t, []string{"implementer", RegressionRoleID}, unitIDs(units))
+	assert.Equal(t, []UnitKind{UnitReviewRole, UnitReviewRole}, unitKinds(units))
+}
