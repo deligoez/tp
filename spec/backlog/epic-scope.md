@@ -23,9 +23,12 @@ milestone of the same track, and a milestone's own critical path is
 `TP_UNATTENDED`, that prints:
 
 1. the gate's effective members, and `members: implicit` when `members` is unset or empty, which
-   makes every non-deferrable epic of the milestone a member;
-2. the closure, composed by milestone and track: the cross-track part that lint leaves free by
-   design appears here as information, never as an error;
+   makes every epic of the milestone that is neither deferrable nor a condition a member;
+2. the closure, composed by milestone and track: the not-done epics the not-done members reach
+   through edges not yet satisfied, cut at done epics as the critical path is; an unsatisfied any-of
+   group brings in every member, each marked with its group, since choosing one is the operator's
+   call. The cross-track part that lint leaves free by design appears here as information, never
+   as an error;
 3. the milestone's epics outside the closure (empty by definition under implicit members, and said
    so rather than printed as `[]`);
 4. the *removal shrink* of each closure epic whose removal takes at least one other epic with it:
