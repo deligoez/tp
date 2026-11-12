@@ -11,34 +11,73 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestCleanEmissionsKnowsTheGroundInbox is scripts/clean-emissions.sh's half
-// of spec/backlog/ground-scratch-in-state-dir.md: the ground scratch file now
-// sits in <state dir>/ground-inbox/, so an old one whose round was never
-// recorded is a removable emission artifact, and one whose round the state
-// directory above it records is kept, as the snapshot and floor are.
-func TestCleanEmissionsKnowsTheGroundInbox(t *testing.T) {
-	t.Parallel()
-	dir := t.TempDir()
-	initGitRepo(t, dir)
-	state := filepath.Join(dir, "spec", ".tp-review", "a")
-	inbox := filepath.Join(state, "ground-inbox")
-	require.NoError(t, os.MkdirAll(inbox, 0o750))
-	old := time.Now().Add(-48 * time.Hour)
-	for _, name := range []string{"round-1.ndjson", "round-2.ndjson"} {
-		path := filepath.Join(inbox, name)
-		require.NoError(t, os.WriteFile(path, []byte("{}\n"), 0o600))
-		require.NoError(t, os.Chtimes(path, old, old))
-	}
-	require.NoError(t, os.WriteFile(filepath.Join(state, "ground-round-1.ndjson"), []byte("{}\n"), 0o600))
-
+// runCleanEmissions runs scripts/clean-emissions.sh in dir as a dry run and
+// returns its output.
+func runCleanEmissions(t *testing.T, dir string) string {
+	t.Helper()
 	cmd := exec.Command(filepath.Join(repoRootDir(t), "scripts", "clean-emissions.sh"), "--root", filepath.Join("spec", ".tp-review"))
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	require.NoError(t, err, "%s", out)
+	return string(out)
+}
 
-	assert.Contains(t, string(out), filepath.Join("ground-inbox", "round-2.ndjson"),
-		"an old scratch file of a round never recorded is removable")
-	assert.NotContains(t, string(out), filepath.Join("ground-inbox", "round-1.ndjson"),
-		"one whose round is recorded is kept")
-	assert.Contains(t, string(out), "kept: 1 recorded")
+// writeOld writes a file and backdates it past the script's age guard.
+func writeOld(t *testing.T, path string) {
+	t.Helper()
+	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o750))
+	require.NoError(t, os.WriteFile(path, []byte("{}\n"), 0o600))
+	old := time.Now().Add(-48 * time.Hour)
+	require.NoError(t, os.Chtimes(path, old, old))
+}
+
+// TestCleanEmissionsKnowsTheInboxes is scripts/clean-emissions.sh's half of
+// spec/backlog/ground-scratch-in-state-dir.md and role-files-in-state-dir.md:
+// an inbox file (ground's scratch file, a review or audit role file) whose
+// round was never recorded is a removable emission artifact, and a leftover
+// whose round IS recorded is removable too — --record removes it, so one
+// still there is debris, not the round's evidence.
+func TestCleanEmissionsKnowsTheInboxes(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	initGitRepo(t, dir)
+	state := filepath.Join(dir, "spec", ".tp-review", "a")
+	for _, name := range []string{
+		filepath.Join("ground-inbox", "round-1.ndjson"), filepath.Join("ground-inbox", "round-2.ndjson"),
+		filepath.Join("review-inbox", "round-1-tester.ndjson"), filepath.Join("review-inbox", "round-2-tester.ndjson"),
+		filepath.Join("audit-inbox", "round-1-spec-coverage.ndjson"),
+	} {
+		writeOld(t, filepath.Join(state, name))
+	}
+	writeOld(t, filepath.Join(state, "ground-round-1.ndjson"))
+	writeOld(t, filepath.Join(state, "review-round-1.ndjson"))
+
+	out := runCleanEmissions(t, dir)
+	for _, name := range []string{
+		filepath.Join("ground-inbox", "round-1.ndjson"), filepath.Join("ground-inbox", "round-2.ndjson"),
+		filepath.Join("review-inbox", "round-1-tester.ndjson"), filepath.Join("review-inbox", "round-2-tester.ndjson"),
+		filepath.Join("audit-inbox", "round-1-spec-coverage.ndjson"),
+	} {
+		assert.Contains(t, out, name, "an old inbox file is removable, its round recorded or not")
+	}
+}
+
+// TestCleanEmissionsReportsOldLayoutRoundDirectories: a round directory under
+// the pre-1.12.0 layout, .tp/rounds/<base>/<phase>-r<N>, for a task file that
+// is not at the root is no longer read by the driver
+// (TestARoundInFlightAcrossTheUpgradeIsRespawned), so the script reports it.
+// A root task file's directory did not move and is kept.
+func TestCleanEmissionsReportsOldLayoutRoundDirectories(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	initGitRepo(t, dir)
+	writeOld(t, filepath.Join(dir, ".tp", "rounds", "a", "review-r1", "role-tester.ndjson"))
+	writeOld(t, filepath.Join(dir, ".tp", "rounds", "b", "review-r1", "role-tester.ndjson"))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.tasks.json"), []byte("{}"), 0o600))
+	writeOld(t, filepath.Join(dir, ".tp", "rounds", "x", "a", "review-r1", "role-tester.ndjson"))
+
+	out := runCleanEmissions(t, dir)
+	assert.Contains(t, out, filepath.Join(".tp", "rounds", "a", "review-r1"), "an orphaned old-layout round directory is reported")
+	assert.NotContains(t, out, filepath.Join(".tp", "rounds", "b", "review-r1"), "a root task file's round directory is kept")
+	assert.NotContains(t, out, filepath.Join(".tp", "rounds", "x", "a"), "and so is a new-layout one")
 }
