@@ -46,8 +46,8 @@ type EpicScope struct {
 	DeferrableInClosure []string `json:"deferrable_in_closure"`
 	// UnneededEarlier is, for each milestone before this one in its track,
 	// in track order, the not-done members of its gate that the closure of
-	// no other gate of the graph, any track, contains; a milestone with none
-	// is left out.
+	// no other gate of the graph, any track or none, contains; a milestone
+	// with none is left out.
 	UnneededEarlier []ScopeUnneeded `json:"unneeded_earlier"`
 	// CriticalPath is the milestone's own critical path (CriticalPath), the
 	// command's to render as tp epic status renders it.
@@ -64,7 +64,7 @@ type ScopeOutside struct {
 
 // ScopeUnneeded is one earlier milestone's gate members no other gate of the
 // graph needs, in gate order. ImplicitGates names the other gates consulted
-// that were implicit, in track order: such a closure holds its whole
+// that were implicit, in milestone order: such a closure holds its whole
 // milestone, so it says nothing about which of that milestone's epics are
 // needed.
 type ScopeUnneeded struct {
@@ -210,14 +210,15 @@ type scopeSet struct {
 
 // unneededEarlier returns the ScopeUnneeded rows of the milestones before
 // milestone in its track, each member checked against the closure of every
-// other tracked gate, any track; none for a milestone no track lists.
+// other gate (allGates), any track or none; none for a milestone no track
+// lists.
 func (w *scopeWalk) unneededEarlier(milestone string) []ScopeUnneeded {
 	out := []ScopeUnneeded{}
 	p, ok := w.pos[milestone]
 	if !ok {
 		return out
 	}
-	gates := w.trackedGates()
+	gates := w.allGates()
 	for _, e := range w.g.Milestones[p.track][:p.index] {
 		row := ScopeUnneeded{Milestone: e, Epics: []string{}, ImplicitGates: []string{}}
 		for _, o := range gates {
@@ -238,26 +239,28 @@ func (w *scopeWalk) unneededEarlier(milestone string) []ScopeUnneeded {
 	return out
 }
 
-// scopeGate is one tracked milestone's gate: whether its members are
-// implicit, and its closure.
+// scopeGate is one milestone's gate: whether its members are implicit, and
+// its closure.
 type scopeGate struct {
 	milestone string
 	implicit  bool
 	closure   scopeSet
 }
 
-// trackedGates returns the gate of every milestone a track lists, once, in
-// track order.
-func (w *scopeWalk) trackedGates() []scopeGate {
-	out := []scopeGate{}
-	for _, track := range w.g.Milestones {
-		for _, m := range track {
-			if slices.ContainsFunc(out, func(o scopeGate) bool { return o.milestone == m }) {
-				continue
-			}
-			members, _ := GateMembers(w.g, m)
-			out = append(out, scopeGate{milestone: m, implicit: len(w.g.Gates[m].Members) == 0, closure: w.closure(members, "")})
+// allGates returns the gate of every milestone, once: tracked or not, in
+// milestone order (milestoneOrder), then any other milestone the gates map
+// names, by name.
+func (w *scopeWalk) allGates() []scopeGate {
+	names := milestoneOrder(w.g)
+	for _, m := range slices.Sorted(maps.Keys(w.g.Gates)) {
+		if !slices.Contains(names, m) {
+			names = append(names, m)
 		}
+	}
+	out := make([]scopeGate, 0, len(names))
+	for _, m := range names {
+		members, _ := GateMembers(w.g, m)
+		out = append(out, scopeGate{milestone: m, implicit: len(w.g.Gates[m].Members) == 0, closure: w.closure(members, "")})
 	}
 	return out
 }
