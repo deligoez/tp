@@ -2,12 +2,15 @@ package cli_test
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -170,4 +173,30 @@ func TestDashboard_ExportReadsAListedPathFromTheRepositoryRoot(t *testing.T) {
 	got := getDashboardError(t, srv, path, http.StatusNotFound)
 	assert.Equal(t, want.Code, got.Code)
 	assert.Equal(t, want.Hint, got.Hint)
+}
+
+// TestDashboard_ExportReadsNoOtherTaskFile: whether a path is listed is
+// decided from the paths alone, so a sibling task file that would block any
+// reader (a symlink to a FIFO no one writes) leaves /api/export of a listed
+// file answering at once, byte-equal to tp export --file.
+func TestDashboard_ExportReadsNoOtherTaskFile(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeTaskFileRaw(t, dir, `[]`)
+	fifo := filepath.Join(t.TempDir(), "blocked.tasks.json")
+	require.NoError(t, syscall.Mkfifo(fifo, 0o600))
+	require.NoError(t, os.Symlink(fifo, filepath.Join(dir, "blocked.tasks.json")))
+	initGitRepo(t, dir)
+	srv := startDashboard(t, dir, freePort(t))
+
+	stdout, stderr, code := runTP(t, dir, "export", "--file", "spec.tasks.json")
+	require.Equal(t, 0, code, stderr)
+	client := http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Get(strings.TrimSuffix(srv.url, "/") + "/api/export?file=spec.tasks.json") //nolint:noctx // a loopback URL the test's own child printed
+	require.NoError(t, err, "GET /api/export blocked on a sibling task file")
+	data, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusOK, resp.StatusCode, string(data))
+	assert.Equal(t, stdout, string(data))
 }
