@@ -155,3 +155,35 @@ func TestWithFileLock_RemovesStaleSiblingLock(t *testing.T) {
 	_, err := os.Stat(sibling)
 	assert.True(t, os.IsNotExist(err), "stale sibling lock removed on acquisition")
 }
+
+// TestWithFileLock_WarnsOnlyWhenTheGitignoreWriteFails: the .gitignore a lock
+// writes is not fatal when it fails, so the warning is the only record of the
+// failure, and it must be exactly that record. A lock whose .gitignore write
+// succeeds says nothing; one whose write fails (a directory where the file
+// goes) says why. Not parallel: captureStderr swaps os.Stderr.
+func TestWithFileLock_WarnsOnlyWhenTheGitignoreWriteFails(t *testing.T) {
+	const warning = "could not write .tp/.gitignore"
+	repo := func(t *testing.T) string {
+		t.Helper()
+		dir := t.TempDir()
+		require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+		target := filepath.Join(dir, "test.tasks.json")
+		require.NoError(t, os.WriteFile(target, []byte("{}"), 0o600))
+		return target
+	}
+
+	target := repo(t)
+	stderr := captureStderr(t, func() {
+		require.NoError(t, WithFileLockTimeout(target, 1, func() error { return nil }))
+	})
+	assert.FileExists(t, filepath.Join(filepath.Dir(target), ".tp", ".gitignore"), "the write succeeded")
+	assert.NotContains(t, stderr, warning, "a .gitignore written is not a failure to report")
+
+	target = repo(t)
+	require.NoError(t, os.MkdirAll(filepath.Join(filepath.Dir(target), ".tp", ".gitignore"), 0o755))
+	stderr = captureStderr(t, func() {
+		require.NoError(t, WithFileLockTimeout(target, 1, func() error { return nil }),
+			"the lock still works when its .gitignore cannot be written")
+	})
+	assert.Contains(t, stderr, warning)
+}
