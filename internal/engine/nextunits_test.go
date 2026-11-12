@@ -594,3 +594,22 @@ func TestBuildNextUnits_RegressionUnitJoinsAOneRolePanel(t *testing.T) {
 	assert.Equal(t, []string{"implementer", RegressionRoleID}, unitIDs(units))
 	assert.Equal(t, []UnitKind{UnitReviewRole, UnitReviewRole}, unitKinds(units))
 }
+
+// TestBuildNextUnits_RecordUnitForAOneRolePanel: the record unit's non-empty
+// guard is "at least one role" too. A round whose single reviewer has answered
+// is collected and owes its record unit, rather than emptying next_units and
+// stopping the run with the round's own work unfinished.
+func TestBuildNextUnits_RecordUnitForAOneRolePanel(t *testing.T) {
+	root, taskFile, spec := nextUnitsRepo(t)
+	require.NoError(t, os.WriteFile(spec, []byte("---\ntp:\n  review_roles:\n"+
+		"    tester:\n      enabled: false\n"+
+		"    architect:\n      enabled: false\n---\n# S\n"), 0o600))
+	tf := &model.TaskFile{Spec: spec, Tasks: []model.Task{}}
+	writeRoundFile(t, root, taskFile, PhaseReview, 1, "role-implementer.ndjson", ndjson(`{"id":"f"}`))
+
+	units, round := BuildNextUnits(root, taskFile, spec, PhaseReview, tf, nil, nil)
+	assert.Equal(t, []UnitKind{UnitReviewRecord}, unitKinds(units))
+	assert.Equal(t, []string{"1"}, unitIDs(units))
+	require.NotNil(t, round)
+	assert.Equal(t, 1, *round)
+}
