@@ -45,3 +45,32 @@ func TestEpicScope_Payload(t *testing.T) {
 		string(out["critical_path"]))
 }
 
+// TestEpicScope_Compact: --compact keeps the fingerprint first, the members,
+// the closure's sizes, the shrink rows without leaves and the critical path's
+// length; an implicit gate prints its members as "implicit" with a count.
+func TestEpicScope_Compact(t *testing.T) {
+	dir := epicGraphDir(t, epicScopeGraph)
+	full, _, code := runTP(t, dir, "epic", "scope", "m1")
+	require.Equal(t, 0, code)
+	var fullOut struct {
+		Fingerprint string `json:"fingerprint"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(full), &fullOut))
+
+	stdout, stderr, code := runTP(t, dir, "--compact", "epic", "scope", "m1")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.JSONEq(t, `{"fingerprint": "`+fullOut.Fingerprint+`", "milestone": "m1", "members": ["a1"],
+	  "closure": [{"milestone": "m0", "track": 0, "size": 1}, {"milestone": "m1", "track": 0, "size": 1},
+	    {"milestone": "n0", "track": 1, "cross_track": true, "size": 1}],
+	  "shrink": [{"epic": "a1", "member": true, "size": 3}],
+	  "critical_path_length": 2}`, stdout)
+	assert.Regexp(t, `^\{\s*"fingerprint"`, stdout, "the fingerprint comes first")
+
+	stdout, stderr, code = runTP(t, dir, "--compact", "epic", "scope", "n0")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var implicit map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal([]byte(stdout), &implicit))
+	assert.JSONEq(t, `"implicit"`, string(implicit["members"]))
+	assert.JSONEq(t, `1`, string(implicit["member_count"]))
+}
+
