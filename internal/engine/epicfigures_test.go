@@ -54,3 +54,15 @@ func TestIsWorkEpic(t *testing.T) {
 	assert.True(t, IsWorkEpic(&model.Epic{ID: "w"}))
 	assert.False(t, IsWorkEpic(&model.Epic{ID: "c", Condition: true}))
 }
+
+// TestEpicWorkFigures_NoWorkEpicSharesNothingDone: a graph holding only a
+// condition, or a milestone holding no epic, has no work epic, and its share
+// done is 0, not the NaN of zero over zero, which no JSON encoder writes.
+func TestEpicWorkFigures_NoWorkEpicSharesNothingDone(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"M"}}, Epics: []model.Epic{
+		{ID: "c", Title: "C", Milestone: "M", Condition: true, Acceptance: "x", Root: true},
+	}}
+	states := anyOfStates(g)
+	assert.Equal(t, EpicWorkFigures{}, WorkFigures(g, states, nil, ""))
+	assert.Equal(t, EpicWorkFigures{}, WorkFigures(g, states, nil, "N"))
+}
