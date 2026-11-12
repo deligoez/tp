@@ -316,3 +316,19 @@ func TestScope_ShrinkMarksAnyOfAlternative(t *testing.T) {
 		{Epic: "x", AnyOf: []string{"x", "y"}, Size: 2, Leaves: []string{"x", "x1"}},
 	}, scopeOf(t, g, "m0").Shrink)
 }
+
+// TestScope_ShrinkMemberAnotherMemberNeeds: dropping a member another member
+// depends on leaves the closure as it was, so it prints no row, whatever its
+// own dependencies weigh.
+func TestScope_ShrinkMemberAnotherMemberNeeds(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0"}}, Epics: []model.Epic{
+		scopeEpic("a1", "m0", scopeDeps("b1")...),
+		scopeEpic("b1", "m0", scopeDeps("b2")...),
+		scopeEpic("b2", "m0", scopeDeps("b3")...),
+		scopeEpic("b3", "m0"),
+	}, Gates: map[string]model.EpicGate{"m0": {Members: []string{"a1", "b1"}}}}
+
+	assert.Equal(t, []ScopeShrink{
+		{Epic: "b2", Size: 2, Leaves: []string{"b2", "b3"}},
+	}, scopeOf(t, g, "m0").Shrink)
+}
