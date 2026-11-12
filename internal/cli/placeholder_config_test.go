@@ -66,6 +66,32 @@ func TestConfig_ShowsTheThresholdPlaceholder(t *testing.T) {
 	assert.JSONEq(t, `{"value":`+string(def)+`,"source":"default"}`, string(configEpic(t, unset, "--resolved")["threshold_placeholder"]))
 }
 
+// TestConfig_ReportsTheDefaultForAPlaceholderThatDoesNotCompile: a project
+// pattern that does not compile is not the effective one, so tp config
+// prints the default the epic commands use, --resolved names the default
+// layer, and stderr says the project's pattern does not compile.
+func TestConfig_ReportsTheDefaultForAPlaceholderThatDoesNotCompile(t *testing.T) {
+	t.Parallel()
+	dir := writePlaceholderConfig(t, `{"workflow":{},"epic":{"threshold_placeholder":"(unclosed"}}`)
+	def, err := json.Marshal(engine.DefaultThresholdPlaceholder)
+	require.NoError(t, err)
+	for _, args := range [][]string{nil, {"--resolved"}} {
+		stdout, stderr, code := runTP(t, dir, append([]string{"config"}, args...)...)
+		require.Equal(t, 0, code, "stderr: %s", stderr)
+		var payload struct {
+			Epic map[string]json.RawMessage `json:"epic"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(stdout), &payload), stdout)
+		want := string(def)
+		if args != nil {
+			want = `{"value":` + string(def) + `,"source":"default"}`
+		}
+		assert.JSONEq(t, want, string(payload.Epic["threshold_placeholder"]), "%v", args)
+		assert.Contains(t, stderr, "epic.threshold_placeholder", "%v", args)
+		assert.Contains(t, stderr, "does not compile", "%v", args)
+	}
+}
+
 // TestConfigExtract_KeepsTheThresholdPlaceholder: tp config --extract --force
 // rewrites .tp/config.json with the hoisted workflow and the epic block
 // intact.
