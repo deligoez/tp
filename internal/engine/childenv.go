@@ -3,6 +3,7 @@ package engine
 import (
 	"crypto/rand"
 	"maps"
+	"net/url"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -137,6 +138,20 @@ func RunDir(root, runID string) string {
 func RoundDir(root, taskFile, phase string, round int) string {
 	name := phase + "-r" + strconv.Itoa(round)
 	return absoluteUnder(root, filepath.Join(".tp", "rounds", taskFileDirUnder(root, taskFile), RunBase(taskFile), name))
+}
+
+// CycleKey is the one-segment name a cycle's run state, run lock and
+// last-failure record carry: RunBase for a task file at root, and for one in a
+// subdirectory its directory and base, <reldir>/<base>, path-escaped so the
+// name stays a single file name (x/a.tasks.json -> x%2Fa). It names the cycle
+// by the task file's location, as RoundDir does, so two same-base task files
+// in different directories never share run state.
+func CycleKey(root, taskFile string) string {
+	rel := taskFileDirUnder(root, taskFile)
+	if rel == "" {
+		return RunBase(taskFile)
+	}
+	return url.PathEscape(filepath.ToSlash(rel) + "/" + RunBase(taskFile))
 }
 
 // taskFileDirUnder returns the task file's directory relative to root, or ""

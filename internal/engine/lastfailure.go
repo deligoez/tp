@@ -35,7 +35,7 @@ type LastFailure struct {
 // repository never collide, and the writers and readers of this path do not
 // share a working directory.
 func LastFailurePath(root, taskFile string) string {
-	return absoluteUnder(root, filepath.Join(".tp", "last_failure-"+RunBase(taskFile)+".json"))
+	return absoluteUnder(root, filepath.Join(".tp", "last_failure-"+CycleKey(root, taskFile)+".json"))
 }
 
 // ReadLastFailure returns the cycle's record, or nil when there is none.

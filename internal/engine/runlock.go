@@ -47,9 +47,12 @@ func (e *RunLockBusyError) Hint() string {
 // are keyed by base throughout (§3.5): .tp/run-<base>.json,
 // .tp/last_failure-<base>.json and .tp/rounds/<base> all name the same cycle,
 // and a driver, a --status reader and a hook must agree on it without hashing.
+//
+// The cycle is named by CycleKey against the root that .tp/ belongs to, so two
+// same-base task files in different directories take two run locks.
 func RunLockPath(taskFile string) string {
 	tpDir := ProjectConfigDir(filepath.Dir(taskFile))
-	return filepath.Join(tpDir, "locks", "run-"+RunBase(taskFile)+".lock")
+	return filepath.Join(tpDir, "locks", "run-"+CycleKey(filepath.Dir(tpDir), taskFile)+".lock")
 }
 
 // RunLockHeld reports whether some process is holding a cycle's run-scoped

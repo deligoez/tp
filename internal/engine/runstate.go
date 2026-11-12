@@ -58,7 +58,7 @@ type RunUnitRow struct {
 // repository root — absolute, for the reason TP_RUN_DIR is (§3.1.1): the
 // readers of this path do not all share a working directory.
 func RunStatePath(root, taskFile string) string {
-	return absoluteUnder(root, filepath.Join(".tp", "run-"+RunBase(taskFile)+".json"))
+	return absoluteUnder(root, filepath.Join(".tp", "run-"+CycleKey(root, taskFile)+".json"))
 }
 
 // ReadRunState reads a cycle's run state file. The error is os.ErrNotExist when
