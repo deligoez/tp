@@ -335,7 +335,7 @@ agent:
 | `tp set --workflow run_max_*=` **above** the resolved value | exit 2, same shape |
 | `tp import --force` | exit 2, same shape |
 | accepting a finding without a change — `wontfix`/`duplicate` on a critical or high review finding, or on any audit finding, at `--resolve` or `--resolve-all` | exit 2, escalates under `--decision accept-finding`; `fixed` is not fenced, nor is `tp audit --record` carrying an earlier acceptance forward (see Dispositions) |
-| `--force` on a `tp ground`/`tp review`/`tp audit`/`tp epic review` emission that would discard an unrecorded round | exit 2, escalates under `--decision discard-emission`: sibling role units grade one emission concurrently |
+| `--force` on a `tp ground`/`tp review`/`tp audit` emission that would discard an unrecorded round, and `tp epic review <slice> --discard` | exit 2, escalates under `--decision discard-emission`: sibling role units grade one emission concurrently |
 | `tp set --workflow runner=` / `tp set --local notify_cmd=`, at **any** layer | exit 2, `names a command the driver executes and cannot be set under TP_UNATTENDED, at any layer` |
 | a change of `quality_gate` — **any** `tp set --workflow quality_gate=` write, at either layer; at `tp import`, `tp init --quality-gate` and `tp config --extract`, a write that **changes the gate that resolves** (carrying the current gate forward passes) | exit 2, `<what> changes the quality gate every close runs, which is a user-approved decision refused under TP_UNATTENDED`; the hint names that sink's own exit and escalates under `--decision skip-gate`, since a rewritten gate is a skipped one |
 | a write of `audit_converge_on` that relaxes the audit gate (v0.37.0) — at `tp set --workflow`, `tp import` and `tp config --extract`, one that **changes the resolved value to `blocking`**; at `tp set --workflow --project`, **any** write of `blocking` | exit 2. The three change-rule sinks say `<what> changes the resolved audit_converge_on from <before> to blocking, which relaxes the audit gate and is a user-approved decision refused under TP_UNATTENDED`; the `--project` sink names no resolved value and says `<what> writes blocking into the layer every base resolves through, including bases tp cannot enumerate; blocking is the value that relaxes the audit gate, …`. Each hint names that sink's own exits and escalates under `--decision audit-converge-on` |
@@ -1601,21 +1601,30 @@ units, blocks and purposes, and a re-emission compares the stored emission with 
 the whole panel, whatever `--role` it names. An emission made inside a `tp run` unit stores the
 round directory's part paths. Identical, it is idempotent; different — a unit added, removed or
 changed, a purpose changed, a role added or removed or its file edited — it exits 3 naming the
-round and what changed, each list counted past three (`units changed: 12 (a, b, c, …)`), and the
-hint names recording the round as emitted (`--record-inbox`) first and, as the operator's
-decision, `tp epic review <slice> --force`, which discards the emission, removes exactly the files
-its stored panel named, says so on stderr and emits again: exit 2 under `TP_UNATTENDED`
-(`discard-emission`). A tp upgrade between an emission and its re-emission that ships changed
-built-in role files changes their hashes, so the guard fires on it. Beside `--resolve` or `--resolve-all`, `--force` keeps its
-meaning, re-resolving a disposed row. A snapshot from before v1.10.0 holds no `roles` and is
-compared on the units, blocks and purposes it holds, and a discard removes no file for it.
+round and what changed, each list counted past three (`units changed: 12 (a, b, c, …)`). The guard's
+refusal, the frozen `--resolve` below and a batch's `emission-changed` reason end in one shared
+sentence naming the two ways forward: record the round as emitted with `--record-inbox`, or, as the
+operator's decision, discard it with `tp epic review <slice> --discard`, then emit again. `--discard`
+removes the emission's snapshot and exactly the files its stored panel named, says so on stderr and
+emits nothing; it exits 2 under `TP_UNATTENDED` (`discard-emission`), 4 with no unrecorded emission,
+and 2 beside a batch flag, `--record`, `--record-inbox`, `--resolve` or `--resolve-all`. Spec review
+spells the same decision `--force`; epic review cannot, because a discard there must be possible
+without a new emission while dispositions are frozen, so `--force` keeps its v1.9.0 meaning,
+re-resolving beside `--resolve`/`--resolve-all`, and is ignored on an emission. A tp upgrade between
+an emission and its re-emission that ships changed built-in role files changes their hashes, so the
+guard fires on it. A snapshot from before v1.10.0 holds no `roles` and is compared on the units,
+blocks and purposes it holds, and a discard removes no file for it.
 Progress is no change: blocks and the scope fingerprint are blind to status, so closing work
 between an emission and its re-emission refuses nothing. Dispositions are frozen while a round is
 out: `--resolve` and `--resolve-all` address only the last recorded round, the one the emitted round
-was built from, and while that emission is unrecorded they exit 3 and write nothing, naming
-`--record-inbox` (the disposition then takes effect from the next round) and, as the operator's
-decision, `--force`. Emitting many slices at once (`--milestones`, `--all`) freezes each slice's
-dispositions until that slice is recorded or discarded, and a discard covers one slice at a time. A
+was built from, and while that emission is unrecorded they exit 3 and write nothing; once it is
+recorded a disposition takes effect from the next round, and after `--discard` it goes through at
+once. A disposition therefore never changes an emission behind the prompts already handed out.
+Emitting many slices at once (`--milestones`, `--all`) freezes each slice's dispositions until that
+slice is recorded or discarded, and a discard covers one slice at a time. An empty hand-made
+`--record` file is refused (exit 3) for a round whose emission named role files, since it would
+record roles that never ran as having found nothing; `--record-inbox` proves they ran. A round with
+no emission, an empty panel or a snapshot from before v1.10.0 still records an empty file. A
 row of the last recorded round with no resolution on a unit the slice no longer holds — an epic
 deleted, or moved out of the slice — refuses the emission at exit 4, naming the rows, with
 `--resolve` as the way out; a row resolved `fixed` there passes, since moving or deleting an epic
@@ -1673,7 +1682,7 @@ count; done epics and other milestones' epics outside the closure are not shown.
 in the slice's inbox (v1.7.0; until then a cwd-relative `epic-review-<hash prefix>-r<N>-<role>.ndjson`),
 the same path the prompt names; inside a `tp run` unit it is the `$TP_ROUND_DIR` path instead.
 The emission creates the inbox and removes nothing in it, so an identical re-emission and per-role
-emission keep a file a role already wrote; only a `--force` discard removes the round's files. `.tp/.gitignore` ignores every inbox (`epic-review/*/inbox/`), and the
+emission keep a file a role already wrote; only `--discard` removes the round's files. `.tp/.gitignore` ignores every inbox (`epic-review/*/inbox/`), and the
 plugin's write-deny hook lets exactly that name through, for any writer, when the path's physical
 form (symlinks resolved; a `..` segment or a symlink at the name is refused) is that name too;
 every other path under the state directory stays refused. Spec review's and audit's output paths
@@ -1692,7 +1701,7 @@ whose snapshot predates the panel (emitting it again stores the panel). A line t
 skip (named by file and line), a row naming another role, or a row `--record` refuses exits 1 and
 records nothing; the payload and the round written are `--record`'s. Rows keep panel order: the
 merge's clustering and severity sort are not applied, and the epic contract asks for no `class`,
-without which a row never clusters. A `--force` discard removes exactly the files the old panel
+without which a row never clusters. `--discard` removes exactly the files the old panel
 named, so a new emission never records rows written against old prompts. `--record <file>` stays
 for hand-made rows and stamps nothing. The `tp run` driver records no epic round today; when it
 gains epic units, their record command is `--record-inbox`, not a second merge.
@@ -1701,7 +1710,7 @@ gains epic units, their record command is `--record-inbox`, not a second merge.
 
 `--milestones <m,m,...>` and `--all` exclude each other, every one-slice flag (`--milestone`,
 `--epic`, `--epics`, `--name`) and the writes kept one slice at a time (`--record`, `--record-inbox`, `--resolve`,
-`--resolve-all`, `--force`, `--grant-round`); each such call exits 2 and writes nothing. A milestone
+`--resolve-all`, `--force`, `--discard`, `--grant-round`); each such call exits 2 and writes nothing. A milestone
 listed twice is one slice.
 
 | Call | Reads | Payload |
@@ -1724,7 +1733,7 @@ slice that cannot emit is listed under `skipped`, in the order met, and the rest
 (`reason` names `done_by`), at its cap (the one-slice refusal's message and hint), failing to
 prepare (a milestone no track lists, an unreadable round, a refusal such as open rows on a unit the
 slice no longer reads or holds, message and hint), an unrecorded emission that changed (`reason`
-`emission-changed`; a batch never discards, the one-slice `--force` does), or failing to write its
+`emission-changed`, with the change list and the slice's `--discard`; a batch never discards), or failing to write its
 state.
 
 A `--status` row is the one-slice `--status` cut to those keys, `state` one of `tp epic export`'s
@@ -2054,9 +2063,9 @@ relative to the directory the command ran in, symlinks resolved on both sides, s
 |------|---------|
 | 0 | the command completed; for `tp epic lint`, no error-severity finding; for `--status --check`, the loop is `done` and every mechanical check passes, with `--milestones`/`--all` on every slice; for `tp epic gate`, the gate is green; `done --undo` with no record and `claim --release` with no claim change nothing |
 | 1 | `tp epic lint` found an error; a write whose after-state adds a lint error (never `tp epic done` or its `--undo`: the operator's record is written, and the lint reports what it adds), a `tp epic apply` payload included; `tp epic remove` of an epic another depends on, through an edge or a group membership, without `--force`, or of a `tag_checks` provider even with it; `tp epic import` over a file holding epics without `--force`; a `--record` row missing a required key or locating outside the slice (the whole file is refused); a `--record-inbox` file holding a line the reader skips (named by file and line) or a row naming another role than its file's, or a row `--record` refuses; `--status --check` not done (with `--milestones`/`--all`, any slice not done or not held by the graph); `--resolve` of an already resolved finding without `--force`; `milestone add` of a name a track already holds; `tp epic gate` of a red gate; `tp epic claim` while a claim exists (the message names its holder), or of a condition, a done epic or one with a bound file; `tp epic done` of an epic with a bound file, or of a condition with an empty acceptance; `gate --met` while a member is not done or the threshold is empty; `set <id> condition=true` on an epic with a bound file or a claim; outside `tp epic`, `tp init --epic` and `tp set --epic` naming an epic the graph does not hold, a condition or a done epic (nothing is written), and `tp import` of a document naming an epic other than the one the task file is bound to (nothing is written; re-bind with `tp set --epic`) |
-| 2 | usage: a payload key outside the schema, an unknown `set` field or gate field (`gates.<m>.<field>=`) or bad JSON, an `opens_after=` value that is not an object of string lists (a `null` list included, on `set` and `import` alike), an `add` or `--bulk` payload that names `claimed` or `done` and a `set gates=` one that names `met`, a malformed `tp epic apply` row, an unknown `op` or an `add` row of an id an earlier row removes, a `condition=` value other than `true`/`false`, `review` without exactly one of `--milestone`/`--epic`/`--epics`, `--name` without `--epics` or an empty `--epics`, `milestone add` without exactly one of `--after`/`--before`/`--new-track`, an unknown `--role`, an invalid `--resolve` status, an out-of-range or repeated index or a `wontfix`/`duplicate` without evidence, `tp epic done` without exactly one of `--evidence`/`--undo`, `gate --met` without `--evidence` or `--evidence` without `--met`, `claim --release` with `--by`, `--grant-round` beside another mode or a batch flag, `--milestones` beside `--all`, either beside `--milestone`/`--epic`/`--epics`/`--name`/`--record`/`--record-inbox`/`--resolve`/`--resolve-all`/`--force`, `--record-inbox` beside `--record`, a `--milestones` list that is empty or holds an empty name, `--report` without `--all` or `--milestones` or beside `--status`/`--check`/`--role`; and under `TP_UNATTENDED` every writer, `--record`, `--record-inbox`, a discarding `--force` on an emission (escalate `discard-emission`), `--grant-round` (escalate `grant-round`), `tp epic done` and its `--undo`, `gate --met`, and `tp init --epic` and `tp set --epic` (an empty value too) — `tp epic claim` runs |
-| 3 | file: no graph file, a malformed one, unreadable slice state, or `--resolve` with no recorded round; a re-emission of an unrecorded round whose emission changed, without `--force`; `--resolve`/`--resolve-all` while the next round is emitted and unrecorded (dispositions are frozen); `--record-inbox` with a role's file missing, no emission, or a snapshot from before v1.10.0; for `tp epic review` and `tp epic export`, a `.tp/config.json` that is not valid JSON (`lint`, `ready` and `status` warn instead and use the default placeholder pattern, and an invalid `epic.threshold_placeholder` exits no command 3); for `ready`, `status`, `gate`, `scope` and `export`, no graph file or an unreadable bound task file |
-| 4 | state: an absent epic (`set`, `remove`, `link`/`unlink`'s `<from>`, the subject of a `tp epic apply` row at that row, `review --epic`/`--epics`, `claim`, `done`), edge (`unlink`, an `apply` unlink row), any-of group (`unlink --any-of`) or milestone (`review --milestone`, `milestone add`'s anchor, `gate`'s milestone, `scope`'s milestone, `status --milestone`, `set gates.<m>.<field>=`, the message listing the milestones the tracks hold), or a `status --open --milestone` that is closed; a stale `--if-revision`; a reached cap — `review_max_rounds` rounds recorded and not converged — refuses emission and `--record`, naming the slice's `--resolve` and the key that raises the cap (on a stale slice, `--grant-round` first); `--grant-round` on a slice below its cap, unchanged since its last round, done, or with a grant open; an emission whose last recorded round left a row with no resolution on a unit the slice no longer holds or no role reads |
+| 2 | usage: a payload key outside the schema, an unknown `set` field or gate field (`gates.<m>.<field>=`) or bad JSON, an `opens_after=` value that is not an object of string lists (a `null` list included, on `set` and `import` alike), an `add` or `--bulk` payload that names `claimed` or `done` and a `set gates=` one that names `met`, a malformed `tp epic apply` row, an unknown `op` or an `add` row of an id an earlier row removes, a `condition=` value other than `true`/`false`, `review` without exactly one of `--milestone`/`--epic`/`--epics`, `--name` without `--epics` or an empty `--epics`, `milestone add` without exactly one of `--after`/`--before`/`--new-track`, an unknown `--role`, an invalid `--resolve` status, an out-of-range or repeated index or a `wontfix`/`duplicate` without evidence, `tp epic done` without exactly one of `--evidence`/`--undo`, `gate --met` without `--evidence` or `--evidence` without `--met`, `claim --release` with `--by`, `--grant-round` beside another mode or a batch flag, `--milestones` beside `--all`, either beside `--milestone`/`--epic`/`--epics`/`--name`/`--record`/`--record-inbox`/`--resolve`/`--resolve-all`/`--force`/`--discard`, `--record-inbox` beside `--record`, `--discard` beside `--record`/`--record-inbox`/`--resolve`/`--resolve-all`, a `--milestones` list that is empty or holds an empty name, `--report` without `--all` or `--milestones` or beside `--status`/`--check`/`--role`; and under `TP_UNATTENDED` every writer, `--record`, `--record-inbox`, `--discard` (escalate `discard-emission`), `--grant-round` (escalate `grant-round`), `tp epic done` and its `--undo`, `gate --met`, and `tp init --epic` and `tp set --epic` (an empty value too) — `tp epic claim` runs |
+| 3 | file: no graph file, a malformed one, unreadable slice state, or `--resolve` with no recorded round; a re-emission of an unrecorded round whose emission changed; an empty `--record` file over a round whose emission named role files; `--resolve`/`--resolve-all` while the next round is emitted and unrecorded (dispositions are frozen); `--record-inbox` with a role's file missing, no emission, or a snapshot from before v1.10.0; for `tp epic review` and `tp epic export`, a `.tp/config.json` that is not valid JSON (`lint`, `ready` and `status` warn instead and use the default placeholder pattern, and an invalid `epic.threshold_placeholder` exits no command 3); for `ready`, `status`, `gate`, `scope` and `export`, no graph file or an unreadable bound task file |
+| 4 | state: an absent epic (`set`, `remove`, `link`/`unlink`'s `<from>`, the subject of a `tp epic apply` row at that row, `review --epic`/`--epics`, `claim`, `done`), edge (`unlink`, an `apply` unlink row), any-of group (`unlink --any-of`) or milestone (`review --milestone`, `milestone add`'s anchor, `gate`'s milestone, `scope`'s milestone, `status --milestone`, `set gates.<m>.<field>=`, the message listing the milestones the tracks hold), or a `status --open --milestone` that is closed; a stale `--if-revision`; a reached cap — `review_max_rounds` rounds recorded and not converged — refuses emission and `--record`, naming the slice's `--resolve` and the key that raises the cap (on a stale slice, `--grant-round` first); `--grant-round` on a slice below its cap, unchanged since its last round, done, or with a grant open; an emission whose last recorded round left a row with no resolution on a unit the slice no longer holds or no role reads; `--discard` with no unrecorded emission |
 
 `--history` (v1.8.0) adds to the table: 2 for `--from` or `--to` without the other or without
 `--history`, and for `--of-epic` beside a slice flag, `--from`/`--to` or any other flag of the command,
