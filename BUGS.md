@@ -46,6 +46,16 @@ fix needs a design choice leaves this file for a decision note.
   present since July; not yet reproduced. The test: a role file that cannot be read makes
   `tp audit --record` (and the other three) exit with the read error instead of recording.
 
+## A flaky test that blocks a release
+
+- **`TestHookBoundJudgesCPUNotWallClock` fails intermittently on CI runners.** Its subtest "a hook
+  that never ends is killed at the deadline, children and all" asserted false at
+  `internal/cli/hooks_bound_test.go:393` after 5.00 s in goreleaser's test hook for v1.11.0; a rerun
+  of the same commit passed. The same test is why v1.7.0 shipped with no binaries. It runs under
+  `CI=true` in the release job, so each failure stops a tag from getting its assets. Reproduce under
+  CPU load (for example `GOFLAGS=-p=8` with `-count=20 -run TestHookBoundJudgesCPUNotWallClock`)
+  before fixing, and fix the timing assumption rather than the timeout.
+
 ## Decided elsewhere, not a fix
 
 - **`tp review --check` converges with roles that never ran.** A role that found nothing writes no
