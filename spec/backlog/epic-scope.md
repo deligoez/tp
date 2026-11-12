@@ -39,9 +39,10 @@ milestone of the same track, and a milestone's own critical path is
    is a choice rather than a split. Sorted by size, so the few epics that carry most of the closure
    come first, and an epic that takes only itself prints no row;
 5. those outside epics that nothing depends on;
-6. epics an earlier milestone's gate holds that no other gate's closure contains, in any track,
-   naming which of those gates were implicit, since an implicit gate's closure holds its whole
-   milestone;
+6. for each gate the milestone opens after directly, its not-done members the milestone's closure
+   does not need: they hold this milestone's opening for nothing. They are candidates to make
+   deferrable in that earlier gate, not to delete, and a field run showed that asking instead
+   whether any other gate needs them misses the case, since implicit gates hold everything;
 7. the milestone's own critical path, by count and by estimate, repeated here so a reader needs one
    call;
 8. a `fingerprint` over the sorted members, the closure taken blind to status, and the threshold
