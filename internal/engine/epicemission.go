@@ -42,7 +42,7 @@ func EpicEmissionChanges(stateDir string, round int, units []EpicReviewUnit, rol
 	now := newEpicSnapshot(round, units, roles)
 	changes := epicUnitChanges(&old, &now)
 	if p := epicPurposeChanges(old.Purposes, now.Purposes); len(p) > 0 {
-		changes = append(changes, "purposes changed: "+strings.Join(p, ", "))
+		changes = append(changes, "purposes changed: "+CappedList(p))
 	}
 	if old.Roles != nil {
 		changes = append(changes, epicRoleChanges(old.Roles, now.Roles)...)
@@ -118,24 +118,34 @@ func keyDifference(old, now map[string]string) (added, removed, both []string) {
 	return added, removed, both
 }
 
-// labelled renders each non-empty list after its label.
+// labelled renders each non-empty list after its label, capped (CappedList).
 func labelled(labels []string, lists ...[]string) []string {
 	var out []string
 	for i, l := range lists {
 		if len(l) > 0 {
-			out = append(out, labels[i]+strings.Join(l, ", "))
+			out = append(out, labels[i]+CappedList(l))
 		}
 	}
 	return out
 }
 
-// RemoveEpicInboxRound removes the slice's inbox files of round, the files
-// its emission named (EpicReviewInboxPath), and returns the paths removed.
-// An absent inbox removes nothing.
-func RemoveEpicInboxRound(stateDir string, round int) ([]string, error) {
-	paths, err := filepath.Glob(filepath.Join(EpicReviewInboxDir(stateDir), fmt.Sprintf("*-r%d.ndjson", round)))
-	if err != nil {
-		return nil, err
+// EpicRepoRoot returns the root the snapshot's output paths are relative
+// to: the git top level above the .tp/ directory tpDir, else its parent.
+func EpicRepoRoot(tpDir string) string {
+	if root := FindGitBoundary(filepath.Dir(tpDir)); root != "" {
+		return root
+	}
+	return filepath.Dir(tpDir)
+}
+
+// EpicStoredPath is how the snapshot stores an output path: relative to
+// root when it lies under it, so a moved repository, a clone or another
+// worktree still finds it, and exactly as given otherwise (a run's round
+// directory outside the repository).
+func EpicStoredPath(root, path string) string {
+	rel, err := filepath.Rel(root, path)
+	if err != nil || filepath.IsAbs(rel) || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return path
 	}
 	for _, p := range paths {
 		if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
