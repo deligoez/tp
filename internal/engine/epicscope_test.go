@@ -529,3 +529,19 @@ func TestScope_ImplicitGatesSkipEmptyGates(t *testing.T) {
 	assert.Equal(t, []ScopeUnneeded{{Milestone: "m0", Epics: []string{"a1"}, ImplicitGates: []string{"m1"}}},
 		scopeOf(t, g, "m1").UnneededEarlier)
 }
+
+// TestScope_UnneededEarlierCountsGatesOfMilestonesWithNoEpics: a gates entry
+// for a milestone that holds no epic and no track lists is still a gate, and
+// its explicit members are needed.
+func TestScope_UnneededEarlierCountsGatesOfMilestonesWithNoEpics(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0", "m1"}}, Epics: []model.Epic{
+		scopeEpic("a1", "m0"),
+		scopeEpic("b1", "m1"),
+	}, Gates: map[string]model.EpicGate{
+		"m0": {Members: []string{"a1"}},
+		"m1": {Members: []string{"b1"}},
+		"g0": {Members: []string{"a1"}},
+	}}
+
+	assert.Equal(t, []ScopeUnneeded{}, scopeOf(t, g, "m1").UnneededEarlier)
+}
