@@ -360,8 +360,11 @@ func followUpClosureCommitOrExit(dir, taskID, implSHA string, paths []string) {
 	commitCmd := fmt.Sprintf("git commit -m %q", msg)
 	stageClosureOrExit(dir, taskID, implSHA, paths, commitCmd)
 	if err := runGitDir(dir, "commit", "-m", msg); err != nil {
-		hint := fmt.Sprintf("application commit %s already landed and the closure is staged; recover with `%s`; do not re-run tp commit or tp done for %s, which would make a second commit and overwrite commit_sha. %s",
-			implSHA, commitCmd, taskID, gitSubprocessHint)
+		// The backquotes are concatenated, not written as "`%s`": gocritic's
+		// %#q would fall back to a double-quoted, escaped form whenever the
+		// task ID carries a backquote, changing the recovery command shown.
+		hint := fmt.Sprintf("application commit %s already landed and the closure is staged; recover with %s; do not re-run tp commit or tp done for %s, which would make a second commit and overwrite commit_sha. %s",
+			implSHA, "`"+commitCmd+"`", taskID, gitSubprocessHint)
 		output.ErrorExtras(ExitFile, fmt.Sprintf("git commit of task %s's closure failed: %v; the closure is on disk but in no commit", taskID, err),
 			map[string]any{"commit_sha": implSHA}, hint)
 		os.Exit(ExitFile)
