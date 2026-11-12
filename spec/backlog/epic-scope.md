@@ -56,16 +56,25 @@ Read together: the purpose deepens a role along its own questions, and the gate-
 appears only when the second direction is asked of the gate as a whole. The third arm's findings
 and the scope arm's did not overlap, so neither role replaces the other.
 
-The lean, not yet the decision: a separate gate-only role owning both directions, with
+The operator has disposed of every row, per group. Most missing-work findings were accepted, one
+of them narrowed; the rejections were one false positive the role had itself hedged and one
+operator choice that later became moot. No surplus cut was rejected; some were superseded by an
+accepted cut that removed their chain. Every one of the third arm's rows was accepted. Applying
+them shrank the first milestone's closure and its critical path even with new members. The apply
+also exposed two cases the measurement already names: a control epic left the closure with a chain
+it hung from, which item 2 shows, and the set item 6 reports grew. In this trial one disposition
+round moved the measurement, and a scope pass reruns after an apply because the fingerprint
+changed.
+
+The lean, now carried by the trial: a separate gate-only role owning both directions, with
 `phase-economist`'s gate question moving to it, since the scope pass has its own trigger (a changed
 fingerprint), its own input (Part A's output), and the third arm left the gate untouched even with
 the purpose; and an optional `gates.<m>.purpose`, kept apart from the threshold and entering the
 fingerprint, given to the gate-only role, which needs it, and to `phase-economist`, the one role
-tested with it, pending the disposition of that arm's findings. For the other graph roles it is
-open: giving it to all of them would rest on uniformity, one prompt line and no per-role switch,
-which is a simplicity argument and not a trial result. All three are user-visible choices for the
-operator, decided with the operator's rejections counted per group — missing work, surplus cuts,
-and the third arm's findings. Until then no behaviour is written for Part B.
+tested with it, whose purpose-fed rows were all accepted. For the other graph roles it is open:
+giving it to all of them would rest on uniformity, one prompt line and no per-role switch, which is
+a simplicity argument and not a trial result. All three are user-visible choices for the operator.
+Until the operator makes them, no behaviour is written for Part B.
 
 **Consequences.** An operator can ask what a gate pulls in, and which few epics to cut or split,
 without running a review round. Review state, convergence and the role corpus do not change in
