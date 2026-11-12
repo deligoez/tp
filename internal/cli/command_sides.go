@@ -39,15 +39,16 @@ const (
 // resolved by its own rule; nothing here resolves one, since a check that
 // resolves by another route can approve a target the mode does not use.
 var commandSides = map[string]string{
-	"tp audit":           sideTree,
-	"tp close":           sideTree,
-	"tp commit":          sideTree,
-	"tp done":            sideTree,
-	"tp import":          sideTree,
-	"tp review":          sideTree,
-	"tp review --record": sideTree,
-	"tp review --verify": sideTree,
-	"tp run":             sideTree,
+	"tp audit":                sideTree,
+	"tp close":                sideTree,
+	"tp commit":               sideTree,
+	"tp done":                 sideTree,
+	"tp import":               sideTree,
+	"tp review":               sideTree,
+	"tp review --perspective": sideTree,
+	"tp review --record":      sideTree,
+	"tp review --verify":      sideTree,
+	"tp run":                  sideTree,
 	// --dry-run computes next units through the oracle, which reads the
 	// working tree's git status (the unexplained-changes blocker empties the
 	// batch), so it reads the tree it runs in.
@@ -118,7 +119,7 @@ var commandSides = map[string]string{
 // own side. Every one is placed in commandSides as "<path> --<flag>".
 var commandModeFlags = map[string][]string{
 	"tp audit":  {"record", "status"},
-	"tp review": {"merge", "record", "report", "resolve", "resolve-all", "status", "verify"},
+	"tp review": {"merge", "perspective", "record", "report", "resolve", "resolve-all", "status", "verify"},
 	"tp run":    {"dry-run", "status"},
 }
 
