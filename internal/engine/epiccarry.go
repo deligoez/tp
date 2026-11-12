@@ -159,13 +159,6 @@ func (c *EpicCarry) readPriorRows(path string) (map[string]bool, error) {
 	return reask, nil
 }
 
-// readEpicSnapshot returns the unit hashes snapshotted at round's emission;
-// an absent snapshot records no hash, so every unit counts as changed (D7).
-func readEpicSnapshot(stateDir string, round int) (map[string]string, error) {
-	snap, err := readEpicSnapshotFile(stateDir, round)
-	return snap.Units, err
-}
-
 // readEpicSnapshotFile returns round's snapshot, hashes and blocks; an absent
 // one is empty. A snapshot written before blocks were kept has none.
 func readEpicSnapshotFile(stateDir string, round int) (epicSnapshot, error) {
