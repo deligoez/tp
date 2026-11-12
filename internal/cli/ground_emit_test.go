@@ -118,8 +118,8 @@ func TestGroundEmitCreatesTheStateDirectoryAndWritesTheSnapshotAndTheFloor(t *te
 }
 
 // TestGroundEmitNamesTheScratchFileAndNotTheRecordedRound pins §7.3's two
-// filenames apart: the prompt's output_path is ground-<base>-r<N>.ndjson, the
-// scratch file a unit writes, while ground-round-<N>.ndjson is what --record
+// filenames apart: the prompt's output_path is ground-inbox/round-<N>.ndjson,
+// the scratch file a unit writes, while ground-round-<N>.ndjson is what --record
 // writes into the state directory. A reader deriving the emitted name from
 // §7.1's table alone gets it wrong, so the recorded name is the mutant this
 // fails on.
@@ -133,11 +133,11 @@ func TestGroundEmitNamesTheScratchFileAndNotTheRecordedRound(t *testing.T) {
 	dir := writeGroundFixture(t)
 
 	out := groundEmit(t, dir)
-	assert.Equal(t, "ground-spec-r1.ndjson", out["output_path"])
+	assert.Equal(t, filepath.Join(".tp-review", "spec", "ground-inbox", "round-1.ndjson"), out["output_path"])
 	prompt, ok := out["prompt"].(string)
 	require.True(t, ok, "one prompt, as a string, not a panel: %T", out["prompt"])
 	assert.NotContains(t, out, "prompts", "grounding emits one prompt, never an array of role prompts")
-	assert.Contains(t, prompt, "ground-spec-r1.ndjson", "the prompt body names the file it writes")
+	assert.Contains(t, prompt, filepath.Join(".tp-review", "spec", "ground-inbox", "round-1.ndjson"), "the prompt body names the file it writes")
 
 	// A recorded round 1 — the only artifact that numbers a round.
 	require.NoError(t, os.WriteFile(
@@ -145,7 +145,7 @@ func TestGroundEmitNamesTheScratchFileAndNotTheRecordedRound(t *testing.T) {
 
 	out = groundEmit(t, dir)
 	assert.Equal(t, float64(2), out["round"])
-	assert.Equal(t, "ground-spec-r2.ndjson", out["output_path"])
+	assert.Equal(t, filepath.Join(".tp-review", "spec", "ground-inbox", "round-2.ndjson"), out["output_path"])
 	assert.Equal(t, []string{
 		"floor-ground-round-1.txt", "floor-ground-round-2.txt",
 		"ground-round-1.ndjson",
@@ -186,8 +186,8 @@ func TestTwoSpecsInOneDirectoryEachGetTheirOwnScratchFile(t *testing.T) {
 	pathA, promptA := groundEmitSpec(t, dir, "a.md")
 	pathB, promptB := groundEmitSpec(t, dir, "b.md")
 	assert.NotEqual(t, pathA, pathB, "two specs in one directory never share a scratch file")
-	assert.Equal(t, "ground-a-r1.ndjson", pathA, "the scratch name carries the spec's base, as its state directory does")
-	assert.Equal(t, "ground-b-r1.ndjson", pathB)
+	assert.Equal(t, filepath.Join(".tp-review", "a", "ground-inbox", "round-1.ndjson"), pathA, "the scratch file sits in the spec's own state directory")
+	assert.Equal(t, filepath.Join(".tp-review", "b", "ground-inbox", "round-1.ndjson"), pathB)
 	assert.Contains(t, promptA, "Write this round's rows to: "+pathA, "a.md's prompt names a.md's file")
 	assert.NotContains(t, promptA, pathB, "and never b.md's")
 	assert.Contains(t, promptB, "Write this round's rows to: "+pathB, "b.md's prompt names b.md's file")
@@ -209,14 +209,15 @@ func TestTwoSpecsInOneDirectoryEachGetTheirOwnScratchFile(t *testing.T) {
 		b.Write(append(line, '\n'))
 	}
 	require.NotEmpty(t, b.String(), "the fixture's floor must hold a unit to disposition")
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, filepath.Dir(pathA)), 0o750))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, pathA), []byte(b.String()), 0o600))
 	_, stderr, code := runTP(t, dir, "ground", "a.md", "--record", pathA)
 	require.Equal(t, 0, code, "the file a.md's prompt named records: %s", stderr)
 
 	next, _ := groundEmitSpec(t, dir, "a.md")
-	assert.Equal(t, "ground-a-r2.ndjson", next, "a.md's next round names its own round-2 file")
+	assert.Equal(t, filepath.Join(".tp-review", "a", "ground-inbox", "round-2.ndjson"), next, "a.md's next round names its own round-2 file")
 	still, _ := groundEmitSpec(t, dir, "b.md")
-	assert.Equal(t, "ground-b-r1.ndjson", still, "b.md's round is untouched by a.md's record")
+	assert.Equal(t, filepath.Join(".tp-review", "b", "ground-inbox", "round-1.ndjson"), still, "b.md's round is untouched by a.md's record")
 }
 
 // TestTheFloorOnDiskIsFrozenUntilTheNextEmission is §11 row 19: the snapshot

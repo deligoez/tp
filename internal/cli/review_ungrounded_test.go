@@ -70,7 +70,9 @@ func groundFixtureRound(t *testing.T, dir string, dispositioned int) {
 			r.ID, r.Anchor, r.TextSHA, r.Ordinal)
 	}
 	// The rows go to the file the emission named, so this fixture records
-	// through the scratch name a unit is actually told to write.
+	// through the scratch name a unit is actually told to write, creating its
+	// inbox directory as a unit's writer does.
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, filepath.Dir(outputPath)), 0o750))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, outputPath), []byte(b.String()), 0o600))
 	_, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", outputPath)
 	require.Equal(t, 0, code, "record: %s", stderr)
