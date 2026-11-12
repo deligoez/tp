@@ -2037,7 +2037,7 @@ contract:
 |---------|---|---|---|---|
 | `tp export` | printed | — | usage | no task file (the hint names `--file` and `tp init`), or one that cannot be read (the hint names the file and `tp validate`) |
 | `tp export --list` | printed, `files: []` with no task file; a malformed file keeps its row | — | usage | — |
-| `tp dashboard` | interrupted after serving | the port is taken (the message names it) | `--port` outside 1-65535; `TP_UNATTENDED` | neither a graph file nor a task file (the hint names `tp epic set` and `tp init`) |
+| `tp dashboard` | interrupted after serving | the port cannot be bound: taken (address in use), or another listen error reported as itself; the message names the port | `--port` outside 1-65535; `TP_UNATTENDED` | neither a graph file nor a task file (the hint names `tp epic set` and `tp init`) |
 
 `tp export` and `--list` run under `TP_UNATTENDED`, since they write nothing; `tp dashboard` does not,
 since it serves until interrupted.
