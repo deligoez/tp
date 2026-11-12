@@ -20,6 +20,8 @@ import (
 //     enabled: false override (§2.4)
 //   - role-filter:        the round emitted the role and --role narrowed the
 //     payload to another one
+//   - no-units:           tp epic review asks the graph role no unit of the
+//     kinds its units key lists this round
 type SkippedRole struct {
 	Role   string `json:"role"`
 	Reason string `json:"reason"`
@@ -33,6 +35,7 @@ const (
 	SkipNoBaseline       = "no-baseline"
 	SkipDisabledBySpec   = "disabled-by-spec"
 	SkipRoleFilter       = "role-filter"
+	SkipNoUnits          = "no-units"
 )
 
 // RoleFilterSkippedRoles names the emitted roles a --role filter narrowed
