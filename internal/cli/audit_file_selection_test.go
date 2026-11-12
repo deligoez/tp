@@ -278,7 +278,7 @@ func TestAudit_TaskFileMappingComesFromTheAuditedRepo(t *testing.T) {
 	caller := t.TempDir()
 	initGitRepo(t, caller)
 	_, stderr, code = runTP(t, caller, "audit", filepath.Join(audited, "spec.md"), "--affected-from-tasks")
-	assert.Equal(t, 2, code, "an audit of another checkout's spec is refused: %s", stderr)
+	assert.Equal(t, 3, code, "an audit of another checkout's spec is refused: %s", stderr)
 	assert.Contains(t, stderr, "run it from", "and the refusal names where to run it")
 }
 

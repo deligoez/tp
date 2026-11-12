@@ -75,6 +75,11 @@ func TestAuditPrompts_BodyOrderAndEmbedding(t *testing.T) {
 // stand in, at exit 0 with an empty stderr and nothing in the payload naming
 // which repo answered. Every sibling git call (gitExists, latestGitTag,
 // execGitDiffProbe) sets cmd.Dir; this one has to as well.
+//
+// Since spec/backlog/project-layer-from-task-file.md an audit of another
+// checkout's spec is refused, so the lookup's own directory is pinned by
+// TestClaudeMDExcerptComesFromTheSpecsRepository; what stays here is the audit
+// from its own repository and the refusal from the other one.
 func TestAuditPrompts_ProjectContextComesFromTheAuditedRepo(t *testing.T) {
 	t.Parallel()
 	// The audited repo: spec + source, and NO task file, so the CLAUDE.md
@@ -92,8 +97,11 @@ func TestAuditPrompts_ProjectContextComesFromTheAuditedRepo(t *testing.T) {
 		[]byte("# Caller\n## Conventions\n- CALLER REPO CONVENTION\n"), 0o600))
 	initGitRepo(t, caller)
 
-	stdout, stderr, code := runTP(t, caller, "audit",
+	_, stderr, code := runTP(t, caller, "audit",
 		filepath.Join(audited, "spec.md"), "--affected-files", filepath.Join(audited, "auth_helper.go"))
+	require.Equal(t, 3, code, "an audit of another checkout's spec is refused: %s", stderr)
+
+	stdout, stderr, code := runTP(t, audited, "audit", "spec.md", "--affected-files", "auth_helper.go")
 	require.Equal(t, 0, code, "stderr: %s", stderr)
 
 	byRole := auditPromptsByRole(t, stdout)

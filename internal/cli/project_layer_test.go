@@ -61,7 +61,7 @@ func TestWorkInAnotherTreeIsRefused(t *testing.T) {
 	t.Parallel()
 	here, there, taskFile := twoProjects(t)
 	_, stderr, code := runTP(t, here, "done", "--file", taskFile, "t1", "implemented and verified")
-	assert.Equal(t, 2, code, "stderr: %s", stderr)
+	assert.Equal(t, 3, code, "a task file of another project is a file error, never an operator decision: %s", stderr)
 	resolved, err := filepath.EvalSymlinks(there)
 	require.NoError(t, err)
 	assert.Contains(t, stderr, resolved, "the hint names the directory to run it from")
