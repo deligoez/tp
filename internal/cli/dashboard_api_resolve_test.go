@@ -83,3 +83,22 @@ func TestDashboard_InRepoSymlinkChainAnswersAsTheCommand(t *testing.T) {
 	requireSameAsCommand(t, srv, dir, "/api/export?file="+first, "export", "--file", first)
 }
 
+// TestDashboard_MissingFileThroughAnAbsoluteInRepoSymlinkIsNotFound: an
+// in-repo symlink with an absolute target inside the repository that does
+// not exist, or a missing file under an in-repo symlink to an in-repo
+// directory, answers tp export's not-found error.
+func TestDashboard_MissingFileThroughAnAbsoluteInRepoSymlinkIsNotFound(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeTaskFileRaw(t, dir, `[]`)
+	require.NoError(t, os.Mkdir(filepath.Join(dir, "sub"), 0o755))
+	require.NoError(t, os.Symlink(filepath.Join(dir, "sub", "nope.tasks.json"), filepath.Join(dir, "absdang.tasks.json")))
+	require.NoError(t, os.Symlink(filepath.Join(dir, "sub"), filepath.Join(dir, "absdir")))
+	initGitRepo(t, dir)
+	srv := startDashboard(t, dir, freePort(t))
+
+	for _, file := range []string{"absdang.tasks.json", "absdir/missing.tasks.json"} {
+		requireSameErrorAsCommand(t, srv, dir, file)
+	}
+}
+
