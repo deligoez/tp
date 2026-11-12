@@ -44,6 +44,8 @@ func TestEpicReviewSlice_ScopeUnitNeedsAThresholdOrAPurpose(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []string{"epic:a", "epic:b", "epic:c", "epic:d", "gate:A", "scope:A"}, unitKeys(s.Units))
 	assert.Equal(t, "A", s.Units[5].Milestone)
+	assert.Equal(t, "scope: A\nmembers: a\nthreshold: ten users\nclosure (status-blind): a, b, c, d\n", s.Units[5].Block,
+		"no deferrable line for a gate that defers nothing")
 
 	_, ok = scopeUnitOf(t, g, EpicSliceKey{Epic: "a"})
 	assert.False(t, ok, "an epic slice asks no gate, so no scope unit")
