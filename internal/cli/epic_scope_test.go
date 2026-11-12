@@ -118,7 +118,7 @@ func TestEpicScope_CompactIsASubsetOfFull(t *testing.T) {
 			if name == "implicit" {
 				assert.Contains(t, compact, "deferrable_in_closure")
 				assert.Equal(t, "prove the import path", compact.(map[string]any)["purpose"], "compact keeps a written purpose")
-				assert.Equal(t, []any{map[string]any{"milestone": "m0", "size": float64(1)}}, compact.(map[string]any)["holds_opening"],
+				assert.Equal(t, []any{map[string]any{"milestone": "m0", "members_implicit": true, "size": float64(1)}}, compact.(map[string]any)["holds_opening"],
 					"m0's a9 holds m1 for nothing; compact keeps the count, not the ids")
 			}
 		})
