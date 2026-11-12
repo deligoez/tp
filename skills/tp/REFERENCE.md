@@ -1668,10 +1668,24 @@ form (symlinks resolved; a `..` segment or a symlink at the name is refused) is 
 every other path under the state directory stays refused. Spec review's and audit's output paths
 keep their relative form.
 
+**Recording the inbox (v1.10.0).** `tp epic review <slice> --record-inbox` records the in-flight
+round from the files its emission named: one per role of the panel the snapshot stores, at the
+`output_path` stored there, read in panel order through the reader `tp review --merge` applies to the
+role parts a `tp run` record unit merges. Each row is stamped with its file's `role`, so
+`open_by_role` counts no inbox row `unattributed`; a row naming a different role is refused. A
+missing file is refused at exit 3 naming the role, since the contract asks a role that found
+nothing for an empty file, and so is a round that was not emitted or whose snapshot predates the
+panel (emitting it again stores the panel). A line the reader would skip, a row naming another
+role, or a row `--record` refuses exits 1 and records nothing; the payload and the round written
+are `--record`'s. Rows keep panel order: the merge's clustering and severity sort are not applied,
+and the epic contract asks for no `class`, without which a row never clusters. A `--force` discard removes the
+round's inbox files, so a new emission never records rows written against old prompts.
+`--record <file>` stays for hand-made rows and stamps nothing.
+
 ### Batch review and the class report (v1.7.0)
 
 `--milestones <m,m,...>` and `--all` exclude each other, every one-slice flag (`--milestone`,
-`--epic`, `--epics`, `--name`) and the writes kept one slice at a time (`--record`, `--resolve`,
+`--epic`, `--epics`, `--name`) and the writes kept one slice at a time (`--record`, `--record-inbox`, `--resolve`,
 `--resolve-all`, `--force`, `--grant-round`); each such call exits 2 and writes nothing. A milestone
 listed twice is one slice.
 
