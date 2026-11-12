@@ -1984,9 +1984,11 @@ HTTP 400 for code 2, 404 for codes 3 and 4. No response carries a CORS header.
 `tp export --list` as the server derives it at that request, and is then answered as
 `tp export --file <path>` answers it run at the repository root, which the list's paths are
 relative to: the file served is the listed one whatever directory the server started in, and the
-payload is byte-equal to that command's; an error carries its code and hint, its message naming the
-file as the server's directory reaches it. Whether a path is listed is decided from the paths
-alone, reading no other task file. Any other value (another spelling of a listed file, such as `./`
+payload is byte-equal to that command's from a subdirectory or a symlinked one too; an error carries
+its code and hint, and its message names the file as that command does, except that a server
+started below the root names a listed file it cannot read by its absolute path. Whether a path is
+listed is decided from the paths alone, reading no other task file. Any other value (another
+spelling of a listed file, such as `./`
 or its absolute path, or none) answers 404 with code 4, the code of a named object that does not
 exist, and a hint naming `tp export --list`. A listed task file whose `spec` names a file
 elsewhere, or that is a symlink, is read exactly as `tp export` reads it.
