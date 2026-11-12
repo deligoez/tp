@@ -112,7 +112,8 @@ func TestChildEnv_DriverVariablesOutrankRunnerEnv(t *testing.T) {
 
 	assert.Equal(t, "1", env[EnvUnattended], "the fence cannot be turned off by runner.env")
 	assert.Equal(t, unit.RunID, env[EnvRunID])
-	assert.Equal(t, filepath.Join(root, ".tp", "rounds", "0.35.0", "review-r2"), env[EnvRoundDir])
+	// The unit's task file is spec/0.35.0.tasks.json, so its directory keys it.
+	assert.Equal(t, filepath.Join(root, ".tp", "rounds", "spec", "0.35.0", "review-r2"), env[EnvRoundDir])
 	assert.Equal(t, "review-role", env[EnvUnitKind])
 
 	assert.Equal(t, "some-model", env["ANTHROPIC_MODEL"], "runner.env still extends the environment")
@@ -161,6 +162,25 @@ func TestRoundDir_KeyedByCycleNotRun(t *testing.T) {
 	assert.Equal(t, filepath.Join(root, ".tp", "rounds", "spec", "audit-r4"), first)
 	assert.NotEqual(t, first, RoundDir(root, taskFile, PhaseReview, 4), "the phase is part of the key")
 	assert.NotEqual(t, first, RoundDir(root, taskFile, PhaseAudit, 5), "and so is the round")
+}
+
+// TestRoundDir_KeyedByTheTaskFilesLocation is spec/backlog/ground-scratch-in-
+// state-dir.md's round-directory half: two task files with one base in two
+// directories collect their rounds in two directories, since a round directory
+// outlives a run and a shared one hands the second cycle the first cycle's role
+// files as finished roles. The key is the task file's location, so every
+// spelling of one task file still names one directory.
+func TestRoundDir_KeyedByTheTaskFilesLocation(t *testing.T) {
+	root := t.TempDir()
+	x := filepath.Join(root, "x", "a.tasks.json")
+	y := filepath.Join(root, "y", "a.tasks.json")
+
+	assert.NotEqual(t, RoundDir(root, x, PhaseReview, 1), RoundDir(root, y, PhaseReview, 1),
+		"same-base task files in different directories never share a round directory")
+	assert.Equal(t, filepath.Join(root, ".tp", "rounds", "x", "a", "review-r1"), RoundDir(root, x, PhaseReview, 1))
+	assert.Equal(t, RoundDir(root, x, PhaseReview, 1),
+		RoundDir(root, filepath.Join(root, "x", ".", "a.tasks.json"), PhaseReview, 1),
+		"a second spelling of the same task file names the same directory")
 }
 
 // assertULID checks the canonical text form: 26 Crockford base32 characters
