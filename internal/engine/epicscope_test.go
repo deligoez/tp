@@ -236,51 +236,86 @@ func TestScope_DeferrableInClosure(t *testing.T) {
 	assert.Equal(t, []string{}, scopeOf(t, g, "m0").DeferrableInClosure)
 }
 
-// TestScope_UnneededEarlier: for each milestone before the scope's in its
-// track, the not-done members of its gate no other gate's closure contains,
-// naming the other gates consulted that were implicit; a milestone with none
-// prints no row.
-func TestScope_UnneededEarlier(t *testing.T) {
-	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0", "m1", "m2"}, {"n0"}}, Epics: []model.Epic{
+// TestScope_HoldsOpeningListsWhatTheClosureDoesNotNeed: for the gate the
+// milestone opens after, its not-done members the milestone's closure does
+// not contain hold the opening for nothing; a member the closure needs and a
+// done member are not listed.
+func TestScope_HoldsOpeningListsWhatTheClosureDoesNotNeed(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0", "m1"}}, Epics: []model.Epic{
 		scopeEpic("a1", "m0"),
-		scopeEpic("a2", "m0"),
 		scopeEpic("a3", "m0"),
+		scopeEpic("a2", "m0"),
+		scopeEpic("a4", "m0"),
 		scopeEpic("b1", "m1", scopeDeps("a1")...),
-		scopeEpic("c1", "m2", scopeDeps("b1")...),
-		scopeEpic("d1", "n0"),
 	}, Gates: map[string]model.EpicGate{
-		"m0": {Members: []string{"a1", "a2", "a3"}},
+		"m0": {Members: []string{"a1", "a3", "a2", "a4"}},
 		"m1": {Members: []string{"b1"}},
 	}}
-	g.Epics[2].Done = scopeDone()
+	g.Epics[3].Done = scopeDone()
 
-	s := scopeOf(t, g, "m2")
-
-	assert.Equal(t, []ScopeUnneeded{
-		{Milestone: "m0", Epics: []string{"a2"}, ImplicitGates: []string{"m2", "n0"}},
-	}, s.UnneededEarlier, "m1's b1 is needed by m2, so m1 prints no row")
+	assert.Equal(t, []ScopeHoldsOpening{{Milestone: "m0", Size: 2, Epics: []string{"a2", "a3"}}},
+		scopeOf(t, g, "m1").HoldsOpening, "a1 is needed, a4 is done, a2 and a3 hold m1 for nothing")
 }
 
-// TestScope_UnneededEarlierCountsOtherTracks: an earlier gate's member whose
-// only consumer is a gate of another track is needed, so it is not reported.
-func TestScope_UnneededEarlierCountsOtherTracks(t *testing.T) {
-	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0", "m1"}, {"n0"}}, Epics: []model.Epic{
+// TestScope_HoldsOpeningLeavesDeferrablesOut: a deferrable is no member, so
+// an implicit predecessor gate's deferrable is never listed.
+func TestScope_HoldsOpeningLeavesDeferrablesOut(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0", "m1"}}, Epics: []model.Epic{
+		scopeEpic("a1", "m0"),
+		scopeEpic("d1", "m0"),
+		scopeEpic("b1", "m1"),
+	}, Gates: map[string]model.EpicGate{
+		"m0": {Members: []string{}, Deferrable: []string{"d1"}},
+		"m1": {Members: []string{"b1"}},
+	}}
+
+	assert.Equal(t, []ScopeHoldsOpening{{Milestone: "m0", Size: 1, Epics: []string{"a1"}}}, scopeOf(t, g, "m1").HoldsOpening)
+}
+
+// TestScope_HoldsOpeningConsultsOnlyTheDirectPredecessors: the milestone the
+// predecessor opens after in turn is not consulted, and an opens_after entry
+// naming two milestones consults both; nothing other gates need enters.
+func TestScope_HoldsOpeningConsultsOnlyTheDirectPredecessors(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0", "m1", "m2"}, {"n0"}}, Epics: []model.Epic{
 		scopeEpic("a1", "m0"),
 		scopeEpic("b1", "m1"),
-		scopeEpic("d1", "n0", scopeDeps("a1")...),
+		scopeEpic("c1", "m2"),
+		scopeEpic("d1", "n0"),
+		scopeEpic("e1", "n0", scopeDeps("b1")...),
 	}, Gates: map[string]model.EpicGate{
 		"m0": {Members: []string{"a1"}},
 		"m1": {Members: []string{"b1"}},
-		"n0": {Members: []string{"d1"}},
+		"m2": {Members: []string{"c1"}},
+		"n0": {Members: []string{"d1", "e1"}},
 	}}
+	assert.Equal(t, []ScopeHoldsOpening{{Milestone: "m1", Size: 1, Epics: []string{"b1"}}},
+		scopeOf(t, g, "m2").HoldsOpening, "m0 is m1's predecessor, not m2's; n0 needing b1 is no input")
 
-	assert.Equal(t, []ScopeUnneeded{}, scopeOf(t, g, "m1").UnneededEarlier)
-
-	g.Epics[2].DependsOn = nil
-	assert.Equal(t, []ScopeUnneeded{{Milestone: "m0", Epics: []string{"a1"}, ImplicitGates: []string{}}},
-		scopeOf(t, g, "m1").UnneededEarlier, "without n0's need a1 is reported")
+	g.OpensAfter = map[string][]string{"m2": {"m1", "n0"}}
+	assert.Equal(t, []ScopeHoldsOpening{
+		{Milestone: "m1", Size: 1, Epics: []string{"b1"}},
+		{Milestone: "n0", Size: 2, Epics: []string{"d1", "e1"}},
+	}, scopeOf(t, g, "m2").HoldsOpening)
 }
 
+// TestScope_LaterGateChangeFreesEarlierMembers is a synthetic scenario: the
+// later gate drops the member that was the only consumer of an earlier
+// gate's member, which then holds the later milestone's opening for nothing.
+func TestScope_LaterGateChangeFreesEarlierMembers(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0", "m1"}}, Epics: []model.Epic{
+		scopeEpic("a1", "m0"),
+		scopeEpic("a2", "m0"),
+		scopeEpic("b1", "m1", scopeDeps("a1")...),
+		scopeEpic("b2", "m1", scopeDeps("a2")...),
+	}, Gates: map[string]model.EpicGate{
+		"m0": {Members: []string{"a1", "a2"}},
+		"m1": {Members: []string{"b1", "b2"}},
+	}}
+	assert.Equal(t, []ScopeHoldsOpening{}, scopeOf(t, g, "m1").HoldsOpening)
+
+	g.Gates["m1"] = model.EpicGate{Members: []string{"b1"}}
+	assert.Equal(t, []ScopeHoldsOpening{{Milestone: "m0", Size: 1, Epics: []string{"a2"}}}, scopeOf(t, g, "m1").HoldsOpening)
+}
 // TestScope_Fingerprint: the fingerprint hashes a status-blind closure, so
 // closing an epic does not move it; it is blind to the members' order, moves
 // with a rewritten threshold, and moves with the graph's edges.
@@ -405,26 +440,6 @@ func TestScope_ControlEpicLeavesWithItsChain(t *testing.T) {
 	assert.Equal(t, []ScopeOutside{{ID: "x", NoDependents: true}, {ID: "c1", Condition: true}}, after.Outside)
 }
 
-// TestScope_LaterGateChangeFreesEarlierMembers is a synthetic scenario: a
-// later gate drops the member that was the only consumer of an earlier
-// gate's member, which then shows in unneeded_earlier.
-func TestScope_LaterGateChangeFreesEarlierMembers(t *testing.T) {
-	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0", "m1"}}, Epics: []model.Epic{
-		scopeEpic("a1", "m0"),
-		scopeEpic("a2", "m0"),
-		scopeEpic("b1", "m1", scopeDeps("a1")...),
-		scopeEpic("b2", "m1", scopeDeps("a2")...),
-	}, Gates: map[string]model.EpicGate{
-		"m0": {Members: []string{"a1", "a2"}},
-		"m1": {Members: []string{"b1", "b2"}},
-	}}
-	assert.Equal(t, []ScopeUnneeded{}, scopeOf(t, g, "m1").UnneededEarlier)
-
-	g.Gates["m1"] = model.EpicGate{Members: []string{"b1"}}
-	assert.Equal(t, []ScopeUnneeded{{Milestone: "m0", Epics: []string{"a2"}, ImplicitGates: []string{}}},
-		scopeOf(t, g, "m1").UnneededEarlier)
-}
-
 // TestScope_OptionalEpicInheritsItsAlternativesMark: an epic that only an
 // any-of alternative needs, through a plain edge, is optional too and carries
 // the alternative's group; what the members need through plain edges alone
@@ -506,22 +521,6 @@ func TestScope_UntrackedMilestonesAreCrossTrack(t *testing.T) {
 	}, scopeOf(t, g, "u0").Closure)
 }
 
-// TestScope_UnneededEarlierCountsUntrackedGates: the gate of a milestone no
-// track lists is a gate too, so an earlier member whose only consumer it is
-// counts as needed.
-func TestScope_UnneededEarlierCountsUntrackedGates(t *testing.T) {
-	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0", "m1"}}, Epics: []model.Epic{
-		scopeEpic("a1", "m0"),
-		scopeEpic("b1", "m1"),
-		scopeEpic("u1", "u0", scopeDeps("a1")...),
-	}, Gates: map[string]model.EpicGate{
-		"m0": {Members: []string{"a1"}},
-		"m1": {Members: []string{"b1"}},
-	}}
-
-	assert.Equal(t, []ScopeUnneeded{}, scopeOf(t, g, "m1").UnneededEarlier)
-}
-
 // TestScope_ClosureMarksDeferrableEpics: a closure row whose epic the gate
 // lists deferrable says so, optional or required; deferrable_in_closure
 // still lists only the required ones.
@@ -540,34 +539,3 @@ func TestScope_ClosureMarksDeferrableEpics(t *testing.T) {
 	assert.Equal(t, []string{}, s.DeferrableInClosure)
 }
 
-// TestScope_ImplicitGatesSkipEmptyGates: an implicit gate holding no epic,
-// such as a gates entry carrying only a threshold for a milestone with no
-// epics, says nothing about need and is not named in implicit_gates.
-func TestScope_ImplicitGatesSkipEmptyGates(t *testing.T) {
-	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0", "m1"}}, Epics: []model.Epic{
-		scopeEpic("a1", "m0"),
-		scopeEpic("b1", "m1"),
-	}, Gates: map[string]model.EpicGate{
-		"m0": {Members: []string{"a1"}},
-		"z0": {Threshold: "ten users"},
-	}}
-
-	assert.Equal(t, []ScopeUnneeded{{Milestone: "m0", Epics: []string{"a1"}, ImplicitGates: []string{"m1"}}},
-		scopeOf(t, g, "m1").UnneededEarlier)
-}
-
-// TestScope_UnneededEarlierCountsGatesOfMilestonesWithNoEpics: a gates entry
-// for a milestone that holds no epic and no track lists is still a gate, and
-// its explicit members are needed.
-func TestScope_UnneededEarlierCountsGatesOfMilestonesWithNoEpics(t *testing.T) {
-	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0", "m1"}}, Epics: []model.Epic{
-		scopeEpic("a1", "m0"),
-		scopeEpic("b1", "m1"),
-	}, Gates: map[string]model.EpicGate{
-		"m0": {Members: []string{"a1"}},
-		"m1": {Members: []string{"b1"}},
-		"g0": {Members: []string{"a1"}},
-	}}
-
-	assert.Equal(t, []ScopeUnneeded{}, scopeOf(t, g, "m1").UnneededEarlier)
-}
