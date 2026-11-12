@@ -87,11 +87,10 @@ func TestStateStale_ARoundThatReadNoTextAnswersForNone(t *testing.T) {
 	assert.False(t, Converged(rounds, 2, "sha256:new"),
 		"and two clean rounds do not converge a spec no round has read")
 
-	// With NO round that ever read text there is no reading to compare with,
-	// so the comparison falls back to the last recorded round's stored hash —
-	// the answer tp gave before the marker existed. A history recorded entirely
-	// by hand keeps reporting an edit after its last record.
+	// With NO round that ever read text nothing has read the current spec, so
+	// it is stale whatever it holds: a record clears staleness only through the
+	// snapshot of its own emission (spec/backlog/hand-recorded-staleness.md).
 	only := rounds[1:]
-	assert.False(t, StateStale(only, "sha256:new"), "unchanged since that record")
+	assert.True(t, StateStale(only, "sha256:new"), "unchanged since that record, and still read by no round")
 	assert.True(t, StateStale(only, "sha256:other"), "edited since that record")
 }
