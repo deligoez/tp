@@ -513,3 +513,19 @@ func TestScope_ClosureMarksDeferrableEpics(t *testing.T) {
 	assert.Equal(t, []ScopeEpic{{ID: "a1"}, {ID: "d", AnyOf: group, Deferrable: true}, {ID: "e", AnyOf: group}}, s.Closure[0].Epics)
 	assert.Equal(t, []string{}, s.DeferrableInClosure)
 }
+
+// TestScope_ImplicitGatesSkipEmptyGates: an implicit gate holding no epic,
+// such as a gates entry carrying only a threshold for a milestone with no
+// epics, says nothing about need and is not named in implicit_gates.
+func TestScope_ImplicitGatesSkipEmptyGates(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"m0", "m1"}}, Epics: []model.Epic{
+		scopeEpic("a1", "m0"),
+		scopeEpic("b1", "m1"),
+	}, Gates: map[string]model.EpicGate{
+		"m0": {Members: []string{"a1"}},
+		"z0": {Threshold: "ten users"},
+	}}
+
+	assert.Equal(t, []ScopeUnneeded{{Milestone: "m0", Epics: []string{"a1"}, ImplicitGates: []string{"m1"}}},
+		scopeOf(t, g, "m1").UnneededEarlier)
+}
