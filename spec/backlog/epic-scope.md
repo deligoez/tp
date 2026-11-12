@@ -22,17 +22,20 @@ milestone of the same track, and a milestone's own critical path is
 **Decision, Part A — `tp epic scope <m>`.** One read-only command per milestone, runnable under
 `TP_UNATTENDED`, that prints:
 
-1. the gate's effective members, and `members: implicit` when `members` is unset, which makes
-   every non-deferrable epic of the milestone a member;
+1. the gate's effective members, and `members: implicit` when `members` is unset or empty, which
+   makes every non-deferrable epic of the milestone a member;
 2. the closure, composed by milestone and track: the cross-track part that lint leaves free by
    design appears here as information, never as an error;
 3. the milestone's epics outside the closure (empty by definition under implicit members, and said
    so rather than printed as `[]`);
-4. for each closure epic, its *removal shrink*: the epics that leave the closure when every edge
-   into it is cut, sorted by size, so the few epics that carry most of the closure come first;
+4. the *removal shrink* of each closure epic whose removal takes at least one other epic with it:
+   for an epic that is not a member, the epics that leave the closure when every edge into it is
+   cut; for a member, the epics that leave when it is dropped from the gate, marked as a member
+   since that row is a gate decision. Sorted by size, so the few epics that carry most of the
+   closure come first, and an epic that takes only itself prints no row;
 5. the epics outside the closure with no dependents at all;
-6. epics an earlier milestone's gate holds that no later closure needs before their own milestone,
-   naming which later gates were implicit, since an implicit gate needs everything;
+6. epics an earlier milestone's gate holds that no later gate's closure contains, naming which later
+   gates were implicit, since an implicit gate's closure contains everything;
 7. the milestone's own critical path, by count and by estimate, repeated here so a reader needs one
    call;
 8. a `fingerprint` over the member list, the closure's id set, the path's id sequence and the
