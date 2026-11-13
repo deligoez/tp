@@ -177,3 +177,40 @@ func TestBuildBlockers_AGroupAloneBlocksAndOffersTheOperatorsChoices(t *testing.
 	require.True(t, ok)
 	assert.Len(t, op.Choices, 1)
 }
+
+// blockerByCode returns the blocker with code, or nil.
+func blockerByCode(bs []Blocker, code string) *Blocker {
+	for i := range bs {
+		if bs[i].Code == code {
+			return &bs[i]
+		}
+	}
+	return nil
+}
+
+// TestBuildBlockers_TheCarriedBlockerStandsInReviewAndNamesItsWayOut: an
+// earlier unresolved carried row is a review-phase blocker whose command
+// disposes it, with an epoch as the operator's way out; a row marked fixed at
+// the cap offers only the operator's raise; outside review it never stands.
+func TestBuildBlockers_TheCarriedBlockerStandsInReviewAndNamesItsWayOut(t *testing.T) {
+	fixed := earlierHigh()
+	fixed.Disposition = CarryResolved
+	in := func(phase string, row CarriedRow, maxRounds int) *BlockerInputs {
+		return &BlockerInputs{Phase: phase, SpecPath: "spec.md", TaskFile: &model.TaskFile{},
+			ReviewRounds: 3, ReviewMaxRounds: maxRounds, ReviewLatestRound: 3, ReviewCarriedBlocking: []CarriedRow{row}}
+	}
+
+	open := blockerByCode(BuildBlockers(in(PhaseReview, earlierHigh(), 0)), "review-carried-blocking")
+	require.NotNil(t, open)
+	assert.Equal(t, 1, open.Data["count"])
+	require.Len(t, open.Data["commands"], 1)
+	assert.Contains(t, open.Data["commands"].([]string)[0], "--resolve 0 fixed|wontfix|duplicate")
+	assert.Equal(t, EscalateRewritePastBlocking, open.Data["operator"].(map[string]any)["decision"])
+
+	atCap := blockerByCode(BuildBlockers(in(PhaseReview, fixed, 3)), "review-carried-blocking")
+	require.NotNil(t, atCap)
+	assert.Empty(t, atCap.Data["commands"])
+	assert.Equal(t, EscalateRaiseReviewCap, atCap.Data["operator"].(map[string]any)["decision"])
+
+	assert.Nil(t, blockerByCode(BuildBlockers(in(PhaseImplement, earlierHigh(), 0)), "review-carried-blocking"))
+}
