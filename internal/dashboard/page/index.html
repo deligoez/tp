@@ -59,9 +59,26 @@
         <h2>Waiting epics <button class="info" type="button" data-info="waiting" aria-label="About waiting epics" aria-expanded="false">i</button></h2>
         <div id="now-waiting"></div>
       </section>
-      <section class="card" id="chaincard" aria-label="Chain of the selected epic" aria-live="polite" hidden>
-        <h2>Chain <button class="info" type="button" data-info="chain" aria-label="About the chain" aria-expanded="false">i</button></h2>
-        <div id="chain"></div>
+      <section class="card mapcard" id="chaincard" aria-label="Dependencies" hidden>
+        <div class="toolbar">
+          <h2>Dependencies <button class="info" type="button" data-info="chain" aria-label="About the dependency views" aria-expanded="false">i</button></h2>
+          <span class="seg" role="group" aria-label="Dependency view">
+            <button type="button" data-gv="milestones" aria-pressed="false">Milestones</button>
+            <button type="button" data-gv="scope" aria-pressed="false">Gate closure</button>
+            <button type="button" data-gv="neighbourhood" aria-pressed="false">Neighbourhood</button>
+          </span>
+          <label class="gpick" id="gm-pick" hidden>Milestone <select id="gm"></select></label>
+          <label class="gpick" id="gd-pick" hidden>Depth <select id="gd"><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
+          <span class="sm muted num" id="g-n" aria-live="polite"></span>
+          <span class="spacer"></span>
+          <button type="button" class="key" data-z="out" aria-label="Zoom out">−</button>
+          <button type="button" class="key" data-z="in" aria-label="Zoom in">+</button>
+          <button type="button" class="key" data-z="fit">Fit</button>
+          <button type="button" class="key" data-fs="chaincard" aria-pressed="false">Full screen</button>
+        </div>
+        <div class="map gmap" id="gmap"><svg id="gsvg" role="group" aria-label="Dependency view: what each node depends on sits to its left; the arrows move between nodes and Enter picks one"></svg></div>
+        <div class="legend" id="glegend"></div>
+        <details class="chaintext" id="chaintext"><summary>The selected epic's chain as text</summary><div id="chain"></div></details>
       </section>
       <section class="card" id="matrixcard" aria-label="Milestone matrix" data-src="summary" hidden>
         <h2>Milestone matrix <button class="info" type="button" data-info="matrix" aria-label="About the milestone matrix" aria-expanded="false">i</button></h2>

@@ -1275,6 +1275,8 @@
   // the map does.
   function selectEpic(id, centre) {
     mapView.selected = id && id !== mapView.selected ? id : null;
+    // A selection shows its neighbourhood unless a gate's closure is shown.
+    if (mapView.selected && gview.view === "milestones") gview.view = null;
     drawMap();
     drawSelected();
     if (centre && mapView.selected && mapView.geo) mapPort.centre(mapView.geo.pos[mapView.selected]);
@@ -1313,9 +1315,10 @@
       '<span class="dwhy">' + (e.why ? esc(e.why) : "no why recorded") + "</span></li>").join("") + "</ul>";
   }
 
+  // drawChain draws the selected epic's chain as text, the collapsible view
+  // under the dependency views.
   function drawChain(g) {
-    const card = $("chaincard");
-    card.hidden = !g;
+    $("chaincard").hidden = !g;
     if (!g) return;
     const id = mapView.selected;
     $("chain").innerHTML = id && mapView.deps ? '<p class="note">' + esc(id) + ": " + esc((mapView.byId[id] || {}).title || "") + "</p>" +
@@ -1323,6 +1326,258 @@
       '<div><h3 class="hsub">What waits on it</h3>' + edgeList(chainEdges(id, false), "No epic depends on it.") + "</div></div>"
       : none("Select an epic on the map, or in a list above, to see its chain.");
   }
+
+  // ---------- the dependency views (dashboard-ux.md §2) ----------
+  // tp lays each view out at /api/layout: the milestones and how they open,
+  // a gate's closure banded by milestone, or the selected epic's
+  // neighbourhood. The page turns layers and orders into points
+  // (tpPure.placeLayout) and draws them; it computes nothing about the graph.
+  const GVIEWS = ["milestones", "scope", "neighbourhood"];
+  const GVIEW_LABEL = { milestones: "the milestones", scope: "a gate's closure", neighbourhood: "an epic's neighbourhood" };
+  const GDIMS = {
+    milestones: { colW: 240, rowH: 84, left: 16, top: 12, head: 0, inset: 0, box: 196 },
+    scope: { colW: 200, rowH: 26, left: 16, top: 12, head: 30, inset: 12 },
+    neighbourhood: { colW: 210, rowH: 28, left: 16, top: 12, head: 0, inset: 12 },
+  };
+  const gview = { view: null, milestone: null, depth: 2, data: null, error: null, key: null, drawn: null, seen: null, seq: 0, pos: {}, focus: null };
+  INFO.chain = "The plan's dependencies in three views tp lays out, each read left to right, what a node depends on to its left. Milestones: each milestone with its work epics done of all, the dependency edges into it from other milestones' epics, and an edge from each milestone it opens after; click one for its gate's closure. Gate closure: what the milestone's gate pulls in (tp epic scope), banded by milestone, its critical path in orange, the alternatives of an any-of group drawn as one dashed fork. Neighbourhood: the selected epic in the middle, what it depends on to the left and what depends on it to the right, to the depth picked; clicking an epic re-centres on it. Selecting an epic highlights its edges and dims the rest. An edge that skips layers is a plain curve. The chain as text lists every edge with its why.";
+
+  // gviewNow is the view shown: the one picked, else the selected epic's
+  // neighbourhood, else the milestones.
+  const gviewNow = () => gview.view || (mapView.selected ? "neighbourhood" : "milestones");
+
+  // gviewMilestone is the closure's milestone: the one picked, else the
+  // first open milestone whose work is not all done, else the first.
+  function gviewMilestone(g) {
+    const ms = g.milestones || [];
+    const pick = ms.find((m) => m.milestone === gview.milestone) || ms.find((m) => m.open && m.share_done < 1) || ms[0];
+    return pick ? pick.milestone : null;
+  }
+
+  // layoutQuery is the view's /api/layout query, or null while the view
+  // needs a selection it does not have.
+  function layoutQuery(g) {
+    const view = gviewNow();
+    const p = new URLSearchParams({ view });
+    if (view === "scope") {
+      const m = gviewMilestone(g);
+      if (!m) return null;
+      p.set("milestone", m);
+    } else if (view === "neighbourhood") {
+      if (!mapView.selected) return null;
+      p.set("epic", mapView.selected);
+      p.set("depth", String(gview.depth));
+    }
+    return p;
+  }
+
+  async function fetchLayout(key) {
+    const seq = ++gview.seq;
+    gview.key = key;
+    let body;
+    try {
+      const res = await fetch("/api/layout?" + key, { cache: "no-store" });
+      body = await res.json();
+    } catch (err) {
+      body = { error: "the layout could not be fetched: " + err.message, hint: "check that tp dashboard is still running" };
+    }
+    if (seq !== gview.seq) return;
+    Object.assign(gview, isError(body) ? { data: null, error: body } : { data: body, error: null });
+    drawGraph();
+  }
+
+  // graphPanel fetches the view when its query or the graph changed, then
+  // draws what it holds.
+  function graphPanel() {
+    const g = data("epic-export");
+    if (!state.graph || !g) return drawGraph();
+    const q = layoutQuery(g);
+    const key = q ? q.toString() : null;
+    if (key && (key !== gview.key || gview.seen !== g)) {
+      gview.seen = g;
+      fetchLayout(key);
+    }
+    if (!key) Object.assign(gview, { key: null, data: null, error: null });
+    drawGraph();
+  }
+  panel(["epic-export"], graphPanel);
+
+  // gedgePath draws one edge from the right of its dependency to the left of
+  // its dependent; an any-of member's edge ends at its group's fork.
+  function gedgePath(p, q, view, fork) {
+    const d = GDIMS[view];
+    const a = view === "milestones" ? { x: p.x + d.box, y: p.y } : { x: p.x + d.colW - d.inset - 40, y: p.y };
+    const b = view === "milestones" ? { x: q.x, y: q.y } : { x: q.x - (fork ? 26 : 8), y: q.y };
+    return edgePath(a, b);
+  }
+
+  // gnodeHTML draws one node: a milestone as a box with its counts, an epic
+  // as its mark and id.
+  function gnodeHTML(n, p, view, ctx) {
+    const cls = "gnode" + (ctx.near && !ctx.near.has(n.id) ? " dim" : "") + (n.centre ? " centre" : "");
+    const tab = ' role="button" tabindex="' + (n.id === gview.focus ? "0" : "-1") + '"';
+    if (view === "milestones") {
+      const d = GDIMS.milestones;
+      const y = p.y - (d.rowH - 16) / 2;
+      return '<g class="' + cls + '" data-id="' + esc(n.id) + '"' + tab + ' aria-label="' + esc(n.id + ": " + (n.open ? "open" : "closed") + ", " + n.done + " of " + n.epics + " work epics done, " + n.inbound + " edges in") + '">' +
+        '<rect class="msbox' + (n.open ? "" : " closed") + '" x="' + p.x + '" y="' + y + '" width="' + d.box + '" height="' + (d.rowH - 16) + '" rx="7"/>' +
+        '<text class="msname" x="' + (p.x + 12) + '" y="' + (y + 21) + '">' + esc(n.id) + '</text><text class="msshare" x="' + (p.x + d.box - 12) + '" y="' + (y + 21) + '" text-anchor="end">' + (n.open ? "open" : "closed") + "</text>" +
+        '<text class="gsub" x="' + (p.x + 12) + '" y="' + (y + 40) + '">' + esc(n.done + " of " + plural(n.epics, "epic", "epics") + " done") + "</text>" +
+        '<text class="gsub" x="' + (p.x + 12) + '" y="' + (y + 56) + '">' + esc(plural(n.inbound, "edge", "edges") + " in") + "</text></g>";
+    }
+    const e = ctx.epics[n.id] || { id: n.id, status: "planned" };
+    const s = markState(e, { report: ctx.ms[e.milestone] });
+    return '<g class="' + cls + '" data-id="' + esc(n.id) + '"' + tab + ' aria-label="' + esc(n.id + ": " + (e.title || "") + ", " + MARK_LABEL[s]) + '">' +
+      (n.id === mapView.selected ? '<circle cx="' + p.x + '" cy="' + p.y + '" r="10" fill="none" stroke="var(--accent)" stroke-width="2.2"/>' : "") +
+      mark(e.condition, s, p.x, p.y, 4.8) + '<text class="eid" x="' + (p.x + 12) + '" y="' + (p.y + 4) + '">' + esc(clip(n.id, 22)) + "</text>" +
+      '<rect class="rowhit" x="' + (p.x - 9) + '" y="' + (p.y - 11) + '" width="' + (GDIMS[view].colW - 40) + '" height="22" fill="transparent"/></g>';
+  }
+
+  // gedgesHTML draws the edges: the critical path's in orange, an any-of
+  // group's members dashed into one fork before their dependent, and with an
+  // epic selected its edges highlighted and the rest dimmed.
+  function gedgesHTML(L, geo, hl) {
+    const out = [];
+    const forks = new Set();
+    L.edges.forEach((e) => {
+      const p = geo.pos[e.from];
+      const q = geo.pos[e.to];
+      if (!p || !q) return;
+      const mine = hl && (e.from === hl || e.to === hl);
+      const cls = "gedge" + (e.critical ? " crit" : "") + (e.any_of ? " any" : "") + (hl ? (mine ? " hl" : " dimmed") : "");
+      out.push('<path class="' + cls + '" d="' + gedgePath(p, q, L.view, !!e.any_of) + '"/>');
+      const fork = e.any_of && e.to + "\u0000" + e.any_of.join("\u0000");
+      if (fork && !forks.has(fork)) {
+        forks.add(fork);
+        out.push('<path class="gedge any fork' + (hl ? (mine ? " hl" : " dimmed") : "") + '" d="M' + (q.x - 26) + " " + q.y + "H" + (q.x - 8) + '"/><circle class="gfork" cx="' + (q.x - 26) + '" cy="' + q.y + '" r="2.5"/>');
+      }
+    });
+    return out.join("");
+  }
+
+  // drawGraph draws the view gview holds, refitting it when it is another
+  // view than the one drawn last.
+  function drawGraph() {
+    const g = data("epic-export");
+    const card = $("chaincard");
+    card.hidden = !state.graph || !g;
+    if (card.hidden) return;
+    const view = gviewNow();
+    card.querySelectorAll("[data-gv]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.gv === view)));
+    $("gm-pick").hidden = view !== "scope";
+    $("gd-pick").hidden = view !== "neighbourhood";
+    const order = [].concat(...((g.graph && g.graph.milestones) || []));
+    if ($("gm").dataset.key !== order.join("\u0000")) {
+      $("gm").dataset.key = order.join("\u0000");
+      $("gm").innerHTML = order.map((m) => "<option>" + esc(m) + "</option>").join("");
+    }
+    $("gm").value = gviewMilestone(g) || "";
+    $("gd").value = String(gview.depth);
+    const L = gview.data;
+    const say = (text) => { $("gsvg").innerHTML = ""; $("g-n").textContent = text; };
+    if (!layoutQuery(g)) return say("Select an epic on the map or in a list to see its neighbourhood.");
+    if (gview.error) return say(gview.error.error);
+    if (!L || L.view !== view) return say("Reading " + GVIEW_LABEL[view] + " from tp.");
+    const geo = tpPure.placeLayout(L, GDIMS[view]);
+    gview.pos = geo.pos;
+    if (!geo.pos[gview.focus]) gview.focus = (L.nodes.find((n) => n.centre) || L.nodes[0] || {}).id || null;
+    const epics = {};
+    (g.epics || []).forEach((e) => { epics[e.id] = e; });
+    const ms = {};
+    (g.milestones || []).forEach((m) => { ms[m.milestone] = m; });
+    const hl = view !== "milestones" && geo.pos[mapView.selected] ? mapView.selected : null;
+    const near = hl ? new Set([hl].concat(L.edges.filter((e) => e.from === hl || e.to === hl).flatMap((e) => [e.from, e.to]))) : null;
+    const hadFocus = $("gsvg").contains(document.activeElement);
+    const top = GDIMS[view].top;
+    $("gsvg").innerHTML = (L.bands || []).length ? geo.bands.map((b, i) => '<rect class="gband' + (i % 2 ? " odd" : "") + '" x="' + (b.x + 2) + '" y="' + top + '" width="' + (b.w - 8) + '" height="' + (geo.H - 2 * top) + '" rx="7"/>' +
+      '<text class="msname" x="' + (b.x + 12) + '" y="' + (top + 20) + '">' + esc(b.name) + "</text>").join("") : "";
+    $("gsvg").innerHTML += "<g>" + gedgesHTML(L, geo, hl) + "</g>" + L.nodes.map((n) => gnodeHTML(n, geo.pos[n.id], view, { epics, ms, near })).join("");
+    $("g-n").textContent = plural(L.nodes.length, view === "milestones" ? "milestone" : "epic", view === "milestones" ? "milestones" : "epics") +
+      (L.view === "scope" ? " in " + L.milestone + "'s closure" : L.view === "neighbourhood" ? " within " + plural(L.depth, "step", "steps") + " of " + L.epic : "");
+    if (hadFocus) gfocus(gview.focus);
+    const key = gview.key;
+    gport.bounds(geo.W, geo.H, gview.drawn !== key);
+    if (gview.drawn !== key && view === "neighbourhood") gport.centre(geo.pos[L.epic]);
+    gview.drawn = key;
+  }
+
+  // gnodeAt is the dependency view's node under the pointer.
+  const gnodeAt = (ev) => {
+    const el = document.elementFromPoint(ev.clientX, ev.clientY);
+    return el && el.closest ? el.closest("#gsvg .gnode") : null;
+  };
+  // gpick answers a node picked by click or key: a milestone opens its
+  // gate's closure; an epic is selected, its neighbourhood re-centred on it.
+  function gpick(id) {
+    if (gviewNow() === "milestones") {
+      Object.assign(gview, { view: "scope", milestone: id });
+      syncURL();
+      graphPanel();
+      return;
+    }
+    if (mapView.selected !== id) {
+      mapView.selected = null;
+      selectEpic(id, true);
+    }
+  }
+  function gfocus(id) {
+    const node = id && [...$("gsvg").querySelectorAll(".gnode")].find((n) => n.dataset.id === id);
+    if (!node) return;
+    $("gsvg").querySelectorAll('.gnode[tabindex="0"]').forEach((n) => n.setAttribute("tabindex", "-1"));
+    node.setAttribute("tabindex", "0");
+    gview.focus = id;
+    node.focus({ preventScroll: true });
+  }
+  const gport = makePort($("gmap"), $("gsvg"), {
+    card: $("chaincard"),
+    first: tpPure.containView,
+    hover(ev) {
+      const n = gnodeAt(ev);
+      const tip = $("tip");
+      const L = gview.data;
+      const node = n && L ? L.nodes.find((x) => x.id === n.dataset.id) : null;
+      if (!node) { tip.hidden = true; return; }
+      const e = ((data("epic-export") || {}).epics || []).find((x) => x.id === node.id);
+      tip.innerHTML = L.view === "milestones" ? '<span class="tid">' + esc(node.id) + "</span><br>" + esc((node.open ? "open" : "closed") + ", " + node.done + " of " + node.epics + " work epics done") +
+        "<br>" + esc(plural(node.inbound, "dependency edge", "dependency edges") + " from other milestones' epics") :
+        '<span class="tid">' + esc(node.id) + ", milestone " + esc(node.milestone || "") + "</span><br>" + esc(e ? e.title : "") +
+        (node.any_of ? "<br>one of {" + esc(node.any_of.join(", ")) + "}" : "") + (node.deferrable ? "<br>deferrable" : "");
+      tip.hidden = false;
+      tip.style.left = Math.min(ev.clientX + 14, window.innerWidth - 310) + "px";
+      tip.style.top = (ev.clientY + 14) + "px";
+    },
+    click(ev) {
+      const n = gnodeAt(ev);
+      if (n) gpick(n.dataset.id);
+    },
+  });
+  $("gsvg").addEventListener("keydown", (ev) => {
+    const node = ev.target.closest && ev.target.closest(".gnode");
+    if (!node) return;
+    if (ev.key === "Enter" || ev.key === " ") {
+      ev.preventDefault();
+      gpick(node.dataset.id);
+      return;
+    }
+    const next = tpPure.roveNext(gview.pos, node.dataset.id, ev.key);
+    if (next === node.dataset.id) return;
+    ev.preventDefault();
+    gfocus(next);
+    gport.reveal(gview.pos[next]);
+  });
+  $("chaincard").addEventListener("click", (ev) => {
+    const b = ev.target.closest("[data-gv]");
+    if (!b) return;
+    gview.view = b.dataset.gv;
+    syncURL();
+    graphPanel();
+  });
+  $("gm").addEventListener("change", (ev) => { Object.assign(gview, { view: "scope", milestone: ev.target.value }); syncURL(); graphPanel(); });
+  $("gd").addEventListener("change", (ev) => { gview.depth = Number(ev.target.value); syncURL(); graphPanel(); });
+  $("glegend").innerHTML = '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path d="M1 7.5H14" stroke="var(--crit)" stroke-width="2.6"/></svg>critical path</span>' +
+    '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path d="M1 3L9 7.5M1 12L9 7.5M9 7.5H14" stroke="var(--accent)" stroke-dasharray="2 1.5" fill="none"/></svg>one of an any-of group</span>' +
+    '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path d="M1 7.5H14" stroke="var(--accent)" stroke-width="2"/></svg>the selected epic\'s edges</span>' +
+    '<span class="help">Milestones: click one for its gate closure. Gate closure: banded by milestone; click an epic to select it. Neighbourhood: what it depends on to the left, what depends on it to the right; click an epic to re-centre on it. Drag or one finger pans; Ctrl or ⌘ with the wheel, or a pinch, zooms.</span>';
 
   // drawMatrix draws the summary's milestone matrix in track order.
   function drawMatrix(g, sum) {
@@ -1480,6 +1735,7 @@
   function drawSelected() {
     const g = data("epic-export");
     drawChain(state.graph && g ? g : null);
+    graphPanel();
     drawMatrix(state.graph ? g : null, data("summary"));
     if (mapView.selected && epicHist.id !== mapView.selected) Object.assign(epicHist, { id: mapView.selected, data: null, error: null });
     drawDrawer();
@@ -2218,8 +2474,8 @@
   // whose tasks it picks out, sec, a section anchor without its sign). A change of
   // place (tab, spec, view, task, epic, slice, rounds) adds a history entry;
   // a filter replaces the current one.
-  const URL_KEYS = ["tab", "spec", "view", "task", "epic", "tracks", "edges", "nb", "q", "phase", "sq", "tview", "slice", "hr", "stage", "sec"];
-  const PLACE_KEYS = ["tab", "spec", "view", "task", "epic", "slice", "hr"];
+  const URL_KEYS = ["tab", "spec", "view", "task", "epic", "tracks", "edges", "nb", "q", "phase", "sq", "tview", "slice", "hr", "stage", "sec", "gv", "gm", "gd"];
+  const PLACE_KEYS = ["tab", "spec", "view", "task", "epic", "slice", "hr", "gv", "gm"];
   const address = { landed: false, quiet: false, applying: false };
 
   function placeParams() {
@@ -2243,6 +2499,9 @@
     put("sq", specsView.q);
     put("slice", hist.dir);
     if (hist.dir && hist.pair) put("hr", hist.pair.join("-"));
+    put("gv", gview.view);
+    if (gview.view === "scope") put("gm", gview.milestone);
+    if (gview.depth !== 2) put("gd", String(gview.depth));
     return p;
   }
 
@@ -2294,6 +2553,9 @@
     if (slice !== hist.dir || String(pair) !== String(hist.pair)) {
       Object.assign(hist, { dir: slice, pair, data: slice === hist.dir ? hist.data : null, pairData: null, error: null, seen: null });
     }
+    gview.view = GVIEWS.includes(p.get("gv")) ? p.get("gv") : null;
+    gview.milestone = p.get("gm") || null;
+    gview.depth = /^[1-4]$/.test(p.get("gd") || "") ? Number(p.get("gd")) : 2;
     $("map-q").value = mapView.q;
     $("specs-q").value = specsView.q;
     $("f-edges").setAttribute("aria-pressed", String(mapView.edges));

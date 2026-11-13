@@ -284,6 +284,27 @@ body.mapfs .card.fs .legend { max-height: 30vh; overflow: auto; }
 .map .nbdir.in { fill: var(--ready); }
 .map .nbdir.out { fill: var(--held); }
 .map .crit { fill: none; stroke: var(--crit); stroke-width: 2.6; stroke-linejoin: round; stroke-linecap: round; opacity: .85; }
+/* the dependency views (dashboard-ux.md §2): tp lays them out, the page draws them */
+.gmap { height: min(64vh, 600px); }
+.map .gnode { cursor: pointer; }
+.map .gnode:focus { outline: none; }
+.map .gnode:focus-visible .rowhit, .map .gnode:focus-visible .msbox { stroke: var(--color-focus); stroke-width: 2; }
+.map .gnode.dim { opacity: .2; }
+.map .gnode.centre .eid { font-weight: 600; fill: var(--ink); }
+.map .gsub { font: 400 12px var(--font-display); fill: var(--muted); }
+.map .gband { fill: var(--surface); stroke: var(--line); opacity: .7; }
+.map .gband.odd { fill: var(--color-paper-3); }
+.map .gedge { fill: none; stroke: var(--faint); stroke-width: 1; opacity: .6; }
+.map .gedge.any { stroke: var(--accent); stroke-dasharray: 3 2; }
+.map .gedge.crit { stroke: var(--crit); stroke-width: 2.2; opacity: .9; }
+.map .gedge.hl { stroke: var(--accent); stroke-width: 2; opacity: 1; }
+.map .gedge.dimmed { opacity: .1; }
+.map .gfork { fill: var(--accent); }
+.gpick { display: inline-flex; align-items: center; gap: var(--space-2xs); font-size: var(--text-sm); color: var(--muted); }
+.gpick select { font: inherit; min-height: 32px; padding: 0 var(--space-xs); border: 1px solid var(--color-rule-2); border-radius: var(--radius-input); background: var(--surface); color: var(--ink); }
+.chaintext { padding: var(--space-sm) var(--space-md); border-top: 1px solid var(--line); }
+.chaintext summary { cursor: pointer; font: 600 var(--text-sm) var(--font-display); color: var(--ink-2); }
+.chaintext[open] summary { margin-bottom: var(--space-sm); }
 .legend { display: flex; flex-wrap: wrap; gap: 6px var(--space-md); padding: 10px var(--space-md); border-top: 1px solid var(--line); font-size: var(--text-sm); color: var(--muted); }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .legend svg { width: 16px; height: 16px; }
