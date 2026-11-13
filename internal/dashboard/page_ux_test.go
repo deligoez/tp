@@ -582,6 +582,24 @@ func TestPure_DescribedEpicsAreCountedPerMilestone(t *testing.T) {
 	assert.JSONEq(t, `{"M": {"described": 1, "all": 3}, "N": {"described": 1, "all": 1}}`, got)
 }
 
+// TestPure_AGateClosureCountsItsDescribedEpics: a gate closure's header
+// says how many of the closure's epics are described, read from the
+// layout's nodes, since the per-milestone count does not answer it for a
+// closure spanning milestones (1.14.1).
+func TestPure_AGateClosureCountsItsDescribedEpics(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([P.closureDescribed([{ id: "a" }, { id: "b" }, { id: "c" }], new Set(["a", "c", "z"])), P.closureDescribed([], new Set(["a"]))]);`)
+	assert.JSONEq(t, `["2 of 3 in the closure described", "0 of 0 in the closure described"]`, got)
+}
+
+// TestPage_TheClosureHeaderSaysHowManyAreDescribed: the closure view's
+// header carries closureDescribed's sentence.
+func TestPage_TheClosureHeaderSaysHowManyAreDescribed(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Contains(t, script, "tpPure.closureDescribed(L.nodes, ctx.described)")
+}
+
 // TestPage_MarksDescribedEpicsAndCountsThemPerMilestone: a described epic
 // carries a mark on the map and in the dependency views, and each
 // milestone's entry says how many of its epics are described.
