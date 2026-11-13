@@ -77,22 +77,22 @@ type dashboardLayout struct {
 	Edges     []layoutEdge        `json:"edges"`
 }
 
-// layoutNode is one node and its place. An epic node names its milestone; a
-// scope's carries its closure marks and the neighbourhood's centre is
-// marked. A milestone node carries its work epics, those done, the
-// dependency edges into it from other milestones' epics (an any-of member
-// one each) and whether it is open.
+// layoutNode is one node and its place. A neighbourhood's epic node names
+// its milestone, which the view has no band for, and its centre is marked;
+// a scope's carries only whether it is deferrable, its milestone being in
+// the export and its any-of group on its edges. A milestone node carries its work
+// epics, those done, the dependency edges into it from other milestones'
+// epics (an any-of member one each) and whether it is open.
 type layoutNode struct {
 	ID string `json:"id"`
 	engine.LayoutPlace
-	Milestone  string   `json:"milestone,omitempty"`
-	AnyOf      []string `json:"any_of,omitempty"`
-	Deferrable bool     `json:"deferrable,omitempty"`
-	Centre     bool     `json:"centre,omitempty"`
-	Epics      *int     `json:"epics,omitempty"`
-	Done       *int     `json:"done,omitempty"`
-	Inbound    *int     `json:"inbound,omitempty"`
-	Open       *bool    `json:"open,omitempty"`
+	Milestone  string `json:"milestone,omitempty"`
+	Deferrable bool   `json:"deferrable,omitempty"`
+	Centre     bool   `json:"centre,omitempty"`
+	Epics      *int   `json:"epics,omitempty"`
+	Done       *int   `json:"done,omitempty"`
+	Inbound    *int   `json:"inbound,omitempty"`
+	Open       *bool  `json:"open,omitempty"`
 }
 
 // layoutEdge is one edge: from the dependency to its dependent, or from a
@@ -234,8 +234,7 @@ func scopeLayout(g *model.EpicGraph, states map[string]engine.EpicState, milesto
 	out := layoutOf(layoutViewScope, ids, edges, bands, bandOf)
 	out.Milestone = milestone
 	for i := range out.Nodes {
-		n := &out.Nodes[i]
-		n.Milestone, n.AnyOf, n.Deferrable = bandOf[n.ID], marks[n.ID].AnyOf, marks[n.ID].Deferrable
+		out.Nodes[i].Deferrable = marks[out.Nodes[i].ID].Deferrable
 	}
 	return out
 }
