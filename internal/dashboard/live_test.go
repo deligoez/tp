@@ -1,6 +1,9 @@
 package dashboard
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -86,4 +89,28 @@ func TestHub_GivesALatePageTheCurrentStateInDerivationOrder(t *testing.T) {
 		names = append(names, ev.name)
 	}
 	assert.Equal(t, []string{"a", "b", "c"}, names)
+}
+
+// TestHub_AClosedStreamReleasesItsSubscription: a page that closes its
+// EventSource, as a hidden tab does, leaves the hub at once, so the server
+// holds nothing for it and the tick loop can stop.
+func TestHub_AClosedStreamReleasesItsSubscription(t *testing.T) {
+	t.Parallel()
+	h := newHub(func() []Payload { return []Payload{{Event: "x", Data: 1}} }, 10*time.Millisecond)
+	srv := httptest.NewServer(http.HandlerFunc(h.serveEvents))
+	defer srv.Close()
+	ctx, cancel := context.WithCancel(t.Context())
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL, http.NoBody)
+	require.NoError(t, err)
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	subscribers := func() int {
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		return len(h.subs)
+	}
+	require.Eventually(t, func() bool { return subscribers() == 1 }, time.Second, 5*time.Millisecond)
+	cancel()
+	_ = resp.Body.Close()
+	assert.Eventually(t, func() bool { return subscribers() == 0 }, time.Second, 5*time.Millisecond, "the closed stream left the hub")
 }
