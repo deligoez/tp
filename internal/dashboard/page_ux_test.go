@@ -290,3 +290,24 @@ func TestPage_AGatesThresholdAndPurposeReadInFull(t *testing.T) {
 	assert.NotContains(t, page, ".ms .th { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }")
 	assert.Contains(t, script, ".purpose")
 }
+
+// TestPure_DescribedEpicsAreCountedPerMilestone: an epic counts as
+// described when its description holds more than whitespace, as tp treats
+// one, and each milestone gets its described and all epics.
+func TestPure_DescribedEpicsAreCountedPerMilestone(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out(P.describedCounts([{ id: "a", milestone: "M", description: "## Purpose" }, { id: "b", milestone: "M", description: "  \n" },
+  { id: "c", milestone: "M" }, { id: "d", milestone: "N", description: "x" }]));`)
+	assert.JSONEq(t, `{"M": {"described": 1, "all": 3}, "N": {"described": 1, "all": 1}}`, got)
+}
+
+// TestPage_MarksDescribedEpicsAndCountsThemPerMilestone: a described epic
+// carries a mark on the map and in the dependency views, and each
+// milestone's entry says how many of its epics are described.
+func TestPage_MarksDescribedEpicsAndCountsThemPerMilestone(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, s := range []string{"tpPure.describedCounts(", "descMark(", " described"} {
+		assert.Contains(t, script, s)
+	}
+}
