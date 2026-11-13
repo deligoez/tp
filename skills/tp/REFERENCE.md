@@ -2374,7 +2374,7 @@ It writes nothing to the repository and loads nothing remote.
 |---------|--------|
 | a `Host` other than `127.0.0.1:<port>` or `localhost:<port>` (name case-insensitive, port required) | 403, before anything else |
 | any method but `GET` | 405 with `Allow: GET` |
-| `/`, `/style.css`, `/pure.js`, `/app.js`, `/graph.js`, `/favicon.svg`, `/vendor/deckgl-9.3.12.min.js` | the page; the vendored renderer with `Content-Encoding: gzip` when the request accepts it, decompressed otherwise |
+| `/`, `/style.css`, `/pure.js`, `/app.js`, `/graph.js`, `/favicon.svg`, `/i18n/en.json`, `/i18n/tr.json`, `/vendor/deckgl-9.3.12.min.js` | the page; the vendored renderer with `Content-Encoding: gzip` when the request accepts it, decompressed otherwise |
 | `/api/events` | the event stream below |
 | `/api/export?file=<path>`, `<path>` a `tp export --list` row's `path` | `tp export --file <path>`'s JSON, uncompacted |
 | `/api/history?milestone=<m>` (or `epic=`, `epics=`, with `name=`, and `from=`/`to=`) | that slice's `tp epic review --history` JSON |
@@ -2417,6 +2417,12 @@ of the browser's connections to the dashboard.
 
 The epic drawer shows a selected epic's `description` (v1.11.0), read from the export's raw graph,
 as preformatted text: escaped, never rendered as markup.
+
+**Language** (v1.17.0). The page reads in English or Turkish: an EN | TR switch in its header
+picks one, the browser keeps the choice, and without one a browser language starting `tr` reads
+Turkish and any other English. The words come from `/i18n/<lang>.json`; every API answer and
+event stays English and serves states as values (`claimed`, `cap_reached`, a phase name), which
+the page words, so a payload carries no translated word and reads the same in both languages.
 
 **Layout** (v1.13.0; the forest, `plan` and `pack` v1.17.0). `/api/layout` lays one view of the
 graph out, so the page draws it and computes nothing about the graph. It is presentation, not a
