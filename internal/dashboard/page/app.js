@@ -517,8 +517,8 @@
         const on = s.dir === hist.dir;
         return '<tr class="' + (on ? "on" : "") + '"><td class="k"><button type="button" class="slink" data-slice="' + esc(s.dir) + '" aria-pressed="' + on +
           '" title="Show this slice\'s graph history">' + esc(sliceTitle(s)) + "</button>" +
-          (s.key && s.key.kind === "epics" ? '<small class="scmd">' + esc(sliceLabel(s)) + "</small>" : "") + "</td><td>" + esc(roundText(s)) + '</td><td><span class="st" data-s="' + esc(s.state) + '"' + stale + ">" +
-          esc(s.state.replace("_", " ")) + '</span></td><td class="n">' + open + "</td><td>" + curve(sum ? sum.rounds[s.dir] : null) + "</td></tr>";
+          (s.key && s.key.kind === "epics" ? '<small class="scmd">' + esc(sliceLabel(s)) + "</small>" : "") + '</td><td data-l="Round">' + esc(roundText(s)) + '</td><td data-l="State"><span class="st" data-s="' + esc(s.state) + '"' + stale + ">" +
+          esc(s.state.replace("_", " ")) + '</span></td><td class="n" data-l="Open findings by role">' + open + '</td><td data-l="Findings per round">' + curve(sum ? sum.rounds[s.dir] : null) + "</td></tr>";
       }).join("") + "</tbody></table>";
   });
 
