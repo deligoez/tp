@@ -263,3 +263,24 @@ func TestCarriedBlocking_AnEpochPastABlockingRowIsTheOperators(t *testing.T) {
 	assert.Contains(t, cut[0]["finding"], "MARKER-OLD-TEXT")
 }
 
+// TestCarriedBlocking_AnEpochPastNoBlockingRowIsOrdinary: an epoch whose cut
+// holds no unresolved blocking row — here a medium left open and a high fixed —
+// stays the ordinary mode 1.14.0 shipped, under TP_UNATTENDED too.
+func TestCarriedBlocking_AnEpochPastNoBlockingRowIsOrdinary(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeSpec(t, dir, epochOldSpec)
+	_, stderr, code := recordRound(t, dir,
+		`{"evidence":"e","severity":"medium","category":"clarity","location":"§1","finding":"a medium","suggestion":"s"}`+"\n"+epochHighRow)
+	require.Equal(t, 0, code, stderr)
+	_, stderr, code = runTP(t, dir, "review", filepath.Join(dir, ".tp-review", "spec", "review-round-1.ndjson"), "--resolve", "1", "fixed", "reworded")
+	require.Equal(t, 0, code, stderr)
+	writeSpec(t, dir, epochNewSpec)
+
+	stdout, stderr, code := runTPFence(t, dir, true, "review", "spec.md", "--rewritten", "replaced the spec")
+	require.Equal(t, 0, code, stderr)
+	var out map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+	assert.NotContains(t, out, "cut_blocking")
+	assert.NotContains(t, stderr, "rewrite-past-blocking")
+}
