@@ -853,16 +853,54 @@ Finding text and `class` slugs are written in **English** whatever language the 
 | `prompts[].prompt` | paragraph text | structured; shared arm: Role → Role Rules → Project Context → JSON-array Checklist → Disposition → Affected Files → Output Schema; `spec-coverage`: Role → Role Rules → Spec Excerpt → JSON-array Checklist → Affected Files → Output Schema |
 | `prompts[].checklist_items` | absent | `[]ChecklistItem` (`item_id`, `type`, `spec_line`, `section`, `text`, `expected_evidence`) |
 | `prompts[].affected_files` | absent | `[]{path, tasks, diff_summary}` |
+| `prompts[].file_count`, `prompts[].file_pool` | absent | v1.15.0: listed files, and the pool they were cut from |
+| `notices` | absent | v1.15.0: `[]{kind, message, files?}`, omitted when empty |
 
 Item ids are deterministic: `table-<t>-<r>`, `list-<l>-<n>`, `task-<id>`, `file-<role-id>-<slug>.<digest>` (the slug derives from the file path plus the item text, cut to 40 characters, and the digest is the first 16 hex characters of the sha256 of the cleaned path, so an id is a function of the role and the path alone; `--affected-files` paths are cleaned, made repo-relative and deduped first. A prior round's ids of the earlier form, with no digest, name no item of this round, and the prompt lists them apart to be matched by `evidence_file`), `finding-<n>`. Sub-agents return one NDJSON row per checklist item: `{item_id, status(PASS|PARTIAL|FAIL), evidence_file, evidence_lines, category, severity, notes, class?}`. `category`/`severity` are `null` for PASS and one of the enum values for PARTIAL/FAIL. Finding category enum: `security > concurrency > error-handling > correctness > contract` (resolution precedence when several apply — the auditor picks one, tp does not resolve for it). **`tp audit --record` enforces the enum (v0.34.1):** a row carrying anything else aborts the record at exit 1, naming every offending line at once and listing the five, and no round file is written. A row with no `category`, which is every PASS row, is untouched.
 
-**`file_summary` (v0.35.0):** `{total_files, total_lines, chars_included, truncated, total_changed}`. Auto-detect caps the audited set at **50** files. `total_files` stays the **audited** count, `total_changed` is the **pre-cap** count, and `truncated` is true exactly when the cap bit. The stderr notice names both numbers — `63 files changed, auditing first 50 — name the rest with --affected-files` — but the flag lives in the payload, so `--quiet`, which erases that line, cannot hide the truncation from a driver. `--compact` drops `file_summary` in its entirety, and the flag with it, so a `--compact` audit is not the place to read truncation from.
+**`file_summary` (v0.35.0):** `{total_files, total_lines, chars_included, truncated, total_changed}`. Auto-detect caps the audited set at **50** files. `total_files` stays the **audited** count, `total_changed` is the **pre-cap** count, and `truncated` is true when that cap bit or, from v1.15.0, when a role's cap cut the list a prompt carries (a `*-files-cut` notice below). The stderr notice names both numbers — `63 files changed, auditing first 50 — name the rest with --affected-files` — but the flag lives in the payload, so `--quiet`, which erases that line, cannot hide the truncation from a driver. `--compact` drops `file_summary` in its entirety, and the flag with it; the `notices` array and each prompt's `file_count`/`file_pool` survive it.
 
 **`spec_truncated`:** `{path, kept_bytes, total_bytes}`, present only when the spec a role reads
 inline was cut at `engine.SpecContentCap` (10,000 bytes) — at the top level of the `tp audit`
 payload (the spec-coverage excerpt) and of the `tp review` payload in every `--spec-inline` mode (the
 panel, `--verify`, and the `code-audit`, `documentation` and `testing` perspectives). The cut lands
 on a rune boundary, the prompt's marker names the same counts, and the key survives `--compact`.
+
+**File lists, cuts and what a round graded (v1.15.0).**
+
+- **Order.** The code roles share one list: files whose path holds `lock`, `validate`, `auth`,
+  `secret` or `perm` first, then the rest, each group by churn — lines added plus deleted over the
+  audit's own ranges, descending, ties by path. The churn is read with `-c diff.external=
+  --no-ext-diff --numstat -M -z`, so a renamed file ranks by its own edit under its new path; a
+  file with no measured diff, a binary's `-` included, comes last in path order. `CodeFileCap`
+  (10) then cuts the list; spec-coverage keeps its own order and `AuditFileCap` (20).
+- **A named list is not cut.** When `--affected-files` or `--affected-from-tasks` replaced the
+  universe, every code role gets the whole list, and its prompt's heading reads
+  `## Affected Files (all <n> named)`. The other headings stay: `(max <cap>)` when nothing was cut,
+  `(<n> of <pool>)` when the cap bit.
+- **`prompts[].file_count` and `prompts[].file_pool`.** How many files the prompt lists and how
+  many its list was cut from; equal when nothing was cut. Both survive `--compact`, which drops
+  `affected_files`, so a long named list shows its cost before fan-out.
+- **`notices`.** Every cut and universe notice the emission printed on stderr, repeated as
+  `[{kind, message, files?}]` and omitted when there are none. It survives `--compact` and
+  `--quiet`. The kinds:
+  - `code-files-cut`: the code roles' list is cut below the auto-detect cap.
+  - `spec-coverage-files-cut`: spec-coverage's own list is cut at 20.
+  - `merge-only-files`: under auto-detection, a file is in `<rev>...HEAD` but no first-parent,
+    non-merge commit of `<rev>..HEAD` changed it, and the working tree has not changed it either,
+    so `git log --first-parent` sees fewer files than the audit. `files` names them all; stderr names
+    five.
+  - `tasks-differ`: under `--affected-from-tasks`, the task-commit files and the auto-detected
+    diff (auditable files, no cap) differ. `files` holds both sides: changed files no task touched,
+    and task files outside the diff.
+- **What a round graded.** At emission tp keeps each code role's `file_pool` in
+  `audit-inbox/round-<N>.pools.json`, written atomically and identically by every sibling unit. At
+  `--record` the round's entry in `state.json` gains `graded: [{role, graded, of}]`. `graded`
+  counts the distinct `file-<role>-` item ids the role returned a row for, whatever the verdict, so
+  a file read and found clean counts. `of` is the pool. The pools file is removed with the round's
+  role files. `--record` reports the same array, and so does each `audit_rounds[]` entry of
+  `--status`. Both `next_action`s end with `(latest round graded <role> <n> of <m>, …)`. A round
+  recorded with no emission has no pools and carries no `graded`.
 
 ## Grounding (`tp ground`, v1.0.0)
 
