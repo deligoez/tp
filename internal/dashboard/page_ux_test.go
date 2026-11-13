@@ -311,3 +311,14 @@ func TestPage_MarksDescribedEpicsAndCountsThemPerMilestone(t *testing.T) {
 		assert.Contains(t, script, s)
 	}
 }
+
+// TestPage_PlanReviewNamesASetSliceByItsName: a set slice's row leads with
+// the set's name and size instead of its whole id list, which follows as the
+// command that reviews it.
+func TestPage_PlanReviewNamesASetSliceByItsName(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Contains(t, script, "function sliceTitle(")
+	assert.Contains(t, script, `"set " + k.name`)
+	assert.Contains(t, script, "esc(sliceTitle(s))")
+}
