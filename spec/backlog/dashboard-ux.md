@@ -98,8 +98,9 @@ per complaint, with before-and-after screenshots in the measurements.
 - **Put positions in `tp epic export`.** Rejected: presentation in a versioned contract.
 - **Draw the whole graph as a layered DAG.** Rejected as the default: at plan size no ordering makes
   it readable; the scoped views are the readable sizes.
-- **Render descriptions as markdown.** Deferred: 1.11.0 chose escaped preformatted text, and safe
-  rendering needs a sanitiser the page does not have.
+- **Render descriptions as markdown.** Deferred at first (1.11.0 chose escaped preformatted text);
+  shipped in 1.17.1 through the page's own small renderer, which escapes before it draws
+  (`spec/1.17.1-measurements.md`, After the hand test).
 
 ## 4. Non-goals
 
