@@ -135,3 +135,41 @@ func TestReviewRewritten_NoRecordedRoundIsRefused(t *testing.T) {
 	assert.NoDirExists(t, filepath.Join(dir, ".tp-review"))
 }
 
+// TestReviewRewritten_AppendsAnEpochAfterEachPhasesLastRound: the epoch is
+// placed after the last recorded round of each phase, holds the evidence and
+// a time, and both phases' --status report it.
+func TestReviewRewritten_AppendsAnEpochAfterEachPhasesLastRound(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeSpec(t, dir, epochOldSpec)
+	_, stderr, code := recordRound(t, dir, epochHighRow)
+	require.Equal(t, 0, code, stderr)
+	_, stderr, code = recordRound(t, dir, "")
+	require.Equal(t, 0, code, stderr)
+	_, stderr, code = auditRecord(t, dir, `{"id":"a","status":"PASS"}`+"\n")
+	require.Equal(t, 0, code, stderr)
+	writeSpec(t, dir, epochNewSpec)
+
+	stdout, stderr, code := runTP(t, dir, "review", "spec.md", "--rewritten", "replaced the spec wholesale")
+	require.Equal(t, 0, code, stderr)
+	var out map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+	epoch, ok := out["epoch"].(map[string]any)
+	require.True(t, ok, "the payload names the epoch: %s", stdout)
+	assert.Equal(t, float64(2), epoch["after_review_round"])
+	assert.Equal(t, float64(1), epoch["after_audit_round"])
+	assert.Equal(t, "replaced the spec wholesale", epoch["evidence"])
+	assert.NotEmpty(t, epoch["at"])
+
+	for _, phase := range []string{"review", "audit"} {
+		stdout, stderr, code = runTP(t, dir, phase, "spec.md", "--status")
+		require.Equal(t, 0, code, "%s --status: %s", phase, stderr)
+		var status map[string]any
+		require.NoError(t, json.Unmarshal([]byte(stdout), &status))
+		epochs, ok := status["epochs"].([]any)
+		require.True(t, ok, "%s --status reports the epochs: %s", phase, stdout)
+		require.Len(t, epochs, 1, phase)
+		assert.Equal(t, epoch, epochs[0], phase)
+	}
+}
+
