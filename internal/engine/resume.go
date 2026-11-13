@@ -176,6 +176,7 @@ func resumeBlockers(taskFilePath, shownSpec string, changes []string, tf *model.
 
 		ReviewCarriedBlocking: loops.reviewDone.CarriedBlocking,
 		ReviewLatestRound:     latestRoundNumber(loops.reviewRounds),
+		ReviewUndisposedAtCap: loops.reviewDone.Undisposed,
 	}), notice, nil
 }
 

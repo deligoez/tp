@@ -60,6 +60,9 @@ type BlockerInputs struct {
 	// round can clear.
 	ReviewCarriedBlocking []CarriedRow
 	ReviewLatestRound     int
+	// ReviewUndisposedAtCap is the latest round's findings with no
+	// disposition at the cap (LoopDone.Undisposed).
+	ReviewUndisposedAtCap int
 
 	// EpicBlock is the task file's epic block (EpicBlockFor), nil for an
 	// unbound file or outside the implement phase.
@@ -67,8 +70,8 @@ type BlockerInputs struct {
 }
 
 // BuildBlockers derives the blockers array in the fixed code order of §4.6:
-// unexplained-changes, no-ready-task, epic-blocked, review-budget-exhausted,
-// audit-budget-exhausted, review-carried-blocking, spec-stale. Multiple
+// unexplained-changes, no-ready-task, epic-blocked, review-carried-blocking,
+// review-budget-exhausted, audit-budget-exhausted, spec-stale. Multiple
 // blockers may coexist. The result is never nil (an empty slice when the agent
 // may run next_action directly).
 func BuildBlockers(in *BlockerInputs) []Blocker {
@@ -102,14 +105,28 @@ func BuildBlockers(in *BlockerInputs) []Blocker {
 		blockers = append(blockers, *b)
 	}
 
+	// review-carried-blocking — escalate: a blocking row of a round before the
+	// latest stands in the carried set, unresolved — its roles are told not to
+	// re-report it, so no further round can clear it — or, at the cap, marked
+	// fixed with no round admitted to verify it. It leads the budget blocker,
+	// whose message then points at it.
+	carried := carriedBlockingBlocker(in)
+	if carried != nil {
+		blockers = append(blockers, *carried)
+	}
+
 	// review-budget-exhausted — escalate: the cap is reached and a finding of the
 	// latest round still carries no disposition (cap 0 never fires). ReviewConverged
 	// is the loop verdict, so a review the cap ended does not fire it.
 	if in.Phase == PhaseReview && in.ReviewMaxRounds != 0 && in.ReviewRounds >= in.ReviewMaxRounds && !in.ReviewConverged {
+		msg := budgetBlockerMessage("review", in.ReviewMaxRounds, in.ReviewBlockingFixedAtCap)
+		if carried != nil && in.ReviewUndisposedAtCap == 0 && in.ReviewBlockingFixedAtCap == 0 {
+			msg = fmt.Sprintf("review reached its %d-round cap with the latest round dispositioned; what holds it open is the carried blocking findings of review-carried-blocking", in.ReviewMaxRounds)
+		}
 		blockers = append(blockers, Blocker{
 			Code:    "review-budget-exhausted",
 			Class:   ClassEscalate,
-			Message: budgetBlockerMessage("review", in.ReviewMaxRounds, in.ReviewBlockingFixedAtCap),
+			Message: msg,
 			Data:    map[string]any{"cap": in.ReviewMaxRounds, "blocking_fixed_at_cap": in.ReviewBlockingFixedAtCap},
 		})
 	}
@@ -123,14 +140,6 @@ func BuildBlockers(in *BlockerInputs) []Blocker {
 			Data:    map[string]any{"cap": in.AuditMaxRounds, "blocking_fixed_at_cap": in.AuditBlockingFixedAtCap},
 		})
 	}
-
-	// review-carried-blocking — escalate: a blocking row of a round before the
-	// latest stands unresolved in the carried set, so its roles are told not
-	// to re-report it and no further round can clear it.
-	if b := carriedBlockingBlocker(in); b != nil {
-		blockers = append(blockers, *b)
-	}
-
 	// spec-stale — escalate: the spec changed since the last review round while
 	// implementing/auditing.
 	if in.ReviewStale && (in.Phase == PhaseImplement || in.Phase == PhaseAudit) {
