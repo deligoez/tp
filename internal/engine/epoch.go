@@ -4,8 +4,8 @@ package engine
 // the spec was rewritten, and the rounds recorded so far describe a document
 // that no longer exists. It holds a position in each phase, because review and
 // audit number their rounds independently and both phases' readers need a cut
-// point: the rounds of a phase numbered at or below its position were recorded
-// before the epoch.
+// point: the rounds of a phase numbered at or below its position are cut, and
+// EpochPosition places it after the last round that read an older text.
 //
 // An epoch changes prompts only. Nothing recorded changes, no disposition is
 // written, convergence still reads the trailing clean rounds and the round cap
@@ -18,8 +18,8 @@ type Epoch struct {
 }
 
 // EpochCut returns the newest epoch's position for phase (PhaseReview or
-// PhaseAudit): its rounds numbered at or below it were recorded before the
-// epoch. 0 when there is no epoch, which cuts nothing.
+// PhaseAudit): its rounds numbered at or below it are cut. 0 when there is no
+// epoch, which cuts nothing.
 func EpochCut(st *ReviewState, phase string) int {
 	if st == nil || len(st.Epochs) == 0 {
 		return 0
