@@ -72,7 +72,7 @@ func TestPage_TheMapGoesFullScreen(t *testing.T) {
 	t.Parallel()
 	page, script := pageText(t)
 	assert.Contains(t, page, `id="f-full"`)
-	for _, s := range []string{"requestFullscreen(", "exitFullscreen(", `"fullscreenchange"`, "document.fullscreenElement", `"mapfs"`} {
+	for _, s := range []string{"requestFullscreen(", "exitFullscreen(", `"fullscreenchange"`, "document.fullscreenElement", `"mapfs"`, "tpPure.wheelZooms("} {
 		assert.Contains(t, script, s)
 	}
 	assert.Contains(t, page, "body.mapfs")
@@ -122,6 +122,7 @@ func TestPage_TheMapTakesTouch(t *testing.T) {
 	page, script := pageText(t)
 	assert.NotContains(t, script, `ev.pointerType === "touch") return`)
 	assert.Contains(t, script, "tpPure.pinchView(")
+	assert.Contains(t, script, "tpPure.pointerAction(")
 	assert.Contains(t, page, "touch-action: none")
 }
 
@@ -144,6 +145,7 @@ func TestPage_SearchAndListsTakeTheMapToTheEpic(t *testing.T) {
 	assert.Contains(t, script, "tpPure.centreView(")
 	assert.Contains(t, script, `$("map-q").addEventListener("keydown"`)
 	assert.Contains(t, script, "selectEpic(a.dataset.epic, true)")
+	assert.Contains(t, script, "if (centre && mapView.selected && mapView.geo) mapPort.centre(", "selectEpic centres the map when asked to")
 }
 
 // TestPage_TheDrawerNarrowsThePageInsteadOfCoveringIt is the drawer rule
@@ -184,7 +186,8 @@ func TestPure_ExactlyOneEpicIsATabStop(t *testing.T) {
 func TestPage_MapEpicsTakeFocusAndEnterSelects(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
-	for _, s := range []string{"tpPure.roveNext(", `role="button" tabindex="`, `ev.key === "Enter" || ev.key === " "`} {
+	assert.Equal(t, 2, strings.Count(script, "tpPure.tabStops("), "the map and the dependency view each take their tab stops from tabStops")
+	for _, s := range []string{"tpPure.roveNext(", `ev.key === "Enter" || ev.key === " "`} {
 		assert.Contains(t, script, s)
 	}
 }
@@ -196,7 +199,7 @@ func TestPage_MapEpicsTakeFocusAndEnterSelects(t *testing.T) {
 func TestPage_TheDrawerTakesFocusAndGivesItBack(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
-	for _, s := range []string{`$("dclose").focus(`, "drawerReturn", "returnFocus("} {
+	for _, s := range []string{`$("dclose").focus(`, "tpPure.focusAfterClose(", "if (!open && drawerReturn) returnFocus();", "data-wg="} {
 		assert.Contains(t, script, s)
 	}
 }
