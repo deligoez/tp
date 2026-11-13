@@ -315,8 +315,8 @@ func packTree(root int, children [][]int, col []float64, cursor *float64) {
 			col[f.v] = (col[kids[0]] + col[kids[len(kids)-1]]) / 2
 		default:
 			stack = append(stack, frame{f.v, true})
-			for i := len(kids) - 1; i >= 0; i-- {
-				stack = append(stack, frame{kids[i], false})
+			for _, kid := range slices.Backward(kids) {
+				stack = append(stack, frame{kid, false})
 			}
 		}
 	}
