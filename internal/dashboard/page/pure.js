@@ -452,10 +452,12 @@
     return { attr: "data-" + key.slice(0, at), value: key.slice(at + 1) };
   };
 
-  // addressURL is the address syncURL writes for the page's place, hash, at
-  // loc (location's pathname and search).
-  P.addressURL = function (loc, hash) {
-    return loc.pathname + loc.search + "#" + hash;
+  // addressURL is the address syncURL writes for the page's place, hash:
+  // the fragment alone, relative, so it keeps the page's path, query and
+  // origin. Prefixing location.pathname would turn a "//" path into a
+  // protocol-relative URL naming another origin, which history refuses.
+  P.addressURL = function (hash) {
+    return "#" + hash;
   };
 
   if (typeof module === "object" && module.exports) module.exports = P;

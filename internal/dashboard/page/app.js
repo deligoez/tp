@@ -2750,7 +2750,7 @@
     address.quiet = false;
     if (next.toString() === cur.toString()) return;
     const moved = PLACE_KEYS.some((k) => (next.get(k) || "") !== (cur.get(k) || ""));
-    const url = tpPure.addressURL(location, next.toString());
+    const url = tpPure.addressURL(next.toString());
     if (moved && address.landed && !quiet) history.pushState(null, "", url);
     else history.replaceState(null, "", url);
   }
