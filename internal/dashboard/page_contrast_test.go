@@ -33,7 +33,7 @@ func themeTokens(t *testing.T, css string, dark bool) map[string]string {
 	}
 	ref := regexp.MustCompile(`^var\((--[\w-]+)\)$`)
 	for k, v := range tok {
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			r := ref.FindStringSubmatch(v)
 			if r == nil {
 				break
