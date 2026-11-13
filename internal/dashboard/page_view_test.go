@@ -474,3 +474,13 @@ func TestPage_TheFullScreenPillKeepsItsControlsWhole(t *testing.T) {
 	assert.Contains(t, page, "body.mapfs .gcard.fs .toolbar > *, body.mapfs .gcard.fs .toolbar .seg button { flex: none; white-space: nowrap; }")
 	assert.Contains(t, page, "@container (max-width: 1240px) { body.mapfs .gcard.fs .gcountfs { display: none; } }")
 }
+
+// TestPage_ADoneEpicHasNoCurrentStep: a done epic's stepper marks no step
+// current, and a step it never reached, such as binding a spec, as skipped.
+func TestPage_ADoneEpicHasNoCurrentStep(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, s := range []string{"const cur = reached.done ? -1 : ESTEPS.findIndex(([k]) => !reached[k]);", `if (st === "todo" && reached.done) st = "skip";`} {
+		assert.Contains(t, script, s)
+	}
+}
