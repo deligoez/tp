@@ -369,7 +369,7 @@ func epicEdges(g *model.EpicGraph, in map[string]bool, path []string) ([]string,
 // epics of path preferred as primary parents, and lists the nodes by
 // layer, then column, then graph order, each with its layer and forest
 // column, each edge with its role.
-func layoutOf(view string, ids []string, edges []layoutEdge, path []string, bands []string, bandOf, groupOf, laneOf map[string]string, pack engine.ForestPacking) dashboardLayout {
+func layoutOf(view string, ids []string, edges []layoutEdge, path, bands []string, bandOf, groupOf, laneOf map[string]string, pack engine.ForestPacking) dashboardLayout {
 	in := make([]engine.LayoutEdge, len(edges))
 	onPath := make([]bool, len(edges))
 	next := map[string]string{}
