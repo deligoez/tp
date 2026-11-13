@@ -18,6 +18,11 @@ type API interface {
 	History(query url.Values) (any, *Error)
 	// EpicHistory is tp epic review --history --of-epic epic's payload.
 	EpicHistory(epic string) (any, *Error)
+	// Layout is one scoped view of the graph laid out in layers
+	// (spec/backlog/dashboard-ux.md §2): the view and the milestone or epic
+	// the query names, each node's layer and order, and the edges with their
+	// marks. It is presentation, so no command prints it.
+	Layout(query url.Values) (any, *Error)
 	// Live derives the payloads the server pushes on every tick: tp epic
 	// export when a graph exists, tp export --list, and the summary.
 	Live() []Payload
@@ -51,6 +56,7 @@ func apiHandlers(api API) map[string]func(url.Values) (any, *Error) {
 	return map[string]func(url.Values) (any, *Error){
 		"/api/export":  func(q url.Values) (any, *Error) { return api.Export(q.Get("file")) },
 		"/api/history": func(q url.Values) (any, *Error) { return api.History(q) },
+		"/api/layout":  func(q url.Values) (any, *Error) { return api.Layout(q) },
 		"/api/epic-history": func(q url.Values) (any, *Error) {
 			epic := q.Get("epic")
 			if epic == "" {

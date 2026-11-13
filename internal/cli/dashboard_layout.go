@@ -1,0 +1,322 @@
+package cli
+
+import (
+	"cmp"
+	"fmt"
+	"net/url"
+	"slices"
+	"strconv"
+
+	"github.com/deligoez/tp/internal/dashboard"
+	"github.com/deligoez/tp/internal/engine"
+	"github.com/deligoez/tp/internal/model"
+)
+
+// The layout endpoint's views (spec/backlog/dashboard-ux.md §2), a closed set,
+// each with the parameters it takes beside view; the first one it lists is
+// required, except for milestones, which takes none.
+const (
+	layoutViewMilestones    = "milestones"
+	layoutViewScope         = "scope"
+	layoutViewNeighbourhood = "neighbourhood"
+)
+
+var layoutViewParams = map[string][]string{
+	layoutViewMilestones:    {},
+	layoutViewScope:         {"milestone"},
+	layoutViewNeighbourhood: {"epic", "depth"},
+}
+
+// The neighbourhood's depth: its default, and the bounds it is clamped to.
+const (
+	layoutDefaultDepth = 2
+	layoutMinDepth     = 1
+	layoutMaxDepth     = 4
+)
+
+// dashboardLayoutHint answers a /api/layout query the endpoint refuses.
+const dashboardLayoutHint = "name one view: ?view=milestones, ?view=scope&milestone=<m>, or ?view=neighbourhood&epic=<id>[&depth=<1-4>]"
+
+// dashboardLayoutAbsentHint answers a milestone or epic the graph does not
+// hold.
+const dashboardLayoutAbsentHint = "pass a milestone a track lists, or an epic id, exactly as tp epic export prints it"
+
+// layoutQuery is a /api/layout query the endpoint accepts.
+type layoutQuery struct {
+	view      string
+	milestone string
+	epic      string
+	depth     int
+}
+
+// dashboardLayout is /api/layout's payload: the view and what it is about,
+// the number of layers, the milestone bands of a scope, and the nodes in
+// layer then order with the edges between them, a dependency's edge from it
+// to its dependent.
+type dashboardLayout struct {
+	View      string              `json:"view"`
+	Milestone string              `json:"milestone,omitempty"`
+	Epic      string              `json:"epic,omitempty"`
+	Depth     int                 `json:"depth,omitempty"`
+	Layers    int                 `json:"layers"`
+	Bands     []engine.LayoutBand `json:"bands,omitempty"`
+	Nodes     []layoutNode        `json:"nodes"`
+	Edges     []layoutEdge        `json:"edges"`
+}
+
+// layoutNode is one node and its place. An epic node names its milestone; a
+// scope's carries its closure marks and the neighbourhood's centre is
+// marked. A milestone node carries its work epics, those done, the
+// dependency edges into it from other milestones' epics (an any-of member
+// one each) and whether it is open.
+type layoutNode struct {
+	ID string `json:"id"`
+	engine.LayoutPlace
+	Milestone  string   `json:"milestone,omitempty"`
+	AnyOf      []string `json:"any_of,omitempty"`
+	Deferrable bool     `json:"deferrable,omitempty"`
+	Centre     bool     `json:"centre,omitempty"`
+	Epics      *int     `json:"epics,omitempty"`
+	Done       *int     `json:"done,omitempty"`
+	Inbound    *int     `json:"inbound,omitempty"`
+	Open       *bool    `json:"open,omitempty"`
+}
+
+// layoutEdge is one edge: from the dependency to its dependent, or from a
+// milestone to one that opens after it. Critical marks an edge of the
+// critical path drawn; AnyOf names the group of an edge from an any-of
+// member.
+type layoutEdge struct {
+	From     string   `json:"from"`
+	To       string   `json:"to"`
+	Critical bool     `json:"critical,omitempty"`
+	AnyOf    []string `json:"any_of,omitempty"`
+}
+
+// Layout answers /api/layout: the view the query names, laid out by
+// engine.LayeredLayout over the graph and its derived states.
+func (dashboardAPI) Layout(q url.Values) (any, *dashboard.Error) {
+	lq, derr := dashboardLayoutQuery(q)
+	if derr != nil {
+		return nil, derr
+	}
+	g, states, _, rerr := readEpicStates()
+	if rerr != nil {
+		return nil, runErrorOf(rerr)
+	}
+	switch lq.view {
+	case layoutViewScope:
+		if _, tracked := engine.MilestoneGates(g, states)[lq.milestone]; !tracked {
+			return nil, dashboard.NewError(ExitState, fmt.Sprintf("milestone %q is not one a track lists", lq.milestone), dashboardLayoutAbsentHint)
+		}
+		return scopeLayout(g, states, lq.milestone), nil
+	case layoutViewNeighbourhood:
+		if !slices.ContainsFunc(g.Epics, func(e model.Epic) bool { return e.ID == lq.epic }) {
+			return nil, dashboard.NewError(ExitState, fmt.Sprintf("epic %q is not in the graph", lq.epic), dashboardLayoutAbsentHint)
+		}
+		return neighbourhoodLayout(g, states, lq.epic, lq.depth), nil
+	default:
+		return milestonesLayout(g, states), nil
+	}
+}
+
+// dashboardLayoutQuery reads q under the endpoint's rules: view once and one
+// of the closed set, no parameter its view does not take, each at most once,
+// the one it needs present and not empty, and depth a number, clamped.
+func dashboardLayoutQuery(q url.Values) (layoutQuery, *dashboard.Error) {
+	bad := func(msg string) (layoutQuery, *dashboard.Error) {
+		return layoutQuery{}, dashboard.NewError(ExitUsage, msg, dashboardLayoutHint)
+	}
+	view := q.Get("view")
+	params, known := layoutViewParams[view]
+	if len(q["view"]) != 1 || !known {
+		return bad("/api/layout takes view once: milestones, scope or neighbourhood")
+	}
+	for key, values := range q {
+		if key != "view" && !slices.Contains(params, key) {
+			return bad(fmt.Sprintf("view %s takes no %s", view, key))
+		}
+		if len(values) != 1 {
+			return bad(key + " is given more than once")
+		}
+	}
+	if len(params) > 0 && q.Get(params[0]) == "" {
+		return bad(fmt.Sprintf("view %s needs %s", view, params[0]))
+	}
+	lq := layoutQuery{view: view, milestone: q.Get("milestone"), epic: q.Get("epic")}
+	if view == layoutViewNeighbourhood {
+		lq.depth = layoutDefaultDepth
+		if q.Has("depth") {
+			d, err := strconv.Atoi(q.Get("depth"))
+			if err != nil {
+				return bad("depth is a whole number of steps")
+			}
+			lq.depth = min(layoutMaxDepth, max(layoutMinDepth, d))
+		}
+	}
+	return lq, nil
+}
+
+// milestonesLayout is the overview: every tracked milestone, an edge from
+// each milestone it opens after, and its counts.
+func milestonesLayout(g *model.EpicGraph, states map[string]engine.EpicState) dashboardLayout {
+	ids := trackedMilestones(g)
+	after := engine.EffectiveOpensAfter(g)
+	var edges []layoutEdge
+	for _, m := range ids {
+		for _, p := range after[m] {
+			edges = append(edges, layoutEdge{From: p, To: m})
+		}
+	}
+	inbound := milestoneInbound(g)
+	gates := engine.MilestoneGates(g, states)
+	out := layoutOf(layoutViewMilestones, ids, edges, nil, nil)
+	for i := range out.Nodes {
+		m := out.Nodes[i].ID
+		f := engine.WorkFigures(g, states, nil, m)
+		open, in := gates[m].Open, inbound[m]
+		out.Nodes[i].Epics, out.Nodes[i].Done, out.Nodes[i].Inbound, out.Nodes[i].Open = &f.Work, &f.Done, &in, &open
+	}
+	return out
+}
+
+// milestoneInbound counts, per milestone, the dependency edges its epics
+// have on other milestones' epics, an any-of member one each.
+func milestoneInbound(g *model.EpicGraph) map[string]int {
+	milestoneOf := map[string]string{}
+	for i := range g.Epics {
+		milestoneOf[g.Epics[i].ID] = g.Epics[i].Milestone
+	}
+	out := map[string]int{}
+	for i := range g.Epics {
+		e := &g.Epics[i]
+		for _, d := range e.DependsOn {
+			for _, id := range d.Names() {
+				if m, ok := milestoneOf[id]; ok && m != e.Milestone {
+					out[e.Milestone]++
+				}
+			}
+		}
+	}
+	return out
+}
+
+// scopeLayout is a gate's closure as tp epic scope derives it, banded by
+// milestone, its critical path marked.
+func scopeLayout(g *model.EpicGraph, states map[string]engine.EpicState, milestone string) dashboardLayout {
+	scope := engine.MilestoneScope(g, states, nil, milestone)
+	in := map[string]bool{}
+	bandOf := map[string]string{}
+	marks := map[string]engine.ScopeEpic{}
+	var bands []string
+	for _, m := range scope.Closure {
+		bands = append(bands, m.Milestone)
+		for _, e := range m.Epics {
+			in[e.ID], bandOf[e.ID], marks[e.ID] = true, m.Milestone, e
+		}
+	}
+	ids, edges := epicEdges(g, in, scope.CriticalPath.ByCount)
+	out := layoutOf(layoutViewScope, ids, edges, bands, bandOf)
+	out.Milestone = milestone
+	for i := range out.Nodes {
+		n := &out.Nodes[i]
+		n.Milestone, n.AnyOf, n.Deferrable = bandOf[n.ID], marks[n.ID].AnyOf, marks[n.ID].Deferrable
+	}
+	return out
+}
+
+// neighbourhoodLayout is epic with what it depends on and what depends on
+// it, depth steps each way, the graph's critical path marked.
+func neighbourhoodLayout(g *model.EpicGraph, states map[string]engine.EpicState, epic string, depth int) dashboardLayout {
+	deps, dependents := map[string][]string{}, map[string][]string{}
+	milestoneOf := map[string]string{}
+	for i := range g.Epics {
+		e := &g.Epics[i]
+		milestoneOf[e.ID] = e.Milestone
+		for _, d := range e.DependsOn {
+			for _, id := range d.Names() {
+				deps[e.ID] = append(deps[e.ID], id)
+				dependents[id] = append(dependents[id], e.ID)
+			}
+		}
+	}
+	in := map[string]bool{epic: true}
+	walkSteps(epic, deps, depth, in)
+	walkSteps(epic, dependents, depth, in)
+	ids, edges := epicEdges(g, in, engine.GraphCriticalPath(g, states))
+	out := layoutOf(layoutViewNeighbourhood, ids, edges, nil, nil)
+	out.Epic, out.Depth = epic, depth
+	for i := range out.Nodes {
+		n := &out.Nodes[i]
+		n.Milestone, n.Centre = milestoneOf[n.ID], n.ID == epic
+	}
+	return out
+}
+
+// walkSteps adds to in every id next reaches from start in at most depth
+// steps.
+func walkSteps(start string, next map[string][]string, depth int, in map[string]bool) {
+	front := []string{start}
+	for range depth {
+		var reached []string
+		for _, id := range front {
+			for _, n := range next[id] {
+				if !in[n] {
+					in[n] = true
+					reached = append(reached, n)
+				}
+			}
+		}
+		front = reached
+	}
+}
+
+// epicEdges lists the epics in in, in graph order, and the edges between
+// them: a plain edge, or one per any-of member carrying its group, each
+// marked critical when its two ends follow each other on path.
+func epicEdges(g *model.EpicGraph, in map[string]bool, path []string) ([]string, []layoutEdge) {
+	onPath := map[[2]string]bool{}
+	for i := 1; i < len(path); i++ {
+		onPath[[2]string{path[i-1], path[i]}], onPath[[2]string{path[i], path[i-1]}] = true, true
+	}
+	critical := func(a, b string) bool { return onPath[[2]string{a, b}] }
+	var ids []string
+	var edges []layoutEdge
+	for i := range g.Epics {
+		e := &g.Epics[i]
+		if !in[e.ID] {
+			continue
+		}
+		ids = append(ids, e.ID)
+		for _, d := range e.DependsOn {
+			group := d.Members()
+			for _, id := range d.Names() {
+				if in[id] {
+					edges = append(edges, layoutEdge{From: id, To: e.ID, Critical: critical(id, e.ID), AnyOf: group})
+				}
+			}
+		}
+	}
+	return ids, edges
+}
+
+// layoutOf lays ids and edges out, bands and bandOf as engine.LayeredLayout
+// takes them, and lists the nodes by layer, then order.
+func layoutOf(view string, ids []string, edges []layoutEdge, bands []string, bandOf map[string]string) dashboardLayout {
+	in := make([]engine.LayoutEdge, len(edges))
+	for i, e := range edges {
+		in[i] = engine.LayoutEdge{From: e.From, To: e.To}
+	}
+	l := engine.LayeredLayout(ids, in, bands, bandOf)
+	out := dashboardLayout{View: view, Layers: l.Layers, Bands: l.Bands, Nodes: make([]layoutNode, 0, len(ids)), Edges: edges}
+	if out.Edges == nil {
+		out.Edges = []layoutEdge{}
+	}
+	for _, id := range ids {
+		out.Nodes = append(out.Nodes, layoutNode{ID: id, LayoutPlace: l.Places[id]})
+	}
+	slices.SortFunc(out.Nodes, func(a, b layoutNode) int {
+		return cmp.Or(cmp.Compare(a.Layer, b.Layer), cmp.Compare(a.Order, b.Order))
+	})
+	return out
+}
