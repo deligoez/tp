@@ -18,6 +18,24 @@ fix needs a design choice leaves this file for a decision note.
 
 ## Fix track
 
+- **A hidden dashboard tab keeps its event stream open, and enough tabs starve the page's fetches.**
+  Each tab holds one `EventSource` to `/api/events` for as long as it is open, hidden or not, and a
+  browser allows six HTTP/1.1 connections per host. Repro (v1.16.0, Chrome): open `tp dashboard` in
+  six tabs; in a seventh, `/api/layout` and `/api/history` stay pending until a tab closes. Failing
+  test: the page closes its stream on `visibilitychange` to hidden and opens it again, with the
+  current state, when it is visible.
+- **The first push waits for all three derivations, one after another.** A cold `/api/events`
+  stream sends nothing until `Live()` has derived the epic export, the task file list and the
+  summary in turn. Repro (v1.16.0, the synthetic graph of the graph-card prototype): the
+  three take ~58, ~43 and ~54 ms, `Live()` 164–206 ms, and the first byte of a cold stream arrives
+  at 215 ms on an idle machine; under load the operator saw ~2 s of blank page. Failing test: the
+  live derivations run concurrently and keep their order.
+- **A doubled slash in the address breaks the page.** Loading `http://127.0.0.1:7377//` makes
+  `syncURL` call `history.replaceState` with `//#tab=…`, a protocol-relative URL naming another
+  origin, which throws a `SecurityError`. Repro (v1.16.0): open the dashboard at `//`; the console
+  shows the error and the address never follows the page. Failing test: the address the page writes
+  stays on the page's origin under a `//` path.
+
 ## Decided elsewhere, not a fix
 
 - **`tp review --check` converges with roles that never ran.** A role that found nothing writes no
