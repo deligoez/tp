@@ -103,8 +103,6 @@ func serveCompressed(w http.ResponseWriter, r *http.Request, sub fs.FS) bool {
 }
 
 // acceptsGzip reports whether an Accept-Encoding header names gzip with a
-// quality above zero.
-// acceptsGzip reports whether an Accept-Encoding header names gzip with a
 // quality above zero: of its parameters, named in any case, only q counts.
 func acceptsGzip(header string) bool {
 	for part := range strings.SplitSeq(header, ",") {
