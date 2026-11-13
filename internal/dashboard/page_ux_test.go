@@ -265,6 +265,16 @@ func TestPage_WaitingEpicsSitBelowThePlanMapInGroups(t *testing.T) {
 	}
 }
 
+// TestPage_AWaitingGroupSaysItCountsOnlyThisList: a group's count reads
+// as the epics of this list, those of open milestones, that wait on its
+// blocker, not every epic that does.
+func TestPage_AWaitingGroupSaysItCountsOnlyThisList(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Contains(t, script, `" on it here</span>"`)
+	assert.Contains(t, script, `title="epics of open milestones that wait on it directly"`)
+}
+
 // TestPure_ALayoutBecomesPointsColumnByLayer: a layout from /api/layout
 // becomes drawing points, one column per layer and one row per order, a
 // short layer centred against the longest, each band spanning its layers'
