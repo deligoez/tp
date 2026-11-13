@@ -472,6 +472,12 @@ func (d *driver) prepare(res *ResumeResult, units []NextUnit, attempt int) ([]*u
 		if u, ok := d.batch[a.unit.ID]; ok {
 			a.target.Batch = true
 			a.dir = u.worktree
+			// Spawned in its worktree, a relative TP_FILE would name the
+			// worktree's own copy of the task file; the unit works the
+			// main tree's.
+			if abs, err := filepath.Abs(d.opts.TaskFile); err == nil {
+				a.env.TaskFile = abs
+			}
 		}
 		a.logPath = unitLogPath(RunDir(d.opts.Root, d.runID), d.seq, u.Kind, u.ID)
 
