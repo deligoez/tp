@@ -92,6 +92,12 @@ func runBrief(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	// A unit in a worktree beside others commits on its branch and asks for
+	// the close; the driver gates (spec/backlog/parallel-implement.md §2.4).
+	if donePendingRoot(taskFilePath) != "" {
+		b.Close = engine.WorktreeCloseRecipeText(wf.QualityGate)
+	}
+
 	// v0.35.0 §4.2: the cycle's last failure, when one is present, so the unit
 	// about to start reads it before it walks into the same wall.
 	b.LastFailure = engine.ReadLastFailure(".", taskFilePath)

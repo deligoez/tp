@@ -72,11 +72,7 @@ func CloseRecipeText(effectiveStrategy, qualityGate string) string {
 
 	// §8.3: the closure reason is an evidence contract.
 	b.WriteString("3. Write the closure reason as an evidence contract:\n")
-	b.WriteString("   - One line per acceptance criterion, each stating what was implemented and how it was verified.\n")
-	b.WriteString("   - No bare \"done\", \"wip\", or \"deferred\".\n")
-	b.WriteString("   - Written in English.\n")
-	b.WriteString("   - The first line becomes the next unit's summary of this work, so lead with the substantive claim.\n")
-	b.WriteString("   - An optional trailing \"Out of scope:\" line reports a finding outside the fence instead of fixing it.\n\n")
+	writeEvidenceContract(&b)
 
 	// §8.4: the "--" separator precedes the reason in both recipes.
 	b.WriteString("The \"--\" separator precedes the reason because a reason often starts with \"- \" (a bullet), which a flag parser would otherwise treat as a flag.\n")
@@ -88,6 +84,36 @@ func CloseRecipeText(effectiveStrategy, qualityGate string) string {
 		b.WriteString("\n")
 	}
 
+	return b.String()
+}
+
+// writeEvidenceContract writes the evidence contract's bullets (§8.3).
+func writeEvidenceContract(b *strings.Builder) {
+	b.WriteString("   - One line per acceptance criterion, each stating what was implemented and how it was verified.\n")
+	b.WriteString("   - No bare \"done\", \"wip\", or \"deferred\".\n")
+	b.WriteString("   - Written in English.\n")
+	b.WriteString("   - The first line becomes the next unit's summary of this work, so lead with the substantive claim.\n")
+	b.WriteString("   - An optional trailing \"Out of scope:\" line reports a finding outside the fence instead of fixing it.\n\n")
+}
+
+// WorktreeCloseRecipeText is the "How to close" section of a unit running in
+// a worktree beside others (spec/backlog/parallel-implement.md §2.4, §2.5):
+// it commits on its branch, runs only the tests its change needs, and asks
+// for the close; the driver integrates the commits and runs the gate.
+func WorktreeCloseRecipeText(qualityGate string) string {
+	var b strings.Builder
+	b.WriteString("How to close this unit.\n\n")
+	b.WriteString("You work in a worktree of your own while other units run beside you. The driver picks your commits onto the main branch, runs the gate there and closes the task.\n\n")
+	b.WriteString("1. Commit your change on this worktree's branch. Change no path only tp writes: the task file, the spec's .tp-review/ or .tp/.\n")
+	b.WriteString("2. Run only the tests your change needs, never the whole suite: the units beside you are running theirs.\n")
+	if qualityGate != "" {
+		fmt.Fprintf(&b, "   quality_gate (the driver runs it): %s\n", qualityGate)
+	}
+	b.WriteString("\n3. Ask for the close; it runs no gate and closes nothing until the driver integrates:\n")
+	b.WriteString("   tp done <id> --commit <sha> -- \"<evidence>\"   (repeat --commit per sha)\n\n")
+	b.WriteString("4. Write the closure reason as an evidence contract:\n")
+	writeEvidenceContract(&b)
+	b.WriteString("The \"--\" separator precedes the reason because a reason often starts with \"- \" (a bullet), which a flag parser would otherwise treat as a flag.\n")
 	return b.String()
 }
 
