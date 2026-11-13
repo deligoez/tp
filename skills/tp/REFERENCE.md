@@ -111,7 +111,7 @@ The commands those paths name run from any directory of the repository: a spec a
 
 `--compact` drops `next_action.summary`, each `kept[].reason`, and each `blockers[].message`; keeps every `data` plus `bookkeeping`, `guidance` and `next_units` (all decision-critical — §8.4). Under an escalate blocker a `--compact` reader therefore reads `blockers[].code` and `data`.
 
-Blocker vocabulary (fixed order): `unexplained-changes` (**agent-clearable**, `{count}`), `no-ready-task` (escalate, `{blocked_by}`), `epic-blocked` (escalate, `{epic, blocked_by_epics}`; v1.5.0: the bound file's epic has a dependency not done and no task is `wip`, so no implement unit is offered; v1.6.0: when every such dependency is a condition, data adds `operator: {decision: "epic-done", commands}` and the message names the operator's `tp epic done <c> --evidence <evidence>`; v1.7.0: an unsatisfied any-of group blocks too, data adds `blocked_by_any_of`, one member list per group, the message names it `one of {A, B}`, and `operator` adds `choices`, the group's records as alternatives, see the epic block below), `review-budget-exhausted` / `audit-budget-exhausted` (escalate, `{cap, blocking_fixed_at_cap}`; fires when the cap is reached and the loop is not done, never under cap 0), `spec-stale` (escalate, `{spec, commands}`; `commands` is, in order, what clears it, and the message says the same: `tp review <spec>`, then `tp review <spec> --record <file>`. v1.14.0: with a review round in flight, data adds `in_flight_round` and `commands` starts with `tp review <spec> --record <file>`, since a new emission is refused (exit 3) while the round's snapshot differs from the spec; over the old text a round over the new one follows, and `operator: {decision: "discard-emission", commands: ["tp review <spec> --force", "tp review <spec> --record <file>"]}` names the discard as the operator's decision; over the current text the record alone clears it. An emission the review cap refuses (exit 4) is never a command: with no round in flight and the cap spent, `commands` is empty and `operator: {decision: "raise-review-cap", commands: ["tp review <spec>", "tp review <spec> --record <file>"]}` names it; when recording the round in flight over the old text reaches the cap, `commands` is that record alone. A `--rewritten` epoch never clears `spec-stale`).
+Blocker vocabulary (fixed order): `unexplained-changes` (**agent-clearable**, `{count}`), `no-ready-task` (escalate, `{blocked_by}`), `epic-blocked` (escalate, `{epic, blocked_by_epics}`; v1.5.0: the bound file's epic has a dependency not done and no task is `wip`, so no implement unit is offered; v1.6.0: when every such dependency is a condition, data adds `operator: {decision: "epic-done", commands}` and the message names the operator's `tp epic done <c> --evidence <evidence>`; v1.7.0: an unsatisfied any-of group blocks too, data adds `blocked_by_any_of`, one member list per group, the message names it `one of {A, B}`, and `operator` adds `choices`, the group's records as alternatives, see the epic block below), `review-budget-exhausted` / `audit-budget-exhausted` (escalate, `{cap, blocking_fixed_at_cap}`; fires when the cap is reached and the loop is not done, never under cap 0), `review-carried-blocking` (escalate, `{count, rows}`; v1.16.0: in the review phase, the carried set holds an unresolved blocking row recorded before the latest round — one the roles are told not to re-report, so no further round clears it and `next_units` is empty; the message names the first row's `tp review <file> --resolve <index>` and the epoch, `rows` lists the first 5 as `carried_blocking_rows` does; see Review convergence), `spec-stale` (escalate, `{spec, commands}`; `commands` is, in order, what clears it, and the message says the same: `tp review <spec>`, then `tp review <spec> --record <file>`. v1.14.0: with a review round in flight, data adds `in_flight_round` and `commands` starts with `tp review <spec> --record <file>`, since a new emission is refused (exit 3) while the round's snapshot differs from the spec; over the old text a round over the new one follows, and `operator: {decision: "discard-emission", commands: ["tp review <spec> --force", "tp review <spec> --record <file>"]}` names the discard as the operator's decision; over the current text the record alone clears it. An emission the review cap refuses (exit 4) is never a command: with no round in flight and the cap spent, `commands` is empty and `operator: {decision: "raise-review-cap", commands: ["tp review <spec>", "tp review <spec> --record <file>"]}` names it; when recording the round in flight over the old text reaches the cap, `commands` is that record alone. A `--rewritten` epoch never clears `spec-stale`).
 
 ### `commit_strategy` — `builtin` / `auto` / `hc`
 
@@ -355,6 +355,7 @@ agent:
 | `tp import --force` | exit 2, same shape |
 | accepting a finding without a change — `wontfix`/`duplicate` on a critical or high review finding, or on any audit finding, at `--resolve` or `--resolve-all` | exit 2, escalates under `--decision accept-finding`; `fixed` is not fenced, nor is `tp audit --record` carrying an earlier acceptance forward (see Dispositions) |
 | `--force` on a `tp ground`/`tp review`/`tp audit` emission that would discard an unrecorded round, and `tp epic review <slice> --discard` | exit 2, escalates under `--decision discard-emission`: sibling role units grade one emission concurrently |
+| `tp review <spec> --rewritten` whose cut holds an unresolved blocking review row (v1.16.0) | exit 2, `--rewritten would cut N unresolved blocking review finding(s), which then stop blocking with neither a fix nor an acceptance; …`; the hint names the first row's `--resolve` and escalates under `--decision rewrite-past-blocking`. An epoch that cuts no such row is not fenced |
 | `tp set --workflow runner=` / `tp set --local notify_cmd=`, at **any** layer | exit 2, `names a command the driver executes and cannot be set under TP_UNATTENDED, at any layer` |
 | a change of `quality_gate` — **any** `tp set --workflow quality_gate=` write, at either layer; at `tp import`, `tp init --quality-gate` and `tp config --extract`, a write that **changes the gate that resolves** (carrying the current gate forward passes) | exit 2, `<what> changes the quality gate every close runs, which is a user-approved decision refused under TP_UNATTENDED`; the hint names that sink's own exit and escalates under `--decision skip-gate`, since a rewritten gate is a skipped one |
 | a write of `audit_converge_on` that relaxes the audit gate (v0.37.0) — at `tp set --workflow`, `tp import` and `tp config --extract`, one that **changes the resolved value to `blocking`**; at `tp set --workflow --project`, **any** write of `blocking` | exit 2. The three change-rule sinks say `<what> changes the resolved audit_converge_on from <before> to blocking, which relaxes the audit gate and is a user-approved decision refused under TP_UNATTENDED`; the `--project` sink names no resolved value and says `<what> writes blocking into the layer every base resolves through, including bases tp cannot enumerate; blocking is the value that relaxes the audit gate, …`. Each hint names that sink's own exits and escalates under `--decision audit-converge-on` |
@@ -423,9 +424,10 @@ An escalation is a normal, expected outcome, not a crash. `tp escalate --decisio
 
 `decision` is one of `skip-gate`, `raise-review-cap`, `raise-audit-cap`, `import-force`,
 `audit-converge-on`, `accept-finding`, `discard-emission`, `epic-done`, `gate-met`, `epic-binding`,
-`grant-round`, `other`; the three epic decisions are the v1.5.0 operator records (`tp epic done`,
-`gate --met`, a binding), `grant-round` is v1.7.0's `tp epic review <slice> --grant-round`, and
-`tp epic import` keeps `other`;
+`grant-round`, `rewrite-past-blocking`, `other`; the three epic decisions are the v1.5.0 operator
+records (`tp epic done`, `gate --met`, a binding), `grant-round` is v1.7.0's
+`tp epic review <slice> --grant-round`, `rewrite-past-blocking` is v1.16.0's `--rewritten` over an
+unresolved blocking review row (see Epochs), and `tp epic import` keeps `other`;
 `--option` is repeatable and `options` is `[]` when none is given. Outside a run (`TP_RUN_DIR` unset)
 the command is a **usage error**, so it cannot be used to fabricate a record.
 
@@ -557,9 +559,9 @@ spec/
 | `checks` | array of `{class, cmd}` | `[]` | — | settable (replace semantics). A check exits 0 when it passed and 1 when it found violations; anything else — 2 or higher, 126/127, a signal, a start failure, a timeout — could not run and is reported `ran: false` in `mechanical_checks`. A prompt suppresses a class only when its check reported `ran: true` in that emission; with no task file resolving no check runs, so nothing is suppressed |
 | `review_clean_rounds` | int | 2 | 1-10 | settable |
 | `audit_clean_rounds` | int | 2 | 1-10 | settable |
-| `review_converge_on` | string | `blocking` | `blocking`\|`all` | settable (a review round is **clean** when no surviving finding is critical/high under `blocking`, or when no finding survives under `all`; audit never reads it) |
+| `review_converge_on` | string | `blocking` | `blocking`\|`all` | settable (a review round is **clean** when no surviving finding is critical/high under `blocking`, or when no finding survives under `all`; the same rule says which unresolved carried row blocks convergence, see Review convergence; audit never reads it) |
 | `audit_converge_on` | string | `all` | `blocking`\|`all` | settable, and the one **fenced under `TP_UNATTENDED`** — by a change rule at `tp set --workflow`, `tp import` and `tp config --extract`, and by a value rule at `tp set --workflow --project` (v0.37.0; an audit round is **clean** when it has no non-`PASS` row under `all`, or when no non-`PASS` row carries a blocking severity under `blocking`; review never reads it) |
-| `review_max_rounds` | int | 3 | 0-50 | settable (0 = no cap); at the cap the loop is done once every finding of the latest round carries a disposition |
+| `review_max_rounds` | int | 3 | 0-50 | settable (0 = no cap); at the cap the loop is done once every finding of the latest round carries a disposition and no unresolved blocking row is carried |
 | `audit_max_rounds` | int | 3 | 0-50 | settable (0 = no cap); as `review_max_rounds` |
 | `run_max_units` | int | 100 | 1-10000 | settable (v0.35.0; `tp run` cap) |
 | `run_max_wall_clock_seconds` | int | 28800 | 60-604800 | settable (v0.35.0) |
@@ -697,18 +699,50 @@ epoch's position stop feeding the lists of earlier findings an emission carries:
 list (`UNRESOLVED`/`ACCEPTED findings from previous rounds`), the regression pass's fixed findings
 (and with them `tp run`'s regression unit), the audit Prior Round block, the audit acceptance carry
 at `--record`, and `scripts/audit-round-prep.py`, which exits 2 `round-before-epoch`. Nothing
-recorded changes and no disposition is written; convergence, staleness and the round cap read every
-recorded round as before, and so do the mechanize candidates, `--report`, the exports and the audit
-role streaks the ship rule reads. `--status` in both phases reports `epochs` when there is one, and
-keeps it under `--compact`. The mode writes `state.json` only and reads the task file's side (no
-working tree). It exits 2 with blank evidence, with no recorded round in either phase, and when the
-epoch would cut nothing — in both phases every recorded round already read the current text or was
-cut by an earlier epoch, which is also a second `--rewritten` in a row. It exits 3 with a round of
-either phase in flight: the hint names that round's record, after which `--rewritten` keeps the
-round if it read the current text, and its `--force` discard as the operator's decision when the
-round's snapshot is not the spec. It refuses `--force`, `--no-state`, `--docs-path`, `--test-path`
-and every other mode's flags with exit 2. `--rewritten` run concurrently with an emission of either
-phase is unsupported: an emission takes no state lock, so the in-flight check can race it.
+recorded changes and no disposition is written; staleness and the round cap read every recorded
+round as before, and so do the mechanize candidates, `--report`, the exports and the audit role
+streaks the ship rule reads. Review convergence reads the trailing clean rounds over every round and
+the carried set (Review convergence, below) over the rounds after the epoch only, so a row the epoch
+cuts stops blocking unless a role raises it again. `--status` in both phases reports `epochs` when
+there is one, and keeps it under `--compact`. The mode writes `state.json` only and reads the task
+file's side (no working tree). It exits 2 with blank evidence, with no recorded round in either
+phase, and when the epoch would cut nothing — in both phases every recorded round already read the
+current text or was cut by an earlier epoch, which is also a second `--rewritten` in a row. It exits
+3 with a round of either phase in flight: the hint names that round's record, after which
+`--rewritten` keeps the round if it read the current text, and its `--force` discard as the
+operator's decision when the round's snapshot is not the spec. It refuses `--force`, `--no-state`,
+`--docs-path`, `--test-path` and every other mode's flags with exit 2. `--rewritten` run
+concurrently with an emission of either phase is unsupported: an emission takes no state lock, so
+the in-flight check can race it.
+
+**An epoch past a blocking row is the operator's decision (v1.16.0).** When the review rounds the
+epoch would cut hold an unresolved blocking row of the carried set, the epoch is
+`rewrite-past-blocking`: under `TP_UNATTENDED` it exits 2 and writes nothing, its hint naming the
+first row's `--resolve` (if the rewrite fixed it) and `tp escalate --decision rewrite-past-blocking`.
+By hand it runs, as accepting a finding by hand does — the person running it is the operator — and
+says so on stderr; the payload adds `cut_blocking` (the count) and `cut_blocking_rows` (the first 5,
+each `{round, file, index, severity, location, finding}`). No flag is asked for: `--force` stays the
+discard of an unrecorded emission, which an epoch never is. An epoch whose cut holds no unresolved
+blocking row is the ordinary mode, unattended too.
+
+**Review convergence (v1.16.0).** The *carried set* is what the next review emission lists under
+`UNRESOLVED`/`ACCEPTED findings from previous rounds`: the rows of the rounds after the newest epoch,
+each finding — its category, location and the first 80 bytes of its text — taken at its **latest**
+occurrence, so a row fixed in a later round is not held open by an earlier copy, and two findings at
+one location stay two rows. A carried row is *resolved* when its disposition is `fixed`, *accepted*
+when it is `wontfix`/`duplicate` with evidence, and *unresolved* otherwise — no disposition, or an
+acceptance with blank evidence. The prompt and convergence read this one set. A review loop is not
+converged, and not done at its cap either, while the carried set holds an unresolved row that blocks
+under `review_converge_on` (critical, high or ungradable under `blocking`; any under `all`): the
+roles are told not to re-report it, so their silence is not its disposition. `--status`, `--check`,
+`--record`, the emission's `review_loop`, `tp import`, the budget refusal, `tp resume` and
+`next_action` all read it. `--status` and `--record` then report `carried_blocking` (the count) and
+`carried_blocking_rows` (the first 5, each `{round, file, index, severity, location, finding}`;
+`file` is the round file `--resolve` takes), both absent when there is none and both kept under
+`--compact`; `converged` and `done` are false. `next_action` names the first row's
+`tp review <file> --resolve <index> fixed|wontfix|duplicate "<evidence>"`, the count of the rest, and
+an epoch as the way out when the spec was rewritten. At the cap the refusal's hint leads with the
+same clause.
 
 **Dispositions.** `--resolve`/`--resolve-all` write `resolved: {status, evidence, resolved_at}` onto
 rows in place. The loop verdict reads the recorded round files, so a resolve into a file no
