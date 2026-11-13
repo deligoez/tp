@@ -49,6 +49,19 @@ func TestForestLayout_GoldenBandsAndBackEdges(t *testing.T) {
 	assert.Equal(t, ForestPlace{3, 3}, got.Places["y"])
 }
 
+// TestForestLayout_AnEdgeOnThePathIsThePrimaryParent: the primary parent
+// prefers an edge on the marked path over a deeper one, so the path draws
+// as one run of tree edges; without a mark the deepest edge wins.
+func TestForestLayout_AnEdgeOnThePathIsThePrimaryParent(t *testing.T) {
+	t.Parallel()
+	ids := []string{"p", "q", "r"}
+	edges := []LayoutEdge{{"p", "q"}, {"q", "r"}, {"p", "r"}}
+	plain := ForestLayout(&ForestInput{IDs: ids, Edges: edges, Pack: PackTree})
+	assert.Equal(t, []EdgeRole{RoleTree, RoleTree, RoleCross}, plain.Roles)
+	marked := ForestLayout(&ForestInput{IDs: ids, Edges: edges, OnPath: []bool{false, false, true}, Pack: PackTree})
+	assert.Equal(t, []EdgeRole{RoleTree, RoleCross, RoleTree}, marked.Roles)
+}
+
 // TestForestLayout_GoldenLanes pins bands in lanes: Y1 depends only on X1,
 // so with lanes it starts right after X1, beside X2, where stacked bands
 // would put it after X2. A tree edge never joins two groups: y1b's parent
