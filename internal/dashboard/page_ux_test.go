@@ -378,8 +378,9 @@ func TestPage_AMergedBandIsNamedForEveryMilestoneItHolds(t *testing.T) {
 func TestPage_AMilestoneSaysItsInboundCountIsEpicEdges(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
-	assert.Contains(t, script, `n.inbound + " epic edges in"`)
-	assert.NotContains(t, script, `n.inbound + " edges in"`)
+	assert.Contains(t, script, "in: n.inbound")
+	assert.Contains(t, script, `{in} epic edges in"`)
+	assert.NotContains(t, script, `{in} edges in"`)
 }
 
 // TestPage_TheGraphDrawsOnlyTheDataOfItsKey: the card keeps the key each
