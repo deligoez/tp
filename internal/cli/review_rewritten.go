@@ -132,14 +132,17 @@ func epochCutBlocking(specPath string, st *engine.ReviewState, specHash string) 
 	for _, phase := range []struct {
 		pos     int
 		carried []engine.CarriedRow
+		// fixedBlocks: an audit row marked fixed still blocks until a round
+		// re-grades it, so an epoch past it is past a blocking row.
+		fixedBlocks bool
 	}{
-		{engine.EpochPosition(st, engine.PhaseReview, specHash), engine.ReviewCarriedBlocking(specPath, st, wf.ReviewConvergeOn)},
-		{engine.EpochPosition(st, engine.PhaseAudit, specHash), engine.AuditCarriedBlocking(specPath, st)},
+		{engine.EpochPosition(st, engine.PhaseReview, specHash), engine.ReviewCarriedBlocking(specPath, st, wf.ReviewConvergeOn), false},
+		{engine.EpochPosition(st, engine.PhaseAudit, specHash), engine.AuditCarriedBlocking(specPath, st), true},
 	} {
 		for i := range phase.carried {
-			// A row marked fixed is not cut past: the rewrite is the change, and
-			// the next round reads the new text whole.
-			if phase.carried[i].Round <= phase.pos && phase.carried[i].State() == engine.CarriedStateUnresolved {
+			// A review row marked fixed is not cut past: the rewrite is the
+			// change, and the next round reads the new text whole.
+			if phase.carried[i].Round <= phase.pos && (phase.fixedBlocks || phase.carried[i].State() == engine.CarriedStateUnresolved) {
 				cut = append(cut, phase.carried[i])
 			}
 		}
@@ -204,9 +207,11 @@ func refusePastBlocking(specPath string, st *engine.ReviewState, specHash string
 	first := fmt.Sprintf("resolve the finding first (tp review %s --resolve %d fixed \"<evidence>\" if the rewrite fixed it)", cut[0].File, cut[0].Index)
 	if item, _ := cut[0].Row["item_id"].(string); item != "" {
 		// An audit row clears by a later PASS or an acceptance, never by
-		// fixed, so the way short of an epoch is the operator's acceptance.
+		// fixed. Unattended, the acceptance is refused too, so the way short
+		// of an epoch is the next round's re-grade or the operator's
+		// acceptance, escalated.
 		role, _ := cut[0].Row["role"].(string)
-		first = fmt.Sprintf("accept the audit row first, the operator's decision (tp audit %s --resolve %s:%s wontfix|duplicate \"<evidence>\")", cut[0].File, role, item)
+		first = fmt.Sprintf("let the next audit round re-grade %s:%s, or escalate its acceptance: tp escalate --decision %s --evidence <why it stands>", role, item, engine.EscalateAcceptFinding)
 	}
 	return &rewrittenRefusal{code: ExitUsage,
 		msg: fmt.Sprintf("--rewritten would cut %d unresolved blocking finding(s), which then stop blocking with neither a fix nor an acceptance; that is a user-approved decision and is refused under TP_UNATTENDED",
