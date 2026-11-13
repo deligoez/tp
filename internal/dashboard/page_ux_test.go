@@ -660,27 +660,32 @@ func TestPure_TheKPIRowsBalance(t *testing.T) {
 	assert.JSONEq(t, `[9, 5, 5, 5, 3, 2, 1, null, 4, null]`, got)
 }
 
-// TestPure_ALoneLastKPICardSpansItsRow: when the columns leave one card
-// alone on the last row, as nine cards in two columns on a phone do, that
-// card spans the row instead of sitting in half of it (1.15.1).
-func TestPure_ALoneLastKPICardSpansItsRow(t *testing.T) {
+// TestPure_EveryRowSpansTheFullWidth: n cards in at most cols per row
+// spread over the fewest rows as evenly as they divide, the fuller rows
+// first, and each card spans its share of a grid as many columns wide as
+// every row length divides, so a shorter row stretches its cards to the
+// full width: 5 + 4 is twenty columns, four each on the first row and five
+// on the second; a lone last card spans the row (1.15.1).
+func TestPure_EveryRowSpansTheFullWidth(t *testing.T) {
 	t.Parallel()
-	got := runPure(t, `out([P.lastSpans(9, 2), P.lastSpans(7, 3), P.lastSpans(9, 3), P.lastSpans(9, 5), P.lastSpans(9, 1), P.lastSpans(9, 9)]);`)
-	assert.JSONEq(t, `[true, true, false, false, false, false]`, got)
+	got := runPure(t, `const g = (n, c) => { const r = P.cardSpans(n, c); return r && r.columns + ":" + r.spans.join(""); };
+out([g(9, 5), g(9, 9), g(9, 3), g(9, 2), g(14, 7), g(14, 5), g(5, 2), g(7, 3), g(0, 3), g(9, null)]);`)
+	assert.JSONEq(t, `["20:444445555", "9:111111111", "3:111111111", "2:111111112", "7:11111111111111", "20:44444444445555", "2:11112", "6:2223333", null, null]`, got)
 }
 
 // TestPage_TheKPIRowFitsItsColumnsOnRenderAndResize: the page sets the
-// KPI row's columns from tpPure.balancedColumns when it draws the row and
-// whenever the row changes size, and the CSS reads them (1.15.1).
+// KPI row's grid and each card's span from tpPure.balancedColumns and
+// tpPure.cardSpans when it draws the row and whenever the row changes
+// size, and the CSS reads the grid (1.15.1).
 func TestPage_TheKPIRowFitsItsColumnsOnRenderAndResize(t *testing.T) {
 	t.Parallel()
 	page, script := pageText(t)
-	for _, s := range []string{"tpPure.balancedColumns(", "tpPure.lastSpans(", `new ResizeObserver(fitKPIs).observe($("kpis"))`} {
+	for _, s := range []string{"tpPure.balancedColumns(", "tpPure.cardSpans(", `["#kpis", 140]`, `rowsSeen.observe($(id))`} {
 		assert.Contains(t, script, s)
 	}
-	assert.Contains(t, script, "].join(\"\");\n    fitKPIs();", "the row is fitted as soon as it is drawn")
-	assert.Contains(t, page, ".kpis[data-cols] { grid-template-columns: repeat(var(--kpi-cols), minmax(0, 1fr)); }")
-	assert.Contains(t, page, ".kpis.lone > :last-child { grid-column: 1 / -1; }")
+	assert.Contains(t, script, "].join(\"\");\n    fitAllRows();", "the row is fitted as soon as it is drawn")
+	assert.Contains(t, page, ".kpis[data-cols], .pcells[data-cols], .mscells[data-cols] { grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); }")
+	assert.NotContains(t, page, ".lone")
 }
 
 // TestPure_TheEpicTotalsNameTheConditions: the Epics tab counts every epic
