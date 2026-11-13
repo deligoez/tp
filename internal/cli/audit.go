@@ -77,7 +77,8 @@ type auditPrompt struct {
 // auditFileSummary is tp audit's file_summary: the shared affected-file counts
 // plus the auto-detect cap's own accounting (section 8a.3). total_files keeps
 // reporting the audited count, total_changed reports how many files changed
-// before the cap, and truncated says whether the two differ. All three live in
+// before the cap, and truncated says whether the two differ or a role's cap cut
+// the list a prompt carries (cutNotices). All three live in
 // the payload rather than on stderr alone, because --quiet erases stderr and an
 // agent reading stdout would otherwise take a 50-file prefix for the whole
 // changed set.
@@ -96,6 +97,9 @@ type auditResult struct {
 	ChecklistSummary checklistSummary      `json:"checklist_summary"`
 	SkippedRoles     *[]engine.SkippedRole `json:"skipped_roles,omitempty"`
 	Prompts          []auditPrompt         `json:"prompts"`
+	// Notices repeats every cut and universe notice the emission printed on
+	// stderr; it survives --compact and --quiet.
+	Notices []auditNotice `json:"notices,omitempty"`
 }
 
 var binaryExtensions = map[string]bool{
@@ -397,6 +401,7 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	// An unknown --role exits 2 inside the filter, so the snapshot is written
 	// only after it: a refusal leaves the state directory as it found it.
 	snap.write(specPath)
+	notices := cutNotices(prompts)
 
 	summary := engine.BuildAffectedSummary(files, nil)
 
@@ -418,15 +423,17 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 			ByType: byType,
 		},
 		Prompts: prompts,
+		Notices: notices,
 	}
 
 	if summary != nil {
 		// Derive truncated from the two counts rather than from which
-		// resolution path ran: only auto-detection caps today, but any future
-		// path that hands over a prefix then reports itself honestly for free.
+		// resolution path ran, and from the role caps too: a list cut to ten
+		// below the auto-detect cap is as truncated as one cut at fifty, and
+		// reading false over it was decision 3's defect.
 		result.FileSummary = &auditFileSummary{
 			AffectedSummary: *summary,
-			Truncated:       totalChanged > len(files),
+			Truncated:       totalChanged > len(files) || len(notices) > 0,
 			TotalChanged:    totalChanged,
 		}
 	}
