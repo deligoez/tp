@@ -1035,6 +1035,8 @@ func TestPage_AHiddenTabClosesItsStreamAndReopensItVisible(t *testing.T) {
 	assert.Contains(t, script, "tpPure.streamStep(document.hidden, source !== null)")
 	assert.Contains(t, script, "source.close();")
 	assert.Contains(t, script, "source = new EventSource(STREAM);")
+	assert.Contains(t, script, "} else if (step === \"open\") {\n      openStream();\n    }", "the open step opens a fresh stream")
+	assert.Contains(t, script, "if (!document.hidden) openStream();", "a tab loaded visible opens its stream")
 }
 
 // TestPure_TheStreamClosesHiddenAndOpensVisible: a hidden tab with an open
