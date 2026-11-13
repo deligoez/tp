@@ -247,3 +247,12 @@ func TestPage_AnInfoPopoverIsAHeadingAndABulletList(t *testing.T) {
 	}
 	assert.Contains(t, page, ".pop { position: absolute; z-index: var(--z-tooltip); max-width: min(420px, calc(100vw - 32px)); max-height: min(70vh, 560px); overflow-y: auto;")
 }
+
+// TestPure_TheDetailFollowsTheOnScreenFontSize: below 9 pixels on screen
+// a node draws no text (far), below 12 its id on one line (mid), and from
+// 12 its whole id (near).
+func TestPure_TheDetailFollowsTheOnScreenFontSize(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([P.detailLevel(4), P.detailLevel(8.9), P.detailLevel(9), P.detailLevel(11.9), P.detailLevel(12), P.detailLevel(30)]);`)
+	assert.JSONEq(t, `["far", "far", "mid", "mid", "near", "near"]`, got)
+}
