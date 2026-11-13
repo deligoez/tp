@@ -91,6 +91,7 @@
       $("tab-" + t).setAttribute("aria-selected", String(t === tab));
       $("view-" + t).hidden = t !== tab;
     });
+    if (tab === "epics") measureCards();
     syncURL();
   }
 
@@ -251,14 +252,20 @@
         '<span class="sm">gate ' + esc(s.members_done || 0) + " of " + esc(s.members || 0) + ' done</span><span class="sm th' + clamp + '" data-th="' + esc(th) + '">' +
         esc(th === "written" && m.gate && m.gate.threshold ? "threshold: " + m.gate.threshold : THRESHOLD_LABEL[th] || th) + "</span>" +
         (purpose && purpose.trim() ? '<span class="sm purpose' + clamp + '">purpose: ' + esc(purpose.trim()) + "</span>" : "") +
-        '<button type="button" class="more" data-msx="' + esc(m.milestone) + '" aria-expanded="' + full + '"' + (full ? "" : " hidden") + ">" + (full ? "Show less" : "Show all") + "</button>" +
+        '<button type="button" class="more" data-msx="' + esc(m.milestone) + '" aria-expanded="' + full + '">' + (full ? "Show less" : "Show all") + "</button>" +
         '<span class="sm muted">' + esc(dc.described + " of " + plural(dc.all, "epic", "epics") + " described") + "</span></div>";
     }).join("") + "</div>";
-    // A clamped card offers its control only when a clamp cut its text.
-    box.querySelectorAll('.more[aria-expanded="false"]').forEach((b) => {
-      b.hidden = ![...b.parentNode.querySelectorAll(".clamp")].some((el) => el.scrollHeight > el.clientHeight + 1);
-    });
+    measureCards();
   });
+  // measureCards hides a clamped card's control once its layout shows the
+  // clamp cut nothing (tpPure.cut); a card not laid out yet, in a hidden
+  // tab, keeps it until the cards change size and are measured again.
+  function measureCards() {
+    $("msstate").querySelectorAll('.more[aria-expanded="false"]').forEach((b) => {
+      b.hidden = tpPure.cut([...b.parentNode.querySelectorAll(".clamp")].map((el) => ({ scrollHeight: el.scrollHeight, clientHeight: el.clientHeight }))) === false;
+    });
+  }
+  new ResizeObserver(measureCards).observe($("msstate"));
   $("msstate").addEventListener("click", (ev) => {
     const b = ev.target.closest("[data-msx]");
     if (!b) return;

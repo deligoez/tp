@@ -233,6 +233,15 @@
       "; the Lifecycle and the share count the work epics";
   };
 
+  // cut says whether a clamp cut a card's text, from metrics, the
+  // scrollHeight and clientHeight of each of its clamped boxes: true when
+  // one holds more than it shows, false when none does, and null while a
+  // box has no height (a hidden tab), when nothing can be told yet.
+  P.cut = function (metrics) {
+    if (metrics.some((m) => !m.clientHeight)) return null;
+    return metrics.some((m) => m.scrollHeight > m.clientHeight + 1);
+  };
+
   // closureDescribed says how many of a gate closure's nodes are in
   // described, the set of described epic ids, as the closure view's header
   // reads it.
