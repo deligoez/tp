@@ -1072,7 +1072,7 @@
       return { x: v.x + (cx - r.left) / r.width * v.w, y: v.y + (cy - r.top) / r.height * v.h };
     };
     el.addEventListener("wheel", (ev) => {
-      if (!(ev.ctrlKey || ev.metaKey || hooks.card.classList.contains("fs")) || !v) return;
+      if (!tpPure.wheelZooms(ev, hooks.card.classList.contains("fs")) || !v) return;
       ev.preventDefault();
       const p = toSvg(ev.clientX, ev.clientY);
       zoomAt(Math.exp(Math.max(-80, Math.min(80, ev.deltaY)) * 0.01), p.x, p.y);
