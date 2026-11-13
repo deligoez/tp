@@ -93,8 +93,8 @@ type dashboardLayout struct {
 // epics, those done, the dependency edges into it from other milestones'
 // epics (an any-of member one each) and whether it is open.
 type layoutNode struct {
-	ID string `json:"id"`
-	engine.LayoutPlace
+	ID         string  `json:"id"`
+	Layer      int     `json:"layer"`
 	Col        float64 `json:"col"`
 	Milestone  string  `json:"milestone,omitempty"`
 	Deferrable bool    `json:"deferrable,omitempty"`
@@ -118,7 +118,7 @@ type layoutEdge struct {
 }
 
 // Layout answers /api/layout: the view the query names, laid out by
-// engine.LayeredLayout over the graph and its derived states.
+// engine.ForestLayout over the graph and its derived states.
 func (dashboardAPI) Layout(q url.Values) (any, *dashboard.Error) {
 	lq, derr := dashboardLayoutQuery(q)
 	if derr != nil {
@@ -361,16 +361,15 @@ func epicEdges(g *model.EpicGraph, in map[string]bool, path []string) ([]string,
 	return ids, edges
 }
 
-// layoutOf lays ids and edges out, bands and bandOf as engine.LayeredLayout
-// takes them, groupOf and pack as engine.ForestLayout does, and lists the
-// nodes by layer, then column, each with its barycenter order and its
+// layoutOf lays ids and edges out, bands, bandOf, groupOf, laneOf and pack
+// as engine.ForestLayout takes them, and lists the
+// nodes by layer, then column, then graph order, each with its layer and
 // forest column, each edge with its role.
 func layoutOf(view string, ids []string, edges []layoutEdge, bands []string, bandOf, groupOf, laneOf map[string]string, pack engine.ForestPacking) dashboardLayout {
 	in := make([]engine.LayoutEdge, len(edges))
 	for i, e := range edges {
 		in[i] = engine.LayoutEdge{From: e.From, To: e.To}
 	}
-	l := engine.LayeredLayout(ids, in, bands, bandOf)
 	f := engine.ForestLayout(&engine.ForestInput{IDs: ids, Edges: in, Bands: bands, BandOf: bandOf, GroupOf: groupOf, LaneOf: laneOf, Pack: pack})
 	out := dashboardLayout{View: view, Layers: f.Layers, Packing: string(pack), Columns: f.Columns, Bands: f.Bands, Nodes: make([]layoutNode, 0, len(ids)), Edges: edges}
 	if out.Edges == nil {
@@ -380,10 +379,10 @@ func layoutOf(view string, ids []string, edges []layoutEdge, bands []string, ban
 		out.Edges[i].Role = f.Roles[i]
 	}
 	for _, id := range ids {
-		out.Nodes = append(out.Nodes, layoutNode{ID: id, LayoutPlace: engine.LayoutPlace{Layer: f.Places[id].Layer, Order: l.Places[id].Order}, Col: f.Places[id].Col})
+		out.Nodes = append(out.Nodes, layoutNode{ID: id, Layer: f.Places[id].Layer, Col: f.Places[id].Col})
 	}
-	slices.SortFunc(out.Nodes, func(a, b layoutNode) int {
-		return cmp.Or(cmp.Compare(a.Layer, b.Layer), cmp.Compare(a.Col, b.Col), cmp.Compare(a.Order, b.Order))
+	slices.SortStableFunc(out.Nodes, func(a, b layoutNode) int {
+		return cmp.Or(cmp.Compare(a.Layer, b.Layer), cmp.Compare(a.Col, b.Col))
 	})
 	return out
 }
