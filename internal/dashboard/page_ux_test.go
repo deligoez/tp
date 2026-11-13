@@ -851,6 +851,21 @@ func TestPage_TheDrawerFollowsItsReducer(t *testing.T) {
 	assert.NotContains(t, script, "b.dataset.ms === msd.milestone")
 }
 
+// TestPage_TheMilestoneShownLivesInTheAddress: the milestone the drawer
+// shows is the address's ms, a place key, written when a card opens it and
+// read back with the selected epic, so a reload keeps it and back and
+// forward close and reopen it instead of leaving it stale (1.15.1 review).
+func TestPage_TheMilestoneShownLivesInTheAddress(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, re := range []string{`const URL_KEYS = \[[^\]]*"ms"[^\]]*\];`, `const PLACE_KEYS = \[[^\]]*"ms"[^\]]*\];`} {
+		assert.Regexp(t, re, script)
+	}
+	for _, s := range []string{`put("ms", msView.detail);`, `msView.detail = p.get("ms") || null;`, "moveDrawer({ type: \"milestone\", id });\n    if (had) drawMap();\n    drawSelected();\n    syncURL();"} {
+		assert.Contains(t, script, s)
+	}
+}
+
 // TestPure_AToggleKeepsItsKeyAcrossARedraw: a milestone card, a Waiting
 // section's header and a section's Show all each have a key read from
 // their data attribute, and the key gives that attribute and value back,
