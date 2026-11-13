@@ -251,26 +251,64 @@ func carriedBlockingBlocker(in *BlockerInputs) *Blocker {
 	if in.Phase != PhaseReview || in.ReviewConverged {
 		return nil
 	}
+	atCap := in.reviewCapReached(in.ReviewRounds)
 	earlier := make([]CarriedRow, 0, len(in.ReviewCarriedBlocking))
+	unresolved := 0
 	for i := range in.ReviewCarriedBlocking {
-		if row := in.ReviewCarriedBlocking[i]; row.Round < in.ReviewLatestRound {
-			// Named through the spec as tp resume shows it, so the command
-			// runs from where the payload's other commands do.
-			row.File = filepath.Join(ReviewStateDir(in.SpecPath), filepath.Base(row.File))
-			earlier = append(earlier, row)
+		row := in.ReviewCarriedBlocking[i]
+		if row.Round >= in.ReviewLatestRound {
+			continue
 		}
+		// Below the cap a fix waits for the next round, which next_units
+		// offers; only at the cap does it need the operator.
+		if row.State() == CarriedStateFixedUnverified && !atCap {
+			continue
+		}
+		if row.State() == CarriedStateUnresolved {
+			unresolved++
+		}
+		// Named through the spec as tp resume shows it, so the command
+		// runs from where the payload's other commands do.
+		row.File = filepath.Join(ReviewStateDir(in.SpecPath), filepath.Base(row.File))
+		earlier = append(earlier, row)
 	}
 	if len(earlier) == 0 {
 		return nil
 	}
+	emit := "tp review " + in.SpecPath
+	data := map[string]any{
+		"count":    len(earlier),
+		"rows":     CarriedRowsJSON(earlier),
+		"commands": []string{},
+	}
+	if unresolved > 0 {
+		first := &earlier[0]
+		for i := range earlier {
+			if earlier[i].State() == CarriedStateUnresolved {
+				first = &earlier[i]
+				break
+			}
+		}
+		status := "fixed|wontfix|duplicate"
+		if atCap {
+			status = "wontfix|duplicate"
+		}
+		data["commands"] = []string{fmt.Sprintf("tp review %s --resolve %d %s \"<evidence>\"", first.File, first.Index, status)}
+		data["operator"] = map[string]any{
+			"decision": EscalateRewritePastBlocking,
+			"commands": []string{emit + " --rewritten \"<evidence>\""},
+		}
+	} else {
+		data["operator"] = map[string]any{
+			"decision": EscalateRaiseReviewCap,
+			"commands": []string{emit, emit + " --record <file>"},
+		}
+	}
 	return &Blocker{
 		Code:    "review-carried-blocking",
 		Class:   ClassEscalate,
-		Message: CarriedBlockingClause(earlier, in.SpecPath),
-		Data: map[string]any{
-			"count": len(earlier),
-			"rows":  CarriedRowsJSON(earlier),
-		},
+		Message: CarriedBlockingClause(earlier, in.SpecPath, atCap),
+		Data:    data,
 	}
 }
 

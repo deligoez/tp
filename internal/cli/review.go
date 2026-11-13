@@ -2138,7 +2138,11 @@ func loadReviewRoundState(cmd *cobra.Command, specPath string, round int, findin
 			output.Notice(fmt.Sprintf("round %d file %s is missing; skipping its rows", missing[i].Round, missing[i].File))
 		}
 		for i := range carried {
-			statePrevFindings = append(statePrevFindings, findingFromRow(carried[i].Row))
+			f := findingFromRow(carried[i].Row)
+			// The graded severity: a later copy graded lower does not
+			// relabel a high the roles are told to stay silent about.
+			f.Severity = carried[i].Severity
+			statePrevFindings = append(statePrevFindings, f)
 		}
 		rs.prevFindings = statePrevFindings
 	}

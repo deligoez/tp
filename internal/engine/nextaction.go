@@ -163,11 +163,14 @@ func ReviewNextAction(specPath string, done LoopDone, blockingUnresolved bool, m
 	case done.CapReached && done.BlockingFixedAtCap > 0:
 		return blockingFixedAtCap(done.BlockingFixedAtCap) + " — tp review " + roundFile + " --resolve <index> wontfix \"<evidence>\" --force — then " + importStep
 	case len(done.CarriedBlocking) > 0 && !blockingUnresolved && done.Undisposed == 0:
-		then := "then " + CheckGateCommand(specPath)
-		if done.CapReached {
-			then = "then " + importStep
+		clause := CarriedBlockingClause(done.CarriedBlocking, specPath, done.CapReached)
+		if CarriedFixedUnverified(done.CarriedBlocking) > 0 {
+			return clause
 		}
-		return CarriedBlockingClause(done.CarriedBlocking, specPath) + " — " + then
+		if done.CapReached {
+			return clause + " — then " + importStep
+		}
+		return clause + " — then " + CheckGateCommand(specPath)
 	case done.CapReached:
 		return "the review round cap is reached: disposition each remaining finding in " + roundFile +
 			" — tp review " + roundFile + " --resolve <index> fixed|wontfix|duplicate \"<evidence>\"; accepting a critical or high finding is the operator's decision — then " + importStep

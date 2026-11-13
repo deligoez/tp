@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/deligoez/tp/internal/engine"
 	"github.com/deligoez/tp/internal/output"
@@ -44,8 +45,14 @@ func refuseIfBudgetExhausted(kind, specPath string, st *engine.ReviewState, capR
 		}
 	}
 	if kind == "review" {
+		// The carried clause names each row's own way out, so it replaces the
+		// latest-round hint rather than contradicting it; only the cap's tail
+		// stays, unless the clause already names raising it.
 		if carried := engine.ReviewCarriedBlocking(specPath, st, convergeOn); len(carried) > 0 {
-			hint = engine.CarriedBlockingClause(carried, specPath) + "; " + hint
+			hint = engine.CarriedBlockingClause(carried, specPath, true)
+			if !strings.Contains(hint, engine.EscalateRaiseReviewCap) {
+				hint += "; raising review_max_rounds stays user-approved (" + engine.EscalateRaiseReviewCap + ")"
+			}
 		}
 	}
 	output.Error(ExitState, fmt.Sprintf("%s round budget exhausted: %d rounds recorded with a cap of %d and not converged", kind, len(rounds), capRounds), hint)

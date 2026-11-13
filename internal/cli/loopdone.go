@@ -23,10 +23,15 @@ func addLoopDone(result map[string]any, d engine.LoopDone) {
 		result["blocking_fixed_at_cap"] = d.BlockingFixedAtCap
 	}
 	// What holds a review loop open that no trailing round shows: the carried
-	// set's unresolved blocking rows, counted in full and listed up to
-	// engine.CarriedRowsShown. Absent when there are none.
+	// set's blocking rows, unresolved or fixed and unverified. The count is
+	// the whole predicate; the listed rows, up to engine.CarriedRowsShown, are
+	// only those of rounds before the latest, since the latest round's own rows
+	// are that round's to dispose of. Absent when there are none.
 	if len(d.CarriedBlocking) > 0 {
 		result["carried_blocking"] = len(d.CarriedBlocking)
-		result["carried_blocking_rows"] = engine.CarriedRowsJSON(d.CarriedBlocking)
+		result["carried_blocking_rows"] = engine.CarriedRowsJSON(engine.CarriedEarlier(d.CarriedBlocking))
+		if n := engine.CarriedFixedUnverified(d.CarriedBlocking); n > 0 {
+			result["carried_fixed_unverified"] = n
+		}
 	}
 }
