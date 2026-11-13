@@ -436,7 +436,7 @@
     if (w.closed.length) parts.push(w.closed.length + " in milestones not yet open");
     if (deferred) parts.push(plural(deferred, "deferrable gate member", "deferrable gate members") + " left out");
     const shown = waitView.all ? w.groups : w.groups.slice(0, WAIT_SHOWN);
-    const group = (gr) => '<div class="wgroup"><div class="wh">' + (gr.blocker ? epicLink(gr.blocker) : '<span class="muted">one of</span> ' + gr.any_of.map(epicLink).join(", ")) +
+    const group = (gr, i) => '<div class="wgroup" data-wg="' + i + '"><div class="wh">' + (gr.blocker ? epicLink(gr.blocker) : '<span class="muted">one of</span> ' + gr.any_of.map(epicLink).join(", ")) +
       '<span class="bst" data-b="' + esc(gr.state) + '">' + esc(BLOCKER_LABEL[gr.state]) + '</span><span class="wn num">' + esc(plural(gr.epics.length, "waits", "wait")) + " on it</span></div>" +
       '<div class="wids">' + gr.epics.map(epicLink).join(" ") + "</div></div>";
     return '<p class="wsum"><b class="num">' + esc(plural(blocked, "blocked epic", "blocked epics")) + "</b>: " + esc(parts.join("; ")) + ".</p>" +
@@ -1314,7 +1314,11 @@
   // selectEpic selects id, or clears the selection when id is the selected
   // epic or null; centre takes the map to it, as a selection made outside
   // the map does.
+  // opener is what held focus when a selection opens the drawer, read before
+  // the redraws below replace it; drawDrawer takes it.
+  let opener = null;
   function selectEpic(id, centre) {
+    if ($("drawer").hidden) opener = { el: document.activeElement, key: focusKey(document.activeElement) };
     mapView.selected = id && id !== mapView.selected ? id : null;
     // A selection shows its neighbourhood unless a gate's closure is shown.
     if (mapView.selected && gview.view === "milestones") gview.view = null;
@@ -1713,19 +1717,34 @@
       plural((t.done || 0), "task", "tasks") + " done of " + ((t.open || 0) + (t.wip || 0) + (t.done || 0)), loop("ground", f.ground), loop("review", f.review), loop("audit", f.audit)].filter(Boolean).join(", ")) + "</small></li>";
   }
 
-  // drawerReturn is what held focus when the drawer opened: the element, and
-  // the map epic or the list link and its box it was, to find it again when
-  // a redraw replaced it. Null while the drawer is closed.
+  // focusKey names a focusable element so a redraw's replacement is found
+  // again: a map epic, a dependency-view node, a waiting group's link by its
+  // group, or a list link by its box; null for anything else.
+  const FOCUSABLE = "#mapsvg .node, #gsvg .gnode, [data-epic]";
+  function focusKey(el) {
+    if (!el || !el.closest) return null;
+    const node = el.closest("#mapsvg .node, #gsvg .gnode");
+    if (node) return (node.closest("#mapsvg") ? "map:" : "graph:") + node.dataset.id;
+    if (!el.dataset || !el.dataset.epic) return null;
+    const wg = el.closest("[data-wg]");
+    if (wg) return "wait:" + wg.dataset.wg + ":" + el.dataset.epic;
+    const box = el.closest("[id]");
+    return box ? "link:" + box.id + ":" + el.dataset.epic : null;
+  }
+
+  // drawerReturn is what held focus when the drawer opened: the element and
+  // its key, to find it again when a redraw replaced it. Null while the
+  // drawer is closed.
   let drawerReturn = null;
   function returnFocus() {
     const r = drawerReturn;
     drawerReturn = null;
-    if (r.el && r.el.isConnected && r.el !== document.body) r.el.focus({ preventScroll: true });
-    else if (r.map) focusNode(r.map);
-    else if (r.epic && r.box && $(r.box)) {
-      const again = [...$(r.box).querySelectorAll("[data-epic]")].find((x) => x.dataset.epic === r.epic);
-      if (again) again.focus({ preventScroll: true });
-    }
+    const els = [...document.querySelectorAll(FOCUSABLE)];
+    const key = tpPure.focusAfterClose({ connected: !!r.el && r.el.isConnected && r.el !== document.body, keys: r.keys }, els.map(focusKey));
+    if (key === "same") r.el.focus({ preventScroll: true });
+    else if (key && key.startsWith("map:")) focusNode(key.slice(4));
+    else if (key && key.startsWith("graph:")) gfocus(key.slice(6));
+    else if (key) els.find((x) => focusKey(x) === key).focus({ preventScroll: true });
   }
 
   function drawDrawer() {
@@ -1737,9 +1756,9 @@
     document.body.classList.toggle("dopen", open);
     // Opening takes focus to the close button; closing gives it back.
     if (open && !drawerReturn) {
-      const from = document.activeElement;
-      drawerReturn = { el: from, map: from && from.closest && from.closest("#mapsvg .node") ? from.dataset.id : null,
-        epic: from && from.dataset ? from.dataset.epic : null, box: from && from.closest && from.closest("[id]") ? from.closest("[id]").id : null };
+      const from = opener || { el: document.activeElement, key: focusKey(document.activeElement) };
+      drawerReturn = { el: from.el, keys: [from.key].filter(Boolean) };
+      opener = null;
       $("dclose").focus({ preventScroll: true });
     }
     if (!open && drawerReturn) returnFocus();
