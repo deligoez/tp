@@ -68,6 +68,17 @@ func implementBatch(units []NextUnit) bool {
 	return true
 }
 
+// batchBriefs gives each unit of an implement batch the brief that names its
+// task; any other set of units is left as it is.
+func batchBriefs(units []NextUnit) {
+	if !implementBatch(units) {
+		return
+	}
+	for i := range units {
+		units[i].BriefCommand = BatchBriefCommand(units[i].ID)
+	}
+}
+
 // batchable reports whether a task may run beside another: it names what it
 // touches and no failed integration marked it to run alone.
 func batchable(t *model.Task) bool {

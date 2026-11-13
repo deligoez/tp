@@ -65,10 +65,10 @@ func BuildNextUnits(root, taskFilePath, specPath, phase string, tf *model.TaskFi
 		// tasks with disjoint touches, each brief naming its own task
 		// (spec/backlog/parallel-implement.md §2.2).
 		ids := ImplementBatch(tf, implementMaxParallel(taskFilePath, tf))
-		target.Batch = len(ids) > 1
 		for _, id := range ids {
 			units = append(units, newNextUnit(UnitImplement, id, target))
 		}
+		batchBriefs(units)
 	case PhaseDecompose:
 		units = append(units, newNextUnit(UnitDecompose, SpecBaseName(specPath), target))
 	case PhaseReview, PhaseAudit:

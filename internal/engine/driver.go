@@ -475,7 +475,6 @@ func (d *driver) prepare(res *ResumeResult, units []NextUnit, attempt int) ([]*u
 		}
 		a.target = d.unitTarget(&a.env)
 		if u, ok := d.batch[a.unit.ID]; ok {
-			a.target.Batch = true
 			a.dir = u.worktree
 			// Spawned in its worktree, a relative TP_FILE would name the
 			// worktree's own copy of the task file; the unit works the

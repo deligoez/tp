@@ -17,11 +17,6 @@ import "fmt"
 func (k UnitKind) BriefCommand(t UnitTarget) string {
 	switch k {
 	case UnitImplement:
-		// A batched unit's task is claimed by the driver, so its brief
-		// names the task rather than asking tp next for one.
-		if t.Batch && t.ID != "" {
-			return "tp brief " + t.ID
-		}
 		return "tp next --brief"
 	case UnitReviewRole:
 		return "tp review " + t.Spec + roleArg(t.ID)
@@ -40,6 +35,13 @@ func (k UnitKind) BriefCommand(t UnitTarget) string {
 	default:
 		return ""
 	}
+}
+
+// BatchBriefCommand is a batched implement unit's brief
+// (spec/backlog/parallel-implement.md §2.2): the driver claims the task, so
+// the brief names it rather than asking tp next for one.
+func BatchBriefCommand(id string) string {
+	return "tp brief " + id
 }
 
 // roleArg renders the --role argument a role unit's brief carries (v0.36.0
