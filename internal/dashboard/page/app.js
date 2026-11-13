@@ -696,7 +696,7 @@
   const LANE_LABEL = { main: "Main", parallel: "Parallel", triggered: "Triggered" };
   const MARK_LABEL = { done: "done", ready: "can start", active: "claimed or under way", blocked: "blocked", held: "held by a condition", waiting: "milestone closed", moot: "moot" };
   const MARKS = ["done", "ready", "active", "blocked", "held", "waiting", "moot"];
-  const mapView = { selected: null, edges: false, nb: false, tracks: new Set(), geo: null, deps: {}, dependents: {}, byId: {}, q: "", stage: null };
+  const mapView = { selected: null, focus: null, edges: false, nb: false, tracks: new Set(), geo: null, deps: {}, dependents: {}, byId: {}, q: "", stage: null };
   // NB_DIR names the two directions the neighbours filter marks an edge with:
   // in, from an epic the selected one depends on; out, to an epic depending
   // on it.
@@ -927,10 +927,15 @@
     out.push("<g>" + edges.join("") + "</g>");
     const crit = ((g.critical_path && g.critical_path.by_count) || []).filter((id) => geo.pos[id]);
     if (crit.length > 1) out.push('<polyline class="crit" points="' + crit.map((id) => geo.pos[id].x + "," + geo.pos[id].y).join(" ") + '"/>');
+    // One epic is in the tab order at a time: the one focus last moved to,
+    // else the selected one, else the first.
+    if (!geo.pos[mapView.focus]) mapView.focus = sel || (geo.placed[0] || {}).id || null;
+    const hadFocus = $("mapsvg").contains(document.activeElement);
     geo.placed.forEach((e) => {
       const p = geo.pos[e.id];
       const s = markState(e, geo.byMs[e.milestone]);
-      out.push('<g class="node' + (shown(e) ? "" : " dim") + '" data-id="' + esc(e.id) + '">' +
+      out.push('<g class="node' + (shown(e) ? "" : " dim") + '" data-id="' + esc(e.id) + '" role="button" tabindex="' + (e.id === mapView.focus ? "0" : "-1") +
+        '" aria-label="' + esc(e.id + ": " + e.title + ", " + MARK_LABEL[s]) + '"' + (e.id === sel ? ' aria-pressed="true"' : "") + ">" +
         (e.id === sel ? '<circle cx="' + p.x + '" cy="' + p.y + '" r="10" fill="none" stroke="var(--accent)" stroke-width="2.2"/>' : "") +
         mark(e.condition, s, p.x, p.y, 4.8) + '<text class="eid" x="' + (p.x + 12) + '" y="' + (p.y + 4) + '">' + esc(clip(e.id, 19)) + "</text>" +
         '<rect class="rowhit" x="' + (p.x - 9) + '" y="' + (p.y - MAP.rowH / 2) + '" width="' + (MAP.boxW - 24) + '" height="' + MAP.rowH + '" fill="transparent"/></g>');
@@ -939,11 +944,39 @@
     // test below still gives an epic's mark and id to the epic.
     if (nb) out.push("<g>" + neighbourEdges(sel, geo.pos).join("") + "</g>");
     $("mapsvg").innerHTML = out.join("");
+    if (hadFocus) focusNode(mapView.focus);
     mapPort.bounds(geo.W, geo.H);
     syncURL();
   }
   const clip = (s, n) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
   panel(["epic-export"], drawMap);
+
+  // focusNode puts the map's tab stop on id and focuses it.
+  function focusNode(id) {
+    const svg = $("mapsvg");
+    const node = id && [...svg.querySelectorAll(".node")].find((n) => n.dataset.id === id);
+    if (!node) return;
+    svg.querySelectorAll('.node[tabindex="0"]').forEach((n) => n.setAttribute("tabindex", "-1"));
+    node.setAttribute("tabindex", "0");
+    mapView.focus = id;
+    node.focus({ preventScroll: true });
+  }
+  // The arrows move the map's focus to the nearest epic that way
+  // (tpPure.roveNext), taking the view along; Enter or Space selects it.
+  $("mapsvg").addEventListener("keydown", (ev) => {
+    const node = ev.target.closest && ev.target.closest(".node");
+    if (!node) return;
+    if (ev.key === "Enter" || ev.key === " ") {
+      ev.preventDefault();
+      selectEpic(node.dataset.id);
+      return;
+    }
+    const next = tpPure.roveNext(mapView.geo.pos, node.dataset.id, ev.key);
+    if (next === node.dataset.id) return;
+    ev.preventDefault();
+    focusNode(next);
+    mapPort.reveal(mapView.geo.pos[next]);
+  });
 
   // mapPort pans and zooms the map: drag to pan, Ctrl or ⌘ with the wheel (a
   // pinch) to zoom; a plain wheel scrolls the page.
@@ -1057,6 +1090,10 @@
           v = tpPure.centreView({ ...v, h: v.w * r.height / r.width }, p, r.width);
           apply();
         });
+      },
+      // reveal centres p only when it lies outside the view.
+      reveal(p) {
+        if (v && p && (p.x < v.x || p.x > v.x + v.w || p.y < v.y || p.y > v.y + v.h)) this.centre(p);
       },
       // bounds takes the drawing's size; the first drawing is fitted, later
       // ones keep the reader's view.

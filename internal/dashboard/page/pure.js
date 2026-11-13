@@ -29,6 +29,30 @@
     return { x: p.x - w / 2, y: p.y - h / 2, w, h };
   };
 
+  // ROVE names each arrow's direction as [dx, dy].
+  const ROVE = { ArrowRight: [1, 0], ArrowLeft: [-1, 0], ArrowDown: [0, 1], ArrowUp: [0, -1] };
+
+  // roveNext is the id an arrow key moves the focus to from cur, over pos
+  // (ids to drawing points): the nearest point that way, a step across the
+  // arrow counting thrice a step along it; cur itself when none lies that way
+  // or the key is no arrow.
+  P.roveNext = function (pos, cur, key) {
+    const dir = ROVE[key];
+    const p = pos[cur];
+    if (!dir || !p) return cur;
+    let best = cur;
+    let score = Infinity;
+    Object.keys(pos).forEach((id) => {
+      const dx = pos[id].x - p.x;
+      const dy = pos[id].y - p.y;
+      const along = dx * dir[0] + dy * dir[1];
+      if (along <= 0) return;
+      const s = along + 3 * Math.abs(dx * dir[1] - dy * dir[0]);
+      if (s < score) { score = s; best = id; }
+    });
+    return best;
+  };
+
   // pinchView is the view after two fingers moved from a0 and b0 to a1 and
   // b1 (pixels from the box's top left, the box rw by rh) over the view v0
   // they started on: zoomed by the ratio of their spans, with the drawing
