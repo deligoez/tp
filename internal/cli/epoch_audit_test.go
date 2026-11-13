@@ -3,6 +3,7 @@ package cli_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -45,4 +46,26 @@ func TestEpoch_TheAuditPriorRoundSectionStartsAtTheEpoch(t *testing.T) {
 		assert.NotContains(t, p["prompt"], "## Prior Round", "%s: no prior-round section after the epoch", role)
 		assert.NotContains(t, p["prompt"], "MARKER-AUDIT-OLD", role)
 	}
+}
+
+// TestEpoch_AnAcceptanceFromBeforeTheEpochIsNotCarried: --record carries an
+// acceptance from the round immediately before; one decided before the epoch
+// was made about a text the spec no longer holds, so it is not carried and
+// the operator is asked for it again. carryRepo's fixture carries it without
+// the epoch (TestAuditCarry_AnUnchangedAcceptanceIsCarriedIntoTheNextRound).
+func TestEpoch_AnAcceptanceFromBeforeTheEpochIsNotCarried(t *testing.T) {
+	t.Parallel()
+	dir := carryRepo(t, "2021-01-01T00:00:00Z", carryFailRow, carryWontfix)
+	statePath := filepath.Join(dir, ".tp-review", "spec", "state.json")
+	data, err := os.ReadFile(statePath)
+	require.NoError(t, err)
+	withEpoch := strings.TrimSuffix(strings.TrimSpace(string(data)), "}") +
+		`,"epochs":[{"after_review_round":0,"after_audit_round":1,"evidence":"rewritten","at":"2021-01-02T00:00:00Z"}]}`
+	require.NoError(t, os.WriteFile(statePath, []byte(withEpoch), 0o600))
+
+	out, stderr, code := auditRecord(t, dir, carryFailRow)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.Equal(t, float64(0), out["carried"], "nothing is carried across the epoch")
+	assert.Equal(t, false, out["clean"], "the FAIL stands until the operator decides it again")
+	assert.NotContains(t, carriedRow(t, dir, 2), "resolved")
 }
