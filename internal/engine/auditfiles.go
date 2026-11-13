@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"bytes"
 	"fmt"
 	"os/exec"
 	"path/filepath"
@@ -309,7 +308,9 @@ func commitChangedFiles(dir, sha, taskID string) []string {
 	// checkout maps every task to zero files. That empty mapping is not
 	// distinguishable from "no task has a usable commit_sha", so
 	// spec-coverage silently takes its fallback file list at exit 0.
-	cmd := exec.Command("git", "show", "--name-only", "--pretty=format:", sha)
+	// -z: a path git would C-quote arrives as written, so it matches the
+	// universe, which is read NUL-separated too.
+	cmd := exec.Command("git", "show", "--name-only", "--pretty=format:", "-z", sha)
 	cmd.Dir = dir
 	out, err := cmd.Output()
 	if err != nil {
@@ -321,8 +322,8 @@ func commitChangedFiles(dir, sha, taskID string) []string {
 		return nil
 	}
 	files := make([]string, 0)
-	for line := range strings.SplitSeq(string(bytes.TrimSpace(out)), "\n") {
-		if f := strings.TrimSpace(line); f != "" {
+	for field := range strings.SplitSeq(string(out), "\x00") {
+		if f := strings.Trim(field, "\n"); f != "" {
 			files = append(files, f)
 		}
 	}
