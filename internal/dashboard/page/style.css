@@ -1,5 +1,7 @@
 /* tp dashboard: the approved prototype's tokens and shell (spec/1.8.0.md §3).
  * Fonts are local only: the page loads nothing beside the dashboard. */
+/* a scrollbar coming or going leaves the width alone, so the fitted grids do not refit */
+:root { scrollbar-gutter: stable; }
 :root {
   color-scheme: light;
   --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px;

@@ -414,9 +414,15 @@
       cards.forEach((c) => { c.style.gridColumn = ""; });
       return;
     }
-    box.dataset.cols = String(grid.columns);
-    box.style.setProperty("--cols", String(grid.columns));
-    cards.forEach((c, i) => { c.style.gridColumn = "span " + grid.spans[i]; });
+    // Only what changed is written, so the ResizeObserver this feeds settles.
+    if (box.dataset.cols !== String(grid.columns)) {
+      box.dataset.cols = String(grid.columns);
+      box.style.setProperty("--cols", String(grid.columns));
+    }
+    cards.forEach((c, i) => {
+      const span = "span " + grid.spans[i];
+      if (c.style.gridColumn !== span) c.style.gridColumn = span;
+    });
   }
   // The grids that spread their cards so, each with its narrowest card: the
   // KPI row, the Lifecycle's stage and phase cells, its milestone cards.
