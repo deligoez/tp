@@ -1218,7 +1218,7 @@
       let st = reached[k] ? "done" : i === cur ? "cur" : "todo";
       if (k === "claimed" && st === "done" && !claim) st = "skip";
       const mk = st === "done" ? CHECK : st === "skip" ? "–" : String(i + 1);
-      return '<li class="' + st + '"' + (st === "cur" ? ' aria-current="step"' : "") + '><span class="sn">' + mk + '</span><span class="sl">' + esc(t(label)) + '</span><span class="sd">' + esc(sub[k]) + "</span></li>";
+      return '<li class="' + st + '" title="' + esc(sub[k]) + '"' + (st === "cur" ? ' aria-current="step"' : "") + '><span class="sn">' + mk + '</span><span class="sl">' + esc(t(label)) + '</span><span class="sd">' + esc(sub[k]) + "</span></li>";
     }).join("") + "</ol>";
   }
 
@@ -1278,6 +1278,16 @@
   // its key, to find it again when a redraw replaced it. Null while the
   // drawer is closed.
   let drawerReturn = null;
+  // dfolds are the drawer's folds left open, by key, so a redraw keeps them
+  // open. A details element's toggle does not bubble, so it is caught on the
+  // way down.
+  const dfolds = new Set();
+  document.addEventListener("toggle", (ev) => {
+    const d = ev.target;
+    if (!d.dataset || !d.dataset.dfold) return;
+    if (d.open) dfolds.add(d.dataset.dfold);
+    else dfolds.delete(d.dataset.dfold);
+  }, true);
   // refocus puts focus on the element focusKey names key, as after a
   // toggle's redraw replaced the button that held it.
   function refocus(key) {
@@ -1335,36 +1345,49 @@
     const ms = (g.milestones || []).find((m) => m.milestone === e.milestone) || {};
     const crit = ((g.critical_path && g.critical_path.by_count) || []).includes(id);
     const down = e.downstream;
-    const deps = (ge.depends_on || []).map((d) => {
-      const members = d.any_of || [d.id];
-      return "<li>" + (d.any_of ? '<span class="muted">' + esc(t("wait.oneOf")) + "</span> " : "") + members.map((x) => {
-        const xe = (g.epics || []).find((y) => y.id === x);
-        return epicLink(x) + (xe ? ' <span class="esub">(' + esc(word(STAGE_LABEL, xe.status).toLocaleLowerCase(t.locale)) + ")</span>" : "");
-      }).join(", ") + whyHTML(d.why) + "</li>";
-    }).join("");
+    // A dependency row is the epic's mark as a dot, its id and its why on one
+    // or two lines; the full why is its tooltip.
+    const dot = (x) => {
+      const xe = (g.epics || []).find((y) => y.id === x);
+      if (!xe) return "";
+      const mk = markOf(xe, (g.milestones || []).find((m) => m.milestone === xe.milestone)).mark;
+      const name = esc(word(MARK_LABEL, mk));
+      return '<i class="ddot" role="img" aria-label="' + name + '" title="' + name + '" style="background:var(' + tpPure.markToken(mk) + ')"></i>';
+    };
+    const why = (w) => (w ? '<span class="dwhy" title="' + esc(w) + '">' + esc(w) + "</span>" : "");
+    const deps = (ge.depends_on || []).map((d) => "<li>" + (d.any_of ? '<span class="muted">' + esc(t("wait.oneOf")) + "</span> " : "") +
+      (d.any_of || [d.id]).map((x) => dot(x) + epicLink(x)).join(", ") + why(d.why) + "</li>");
     const needs = [...new Set(mapView.dependents[id] || [])].map((y) => {
       const d = (mapView.deps[y] || []).find((x) => x.id === id) || {};
-      return "<li>" + epicLink(y) + groupHTML(d.group) + whyHTML(d.why) + "</li>";
-    }).join("");
-    const waits = (e.blocked_by || []).concat((e.blocked_by_any_of || []).map((x) => t("chain.group", { ids: x.join(", ") })));
+      return "<li>" + dot(y) + epicLink(y) + groupHTML(d.group) + why(d.why) + "</li>";
+    });
+    // A list past five rows folds the rest; what is open stays open across
+    // the redraws a push or the history's fetch brings.
+    const fold = (key, inner) => '<details class="dmore" data-dfold="' + key + '"' + (dfolds.has(key) ? " open" : "") + ">" + inner + "</details>";
+    const rows = (key, list) => {
+      if (!list.length) return none(t("drawer.nothing"));
+      const [shown, rest] = tpPure.foldAt(list, 5);
+      return '<ul class="elist drows">' + shown.join("") + "</ul>" +
+        (rest.length ? fold(key, "<summary>" + esc(t("drawer.more", { n: rest.length })) + '</summary><ul class="elist drows">' + rest.join("") + "</ul>") : "");
+    };
     const msLine = e.milestone + ", " + (ms.open === false ? t("ms.closed") : t("ms.open"));
     const fields = [
       [t("drawer.f.milestone"), ms.state ? t("drawer.msGate", { ms: msLine, done: ms.state.members_done, n: ms.state.members }) : msLine],
-      [t("drawer.f.status"), word(STAGE_LABEL, e.status) + (waits.length ? ", " + t("ms.waitsOn", { on: waits.join(", ") }) : "")],
+      [t("drawer.f.status"), word(STAGE_LABEL, e.status)],
       [t("drawer.f.downstream"), down ? t("drawer.downstream", { n: down.dependents, open: down.dependents_open, chain: down.longest_chain }) : t("drawer.noDownstream")],
       ge.estimate_minutes ? [t("drawer.f.estimate"), t.dur(ge.estimate_minutes)] : null,
-      (ge.tags || []).length ? [t("drawer.f.tags"), ge.tags.join(", ")] : null,
+      (ge.tags || []).length ? [t("drawer.f.tags"), ge.tags.map((x) => '<span class="dtag">' + esc(x) + "</span>").join(" "), true] : null,
       ge.acceptance ? [t("drawer.f.acceptance"), ge.acceptance] : null,
       ge.done ? [t("drawer.f.done"), stamp(ge.done.at) + (ge.done.evidence ? ": " + ge.done.evidence : "")] : null,
     ].filter(Boolean);
     $("dbody").innerHTML = '<div><div class="dmeta"><code>' + esc(id) + "</code><span>" + esc(e.condition ? t("drawer.condition") : t("drawer.workEpic")) + "</span>" + (crit ? '<span class="critpill">' + esc(t("wait.critical")) + "</span>" : "") + "</div><h3>" + esc(e.title) + "</h3></div>" +
       (e.condition ? '<p class="impact">' + t.html("drawer.conditionNote_html", { id }) + "</p>" : epicStepper(e, ge.claimed !== undefined ? ge : null)) +
-      "<dl>" + fields.map(([k, v]) => "<dt>" + esc(k) + "</dt><dd>" + esc(v) + "</dd>").join("") + "</dl>" +
+      "<dl>" + fields.map(([k, v, html]) => "<dt>" + esc(k) + "</dt><dd>" + (html ? v : esc(v)) + "</dd>").join("") + "</dl>" +
       (String(ge.description || "").trim() ? descHTML(ge.description) : "") +
-      (e.condition ? "" : "<div><h4>" + esc(t("drawer.specs")) + "</h4>" + ((e.files || []).length ? '<ul class="elist">' + e.files.map(fileLine).join("") + "</ul>" : none(t("drawer.noSpecs", { id }))) + "</div>") +
-      "<div><h4>" + esc(t("drawer.dependsOn")) + "</h4>" + (deps ? '<ul class="elist">' + deps + "</ul>" : none(t("drawer.nothing"))) + "</div>" +
-      "<div><h4>" + esc(t("drawer.dependedOnBy")) + "</h4>" + (needs ? '<ul class="elist">' + needs + "</ul>" : none(t("drawer.nothing"))) + "</div>" +
-      "<div><h4>" + esc(t("drawer.history")) + " " + info("ehistory", t("drawer.history")) + "</h4>" + epicHistoryHTML(id) + "</div>";
+      ((e.files || []).length ? "<div><h4>" + esc(t("drawer.specs")) + '</h4><ul class="elist">' + e.files.map(fileLine).join("") + "</ul></div>" : "") +
+      "<div><h4>" + esc(t("drawer.dependsOn")) + "</h4>" + rows("deps", deps) + "</div>" +
+      "<div><h4>" + esc(t("drawer.dependedOnBy")) + "</h4>" + rows("needs", needs) + "</div>" +
+      "<div><h4>" + esc(t("drawer.history")) + " " + info("ehistory", t("drawer.history")) + "</h4>" + fold("history", "<summary>" + esc(t("drawer.historyShow")) + "</summary>" + epicHistoryHTML(id)) + "</div>";
   }
   INFO.ehistory = tk("info.ehistory");
 

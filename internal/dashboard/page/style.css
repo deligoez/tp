@@ -535,10 +535,30 @@ body.dopen:not([data-tab="epics"]) { padding: 0; }
 .dbody dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px var(--space-md); margin: 0; font-size: var(--text-sm); }
 .dbody dt { color: var(--muted); }
 .dbody dd { margin: 0; min-width: 0; overflow-wrap: anywhere; white-space: pre-line; }
-.ddesc { font: 400 var(--text-sm)/1.6 var(--mono); background: var(--sunk); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius-input); padding: var(--space-sm) 14px; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 24em; overflow: auto; }
+/* An epic's description is prose: the body face, unboxed, its line breaks
+   kept, a long one scrolling inside its own height. */
+.ddesc { font: 400 var(--text-sm)/1.6 var(--font-body); color: var(--ink-2); background: none; border: 0; padding: 0; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 18em; overflow: auto; }
 .dmeta { display: flex; flex-wrap: wrap; gap: var(--space-2xs) var(--space-sm); align-items: center; font-size: var(--text-sm); color: var(--muted); }
 .critpill { color: var(--crit); border: 1px solid var(--crit); border-radius: 999px; padding: 0 var(--space-xs); font-size: var(--text-xs); }
-.stepper.e3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/* The epic's stepper is one quiet line in the drawer: a numbered or ticked
+   dot and its name per step, joined by a rule; each step's detail is its
+   tooltip. */
+.stepper.e3 { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs) var(--space-xs); }
+.stepper.e3 li { display: flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none; box-shadow: none; }
+.stepper.e3 li + li::before { content: ""; width: 18px; height: 1px; background: var(--line); margin-right: var(--space-2xs); }
+.stepper.e3 .sn { width: 18px; height: 18px; font-size: 11px; }
+.stepper.e3 .sl { font: 500 var(--text-sm)/1.3 var(--font-display); }
+.stepper.e3 li.todo .sl, .stepper.e3 li.skip .sl { color: var(--muted); font-weight: 400; }
+.stepper.e3 .sd { display: none; }
+/* A dependency row: its mark's dot, its id, and its why in at most two
+   muted lines. */
+.drows { gap: var(--space-xs); }
+.drows li { line-height: 1.4; }
+.ddot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+.drows .dwhy { font-size: var(--text-xs); line-height: 1.4; max-height: 2.8em; overflow: hidden; }
+.dmore summary { cursor: pointer; font-size: var(--text-sm); color: var(--ink-2); margin-top: var(--space-xs); }
+.dmore > .drows { margin-top: var(--space-xs); }
+.dtag { display: inline-block; font-size: var(--text-xs); color: var(--ink-2); background: var(--sunk); border: 1px solid var(--line); border-radius: 999px; padding: 0 var(--space-xs); margin: 0 2px 2px 0; }
 .ehs + .ehs { margin-top: var(--space-sm); }
 .ehr { list-style: none; margin: 0; padding: 0 0 0 var(--space-sm); border-left: 1px solid var(--line); display: grid; gap: var(--space-xs); font-size: var(--text-sm); }
 .ehr > li > b { display: block; font: 600 var(--text-xs) var(--font-display); color: var(--ink-2); }
@@ -549,7 +569,6 @@ body.dopen:not([data-tab="epics"]) { padding: 0; }
   .scrim { display: none; }
   body.dopen { padding-right: 0; padding-bottom: var(--drawer-h); }
   body.mapfs.dopen .card.fs { right: 0; bottom: var(--drawer-h); }
-  .stepper.e3 { grid-template-columns: minmax(0, 1fr); }
 }
 .esub { color: var(--muted); font-size: var(--text-xs); }
 
