@@ -155,6 +155,7 @@ func ReviewNextAction(specPath string, done LoopDone, blockingUnresolved bool, m
 		importStep = gate + importStep
 		forward = gate + forward
 	}
+	earlier := carriedEarlierNote(done.CarriedBlocking, specPath)
 	switch {
 	case done.Done && done.By == DoneByCap && done.EpochCutBlocking:
 		return forward + " — the round cap ended review after an epoch cut its unresolved blocking findings (" + EscalateRewritePastBlocking + "), not over their dispositions"
@@ -163,7 +164,7 @@ func ReviewNextAction(specPath string, done LoopDone, blockingUnresolved bool, m
 	case done.Done:
 		return forward
 	case done.CapReached && done.BlockingFixedAtCap > 0:
-		return blockingFixedAtCap(done.BlockingFixedAtCap) + " — tp review " + roundFile + " --resolve <index> wontfix \"<evidence>\" --force — then " + importStep
+		return blockingFixedAtCap(done.BlockingFixedAtCap) + " — tp review " + roundFile + " --resolve <index> wontfix \"<evidence>\" --force — then " + importStep + earlier
 	case len(done.CarriedBlocking) > 0 && !blockingUnresolved && done.Undisposed == 0:
 		clause := CarriedBlockingClause(done.CarriedBlocking, specPath, done.CapReached)
 		if CarriedFixedUnverified(done.CarriedBlocking) > 0 {
@@ -175,13 +176,28 @@ func ReviewNextAction(specPath string, done LoopDone, blockingUnresolved bool, m
 		return clause + " — then " + CheckGateCommand(specPath)
 	case done.CapReached:
 		return "the review round cap is reached: disposition each remaining finding in " + roundFile +
-			" — tp review " + roundFile + " --resolve <index> fixed|wontfix|duplicate \"<evidence>\"; accepting a critical or high finding is the operator's decision — then " + importStep
+			" — tp review " + roundFile + " --resolve <index> fixed|wontfix|duplicate \"<evidence>\"; accepting a critical or high finding is the operator's decision — then " + importStep + earlier
 	case blockingUnresolved:
 		return "revise the spec where a blocking finding is a defect, or disposition it — tp review " + roundFile +
-			" --resolve <index> wontfix|duplicate \"<evidence>\", the operator's decision for a critical or high finding — then run the next review round"
+			" --resolve <index> wontfix|duplicate \"<evidence>\", the operator's decision for a critical or high finding — then run the next review round" + earlier
 	default:
 		return mechanizeOrNextRound(specPath, mechanizeClasses, &checks)
 	}
+}
+
+// carriedEarlierNote is the count of carried blocking rows from rounds before
+// the latest, appended to a branch about the latest round so the agent does
+// not find them one step later; "" when there are none.
+func carriedEarlierNote(rows []CarriedRow, specPath string) string {
+	n := len(CarriedEarlier(rows))
+	if n == 0 {
+		return ""
+	}
+	noun := "finding"
+	if n > 1 {
+		noun = "findings"
+	}
+	return fmt.Sprintf("; %d carried blocking %s from earlier rounds also hold the loop (tp review %s --status lists them)", n, noun, specPath)
 }
 
 // mechanizeOrNextRound is ReviewNextAction's branches 4 and 5.
