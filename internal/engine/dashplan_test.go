@@ -25,8 +25,8 @@ func defaultMatcher(t *testing.T) *PlaceholderMatcher {
 // held by the condition c, the actionable condition free, and the done
 // condition k. Conditions are in no figure and in no ready, waiting or
 // most-waited-on list; free is the one operator decision; w is waited on by h
-// through c, which is passed through and not counted. Two of three slices
-// are open loops, one of them only stale after a graph edit.
+// through c, which is passed through and not counted. Three of four slices
+// are open loops; two are stale, and one of those a re-review alone settles.
 func TestDashboardPlan_FiguresAndNowListsCountNoCondition(t *testing.T) {
 	t.Parallel()
 	g := figuresGraph()
@@ -34,7 +34,8 @@ func TestDashboardPlan_FiguresAndNowListsCountNoCondition(t *testing.T) {
 	slices := []EpicSliceState{
 		{Dir: "a", EpicLoop: EpicLoop{Round: 2, State: LoopStateOpen}},
 		{Dir: "b", EpicLoop: EpicLoop{Round: 3, State: LoopStateDone}},
-		{Dir: "c", EpicLoop: EpicLoop{Round: 1, State: LoopStateStale}},
+		{Dir: "c", EpicLoop: EpicLoop{Round: 1, State: LoopStateStale}, StaleOnly: true},
+		{Dir: "d", EpicLoop: EpicLoop{Round: 1, State: LoopStateStale}},
 	}
 	plan := DashboardPlanOf(g, states, nil, defaultMatcher(t), slices)
 
@@ -42,7 +43,7 @@ func TestDashboardPlan_FiguresAndNowListsCountNoCondition(t *testing.T) {
 	require.NotEmpty(t, critical)
 	assert.Equal(t, DashboardFigures{
 		Work: 2, Ready: 1, Blocked: 1, Held: 1, Done: 0, ShareDone: 0,
-		CriticalPath: len(critical), OperatorQueue: 1, OpenLoops: 2, StaleLoops: 1, Throughput: []DashboardWeek{},
+		CriticalPath: len(critical), OperatorQueue: 1, OpenLoops: 3, StaleLoops: 1, Throughput: []DashboardWeek{},
 	}, plan.Figures)
 	assert.Equal(t, []string{"w"}, plan.Ready)
 	assert.Equal(t, []string{"free"}, plan.OperatorConditions)
