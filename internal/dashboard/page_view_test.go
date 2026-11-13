@@ -116,3 +116,26 @@ func TestPure_TheLegendCardStartsCollapsedInFullScreenAndKeepsTheChoice(t *testi
 	got := runPure(t, `out([P.legendOpen(null, false), P.legendOpen(null, true), P.legendOpen("1", true), P.legendOpen("0", false), P.legendOpen("yes", true), P.legendKey(false), P.legendKey(true)]);`)
 	assert.JSONEq(t, `[true, false, true, false, false, "tp-dashboard-legend", "tp-dashboard-legend-fs"]`, got)
 }
+
+// TestPage_FullScreenFloatsTheToolbarAndTheLegendOverTheCanvas: in full
+// screen the canvas takes the card's whole height; the toolbar floats over
+// it as one pill-shaped line without the card's title, the count line and
+// the long help hide, and the legend and keys float as one collapsible card
+// at the bottom left that L opens and closes, its state kept in this
+// browser behind a try.
+func TestPage_FullScreenFloatsTheToolbarAndTheLegendOverTheCanvas(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	for _, s := range []string{
+		`<section class="glegend" id="gc-legendcard">`, `id="gc-lg" aria-expanded="true" aria-controls="gc-legend"`,
+		"body.mapfs .gcard.fs .toolbar { position: absolute;", "border-radius: 999px;", "flex-wrap: nowrap;",
+		"body.mapfs .gcard.fs .toolbar h2, body.mapfs .gcard.fs .toolbar .spacer, body.mapfs .gcard.fs .gcount, body.mapfs .gcard.fs .legend .help, body.mapfs .gcard.fs .chaintext { display: none; }",
+		"body.mapfs .gcard.fs .glegend { position: absolute; left: 12px; bottom: 12px;",
+		".glegend.closed .legend { display: none; }",
+	} {
+		assert.Contains(t, page, s)
+	}
+	for _, s := range []string{"pure.legendOpen(", "pure.legendKey(", `ev.key === "l" || ev.key === "L"`, "try { localStorage.setItem(pure.legendKey(", `new Event("tp-fs")`} {
+		assert.Contains(t, script, s)
+	}
+}
