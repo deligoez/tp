@@ -21,14 +21,15 @@
   };
 
   // containView is the first view of a W by H scoped view in a box of bw by
-  // bh pixels: the whole drawing, centred, within SCALE; along an axis it
-  // does not fit on, it opens at its start.
+  // bh pixels, and what Fit shows: the whole drawing, centred, never above
+  // SCALE.max; a drawing too large for SCALE.min is zoomed out until it fits,
+  // since a view that cuts bands or milestones off hides that they exist.
   P.containView = function (W, H, bw, bh) {
     const fit = Math.min(bw / (W + 2 * VIEW_PAD), bh / (H + 2 * VIEW_PAD));
-    const s = Math.min(P.SCALE.max, Math.max(P.SCALE.min, fit));
+    const s = Math.min(P.SCALE.max, fit);
     const w = bw / s;
     const h = bh / s;
-    return { x: w >= W ? W / 2 - w / 2 : -VIEW_PAD, y: h >= H ? H / 2 - h / 2 : -VIEW_PAD, w, h };
+    return { x: W / 2 - w / 2, y: H / 2 - h / 2, w, h };
   };
 
   // placeLayout turns a /api/layout payload into drawing points: a column of
