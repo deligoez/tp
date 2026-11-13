@@ -404,10 +404,40 @@
     return rel.format(-Math.floor(s / 86400), "day");
   };
 
-  // wheelZooms says whether a wheel event zooms the graph: with Ctrl or ⌘
-  // held, or with the plain wheel while the graph fills the screen.
-  P.wheelZooms = function (ev, fullscreen) {
-    return !!(ev.ctrlKey || ev.metaKey || fullscreen);
+  // wheelAction is what a wheel event does to the graph, with no guess at
+  // whether a trackpad or a mouse sent it: "zoom" with Ctrl or ⌘ held, which
+  // is also how Chrome and Firefox report a pinch; else "pan" while the
+  // graph fills the screen, and "page", the page's own scroll, outside it.
+  P.wheelAction = function (ev, fullscreen) {
+    if (ev.ctrlKey || ev.metaKey) return "zoom";
+    return fullscreen ? "pan" : "page";
+  };
+
+  // wheelDelta is a wheel event's [x, y] in pixels: its deltaMode counts
+  // pixels, lines of 16 pixels, or pages of height pixels.
+  P.wheelDelta = function (ev, height) {
+    const k = ev.deltaMode === 1 ? 16 : ev.deltaMode === 2 ? height : 1;
+    return [(ev.deltaX || 0) * k, (ev.deltaY || 0) * k];
+  };
+
+  // ZOOM_PER_PX is how far one pixel of wheel moves the zoom, a power of
+  // two: a pinch's deltas of 1 to 10 move it a little each, a mouse's 100 a
+  // doubling. MAX_ZOOM_STEP keeps any one event within 2× either way.
+  const ZOOM_PER_PX = 0.01;
+  const MAX_ZOOM_STEP = 1;
+  const limitStep = (dz) => Math.max(-MAX_ZOOM_STEP, Math.min(MAX_ZOOM_STEP, dz));
+
+  // wheelZoom is the zoom step for a wheel's dy pixels, up zooming in.
+  P.wheelZoom = function (dy) {
+    return limitStep(-dy * ZOOM_PER_PX);
+  };
+
+  // pinchZoom is the zoom step for Safari's pinch, whose events carry the
+  // scale since the gesture began: the log of its change from prev, limited
+  // as a wheel's step is; 0 for a scale that is not positive.
+  P.pinchZoom = function (prev, scale) {
+    if (!(prev > 0) || !(scale > 0)) return 0;
+    return limitStep(Math.log2(scale / prev));
   };
 
   // focusAfterClose picks where focus goes back when the drawer closes:

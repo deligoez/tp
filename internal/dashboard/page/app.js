@@ -975,7 +975,7 @@
   // API for the page and marks the card to fill it, so the drawer still opens
   // beside it; Esc, which the browser handles, leaves it. Where the API is
   // missing the card fills the window alone and Esc unmarks it. While a card
-  // fills the screen the plain wheel zooms it.
+  // fills the screen the plain wheel pans it.
   function setFullScreen(card) {
     document.querySelectorAll(".card.fs").forEach((c) => { if (c !== card) c.classList.remove("fs"); });
     if (card) card.classList.add("fs");

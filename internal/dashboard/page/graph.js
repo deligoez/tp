@@ -73,7 +73,7 @@
     data: null, key: null, dataKey: null, error: null, seq: 0, seen: null,
     deck: null, deckState: "idle", visible: false, built: null, builtFor: null, prepared: null,
     vs: null, far: null, fitted: null, matchIdx: -1, colors: null, loadMs: null, firstDrawMs: null,
-    sets: null, setsKey: null, drawing: null, msgKey: tk("graph.notYet"),
+    sets: null, setsKey: null, drawing: null, msgKey: tk("graph.notYet"), pinch: 1, gesture: false,
   };
   window.tpGraph = G;
 
@@ -547,22 +547,53 @@
   function zoomBy(dz) {
     goTo({ ...G.vs, zoom: Math.min(3, Math.max(-8, G.vs.zoom + dz)) });
   }
-  // Ctrl or ⌘ with the wheel, a pinch, or the plain wheel in full screen
-  // zooms about the pointer (tpPure.wheelZooms); otherwise the wheel
-  // scrolls the page.
-  $("gc-canvas").addEventListener("wheel", (ev) => {
-    if (!G.vs || !G.prepared || !pure.wheelZooms(ev, card.classList.contains("fs"))) return;
-    ev.preventDefault();
+  // zoomAt zooms by dz about the screen point (cx, cy), so what sits under
+  // the pointer stays under it.
+  function zoomAt(dz, cx, cy) {
     const box = $("gc-canvas").getBoundingClientRect();
-    const px = ev.clientX - box.left - box.width / 2;
-    const py = ev.clientY - box.top - box.height / 2;
+    const px = cx - box.left - box.width / 2;
+    const py = cy - box.top - box.height / 2;
     const s0 = Math.pow(2, G.vs.zoom);
-    const z = Math.min(3, Math.max(-8, G.vs.zoom - ev.deltaY * (ev.ctrlKey ? 0.01 : 0.002)));
+    const z = Math.min(3, Math.max(-8, G.vs.zoom + dz));
     const s1 = Math.pow(2, z);
     const wx = G.vs.target[0] + px / s0;
     const wy = G.vs.target[1] + py / s0;
     goTo({ ...G.vs, zoom: z, target: [wx - px / s1, wy - py / s1, 0] });
-  }, { passive: false });
+  }
+  // The wheel (tpPure.wheelAction): Ctrl or ⌘ with it, and Chrome's and
+  // Firefox's pinch, zoom about the pointer; in full screen the plain wheel
+  // pans; outside it the page scrolls. The box listens in the capture
+  // phase, ahead of deck.gl's canvas inside it.
+  $("gc-canvas").addEventListener("wheel", (ev) => {
+    if (!G.vs || !G.prepared) return;
+    const act = pure.wheelAction(ev, card.classList.contains("fs"));
+    if (act === "page") return;
+    ev.preventDefault();
+    // A pinch Safari reports as a gesture zooms there alone.
+    if (act === "zoom" && G.gesture) return;
+    const [dx, dy] = pure.wheelDelta(ev, $("gc-canvas").clientHeight);
+    if (act === "zoom") zoomAt(pure.wheelZoom(dy), ev.clientX, ev.clientY);
+    else pan(dx, dy);
+  }, { passive: false, capture: true });
+  // Safari's pinch: gesture events carry the scale since the pinch began,
+  // and each step zooms by its change. They are heard, and cancelled, only
+  // on the canvas, so a pinch elsewhere zooms the page as Safari does.
+  $("gc-canvas").addEventListener("gesturestart", (ev) => {
+    if (!G.vs) return;
+    ev.preventDefault();
+    G.pinch = 1;
+    G.gesture = true;
+  });
+  $("gc-canvas").addEventListener("gesturechange", (ev) => {
+    if (!G.vs || !G.prepared) return;
+    ev.preventDefault();
+    zoomAt(pure.pinchZoom(G.pinch, ev.scale), ev.clientX, ev.clientY);
+    G.pinch = ev.scale;
+  });
+  $("gc-canvas").addEventListener("gestureend", (ev) => {
+    ev.preventDefault();
+    G.gesture = false;
+  });
 
   function tooltip({ object, layer }) {
     if (!object || !layer || layer.id !== "nodes") return null;
@@ -675,7 +706,7 @@
       '</b></span><span><i class="ln" style="background:' + rgb(c.desc) + '"></i>' + escape(t("graph.waitedOn")) + " <b>" + escape(t("graph.near", { n: P.desc.size, near: pure.withinTwo(P.desc) })) + "</b></span>" +
       '<button type="button" data-lwhole aria-pressed="' + G.whole + '">' + escape(t("graph.whole")) + "</button>" : "";
     $("gc-legend").innerHTML = marks + '<span class="lhead"></span>' + edges + sel +
-      '<span class="help">' + escape(P.L.view === "milestones" ? t("graph.help.milestones") : t("graph.help.epics")) + (G.loadMs !== null ? " " + escape(t("graph.loadedIn", { ms: G.loadMs })) : "") + "</span>";
+      '<span class="help">' + escape((P.L.view === "milestones" ? t("graph.help.milestones") : t("graph.help.epics")) + " " + t("graph.help.input")) + (G.loadMs !== null ? " " + escape(t("graph.loadedIn", { ms: G.loadMs })) : "") + "</span>";
   }
   $("gc-legend").addEventListener("click", (ev) => {
     const m = ev.target.closest("[data-lmark]");

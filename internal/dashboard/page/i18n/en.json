@@ -520,7 +520,8 @@
   "graph.legendNodes": "Nodes drawn, one mark each, conditions included:",
   "graph.near": "{n} ({near} within two steps)",
   "graph.whole": "Show the whole chain",
-  "graph.help.epics": "Click an epic for its chain. Keys: / search, Enter next match (Shift+Enter back), F fit, K cross edges, Esc clear; on the focused canvas the arrows pan and + − zoom. Ctrl or ⌘ with the wheel, or a pinch, zooms; in full screen the wheel alone zooms and Esc leaves.",
+  "graph.help.epics": "Click an epic for its chain. Keys: / search, Enter next match (Shift+Enter back), F fit, K cross edges, Esc clear; on the focused canvas the arrows pan and + − zoom.",
+  "graph.help.input": "A pinch, or Ctrl or ⌘ with the wheel, zooms; in full screen the wheel pans, outside it the page scrolls.",
   "graph.help.milestones": "Click a milestone for its gate's closure. Keys: / search, Enter next match, F fit, K cross edges; on the focused canvas the arrows pan and + − zoom.",
   "graph.searchMilestone": "Find a milestone  /",
   "chain.deeper": { "one": "{n} edge further away", "other": "{n} edges further away" }
