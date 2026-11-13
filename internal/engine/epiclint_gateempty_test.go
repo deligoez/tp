@@ -49,3 +49,11 @@ func TestLintEpicGraph_GateEmptySkipsAThresholdOrMembers(t *testing.T) {
 	}
 }
 
+// TestLintEpicGraph_GateEmptySkipsAMilestoneNothingOpensAfter: T1 opens
+// after nothing, so TG's empty gate holds nothing back.
+func TestLintEpicGraph_GateEmptySkipsAMilestoneNothingOpensAfter(t *testing.T) {
+	g := triggerGateGraph()
+	g.OpensAfter["T1"] = []string{}
+	assert.Empty(t, findingsOf(t, LintEpicGraph(g, nil), EpicRuleGateEmpty))
+}
+
