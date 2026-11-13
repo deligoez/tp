@@ -188,3 +188,24 @@ func TestReviewRewritten_StatusOmitsEpochsWhenThereAreNone(t *testing.T) {
 	}
 }
 
+// TestReviewRewritten_RefusesTheFlagsOfOtherModes: --rewritten is a mode of its
+// own, so another mode or a flag that belongs to one is named and refused.
+func TestReviewRewritten_RefusesTheFlagsOfOtherModes(t *testing.T) {
+	t.Parallel()
+	dir := rewrittenFixture(t)
+	for _, extra := range [][]string{
+		{"--status"},
+		{"--record", "x.ndjson"},
+		{"--force"},
+		{"--no-state"},
+		{"--round", "2"},
+		{"--perspective", "testing"},
+		{"--role", "implementer"},
+	} {
+		args := append([]string{"review", "spec.md", "--rewritten", "replaced the spec"}, extra...)
+		_, stderr, code := runTP(t, dir, args...)
+		assert.Equal(t, 2, code, "%v: %s", extra, stderr)
+		assert.Contains(t, errorEnvelope(t, stderr)["error"], "--rewritten", "%v: the refusal names the mode", extra)
+	}
+	assert.NotContains(t, stateJSONBytes(t, dir), "epochs")
+}
