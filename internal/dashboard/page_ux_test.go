@@ -361,14 +361,16 @@ func TestPage_TheDependencyViewRecordsTheKeyItsDataCameFor(t *testing.T) {
 	}
 }
 
-// TestPure_AScopedViewOpensWholeWhenItFits: a scoped view opens centred
-// and whole when it fits at a readable scale, never blown up past the
-// largest; one that does not fit opens at its top left.
-func TestPure_AScopedViewOpensWholeWhenItFits(t *testing.T) {
+// TestPure_AScopedViewOpensWhole: a scoped view opens, and Fit shows it,
+// centred and whole, never blown up past the largest scale; one too large
+// for the readable scale is zoomed out until it fits, so no band of a large
+// gate closure and no milestone of a long chain is cut off (1.14.1).
+func TestPure_AScopedViewOpensWhole(t *testing.T) {
 	t.Parallel()
 	got := runPure(t, `const r = (v) => Object.fromEntries(Object.entries(v).map(([k, x]) => [k, Math.round(x * 100) / 100]));
-out([r(P.containView(200, 100, 400, 400)), r(P.containView(2000, 500, 400, 400))]);`)
-	assert.JSONEq(t, `[{"x": -33.33, "y": -83.33, "w": 266.67, "h": 266.67}, {"x": -8, "y": -8, "w": 400, "h": 400}]`, got)
+out([r(P.containView(200, 100, 400, 400)), r(P.containView(2000, 500, 400, 400)), r(P.containView(3592, 316, 1406, 576))]);`)
+	assert.JSONEq(t, `[{"x": -33.33, "y": -83.33, "w": 266.67, "h": 266.67}, {"x": -8, "y": -758, "w": 2016, "h": 2016},
+		{"x": -8, "y": -581.05, "w": 3608, "h": 1478.1}]`, got)
 }
 
 // TestPage_DrawsTheThreeScopedViewsFromTheLayoutEndpoint is the scoped
