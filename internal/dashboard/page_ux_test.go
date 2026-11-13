@@ -661,6 +661,30 @@ func TestPage_TheCardControlIsMeasuredAgainOnceLaidOut(t *testing.T) {
 	}
 }
 
+// TestPure_AToggleKeepsItsKeyAcrossARedraw: a card's Show all, a Waiting
+// section's header and a section's Show all each have a key read from
+// their data attribute, and the key gives that attribute and value back,
+// so after the redraw a toggle causes focus returns to the replacement
+// button; anything else has no key (1.14.1 review).
+func TestPure_AToggleKeepsItsKeyAcrossARedraw(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const keys = [{ msx: "A2" }, { wsec: "T1" }, { wall: "C1" }, { wall: "" }, { epic: "x" }, {}].map(P.toggleKey);
+out({ keys, back: keys.filter(Boolean).map(P.toggleOf) });`)
+	assert.JSONEq(t, `{"keys": ["msx:A2", "wsec:T1", "wall:C1", "wall:", null, null],
+		"back": [{"attr": "data-msx", "value": "A2"}, {"attr": "data-wsec", "value": "T1"}, {"attr": "data-wall", "value": "C1"}, {"attr": "data-wall", "value": ""}]}`, got)
+}
+
+// TestPage_AToggleGivesFocusBackToItsReplacement: the toggles are among
+// the focusable elements focusKey names, and each toggle's handler puts
+// focus back on its replacement after the redraw.
+func TestPage_AToggleGivesFocusBackToItsReplacement(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Contains(t, script, `const FOCUSABLE = "#mapsvg .node, #gsvg .gnode, [data-epic], [data-msx], [data-wsec], [data-wall]";`)
+	assert.Contains(t, script, "tpPure.toggleKey(")
+	assert.Equal(t, 2, strings.Count(script, "refocus(key);"), "the card toggle and the Waiting toggles both refocus")
+}
+
 // TestPure_DescribedEpicsAreCountedPerMilestone: an epic counts as
 // described when its description holds more than whitespace, as tp treats
 // one, and each milestone gets its described and all epics.
