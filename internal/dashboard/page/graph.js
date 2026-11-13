@@ -464,20 +464,28 @@
 
   // LABEL_PX is a band label's height on screen and LABEL_CH the width of
   // one of its characters, an estimate for its 13-pixel bold font; a label
-  // is a pill inside its band's top-left corner, LABEL_INSET from it.
+  // is a pill inside its band's top-left corner, LABEL_INSET from it, or in
+  // the strip just above the band when a node sits in that corner.
   const LABEL_PX = 20;
   const LABEL_CH = 7.6;
   const LABEL_INSET = 6;
   // bandLabels is each band's label as this frame draws it: its name and
-  // count, its name alone where that would overlap a label already placed,
-  // or none, placed top to bottom, left to right, in screen pixels at
-  // scale (tpPure.placeLabels).
+  // count, its name alone where that would overlap a label or a node, or
+  // none, placed top to bottom, left to right, in screen pixels at scale
+  // (tpPure.placeLabels), with the world position it is drawn at.
   function bandLabels(P, scale) {
     const order = P.bands.slice().sort((a, b) => a.y0 - b.y0 || a.x0 - b.x0);
     const full = (b) => b.name + " · " + b.count;
-    const boxes = order.map((b) => ({ x: b.x0 * scale + LABEL_INSET, y: b.y0 * scale + LABEL_INSET, w: full(b).length * LABEL_CH + 12, h: LABEL_PX, sw: b.name.length * LABEL_CH + 12 }));
-    const kinds = pure.placeLabels(boxes);
-    return order.map((b, i) => (kinds[i] ? { b, text: kinds[i] === "full" ? full(b) : b.name } : null)).filter(Boolean);
+    // A label tries its band's top-left corner, then the strip just above
+    // the band; the nodes' boxes, a pixel larger all round, are obstacles,
+    // so a label is shortened, moved or left out rather than laid over one.
+    const boxes = order.map((b) => ({
+      x: b.x0 * scale + LABEL_INSET, y: b.y0 * scale + LABEL_INSET, w: full(b).length * LABEL_CH + 12, h: LABEL_PX, sw: b.name.length * LABEL_CH + 12,
+      alts: [{ x: b.x0 * scale + LABEL_INSET, y: b.y0 * scale - LABEL_PX - 2 }],
+    }));
+    const nodes = P.nodes.map((n) => ({ x: (n.x - n.w / 2) * scale - 1, y: n.y * scale - 1, w: n.w * scale + 2, h: n.h * scale + 2 }));
+    const at = pure.placeLabels(boxes, nodes);
+    return order.map((b, i) => (at[i] ? { b, text: at[i].kind === "full" ? full(b) : b.name, wx: at[i].x / scale, wy: at[i].y / scale } : null)).filter(Boolean);
   }
 
   // nodeText is what a node's id reads at the frame's detail: its whole
@@ -527,8 +535,8 @@
         updateTriggers: { getColor: v, getText: v },
       }),
       new TextLayer({
-        id: "band-names", data: bandLabels(P, scale), getPosition: (l) => [l.b.x0, l.b.y0], getText: (l) => l.text,
-        getPixelOffset: [LABEL_INSET + 6, LABEL_INSET + 3], getSize: 13, sizeUnits: "pixels", getTextAnchor: "start", getAlignmentBaseline: "top", getColor: [...c.ink, 235],
+        id: "band-names", data: bandLabels(P, scale), getPosition: (l) => [l.wx, l.wy], getText: (l) => l.text,
+        getPixelOffset: [6, 3], getSize: 13, sizeUnits: "pixels", getTextAnchor: "start", getAlignmentBaseline: "top", getColor: [...c.ink, 235],
         fontFamily: "system-ui, sans-serif", fontWeight: 700, characterSet: P.charSet, fontSettings,
         background: true, getBackgroundColor: [...c.page, 235], backgroundPadding: [6, 3, 6, 3],
         getBorderColor: [...c.line, 255], getBorderWidth: 1, updateTriggers: { getColor: v, getBackgroundColor: v, getBorderColor: v },

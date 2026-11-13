@@ -330,17 +330,22 @@
   };
 
   // placeLabels places band labels in the order given, each box { x, y, w,
-  // h, sw } its left edge, top, full width, height and width with the name
-  // alone: "full" where the full label overlaps none placed, "short" where
-  // the name alone does not, else null, the label left out.
-  P.placeLabels = function (boxes) {
-    const placed = [];
+  // h, sw, alts } its left edge, top, full width, height, width with the
+  // name alone, and further places to try ({ x, y }, the strip above the
+  // band). At each place in turn it takes the full label, else the name
+  // alone, where neither a label already placed nor one of obstacles (the
+  // nodes' boxes) lies under it: { kind, x, y }, else null, the label left
+  // out rather than drawn over a node.
+  P.placeLabels = function (boxes, obstacles) {
+    const placed = (obstacles || []).slice();
     const free = (x, y, w, h) => !placed.some((p) => x < p.x + p.w && p.x < x + w && y < p.y + p.h && p.y < y + h);
     return boxes.map((b) => {
-      for (const [kind, w] of [["full", b.w], ["short", b.sw]]) {
-        if (free(b.x, b.y, w, b.h)) {
-          placed.push({ x: b.x, y: b.y, w, h: b.h });
-          return kind;
+      for (const at of [{ x: b.x, y: b.y }].concat(b.alts || [])) {
+        for (const [kind, w] of [["full", b.w], ["short", b.sw]]) {
+          if (free(at.x, at.y, w, b.h)) {
+            placed.push({ x: at.x, y: at.y, w, h: b.h });
+            return { kind, x: at.x, y: at.y };
+          }
         }
       }
       return null;
