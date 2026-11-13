@@ -159,6 +159,9 @@ button.pcell[aria-pressed="true"] { background: var(--color-accent-wash); border
 .kpi .info { position: absolute; top: 8px; right: 8px; }
 .kpi .v { font: 500 1.875rem/1.2 var(--font-display); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .kpi .v small { font: 400 var(--text-sm) var(--font-body); color: var(--muted); letter-spacing: 0; }
+/* the figure's small text never wraps, and the (i) in the corner keeps its room (1.17.1) */
+.kpi .v small { white-space: nowrap; }
+.kpi .v { padding-right: 24px; }
 .kpi .l { font-size: var(--text-sm); color: var(--muted); padding-right: var(--space-lg); }
 .kpi.warn .v { color: var(--blocked); }
 .kpi.op .v { color: var(--held); }
