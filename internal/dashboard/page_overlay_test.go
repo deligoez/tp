@@ -54,21 +54,28 @@ func TestPage_AMissedGestureEndNeverSticks(t *testing.T) {
 
 // TestPage_TheFullScreenPillShrinksItsSearchNotItsEnds is the review's H2:
 // Fit and Exit keep their place at the pill's end and never shrink; the
-// search gives way down to 8rem and the mode switch shortens its words
-// before them; beside the drawer the pill stays in the part of the screen
-// the drawer leaves.
+// search gives way down to 8rem first; the mode switch and the cross-edge
+// toggle shorten their words only on a pill measured too wide (.tight, set by
+// graph.js through tpPure.pillTight), so a pill with room keeps every word
+// whole; beside the drawer the pill stays in the part of the screen the
+// drawer leaves.
 func TestPage_TheFullScreenPillShrinksItsSearchNotItsEnds(t *testing.T) {
 	t.Parallel()
 	page, _ := pageText(t)
 	for _, s := range []string{
 		"body.mapfs .gcard.fs #gc-fit, body.mapfs .gcard.fs #gc-full { order: 10; flex-shrink: 0; }",
-		"body.mapfs .gcard.fs #gc-q { flex: 1 8 12rem; min-width: 8rem; }",
-		"body.mapfs .gcard.fs .toolbar .seg { flex: 0 1 auto; min-width: 0; }",
-		"body.mapfs .gcard.fs .toolbar .seg button { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }",
+		"body.mapfs .gcard.fs #gc-q { flex: 0 1 16rem; min-width: 8rem; }",
+		"body.mapfs .gcard.fs .toolbar.tight .seg { flex: 0 1 auto; min-width: 0; }",
+		"body.mapfs .gcard.fs .toolbar.tight .seg button { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }",
+		"body.mapfs .gcard.fs .toolbar.tight #gc-cross { flex: 0 1 auto; min-width: 4rem; overflow: hidden; text-overflow: ellipsis; }",
 		"body.mapfs.dopen .gcard.fs .toolbar { left: calc((100% - var(--drawer-w)) / 2); max-width: calc(100% - var(--drawer-w) - 24px); }",
+		`pill.classList.toggle("tight", pure.pillTight(pill.scrollWidth, pill.clientWidth))`,
+		"new ResizeObserver(fitPill).observe(pill);",
 	} {
 		assert.Contains(t, page, s)
 	}
+	assert.NotContains(t, page, "body.mapfs .gcard.fs .toolbar .seg button { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }",
+		"a pill with room never shortens its words")
 }
 
 // TestPage_TheReviewsSmallItemsAreInPlace is the review's L3 to L5: a KPI's
@@ -105,5 +112,5 @@ func TestPage_ANarrowPillDropsItsPickersWordsAndShortensCrossEdges(t *testing.T)
 	page, _ := pageText(t)
 	assert.Contains(t, page, "@container (max-width: 1240px) { body.mapfs .gcard.fs .gpick > span { display: none; } }")
 	assert.Contains(t, page, "body.mapfs.dopen .gcard.fs .gcountfs, body.mapfs.dopen .gcard.fs .gpick > span { display: none; }")
-	assert.Contains(t, page, "body.mapfs .gcard.fs #gc-cross { flex: 0 1 auto; min-width: 4rem; overflow: hidden; text-overflow: ellipsis; }")
+	assert.Contains(t, page, "body.mapfs .gcard.fs .toolbar.tight #gc-cross { flex: 0 1 auto; min-width: 4rem; overflow: hidden; text-overflow: ellipsis; }")
 }
