@@ -770,6 +770,23 @@ func TestPage_AMilestonesDetailReadsItsGateInFull(t *testing.T) {
 	for _, s := range []string{"tpPure.milestoneHTML(msd, gateOf(g, msd.milestone)", "tpPure.thresholdLine(m, gateOf(g, m.milestone), THRESHOLD_LABEL)", `$("dkind").textContent = msd ? "Milestone" : "Epic";`} {
 		assert.Contains(t, script, s)
 	}
+	assert.NotContains(t, script, "function milestoneHTML(", "the detail is built in pure.js, where its escaping is tested")
+}
+
+// TestPure_AMilestonesDetailEscapesAndReadsItsGateInFull: the drawer's
+// milestone detail is built in pure.js: the gate's state, the threshold
+// and the purpose in full, and the described count, every text escaped,
+// so markup in a threshold or a purpose reads as text (1.15.1 review).
+func TestPure_AMilestonesDetailEscapesAndReadsItsGateInFull(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const L = { written: "threshold written", absent: "no threshold", placeholder: "placeholder threshold", met: "threshold met" };
+out([
+  P.milestoneHTML({ milestone: "A<2>", open: false, waiting_on: ["A1"], state: { threshold: "written", members: 6, members_done: 1 } }, { threshold: " p95 <b>fast</b> ", purpose: " proves <b>it</b> " }, { described: 1, all: 1 }, L),
+  P.milestoneHTML({ milestone: "B", open: true, state: { threshold: "written" }, gate: { threshold: "from export" } }, { threshold: "from graph" }, { described: 0, all: 2 }, L),
+]);`)
+	assert.JSONEq(t, `[
+		"<h3>A&lt;2&gt;</h3><dl><dt>Gate</dt><dd>closed, waits on A1; 1 of 6 members done</dd><dt>Threshold</dt><dd>threshold written: p95 &lt;b&gt;fast&lt;/b&gt;</dd><dt>Purpose</dt><dd>proves &lt;b&gt;it&lt;/b&gt;</dd><dt>Described</dt><dd>1 of 1 epic described</dd></dl>",
+		"<h3>B</h3><dl><dt>Gate</dt><dd>open; 0 of 0 members done</dd><dt>Threshold</dt><dd>threshold written: from export</dd><dt>Purpose</dt><dd>none written</dd><dt>Described</dt><dd>0 of 2 epics described</dd></dl>"]`, got)
 }
 
 // TestPure_AToggleKeepsItsKeyAcrossARedraw: a milestone card, a Waiting
