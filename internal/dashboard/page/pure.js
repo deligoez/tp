@@ -284,6 +284,23 @@
     return metrics.some((m) => m.scrollHeight > m.clientHeight + 1);
   };
 
+  // balancedColumns is the column count for n cards of at least minCard px
+  // in a row width px wide, gap px apart: the fewest rows the width allows,
+  // then the fewest columns that keep that many rows, so the rows come out
+  // as even as a grid makes them (nine cards 5 + 4, not 8 + 1). Null while
+  // the row has no width, as in a hidden tab, or holds no cards.
+  P.balancedColumns = function (n, width, minCard, gap) {
+    if (!(n > 0) || !(width > 0)) return null;
+    const fit = Math.max(1, Math.min(n, Math.floor((width + gap) / (minCard + gap))));
+    return Math.ceil(n / Math.ceil(n / fit));
+  };
+
+  // lastSpans says whether n cards in cols columns leave one card alone on
+  // the last row, which then spans the row.
+  P.lastSpans = function (n, cols) {
+    return cols > 1 && n % cols === 1;
+  };
+
   // closureDescribed says how many of a gate closure's nodes are in
   // described, the set of described epic ids, as the closure view's header
   // reads it.
