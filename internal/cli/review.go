@@ -2223,7 +2223,7 @@ func buildReviewLoopInstruction(round int, findings []reviewFinding, findingsPat
 		if stateRequired != nil {
 			required = *stateRequired
 		}
-		convergence = fmt.Sprintf("no convergence-blocking finding survives verification in %d consecutive rounds (%s)", required, blockingRule)
+		convergence = fmt.Sprintf("no convergence-blocking finding survives verification in %d consecutive rounds (%s), and no carried blocking finding unresolved", required, blockingRule)
 		instruction = fmt.Sprintf("For each prompt, spawn a sub-agent via the Agent tool. Merge findings (tp review --merge), verify and resolve them, then record the round: tp review %s --record <findings.ndjson>. Repeat until tp review %s --status --check exits 0.", specPath, specPath)
 		if !specInline {
 			absPath, _ := filepath.Abs(specPath)
