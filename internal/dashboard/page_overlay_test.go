@@ -93,3 +93,17 @@ func TestPage_TheTurkishLightThemeIsAydinlik(t *testing.T) {
 		assert.JSONEq(t, want, string(tr[key]), key)
 	}
 }
+
+// TestPage_ANarrowPillDropsItsPickersWordsAndShortensCrossEdges: the
+// screenshot run's overflow check found the Turkish Neighbourhood pill 74
+// pixels too wide beside the drawer at 1440 × 900. The overlay drawer no
+// longer narrows the card, so beside it (and in a narrow card) the count
+// and the pickers' words give way and the cross-edge toggle shortens its
+// own, keeping Fit and Exit left of the drawer.
+func TestPage_ANarrowPillDropsItsPickersWordsAndShortensCrossEdges(t *testing.T) {
+	t.Parallel()
+	page, _ := pageText(t)
+	assert.Contains(t, page, "@container (max-width: 1240px) { body.mapfs .gcard.fs .gpick > span { display: none; } }")
+	assert.Contains(t, page, "body.mapfs.dopen .gcard.fs .gcountfs, body.mapfs.dopen .gcard.fs .gpick > span { display: none; }")
+	assert.Contains(t, page, "body.mapfs .gcard.fs #gc-cross { flex: 0 1 auto; min-width: 4rem; overflow: hidden; text-overflow: ellipsis; }")
+}
