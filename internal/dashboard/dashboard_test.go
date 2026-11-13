@@ -85,18 +85,18 @@ func TestHandler_ServesThePageScriptAndStylesFromTheEmbed(t *testing.T) {
 }
 
 // pageText is the page, its scripts and its styles as the handler serves
-// them; script is app.js alone.
+// them; script is app.js and graph.js, the graph card's script.
 func pageText(t *testing.T) (page, script string) {
 	t.Helper()
 	var all strings.Builder
-	for _, path := range []string{"/", "/pure.js", "/app.js", "/style.css"} {
+	for _, path := range []string{"/", "/pure.js", "/app.js", "/graph.js", "/style.css"} {
 		resp := serve(t, http.MethodGet, "127.0.0.1:7377", path)
 		require.Equal(t, http.StatusOK, resp.StatusCode, path)
 		body, err := io.ReadAll(resp.Body)
 		require.NoError(t, err)
 		all.Write(body)
-		if path == "/app.js" {
-			script = string(body)
+		if path == "/app.js" || path == "/graph.js" {
+			script += string(body) + "\n"
 		}
 	}
 	return all.String(), script
@@ -188,17 +188,19 @@ func TestPage_DrawsPlanReviewFromTheSliceFields(t *testing.T) {
 	}
 }
 
-// TestPage_DrawsTheMapFromTheExportedLayout is §9 at the page: every epic is
-// placed by the export's layout (its lane, the lane's kind, its milestone's
-// column and its row) and the critical path by tp epic status's by_count,
-// and the script never reads opens_after, so it cannot lay the map out again.
-func TestPage_DrawsTheMapFromTheExportedLayout(t *testing.T) {
+// TestPage_DrawsTheGraphFromTheLayoutEndpoint is §9 as the graph card
+// keeps it (spec/backlog/dashboard-graph.md): every node is placed by
+// /api/layout's layer and column, every edge drawn by its role and critical
+// mark, and the script never reads opens_after, so it cannot lay the graph
+// out again.
+func TestPage_DrawsTheGraphFromTheLayoutEndpoint(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
-	for _, field := range []string{".layout", ".lane", ".lane_kind", ".column", ".row", "critical_path.by_count", ".depends_on", ".any_of"} {
+	for _, field := range []string{`"/api/layout?"`, ".col", ".layer", ".role", ".critical", ".bands", "critical_path.by_count", ".depends_on", ".any_of"} {
 		assert.Contains(t, script, field)
 	}
 	assert.NotContains(t, script, "opens_after")
+	assert.NotContains(t, script, ".lane_kind", "the 1.13.0 map's lanes went with it")
 }
 
 // TestPage_FoldsTurkishLettersInTheEpicSearch is §9's search rule at the
@@ -236,26 +238,6 @@ func TestPage_DrawsTheLifecycleChartFromTheSeries(t *testing.T) {
 	}
 	assert.Equal(t, []string{"done", "in_progress", "specced", "claimed", "unknown"}, keys)
 	assert.Contains(t, script, "planning time is not recorded, so an epic added to the graph later counts as planned from the chart's first day")
-}
-
-// TestPage_FiltersTheMapToOneEpicsNeighbours is §9's neighbours filter at the
-// page: a toggle keeps the selected epic with its direct dependencies and
-// dependents, each drawn edge is marked incoming or outgoing by the direction
-// table the script declares, and the edge carries its why for the hover tip.
-func TestPage_FiltersTheMapToOneEpicsNeighbours(t *testing.T) {
-	t.Parallel()
-	page, script := pageText(t)
-	assert.Contains(t, page, `id="f-nb"`)
-	assert.Contains(t, script, "function neighboursOf(")
-	m := regexp.MustCompile(`const NB_DIR = (\{[^}]*\});`).FindStringSubmatch(script)
-	require.NotNil(t, m, "the script declares the edge directions as const NB_DIR = {...};")
-	var dirs map[string]string
-	require.NoError(t, json.Unmarshal([]byte(m[1]), &dirs))
-	assert.ElementsMatch(t, []string{"in", "out"}, keys(dirs))
-	assert.Contains(t, script, `data-why="`)
-	for _, sel := range []string{".edge.in", ".edge.out"} {
-		assert.Contains(t, page, sel)
-	}
 }
 
 func keys(m map[string]string) []string {
@@ -302,18 +284,19 @@ func TestPage_BoardColumnsPartitionTheExportedTaskStates(t *testing.T) {
 
 // TestPage_ReadsEveryAddressKey is §14 at the page: the address keys the
 // script declares cover the tab, the spec, its view, the picked task, the
-// selected epic and every active filter, and the script reads each one back
-// from the address, so a copied link lands where its writer was.
+// selected epic, the graph card's place and every active filter, and the
+// page reads each one back from the address, the graph card's through
+// tpPure.graphPlace, so a copied link lands where its writer was.
 func TestPage_ReadsEveryAddressKey(t *testing.T) {
 	t.Parallel()
-	_, script := pageText(t)
+	page, script := pageText(t)
 	m := regexp.MustCompile(`const URL_KEYS = (\[.*\]);`).FindStringSubmatch(script)
 	require.NotNil(t, m, "the script declares the address keys as const URL_KEYS = [...];")
 	var urlKeys []string
 	require.NoError(t, json.Unmarshal([]byte(m[1]), &urlKeys))
-	assert.Subset(t, urlKeys, []string{"tab", "spec", "view", "task", "epic", "tracks", "edges", "nb", "q", "phase", "sq", "tview"})
+	assert.Subset(t, urlKeys, []string{"tab", "spec", "view", "task", "epic", "q", "phase", "sq", "tview", "gv", "gm", "gd", "pack", "cross"})
 	for _, k := range urlKeys {
-		assert.Contains(t, script, `p.get("`+k+`")`, "the script reads %s from the address", k)
+		assert.Contains(t, page, `get("`+k+`")`, "the page reads %s from the address", k)
 	}
 	assert.Contains(t, script, `"popstate"`)
 }
@@ -430,12 +413,13 @@ func TestPage_DrawsAnEpicsDescriptionAsEscapedPreformattedText(t *testing.T) {
 // a selected epic opens a drawer reading the export's fields, downstream and
 // bound files with their phase and loops, the graph's whys and claim for its
 // stepper, and its graph history from /api/epic-history, a hash-only round
-// and an epic in no slice each said; the chain panel and the milestone matrix,
-// read from the summary's matrix, have their own cards.
+// and an epic in no slice each said; the chain as text sits in the graph
+// card and the milestone matrix, read from the summary's matrix, has its own
+// card.
 func TestPage_DrawsTheEpicDrawerItsChainAndTheMatrix(t *testing.T) {
 	t.Parallel()
 	page, script := pageText(t)
-	for _, id := range []string{`id="drawer"`, `id="chaincard"`, `id="matrixcard"`} {
+	for _, id := range []string{`id="drawer"`, `id="chaintext"`, `id="matrixcard"`} {
 		assert.Contains(t, page, id)
 	}
 	assert.Contains(t, script, `"/api/epic-history?epic="`)
