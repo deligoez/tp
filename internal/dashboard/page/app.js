@@ -1919,6 +1919,7 @@
     $("dkind").textContent = msd ? "Milestone" : "Epic";
     $("drawer").setAttribute("aria-label", msd ? "Milestone detail" : "Epic detail");
     $("dclose").setAttribute("aria-label", msd ? "Close the milestone detail" : "Close the epic detail");
+    $("dinfo").setAttribute("aria-label", msd ? "About the milestone detail" : "About the epic detail");
     if (msd) {
       const dc = tpPure.describedCounts((g.graph && g.graph.epics) || [])[msd.milestone] || { described: 0, all: 0 };
       $("dbody").innerHTML = tpPure.milestoneHTML(msd, gateOf(g, msd.milestone), dc, THRESHOLD_LABEL);
