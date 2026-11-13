@@ -90,3 +90,22 @@ func TestPreToolUseHookRefusesEveryOtherGroundStatePath(t *testing.T) {
 		})
 	}
 }
+
+// TestPreToolUseHookRefusesTheAuditPools: the pools file an audit emission
+// keeps in its inbox (engine.AuditPoolsPath) is tp's own state, written by tp
+// and read back at --record, so no role may write it. It sits beside the role
+// files the fence lets through and must not ride their allowance.
+func TestPreToolUseHookRefusesTheAuditPools(t *testing.T) {
+	t.Parallel()
+	root := repoRoot(t)
+	for _, path := range []string{
+		".tp-review/a/audit-inbox/round-1.pools.json",
+		filepath.Join(root, "spec", ".tp-review", "a", "audit-inbox", "round-12.pools.json"),
+	} {
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+			run := runWriteDenyHookIn(t, root, nil, path)
+			assert.True(t, run.denied(), "%s must stay refused; exit=%d stderr=%q", path, run.exitCode, run.stderr)
+		})
+	}
+}
