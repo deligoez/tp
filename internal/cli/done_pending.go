@@ -11,7 +11,7 @@ import (
 )
 
 // pendingCloseHint is how a unit in a worktree closes its task.
-const pendingCloseHint = "in a unit's worktree, commit on the unit's branch, then run tp done <id> \"<evidence>\" --commit <sha>; the driver integrates and closes it"
+const pendingCloseHint = "in a unit's worktree, commit on the unit's branch, then run tp done <id> --commit <sha> -- \"<evidence>\"; the driver integrates and closes it"
 
 // donePendingRoot returns the main tree's project root when the working
 // directory is a linked worktree of the task file's repository, else "".
