@@ -336,3 +336,16 @@ func TestForestLayout_ABandWithoutNodesTakesNoLayers(t *testing.T) {
 		assert.Equal(t, 2, got.Layers)
 	}
 }
+
+// TestForestLayout_RowPackingPullsAWholeRowBackFromTheEdge: b1 and b2 both
+// scale onto the last column, the push sends b2 past the edge, and the
+// pull back moves every node of the row, the first one included.
+func TestForestLayout_RowPackingPullsAWholeRowBackFromTheEdge(t *testing.T) {
+	t.Parallel()
+	ids := []string{"a0", "b0", "b1", "b2"}
+	edges := []LayoutEdge{{"b0", "b1"}, {"b0", "b2"}}
+	groupOf := map[string]string{"a0": "a", "b0": "b", "b1": "b", "b2": "b"}
+	got := ForestLayout(&ForestInput{IDs: ids, Edges: edges, GroupOf: groupOf, Pack: PackRows})
+	assert.InDelta(t, 2.0, got.Columns, 0)
+	assert.Equal(t, map[string]ForestPlace{"a0": {0, 0}, "b0": {0, 1}, "b1": {1, 0}, "b2": {1, 1}}, got.Places)
+}
