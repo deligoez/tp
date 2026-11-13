@@ -911,6 +911,18 @@
     }
   }
 
+  // holdHTML draws the hold of an epic past planned over its mark: a ring
+  // in the hold's colour, crossed by a slash when it is blocked, so the
+  // stage and the hold both show and colour is never alone.
+  function holdHTML(hold, x, y, r) {
+    if (!hold) return "";
+    const c = "var(--" + hold + ")";
+    return '<circle class="hold" cx="' + x + '" cy="' + y + '" r="' + (r + 2.6) + '" fill="none" stroke="' + c + '" stroke-width="1.4"/>' +
+      (hold === "blocked" ? '<path d="M' + (x - r - 2) + " " + (y + r + 2) + "L" + (x + r + 2) + " " + (y - r - 2) + '" stroke="' + c + '" stroke-width="1.4"/>' : "");
+  }
+  // markHTML draws a markState result: its mark and its hold.
+  const markHTML = (cond, m, x, y, r) => mark(cond, m.mark, x, y, r) + holdHTML(m.hold, x, y, r);
+
   // The graph's edges, both ways, as stored: an any-of group names each member.
   function mapEdges(g) {
     const deps = {};
@@ -1051,11 +1063,11 @@
     const stops = tpPure.tabStops(geo.placed.map((e) => e.id), mapView.focus);
     geo.placed.forEach((e, i) => {
       const p = geo.pos[e.id];
-      const s = markOf(e, geo.byMs[e.milestone].report);
+      const m = markOf(e, geo.byMs[e.milestone].report);
       out.push('<g class="node' + (shown(e) ? "" : " dim") + '" data-id="' + esc(e.id) + '" data-status="' + esc(e.status) + '" role="button" tabindex="' + stops[i] +
-        '" aria-label="' + esc(e.id + ": " + e.title + ", " + MARK_LABEL[s]) + '"' + (e.id === sel ? ' aria-pressed="true"' : "") + ">" +
+        '" aria-label="' + esc(e.id + ": " + e.title + ", " + tpPure.markText(m, MARK_LABEL)) + '"' + (e.id === sel ? ' aria-pressed="true"' : "") + ">" +
         (e.id === sel ? '<circle cx="' + p.x + '" cy="' + p.y + '" r="10" fill="none" stroke="var(--accent)" stroke-width="2.2"/>' : "") +
-        mark(e.condition, s, p.x, p.y, 4.8) + '<text class="eid" x="' + (p.x + 12) + '" y="' + (p.y + 4) + '">' + esc(clip(e.id, 19)) + "</text>" +
+        markHTML(e.condition, m, p.x, p.y, 4.8) + '<text class="eid" x="' + (p.x + 12) + '" y="' + (p.y + 4) + '">' + esc(clip(e.id, 19)) + "</text>" +
         descMark(described.has(e.id), p.x + 12, p.y + 4, clip(e.id, 19).length) +
         '<rect class="rowhit" x="' + (p.x - 9) + '" y="' + (p.y - MAP.rowH / 2) + '" width="' + (MAP.boxW - 24) + '" height="' + MAP.rowH + '" fill="transparent"/></g>');
     });
@@ -1308,9 +1320,9 @@
     if (!e && !edge) { tip.hidden = true; return; }
     if (edge) tip.innerHTML = edgeTip(edge.dataset);
     else {
-      const s = markOf(e, mapView.geo.byMs[e.milestone].report);
+      const m = markOf(e, mapView.geo.byMs[e.milestone].report);
       tip.innerHTML = '<span class="tid">' + esc(e.id) + ", milestone " + esc(e.milestone) + (e.condition ? ", condition" : "") + "</span><br>" + esc(e.title) +
-        "<br>" + esc(MARK_LABEL[s]) + (s === e.status ? "" : ", " + esc(e.status.replace("_", " ")));
+        "<br>" + esc(tpPure.markText(m, MARK_LABEL)) + (m.mark === e.status ? "" : ", " + esc(e.status.replace("_", " ")));
     }
     tip.hidden = false;
     tip.style.left = Math.min(ev.clientX + 14, window.innerWidth - 310) + "px";
@@ -1361,6 +1373,8 @@
     drawMap();
   });
   $("maplegend").innerHTML = MARKS.map((s) => '<span><svg viewBox="0 0 15 15" aria-hidden="true">' + mark(false, s, 7.5, 7.5, 4.6) + "</svg>" + esc(MARK_LABEL[s]) + "</span>").join("") +
+    ["blocked", "held"].map((h) => '<span><svg viewBox="0 0 15 15" aria-hidden="true">' + markHTML(false, { mark: "claimed", hold: h }, 7.5, 7.5, 3.6) + "</svg>" +
+      esc("claimed, specced or in progress, and " + MARK_LABEL[h]) + "</span>").join("") +
     '<span><svg viewBox="0 0 15 15" aria-hidden="true">' + mark(true, "ready", 7.5, 7.5, 4.4) + "</svg>condition</span>" +
     '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path d="M1 7.5H14" stroke="var(--crit)" stroke-width="2.6"/></svg>critical path</span>' +
     '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path d="M1 7.5H14" stroke="var(--accent)" stroke-dasharray="3 2"/></svg>one of a group</span>' +
@@ -1550,10 +1564,10 @@
         '<text class="gsub" x="' + (p.x + 12) + '" y="' + (y + 56) + '">' + esc(plural(n.inbound, "epic edge", "epic edges") + " in") + "</text></g>";
     }
     const e = ctx.epics[n.id] || { id: n.id, status: "planned" };
-    const s = markOf(e, ctx.ms[e.milestone]);
-    return '<g class="' + cls + '" data-id="' + esc(n.id) + '"' + tab + ' aria-label="' + esc(n.id + ": " + (e.title || "") + ", " + MARK_LABEL[s]) + '">' +
+    const m = markOf(e, ctx.ms[e.milestone]);
+    return '<g class="' + cls + '" data-id="' + esc(n.id) + '"' + tab + ' aria-label="' + esc(n.id + ": " + (e.title || "") + ", " + tpPure.markText(m, MARK_LABEL)) + '">' +
       (n.id === mapView.selected ? '<circle cx="' + p.x + '" cy="' + p.y + '" r="10" fill="none" stroke="var(--accent)" stroke-width="2.2"/>' : "") +
-      mark(e.condition, s, p.x, p.y, 4.8) + lbgHTML(gLabelBox(p, n.id)) + '<text class="eid" x="' + (p.x + 12) + '" y="' + (p.y + 4) + '">' + esc(clip(n.id, 22)) + "</text>" +
+      markHTML(e.condition, m, p.x, p.y, 4.8) + lbgHTML(gLabelBox(p, n.id)) + '<text class="eid" x="' + (p.x + 12) + '" y="' + (p.y + 4) + '">' + esc(clip(n.id, 22)) + "</text>" +
       descMark(ctx.described.has(n.id), p.x + 12, p.y + 4, clip(n.id, 22).length) +
       '<rect class="rowhit" x="' + (p.x - 9) + '" y="' + (p.y - 11) + '" width="' + (GDIMS[view].colW - 40) + '" height="22" fill="transparent"/></g>';
   }

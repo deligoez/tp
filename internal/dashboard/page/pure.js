@@ -120,19 +120,30 @@
     return best;
   };
 
-  // markState is the mark an epic of the export takes, closed saying its
-  // milestone is not open: done or its stage after planned (claimed,
-  // specced, in_progress) straight from the status field, so every place
-  // names a stage as the Lifecycle counts it; a planned epic's mark says
-  // what holds it: moot, held by a condition, blocked, its milestone closed,
-  // else ready.
+  // markState is what an epic of the export shows, closed saying its
+  // milestone is not open, as { mark, hold }. The mark is done or its stage
+  // after planned (claimed, specced, in_progress) straight from the status
+  // field, so every place names a stage as the Lifecycle counts it; a
+  // planned epic's mark says what holds it: moot, held by a condition,
+  // blocked, its milestone closed, else ready. hold keeps the other fact for
+  // an epic past planned and not done that is also held or blocked, drawn
+  // over its mark, since the KPI and Waiting count it blocked; null else.
   P.markState = function (e, closed) {
-    if (e.status && e.status !== "planned") return e.status;
-    if (e.moot) return "moot";
-    if (e.held) return "held";
-    if (e.blocked) return "blocked";
-    if (closed) return "waiting";
-    return "ready";
+    if (e.status && e.status !== "planned") {
+      const under = e.status !== "done";
+      return { mark: e.status, hold: under && e.held ? "held" : under && e.blocked ? "blocked" : null };
+    }
+    const at = (mark) => ({ mark, hold: null });
+    if (e.moot) return at("moot");
+    if (e.held) return at("held");
+    if (e.blocked) return at("blocked");
+    return at(closed ? "waiting" : "ready");
+  };
+
+  // markText is a markState result in words, read from labels by key: the
+  // mark, and the hold after a comma ("claimed, blocked").
+  P.markText = function (m, labels) {
+    return labels[m.mark] + (m.hold ? ", " + labels[m.hold] : "");
   };
 
   // BLOCKER_RANK orders a blocker's states from the readiest; an any-of
