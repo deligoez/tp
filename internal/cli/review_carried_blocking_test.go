@@ -104,3 +104,19 @@ func TestCarriedBlocking_ResolvingTheRowConverges(t *testing.T) {
 	}
 }
 
+// TestCarriedBlocking_TheCapRefusalNamesTheCarriedRow: at the cap with a
+// carried blocking row the loop is not done, so the next emission is refused,
+// and the hint names the row in its own round file rather than only the
+// latest round's.
+func TestCarriedBlocking_TheCapRefusalNamesTheCarriedRow(t *testing.T) {
+	t.Parallel()
+	dir := carriedRepro(t)
+
+	_, stderr, code := runTP(t, dir, "review", "spec.md")
+	assert.Equal(t, 4, code, "the cap refuses a fourth round: %s", stderr)
+	env := errorEnvelope(t, stderr)
+	assert.Contains(t, env["error"], "round budget exhausted")
+	assert.Contains(t, env["hint"], "tp review "+carriedRoundFile+" --resolve 0")
+	assert.Contains(t, env["hint"], "1 carried blocking finding")
+}
+
