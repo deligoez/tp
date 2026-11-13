@@ -163,6 +163,11 @@ type UnitTarget struct {
 func (k UnitKind) DurableWrite(t UnitTarget) bool {
 	switch k {
 	case UnitImplement:
+		// A batched unit closes into a pending close the driver integrates
+		// (spec/backlog/parallel-implement.md §2.4).
+		if t.Batch && HasPendingClose(CanonicalProjectRoot(filepath.Dir(t.TaskFile)), t.TaskFile, t.ID) {
+			return true
+		}
 		return taskIsDone(t.TaskFile, t.ID)
 	case UnitReviewRole, UnitAuditRole:
 		return roleFindingsParse(RoleFindingsPath(t.RoundDir, t.ID))

@@ -43,6 +43,10 @@ type DriverOptions struct {
 	// Workflow is the effective workflow: §7's caps, the per-unit budget and
 	// the runner field.
 	Workflow model.Workflow
+	// CloseTask gates and closes a task once an implement batch's unit has
+	// been picked onto the main branch (spec/backlog/parallel-implement.md
+	// §2.4). Only a batch calls it.
+	CloseTask CloseFunc
 }
 
 // DriverResult is what one run ended as. It is the loop's own answer, not a
@@ -83,6 +87,9 @@ type driver struct {
 	// what makes "no new unit is spawned" a property of the code rather
 	// than of how quickly the driver happens to notice.
 	sig *interrupts
+	// batch is the implement batch in flight, keyed by task id, or nil when
+	// the iteration runs no batch.
+	batch map[string]batchUnit
 }
 
 // RunDriver executes §3.1's loop and returns the reason it stopped.
@@ -126,6 +133,9 @@ func RunDriver(o *DriverOptions) (DriverResult, error) {
 	sig := watchInterrupts()
 	defer sig.stop()
 	d := &driver{opts: o, runID: runID, rec: rec, sig: sig}
+	if err := d.reconcileBatches(); err != nil {
+		return d.fail(&result, err)
+	}
 
 	// §3.2.2: a runner that meters nothing is reported here and nowhere
 	// else, which is what makes "once at run start" a property of where the
@@ -339,6 +349,9 @@ type unitAttempt struct {
 	// escalationPath is the valid escalation record this attempt's unit
 	// wrote (§5.2), or "" when it wrote none the driver could read.
 	escalationPath string
+	// dir is where the child is spawned: a batched unit's worktree, or ""
+	// for the repository root.
+	dir string
 }
 
 // iterationOutcome is what one iteration ended as, in the terms §3.4's
@@ -381,6 +394,27 @@ type iterationOutcome struct {
 // never got to use.
 func (d *driver) runIteration(res *ResumeResult) (iterationOutcome, error) {
 	units := concurrentBatch(res.NextUnits)
+	if !implementBatch(units) {
+		return d.attemptUnits(res, units)
+	}
+	// An implement batch runs each unit in its own worktree, then integrates
+	// every unit that asked to close, whatever the iteration ended as: a
+	// sibling's escalation or failure does not discard finished work (§2.7).
+	batch, err := d.startBatch(units)
+	if err != nil {
+		return iterationOutcome{}, err
+	}
+	d.batch = batch
+	defer func() { d.batch = nil }()
+	out, err := d.attemptUnits(res, units)
+	if err != nil {
+		return out, err
+	}
+	return out, d.integrateBatch(batch)
+}
+
+// attemptUnits spawns one iteration's units and retries the ones that failed.
+func (d *driver) attemptUnits(res *ResumeResult, units []NextUnit) (iterationOutcome, error) {
 	budget := attemptBudget(&d.opts.Workflow)
 	for attempt := 1; attempt <= budget; attempt++ {
 		// §3.4's "no new unit is spawned" reaches inside the iteration as
@@ -435,6 +469,10 @@ func (d *driver) prepare(res *ResumeResult, units []NextUnit, attempt int) ([]*u
 			Seq:      d.seq,
 		}
 		a.target = d.unitTarget(&a.env)
+		if u, ok := d.batch[a.unit.ID]; ok {
+			a.target.Batch = true
+			a.dir = u.worktree
+		}
 		a.logPath = unitLogPath(RunDir(d.opts.Root, d.runID), d.seq, u.Kind, u.ID)
 
 		runner, err := ResolveUnitRunner(d.opts.Workflow.Runner, TemplateValues{
@@ -573,6 +611,9 @@ func failureSummary(a *unitAttempt) string {
 // two writers of the same shared file from ever being spawned at once, which
 // is the failure no later check could undo.
 func concurrentBatch(units []NextUnit) []NextUnit {
+	if implementBatch(units) {
+		return units
+	}
 	for i := range units {
 		if !units[i].Kind.Concurrent() {
 			return units[:1]
@@ -645,6 +686,9 @@ func spawnAll(root string, attempts []*unitAttempt) {
 func (a *unitAttempt) spawn(root string, parent []string) {
 	cmd := exec.Command(a.runner.Cmd, a.runner.Args...) //nolint:gosec // the runner is the operator's own configured command
 	cmd.Dir = root
+	if a.dir != "" {
+		cmd.Dir = a.dir
+	}
 	cmd.Env = ChildEnv(parent, a.runner.Env, &a.env)
 	cmd.Stdin = nil
 

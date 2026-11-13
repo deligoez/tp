@@ -1,0 +1,263 @@
+package engine
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+	"time"
+
+	"github.com/deligoez/tp/internal/model"
+	"github.com/deligoez/tp/internal/output"
+)
+
+// unitBranchPrefix names the branches a batch's worktrees are on. A run that
+// finds one at start left it behind in a crash (spec/backlog/parallel-implement.md §2.6).
+const unitBranchPrefix = "tp-unit/"
+
+// CloseFunc closes a task on the main branch once its commits are picked
+// there: it runs the quality gate and records the close, as tp done does, and
+// returns an error when the gate fails or the close is refused. logPath is
+// where its output goes.
+type CloseFunc func(id, reason string, commits []string, logPath string) error
+
+// batchUnit is one unit of an implement batch: its worktree and branch.
+type batchUnit struct {
+	id, worktree, branch string
+}
+
+// startBatch claims the batch's tasks and adds a worktree per unit, outside
+// the repository, on a branch from the main branch's HEAD (§2.3).
+func (d *driver) startBatch(units []NextUnit) (map[string]batchUnit, error) {
+	ids := make([]string, len(units))
+	for i := range units {
+		ids[i] = units[i].ID
+	}
+	if err := ClaimBatch(d.opts.TaskFile, ids); err != nil {
+		return nil, driverErrorf(err, "claim the implement batch")
+	}
+	base := WorktreeBase(d.opts.Root)
+	out := make(map[string]batchUnit, len(ids))
+	for _, id := range ids {
+		u := batchUnit{
+			id:       id,
+			worktree: filepath.Join(base, d.runID, id),
+			branch:   unitBranchPrefix + d.runID + "/" + id,
+		}
+		if _, err := gitOut(d.opts.Root, "worktree", "add", "-q", "-b", u.branch, u.worktree, "HEAD"); err != nil {
+			return nil, driverErrorf(err, "add the worktree for task %q", id)
+		}
+		out[id] = u
+	}
+	return out, nil
+}
+
+// WorktreeBase is where a project's unit worktrees live: under the system's
+// temporary directory, keyed by the project root, so no tool run in the
+// repository ever walks into one.
+func WorktreeBase(root string) string {
+	sum := sha256.Sum256([]byte(CanonicalPath(root)))
+	return filepath.Join(os.TempDir(), "tp-worktrees", hex.EncodeToString(sum[:])[:16])
+}
+
+// integrateBatch integrates every pending close of the cycle, in task order,
+// then removes the batch's worktrees and branches (§2.4). A close the pick or
+// the gate refuses restores the main branch, reopens its task and marks it
+// solo; that is the batch's answer, not a driver error.
+func (d *driver) integrateBatch(units map[string]batchUnit) error {
+	if err := d.integratePending(); err != nil {
+		return err
+	}
+	for _, u := range sortedBatch(units) {
+		removeUnitWorktree(d.opts.Root, u.worktree, u.branch)
+	}
+	return nil
+}
+
+// integratePending integrates the cycle's pending closes one at a time.
+func (d *driver) integratePending() error {
+	pending, err := ReadPendingCloses(d.opts.Root, d.opts.TaskFile)
+	if err != nil {
+		return driverErrorf(err, "read the pending closes")
+	}
+	tf, err := model.ReadTaskFile(d.opts.TaskFile)
+	if err != nil {
+		return driverErrorf(err, "read the task file")
+	}
+	for i := range pending {
+		if err := d.integrateOne(tf, &pending[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// integrateOne picks one unit's commits onto the main branch, gates and closes
+// the task there, and on a refused pick or a failed gate restores the main
+// branch and reopens the task to run alone.
+func (d *driver) integrateOne(tf *model.TaskFile, p *PendingClose) error {
+	pre, err := gitOut(d.opts.Root, "rev-parse", "HEAD")
+	if err != nil {
+		return driverErrorf(err, "read the main branch's HEAD")
+	}
+	logPath := filepath.Join(RunDir(d.opts.Root, d.runID), "integrate-"+p.ID+".log")
+	picked, pickErr := cherryPick(d.opts.Root, p.Commits)
+	if pickErr == nil {
+		warnTouchesEscape(d.opts.Root, tf, p.ID, pre)
+		pickErr = d.closeTask(p, picked, logPath)
+	}
+	if pickErr != nil {
+		// --keep, not --hard: the task file's uncommitted closes of the
+		// batch's earlier units must survive, and a unit's commits never
+		// touch it (CheckUnitCommits).
+		if _, resetErr := gitOut(d.opts.Root, "reset", "-q", "--keep", pre); resetErr != nil {
+			return driverErrorf(resetErr, "restore the main branch after task %q", p.ID)
+		}
+		output.Notice(fmt.Sprintf("task %s did not integrate (%v); it reopens to run alone", p.ID, pickErr))
+		if err := ReopenSolo(d.opts.TaskFile, p.ID); err != nil {
+			return driverErrorf(err, "reopen task %q", p.ID)
+		}
+	}
+	if err := RemovePendingClose(d.opts.Root, d.opts.TaskFile, p.ID); err != nil {
+		return driverErrorf(err, "remove the pending close of %q", p.ID)
+	}
+	return nil
+}
+
+func (d *driver) closeTask(p *PendingClose, picked []string, logPath string) error {
+	if d.opts.CloseTask == nil {
+		return fmt.Errorf("no close function: the driver cannot gate an integration")
+	}
+	return d.opts.CloseTask(p.ID, p.Reason, picked, logPath)
+}
+
+// cherryPick picks commits onto the current branch in the order given and
+// returns the new shas; a conflict aborts the pick.
+func cherryPick(root string, commits []string) ([]string, error) {
+	picked := make([]string, 0, len(commits))
+	for _, sha := range commits {
+		if !SafeGitRev(sha) {
+			return nil, fmt.Errorf("commit %q is not a revision", sha)
+		}
+		if _, err := gitOut(root, "cherry-pick", "--allow-empty", sha); err != nil {
+			_, _ = gitOut(root, "cherry-pick", "--abort")
+			return nil, fmt.Errorf("cherry-pick %s: %w", sha, err)
+		}
+		head, err := gitOut(root, "rev-parse", "HEAD")
+		if err != nil {
+			return nil, err
+		}
+		picked = append(picked, head)
+	}
+	return picked, nil
+}
+
+// warnTouchesEscape says which picked files lie outside the task's touches.
+// It warns and records nothing else: the pick and the gate are the safety,
+// touches only the schedule (§2.4).
+func warnTouchesEscape(root string, tf *model.TaskFile, id, pre string) {
+	task, _, err := model.FindTask(tf, id)
+	if err != nil || len(task.Touches) == 0 {
+		return
+	}
+	files, err := gitOut(root, "diff", "--name-only", pre, "HEAD")
+	if err != nil {
+		return
+	}
+	var outside []string
+	for _, f := range strings.Split(files, "\n") {
+		if f != "" && !TouchesMatch(task.Touches, f) {
+			outside = append(outside, f)
+		}
+	}
+	if len(outside) > 0 {
+		output.Notice(fmt.Sprintf("task %s changed files outside its touches: %s", id, strings.Join(outside, ", ")))
+	}
+}
+
+func removeUnitWorktree(root, worktree, branch string) {
+	_, _ = gitOut(root, "worktree", "remove", "--force", worktree)
+	_, _ = gitOut(root, "branch", "-D", branch)
+}
+
+func sortedBatch(units map[string]batchUnit) []batchUnit {
+	out := make([]batchUnit, 0, len(units))
+	for _, u := range units {
+		out = append(out, u)
+	}
+	slices.SortFunc(out, func(a, b batchUnit) int { return strings.Compare(a.id, b.id) })
+	return out
+}
+
+// reconcileBatches finishes what a crashed run left (§2.6): its pending closes
+// are integrated, then every unit worktree and branch is removed. A task whose
+// unit never asked to close stays wip, and the oracle resumes it alone.
+func (d *driver) reconcileBatches() error {
+	if err := d.integratePending(); err != nil {
+		return err
+	}
+	list, err := gitOut(d.opts.Root, "worktree", "list", "--porcelain")
+	if err != nil {
+		return nil //nolint:nilerr // not a git tree: nothing a batch could have left
+	}
+	var worktree string
+	for _, line := range strings.Split(list, "\n") {
+		switch {
+		case strings.HasPrefix(line, "worktree "):
+			worktree = strings.TrimPrefix(line, "worktree ")
+		case strings.HasPrefix(line, "branch refs/heads/"+unitBranchPrefix):
+			removeUnitWorktree(d.opts.Root, worktree, strings.TrimPrefix(line, "branch refs/heads/"))
+		}
+	}
+	_, _ = gitOut(d.opts.Root, "worktree", "prune")
+	return nil
+}
+
+// ClaimBatch moves the batch's open tasks to wip under the task file's lock;
+// a task already wip — an interrupted attempt — is left as it is.
+func ClaimBatch(taskFile string, ids []string) error {
+	return WithFileLock(taskFile, func() error {
+		tf, err := model.ReadTaskFile(taskFile)
+		if err != nil {
+			return err
+		}
+		now := time.Now().UTC()
+		for _, id := range ids {
+			task, _, findErr := model.FindTask(tf, id)
+			if findErr != nil {
+				return findErr
+			}
+			if task.Status == model.StatusOpen {
+				task.Status = model.StatusWIP
+				task.StartedAt = &now
+				task.DurationSource = model.DurationSourceClaimed
+			}
+		}
+		tf.UpdatedAt = now
+		return model.WriteTaskFile(taskFile, tf)
+	})
+}
+
+// ReopenSolo returns a task that failed to integrate to open and marks it to
+// run alone from then on (§2.4).
+func ReopenSolo(taskFile, id string) error {
+	return WithFileLock(taskFile, func() error {
+		tf, err := model.ReadTaskFile(taskFile)
+		if err != nil {
+			return err
+		}
+		task, _, err := model.FindTask(tf, id)
+		if err != nil {
+			return err
+		}
+		task.Status = model.StatusOpen
+		task.StartedAt = nil
+		task.DurationSource = ""
+		task.Solo = true
+		tf.UpdatedAt = time.Now().UTC()
+		return model.WriteTaskFile(taskFile, tf)
+	})
+}
