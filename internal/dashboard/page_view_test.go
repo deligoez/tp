@@ -71,6 +71,21 @@ out([
 	assert.JSONEq(t, `[true, false, false, false, true, true, true]`, got)
 }
 
+// TestPure_ThePillShortensItsWordsOnlyWhenItOverflows: the full-screen
+// toolbar keeps every word whole while it fits; only a pill wider than the
+// room it has (beside an open drawer, on a narrow screen) shortens them.
+func TestPure_ThePillShortensItsWordsOnlyWhenItOverflows(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([
+  P.pillTight(900, 1400),
+  P.pillTight(1400, 1400),
+  P.pillTight(1400.6, 1400),
+  P.pillTight(1035, 974),
+  P.pillTight(0, 0),
+]);`)
+	assert.JSONEq(t, `[false, false, false, true, false]`, got)
+}
+
 // TestPure_AWheelsDeltaIsReadInPixels: a wheel's delta counts pixels, lines
 // of 16 pixels or pages of the canvas's height, by its deltaMode; the page
 // reads every one as pixels before it zooms or pans.
