@@ -187,3 +187,28 @@ func TestReviewCarriedSet_OnlyRowsBeforeTheLatestRoundAreEarlier(t *testing.T) {
 	assert.False(t, rows[1].Earlier, "round 2 is the latest round")
 	assert.Len(t, CarriedEarlier(rows), 1)
 }
+
+// TestLatestByIdentity_KeepsTheHighestGradeAcrossOpenCopies: of two open
+// copies of one finding, the more severe grade holds whichever came first —
+// critical over high, high over a grade tp cannot read, that over medium,
+// medium over low — and at an equal grade the later copy's wording does.
+func TestLatestByIdentity_KeepsTheHighestGradeAcrossOpenCopies(t *testing.T) {
+	t.Parallel()
+	copyAt := func(sev string) CarriedRow {
+		return CarriedRow{Row: map[string]any{"severity": sev, "category": "c", "location": "§1", "finding": "f"}, Disposition: CarryUnresolved}
+	}
+	for _, tc := range []struct{ first, later, want string }{
+		{"critical", "high", "critical"},
+		{"high", "critical", "critical"},
+		{"high", "blocker", "high"},
+		{"blocker", "medium", "blocker"},
+		{"medium", "blocker", "blocker"},
+		{"medium", "low", "medium"},
+		{"low", "medium", "medium"},
+		{"blocker", "urgent", "urgent"},
+	} {
+		kept := latestByIdentity([]CarriedRow{copyAt(tc.first), copyAt(tc.later)})
+		require.Len(t, kept, 1)
+		assert.Equal(t, tc.want, kept[0].Severity, "%s then %s", tc.first, tc.later)
+	}
+}
