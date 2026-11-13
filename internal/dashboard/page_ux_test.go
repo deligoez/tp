@@ -343,6 +343,65 @@ out(P.waitingSections(groups, epics, ["A", "B", "T"], ["a2", "t1"]).map((s) => (
 	]`, got)
 }
 
+// TestPure_ASectionOutsideTheMilestoneOrderSortsLast: a blocker whose
+// milestone the graph file's order does not hold, or a blocker the export
+// does not hold, puts its section after every ordered one (1.14.1 review).
+func TestPure_ASectionOutsideTheMilestoneOrderSortsLast(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const epics = { z1: { milestone: "Z" }, a1: { milestone: "A" }, b1: { milestone: "B" } };
+const groups = [{ blocker: "z1", any_of: null, epics: ["x1"] }, { blocker: "gone", any_of: null, epics: ["x2"] }, { blocker: "b1", any_of: null, epics: ["x3"] }, { blocker: "a1", any_of: null, epics: ["x4"] }];
+out(P.waitingSections(groups, epics, ["A", "B"], []).map((s) => s.milestone));`)
+	assert.JSONEq(t, `["A", "B", "Z", ""]`, got)
+}
+
+// TestPure_AWaitingSectionKeepsItsOwnFoldAndShowAll: folding section A
+// leaves section B as it was and holds across redraws; B's Show all opens
+// B alone; a section with no milestone names it "no milestone" in its
+// header and its Show all alike; each button's aria-expanded comes from
+// the same state (1.14.1 review).
+func TestPure_AWaitingSectionKeepsItsOwnFoldAndShowAll(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const sec = (m, n) => ({ milestone: m, epics: n, groups: Array.from({ length: n }, (_, i) => ({ blocker: m + i })) });
+const secs = [sec("A", 5), sec("B", 4), sec("", 4)];
+const draw = (v) => secs.map((s) => P.waitSection(s, v, 3)).map((w) => ({ key: w.key, title: w.title, expanded: w.expanded, shown: w.groups.length, more: w.more }));
+let v = { all: new Set(), folded: new Set() };
+const first = draw(v);
+v = P.flipWait(v, "folded", "A");
+const folded = draw(v);
+const again = draw(v);
+v = P.flipWait(v, "all", "B");
+out({ first, folded, same: JSON.stringify(folded) === JSON.stringify(again), opened: draw(v) });`)
+	assert.JSONEq(t, `{
+		"first": [
+			{"key": "A", "title": "Blockers in A", "expanded": true, "shown": 3, "more": {"expanded": false, "text": "Show all 5 blockers in A"}},
+			{"key": "B", "title": "Blockers in B", "expanded": true, "shown": 3, "more": {"expanded": false, "text": "Show all 4 blockers in B"}},
+			{"key": "", "title": "Blockers in no milestone", "expanded": true, "shown": 3, "more": {"expanded": false, "text": "Show all 4 blockers in no milestone"}}
+		],
+		"folded": [
+			{"key": "A", "title": "Blockers in A", "expanded": false, "shown": 0, "more": null},
+			{"key": "B", "title": "Blockers in B", "expanded": true, "shown": 3, "more": {"expanded": false, "text": "Show all 4 blockers in B"}},
+			{"key": "", "title": "Blockers in no milestone", "expanded": true, "shown": 3, "more": {"expanded": false, "text": "Show all 4 blockers in no milestone"}}
+		],
+		"same": true,
+		"opened": [
+			{"key": "A", "title": "Blockers in A", "expanded": false, "shown": 0, "more": null},
+			{"key": "B", "title": "Blockers in B", "expanded": true, "shown": 4, "more": {"expanded": true, "text": "Show the largest 3"}},
+			{"key": "", "title": "Blockers in no milestone", "expanded": true, "shown": 3, "more": {"expanded": false, "text": "Show all 4 blockers in no milestone"}}
+		]
+	}`, got)
+}
+
+// TestPage_AWaitingSectionDrawsWhatWaitSectionDecides: the page draws a
+// section from waitSection alone, each button's aria-expanded included,
+// and flips its state through flipWait.
+func TestPage_AWaitingSectionDrawsWhatWaitSectionDecides(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, s := range []string{"tpPure.waitSection(s, waitView, WAIT_SHOWN)", `aria-expanded="' + w.expanded + '"`, `aria-expanded="' + w.more.expanded + '"`, "waitView = tpPure.flipWait(waitView, "} {
+		assert.Contains(t, script, s)
+	}
+}
+
 // TestPage_WaitingEpicsReadInSectionsThatFoldAndShowAll: Waiting epics
 // draws a section per blocker milestone, its header naming the milestone
 // and its counts, each folding on its own and with its own "show all", and
@@ -350,7 +409,7 @@ out(P.waitingSections(groups, epics, ["A", "B", "T"], ["a2", "t1"]).map((s) => (
 func TestPage_WaitingEpicsReadInSectionsThatFoldAndShowAll(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
-	for _, s := range []string{"tpPure.waitingSections(", "data-wsec=", "data-wall=", "waitView.folded", "on the critical path"} {
+	for _, s := range []string{"tpPure.waitingSections(", "data-wsec=", "data-wall=", "tpPure.flipWait(", "on the critical path"} {
 		assert.Contains(t, script, s)
 	}
 }
