@@ -1,6 +1,8 @@
 package dashboard_test
 
 import (
+	"encoding/json"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -178,4 +180,52 @@ func TestPure_ATranslatorWordsAListAsBullets(t *testing.T) {
 	got := runPure(t, `const t = P.translator({ l: ["a {x}", "<kbd>K</kbd> b"], s: "one" }, "en");
 out([t.list("l", { x: "<b>" }), t.list("s"), t.list("missing"), t("l", { x: "y" })]);`)
 	assert.JSONEq(t, `[["a &lt;b&gt;", "<kbd>K</kbd> b"], ["one"], ["missing"], "a y <kbd>K</kbd> b"]`, got)
+}
+
+// TestPage_EveryInfoIsAShortBulletList: every info popover's words are an
+// array in both languages, as many in Turkish as in English, kept to the
+// audit's budget: a lead of at most 25 words, at most 6 bullets of at most
+// 20 words, and a source line (From …, Kaynak: …) of at most 25; their only
+// markup is kbd, code and b.
+func TestPage_EveryInfoIsAShortBulletList(t *testing.T) {
+	t.Parallel()
+	en := dictionary(t, "en")
+	tr := dictionary(t, "tr")
+	tag := regexp.MustCompile(`<[^>]*>`)
+	infos := 0
+	for key := range en {
+		if !strings.HasPrefix(key, "info.") {
+			continue
+		}
+		infos++
+		lists := map[string][]string{}
+		for lang, d := range map[string]map[string]json.RawMessage{"en": en, "tr": tr} {
+			var bullets []string
+			if !assert.NoError(t, json.Unmarshal(d[key], &bullets), "%s %s is an array of strings", lang, key) {
+				continue
+			}
+			if !assert.NotEmpty(t, bullets, "%s %s", lang, key) {
+				continue
+			}
+			body := len(bullets) - 1
+			if last := bullets[len(bullets)-1]; len(bullets) > 1 && (strings.HasPrefix(last, "From ") || strings.HasPrefix(last, "Kaynak")) {
+				body--
+			}
+			assert.LessOrEqual(t, body, 6, "%s %s holds at most 6 bullets after its lead", lang, key)
+			for i, b := range bullets {
+				words := len(strings.Fields(tag.ReplaceAllString(b, "")))
+				limit := 20
+				if i == 0 || (i == len(bullets)-1 && i > body) {
+					limit = 25
+				}
+				assert.LessOrEqual(t, words, limit, "%s %s: item %d stays within %d words: %q", lang, key, i, limit, b)
+				for _, m := range tag.FindAllString(b, -1) {
+					assert.Contains(t, []string{"<kbd>", "</kbd>", "<code>", "</code>", "<b>", "</b>"}, m, "%s %s", lang, key)
+				}
+			}
+			lists[lang] = bullets
+		}
+		assert.Len(t, lists["tr"], len(lists["en"]), "%s holds as many bullets in Turkish as in English", key)
+	}
+	assert.Positive(t, infos)
 }
