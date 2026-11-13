@@ -2,7 +2,9 @@ package engine
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -78,6 +80,7 @@ type auditOpen struct {
 func AuditCarriedSet(specPath string, st *ReviewState) (rows []CarriedRow, missing []ReviewRound) {
 	rounds := RoundsSinceEpoch(st, PhaseAudit)
 	open := make(map[auditKey]*auditOpen)
+	texts := &snapshotItemTexts{specPath: specPath, byRound: make(map[int]map[string]string)}
 	for i := range rounds {
 		r := &rounds[i]
 		recorded, found := LoadRoundRows(specPath, r)
@@ -89,7 +92,7 @@ func AuditCarriedSet(specPath string, st *ReviewState) (rows []CarriedRow, missi
 		keys, worst := worstAuditRows(recorded)
 		for _, k := range keys {
 			j := worst[k]
-			carryAuditRow(open, k, r, file, j, recorded[j])
+			carryAuditRow(open, texts, k, r, file, j, recorded[j])
 		}
 	}
 	latest := 0
@@ -130,11 +133,77 @@ func worstAuditRows(recorded []map[string]any) (keys []auditKey, worst map[audit
 	return keys, worst
 }
 
+// listNumberPrefix is a numbered list item's own number at the start of its
+// text.
+var listNumberPrefix = regexp.MustCompile(`^\s*\d+[.)]\s+`)
+
+// snapshotItemTexts reads, per audit round, the text of each positional item
+// its emission snapshot holds, reading a round's snapshot once.
+type snapshotItemTexts struct {
+	specPath string
+	byRound  map[int]map[string]string
+}
+
+// text returns the text the round's snapshot holds at a positional id, or
+// false when the snapshot is missing or holds no such item.
+func (s *snapshotItemTexts) text(round int, id string) (string, bool) {
+	items, ok := s.byRound[round]
+	if !ok {
+		items = make(map[string]string)
+		if data, err := os.ReadFile(filepath.Join(ReviewStateDir(s.specPath), snapshotFilename(PhaseAudit, round))); err == nil {
+			for _, it := range SpecPositionalItems(strings.Split(string(BlankFrontmatter(data)), "\n")) {
+				// A list item's text carries its own number, which a move
+				// changes; the item is its words.
+				items[it.ID] = strings.TrimSpace(listNumberPrefix.ReplaceAllString(it.Text, ""))
+			}
+		}
+		s.byRound[round] = items
+	}
+	t, found := items[id]
+	return t, found && t != ""
+}
+
+// movedTo reports whether the round's snapshot holds text at an id other than
+// id.
+func (s *snapshotItemTexts) movedTo(round int, id, text string) bool {
+	s.text(round, id)
+	for other, t := range s.byRound[round] {
+		if other != id && t == text {
+			return true
+		}
+	}
+	return false
+}
+
+// samePositionalItem reports whether a PASS at a positional id in round b
+// re-grades the item the id named in round a: their spec texts are equal, or,
+// for a table row or list item, round a's text at the id is not at another id
+// of round b — it is at the same id, or nowhere because the item itself was
+// repaired. When it sits at another id the item moved, and the id now names
+// another item. A finding's ordinal has no text to compare, and a missing
+// snapshot no text to read, so either keeps the row unless the texts match.
+func samePositionalItem(texts *snapshotItemTexts, id string, a, b int, hashA, hashB string) bool {
+	if hashA == hashB {
+		return true
+	}
+	if strings.HasPrefix(id, "finding-") {
+		return false
+	}
+	old, ok := texts.text(a, id)
+	if !ok {
+		return false
+	}
+	if _, readable := texts.text(b, id); !readable {
+		return false
+	}
+	return !texts.movedTo(b, id, old)
+}
+
 // carryAuditRow applies one round's worst row under k to the open set.
-func carryAuditRow(open map[auditKey]*auditOpen, k auditKey, r *ReviewRound, file string, index int, row map[string]any) {
+func carryAuditRow(open map[auditKey]*auditOpen, texts *snapshotItemTexts, k auditKey, r *ReviewRound, file string, index int, row map[string]any) {
 	cur := open[k]
 	if AuditRowIsPass(row) {
-		if cur != nil && positionalAuditID(k.item) && cur.hash != r.SpecHash {
+		if cur != nil && positionalAuditID(k.item) && !samePositionalItem(texts, k.item, cur.row.Round, r.Round, cur.hash, r.SpecHash) {
 			return
 		}
 		delete(open, k)
