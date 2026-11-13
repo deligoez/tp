@@ -660,6 +660,15 @@ func TestPure_TheKPIRowsBalance(t *testing.T) {
 	assert.JSONEq(t, `[9, 5, 5, 5, 3, 2, 1, null, 4, null]`, got)
 }
 
+// TestPure_ALoneLastKPICardSpansItsRow: when the columns leave one card
+// alone on the last row, as nine cards in two columns on a phone do, that
+// card spans the row instead of sitting in half of it (1.15.1).
+func TestPure_ALoneLastKPICardSpansItsRow(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([P.lastSpans(9, 2), P.lastSpans(7, 3), P.lastSpans(9, 3), P.lastSpans(9, 5), P.lastSpans(9, 1), P.lastSpans(9, 9)]);`)
+	assert.JSONEq(t, `[true, true, false, false, false, false]`, got)
+}
+
 // TestPure_TheEpicTotalsNameTheConditions: the Epics tab counts every epic
 // while the share and the Lifecycle count work epics, so the totals read as
 // one sentence that names the condition epics between them (1.14.1).
