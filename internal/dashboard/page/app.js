@@ -1553,14 +1553,14 @@
   }
 
   // stepper marks the phase tp resume reports; ground, which tp resume never
-  // reports, is skipped when it has no round.
+  // reports, and review are skipped, not ticked, when they have no round.
   function stepper(d, f) {
     const lines = stepLines(d, f);
     const cur = d.resume.phase === "release" ? STEPS.length : STEPS.indexOf(d.resume.phase);
     const paused = escalations(d).length > 0;
     return '<ol class="stepper">' + STEPS.map((p, i) => {
       let st = i < cur ? "done" : i === cur ? "cur" : "todo";
-      if (p === "ground" && st === "done" && !(d.loops.ground.rounds || []).length) st = "skip";
+      if ((p === "ground" || p === "review") && st === "done" && !((d.loops[p] || {}).rounds || []).length) st = "skip";
       const mark = st === "done" ? CHECK : st === "cur" && paused ? PAUSE : String(i + 1);
       return '<li class="' + st + (st === "cur" && paused ? " op" : "") + '"' + (st === "cur" ? ' aria-current="step"' : "") + '><span class="sn">' + mark +
         '</span><span class="sl">' + esc(word(STEP_LABEL, p)) + '</span><span class="sd">' + esc(lines[p]) + "</span></li>";
