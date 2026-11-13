@@ -128,8 +128,8 @@ func TestPure_TheTranslatorFormatsPercentsAndDurationsByLocale(t *testing.T) {
 	t.Parallel()
 	got := runPure(t, `const en = P.translator({}, "en");
 const tr = P.translator({}, "tr");
-out([en.pct(0.4), tr.pct(0.4), en.dur(45), en.dur(90), tr.dur(45), tr.dur(90)]);`)
-	assert.JSONEq(t, `["40%", "%40", "45 min", "1.5 hr", "45 dk.", "1,5 sa."]`, got)
+out([en.num(12345), tr.num(12345), en.pct(0.4), tr.pct(0.4), en.dur(45), en.dur(90), tr.dur(45), tr.dur(90)]);`)
+	assert.JSONEq(t, `["12,345", "12.345", "40%", "%40", "45 min", "1.5 hr", "45 dk.", "1,5 sa."]`, got)
 }
 
 // TestPure_TheLanguageIsTheStoredChoiceElseTheBrowsers: a stored choice of
