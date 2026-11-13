@@ -4,6 +4,14 @@
 (function () {
   "use strict";
 
+  // pure.js loads before this script and defines tpPure; without it the page
+  // says so in its banner instead of failing on the first call and staying
+  // blank.
+  if (!window.tpPure) {
+    document.getElementById("banners").innerHTML = '<div class="banner"><b>pure.js did not load</b><span>Reload the page; if it stays, check that tp dashboard is still running.</span></div>';
+    return;
+  }
+
   // The event stream and the payloads it pushes, by event name (§2).
   const STREAM = "/api/events";
   const EVENTS = ["epic-export", "export-list", "summary"];
