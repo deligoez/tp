@@ -583,10 +583,13 @@ func loadAuditPriorRound(specPath string) map[string]*auditPriorRound {
 		exitStateError(err)
 		return nil
 	}
-	if st == nil || len(st.AuditRounds) == 0 {
+	// Only a round recorded after the newest epoch is a prior round: one
+	// before it graded a text the spec no longer holds (tp review --rewritten).
+	since := engine.RoundsSinceEpoch(st, engine.PhaseAudit)
+	if len(since) == 0 {
 		return nil
 	}
-	prior := &st.AuditRounds[len(st.AuditRounds)-1]
+	prior := &since[len(since)-1]
 	rows, found := engine.LoadRoundRows(specPath, prior)
 	if !found {
 		// Dropping the whole prior-round section silently makes a round-2
