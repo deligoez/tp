@@ -138,14 +138,6 @@ out([P.foldAt(l(3), 5), P.foldAt(l(6), 5), P.foldAt(l(8), 5)]);`)
 	assert.JSONEq(t, `[[[0,1,2],[]], [[0,1,2,3,4,5],[]], [[0,1,2,3,4],[5,6,7]]]`, got)
 }
 
-// TestPure_AMarkNamesTheTokenItIsDrawnIn: a dependency row's dot takes the
-// colour its epic has on the graph, and an unknown mark the muted ink.
-func TestPure_AMarkNamesTheTokenItIsDrawnIn(t *testing.T) {
-	t.Parallel()
-	got := runPure(t, `out([P.markToken("done"), P.markToken("blocked"), P.markToken("nope")]);`)
-	assert.JSONEq(t, `["--done", "--g-blocked", "--muted"]`, got)
-}
-
 // TestPure_MarkdownDrawsADescriptionSafely: an epic's description is
 // markdown: headings, lists, fenced code (a blank line inside the fence
 // does not end it), bold, italic, code spans and http(s) links draw, and

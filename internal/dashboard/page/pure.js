@@ -695,12 +695,6 @@
     ["ready", "--ready"], ["blocked", "--g-blocked"], ["held", "--held"], ["waiting", "--g-waiting"], ["moot", "--moot"],
   ];
   const FILL_SHARE = { ready: 0.5, held: 0.5, waiting: 0.55, moot: 0.55 };
-  // markToken is the colour token a mark is drawn in on the graph, the muted
-  // ink for a mark the graph does not draw.
-  P.markToken = function (mark) {
-    const m = P.GRAPH_MARKS.find(([k]) => k === mark);
-    return m ? m[1] : "--muted";
-  };
   // foldAt is a list as the rows shown and the rows folded away: its first
   // n, the rest folded, unless only one row would be folded, which shows.
   P.foldAt = function (list, n) {
