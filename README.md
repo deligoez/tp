@@ -174,7 +174,7 @@ What ends each loop is not the same condition, and that difference is the point:
 |------|--------------------------------|
 | `tp ground` | **coverage**: every emitted floor unit carries one of the six verdicts, the floor is not empty, and the latest round holds no `FAIL` |
 | `tp epic review` | the same as `tp review`, for one slice of `.tp/epics.json` and from the project layer alone, and no unit of the slice changed since its last recorded round; every error rule of `tp epic lint` passes over the whole file |
-| `tp review` | **absence**: `review_clean_rounds` trailing rounds carry no finding that `review_converge_on` counts and the spec has not moved since — **or disposition**: at `review_max_rounds`, every finding of the latest round carries a disposition. Either way every registered `checks` entry passes |
+| `tp review` | **absence**: `review_clean_rounds` trailing rounds carry no finding that `review_converge_on` counts and the spec has not moved since — **or disposition**: at `review_max_rounds`, every finding of the latest round carries a disposition. Either way no finding that `review_converge_on` counts is left unresolved in an earlier round, since the next round is told not to re-report it, and every registered `checks` entry passes |
 | `tp audit` | the same with `audit_clean_rounds`, `audit_converge_on` and `audit_max_rounds`; audit runs no `checks` |
 
 A finding leaves a round as a change or as a recorded disposition (`--resolve`). `--status` reports
