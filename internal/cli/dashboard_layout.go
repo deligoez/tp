@@ -158,38 +158,65 @@ func dashboardLayoutQuery(q url.Values) (layoutQuery, *dashboard.Error) {
 	if len(q["view"]) != 1 || !known {
 		return bad("/api/layout takes view once: plan, milestones, scope or neighbourhood")
 	}
-	for key, values := range q {
-		if key != "view" && key != layoutPackParam && !slices.Contains(params, key) {
-			return bad(fmt.Sprintf("view %s takes no %s", view, layoutEcho(key)))
-		}
-		if len(values) != 1 {
-			return bad(layoutEcho(key) + " is given more than once")
-		}
+	if msg := layoutParamsFault(q, view, params); msg != "" {
+		return bad(msg)
 	}
-	if len(params) > 0 && q.Get(params[0]) == "" {
-		return bad(fmt.Sprintf("view %s needs %s", view, params[0]))
-	}
-	lq := layoutQuery{view: view, milestone: q.Get("milestone"), epic: q.Get("epic"), pack: engine.PackRows}
-	switch p := engine.ForestPacking(q.Get(layoutPackParam)); p {
-	case "", engine.PackRows:
-	case engine.PackTree:
-		lq.pack = p
-	default:
+	lq := layoutQuery{view: view, milestone: q.Get("milestone"), epic: q.Get("epic")}
+	var ok bool
+	if lq.pack, ok = layoutPacking(q.Get(layoutPackParam)); !ok {
 		return bad("pack is rows or tree")
 	}
 	if view == layoutViewNeighbourhood {
-		lq.depth = layoutDefaultDepth
-		if q.Has("depth") {
-			// ParseInt saturates an integer out of int64's range to the
-			// bound of its sign, which the clamp then takes.
-			d, err := strconv.ParseInt(q.Get("depth"), 10, 64)
-			if err != nil && !errors.Is(err, strconv.ErrRange) {
-				return bad("depth is not an integer")
-			}
-			lq.depth = int(min(layoutMaxDepth, max(layoutMinDepth, d)))
+		if lq.depth, ok = layoutDepth(q); !ok {
+			return bad("depth is not an integer")
 		}
 	}
 	return lq, nil
+}
+
+// layoutParamsFault is what is wrong with q's parameters for view, which
+// takes params beside view and pack: one it does not take, one given more
+// than once, or the one it needs missing or empty; empty when nothing is.
+func layoutParamsFault(q url.Values, view string, params []string) string {
+	for key, values := range q {
+		if key != "view" && key != layoutPackParam && !slices.Contains(params, key) {
+			return fmt.Sprintf("view %s takes no %s", view, layoutEcho(key))
+		}
+		if len(values) != 1 {
+			return layoutEcho(key) + " is given more than once"
+		}
+	}
+	if len(params) > 0 && q.Get(params[0]) == "" {
+		return fmt.Sprintf("view %s needs %s", view, params[0])
+	}
+	return ""
+}
+
+// layoutPacking reads pack: rows when it is empty or rows, tree for tree,
+// and false for anything else.
+func layoutPacking(p string) (engine.ForestPacking, bool) {
+	switch engine.ForestPacking(p) {
+	case "", engine.PackRows:
+		return engine.PackRows, true
+	case engine.PackTree:
+		return engine.PackTree, true
+	}
+	return "", false
+}
+
+// layoutDepth reads the neighbourhood's depth, layoutDefaultDepth when q
+// has none, clamped to its bounds, and false when it is not an integer.
+func layoutDepth(q url.Values) (int, bool) {
+	if !q.Has("depth") {
+		return layoutDefaultDepth, true
+	}
+	// ParseInt saturates an integer out of int64's range to the bound of
+	// its sign, which the clamp then takes.
+	d, err := strconv.ParseInt(q.Get("depth"), 10, 64)
+	if err != nil && !errors.Is(err, strconv.ErrRange) {
+		return 0, false
+	}
+	return int(min(layoutMaxDepth, max(layoutMinDepth, d))), true
 }
 
 // milestonesLayout is the overview: every tracked milestone, an edge from
@@ -335,8 +362,6 @@ func epicEdges(g *model.EpicGraph, in map[string]bool, path []string) ([]string,
 }
 
 // layoutOf lays ids and edges out, bands and bandOf as engine.LayeredLayout
-// takes them, and lists the nodes by layer, then order.
-// layoutOf lays ids and edges out, bands and bandOf as engine.LayeredLayout
 // takes them, groupOf and pack as engine.ForestLayout does, and lists the
 // nodes by layer, then column, each with its barycenter order and its
 // forest column, each edge with its role.
@@ -379,8 +404,6 @@ func planLayout(g *model.EpicGraph, states map[string]engine.EpicState, pack eng
 	return out
 }
 
-// trackGroups maps each epic to the track its milestone is first listed in,
-// so the forest packs each track's trees side by side.
 // trackGroups maps each epic to the track its milestone is first listed in,
 // so the forest packs each track's trees side by side.
 func trackGroups(g *model.EpicGraph) map[string]string {
