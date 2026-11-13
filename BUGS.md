@@ -8,6 +8,13 @@ fix needs a design choice leaves this file for a decision note.
 
 ## Needs an operator decision
 
+- **Empty audit rounds converge past an earlier FAIL.** CLAUDE.md rule 13 says an audit ships with no
+  FAIL in any round, but audit convergence counts only the trailing clean rounds. Repro (v1.15.0,
+  scratch git repo): record audit round 1 with one `FAIL`/`error` row; round 2's prompt shows it under
+  Prior Round to re-check; record rounds 2 and 3 empty; `tp audit spec.md --status --check` exits 0,
+  `converged: true`, and round 3's prompt no longer mentions the FAIL. The record does say "graded 0
+  of N". The fix is a convergence rule, the audit counterpart of `spec/backlog/carried-rows-block.md`;
+  it gets its own note and measurement.
 - **An unresolved high review finding is converged away by empty rounds.** Convergence counts only the
   trailing clean rounds, each judged on its own rows, while the next round's prompts list the open
   finding under "UNRESOLVED findings from previous rounds — DO NOT re-report". So a high nobody fixed
