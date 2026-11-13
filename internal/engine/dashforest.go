@@ -93,29 +93,13 @@ type ForestInput struct {
 // naming an id not in IDs, or a node to itself, is laid out as no edge and
 // its role is RoleBack. One input always lays out alike.
 func ForestLayout(in *ForestInput) Forest {
-	ids, edges, bands, bandOf := in.IDs, in.Edges, in.Bands, in.BandOf
+	ids, edges := in.IDs, in.Edges
 	file := make(map[string]int, len(ids))
 	for i, id := range ids {
 		file[id] = i
 	}
-	kept := make([]LayoutEdge, 0, len(edges))
-	for _, e := range edges {
-		if forestEdgeKept(file, e) {
-			kept = append(kept, e)
-		}
-	}
-	if bands == nil {
-		bands, bandOf = []string{""}, map[string]string{}
-	}
-	runs := bandRuns(bandList(bands, ids, bandOf), bandOf, kept)
-	var layer map[string]int
-	var spans []LayoutBand
-	if in.LaneOf == nil {
-		layer, spans = bandLayers(ids, kept, runs, bandOf)
-	} else {
-		layer, spans = laneLayers(ids, kept, runs, bandOf, in.LaneOf)
-	}
-	out := Forest{Places: make(map[string]ForestPlace, len(ids)), Roles: make([]EdgeRole, len(edges))}
+	layer, spans := forestLayers(in, file)
+	out := Forest{Places: make(map[string]ForestPlace, len(ids))}
 	for _, s := range spans {
 		if s.Name != "" || len(spans) > 1 {
 			out.Bands = append(out.Bands, s)
@@ -123,21 +107,8 @@ func ForestLayout(in *ForestInput) Forest {
 		out.Layers = max(out.Layers, s.To+1)
 	}
 	parent := primaryParents(edges, file, layer, in.GroupOf)
-	children := make([][]int, len(ids))
-	for i, e := range edges {
-		switch {
-		case !forestEdgeKept(file, e) || layer[e.From] >= layer[e.To]:
-			out.Roles[i] = RoleBack
-		case parent[file[e.To]] == i:
-			out.Roles[i] = RoleTree
-			children[file[e.From]] = append(children[file[e.From]], file[e.To])
-		default:
-			out.Roles[i] = RoleCross
-		}
-	}
-	for _, kids := range children {
-		slices.Sort(kids)
-	}
+	var children [][]int
+	out.Roles, children = forestRoles(edges, file, layer, parent)
 	col := packForest(ids, layer, parent, children, in.GroupOf)
 	out.Columns = col[len(ids)]
 	col = col[:len(ids)]
@@ -150,22 +121,57 @@ func ForestLayout(in *ForestInput) Forest {
 	return out
 }
 
+// forestLayers is each node's layer and the bands' spans: in.Bands run as
+// LayeredLayout runs them over the edges forestEdgeKept keeps, stacked, or
+// in lanes when in.LaneOf names them.
+func forestLayers(in *ForestInput, file map[string]int) (map[string]int, []LayoutBand) {
+	kept := make([]LayoutEdge, 0, len(in.Edges))
+	for _, e := range in.Edges {
+		if forestEdgeKept(file, e) {
+			kept = append(kept, e)
+		}
+	}
+	bands, bandOf := in.Bands, in.BandOf
+	if bands == nil {
+		bands, bandOf = []string{""}, map[string]string{}
+	}
+	runs := bandRuns(bandList(bands, in.IDs, bandOf), bandOf, kept)
+	if in.LaneOf == nil {
+		return bandLayers(in.IDs, kept, runs, bandOf)
+	}
+	return laneLayers(in.IDs, kept, runs, bandOf, in.LaneOf)
+}
+
+// forestRoles is each edge's role, and per node in file order its children
+// in the forest, sorted: an edge that is its dependent's primary parent is
+// a tree edge, any other pointing down the layers a cross edge, and the
+// rest back edges.
+func forestRoles(edges []LayoutEdge, file, layer map[string]int, parent []int) (roles []EdgeRole, children [][]int) {
+	roles = make([]EdgeRole, len(edges))
+	children = make([][]int, len(file))
+	for i, e := range edges {
+		switch {
+		case !forestEdgeKept(file, e) || layer[e.From] >= layer[e.To]:
+			roles[i] = RoleBack
+		case parent[file[e.To]] == i:
+			roles[i] = RoleTree
+			children[file[e.From]] = append(children[file[e.From]], file[e.To])
+		default:
+			roles[i] = RoleCross
+		}
+	}
+	for _, kids := range children {
+		slices.Sort(kids)
+	}
+	return roles, children
+}
+
 // laneLayers is bandLayers with runs in lanes: a run starts after every run
 // an edge makes it depend on and after the run before it in its lane, the
 // lane of its first band, instead of after every run before it. runs are in
 // dependency order, so each run's start is known when it is reached.
 func laneLayers(ids []string, edges []LayoutEdge, runs [][]string, bandOf, laneOf map[string]string) (map[string]int, []LayoutBand) {
-	runOfBand := map[string]int{}
-	for r, members := range runs {
-		for _, b := range members {
-			runOfBand[b] = r
-		}
-	}
-	runOf := make(map[string]int, len(ids))
-	held := map[string]bool{}
-	for _, id := range ids {
-		runOf[id], held[bandOf[id]] = runOfBand[bandOf[id]], true
-	}
+	runOf, held := nodeRuns(ids, runs, bandOf)
 	local := longestPaths(ids, edges, runOf)
 	width := make([]int, len(runs))
 	for _, id := range ids {
@@ -192,18 +198,41 @@ func laneLayers(ids []string, edges []LayoutEdge, runs [][]string, bandOf, laneO
 			continue
 		}
 		lastInLane[lane] = r
-		named := slices.DeleteFunc(slices.Clone(members), func(b string) bool { return !held[b] })
-		span := LayoutBand{Name: named[0], From: start[r], To: start[r] + width[r] - 1}
-		if len(named) > 1 {
-			span.With = named[1:]
-		}
-		spans = append(spans, span)
+		spans = append(spans, runSpan(members, held, start[r], width[r]))
 	}
 	layer := make(map[string]int, len(ids))
 	for _, id := range ids {
 		layer[id] = start[runOf[id]] + local[id]
 	}
 	return layer, spans
+}
+
+// nodeRuns is the run each node's band is in, and the bands that hold a
+// node.
+func nodeRuns(ids []string, runs [][]string, bandOf map[string]string) (runOf map[string]int, held map[string]bool) {
+	runOfBand := map[string]int{}
+	for r, members := range runs {
+		for _, b := range members {
+			runOfBand[b] = r
+		}
+	}
+	runOf = make(map[string]int, len(ids))
+	held = map[string]bool{}
+	for _, id := range ids {
+		runOf[id], held[bandOf[id]] = runOfBand[bandOf[id]], true
+	}
+	return runOf, held
+}
+
+// runSpan is the span of a run of members from start, width layers wide,
+// named for the first member that holds a node and with the others that do.
+func runSpan(members []string, held map[string]bool, start, width int) LayoutBand {
+	named := slices.DeleteFunc(slices.Clone(members), func(b string) bool { return !held[b] })
+	span := LayoutBand{Name: named[0], From: start, To: start + width - 1}
+	if len(named) > 1 {
+		span.With = named[1:]
+	}
+	return span
 }
 
 // forestEdgeKept reports whether e joins two different ids of file.
@@ -302,13 +331,11 @@ func packTree(root int, children [][]int, col []float64, cursor *float64) {
 func squeezeRows(ids []string, layer map[string]int, col []float64, aim float64) float64 {
 	rows := map[int][]int{}
 	treeWidth := 0.0
+	fullest := 0
 	for v, id := range ids {
 		rows[layer[id]] = append(rows[layer[id]], v)
 		treeWidth = max(treeWidth, col[v]+1)
-	}
-	fullest := 0
-	for _, r := range rows {
-		fullest = max(fullest, len(r))
+		fullest = max(fullest, len(rows[layer[id]]))
 	}
 	width := max(float64(fullest), min(aim, math.Ceil(treeWidth)))
 	scale := 0.0
@@ -316,24 +343,29 @@ func squeezeRows(ids []string, layer map[string]int, col []float64, aim float64)
 		scale = max(0, width-1) / (treeWidth - 1)
 	}
 	for _, r := range rows {
-		slices.SortFunc(r, func(a, b int) int { return cmp.Or(cmp.Compare(col[a], col[b]), cmp.Compare(a, b)) })
-		placed := make([]float64, len(r))
-		for i, v := range r {
-			placed[i] = math.Round(col[v] * scale)
-			if i > 0 {
-				placed[i] = max(placed[i], placed[i-1]+1)
-			}
-		}
-		for i := len(r) - 1; i >= 0; i-- {
-			ceiling := width - 1
-			if i+1 < len(r) {
-				ceiling = placed[i+1] - 1
-			}
-			placed[i] = min(placed[i], ceiling)
-		}
-		for i, v := range r {
-			col[v] = placed[i]
-		}
+		squeezeRow(r, col, scale, width)
 	}
 	return width
+}
+
+// squeezeRow places one layer's nodes r inside width: in tree order, each
+// at its column times scale, pushed one column past the one before it, then
+// pulled back from the right edge.
+func squeezeRow(r []int, col []float64, scale, width float64) {
+	slices.SortFunc(r, func(a, b int) int { return cmp.Or(cmp.Compare(col[a], col[b]), cmp.Compare(a, b)) })
+	placed := make([]float64, len(r))
+	for i, v := range r {
+		placed[i] = math.Round(col[v] * scale)
+		if i > 0 {
+			placed[i] = max(placed[i], placed[i-1]+1)
+		}
+	}
+	ceiling := width - 1
+	for i := len(r) - 1; i >= 0; i-- {
+		placed[i] = min(placed[i], ceiling)
+		ceiling = placed[i] - 1
+	}
+	for i, v := range r {
+		col[v] = placed[i]
+	}
 }
