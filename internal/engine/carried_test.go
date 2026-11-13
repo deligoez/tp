@@ -33,3 +33,16 @@ func TestReviewCarried_AnUnresolvedHighBlocksPastEmptyRounds(t *testing.T) {
 	assert.False(t, ReviewConverged(spec, st, 2, "h", ReviewConvergeOnBlocking))
 }
 
+// TestReviewCarried_TheLatestDispositionWins: an early unresolved copy of a
+// finding does not hold the loop open once a later round's copy is fixed.
+func TestReviewCarried_TheLatestDispositionWins(t *testing.T) {
+	t.Parallel()
+	spec := filepath.Join(t.TempDir(), "spec.md")
+	st := &ReviewState{ReviewRounds: loopRounds(t, spec, []string{carriedOpen}, []string{carriedFixed}, []string{}, []string{})}
+
+	d := ReviewLoopDone(spec, st, 2, 0, "h", ReviewConvergeOnBlocking)
+	assert.Empty(t, d.CarriedBlocking, "the fixed copy is the row's latest occurrence")
+	assert.True(t, d.Done)
+	assert.Equal(t, DoneByConverged, d.By)
+}
+
