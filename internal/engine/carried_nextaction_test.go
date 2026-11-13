@@ -36,3 +36,18 @@ func TestReviewNextAction_TheCarriedCommandEndsItsClause(t *testing.T) {
 	assert.Greater(t, cmd, aside, "the aside precedes the command: %s", next)
 }
 
+// TestReviewNextAction_AFixAwaitingARoundNamesTheRound: a carried row marked
+// fixed and unverified is cleared by the next round, below the cap, and by
+// the operator's raise at it; the resolve command is never offered for it.
+func TestReviewNextAction_AFixAwaitingARoundNamesTheRound(t *testing.T) {
+	t.Parallel()
+	fixed := earlierHigh()
+	fixed.Disposition = CarryResolved
+	below := ReviewNextAction("spec.md", LoopDone{CarriedBlocking: []CarriedRow{fixed}}, false, nil, "r3.ndjson", CheckVerdict{})
+	assert.Contains(t, below, "run the next review round")
+	assert.NotContains(t, below, "--resolve")
+	atCap := ReviewNextAction("spec.md", LoopDone{CapReached: true, CarriedBlocking: []CarriedRow{fixed}}, false, nil, "r3.ndjson", CheckVerdict{})
+	assert.Contains(t, atCap, EscalateRaiseReviewCap)
+	assert.NotContains(t, atCap, "--resolve")
+	assert.NotContains(t, atCap, "tp import")
+}
