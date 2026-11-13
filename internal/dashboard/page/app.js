@@ -2019,14 +2019,14 @@
   // tab, the spec, its view, the picked task, the selected epic, the
   // milestone the drawer shows (ms), the slice whose graph history is shown
   // and its two compared rounds, the lifecycle's stage filter, the graph
-  // card's mode (gv), gate milestone (gm), depth (gd), packing (pack),
-  // cross-edge toggle (cross) and search (q), which graph.js writes through
+  // card's mode (gv), gate milestone (gm), depth (gd), cross-edge toggle
+  // (cross) and search (q), which graph.js writes through
   // tpApp.graphParams (tpPure.graphParams), the Specs tab's phase and
   // filter, and the Tasks view's Steps or Board and the section whose tasks
   // it picks out, sec, a section anchor without its sign. A change of place
   // (tab, spec, view, task, epic, slice, rounds, the graph's mode and gate
   // milestone) adds a history entry; a filter replaces the current one.
-  const URL_KEYS = ["tab", "spec", "view", "task", "epic", "q", "phase", "sq", "tview", "slice", "hr", "stage", "sec", "gv", "gm", "gd", "ms", "pack", "cross"];
+  const URL_KEYS = ["tab", "spec", "view", "task", "epic", "q", "phase", "sq", "tview", "slice", "hr", "stage", "sec", "gv", "gm", "gd", "ms", "cross"];
   const PLACE_KEYS = ["tab", "spec", "view", "task", "epic", "ms", "slice", "hr", "gv", "gm"];
   const address = { landed: false, quiet: false, applying: false };
 

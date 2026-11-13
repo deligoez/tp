@@ -20,11 +20,10 @@
 
   // t words the card in the page's language (tpApp.tr), so every word the
   // card writes is a key of i18n/<lang>.json; tk marks a key a table holds.
-  // EDGE_TEXT is each edge class's legend key and PACK_TEXT each packing's.
+  // EDGE_TEXT is each edge class's legend key.
   const t = (key, params) => app.tr()(key, params);
   const tk = (key) => key;
   const EDGE_TEXT = { tree: tk("graph.edge.tree"), cross: tk("graph.edge.cross"), back: tk("graph.edge.back"), critical: tk("graph.edge.critical"), any: tk("graph.edge.any") };
-  const PACK_TEXT = { rows: tk("graph.pack.rows"), tree: tk("graph.pack.tree") };
   const milestoneLabel = (n) => n.id + "  " + n.done + "/" + n.epics;
   const milestoneTitle = (n) => t("graph.msTitle", { state: n.open ? t("ms.open") : t("ms.closed"), done: n.done, n: n.epics, in: n.inbound });
   // countLine is the toolbar's count line: what the card drew and, for a
@@ -63,7 +62,7 @@
   const EDGE_CLASSES = ["tree", "cross", "back", "critical", "any"];
 
   const G = {
-    mode: "plan", milestone: null, depth: 2, pack: "rows", showCross: false, q: "",
+    mode: "plan", milestone: null, depth: 2, showCross: false, q: "",
     hiddenMarks: new Set(), hiddenEdges: new Set(),
     data: null, key: null, dataKey: null, error: null, seq: 0, seen: null,
     deck: null, deckState: "idle", visible: false, built: null, builtFor: null, prepared: null,
@@ -161,7 +160,6 @@
   }
   function query(g) {
     const p = new URLSearchParams({ view: G.mode });
-    if (G.pack !== "rows") p.set("pack", G.pack);
     if (G.mode === "scope") {
       const m = gateMilestone(g);
       if (!m) return null;
@@ -614,7 +612,6 @@
     $("gc-ms").value = gateMilestone(g) || "";
     $("gc-depth").value = String(G.depth);
     $("gc-cross").setAttribute("aria-pressed", String(G.showCross));
-    $("gc-pack").textContent = t("graph.packing", { p: t(PACK_TEXT[G.pack]) });
     $("gc-theme").textContent = G.colors && G.colors.dark ? t("graph.light") : t("graph.dark");
     if ($("gc-q").value !== G.q && document.activeElement !== $("gc-q")) $("gc-q").value = G.q;
   }
@@ -662,7 +659,6 @@
     drawLegend();
     render();
   });
-  $("gc-pack").addEventListener("click", () => { G.fitted = null; setPlace({ pack: G.pack === "rows" ? "tree" : "rows" }); });
   $("gc-fit").addEventListener("click", () => { if (G.prepared) goTo(fitView()); });
   $("gc-theme").addEventListener("click", () => {
     document.documentElement.dataset.theme = G.colors && G.colors.dark ? "light" : "dark";
