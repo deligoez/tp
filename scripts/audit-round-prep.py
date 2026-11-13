@@ -171,7 +171,8 @@ def epoch_cut(review_dir: pathlib.Path) -> int:
     if not isinstance(epochs, list) or not epochs or not isinstance(epochs[-1], dict):
         return 0
     cut = epochs[-1].get("after_audit_round", 0)
-    return cut if isinstance(cut, int) else 0
+    # type() rather than isinstance(): a JSON bool is an int subclass in Python.
+    return cut if type(cut) is int and cut >= 0 else 0
 
 
 def rows_of(path: pathlib.Path) -> list[tuple[bytes, dict]]:
