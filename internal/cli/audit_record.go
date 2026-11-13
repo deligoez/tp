@@ -121,7 +121,7 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 		return nil
 	}
 
-	st, round, lockErr := recordAuditRoundEntry(specPath, data, findings, clean, harnessNote, wfPre.AuditConvergeOn, roundRolesHash)
+	st, round, lockErr := recordAuditRoundEntry(specPath, data, rows, findings, clean, harnessNote, wfPre.AuditConvergeOn, roundRolesHash)
 	if lockErr != nil {
 		exitStateError(lockErr)
 		return nil
@@ -250,7 +250,7 @@ func auditSignalFields(result map[string]any, specPath string, rounds []engine.R
 // state write; it is stamped on the new round entry, and §2.4's condition 5
 // compares against that same value instead of hashing the corpus a second time
 // on the --record path.
-func recordAuditRoundEntry(specPath string, data []byte, findings int, clean bool, harnessNote, convergeOn, rolesHash string) (st *engine.ReviewState, round int, err error) {
+func recordAuditRoundEntry(specPath string, data []byte, rows []map[string]any, findings int, clean bool, harnessNote, convergeOn, rolesHash string) (st *engine.ReviewState, round int, err error) {
 	err = engine.WithReviewStateLock(specPath, func() error {
 		loaded, loadErr := engine.LoadReviewState(specPath)
 		if loadErr != nil {
@@ -297,6 +297,9 @@ func recordAuditRoundEntry(specPath string, data []byte, findings int, clean boo
 			IDScheme:    engine.IDSchemeSlug,
 			ConvergeOn:  convergeOn,
 			HarnessNote: harnessNote,
+			// Decision 4: what each code role graded of its pool, from the
+			// pools this round's emission kept in its inbox.
+			Graded: gradedAtRecord(specPath, round, rows),
 		}
 		if rewrite {
 			st.AuditRounds[round-1] = entry
