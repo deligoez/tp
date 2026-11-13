@@ -343,7 +343,8 @@ func TestAuditPriorRound_FixedRowAsksForTheRepairToBeVerified(t *testing.T) {
 // disposition renders exactly as it did before dispositions were carried, and
 // so does a wontfix whose evidence is blank — it clears nothing (§2), so it is
 // still open and is re-checked like any undisposed row. With no disposition in
-// the block, neither disposition framing is added.
+// the block, neither disposition framing is added. Both items are outside this
+// round's checklist, so the one line v1.18.0 adds asks for a row for each.
 func TestAuditPriorRound_UndisposedRowRendersAsBefore(t *testing.T) {
 	t.Parallel()
 	sec := auditPriorSecurityPrompt(t,
@@ -352,10 +353,11 @@ func TestAuditPriorRound_UndisposedRowRendersAsBefore(t *testing.T) {
 			`"resolved":{"status":"wontfix","evidence":"  ","resolved_at":"2024-01-02T00:00:00Z"}}`+"\n")
 
 	assert.Contains(t, sec, "## Prior Round: context to re-check, not a verdict to repeat\n"+
-		"These are your own non-PASS rows from the previous round. Re-check each item against the code and record your own status. Do NOT repeat the prior verdict without verifying.\n\n"+
+		"These are your own non-PASS rows from the previous round. Re-check each item against the code and record your own status. Do NOT repeat the prior verdict without verifying.\n"+
+		"Record a row for every item_id this section lists, even one this round's checklist no longer lists.\n\n"+
 		`{"role":"security","item_id":"prior-open","status":"FAIL","evidence_file":"auth_helper.go","changed_since":false}`+"\n"+
 		`{"role":"security","item_id":"prior-blank","status":"FAIL"}`+"\n",
-		"an undisposed block is byte-identical to the one emitted before dispositions were carried")
+		"an undisposed block reads as before dispositions were carried, beside the line for items off the checklist")
 	assert.NotContains(t, sec, "disposition_evidence", "no row carries a disposition that counts")
 	assert.NotContains(t, sec, "tp carries the acceptance", "no accepted row, so no accepted framing")
 	assert.NotContains(t, sec, "verify the repair held", "no fixed row, so no fixed framing")

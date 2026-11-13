@@ -172,5 +172,32 @@ func TestAuditCarriedBlocking_EveryLaterPromptAsksForTheReGrade(t *testing.T) {
 	sec := auditPromptsByRole(t, stdout)["security"]["prompt"].(string)
 	assert.Contains(t, sec, "## Prior Round")
 	assert.Contains(t, sec, `{"role":"security","item_id":"carried-sec","status":"FAIL","round":1}`)
+	assert.Contains(t, sec, "your own non-PASS rows from earlier rounds")
 	assert.Contains(t, sec, "graded in that earlier round")
+	assert.NotContains(t, sec, "holds the audit open", "the framing does not push the role toward a PASS")
+	assert.Contains(t, sec, "Record a row for every item_id this section lists, even one this round's checklist no longer lists")
+	assert.Contains(t, sec, "or an item_id its Prior Round section lists")
+}
+
+// TestAuditCarriedBlocking_AnAcceptedOlderRowIsNotAskedToBeReGraded: an
+// accepted row of an earlier round is listed so it is recorded as before, but
+// it holds nothing open, so the earlier-round framing is not written for it.
+func TestAuditCarriedBlocking_AnAcceptedOlderRowIsNotAskedToBeReGraded(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "auth_helper.go"), []byte("package main\n"), 0o600))
+	_, _, code := runTP(t, dir, "init", "spec.md")
+	require.Equal(t, 0, code)
+	accepted := `{"item_id":"carried-sec","status":"FAIL","role":"security","resolved":{"status":"wontfix","evidence":"vendored, operator accepted"}}` + "\n"
+	for _, rows := range []string{accepted, ""} {
+		_, stderr, code := auditRecord(t, dir, rows)
+		require.Equal(t, 0, code, "record: %s", stderr)
+	}
+
+	stdout, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "auth_helper.go")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	sec := auditPromptsByRole(t, stdout)["security"]["prompt"].(string)
+	assert.Contains(t, sec, `"item_id":"carried-sec"`)
+	assert.NotContains(t, sec, "graded in that earlier round")
 }
