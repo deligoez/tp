@@ -49,35 +49,20 @@ out([count({ showCross: true, hidden: [] }), count({ showCross: false, hidden: [
 // packing is the API's alone: the page neither writes nor reads pack.
 func TestPure_TheGraphsPlaceRoundTripsThroughTheAddress(t *testing.T) {
 	t.Parallel()
-	got := runPure(t, `const s = { mode: "scope", milestone: "A3", depth: 3, showCross: true, q: "cache" };
+	got := runPure(t, `const s = { mode: "scope", milestone: "A3", depth: 3, showCross: false, q: "cache" };
 const p = new URLSearchParams(P.graphParams(s));
 out([
   p.toString(),
   P.graphPlace((k) => p.get(k)),
-  P.graphParams({ mode: "plan", milestone: "A3", depth: 2, showCross: false, q: "" }),
+  P.graphParams({ mode: "plan", milestone: "A3", depth: 2, showCross: true, q: "" }),
   P.graphPlace((k) => ({ gv: "map", gd: "9", pack: "tree", cross: "yes" })[k] || null),
 ]);`)
 	assert.JSONEq(t, `[
-		"gv=scope&gm=A3&gd=3&cross=1&q=cache",
-		{"mode": "scope", "milestone": "A3", "depth": 3, "showCross": true, "q": "cache"},
+		"gv=scope&gm=A3&gd=3&cross=0&q=cache",
+		{"mode": "scope", "milestone": "A3", "depth": 3, "showCross": false, "q": "cache"},
 		[],
-		{"mode": "plan", "milestone": null, "depth": 2, "showCross": false, "q": ""}
+		{"mode": "plan", "milestone": null, "depth": 2, "showCross": true, "q": ""}
 	]`, got)
-}
-
-// TestPure_MilestonesDrawTheirCrossEdgesByDefault: in Milestones a cross
-// edge is an opens-after edge from another track, which the overview
-// exists to show, so it is drawn until the toggle hides it; the epic modes
-// keep cross edges hidden until the toggle shows them.
-func TestPure_MilestonesDrawTheirCrossEdgesByDefault(t *testing.T) {
-	t.Parallel()
-	got := runPure(t, `out([
-  P.crossShown({ mode: "milestones", showCross: false, msCross: true }),
-  P.crossShown({ mode: "milestones", showCross: true, msCross: false }),
-  P.crossShown({ mode: "plan", showCross: false, msCross: true }),
-  P.crossShown({ mode: "scope", showCross: true, msCross: false }),
-]);`)
-	assert.JSONEq(t, `[true, false, false, true]`, got)
 }
 
 // TestPure_EnterStepsThroughTheMatches: Enter in the search moves to the

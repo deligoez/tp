@@ -76,11 +76,12 @@ func TestPage_TheCanvasIsNoTabStop(t *testing.T) {
 
 // TestPage_MilestonesDrawCrossEdgesLighterThanTheSpine is the review's H3
 // at the page: the card asks tpPure.crossShown, so Milestones draws its
-// cross edges by default, and K toggles the mode's own flag.
+// cross edges by default, as every mode does since 1.17.1, and K toggles
+// the one flag.
 func TestPage_MilestonesDrawCrossEdgesLighterThanTheSpine(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
-	for _, s := range []string{"pure.crossShown(G)", "msCross: true", "function toggleCross() {"} {
+	for _, s := range []string{"pure.crossShown(G)", "showCross: true", "function toggleCross() {"} {
 		assert.Contains(t, script, s)
 	}
 }
