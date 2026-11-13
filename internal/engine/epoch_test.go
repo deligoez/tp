@@ -69,3 +69,24 @@ func TestEpochs_SurviveASaveAndAreAbsentWhenNone(t *testing.T) {
 	assert.Contains(t, string(raw), `"evidence": "rewritten"`)
 	assert.Contains(t, string(raw), `"at": "2026-11-13T00:00:00Z"`)
 }
+
+// TestRegressionDue_CountsNoFixedRowFromBeforeTheEpoch: tp run's oracle spawns
+// a regression unit on the same inputs the emission reads, so a fixed row
+// recorded before the epoch does not make a round due. The spec is unchanged
+// since round 1's snapshot here, so the fixed row is the only reason it could be.
+func TestRegressionDue_CountsNoFixedRowFromBeforeTheEpoch(t *testing.T) {
+	t.Parallel()
+	specPath := filepath.Join(t.TempDir(), "spec.md")
+	body := []byte("# spec\n\n## A\n\ntext\n")
+	require.NoError(t, os.WriteFile(specPath, body, 0o600))
+	stateDir := ReviewStateDir(specPath)
+	require.NoError(t, os.MkdirAll(stateDir, 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(stateDir, "snapshot-round-1.md"), body, 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(stateDir, "review-round-1.ndjson"),
+		[]byte(`{"finding":"f","resolved":{"status":"fixed","evidence":"e"}}`+"\n"), 0o600))
+	st := &ReviewState{ReviewRounds: []ReviewRound{{Round: 1, File: "review-round-1.ndjson"}}}
+	require.True(t, RegressionDue(specPath, 2, st), "the fixture must make the predicate hold without an epoch")
+
+	st.Epochs = []Epoch{{AfterReviewRound: 1, Evidence: "rewritten"}}
+	assert.False(t, RegressionDue(specPath, 2, st))
+}
