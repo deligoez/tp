@@ -450,6 +450,7 @@ func runAuditStatus(specPath string, check bool) error {
 		"roles_stale":           engine.RolesStale(rounds, rolesHash),
 	}
 	addLoopDone(result, done)
+	addEpochs(result, st)
 	// §2.5: the three fields are written HERE, before the --check exit-code
 	// branch at the end of this function, so `--status --check` — the invocation
 	// a gated driver actually runs — carries exactly the payload `--status`

@@ -108,6 +108,7 @@ func runReviewStatus(specPath string, check bool) error {
 		"overlap_report":        overlapReport,
 	}
 	addLoopDone(result, done)
+	addEpochs(result, st)
 	if !IsCompact() {
 		result["location_clusters"] = locationClusters
 	}
