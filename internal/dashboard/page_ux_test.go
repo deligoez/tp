@@ -168,6 +168,29 @@ func TestPure_CentringKeepsTheZoomUnlessItIsUnreadable(t *testing.T) {
 	assert.JSONEq(t, `[{"x": 800, "y": 400, "w": 400, "h": 200}, {"x": 800, "y": 400, "w": 400, "h": 200}]`, got)
 }
 
+// TestPure_ReCentringANeighbourhoodShowsItWhole: re-centring the
+// neighbourhood view on an epic fits the new layout and puts the epic at the
+// view's centre, zoomed out as far as that takes to keep every node in the
+// box, never above the largest scale; 1.13.0 kept the zoom, so at depth 2 the
+// outer nodes sat outside the box until Fit (1.14.1).
+func TestPure_ReCentringANeighbourhoodShowsItWhole(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const r = (v) => Object.fromEntries(Object.entries(v).map(([k, x]) => [k, Math.round(x * 100) / 100]));
+out([r(P.containAt(1240, 110, 966, 576, { x: 600, y: 50 })), r(P.containAt(1240, 110, 966, 576, { x: 1000, y: 50 })), r(P.containAt(100, 50, 400, 400, { x: 50, y: 25 }))]);`)
+	assert.JSONEq(t, `[{"x": -48, "y": -336.39, "w": 1296, "h": 772.77}, {"x": -8, "y": -551.04, "w": 2016, "h": 1202.09},
+		{"x": -83.33, "y": -108.33, "w": 266.67, "h": 266.67}]`, got)
+}
+
+// TestPage_ReCentringFitsTheNewLayout: a neighbourhood drawn for a new key
+// takes the view containAt gives for its centre epic, not the old zoom.
+func TestPage_ReCentringFitsTheNewLayout(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Contains(t, script, "tpPure.containAt(")
+	assert.Contains(t, script, "gport.fitAt(geo.pos[L.epic])")
+	assert.NotContains(t, script, "gport.centre(geo.pos[L.epic])")
+}
+
 // TestPage_SearchAndListsTakeTheMapToTheEpic is the map's selection rule
 // (spec/backlog/dashboard-ux.md §2): the search centres its first match as
 // it is typed and selects it on Enter, and selecting an epic from any list
