@@ -616,9 +616,16 @@ body.mapfs .gcard.fs .toolbar > *, body.mapfs .gcard.fs .toolbar .seg button { f
 /* when the pill is still too wide, the search gives way to 8rem and the
    mode switch shortens its words; Fit and Exit keep the end, whole */
 body.mapfs .gcard.fs #gc-fit, body.mapfs .gcard.fs #gc-full { order: 10; flex-shrink: 0; }
-body.mapfs .gcard.fs #gc-q { flex: 1 1 12rem; min-width: 8rem; }
+body.mapfs .gcard.fs #gc-q { flex: 1 8 12rem; min-width: 8rem; }
 body.mapfs .gcard.fs .toolbar .seg { flex: 0 1 auto; min-width: 0; }
 body.mapfs .gcard.fs .toolbar .seg button { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* narrower still, the pickers drop their words and the cross-edge toggle
+   shortens its own */
+@container (max-width: 1240px) { body.mapfs .gcard.fs .gpick > span { display: none; } }
+/* the drawer covers the card without narrowing it, so beside it the same
+   words give way by the drawer's own mark */
+body.mapfs.dopen .gcard.fs .gcountfs, body.mapfs.dopen .gcard.fs .gpick > span { display: none; }
+body.mapfs .gcard.fs #gc-cross { flex: 0 1 auto; min-width: 4rem; overflow: hidden; text-overflow: ellipsis; }
 /* beside the drawer the pill keeps to the part of the screen it leaves */
 body.mapfs.dopen .gcard.fs .toolbar { left: calc((100% - var(--drawer-w)) / 2); max-width: calc(100% - var(--drawer-w) - 24px); }
 .gkeys { font-weight: 600; }
