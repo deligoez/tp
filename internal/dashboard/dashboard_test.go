@@ -240,6 +240,11 @@ func TestPage_DrawsTheLifecycleChartFromTheSeries(t *testing.T) {
 	assert.Contains(t, script, "planning time is not recorded, so an epic added to the graph later counts as planned from the chart's first day")
 }
 
+// untk reads a table of tk("key") marks as the JSON of its keys.
+func untk(table string) string {
+	return regexp.MustCompile(`tk\(("[^"]+")\)`).ReplaceAllString(table, "$1")
+}
+
 func keys(m map[string]string) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {
@@ -338,7 +343,7 @@ func TestPage_DrawsTheBandAndMilestoneStateFromThePayloads(t *testing.T) {
 	m := regexp.MustCompile(`const THRESHOLD_LABEL = (\{[^}]*\});`).FindStringSubmatch(script)
 	require.NotNil(t, m, "the script declares the threshold states as const THRESHOLD_LABEL = {...};")
 	var labels map[string]string
-	require.NoError(t, json.Unmarshal([]byte(m[1]), &labels))
+	require.NoError(t, json.Unmarshal([]byte(untk(m[1])), &labels))
 	assert.ElementsMatch(t, []string{"written", "absent", "placeholder", "met"}, keys(labels))
 	k := regexp.MustCompile(`const URL_KEYS = (\[.*\]);`).FindStringSubmatch(script)
 	require.NotNil(t, k)

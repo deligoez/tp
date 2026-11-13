@@ -13,13 +13,18 @@ import (
 )
 
 // runPure runs prog under node after the page's pure.js, with its functions
-// bound to P, and returns what prog writes. Without node it skips locally
-// and fails under CI, where it must run.
+// bound to P and T the translator over en.json, and returns what prog
+// writes. Without node it skips locally and fails under CI, where it must
+// run.
 func runPure(t *testing.T, prog string) string {
 	t.Helper()
 	resp := serve(t, http.MethodGet, "127.0.0.1:7377", "/pure.js")
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	en := serve(t, http.MethodGet, "127.0.0.1:7377", "/i18n/en.json")
+	require.Equal(t, http.StatusOK, en.StatusCode)
+	dict, err := io.ReadAll(en.Body)
 	require.NoError(t, err)
 	node, err := exec.LookPath("node")
 	if err != nil && os.Getenv("CI") != "" {
@@ -28,7 +33,7 @@ func runPure(t *testing.T, prog string) string {
 	if err != nil {
 		t.Skip("node is not on PATH")
 	}
-	src := string(body) + "\nconst P = module.exports;\nconst out = (v) => process.stdout.write(JSON.stringify(v));\n" + prog
+	src := string(body) + "\nconst P = module.exports;\nconst T = P.translator(" + string(dict) + ", \"en\");\nconst out = (v) => process.stdout.write(JSON.stringify(v));\n" + prog
 	got, err := exec.CommandContext(t.Context(), node, "-e", src).CombinedOutput()
 	require.NoError(t, err, string(got))
 	return string(got)
@@ -221,7 +226,7 @@ func TestPure_AWaitingSectionKeepsItsOwnFoldAndShowAll(t *testing.T) {
 	t.Parallel()
 	got := runPure(t, `const sec = (m, n) => ({ milestone: m, epics: n, groups: Array.from({ length: n }, (_, i) => ({ blocker: m + i })) });
 const secs = [sec("A", 5), sec("B", 4), sec("", 4)];
-const draw = (v) => secs.map((s) => P.waitSection(s, v, 3)).map((w) => ({ key: w.key, title: w.title, expanded: w.expanded, shown: w.groups.length, more: w.more }));
+const draw = (v) => secs.map((s) => P.waitSection(s, v, 3, T)).map((w) => ({ key: w.key, title: w.title, expanded: w.expanded, shown: w.groups.length, more: w.more }));
 let v = { all: new Set(), folded: new Set() };
 const first = draw(v);
 v = P.flipWait(v, "folded", "A");
@@ -255,7 +260,7 @@ out({ first, folded, same: JSON.stringify(folded) === JSON.stringify(again), ope
 func TestPage_AWaitingSectionDrawsWhatWaitSectionDecides(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
-	for _, s := range []string{"tpPure.waitSection(s, waitView, WAIT_SHOWN)", `aria-expanded="' + w.expanded + '"`, `aria-expanded="' + w.more.expanded + '"`, "waitView = tpPure.flipWait(waitView, "} {
+	for _, s := range []string{"tpPure.waitSection(s, waitView, WAIT_SHOWN, t)", `aria-expanded="' + w.expanded + '"`, `aria-expanded="' + w.more.expanded + '"`, "waitView = tpPure.flipWait(waitView, "} {
 		assert.Contains(t, script, s)
 	}
 }
@@ -533,7 +538,7 @@ func TestPage_FittingRowsWritesOnlyWhatChanged(t *testing.T) {
 // one sentence that names the condition epics between them (1.14.1).
 func TestPure_TheEpicTotalsNameTheConditions(t *testing.T) {
 	t.Parallel()
-	got := runPure(t, `out([P.epicTotals([{ id: "a" }, { id: "b" }, { id: "k", condition: true }]), P.epicTotals([{ id: "a" }]), P.epicTotals([{ id: "k", condition: true }])]);`)
+	got := runPure(t, `out([P.epicTotals([{ id: "a" }, { id: "b" }, { id: "k", condition: true }], T), P.epicTotals([{ id: "a" }], T), P.epicTotals([{ id: "k", condition: true }], T)]);`)
 	const tail = "; the Lifecycle and the share count the work epics"
 	assert.JSONEq(t, `["3 epics: 2 work epics and 1 condition epic`+tail+`", "1 epic: 1 work epic and 0 condition epics`+tail+`", "1 epic: 0 work epics and 1 condition epic`+tail+`"]`, got)
 }
@@ -594,7 +599,7 @@ func TestPage_AMilestonesDetailReadsItsGateInFull(t *testing.T) {
 	page, script := pageText(t)
 	assert.Contains(t, page, `id="dkind"`)
 	assert.Contains(t, page, ".dbody dd { margin: 0; min-width: 0; overflow-wrap: anywhere; white-space: pre-line; }")
-	for _, s := range []string{"tpPure.milestoneHTML(msd, gateOf(g, msd.milestone)", "tpPure.thresholdLine(m, gateOf(g, m.milestone), THRESHOLD_LABEL)", `$("dkind").textContent = msd ? "Milestone" : "Epic";`} {
+	for _, s := range []string{"tpPure.milestoneHTML(msd, gateOf(g, msd.milestone), dc, words(THRESHOLD_LABEL), t)", "tpPure.thresholdLine(m, gateOf(g, m.milestone), words(THRESHOLD_LABEL), t)", `$("dkind").textContent = msd ? "Milestone" : "Epic";`} {
 		assert.Contains(t, script, s)
 	}
 	assert.NotContains(t, script, "function milestoneHTML(", "the detail is built in pure.js, where its escaping is tested")
@@ -620,8 +625,8 @@ func TestPure_AMilestonesDetailEscapesAndReadsItsGateInFull(t *testing.T) {
 	t.Parallel()
 	got := runPure(t, `const L = { written: "threshold written", absent: "no threshold", placeholder: "placeholder threshold", met: "threshold met" };
 out([
-  P.milestoneHTML({ milestone: "A<2>", open: false, waiting_on: ["A1"], state: { threshold: "written", members: 6, members_done: 1 } }, { threshold: " p95 <b>fast</b> ", purpose: " proves <b>it</b> " }, { described: 1, all: 1 }, L),
-  P.milestoneHTML({ milestone: "B", open: true, state: { threshold: "written" }, gate: { threshold: "from export" } }, { threshold: "from graph" }, { described: 0, all: 2 }, L),
+  P.milestoneHTML({ milestone: "A<2>", open: false, waiting_on: ["A1"], state: { threshold: "written", members: 6, members_done: 1 } }, { threshold: " p95 <b>fast</b> ", purpose: " proves <b>it</b> " }, { described: 1, all: 1 }, L, T),
+  P.milestoneHTML({ milestone: "B", open: true, state: { threshold: "written" }, gate: { threshold: "from export" } }, { threshold: "from graph" }, { described: 0, all: 2 }, L, T),
 ]);`)
 	assert.JSONEq(t, `[
 		"<h3>A&lt;2&gt;</h3><dl><dt>Gate</dt><dd>closed, waits on A1; 1 of 6 members done</dd><dt>Threshold</dt><dd>threshold written: p95 &lt;b&gt;fast&lt;/b&gt;</dd><dt>Purpose</dt><dd>proves &lt;b&gt;it&lt;/b&gt;</dd><dt>Described</dt><dd>1 of 1 epic described</dd></dl>",
@@ -636,10 +641,10 @@ func TestPure_TheCardAndTheDrawerReadOneThreshold(t *testing.T) {
 	t.Parallel()
 	got := runPure(t, `const L = { written: "threshold written", absent: "no threshold", placeholder: "placeholder threshold", met: "threshold met" };
 out([
-  P.thresholdLine({ state: { threshold: "written" } }, { threshold: " graph text " }, L),
-  P.thresholdLine({ state: { threshold: "written" }, gate: { threshold: "export" } }, { threshold: "graph" }, L),
-  P.thresholdLine({ state: { threshold: "met" } }, { threshold: "x" }, L),
-  P.thresholdLine({ state: {} }, {}, L),
+  P.thresholdLine({ state: { threshold: "written" } }, { threshold: " graph text " }, L, T),
+  P.thresholdLine({ state: { threshold: "written" }, gate: { threshold: "export" } }, { threshold: "graph" }, L, T),
+  P.thresholdLine({ state: { threshold: "met" } }, { threshold: "x" }, L, T),
+  P.thresholdLine({ state: {} }, {}, L, T),
   P.thresholdOf({ gate: { threshold: "export" } }, { threshold: "graph" }),
   P.thresholdOf({}, undefined),
 ]);`)
@@ -747,7 +752,7 @@ func TestPure_DescribedEpicsAreCountedPerMilestone(t *testing.T) {
 // closure spanning milestones (1.14.1).
 func TestPure_AGateClosureCountsItsDescribedEpics(t *testing.T) {
 	t.Parallel()
-	got := runPure(t, `out([P.closureDescribed([{ id: "a" }, { id: "b" }, { id: "c" }], new Set(["a", "c", "z"])), P.closureDescribed([], new Set(["a"]))]);`)
+	got := runPure(t, `out([P.closureDescribed([{ id: "a" }, { id: "b" }, { id: "c" }], new Set(["a", "c", "z"]), T), P.closureDescribed([], new Set(["a"]), T)]);`)
 	assert.JSONEq(t, `["2 of 3 in the closure described", "0 of 0 in the closure described"]`, got)
 }
 
@@ -756,7 +761,7 @@ func TestPure_AGateClosureCountsItsDescribedEpics(t *testing.T) {
 func TestPage_TheClosureHeaderSaysHowManyAreDescribed(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
-	assert.Contains(t, script, "pure.closureDescribed(L.nodes, described)")
+	assert.Contains(t, script, "pure.closureDescribed(L.nodes, described, app.tr())")
 }
 
 // TestPage_MarksDescribedEpicsAndCountsThemPerMilestone: a described epic
@@ -793,11 +798,15 @@ func TestPage_PlanReviewStacksIntoCardsOnAPhone(t *testing.T) {
 }
 
 // TestPure_TheUpdateTimeReadsRelative: the header's update time reads as
-// how long ago tp last pushed, in the largest whole unit.
+// how long ago tp last pushed, in the largest whole unit up to hours, days
+// past two of them, as the locale writes it (1.17.0).
 func TestPure_TheUpdateTimeReadsRelative(t *testing.T) {
 	t.Parallel()
-	got := runPure(t, `out([0, 9999, 10000, 59000, 60000, 3599000, 3600000, 7300000, -5].map(P.relTime));`)
-	assert.JSONEq(t, `["just now", "just now", "10 s ago", "59 s ago", "1 min ago", "59 min ago", "1 h ago", "2 h ago", "just now"]`, got)
+	got := runPure(t, `const ago = [0, 9999, 10000, 59000, 60000, 3599000, 3600000, 7300000, 172800000, -5];
+const tr = P.translator({ "time.justNow": "az önce" }, "tr");
+out({ en: ago.map((ms) => P.relTime(ms, T)), tr: [0, 10000, 3600000, 172800000].map((ms) => P.relTime(ms, tr)) });`)
+	assert.JSONEq(t, `{"en": ["just now", "just now", "10 sec. ago", "59 sec. ago", "1 min. ago", "59 min. ago", "1 hr. ago", "2 hr. ago", "2 days ago", "just now"],
+		"tr": ["az önce", "10 sn. önce", "1 sa. önce", "2 gün önce"]}`, got)
 }
 
 // TestPage_TheHeaderSaysHowLongAgoTpPushed: the header's update time is
