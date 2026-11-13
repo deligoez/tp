@@ -1404,7 +1404,7 @@
     neighbourhood: { colW: 210, rowH: 28, left: 16, top: 12, head: 0, inset: 12 },
   };
   const gview = { view: null, milestone: null, depth: 2, data: null, dataKey: null, error: null, key: null, drawn: null, seen: null, seq: 0, pos: {}, focus: null };
-  INFO.chain = "The plan's dependencies in three views tp lays out, each read left to right, what a node depends on to its left. Milestones: each milestone with its work epics done of all, the dependency edges into it from other milestones' epics, and an edge from each milestone it opens after; click one for its gate's closure. Gate closure: what the milestone's gate pulls in (tp epic scope), banded by milestone, its critical path in orange, the alternatives of an any-of group drawn as one dashed fork. Neighbourhood: the selected epic highlighted, its dependencies left, its dependents right, to the depth picked; clicking an epic re-centres on it. Selecting an epic highlights its edges and dims the rest. An edge that skips layers is a plain curve. The chain as text lists every edge with its why.";
+  INFO.chain = "The plan's dependencies in three views tp lays out, each read left to right, what a node depends on to its left. Milestones: each milestone with its work epics done of all and its epic edges in, the dependency edges into its epics from other milestones' epics, which are counted and not drawn; the lines drawn are its opens-after edges, one from each milestone it opens after; click one for its gate's closure. Gate closure: what the milestone's gate pulls in (tp epic scope), banded by milestone, its critical path in orange, the alternatives of an any-of group drawn as one dashed fork. Neighbourhood: the selected epic highlighted, its dependencies left, its dependents right, to the depth picked; clicking an epic re-centres on it. Selecting an epic highlights its edges and dims the rest. An edge that skips layers is a plain curve. The chain as text lists every edge with its why.";
 
   // gviewNow is the view shown: the one picked, else the selected epic's
   // neighbourhood, else the milestones.
@@ -1492,11 +1492,11 @@
     if (view === "milestones") {
       const d = GDIMS.milestones;
       const y = p.y - (d.rowH - 16) / 2;
-      return '<g class="' + cls + '" data-id="' + esc(n.id) + '"' + tab + ' aria-label="' + esc(n.id + ": " + (n.open ? "open" : "closed") + ", " + n.done + " of " + n.epics + " work epics done, " + n.inbound + " edges in") + '">' +
+      return '<g class="' + cls + '" data-id="' + esc(n.id) + '"' + tab + ' aria-label="' + esc(n.id + ": " + (n.open ? "open" : "closed") + ", " + n.done + " of " + n.epics + " work epics done, " + n.inbound + " epic edges in") + '">' +
         '<rect class="msbox' + (n.open ? "" : " closed") + '" x="' + p.x + '" y="' + y + '" width="' + d.box + '" height="' + (d.rowH - 16) + '" rx="7"/>' +
         '<text class="msname" x="' + (p.x + 12) + '" y="' + (y + 21) + '">' + esc(n.id) + '</text><text class="msshare" x="' + (p.x + d.box - 12) + '" y="' + (y + 21) + '" text-anchor="end">' + (n.open ? "open" : "closed") + "</text>" +
         '<text class="gsub" x="' + (p.x + 12) + '" y="' + (y + 40) + '">' + esc(n.done + " of " + plural(n.epics, "epic", "epics") + " done") + "</text>" +
-        '<text class="gsub" x="' + (p.x + 12) + '" y="' + (y + 56) + '">' + esc(plural(n.inbound, "edge", "edges") + " in") + "</text></g>";
+        '<text class="gsub" x="' + (p.x + 12) + '" y="' + (y + 56) + '">' + esc(plural(n.inbound, "epic edge", "epic edges") + " in") + "</text></g>";
     }
     const e = ctx.epics[n.id] || { id: n.id, status: "planned" };
     const s = markState(e, { report: ctx.ms[e.milestone] });
