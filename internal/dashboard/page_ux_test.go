@@ -386,6 +386,17 @@ func TestPage_DrawsTheThreeScopedViewsFromTheLayoutEndpoint(t *testing.T) {
 	assert.Subset(t, urlKeys, []string{"gv", "gm", "gd"})
 }
 
+// TestPage_TheDependencyViewsHelpIsDefinedOnceAndNamesTheCentre: the
+// views' help is one INFO.chain, which says where the neighbourhood's
+// centre sits and its dependencies and dependents lie.
+func TestPage_TheDependencyViewsHelpIsDefinedOnceAndNamesTheCentre(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Equal(t, 1, strings.Count(script, "INFO.chain ="))
+	assert.Contains(t, script, "highlighted, its dependencies left, its dependents right")
+	assert.NotContains(t, script, "the selected epic in the middle")
+}
+
 // TestPage_TheLoopsFigureSplitsStaleFromNeedingARound: the review loops
 // KPI shows the loops that need a round, the summary's open loops less its
 // stale ones, and names the stale ones apart.
