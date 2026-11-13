@@ -226,8 +226,11 @@
   // Milestone state (§6): one entry per milestone in track order, read from
   // the export's milestones: open or closed with what it waits on, its gate's
   // members done of members (deferrable members in neither), and its
-  // threshold's state.
+  // threshold's state. A threshold and a purpose show three lines; a
+  // milestone msView.open holds shows them in full, and the control that
+  // opens one shows only when a text is cut.
   const THRESHOLD_LABEL = {"written": "threshold written", "absent": "no threshold", "placeholder": "placeholder threshold", "met": "threshold met"};
+  const msView = { open: new Set() };
   panel(["epic-export"], () => {
     const g = data("epic-export");
     const box = $("msstate");
@@ -241,13 +244,27 @@
       const th = s.threshold || "absent";
       const purpose = ((((g.graph || {}).gates || {})[m.milestone]) || {}).purpose;
       const dc = described[m.milestone] || { described: 0, all: 0 };
+      const full = msView.open.has(m.milestone);
+      const clamp = full ? "" : " clamp";
       return '<div class="ms" data-open="' + !!m.open + '"><b>' + esc(m.milestone) + '</b><span class="st" data-s="' + (m.open ? "done" : "stale") + '">' +
         (m.open ? "open" : "closed") + "</span>" + (waits ? '<span class="sm muted">' + esc(waits) + "</span>" : "") +
-        '<span class="sm">gate ' + esc(s.members_done || 0) + " of " + esc(s.members || 0) + ' done</span><span class="sm th" data-th="' + esc(th) + '">' +
+        '<span class="sm">gate ' + esc(s.members_done || 0) + " of " + esc(s.members || 0) + ' done</span><span class="sm th' + clamp + '" data-th="' + esc(th) + '">' +
         esc(th === "written" && m.gate && m.gate.threshold ? "threshold: " + m.gate.threshold : THRESHOLD_LABEL[th] || th) + "</span>" +
-        (purpose && purpose.trim() ? '<span class="sm purpose">purpose: ' + esc(purpose.trim()) + "</span>" : "") +
+        (purpose && purpose.trim() ? '<span class="sm purpose' + clamp + '">purpose: ' + esc(purpose.trim()) + "</span>" : "") +
+        '<button type="button" class="more" data-msx="' + esc(m.milestone) + '" aria-expanded="' + full + '"' + (full ? "" : " hidden") + ">" + (full ? "Show less" : "Show all") + "</button>" +
         '<span class="sm muted">' + esc(dc.described + " of " + plural(dc.all, "epic", "epics") + " described") + "</span></div>";
     }).join("") + "</div>";
+    // A clamped card offers its control only when a clamp cut its text.
+    box.querySelectorAll('.more[aria-expanded="false"]').forEach((b) => {
+      b.hidden = ![...b.parentNode.querySelectorAll(".clamp")].some((el) => el.scrollHeight > el.clientHeight + 1);
+    });
+  });
+  $("msstate").addEventListener("click", (ev) => {
+    const b = ev.target.closest("[data-msx]");
+    if (!b) return;
+    if (msView.open.has(b.dataset.msx)) msView.open.delete(b.dataset.msx);
+    else msView.open.add(b.dataset.msx);
+    render();
   });
 
   // Lifecycle over time (§17): the summary's series, one band per stage after

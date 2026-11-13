@@ -118,12 +118,15 @@ button.pcell[aria-pressed="true"] { background: var(--color-accent-wash); border
 .totals { margin-top: var(--space-xs); }
 .msstate { margin-top: var(--space-xs); }
 .msstate[hidden] { display: none; }
-.mscells { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: var(--space-xs); }
+.mscells { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: var(--space-xs); align-items: start; }
 .ms { display: grid; gap: var(--space-3xs); align-content: start; padding: var(--space-xs) var(--space-sm); border: 1px solid var(--line); border-radius: var(--radius-input); background: var(--surface); font-size: var(--text-sm); }
 .ms[data-open="false"] { background: var(--sunk); }
 .ms b { font: 600 var(--text-sm)/1.3 var(--font-display); }
 .ms .th, .ms .purpose { overflow-wrap: anywhere; }
 .ms .purpose { color: var(--ink-2); }
+.ms .clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+.ms .more { justify-self: start; padding: 0; background: none; border: 0; font: inherit; font-size: var(--text-xs); color: var(--accent); cursor: pointer; text-decoration: underline; }
+.ms .more[hidden] { display: none; }
 .ms .th[data-th="placeholder"], .ms .th[data-th="absent"] { color: var(--active); }
 .ms .th[data-th="met"] { color: var(--done); }
 @media (max-width: 760px) {
