@@ -112,7 +112,7 @@ func runEpicReviewResolveAll(key engine.EpicSliceKey, args []string, force bool)
 		if readErr != nil {
 			return readErr
 		}
-		resolved, skipped = resolveEveryFinding(findings, status, evidence, force)
+		resolved, skipped = resolveEveryFinding(findings, status, evidence, force, "")
 		return writeNDJSON(path, findings)
 	})
 	if lockErr != nil {

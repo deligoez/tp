@@ -119,11 +119,7 @@ func runReviewResolve(args []string, force bool) error {
 		}
 
 		// Apply resolution
-		finding["resolved"] = map[string]any{
-			"status":      status,
-			"evidence":    evidence,
-			"resolved_at": time.Now().UTC().Format(time.RFC3339),
-		}
+		finding["resolved"] = newDisposition(filePath, status, evidence, time.Now().UTC().Format(time.RFC3339))
 
 		// Write back
 		return writeNDJSON(filePath, findings)
@@ -204,7 +200,7 @@ func runReviewResolveAll(args []string, force bool) error {
 			return readErr
 		}
 
-		resolvedCount, skippedCount = resolveEveryFinding(findings, status, evidence, force)
+		resolvedCount, skippedCount = resolveEveryFinding(findings, status, evidence, force, filePath)
 
 		// Write back
 		return writeNDJSON(filePath, findings)
@@ -232,7 +228,7 @@ func runReviewResolveAll(args []string, force bool) error {
 // reaches — the undisposed ones, or all of them under force — once the
 // unattended fence has seen exactly those rows. It returns how many it wrote
 // and how many it skipped as already resolved.
-func resolveEveryFinding(findings []map[string]any, status, evidence string, force bool) (resolved, skipped int) {
+func resolveEveryFinding(findings []map[string]any, status, evidence string, force bool, roundFile string) (resolved, skipped int) {
 	targeted := make([]map[string]any, 0, len(findings))
 	for _, finding := range findings {
 		if _, ok := finding["resolved"]; ok && !force {
@@ -244,13 +240,29 @@ func resolveEveryFinding(findings []map[string]any, status, evidence string, for
 	fenceReviewAcceptance(status, targeted)
 	now := time.Now().UTC().Format(time.RFC3339)
 	for _, finding := range targeted {
-		finding["resolved"] = map[string]any{
-			"status":      status,
-			"evidence":    evidence,
-			"resolved_at": now,
-		}
+		finding["resolved"] = newDisposition(roundFile, status, evidence, now)
 	}
 	return len(targeted), skipped
+}
+
+// newDisposition is the resolved object --resolve and --resolve-all write.
+// Written into a recorded review round file it also records its order among
+// the review rounds, resolved_after_round (engine.ReviewResolveOrder), which
+// is what lets a later round verify a fix (spec/backlog/carried-rows-block.md
+// §2.6). roundFile is "" where there is no review round to order against.
+func newDisposition(roundFile, status, evidence, at string) map[string]any {
+	d := map[string]any{
+		"status":      status,
+		"evidence":    evidence,
+		"resolved_at": at,
+	}
+	if roundFile == "" {
+		return d
+	}
+	if order, ok := engine.ReviewResolveOrder(roundFile); ok {
+		d["resolved_after_round"] = order
+	}
+	return d
 }
 
 // allFindingsResolved checks if all findings in the slice have a "resolved" field.
