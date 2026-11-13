@@ -1638,7 +1638,7 @@
   $("glegend").innerHTML = '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path d="M1 7.5H14" stroke="var(--crit)" stroke-width="2.6"/></svg>critical path</span>' +
     '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path d="M1 3L9 7.5M1 12L9 7.5M9 7.5H14" stroke="var(--accent)" stroke-dasharray="2 1.5" fill="none"/></svg>one of an any-of group</span>' +
     '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path d="M1 7.5H14" stroke="var(--accent)" stroke-width="2"/></svg>the selected epic\'s edges</span>' +
-    '<span class="help">Milestones: click one for its gate closure. Gate closure: banded by milestone; click an epic to select it. Neighbourhood: what it depends on to the left, what depends on it to the right; click an epic to re-centre on it. Drag or one finger pans; Ctrl or ⌘ with the wheel, or a pinch, zooms.</span>';
+    '<span class="help">Milestones: click one for its gate closure. Gate closure: banded by milestone; click an epic to select it. Neighbourhood: what it depends on to the left, what depends on it to the right; click an epic to re-centre on it. Drag or one finger pans; Ctrl or ⌘ with the wheel, or a pinch, zooms; in full screen the wheel alone zooms and Esc leaves.</span>';
 
   // drawMatrix draws the summary's milestone matrix in track order.
   function drawMatrix(g, sum) {
