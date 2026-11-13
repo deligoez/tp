@@ -162,6 +162,15 @@ func TestRunDriver_ImplementBatchRunsSideBySideAndIntegrates(t *testing.T) {
 	assert.Empty(t, pending)
 }
 
+// TestAssembleResume_NamesPendingCloses: a pending close a crashed run left is
+// named by tp resume until a run integrates it (§2.6).
+func TestAssembleResume_NamesPendingCloses(t *testing.T) {
+	dir, spec, tfp := setupResumeProject(t, twoBatchableTasks)
+	assert.Empty(t, assemble(t, dir, spec, tfp).PendingCloses)
+	require.NoError(t, WritePendingClose(CanonicalProjectRoot(dir), tfp, &PendingClose{ID: "beta", Commits: []string{"abc"}}))
+	assert.Equal(t, []string{"beta"}, assemble(t, dir, spec, tfp).PendingCloses)
+}
+
 // TestUnitAttemptPrompt_ABatchedUnitIsToldItsTask: a child spawned in a
 // worktree is told to run the brief that names its task, not tp next.
 func TestUnitAttemptPrompt_ABatchedUnitIsToldItsTask(t *testing.T) {
