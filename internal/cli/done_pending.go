@@ -59,12 +59,13 @@ func runDonePending(root, taskFilePath string, taskIDs []string, reason string) 
 
 	specPath, _ := engine.ResolveSpecPath(taskFilePath, tf.Spec)
 	worktree, _ := os.Getwd()
-	if checkErr := engine.CheckUnitCommits(root, worktree, taskFilePath, specPath, doneCommits); checkErr != nil {
+	ordered, checkErr := engine.CheckUnitCommits(root, worktree, taskFilePath, specPath, doneCommits)
+	if checkErr != nil {
 		output.Error(ExitValidation, checkErr.Error(), pendingCloseHint)
 		os.Exit(ExitValidation)
 	}
 
-	record := &engine.PendingClose{ID: id, Reason: reason, Commits: doneCommits, Worktree: worktree}
+	record := &engine.PendingClose{ID: id, Reason: reason, Commits: ordered, Worktree: worktree}
 	if writeErr := engine.WritePendingClose(root, taskFilePath, record); writeErr != nil {
 		output.Error(ExitFile, writeErr.Error(), runtimeFailureHint)
 		os.Exit(ExitFile)

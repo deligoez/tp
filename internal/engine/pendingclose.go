@@ -154,38 +154,79 @@ func gitOut(dir string, args ...string) (string, error) {
 
 // CheckUnitCommits refuses commits a unit cannot ask to have integrated: a sha
 // that is not a commit, one not on the worktree's branch, one already on the
-// main branch, and one that touches a tp-owned path — the task file, the
-// spec's review state or the project's .tp/ directory, which only tp writes.
-func CheckUnitCommits(root, worktree, taskFile, spec string, commits []string) error {
+// main branch, one that touches a tp-owned path — the task file, the spec's
+// review state or the project's .tp/ directory, which only tp writes — and a
+// set that is not the branch's every commit since it left the main branch,
+// which would leave the rest behind. It returns the full shas in branch order.
+func CheckUnitCommits(root, worktree, taskFile, spec string, commits []string) ([]string, error) {
 	mainHead, err := gitOut(root, "rev-parse", "HEAD")
 	if err != nil {
-		return err
+		return nil, err
 	}
+	// The unit may run tp done from a subdirectory of its worktree.
+	if top := gitToplevel(worktree); top != "" {
+		worktree = top
+	}
+	named := make(map[string]bool, len(commits))
 	for _, sha := range commits {
-		if !SafeGitRev(sha) {
-			return fmt.Errorf("commit %q is not a revision", sha)
+		full, shaErr := checkUnitCommit(root, worktree, taskFile, spec, mainHead, sha)
+		if shaErr != nil {
+			return nil, shaErr
 		}
-		full, revErr := gitOut(worktree, "rev-parse", "--verify", "--quiet", sha+"^{commit}")
-		if revErr != nil {
-			return fmt.Errorf("commit %s is not a commit of this repository", sha)
-		}
-		if _, ancErr := gitOut(worktree, "merge-base", "--is-ancestor", full, "HEAD"); ancErr != nil {
-			return fmt.Errorf("commit %s is not on the unit's branch", sha)
-		}
-		if _, onMain := gitOut(root, "merge-base", "--is-ancestor", full, mainHead); onMain == nil {
-			return fmt.Errorf("commit %s is already on the main branch", sha)
-		}
-		files, diffErr := gitOut(worktree, "diff-tree", "--no-commit-id", "--name-only", "-r", "-m", full)
-		if diffErr != nil {
-			return diffErr
-		}
-		for _, f := range strings.Split(files, "\n") {
-			if f != "" && tpOwnedPath(root, taskFile, spec, f) {
-				return fmt.Errorf("commit %s changes %s, which only tp writes", sha, f)
-			}
+		named[full] = true
+	}
+	base, err := gitOut(worktree, "merge-base", "HEAD", mainHead)
+	if err != nil {
+		return nil, err
+	}
+	branch, err := gitOut(worktree, "rev-list", "--reverse", base+"..HEAD")
+	if err != nil {
+		return nil, err
+	}
+	ordered := strings.Fields(branch)
+	if len(named) != len(ordered) {
+		return nil, fmt.Errorf("the request names %d of the branch's %d commits; name every commit since the branch left the main branch", len(named), len(ordered))
+	}
+	return ordered, nil
+}
+
+// checkUnitCommit checks one named sha and returns its full form.
+func checkUnitCommit(root, worktree, taskFile, spec, mainHead, sha string) (string, error) {
+	if !SafeGitRev(sha) {
+		return "", fmt.Errorf("commit %q is not a revision", sha)
+	}
+	full, err := gitOut(worktree, "rev-parse", "--verify", "--quiet", sha+"^{commit}")
+	if err != nil {
+		return "", fmt.Errorf("commit %s is not a commit of this repository", sha)
+	}
+	if _, ancErr := gitOut(worktree, "merge-base", "--is-ancestor", full, "HEAD"); ancErr != nil {
+		return "", fmt.Errorf("commit %s is not on the unit's branch: commit in this worktree", sha)
+	}
+	if _, onMain := gitOut(root, "merge-base", "--is-ancestor", full, mainHead); onMain == nil {
+		return "", fmt.Errorf("commit %s is already on the main branch: name only the commits made in this worktree", sha)
+	}
+	// Paths relative to the project root, which in a monorepo sits below the
+	// git top level: run from the project's directory in the worktree.
+	files, err := gitOut(projectDirIn(root, worktree), "diff-tree", "--no-commit-id", "--name-only", "--relative", "-r", "-m", full)
+	if err != nil {
+		return "", err
+	}
+	for _, f := range strings.Split(files, "\n") {
+		if f != "" && tpOwnedPath(root, taskFile, spec, f) {
+			return "", fmt.Errorf("commit %s changes %s, which only tp writes", sha, f)
 		}
 	}
-	return nil
+	return full, nil
+}
+
+// projectDirIn is the project root's place inside a worktree of its
+// repository: the same path relative to the git top level.
+func projectDirIn(root, worktree string) string {
+	rel, err := filepath.Rel(CanonicalPath(gitToplevel(root)), CanonicalPath(root))
+	if err != nil || rel == "." {
+		return worktree
+	}
+	return filepath.Join(worktree, rel)
 }
 
 // tpOwnedPath reports whether the repo-relative path p is one only tp writes.
