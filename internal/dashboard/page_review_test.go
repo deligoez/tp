@@ -18,3 +18,15 @@ func TestPage_SearchEnterStepsAndKeepsFocusInTheSearch(t *testing.T) {
 		assert.Contains(t, script, s)
 	}
 }
+
+// TestPage_TheToolbarHasNoPackingControl is the review's M4: the packing
+// stays on the API (pack=), but the card has no control for it and draws
+// rows.
+func TestPage_TheToolbarHasNoPackingControl(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	assert.NotContains(t, page, `id="gc-pack"`)
+	for _, s := range []string{"G.pack", "PACK_TEXT", "graph.packing"} {
+		assert.NotContains(t, script, s)
+	}
+}

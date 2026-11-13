@@ -300,7 +300,8 @@ func TestPage_ReadsEveryAddressKey(t *testing.T) {
 	require.NotNil(t, m, "the script declares the address keys as const URL_KEYS = [...];")
 	var urlKeys []string
 	require.NoError(t, json.Unmarshal([]byte(m[1]), &urlKeys))
-	assert.Subset(t, urlKeys, []string{"tab", "spec", "view", "task", "epic", "q", "phase", "sq", "tview", "gv", "gm", "gd", "pack", "cross"})
+	assert.Subset(t, urlKeys, []string{"tab", "spec", "view", "task", "epic", "q", "phase", "sq", "tview", "gv", "gm", "gd", "cross"})
+	assert.NotContains(t, urlKeys, "pack", "the packing is the API's alone, never the page's address")
 	for _, k := range urlKeys {
 		assert.Contains(t, page, `get("`+k+`")`, "the page reads %s from the address", k)
 	}
