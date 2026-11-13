@@ -138,6 +138,19 @@ func TestAuditCarriedBlocking_ExportCountsTheCarriedRows(t *testing.T) {
 	assert.Equal(t, float64(1), out.Loops.Audit["carried_blocking"])
 }
 
+// TestAuditCarriedBlocking_ARowNoRoleCanReGradeSaysSo: a carried row whose role
+// the audit panel no longer holds reaches no prompt, so no round re-grades it:
+// next_action says so and names only the operator's exits.
+func TestAuditCarriedBlocking_ARowNoRoleCanReGradeSaysSo(t *testing.T) {
+	t.Parallel()
+	retired := `{"role":"retired-role","item_id":"task-t1","status":"FAIL","severity":"error","category":"correctness","notes":"n"}` + "\n"
+	out, _ := auditStatusCheck(t, auditCarriedRepro(t, retired, ""))
+	next, _ := out["next_action"].(string)
+	assert.Contains(t, next, "no role of the next round can re-grade it")
+	assert.Contains(t, next, "--resolve retired-role:task-t1 wontfix|duplicate")
+	assert.NotContains(t, next, "run it — tp audit spec.md --record <file>")
+}
+
 // TestAuditCarriedBlocking_EveryLaterPromptAsksForTheReGrade: a FAIL only a
 // re-grade clears must reach a role in every later round, not only the one
 // after it. Round 2 records nothing; round 3's security prompt still lists

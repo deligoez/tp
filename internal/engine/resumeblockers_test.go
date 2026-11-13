@@ -70,12 +70,12 @@ func TestBuildBlockers_AuditBudgetExhaustedFiresAtTheAuditCap(t *testing.T) {
 func TestBuildBlockers_TheAuditBudgetNamesItsCarriedRow(t *testing.T) {
 	tf := &model.TaskFile{Tasks: []model.Task{{ID: "t", Status: model.StatusDone}}}
 	row := CarriedRow{Round: 1, File: "/elsewhere/audit-round-1.ndjson", Index: 0, Severity: "error",
-		Row: map[string]any{"role": "r", "item_id": "task-t1", "status": "FAIL"}, Disposition: CarryUnresolved}
+		Row: map[string]any{"role": "spec-coverage", "item_id": "task-t1", "status": "FAIL"}, Disposition: CarryUnresolved}
 	bs := BuildBlockers(&BlockerInputs{Phase: PhaseAudit, AuditRounds: 3, AuditMaxRounds: 3, TaskFile: tf, SpecPath: "spec.md",
 		AuditCarriedBlocking: []CarriedRow{row}})
 	require.Len(t, bs, 1)
 	assert.Equal(t, "audit-budget-exhausted", bs[0].Code)
-	assert.Contains(t, bs[0].Message, "tp audit .tp-review/spec/audit-round-1.ndjson --resolve r:task-t1 wontfix|duplicate")
+	assert.Contains(t, bs[0].Message, "tp audit .tp-review/spec/audit-round-1.ndjson --resolve spec-coverage:task-t1 wontfix|duplicate")
 	assert.Contains(t, bs[0].Message, EscalateRaiseAuditCap)
 	assert.Equal(t, 1, bs[0].Data["carried_blocking"])
 }
