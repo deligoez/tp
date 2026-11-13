@@ -2,6 +2,7 @@ package engine
 
 import (
 	"cmp"
+	"maps"
 	"math"
 	"slices"
 )
@@ -115,11 +116,12 @@ func ForestLayout(in *ForestInput) Forest {
 	parent := primaryParents(edges, in.OnPath, file, layer, in.GroupOf)
 	var children [][]int
 	out.Roles, children = forestRoles(edges, file, layer, parent)
-	col := packForest(ids, layer, parent, children, in.GroupOf)
+	up, spine := pathSpine(edges, in.OnPath, file, parent)
+	col := packForest(ids, layer, parent, children, spine, in.GroupOf)
 	out.Columns = col[len(ids)]
 	col = col[:len(ids)]
 	if in.Pack == PackRows {
-		out.Columns = squeezeRows(ids, layer, col, math.Ceil(forestColumnsPerLayer*float64(out.Layers)))
+		out.Columns = squeezeRows(ids, layer, col, up, math.Ceil(forestColumnsPerLayer*float64(out.Layers)))
 	}
 	for i, id := range ids {
 		out.Places[id] = ForestPlace{Layer: layer[id], Col: col[i]}
@@ -273,10 +275,31 @@ func primaryParents(edges []LayoutEdge, onPath []bool, file, layer map[string]in
 	return parent
 }
 
+// pathSpine is, per node in file order, the node whose tree edge into it
+// lies on the marked path (up, -1 for none), and the reverse, the child a
+// node's path continues to (spine, -1 for none, the earliest in file
+// order), so the path can be drawn down one column.
+func pathSpine(edges []LayoutEdge, onPath []bool, file map[string]int, parent []int) (up, spine []int) {
+	up = slices.Repeat([]int{-1}, len(parent))
+	spine = slices.Repeat([]int{-1}, len(parent))
+	for v, p := range parent {
+		if p < 0 || p >= len(onPath) || !onPath[p] {
+			continue
+		}
+		u := file[edges[p].From]
+		up[v] = u
+		if spine[u] < 0 {
+			spine[u] = v
+		}
+	}
+	return up, spine
+}
+
 // packForest gives every node its tree column, the roots grouped by groupOf
-// and packed group by group, and returns the columns with the width after
-// them, one past the last node's index.
-func packForest(ids []string, layer map[string]int, parent []int, children [][]int, groupOf map[string]string) []float64 {
+// and packed group by group, a parent over its spine child when it has one,
+// and returns the columns with the width after them, one past the last
+// node's index.
+func packForest(ids []string, layer map[string]int, parent []int, children [][]int, spine []int, groupOf map[string]string) []float64 {
 	var groups []string
 	roots := map[string][]int{}
 	for v, id := range ids {
@@ -301,7 +324,7 @@ func packForest(ids []string, layer map[string]int, parent []int, children [][]i
 			if t > 0 {
 				cursor += forestTreeGap
 			}
-			packTree(r, children, col, &cursor)
+			packTree(r, children, spine, col, &cursor)
 		}
 	}
 	col[len(ids)] = cursor
@@ -309,8 +332,9 @@ func packForest(ids []string, layer map[string]int, parent []int, children [][]i
 }
 
 // packTree places the tree under root: a leaf takes the next column, a
-// parent sits centred over its first and last child.
-func packTree(root int, children [][]int, col []float64, cursor *float64) {
+// parent sits over its spine child when it has one, else centred over its
+// first and last child.
+func packTree(root int, children [][]int, spine []int, col []float64, cursor *float64) {
 	type frame struct {
 		v        int
 		expanded bool
@@ -324,6 +348,8 @@ func packTree(root int, children [][]int, col []float64, cursor *float64) {
 		case len(kids) == 0:
 			col[f.v] = *cursor
 			*cursor++
+		case f.expanded && spine[f.v] >= 0:
+			col[f.v] = col[spine[f.v]]
 		case f.expanded:
 			col[f.v] = (col[kids[0]] + col[kids[len(kids)-1]]) / 2
 		default:
@@ -337,11 +363,12 @@ func packTree(root int, children [][]int, col []float64, cursor *float64) {
 
 // squeezeRows squeezes every layer into the width of the fullest one, or
 // aim when that is wider and the tree is wider still, and returns that
-// width. Inside a layer nodes keep their tree order; each aims at its tree
-// column scaled into the new width, a left-to-right sweep pushes
-// overlapping nodes one column apart and a right-to-left sweep pulls back
-// what ran past the right edge.
-func squeezeRows(ids []string, layer map[string]int, col []float64, aim float64) float64 {
+// width. Layers are squeezed top to bottom. Inside a layer nodes keep their
+// tree order; each aims at its tree column scaled into the new width, or a
+// node on the path (up) at its parent's squeezed column, a left-to-right
+// sweep pushes overlapping nodes one column apart and a right-to-left sweep
+// pulls back what ran past the right edge.
+func squeezeRows(ids []string, layer map[string]int, col []float64, up []int, aim float64) float64 {
 	rows := map[int][]int{}
 	treeWidth := 0.0
 	fullest := 0
@@ -355,20 +382,24 @@ func squeezeRows(ids []string, layer map[string]int, col []float64, aim float64)
 	if treeWidth > 1 {
 		scale = max(0, width-1) / (treeWidth - 1)
 	}
-	for _, r := range rows {
-		squeezeRow(r, col, scale, width)
+	for _, l := range slices.Sorted(maps.Keys(rows)) {
+		squeezeRow(rows[l], col, up, scale, width)
 	}
 	return width
 }
 
 // squeezeRow places one layer's nodes r inside width: in tree order, each
-// at its column times scale, pushed one column past the one before it, then
-// pulled back from the right edge.
-func squeezeRow(r []int, col []float64, scale, width float64) {
+// at its column times scale, or at its parent's placed column when up names
+// one, pushed one column past the one before it, then pulled back from the
+// right edge.
+func squeezeRow(r []int, col []float64, up []int, scale, width float64) {
 	slices.SortFunc(r, func(a, b int) int { return cmp.Or(cmp.Compare(col[a], col[b]), cmp.Compare(a, b)) })
 	placed := make([]float64, len(r))
 	for i, v := range r {
 		placed[i] = math.Round(col[v] * scale)
+		if up[v] >= 0 {
+			placed[i] = col[up[v]]
+		}
 		if i > 0 {
 			placed[i] = max(placed[i], placed[i-1]+1)
 		}
