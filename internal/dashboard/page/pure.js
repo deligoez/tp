@@ -294,10 +294,24 @@
     return Math.ceil(n / Math.ceil(n / fit));
   };
 
-  // lastSpans says whether n cards in cols columns leave one card alone on
-  // the last row, which then spans the row.
-  P.lastSpans = function (n, cols) {
-    return cols > 1 && n % cols === 1;
+  // cardSpans lays n cards, at most cols to a row, over the fewest rows as
+  // evenly as they divide, the fuller rows first, and gives the grid's
+  // column count, one every row length divides, and each card's span in
+  // it, so every row fills the width: 5 + 4 is 20 columns, spans 4 then 5.
+  // Null for no cards or no column count.
+  P.cardSpans = function (n, cols) {
+    if (!(n > 0) || !(cols > 0)) return null;
+    const rows = Math.ceil(n / cols);
+    const q = Math.floor(n / rows);
+    const r = n % rows;
+    // Row lengths are q and q + 1, which share no factor.
+    const columns = r ? q * (q + 1) : q;
+    const spans = [];
+    for (let row = 0; row < rows; row++) {
+      const len = row < r ? q + 1 : q;
+      for (let i = 0; i < len; i++) spans.push(columns / len);
+    }
+    return { columns, spans };
   };
 
   // closureDescribed says how many of a gate closure's nodes are in

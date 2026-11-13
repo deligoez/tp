@@ -212,6 +212,7 @@
     const phases = band.phases || {};
     $("band").innerHTML = (byEpics ? lane("Epics", STAGES.map(([k, label]) => cell("data-stage", k, label, stages[k] || 0, mapView.stage === k)).join("")) : "") +
       lane(byEpics ? "Epics by spec phase" : "Task files by phase", PHASES.map(([k, label]) => cell("data-phase", k, label, phases[k] || 0)).join(""));
+    fitAllRows();
   });
   $("band").addEventListener("click", (ev) => {
     const st = ev.target.closest("[data-stage]");
@@ -260,6 +261,7 @@
         '<span class="sm line ' + (line.kind === "purpose" ? 'purpose"' : 'th" data-th="' + esc(s.threshold || "absent") + '"') + ' title="' + esc(line.text) + '">' + esc(line.text) + "</span>" +
         '<span class="sm muted">' + esc(dc.described + " of " + plural(dc.all, "epic", "epics") + " described") + "</span></button>";
     }).join("") + "</div>";
+    fitAllRows();
   });
   $("msstate").addEventListener("click", (ev) => {
     const b = ev.target.closest("[data-ms]");
@@ -398,28 +400,36 @@
       kpi("lint", esc(lint.errors) + "<small> / " + esc(lint.warnings) + "</small>", "lint errors / warnings", lint.errors ? "warn" : ""),
       kpi("throughput", last ? esc(last.done) + "<small> in " + esc(last.week) + "</small>" : "0", "epics done per week").replace("</div>", spark(weeks) + "</div>"),
     ].join("");
-    fitKPIs();
+    fitAllRows();
   });
 
-  // fitKPIs gives the KPI row the columns that balance its rows for its
-  // width (tpPure.balancedColumns), a lone last card spanning its row; with
-  // no width yet, in a hidden tab, the CSS's auto-fit holds until the row is
-  // laid out and changes size.
-  const KPI_MIN = 140;
-  function fitKPIs() {
-    const box = $("kpis");
-    const n = box.children.length;
-    const cols = tpPure.balancedColumns(n, box.clientWidth, KPI_MIN, parseFloat(getComputedStyle(box).columnGap) || 0);
-    if (cols === null) {
+  // fitRows spreads a grid's cards, each at least minCard px wide, over the
+  // fewest rows its width allows (tpPure.balancedColumns), as evenly as they
+  // divide, every row filling the width (tpPure.cardSpans): nine KPI cards
+  // at 1200 px read five on the first row and four stretched across the
+  // second. With no width yet, in a hidden tab, the CSS's own columns hold
+  // until the grid is laid out and changes size.
+  function fitRows(box, minCard) {
+    const cards = [...box.children];
+    const cols = tpPure.balancedColumns(cards.length, box.clientWidth, minCard, parseFloat(getComputedStyle(box).columnGap) || 0);
+    const grid = cols === null ? null : tpPure.cardSpans(cards.length, cols);
+    if (!grid) {
       delete box.dataset.cols;
-      box.classList.remove("lone");
+      cards.forEach((c) => { c.style.gridColumn = ""; });
       return;
     }
-    box.dataset.cols = String(cols);
-    box.style.setProperty("--kpi-cols", String(cols));
-    box.classList.toggle("lone", tpPure.lastSpans(n, cols));
+    box.dataset.cols = String(grid.columns);
+    box.style.setProperty("--cols", String(grid.columns));
+    cards.forEach((c, i) => { c.style.gridColumn = "span " + grid.spans[i]; });
   }
-  new ResizeObserver(fitKPIs).observe($("kpis"));
+  // The grids that spread their cards so, each with its narrowest card: the
+  // KPI row, the Lifecycle's stage and phase cells, its milestone cards.
+  const ROWS = [["#kpis", 140], ["#band .pcells", 120], ["#msstate .mscells", 170]];
+  function fitAllRows() {
+    ROWS.forEach(([sel, min]) => document.querySelectorAll(sel).forEach((box) => fitRows(box, min)));
+  }
+  const rowsSeen = new ResizeObserver(fitAllRows);
+  ["kpis", "band", "msstate"].forEach((id) => rowsSeen.observe($(id)));
 
   // spark draws the weekly throughput as bars, scaled to the busiest week.
   function spark(weeks) {
