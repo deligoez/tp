@@ -706,15 +706,6 @@ func TestPage_TheTotalsSentenceSitsWhereBothCountsAppear(t *testing.T) {
 	assert.Equal(t, 1, strings.Count(script, "tpPure.epicTotals("), "the tab, the share and the Lifecycle read the sentence from one call")
 }
 
-// TestPage_ACardControlNamesItsMilestone: a milestone card's Show all or
-// Show less names, to a screen reader, the milestone it opens, escaped
-// (1.14.1 review).
-func TestPage_ACardControlNamesItsMilestone(t *testing.T) {
-	t.Parallel()
-	_, script := pageText(t)
-	assert.Contains(t, script, `aria-label="' + esc((full ? "Show less of " : "Show all of ") + m.milestone + "'s threshold and purpose") + '"`)
-}
-
 // TestPage_ListTitlesWrap: a list row's title wraps instead of being cut to
 // a few letters and an ellipsis in a narrow card.
 func TestPage_ListTitlesWrap(t *testing.T) {
@@ -723,81 +714,30 @@ func TestPage_ListTitlesWrap(t *testing.T) {
 	assert.Contains(t, page, ".row .t { min-width: 0; overflow-wrap: anywhere; }")
 }
 
-// TestPage_AGatesThresholdAndPurposeReadInFull: a milestone's entry shows
-// its gate's threshold wrapped, never cut to an ellipsis, and the gate's
-// purpose from the graph when it has one.
-func TestPage_AGatesThresholdAndPurposeReadInFull(t *testing.T) {
-	t.Parallel()
-	page, script := pageText(t)
-	assert.Contains(t, page, ".ms .th, .ms .purpose { overflow-wrap: anywhere; }")
-	assert.NotContains(t, page, ".ms .th { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }")
-	assert.Contains(t, script, ".purpose")
-}
-
-// TestPage_AMilestoneCardClampsLongTextAndExpands: a gate's threshold and
-// purpose show three lines with a control that opens them in full, shown
-// only when a text is cut, and the milestone grid aligns its cards to the
-// top, so one long card no longer stretches its whole row (1.14.1).
-func TestPage_AMilestoneCardClampsLongTextAndExpands(t *testing.T) {
-	t.Parallel()
-	page, script := pageText(t)
-	assert.Contains(t, page, ".mscells { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: var(--space-xs); align-items: start; }")
-	assert.Contains(t, page, ".ms .clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }")
-	for _, s := range []string{"data-msx=", "msView.open", "measureCards()", `"Show less"`, `"Show all"`} {
-		assert.Contains(t, script, s)
-	}
-}
-
-// TestPure_ACardKnowsItIsCutOnlyOnceLaidOut: whether a clamp cut a
-// card's text is read from its clamped boxes' heights: cut when one holds
-// more than it shows, whole when none does, and unknown while any box has
-// no height, as in a hidden tab, so the page measures again once the card
-// is laid out instead of hiding the control for good (1.14.1 review).
-func TestPure_ACardKnowsItIsCutOnlyOnceLaidOut(t *testing.T) {
-	t.Parallel()
-	got := runPure(t, `out([
-  P.cut([{ scrollHeight: 80, clientHeight: 60 }, { scrollHeight: 20, clientHeight: 20 }]),
-  P.cut([{ scrollHeight: 20, clientHeight: 20 }, { scrollHeight: 41, clientHeight: 40 }]),
-  P.cut([{ scrollHeight: 0, clientHeight: 0 }]),
-  P.cut([{ scrollHeight: 80, clientHeight: 60 }, { scrollHeight: 0, clientHeight: 0 }]),
-  P.cut([]),
-]);`)
-	assert.JSONEq(t, `[true, false, null, null, false]`, got)
-}
-
-// TestPage_TheCardControlIsMeasuredAgainOnceLaidOut: the page re-measures
-// the card controls when the milestone cards change size, as when the
-// Epics tab opens, and on switching to it.
-func TestPage_TheCardControlIsMeasuredAgainOnceLaidOut(t *testing.T) {
-	t.Parallel()
-	_, script := pageText(t)
-	for _, s := range []string{"tpPure.cut(", `new ResizeObserver(measureCards).observe($("msstate"))`, `if (tab === "epics") measureCards();`} {
-		assert.Contains(t, script, s)
-	}
-}
-
-// TestPure_AToggleKeepsItsKeyAcrossARedraw: a card's Show all, a Waiting
+// TestPure_AToggleKeepsItsKeyAcrossARedraw: a milestone card, a Waiting
 // section's header and a section's Show all each have a key read from
 // their data attribute, and the key gives that attribute and value back,
-// so after the redraw a toggle causes focus returns to the replacement
-// button; anything else has no key (1.14.1 review).
+// so after a redraw focus returns to the replacement button; anything else
+// has no key (1.14.1 review; the card opens the drawer since 1.15.1).
 func TestPure_AToggleKeepsItsKeyAcrossARedraw(t *testing.T) {
 	t.Parallel()
-	got := runPure(t, `const keys = [{ msx: "A2" }, { wsec: "T1" }, { wall: "C1" }, { wall: "" }, { epic: "x" }, {}].map(P.toggleKey);
+	got := runPure(t, `const keys = [{ ms: "A2" }, { wsec: "T1" }, { wall: "C1" }, { wall: "" }, { epic: "x" }, {}].map(P.toggleKey);
 out({ keys, back: keys.filter(Boolean).map(P.toggleOf) });`)
-	assert.JSONEq(t, `{"keys": ["msx:A2", "wsec:T1", "wall:C1", "wall:", null, null],
-		"back": [{"attr": "data-msx", "value": "A2"}, {"attr": "data-wsec", "value": "T1"}, {"attr": "data-wall", "value": "C1"}, {"attr": "data-wall", "value": ""}]}`, got)
+	assert.JSONEq(t, `{"keys": ["ms:A2", "wsec:T1", "wall:C1", "wall:", null, null],
+		"back": [{"attr": "data-ms", "value": "A2"}, {"attr": "data-wsec", "value": "T1"}, {"attr": "data-wall", "value": "C1"}, {"attr": "data-wall", "value": ""}]}`, got)
 }
 
-// TestPage_AToggleGivesFocusBackToItsReplacement: the toggles are among
-// the focusable elements focusKey names, and each toggle's handler puts
-// focus back on its replacement after the redraw.
+// TestPage_AToggleGivesFocusBackToItsReplacement: the toggles and the
+// milestone cards are among the focusable elements focusKey names; each
+// Waiting toggle's handler puts focus back on its replacement after the
+// redraw, and a milestone card gets it back when the drawer it opened
+// closes.
 func TestPage_AToggleGivesFocusBackToItsReplacement(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
-	assert.Contains(t, script, `const FOCUSABLE = "#mapsvg .node, #gsvg .gnode, [data-epic], [data-msx], [data-wsec], [data-wall]";`)
+	assert.Contains(t, script, `const FOCUSABLE = "#mapsvg .node, #gsvg .gnode, [data-epic], [data-ms], [data-wsec], [data-wall]";`)
 	assert.Contains(t, script, "tpPure.toggleKey(")
-	assert.Equal(t, 2, strings.Count(script, "refocus(key);"), "the card toggle and the Waiting toggles both refocus")
+	assert.Equal(t, 1, strings.Count(script, "refocus(key);"), "the Waiting toggles refocus; a milestone card is given focus back by the drawer")
 }
 
 // TestPure_DescribedEpicsAreCountedPerMilestone: an epic counts as
