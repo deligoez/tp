@@ -169,8 +169,8 @@ func selectSpecCoverage(in *AuditFileInputs, universe []string) (selected []Audi
 }
 
 // selectCodeFiles orders the filtered universe with path-keyword-matching files
-// first and every other file after, each group alphabetical, capped at
-// CodeFileCap. A non-empty universe therefore never yields an empty list.
+// first and every other file after, each group by churn (rankByChurn), capped
+// at CodeFileCap. A non-empty universe therefore never yields an empty list.
 func selectCodeFiles(in *AuditFileInputs, universe []string) []AuditFileEntry {
 	priority := make([]string, 0, len(universe))
 	rest := make([]string, 0, len(universe))
@@ -181,6 +181,8 @@ func selectCodeFiles(in *AuditFileInputs, universe []string) []AuditFileEntry {
 		}
 		rest = append(rest, p)
 	}
+	in.rankByChurn(priority)
+	in.rankByChurn(rest)
 
 	entries := make([]AuditFileEntry, 0, CodeFileCap)
 	for _, group := range [][]string{priority, rest} {
@@ -192,6 +194,24 @@ func selectCodeFiles(in *AuditFileInputs, universe []string) []AuditFileEntry {
 		}
 	}
 	return entries
+}
+
+// rankByChurn sorts paths by lines added plus deleted, descending, ties by
+// path; a path with no measured diff (absent from DiffStats, which is where a
+// binary's "-" numstat lands too) sorts after every measured one, in path
+// order (spec/backlog/checklist-covers-what-changed.md, decision 1).
+func (in *AuditFileInputs) rankByChurn(paths []string) {
+	sort.SliceStable(paths, func(i, j int) bool {
+		si, mi := in.DiffStats[paths[i]]
+		sj, mj := in.DiffStats[paths[j]]
+		if mi != mj {
+			return mi
+		}
+		if ci, cj := si[0]+si[1], sj[0]+sj[1]; ci != cj {
+			return ci > cj
+		}
+		return paths[i] < paths[j]
+	})
 }
 
 func matchesPriorityPath(s string) bool {
