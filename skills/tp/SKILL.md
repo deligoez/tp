@@ -289,14 +289,14 @@ Repeat until `tp review <spec> --status --check` exits 0:
 
 **A rewritten spec starts an epoch (v1.14.0).** When the spec is rewritten rather than repaired, so that
 its recorded rounds describe a document that no longer exists, run `tp review <spec> --rewritten
-"<evidence>"` after the rewrite and before the next emission. Rounds recorded before the newest epoch
-stop feeding the earlier findings an emission carries — the review carry list, the regression pass,
-the audit prior-round section and the audit acceptance carry — in both phases. It changes prompts
-only: nothing recorded changes, convergence still reads the trailing clean rounds, the round cap
-still counts every round, and only a round that reads the new text clears `spec-stale`. An old-text
-high that still holds is raised again, and an audit acceptance from before the epoch is asked for
-again. Record or discard a round in flight first (exit 3 otherwise); an unchanged spec, blank
-evidence or no recorded round exits 2.
+"<evidence>"` after the rewrite. Rounds that read an older text stop feeding the earlier findings an
+emission carries — the review carry list, the regression pass, the audit prior-round section and the
+audit acceptance carry — in both phases; rounds that already read the new text keep feeding them. It
+changes prompts only: nothing recorded changes, convergence still reads the trailing clean rounds,
+the round cap still counts every round, and only a round that reads the new text clears
+`spec-stale`. An old-text high that still holds is raised again, and an audit acceptance from before
+the epoch is asked for again. Record a round in flight first. The epoch's shape and the exits are in
+REFERENCE (Epochs).
 
 **Convergence is a recorded fact, not a judgment.** Do not skip rounds, summarize findings as "minor", or declare convergence before `--status --check` exits 0. Counted rounds are always full-panel; the regression delta pass and the tail class-sweep (below) are uncounted.
 
@@ -830,7 +830,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp review spec.md --record merged.ndjson` | Record a review round; auto-numbers R, freezes the count + clean flag, returns `next_action` |
 | `tp review spec.md --record ... --harness-note "<text>"` | Record the round's orchestrator-wrapper framing (requires `--record`; alone → exit 2) |
 | `tp review spec.md --status` / `--status --check` | Loop state / exit 0 only when the loop is `done` AND every check passes |
-| `tp review spec.md --rewritten "<evidence>"` | Start an epoch after a rewrite: appends `{after_review_round, after_audit_round, evidence, at}` to `state.json`'s `epochs`, and earlier rounds stop feeding both phases' carried findings. Blank evidence, no recorded round, or a spec equal to a phase's last recorded round exits 2; a round of either phase in flight exits 3 |
+| `tp review spec.md --rewritten "<evidence>"` | Start an epoch after a rewrite: rounds that read an older text stop feeding both phases' carried findings (REFERENCE, Epochs) |
 | `tp review spec.md --perspective regression` | Standalone regression pass (needs state R≥2, or `--diff-from` + `--findings`) |
 | `tp review spec.md --no-state` | Disable all state reads/writes; restores pre-0.23.0 manual `--round` numbering |
 | `tp review spec.md --role <name>` | Emit only that role's prompt. A name the round does not emit but tp recognises exits 0 with an empty `prompts[]`; a name it recognises nowhere exits 2 and writes nothing |
