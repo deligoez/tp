@@ -86,6 +86,24 @@ func TestPure_ThePillShortensItsWordsOnlyWhenItOverflows(t *testing.T) {
 	assert.JSONEq(t, `[false, false, false, true, false]`, got)
 }
 
+// TestPure_TheCameraKeepsOneZoom: deck.gl's controller hands back a view
+// state carrying zoomX and zoomY, and OrthographicView projects positions by
+// those while it sizes text by zoom; a later zoom that changed zoom alone grew
+// the labels and left the drawing where it was. The page keeps one zoom.
+func TestPure_TheCameraKeepsOneZoom(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([
+  P.cameraOf({ width: 800, height: 600, target: [10, 20, 0], zoom: -2, zoomX: -3, zoomY: -3, zoomAxis: "all", minZoomX: -8, maxZoomX: 3, maxBounds: null }),
+  P.cameraOf({ target: [1, 2, 0], zoom: [-1, -1] }),
+  P.cameraOf({ target: [1, 2], zoom: 0.5, minZoom: -8, maxZoom: 3 }),
+]);`)
+	assert.JSONEq(t, `[
+  {"target": [10, 20, 0], "zoom": -2, "minZoom": -8, "maxZoom": 3},
+  {"target": [1, 2, 0], "zoom": -1, "minZoom": -8, "maxZoom": 3},
+  {"target": [1, 2, 0], "zoom": 0.5, "minZoom": -8, "maxZoom": 3}
+]`, got)
+}
+
 // TestPure_AWheelsDeltaIsReadInPixels: a wheel's delta counts pixels, lines
 // of 16 pixels or pages of the canvas's height, by its deltaMode; the page
 // reads every one as pixels before it zooms or pans.
