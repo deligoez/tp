@@ -33,6 +33,7 @@ func refuseIfBudgetExhausted(kind, specPath string, st *engine.ReviewState, capR
 	if capRounds <= 0 || len(rounds) < capRounds {
 		return
 	}
+	hint := budgetEscalationHint
 	if specHash, err := engine.SpecHash(specPath); err == nil {
 		converged := engine.Converged(rounds, requiredClean, specHash)
 		if kind == "review" {
@@ -42,6 +43,11 @@ func refuseIfBudgetExhausted(kind, specPath string, st *engine.ReviewState, capR
 			return
 		}
 	}
-	output.Error(ExitState, fmt.Sprintf("%s round budget exhausted: %d rounds recorded with a cap of %d and not converged", kind, len(rounds), capRounds), budgetEscalationHint)
+	if kind == "review" {
+		if carried := engine.ReviewCarriedBlocking(specPath, st, convergeOn); len(carried) > 0 {
+			hint = engine.CarriedBlockingClause(carried, specPath) + "; " + hint
+		}
+	}
+	output.Error(ExitState, fmt.Sprintf("%s round budget exhausted: %d rounds recorded with a cap of %d and not converged", kind, len(rounds), capRounds), hint)
 	os.Exit(ExitState)
 }
