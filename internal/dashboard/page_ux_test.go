@@ -78,6 +78,15 @@ func TestPage_TheMapGoesFullScreen(t *testing.T) {
 	assert.Contains(t, page, "body.mapfs")
 }
 
+// TestPure_ThePlainWheelZoomsOnlyInFullScreen: Ctrl or ⌘ with the wheel
+// zooms anywhere; the plain wheel zooms only while the card fills the
+// screen, and scrolls the page otherwise.
+func TestPure_ThePlainWheelZoomsOnlyInFullScreen(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([P.wheelZooms({ ctrlKey: true }, false), P.wheelZooms({ metaKey: true }, false), P.wheelZooms({}, false), P.wheelZooms({}, true)]);`)
+	assert.JSONEq(t, `[true, true, false, true]`, got)
+}
+
 // TestPure_APinchZoomsAboutTheFingersAndFollowsThem is touch on the map
 // (spec/backlog/dashboard-ux.md §2): two fingers moving apart zoom in by the
 // ratio of their spans, and the drawing point under their first midpoint
