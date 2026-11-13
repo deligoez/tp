@@ -134,3 +134,25 @@ func TestPage_TheDrawerNarrowsThePageInsteadOfCoveringIt(t *testing.T) {
 		assert.Contains(t, page, rule)
 	}
 }
+
+// TestPure_ArrowKeysMoveToTheNearestEpicThatWay is the map's roving focus
+// (spec/backlog/dashboard-ux.md §2): an arrow moves to the nearest epic in
+// its direction, a step across counting thrice a step along, and stays put
+// when nothing lies that way.
+func TestPure_ArrowKeysMoveToTheNearestEpicThatWay(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const pos = { a: { x: 0, y: 0 }, b: { x: 0, y: 10 }, c: { x: 100, y: 0 }, d: { x: 100, y: 30 } };
+out([P.roveNext(pos, "a", "ArrowDown"), P.roveNext(pos, "a", "ArrowRight"), P.roveNext(pos, "a", "ArrowUp"), P.roveNext(pos, "a", "ArrowLeft"),
+  P.roveNext(pos, "b", "ArrowRight"), P.roveNext(pos, "d", "ArrowLeft"), P.roveNext(pos, "a", "Tab")]);`)
+	assert.JSONEq(t, `["b", "c", "a", "a", "c", "b", "a"]`, got)
+}
+
+// TestPage_MapEpicsTakeFocusAndEnterSelects: one epic of the map is in the
+// tab order at a time, the arrows move it, and Enter or Space selects it.
+func TestPage_MapEpicsTakeFocusAndEnterSelects(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, s := range []string{"tpPure.roveNext(", `role="button" tabindex="`, `ev.key === "Enter" || ev.key === " "`} {
+		assert.Contains(t, script, s)
+	}
+}
