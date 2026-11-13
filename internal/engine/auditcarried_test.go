@@ -110,6 +110,33 @@ func TestAuditCarried_APositionalIdClearsOnlyOverTheSameText(t *testing.T) {
 	assert.Empty(t, AuditCarriedBlocking(spec, st), "over the same text both clear")
 }
 
+// TestAuditCarried_APositionalIdClearsUnlessItsItemMoved: a spec repaired
+// between two rounds changes the hash. The PASS at list-0-1 still clears the
+// row when the later snapshot holds the old item's text at the same id, or
+// nowhere (the item itself was repaired); when the old text now sits at
+// another id, the item moved and the PASS graded another one, so it clears
+// nothing.
+func TestAuditCarried_APositionalIdClearsUnlessItsItemMoved(t *testing.T) {
+	t.Parallel()
+	fail := `{"role":"spec-coverage","item_id":"list-0-1","status":"FAIL","severity":"error"}`
+	pass := `{"role":"spec-coverage","item_id":"list-0-1","status":"PASS","severity":null}`
+	for _, tc := range []struct {
+		later   string
+		cleared bool
+	}{
+		{"# S\n\n## 1. Rules\n\nAn added line.\n\n1. Every row is checked.\n", true},
+		{"# S\n\n## 1. Rules\n\n1. Every row is checked and counted.\n", true},
+		{"# S\n\n## 1. Rules\n\n1. A new first rule.\n2. Every row is checked.\n", false},
+	} {
+		spec := auditSpec(t)
+		st := auditState(t, spec, AuditConvergeOnAll, []string{fail}, []string{pass})
+		st.AuditRounds[1].SpecHash = "h2"
+		require.NoError(t, WriteSnapshotAtomic(spec, PhaseAudit, 1, []byte("# S\n\n## 1. Rules\n\n1. Every row is checked.\n")))
+		require.NoError(t, WriteSnapshotAtomic(spec, PhaseAudit, 2, []byte(tc.later)))
+		assert.Equal(t, tc.cleared, len(AuditCarriedBlocking(spec, st)) == 0, "later text %q", tc.later)
+	}
+}
+
 // TestAuditCarried_ALowerReGradeKeepsTheHighestSeverity: a FAIL error re-graded
 // PARTIAL warning with no disposition is still graded error, so the blocking
 // policy does not let it go.
