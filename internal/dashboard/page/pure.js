@@ -523,6 +523,25 @@
     return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
   };
 
+  // deltaE is the CIE76 colour difference of two colours: their distance
+  // in CIELAB (D65), 0 for the same colour, about 100 black to white.
+  P.deltaE = function (a, b) {
+    const lab = (c) => {
+      const f = c.map((v) => {
+        const s = v / 255;
+        return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+      });
+      const g = (x) => (x > 0.008856 ? Math.cbrt(x) : 7.787 * x + 16 / 116);
+      const x = g((f[0] * 0.4124 + f[1] * 0.3576 + f[2] * 0.1805) / 0.95047);
+      const y = g(f[0] * 0.2126 + f[1] * 0.7152 + f[2] * 0.0722);
+      const z = g((f[0] * 0.0193 + f[1] * 0.1192 + f[2] * 0.9505) / 1.08883);
+      return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
+    };
+    const p = lab(a);
+    const q = lab(b);
+    return Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
+  };
+
   // mixColour is a + (b − a) × t, rounded.
   const mixColour = (a, b, t) => a.map((x, i) => Math.round(x + (b[i] - x) * t));
 
