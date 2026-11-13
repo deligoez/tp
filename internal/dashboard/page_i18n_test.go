@@ -37,11 +37,12 @@ func slotsOf(t *testing.T, lang, key string, raw json.RawMessage) []string {
 	t.Helper()
 	var texts []string
 	var one string
-	if json.Unmarshal(raw, &one) == nil {
+	switch {
+	case json.Unmarshal(raw, &one) == nil:
 		texts = []string{one}
-	} else if json.Unmarshal(raw, &texts) == nil {
+	case json.Unmarshal(raw, &texts) == nil:
 		require.NotEmpty(t, texts, "%s %s holds a bullet", lang, key)
-	} else {
+	default:
 		var forms map[string]string
 		require.NoError(t, json.Unmarshal(raw, &forms), "%s %s is a string or { one, other }", lang, key)
 		require.Contains(t, forms, "other", "%s %s has an other form", lang, key)
