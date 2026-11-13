@@ -22,39 +22,39 @@ func auditCarryKeyOf(row map[string]any) auditCarryKey {
 }
 
 // carryAuditAcceptances is the audit carry at --record: an acceptance the
-// operator made in the round immediately before this one is re-applied to the
-// same item's new non-PASS row, so an accepted finding the auditor records
-// again does not dirty every round after the one it was accepted in.
+// operator made on an item's latest graded row is re-applied to the same
+// item's new non-PASS row, so an accepted finding the auditor records again
+// does not dirty every round after the one it was accepted in.
 //
 // Only wontfix and duplicate with evidence are carried (engine.RowAccepted);
-// fixed never is, because a repair is re-verified by the next round, not
+// fixed never is, because a repair is re-verified by a later round, not
 // inherited. A target row that carries a disposition of its own keeps it, and
-// a PASS needs none. The carry breaks when the prior row's evidence_file was
-// touched by a commit since that round was recorded — the changed_since the
-// Prior Round block shows the auditor — and a row with no evidence_file has no
-// file to change, so its acceptance carries until the operator re-decides it.
-// The lookup is the immediately prior round alone, as ground's carry is, so
-// the chain runs round by round and one edit ends it. An epoch ends it too:
-// a prior round numbered at or below epochCut was recorded before the newest
-// epoch, about a text the spec no longer holds, so nothing carries from it
-// and the operator is asked again (tp review --rewritten).
+// a PASS needs none. The carry breaks when the accepted row's evidence_file
+// was touched by a commit since its round was recorded — the changed_since
+// the Prior Round block shows the auditor — and a row with no evidence_file
+// has no file to change, so its acceptance carries until the operator
+// re-decides it.
 //
-// The carried disposition is the prior `resolved` block copied verbatim, with
-// `carried_from` added when it has none: like ground's, it names the round the
-// disposition was first decided in, so a chain keeps pointing at the
-// operator's decision. The carry re-applies that decision and writes no new
-// acceptance, so the accept-finding fence --resolve applies has no place here.
+// The source is the audit carried set (engine.AuditCarriedSet): per
+// (role, item_id) since the newest epoch, the row of the item's latest graded
+// round, so an empty round between does not end the chain, while a re-grade
+// does, and so does an epoch: a round at or below the cut was recorded about
+// a text the spec no longer holds, and the operator is asked again
+// (tp review --rewritten). This is the row the Prior Round block lists
+// (spec/backlog/audit-carried-fail-blocks.md §2.3).
+//
+// The carried disposition is the accepted `resolved` block copied verbatim,
+// with `carried_from` added when it has none: like ground's, it names the
+// round the disposition was first decided in, so a chain keeps pointing at
+// the operator's decision. The carry re-applies that decision and writes no
+// new acceptance, so the accept-finding fence --resolve applies has no place
+// here.
 //
 // rows are the parsed non-blank lines of data, in order; a carried row is
 // updated in place, so the clean verdict computed from rows reads it, and its
 // line of data is re-encoded. It returns data unchanged when nothing carries.
-func carryAuditAcceptances(specPath string, recorded []engine.ReviewRound, epochCut int, data []byte, rows []map[string]any) (out []byte, carried int) {
-	round, _ := engine.RecordRound(len(recorded))
-	if round < 2 || round-2 >= len(recorded) || round-1 <= epochCut {
-		return data, 0
-	}
-	prev := &recorded[round-2]
-	source := acceptedAuditRows(specPath, prev)
+func carryAuditAcceptances(specPath string, st *engine.ReviewState, data []byte, rows []map[string]any) (out []byte, carried int) {
+	source := acceptedAuditRows(specPath, st)
 	if len(source) == 0 {
 		return data, 0
 	}
@@ -66,7 +66,7 @@ func carryAuditAcceptances(specPath string, recorded []engine.ReviewRound, epoch
 		}
 		row := rows[next]
 		next++
-		resolved, ok := carriedDisposition(row, source, round-1)
+		resolved, ok := carriedDisposition(row, source)
 		if !ok {
 			continue
 		}
@@ -82,42 +82,52 @@ func carryAuditAcceptances(specPath string, recorded []engine.ReviewRound, epoch
 	return []byte(strings.Join(lines, "\n")), carried
 }
 
-// acceptedAuditRows returns the prior round's accepted non-PASS rows whose
-// evidence_file is unchanged since that round was recorded, keyed by
-// (role, item_id), each as its `resolved` block. The first row under a key
-// decides it, as in ground's carry. Git is asked only when some accepted row
-// names a file.
-func acceptedAuditRows(specPath string, prev *engine.ReviewRound) map[auditCarryKey]map[string]any {
-	rows, found := engine.LoadRoundRows(specPath, prev)
-	if !found {
+// acceptedAuditSource is an accepted row the carry may re-apply: its
+// `resolved` block and the round it was graded in.
+type acceptedAuditSource struct {
+	resolved map[string]any
+	round    int
+}
+
+// acceptedAuditRows returns the carried set's accepted rows whose
+// evidence_file is unchanged since their round was recorded, keyed by
+// (role, item_id). Git is asked once per round some accepted row names a file.
+func acceptedAuditRows(specPath string, st *engine.ReviewState) map[auditCarryKey]acceptedAuditSource {
+	if st == nil {
 		return nil
 	}
-	var changed map[string]bool
-	seen := make(map[auditCarryKey]bool)
-	source := make(map[auditCarryKey]map[string]any)
-	for _, row := range rows {
-		key := auditCarryKeyOf(row)
-		if seen[key] || engine.AuditRowIsPass(row) || !engine.RowAccepted(row) {
+	set, _ := engine.AuditCarriedSet(specPath, st)
+	byNumber := make(map[int]*engine.ReviewRound, len(st.AuditRounds))
+	for i := range st.AuditRounds {
+		byNumber[st.AuditRounds[i].Round] = &st.AuditRounds[i]
+	}
+	changedByRound := make(map[int]map[string]bool)
+	source := make(map[auditCarryKey]acceptedAuditSource)
+	for i := range set {
+		row := set[i].Row
+		if !engine.RowAccepted(row) {
 			continue
 		}
-		seen[key] = true
 		if ef, _ := row["evidence_file"].(string); ef != "" {
-			if changed == nil {
-				changed = filesChangedSinceRound(specPath, prev)
+			changed, ok := changedByRound[set[i].Round]
+			if !ok {
+				changed = filesChangedSinceRound(specPath, byNumber[set[i].Round])
+				changedByRound[set[i].Round] = changed
 			}
 			if changed[ef] {
 				continue
 			}
 		}
-		source[key], _ = row["resolved"].(map[string]any)
+		resolved, _ := row["resolved"].(map[string]any)
+		source[auditCarryKeyOf(row)] = acceptedAuditSource{resolved: resolved, round: set[i].Round}
 	}
 	return source
 }
 
 // carriedDisposition returns the disposition row inherits from source: a copy
-// of the prior `resolved` block stamped with carried_from, or false when row is
-// a PASS, carries a disposition of its own, or has no accepted prior row.
-func carriedDisposition(row map[string]any, source map[auditCarryKey]map[string]any, prevRound int) (map[string]any, bool) {
+// of the accepted `resolved` block stamped with carried_from, or false when
+// row is a PASS, carries a disposition of its own, or has no accepted source.
+func carriedDisposition(row map[string]any, source map[auditCarryKey]acceptedAuditSource) (map[string]any, bool) {
 	if engine.AuditRowIsPass(row) {
 		return nil, false
 	}
@@ -128,9 +138,9 @@ func carriedDisposition(row map[string]any, source map[auditCarryKey]map[string]
 	if !ok {
 		return nil, false
 	}
-	resolved := maps.Clone(prior)
+	resolved := maps.Clone(prior.resolved)
 	if _, has := resolved["carried_from"]; !has {
-		resolved["carried_from"] = prevRound
+		resolved["carried_from"] = prior.round
 	}
 	return resolved, true
 }
