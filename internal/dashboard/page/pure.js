@@ -284,16 +284,70 @@
   // GRAPH_MODES are the graph card's modes, the first its default.
   P.GRAPH_MODES = ["plan", "milestones", "scope", "neighbourhood"];
 
-  // graphParams is the graph card's place s ({ mode, milestone, depth, pack,
+  // crossShown says whether the graph card draws plain cross edges in s
+  // ({ mode, showCross, msCross }): in Milestones, where a cross edge is an
+  // opens-after edge from another track, by msCross, on until hidden; in
+  // the epic modes by showCross, off until shown.
+  P.crossShown = function (s) {
+    return s.mode === "milestones" ? !!s.msCross : !!s.showCross;
+  };
+
+  // stepMatch is the match Enter moves to among n, from idx (-1 for none
+  // yet): the next, wrapping to the first, or with back the previous,
+  // wrapping to the last; -1 when there is none.
+  P.stepMatch = function (n, idx, back) {
+    if (n <= 0) return -1;
+    if (back) return idx <= 0 ? n - 1 : idx - 1;
+    return (idx + 1) % n;
+  };
+
+  // pickTheme is the page's theme: the stored choice when it is light or
+  // dark, else null, the system's setting.
+  P.pickTheme = function (stored) {
+    return stored === "light" || stored === "dark" ? stored : null;
+  };
+
+  // nextTheme is the theme the toggle switches to from dark or light.
+  P.nextTheme = function (dark) {
+    return dark ? "light" : "dark";
+  };
+
+  // placeLabels places band labels in the order given, each box { x, y, w,
+  // h, sw } its left edge, top, full width, height and width with the name
+  // alone: "full" where the full label overlaps none placed, "short" where
+  // the name alone does not, else null, the label left out.
+  P.placeLabels = function (boxes) {
+    const placed = [];
+    const free = (x, y, w, h) => !placed.some((p) => x < p.x + p.w && p.x < x + w && y < p.y + p.h && p.y < y + h);
+    return boxes.map((b) => {
+      for (const [kind, w] of [["full", b.w], ["short", b.sw]]) {
+        if (free(b.x, b.y, w, b.h)) {
+          placed.push({ x: b.x, y: b.y, w, h: b.h });
+          return kind;
+        }
+      }
+      return null;
+    });
+  };
+
+  // withinTwo counts the nodes of a chain, hops mapped to steps, at most
+  // two steps from the selection.
+  P.withinTwo = function (hops) {
+    let n = 0;
+    hops.forEach((d) => { if (d <= 2) n++; });
+    return n;
+  };
+
+  // graphParams is the graph card's place s ({ mode, milestone, depth,
   // showCross, q }) as address pairs, each only when it is not the default:
   // gv the mode, gm the gate's milestone in Gate closure, gd the
-  // neighbourhood's depth, pack, cross and q the search.
+  // neighbourhood's depth, cross and q the search. The packing is the
+  // API's alone; the page draws rows.
   P.graphParams = function (s) {
     const out = [];
     if (s.mode !== "plan") out.push(["gv", s.mode]);
     if (s.mode === "scope" && s.milestone) out.push(["gm", s.milestone]);
     if (s.depth !== 2) out.push(["gd", String(s.depth)]);
-    if (s.pack === "tree") out.push(["pack", "tree"]);
     if (s.showCross) out.push(["cross", "1"]);
     if (s.q) out.push(["q", s.q]);
     return out;
@@ -308,7 +362,6 @@
       mode: P.GRAPH_MODES.includes(mode) ? mode : "plan",
       milestone: get("gm") || null,
       depth: /^[1-4]$/.test(depth) ? Number(depth) : 2,
-      pack: get("pack") === "tree" ? "tree" : "rows",
       showCross: get("cross") === "1",
       q: get("q") || "",
     };
@@ -331,8 +384,10 @@
 
   // chainAlpha is the opacity a node or edge of a selection's chain is drawn
   // at, d steps from the selection: full within two, fading after, so a
-  // selection with hundreds of descendants keeps its near chain legible.
-  P.chainAlpha = function (d) {
+  // selection with hundreds of descendants keeps its near chain legible;
+  // full at any distance when whole asks for the whole chain.
+  P.chainAlpha = function (d, whole) {
+    if (whole) return 255;
     return d <= 2 ? 255 : d === 3 ? 170 : 70;
   };
 
