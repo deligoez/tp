@@ -366,7 +366,7 @@
   "specs.noMatchQ": "No task file matches “{q}” here.",
   "info.specs": ["Every task file git sees, one row each, from <code>tp export --list</code>.", "Grouped by the phase <code>tp resume</code> reports, in loop order; those an operator decision stops come first.", "Operator decisions shows only those.", "Click a row to open that spec; press <kbd>/</kbd> anywhere to filter."],
   "spec.view.read": "Read the spec",
-  "spec.epic_html": "epic <code>{epic}</code>",
+  "spec.epicLabel": "epic",
   "spec.noEpic": "bound to no epic",
   "spec.loop": "The loop",
   "spec.waitsOp": "waits on the operator: {message}",

@@ -366,7 +366,7 @@
   "specs.noMatchQ": "Burada “{q}” ile eşleşen görev dosyası yok.",
   "info.specs": ["git'in gördüğü her görev dosyası için bir satır, <code>tp export --list</code> çıktısından.", "<code>tp resume</code>'un bildirdiği aşamaya göre döngü sırasıyla gruplanır; bir operatör kararının durdurdukları en başta gelir.", "Operatör kararları yalnızca bunları gösterir.", "Bir spec'i açmak için satırına tıklayın; süzmek için herhangi bir yerde <kbd>/</kbd> tuşuna basın."],
   "spec.view.read": "Spec'i oku",
-  "spec.epic_html": "epic <code>{epic}</code>",
+  "spec.epicLabel": "epic",
   "spec.noEpic": "hiçbir epic'e bağlı değil",
   "spec.loop": "Döngü",
   "spec.waitsOp": "operatörü bekliyor: {message}",

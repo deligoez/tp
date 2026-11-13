@@ -1383,6 +1383,12 @@
   document.addEventListener("click", (ev) => {
     const a = ev.target.closest && ev.target.closest("[data-epic]");
     if (a) {
+      // An epic named on the Specs tab or a spec's header opens the Epics
+      // tab with its drawer.
+      if (state.tab !== "epics") {
+        setTab("epics");
+        render();
+      }
       mapView.selected = null;
       selectEpic(a.dataset.epic, true);
       return;
@@ -1425,7 +1431,7 @@
         esc(t.num(counts.done || 0)) + "/" + esc(t.num(total)) + "</span></span>" + (counts.wip ? '<span class="sm muted">' + esc(t("specs.wip", { n: counts.wip })) + "</span>" : "")
       : '<span class="muted">' + esc(t("specs.noTasks")) + "</span>";
     const epic = f.epic
-      ? '<code>' + esc(f.epic) + "</code>" + (f.epic_state ? '<span class="sm muted">' + esc(word(STAGE_LABEL, f.epic_state)) + "</span>" : "")
+      ? epicLink(f.epic) + (f.epic_state ? '<span class="sm muted">' + esc(word(STAGE_LABEL, f.epic_state)) + "</span>" : "")
       : '<span class="muted">' + esc(t("specs.noEpic")) + "</span>";
     const next = ops.map((b) => '<span class="stat" title="' + esc(b.message) + '">' + PAUSE + esc(b.code) + "</span>").join("") +
       (f.error ? '<span class="snext err">' + esc(f.error) + "</span>" : '<code class="snext">' + esc(f.next_step || "") + "</code>");
@@ -1581,7 +1587,7 @@
     const na = d.resume.next_action || {};
     const cmd = na.command || na.brief_command;
     const epic = d.epic
-      ? '<span class="sh-epic">' + t.html("spec.epic_html", { epic: d.epic }) + (f && f.epic_state ? " " + esc(word(STAGE_LABEL, f.epic_state)) : "") + "</span>"
+      ? '<span class="sh-epic">' + esc(t("spec.epicLabel")) + " " + epicLink(d.epic) + (f && f.epic_state ? " " + esc(word(STAGE_LABEL, f.epic_state)) : "") + "</span>"
       : '<span class="sh-epic">' + esc(t("spec.noEpic")) + "</span>";
     return '<div class="sh-row"><h1>' + esc((f && f.title) || d.spec) + "</h1>" + epic + "</div>" +
       '<div class="loophead"><h2>' + esc(t("spec.loop")) + "</h2>" + info("loop", t("spec.loop")) + "</div>" + stepper(d, f) +
@@ -2090,6 +2096,7 @@
     drawSpecs();
   });
   $("specs-body").addEventListener("click", (ev) => {
+    if (ev.target.closest("[data-epic]")) return;
     const r = ev.target.closest(".srow");
     if (r) openSpec(r.dataset.path);
   });
