@@ -265,3 +265,16 @@ func TestEpicSet_GateMembersJSONWithTrailingJunkIsRefused(t *testing.T) {
 		assert.Equal(t, before, readEpicGraphFile(t, dir), value)
 	}
 }
+
+// TestEpicSet_GateListKeepsAnIDOnce: an id written twice, in the comma list
+// or in the JSON array, is written once, at its first place.
+func TestEpicSet_GateListKeepsAnIDOnce(t *testing.T) {
+	t.Parallel()
+	for _, value := range []string{"a2, a1,a2", `["a2", "a1", "a2"]`} {
+		dir := epicGraphDir(t, epicGateFieldGraph(""))
+		setGateField(t, dir, "gates.A.members="+value)
+		gate := gatesOnFile(t, dir)["A"]
+		require.NotNil(t, gate.Members, value)
+		assert.Equal(t, []string{"a2", "a1"}, *gate.Members, value)
+	}
+}
