@@ -17,7 +17,15 @@ func auditRolePools(prompts []auditPrompt) []engine.AuditRolePool {
 		if prompts[i].Role == roleSpecCoverage {
 			continue
 		}
-		pools = append(pools, engine.AuditRolePool{Role: prompts[i].Role, Pool: prompts[i].FilePool})
+		items := make([]string, 0, prompts[i].FileCount)
+		if prompts[i].ChecklistItems != nil {
+			for j := range *prompts[i].ChecklistItems {
+				if it := &(*prompts[i].ChecklistItems)[j]; it.Type == "file_check" {
+					items = append(items, it.ItemID)
+				}
+			}
+		}
+		pools = append(pools, engine.AuditRolePool{Role: prompts[i].Role, Pool: prompts[i].FilePool, Items: items})
 	}
 	return pools
 }
