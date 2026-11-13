@@ -398,13 +398,16 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	// both measured false — the classification itself is unaffected, since
 	// classifyRole falls through to engine.RoleIsRecognised, which reads the
 	// corpus directly. The diagnostic is what the ordering buys.
-	pools := auditRolePools(prompts)
+	// The round's prompts before --role keeps one: its pools and its cuts are
+	// facts of the round, so every sibling unit reports the same ones.
+	roundPrompts := slices.Clone(prompts)
+	pools := auditRolePools(roundPrompts)
 	prompts, auditSkipped = filterAuditPrompts(prompts, roleQueryFor(specPath, roleFilter, roleGiven).withSiblingUnits(&panel), auditSkipped)
 	// An unknown --role exits 2 inside the filter, so the snapshot is written
 	// only after it: a refusal leaves the state directory as it found it.
 	snap.write(specPath)
 	writeAuditRolePools(specPath, snap.round, pools)
-	cut := cutNotices(prompts)
+	cut := cutNotices(roundPrompts)
 	notices := slices.Concat(autoDetectCapNotice(totalChanged, len(files)),
 		universeNotices(specPath, files, base, len(affectedFiles) > 0, affectedFromTasks), cut)
 
