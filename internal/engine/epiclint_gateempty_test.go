@@ -65,3 +65,14 @@ func TestLintEpicGraph_GateEmptySkipsAMilestoneWithNoEpics(t *testing.T) {
 	assert.Empty(t, findingsOf(t, LintEpicGraph(g, nil), EpicRuleGateEmpty))
 }
 
+// TestLintEpicGraph_GateEmptyNamesEveryFollower: T1 and T2 both open after
+// TG; one finding names both.
+func TestLintEpicGraph_GateEmptyNamesEveryFollower(t *testing.T) {
+	g := triggerGateGraph()
+	g.Milestones[1] = append(g.Milestones[1], "T2")
+	g.OpensAfter["T2"] = []string{"TG"}
+	g.Epics = append(g.Epics, dependsOn("t2", "T2"))
+	found := findingsOf(t, LintEpicGraph(g, nil), EpicRuleGateEmpty)
+	require.Len(t, found, 1, "%v", found)
+	assert.Contains(t, found[0].Message, `"T1", "T2" open after it`)
+}
