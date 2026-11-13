@@ -9,6 +9,7 @@ import (
 // Notice kinds an audit emission carries in its payload
 // (spec/backlog/checklist-covers-what-changed.md, decisions 3 and 5).
 const (
+	noticeAutoDetectCap        = "auto-detect-cap"
 	noticeCodeFilesCut         = "code-files-cut"
 	noticeSpecCoverageFilesCut = "spec-coverage-files-cut"
 )
@@ -21,6 +22,26 @@ type auditNotice struct {
 	Kind    string   `json:"kind"`
 	Message string   `json:"message"`
 	Files   []string `json:"files,omitempty"`
+	// TotalChanged is the auto-detect-cap notice's pre-cap count, the same
+	// number file_summary.total_changed carries where --compact keeps none.
+	TotalChanged int `json:"total_changed,omitempty"`
+}
+
+// autoDetectCapMessage is the auto-detect cut's one sentence, on stderr and
+// in the notice alike.
+func autoDetectCapMessage(totalChanged int) string {
+	return fmt.Sprintf("%d files changed, auditing first %d — name the rest with --affected-files", totalChanged, maxAutoDetectFiles)
+}
+
+// autoDetectCapNotice puts the auto-detect cut in the payload. detectChangedFiles
+// already printed it, so it is not printed again. It is the one cut a prompt's
+// file_pool does not show: the pool is what the role's list was cut from,
+// after this cap.
+func autoDetectCapNotice(totalChanged, audited int) []auditNotice {
+	if totalChanged <= audited {
+		return nil
+	}
+	return []auditNotice{{Kind: noticeAutoDetectCap, Message: autoDetectCapMessage(totalChanged), TotalChanged: totalChanged}}
 }
 
 // emit prints the notice on stderr and returns it for the payload.

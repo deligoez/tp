@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -404,7 +405,8 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	snap.write(specPath)
 	writeAuditRolePools(specPath, snap.round, pools)
 	cut := cutNotices(prompts)
-	notices := append(universeNotices(specPath, files, base, len(affectedFiles) > 0, affectedFromTasks), cut...)
+	notices := slices.Concat(autoDetectCapNotice(totalChanged, len(files)),
+		universeNotices(specPath, files, base, len(affectedFiles) > 0, affectedFromTasks), cut)
 
 	summary := engine.BuildAffectedSummary(files, nil)
 
@@ -938,7 +940,7 @@ func detectChangedFiles(dir, base string) (files []string, totalChanged int, err
 		// Name both numbers. "more than 50 files changed" read identically at 51
 		// and at 113, so the caller could size neither the loss nor the
 		// --affected-files list that works around it.
-		output.Notice(fmt.Sprintf("%d files changed, auditing first %d — name the rest with --affected-files", totalChanged, maxAutoDetectFiles))
+		output.Notice(autoDetectCapMessage(totalChanged))
 	}
 
 	if len(filtered) == 0 && len(allFiles) > 0 {
