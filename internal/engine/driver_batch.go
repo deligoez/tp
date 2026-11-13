@@ -3,6 +3,7 @@ package engine
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -26,6 +27,17 @@ const BatchCheckoutNotice = "an implement batch runs each unit in a fresh worktr
 // returns an error when the gate fails or the close is refused. logPath is
 // where its output goes.
 type CloseFunc func(id, reason string, commits []string, logPath string) error
+
+// CloseRefusedError is a close the driver's own tp done refused as a usage
+// error: tp calling itself wrong, which stops the run as a driver error
+// rather than discarding the unit's work.
+type CloseRefusedError struct {
+	ID, LogPath string
+}
+
+func (e *CloseRefusedError) Error() string {
+	return fmt.Sprintf("tp done %s refused its own arguments (log: %s)", e.ID, e.LogPath)
+}
 
 // batchUnit is one unit of an implement batch: its worktree and branch.
 type batchUnit struct {
@@ -131,6 +143,11 @@ func (d *driver) integrateOne(tf *model.TaskFile, p *PendingClose) error {
 	if pickErr == nil {
 		warnTouchesEscape(d.opts.Root, tf, p.ID, pre)
 		pickErr = d.closeTask(p, picked, logPath)
+	}
+	var refused *CloseRefusedError
+	if errors.As(pickErr, &refused) {
+		_, _ = gitOut(d.opts.Root, "reset", "-q", "--keep", pre)
+		return driverErrorf(pickErr, "integrate task %q", p.ID)
 	}
 	if pickErr != nil {
 		// --keep, not --hard: the task file's uncommitted closes of the

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -78,10 +79,13 @@ func closeTaskFunc(root, taskFile string) engine.CloseFunc {
 		if err != nil {
 			return err
 		}
-		args := []string{"done", id, reason}
+		// The reason goes after "--": evidence often opens with a "- "
+		// bullet, which the flag parser would otherwise read as a flag.
+		args := []string{"done", id}
 		for _, sha := range commits {
 			args = append(args, "--commit", sha)
 		}
+		args = append(args, "--", reason)
 		log, err := os.OpenFile(logPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 		if err != nil {
 			return err
@@ -91,7 +95,14 @@ func closeTaskFunc(root, taskFile string) engine.CloseFunc {
 		cmd.Dir = root
 		cmd.Env = append(os.Environ(), engine.EnvTaskFile+"="+taskFile)
 		cmd.Stdout, cmd.Stderr = log, log
-		if runErr := cmd.Run(); runErr != nil {
+		runErr := cmd.Run()
+		var exitErr *exec.ExitError
+		if errors.As(runErr, &exitErr) && exitErr.ExitCode() == ExitUsage {
+			// A usage refusal is tp calling itself wrong, not the unit's
+			// work failing: it stops the run instead of discarding the unit.
+			return &engine.CloseRefusedError{ID: id, LogPath: logPath}
+		}
+		if runErr != nil {
 			return fmt.Errorf("tp done %s: %w (log: %s)", id, runErr, logPath)
 		}
 		return nil
