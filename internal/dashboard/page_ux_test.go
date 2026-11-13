@@ -759,12 +759,13 @@ func TestPure_AGateClosureCountsItsDescribedEpics(t *testing.T) {
 	assert.JSONEq(t, `["2 of 3 in the closure described", "0 of 0 in the closure described"]`, got)
 }
 
-// TestPage_TheClosureHeaderSaysHowManyAreDescribed: the graph card's
-// count line in Gate closure carries closureDescribed's sentence.
+// TestPage_TheClosureHeaderSaysHowManyAreDescribed: the graph card's info
+// popover in Gate closure ends with closureDescribed's sentence (the
+// review's M6 moved it out of the count line).
 func TestPage_TheClosureHeaderSaysHowManyAreDescribed(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
-	assert.Contains(t, script, "pure.closureDescribed(L.nodes, described, app.tr())")
+	assert.Contains(t, script, "pure.closureDescribed(P.L.nodes, P.described, app.tr())")
 }
 
 // TestPage_MarksDescribedEpicsAndCountsThemPerMilestone: a described epic

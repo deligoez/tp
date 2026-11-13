@@ -1,6 +1,7 @@
 package dashboard_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -103,6 +104,76 @@ func TestPage_BandLabelsAreShortenedOrLeftOutWhereTheyWouldCollide(t *testing.T)
 	t.Parallel()
 	_, script := pageText(t)
 	assert.Contains(t, script, "pure.placeLabels(")
+}
+
+// TestPage_TheThemeToggleSitsInTheHeaderAndPersists is the review's M5: the
+// Light/Dark toggle is the page's, in its header, kept in localStorage
+// behind a try, and without a stored choice the system's setting rules.
+func TestPage_TheThemeToggleSitsInTheHeaderAndPersists(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	header := page[strings.Index(page, `<header class="top">`):strings.Index(page, "</header>")]
+	assert.Contains(t, header, `id="theme"`)
+	assert.NotContains(t, page, `id="gc-theme"`)
+	for _, s := range []string{`const THEME_KEY = "tp-dashboard-theme";`, "tpPure.pickTheme(storedTheme())", "try { localStorage.setItem(THEME_KEY", `new Event("tp-theme")`} {
+		assert.Contains(t, script, s)
+	}
+}
+
+// TestPage_TheToolbarStaysOneLineAndTheCountSitsBelow is the review's M6:
+// the count line sits under the toolbar, not in it, the closure's described
+// count moves into the card's info popover, and the toolbar does not wrap
+// at desktop widths.
+func TestPage_TheToolbarStaysOneLineAndTheCountSitsBelow(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	toolbar := page[strings.Index(page, `<div class="toolbar">`):strings.Index(page, `<p class="gcount`)]
+	assert.NotContains(t, toolbar, `id="gc-n"`)
+	assert.Contains(t, page, `<p class="gcount sm muted num" id="gc-n" aria-live="polite"></p>`)
+	assert.Contains(t, page, "@container (min-width: 1040px) { .gcard .toolbar { flex-wrap: nowrap; } }")
+	assert.Contains(t, script, "INFO.graph = () =>")
+	assert.NotContains(t, script, `"; " + pure.closureDescribed(`)
+}
+
+// TestPage_TheHelpIsAShortKeyListForTheMode is the review's M7: the
+// legend's help is a short list of keys, worded per mode, and the search's
+// placeholder names what it finds in that mode.
+func TestPage_TheHelpIsAShortKeyListForTheMode(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, s := range []string{`"graph.help.milestones"`, `"graph.help.epics"`, `"graph.searchMilestone": "Find a milestone  /"`, `$("gc-q").placeholder = t(`} {
+		assert.Contains(t, script, s)
+	}
+}
+
+// TestPage_TheCanvasLabelNamesEveryKey is the review's L8: the canvas's
+// aria-label names K and Esc too.
+func TestPage_TheCanvasLabelNamesEveryKey(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Contains(t, script, `"graph.canvasLabel": "Graph canvas: the arrow keys pan, + and − zoom, F fits, K shows or hides cross edges, Esc clears the selection.`)
+}
+
+// TestPage_TheChainTextShowsDirectEdgesFirst is the review's M10: the
+// chain as text lists the direct edges and folds the deeper ones into a
+// details element, so a long chain is not thousands of tab stops.
+func TestPage_TheChainTextShowsDirectEdgesFirst(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, s := range []string{"function chainHTML(", `'<details class="deeper"><summary>'`, `t("chain.deeper", { n: deeper.length })`} {
+		assert.Contains(t, script, s)
+	}
+}
+
+// TestPage_TheNowListsKeepATitleColumnBesideTheDrawer is the drawer squeeze
+// the i18n pass saw: a now list narrower than its row needs stacks the
+// count under the title instead of crushing the title to one letter.
+func TestPage_TheNowListsKeepATitleColumnBesideTheDrawer(t *testing.T) {
+	t.Parallel()
+	page, _ := pageText(t)
+	assert.Contains(t, page, ".now > .card { container-type: inline-size; }")
+	assert.Contains(t, page, "@container (max-width: 380px) { .row { grid-template-columns: auto minmax(0, 1fr); } .row .m { grid-column: 2; white-space: normal; } }")
+	assert.NotContains(t, page, "#map-q", "R1-L6: no rule styles the retired map search")
 }
 
 // TestPage_WithoutWebGL2TheControlsHide is the review's L3: without WebGL2
