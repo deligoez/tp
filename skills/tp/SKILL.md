@@ -339,7 +339,8 @@ Two corollaries:
 6. **Dependencies**: types before logic, logic before CLI, CLI before tests
 7. **A change and the test it invalidates belong to the SAME task.** The quality gate runs at every `tp done`, so "a later task fixes that test" is impossible — the earlier close is already red. A dependency graph that separates them looks correct and cannot be executed. Decompose by *what the gate sees*, not by concern.
 8. **A test task's acceptance names its mutant and both counts.** Write the mutant before the assertion, and drop the test if the mutant cannot make it red. The acceptance quotes the fixture and **both** counts — the value at `HEAD` and the value under the mutant — because a mutant paired with the wrong fixture reads exactly like one that works, and the two counts are the only place the difference shows. They are confirmable only once the code lands, which is why they live here and not in the spec.
-9. **Preview before import**: list proposed tasks and ask for confirmation
+9. **`touches` lets a task run beside others** (v1.19.0). Under `run_max_parallel` above 1, `tp run` batches ready tasks whose `touches` — repo-relative path globs of what the task may change — are pairwise disjoint; a task without them always runs alone. Name the files the task's commit will change, as narrowly as you can say them: `internal/engine/lock.go` rather than `internal/`. The pick and the gate are the safety; `touches` is only the schedule, so a wrong one costs a discarded unit, never a broken main branch.
+10. **Preview before import**: list proposed tasks and ask for confirmation
 
 ### source_sections format
 
