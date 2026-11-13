@@ -340,6 +340,39 @@ check_eq "the repair before the move is changed" True \
 	"$(field '["changed_files"] and "src/m.go" in d["changed_files"]')"
 check_eq "the evidence file repaired before the move is not carried" 0 "$(field '["roles"]["go-safety"]["carried"]')"
 
+# Nothing to carry: an epoch (`tp review --rewritten`) placed after the previous
+# round. That round graded a text the spec no longer holds, so its PASS rows are
+# no evidence about the new one, even with every evidence file untouched. An
+# epoch placed before the round cuts nothing.
+mkdir -p spec/.tp-review/e
+printf '# e\n' >spec/e.md
+printf 'package src // e\n' >src/e.go
+id_e=file-go-safety-src-e-go.0000cccc2222dddd
+printf '%s\n' '{"role":"go-safety","status":"PASS","item_id":"'"$id_e"'","evidence_file":"src/e.go","evidence_lines":"1-1","notes":"untouched since the record"}' \
+	>spec/.tp-review/e/audit-round-1.ndjson
+e_state() {
+	printf '{"spec":"spec/e.md","review_rounds":[],"audit_rounds":[{"round":1,"file":"audit-round-1.ndjson"}],"epochs":[{"after_review_round":0,"after_audit_round":%s,"evidence":"rewritten","at":"2026-11-13T00:00:00Z"}]}\n' "$1" \
+		>spec/.tp-review/e/state.json
+}
+e_state 0
+git add -A
+git commit -qm "record audit round 1 of e"
+python3 "$script" spec/e.md --no-build --out "$out" >"$summary" 2>"$out/err.txt"
+check_eq "an epoch before the round run exit code" 0 "$?"
+check_eq "an epoch before the round cuts nothing" 1 "$(field '["roles"]["go-safety"]["carried"]')"
+e_state 1
+python3 "$script" spec/e.md --no-build --out "$out" >"$tmp/out-e.txt" 2>"$tmp/err-e.txt"
+check_eq "an epoch after the previous round exits 2" 2 "$?"
+if [ -s "$tmp/out-e.txt" ]; then
+	fail "the epoch refusal leaves stdout empty" "$(cat "$tmp/out-e.txt")"
+else
+	pass "the epoch refusal leaves stdout empty"
+fi
+case "$(cat "$tmp/err-e.txt")" in
+*'"error": "round-before-epoch"'*) pass "the refusal names the epoch" ;;
+*) fail "the refusal names the epoch" "$(cat "$tmp/err-e.txt")" ;;
+esac
+
 if [ "$failures" != 0 ]; then
 	printf '%s assertion(s) failed\n' "$failures"
 	exit 1
