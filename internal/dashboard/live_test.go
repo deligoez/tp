@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -113,4 +114,33 @@ func TestHub_AClosedStreamReleasesItsSubscription(t *testing.T) {
 	cancel()
 	_ = resp.Body.Close()
 	assert.Eventually(t, func() bool { return subscribers() == 0 }, time.Second, 5*time.Millisecond, "the closed stream left the hub")
+}
+
+// TestDeriveConcurrently_RunsEveryDerivationAtOnceAndKeepsTheirOrder: each
+// derivation waits until all of them have started, which only a concurrent
+// run lets happen, and the payloads come back in the order given, as a late
+// page reads them (the graph's export before the task file list).
+func TestDeriveConcurrently_RunsEveryDerivationAtOnceAndKeepsTheirOrder(t *testing.T) {
+	t.Parallel()
+	var started sync.WaitGroup
+	started.Add(3)
+	derive := func(name string) func() Payload {
+		return func() Payload {
+			started.Done()
+			started.Wait()
+			return Payload{Event: name}
+		}
+	}
+	done := make(chan []Payload, 1)
+	go func() { done <- DeriveConcurrently(derive("a"), derive("b"), derive("c")) }()
+	select {
+	case got := <-done:
+		names := make([]string, 0, len(got))
+		for _, p := range got {
+			names = append(names, p.Event)
+		}
+		assert.Equal(t, []string{"a", "b", "c"}, names)
+	case <-time.After(2 * time.Second):
+		t.Fatal("the derivations did not run at once: each waited on the others")
+	}
 }
