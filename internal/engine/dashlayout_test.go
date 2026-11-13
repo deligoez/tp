@@ -85,3 +85,17 @@ func TestLayeredLayout_BandCycleKeepsTheBandsAroundItInOrder(t *testing.T) {
 	assertEdgesForward(t, got, edges)
 	assert.Equal(t, []LayoutBand{{Name: "M0", From: 0, To: 0}, {Name: "M1", With: []string{"M2"}, From: 1, To: 2}, {Name: "M3", From: 3, To: 3}}, got.Bands)
 }
+
+// TestLayeredLayout_ABandNamedTwiceOrLeftOutIsOneBandInOrder: a band the
+// list names twice is one band, and a band a node names that the list
+// leaves out is appended and laid out in dependency order like the rest,
+// never folded into layer 0.
+func TestLayeredLayout_ABandNamedTwiceOrLeftOutIsOneBandInOrder(t *testing.T) {
+	t.Parallel()
+	edges := []LayoutEdge{{"p", "q"}, {"q", "r"}}
+	bandOf := map[string]string{"p": "M1", "q": "M2", "r": "M3"}
+	got := LayeredLayout([]string{"p", "q", "r"}, edges, []string{"M1", "M2", "M1", "M2"}, bandOf)
+	assertEdgesForward(t, got, edges)
+	assert.Equal(t, []LayoutBand{{Name: "M1", From: 0, To: 0}, {Name: "M2", From: 1, To: 1}, {Name: "M3", From: 2, To: 2}}, got.Bands)
+	assert.Equal(t, 3, got.Layers)
+}
