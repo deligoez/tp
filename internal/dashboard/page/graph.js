@@ -418,6 +418,22 @@
     return G.sets;
   }
 
+  // LABEL_PX is a band label's height on screen and LABEL_CH the width of
+  // one of its characters, an estimate for its 13-pixel bold font.
+  const LABEL_PX = 16;
+  const LABEL_CH = 7.6;
+  // bandLabels is each band's label as this frame draws it: its name and
+  // count, its name alone where that would overlap a label already placed,
+  // or none, placed top to bottom, left to right, in screen pixels at
+  // scale (tpPure.placeLabels).
+  function bandLabels(P, scale) {
+    const order = P.bands.slice().sort((a, b) => a.y0 - b.y0 || a.x0 - b.x0);
+    const full = (b) => b.name + " · " + b.count;
+    const boxes = order.map((b) => ({ x: b.x0 * scale, y: b.y0 * scale - 3 - LABEL_PX, w: full(b).length * LABEL_CH, h: LABEL_PX, sw: b.name.length * LABEL_CH }));
+    const kinds = pure.placeLabels(boxes);
+    return order.map((b, i) => (kinds[i] ? { b, text: kinds[i] === "full" ? full(b) : b.name } : null)).filter(Boolean);
+  }
+
   function render() {
     const P = G.prepared;
     if (!G.deck || !P) return;
@@ -459,7 +475,7 @@
         updateTriggers: { getColor: v },
       }),
       new TextLayer({
-        id: "band-names", data: P.bands, getPosition: (b) => [b.x0 + 2, b.y0], getText: (b) => b.name + " · " + b.count,
+        id: "band-names", data: bandLabels(P, scale), getPosition: (l) => [l.b.x0 + 2, l.b.y0], getText: (l) => l.text,
         getPixelOffset: [0, -3], getSize: 13, sizeUnits: "pixels", getTextAnchor: "start", getAlignmentBaseline: "bottom", getColor: [...c.ink, 230],
         fontFamily: "system-ui, sans-serif", fontWeight: 700, characterSet: P.charSet, fontSettings,
         outlineWidth: 3, outlineColor: [...c.page, 255], updateTriggers: { getColor: v, outlineColor: v },
