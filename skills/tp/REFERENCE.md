@@ -2449,8 +2449,8 @@ The answer is `{view, milestone?, epic?, depth?, layers, packing, columns, bands
 layers; `packing` the `pack` used and `columns` the width in columns; `bands`, for `plan` and
 `scope`, `[{milestone, with?, from_layer, to_layer}]`, each milestone a run of consecutive layers,
 `with` listing the milestones that share the run (below). `nodes` lists each node by layer, then
-column: `{id, layer, order, col}`, `layer` and `order` small integers from 0, `col` its column from
-0, possibly half-way between two, plus, in `plan` the epic's `milestone`, in `scope` `deferrable`
+column: `{id, layer, col}`, `layer` a small integer from 0, `col` a column from 0, fractional
+under `pack=tree`, plus, in `plan` the epic's `milestone`, in `scope` `deferrable`
 (`tp epic scope`'s closure mark; an epic's milestone is in `tp epic export`, its any-of group on
 its edges), in `neighbourhood` the epic's `milestone`, which the view has no band for, and
 `centre: true` on the epic asked for; for a milestone, `epics` and `done` (its work epics and those
@@ -2468,7 +2468,7 @@ layers. Two milestones can depend on each other through different epics while th
 acyclic (an epic of A on one of B, another of B on another of A): no order of the two bands keeps
 every edge pointing forward, so milestones on such a cycle share one band, `with` naming the rest
 after the first in closure order, and its epics' layers come from the longest path over all their
-edges. `order` is each layer's barycenter order, four sweeps, ties broken by graph-file order.
+edges.
 
 The columns come from a forest. Each node takes one primary parent: of the edges into it from an
 earlier layer and from its own track, the one from the deepest layer, the earliest in graph-file
