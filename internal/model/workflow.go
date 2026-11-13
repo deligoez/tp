@@ -36,6 +36,7 @@ type Workflow struct {
 	RunMaxBudgetUSD        float64         `json:"run_max_budget_usd"`
 	RunMaxUnitBudgetUSD    float64         `json:"run_max_unit_budget_usd"`
 	RunMaxUnitRetries      int             `json:"run_max_unit_retries"`
+	RunMaxParallel         int             `json:"run_max_parallel"`
 	Runner                 json.RawMessage `json:"runner,omitempty"`
 	NotifyCmd              string          `json:"notify_cmd,omitempty"`
 }

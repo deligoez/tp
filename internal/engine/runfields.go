@@ -31,6 +31,13 @@ const (
 	RunMaxUnitRetriesMin     = 0
 	RunMaxUnitRetriesMax     = 5
 
+	// run_max_parallel caps how many implement units one batch runs side by
+	// side (spec/backlog/parallel-implement.md §2.2); 1, the default, runs
+	// them one at a time as before.
+	RunMaxParallelDefault = 1
+	RunMaxParallelMin     = 1
+	RunMaxParallelMax     = 8
+
 	// RunnerDefault is the built-in template name the runner field resolves to
 	// when no layer sets it. The field's three shapes are told apart by the
 	// runner resolver, not by this layer.

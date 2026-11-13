@@ -187,6 +187,8 @@ func runSetProjectWorkflow(args []string) error {
 				pc.Workflow.RunMaxWallClockSeconds = &v
 			case "run_max_unit_retries":
 				pc.Workflow.RunMaxUnitRetries = &v
+			case "run_max_parallel":
+				pc.Workflow.RunMaxParallel = &v
 			}
 			updated[field] = val
 		}

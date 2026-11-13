@@ -51,6 +51,7 @@ var fencedCapFields = map[string]bool{
 	"run_max_units":              false,
 	"run_max_wall_clock_seconds": false,
 	"run_max_unit_retries":       false,
+	"run_max_parallel":           false,
 }
 
 // FencedCapField reports whether field is one §5.1 fences by value.
@@ -121,6 +122,8 @@ func ResolvedCapValue(wf *model.Workflow, field string) (float64, bool) {
 		return wf.RunMaxUnitBudgetUSD, true
 	case "run_max_unit_retries":
 		return float64(wf.RunMaxUnitRetries), true
+	case "run_max_parallel":
+		return float64(wf.RunMaxParallel), true
 	}
 	return 0, false
 }

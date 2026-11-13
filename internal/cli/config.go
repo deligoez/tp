@@ -90,6 +90,7 @@ func resolvedConfig(wf *model.Workflow, override *model.WorkflowOverride) map[st
 		"run_max_budget_usd":         vs(wf.RunMaxBudgetUSD, override.RunMaxBudgetUSD != nil, project.RunMaxBudgetUSD != nil),
 		"run_max_unit_budget_usd":    vs(wf.RunMaxUnitBudgetUSD, override.RunMaxUnitBudgetUSD != nil, project.RunMaxUnitBudgetUSD != nil),
 		"run_max_unit_retries":       vs(wf.RunMaxUnitRetries, override.RunMaxUnitRetries != nil, project.RunMaxUnitRetries != nil),
+		"run_max_parallel":           vs(wf.RunMaxParallel, override.RunMaxParallel != nil, project.RunMaxParallel != nil),
 		"runner":                     vs(wf.Runner, override.Runner != nil, project.Runner != nil),
 		"notify_cmd":                 map[string]any{"value": wf.NotifyCmd, "source": notifySource},
 	}}

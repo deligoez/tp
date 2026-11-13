@@ -45,6 +45,7 @@ func clampWorkflowRanges(wo *model.WorkflowOverride) []string {
 	check("run_max_units", &wo.RunMaxUnits, RunMaxUnitsMin, RunMaxUnitsMax)
 	check("run_max_wall_clock_seconds", &wo.RunMaxWallClockSeconds, RunMaxWallClockSecondsMin, RunMaxWallClockSecondsMax)
 	check("run_max_unit_retries", &wo.RunMaxUnitRetries, RunMaxUnitRetriesMin, RunMaxUnitRetriesMax)
+	check("run_max_parallel", &wo.RunMaxParallel, RunMaxParallelMin, RunMaxParallelMax)
 	checkFloat("run_max_budget_usd", &wo.RunMaxBudgetUSD, RunMaxBudgetUSDMin, RunMaxBudgetUSDMax)
 	checkFloat("run_max_unit_budget_usd", &wo.RunMaxUnitBudgetUSD, RunMaxUnitBudgetUSDMin, RunMaxUnitBudgetUSDMax)
 	return warnings
@@ -90,7 +91,7 @@ var knownWorkflowKeys = map[string]bool{
 	"review_converge_on": true, "audit_converge_on": true,
 	"run_max_units": true, "run_max_wall_clock_seconds": true,
 	"run_max_budget_usd": true, "run_max_unit_budget_usd": true,
-	"run_max_unit_retries": true, "runner": true,
+	"run_max_unit_retries": true, "run_max_parallel": true, "runner": true,
 }
 
 // parseWorkflowOverride leniently parses a workflow object: an unknown key or a
@@ -176,6 +177,8 @@ func parseWorkflowOverride(raw json.RawMessage) (wo model.WorkflowOverride, warn
 			wo.RunMaxWallClockSeconds = intField(k, v)
 		case "run_max_unit_retries":
 			wo.RunMaxUnitRetries = intField(k, v)
+		case "run_max_parallel":
+			wo.RunMaxParallel = intField(k, v)
 		case "run_max_budget_usd":
 			wo.RunMaxBudgetUSD = floatField(k, v)
 		case "run_max_unit_budget_usd":

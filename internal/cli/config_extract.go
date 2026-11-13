@@ -80,6 +80,7 @@ func computeCommonPolicy(overrides []model.WorkflowOverride) model.WorkflowOverr
 	common.RunMaxUnits = commonPtr(overrides, func(o *model.WorkflowOverride) *int { return o.RunMaxUnits })
 	common.RunMaxWallClockSeconds = commonPtr(overrides, func(o *model.WorkflowOverride) *int { return o.RunMaxWallClockSeconds })
 	common.RunMaxUnitRetries = commonPtr(overrides, func(o *model.WorkflowOverride) *int { return o.RunMaxUnitRetries })
+	common.RunMaxParallel = commonPtr(overrides, func(o *model.WorkflowOverride) *int { return o.RunMaxParallel })
 	common.RunMaxBudgetUSD = commonPtr(overrides, func(o *model.WorkflowOverride) *float64 { return o.RunMaxBudgetUSD })
 	common.RunMaxUnitBudgetUSD = commonPtr(overrides, func(o *model.WorkflowOverride) *float64 { return o.RunMaxUnitBudgetUSD })
 	if first := overrides[0].Checks; first != nil {
@@ -160,6 +161,9 @@ func hoistedFields(common *model.WorkflowOverride) []string {
 	if common.RunMaxUnitRetries != nil {
 		fields = append(fields, "run_max_unit_retries")
 	}
+	if common.RunMaxParallel != nil {
+		fields = append(fields, "run_max_parallel")
+	}
 	if common.Runner != nil {
 		fields = append(fields, "runner")
 	}
@@ -216,6 +220,9 @@ func mergeCommon(dst, common *model.WorkflowOverride) {
 	}
 	if common.RunMaxUnitRetries != nil {
 		dst.RunMaxUnitRetries = common.RunMaxUnitRetries
+	}
+	if common.RunMaxParallel != nil {
+		dst.RunMaxParallel = common.RunMaxParallel
 	}
 	if common.Runner != nil {
 		dst.Runner = common.Runner

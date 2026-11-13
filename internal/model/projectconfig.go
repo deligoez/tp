@@ -91,6 +91,7 @@ type WorkflowOverride struct {
 	RunMaxBudgetUSD        *float64        `json:"run_max_budget_usd,omitempty"`
 	RunMaxUnitBudgetUSD    *float64        `json:"run_max_unit_budget_usd,omitempty"`
 	RunMaxUnitRetries      *int            `json:"run_max_unit_retries,omitempty"`
+	RunMaxParallel         *int            `json:"run_max_parallel,omitempty"`
 	Runner                 json.RawMessage `json:"runner,omitempty"`
 }
 
@@ -113,5 +114,6 @@ func (o *WorkflowOverride) IsEmpty() bool {
 		o.RunMaxBudgetUSD == nil &&
 		o.RunMaxUnitBudgetUSD == nil &&
 		o.RunMaxUnitRetries == nil &&
+		o.RunMaxParallel == nil &&
 		o.Runner == nil
 }

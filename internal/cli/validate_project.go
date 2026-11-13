@@ -46,6 +46,7 @@ func workflowDeviations(file string, override, project *model.WorkflowOverride) 
 	cmpInt("run_max_units", override.RunMaxUnits, project.RunMaxUnits)
 	cmpInt("run_max_wall_clock_seconds", override.RunMaxWallClockSeconds, project.RunMaxWallClockSeconds)
 	cmpInt("run_max_unit_retries", override.RunMaxUnitRetries, project.RunMaxUnitRetries)
+	cmpInt("run_max_parallel", override.RunMaxParallel, project.RunMaxParallel)
 	cmpFloat("run_max_budget_usd", override.RunMaxBudgetUSD, project.RunMaxBudgetUSD)
 	cmpFloat("run_max_unit_budget_usd", override.RunMaxUnitBudgetUSD, project.RunMaxUnitBudgetUSD)
 	if override.QualityGate != nil && project.QualityGate != nil && *override.QualityGate != *project.QualityGate {
