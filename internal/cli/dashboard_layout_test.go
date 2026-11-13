@@ -53,7 +53,8 @@ func TestDashboard_LayoutRefusesAnythingButAClosedView(t *testing.T) {
 func TestDashboard_LayoutClampsTheNeighbourhoodDepth(t *testing.T) {
 	t.Parallel()
 	srv := startDashboard(t, epicGraphDir(t, layoutGraph), freePort(t))
-	for query, want := range map[string]string{"": `"depth": 2`, "&depth=0": `"depth": 1`, "&depth=-3": `"depth": 1`, "&depth=99": `"depth": 4`, "&depth=3": `"depth": 3`} {
+	for query, want := range map[string]string{"": `"depth": 2`, "&depth=0": `"depth": 1`, "&depth=-3": `"depth": 1`, "&depth=99": `"depth": 4`, "&depth=3": `"depth": 3`,
+		"&depth=99999999999999999999": `"depth": 4`, "&depth=-99999999999999999999": `"depth": 1`} {
 		status, body := getPage(t, strings.TrimSuffix(srv.url, "/")+"/api/layout?view=neighbourhood&epic=r2"+query)
 		require.Equal(t, http.StatusOK, status, body)
 		assert.Contains(t, body, want, query)
