@@ -91,3 +91,16 @@ func TestSpecStaleBlocker_AtTheCapAfterTheRecordNamesTheRecordAlone(t *testing.T
 	assert.Equal(t, EscalateDiscardEmission, b.Data["operator"].(map[string]any)["decision"])
 	assert.Contains(t, b.Message, "3-round cap")
 }
+
+// TestSpecStaleBlocker_TheCapIsCountedAtItsEdge: a record that leaves one
+// round under the cap keeps the emission after it as the agent's command, and
+// a cap of one round is a cap like any other.
+func TestSpecStaleBlocker_TheCapIsCountedAtItsEdge(t *testing.T) {
+	t.Parallel()
+	under := builtSpecStale(t, &BlockerInputs{ReviewRounds: 1, ReviewMaxRounds: 3, ReviewInFlightRound: 2, ReviewInFlightOverOldText: true})
+	assert.Equal(t, []string{"tp review spec.md --record <file>", "tp review spec.md", "tp review spec.md --record <file>"},
+		under.Data["commands"])
+	one := builtSpecStale(t, &BlockerInputs{ReviewRounds: 1, ReviewMaxRounds: 1})
+	assert.Equal(t, []string{}, one.Data["commands"])
+	assert.Equal(t, EscalateRaiseReviewCap, one.Data["operator"].(map[string]any)["decision"])
+}
