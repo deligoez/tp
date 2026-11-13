@@ -234,7 +234,7 @@ func milestonesLayout(g *model.EpicGraph, states map[string]engine.EpicState, pa
 	}
 	inbound := milestoneInbound(g)
 	gates := engine.MilestoneGates(g, states)
-	out := layoutOf(layoutViewMilestones, ids, edges, nil, nil, milestoneTracks(g), nil, pack)
+	out := layoutOf(layoutViewMilestones, ids, edges, nil, nil, nil, milestoneTracks(g), nil, pack)
 	for i := range out.Nodes {
 		m := out.Nodes[i].ID
 		f := engine.WorkFigures(g, states, nil, m)
@@ -280,7 +280,7 @@ func scopeLayout(g *model.EpicGraph, states map[string]engine.EpicState, milesto
 		}
 	}
 	ids, edges := epicEdges(g, in, scope.CriticalPath.ByCount)
-	out := layoutOf(layoutViewScope, ids, edges, bands, bandOf, trackGroups(g), milestoneTracks(g), pack)
+	out := layoutOf(layoutViewScope, ids, edges, scope.CriticalPath.ByCount, bands, bandOf, trackGroups(g), milestoneTracks(g), pack)
 	out.Milestone = milestone
 	for i := range out.Nodes {
 		out.Nodes[i].Deferrable = marks[out.Nodes[i].ID].Deferrable
@@ -306,8 +306,9 @@ func neighbourhoodLayout(g *model.EpicGraph, states map[string]engine.EpicState,
 	in := map[string]bool{epic: true}
 	walkSteps(epic, deps, depth, in)
 	walkSteps(epic, dependents, depth, in)
-	ids, edges := epicEdges(g, in, engine.GraphCriticalPath(g, states))
-	out := layoutOf(layoutViewNeighbourhood, ids, edges, nil, nil, nil, nil, pack)
+	path := engine.GraphCriticalPath(g, states)
+	ids, edges := epicEdges(g, in, path)
+	out := layoutOf(layoutViewNeighbourhood, ids, edges, path, nil, nil, nil, nil, pack)
 	out.Epic, out.Depth = epic, depth
 	for i := range out.Nodes {
 		n := &out.Nodes[i]
@@ -364,15 +365,22 @@ func epicEdges(g *model.EpicGraph, in map[string]bool, path []string) ([]string,
 }
 
 // layoutOf lays ids and edges out, bands, bandOf, groupOf, laneOf and pack
-// as engine.ForestLayout takes them, and lists the
-// nodes by layer, then column, then graph order, each with its layer and
-// forest column, each edge with its role.
-func layoutOf(view string, ids []string, edges []layoutEdge, bands []string, bandOf, groupOf, laneOf map[string]string, pack engine.ForestPacking) dashboardLayout {
+// as engine.ForestLayout takes them, the edges between two consecutive
+// epics of path preferred as primary parents, and lists the nodes by
+// layer, then column, then graph order, each with its layer and forest
+// column, each edge with its role.
+func layoutOf(view string, ids []string, edges []layoutEdge, path []string, bands []string, bandOf, groupOf, laneOf map[string]string, pack engine.ForestPacking) dashboardLayout {
 	in := make([]engine.LayoutEdge, len(edges))
+	onPath := make([]bool, len(edges))
+	next := map[string]string{}
+	for i := 1; i < len(path); i++ {
+		next[path[i-1]] = path[i]
+	}
 	for i, e := range edges {
 		in[i] = engine.LayoutEdge{From: e.From, To: e.To}
+		onPath[i] = next[e.From] == e.To
 	}
-	f := engine.ForestLayout(&engine.ForestInput{IDs: ids, Edges: in, Bands: bands, BandOf: bandOf, GroupOf: groupOf, LaneOf: laneOf, Pack: pack})
+	f := engine.ForestLayout(&engine.ForestInput{IDs: ids, Edges: in, Bands: bands, BandOf: bandOf, GroupOf: groupOf, LaneOf: laneOf, OnPath: onPath, Pack: pack})
 	out := dashboardLayout{View: view, Layers: f.Layers, Packing: string(pack), Columns: f.Columns, Bands: f.Bands, Nodes: make([]layoutNode, 0, len(ids)), Edges: edges}
 	if out.Edges == nil {
 		out.Edges = []layoutEdge{}
@@ -397,8 +405,12 @@ func planLayout(g *model.EpicGraph, states map[string]engine.EpicState, pack eng
 	for i := range g.Epics {
 		in[g.Epics[i].ID], bandOf[g.Epics[i].ID] = true, g.Epics[i].Milestone
 	}
+	// The columns follow the critical path the graph has with every epic
+	// open, which no status changes, so finishing an epic never moves a
+	// node; the marks are the live path's.
+	whole := engine.GraphCriticalPath(g, map[string]engine.EpicState{})
 	ids, edges := epicEdges(g, in, engine.GraphCriticalPath(g, states))
-	out := layoutOf(layoutViewPlan, ids, edges, trackedMilestones(g), bandOf, trackGroups(g), milestoneTracks(g), pack)
+	out := layoutOf(layoutViewPlan, ids, edges, whole, trackedMilestones(g), bandOf, trackGroups(g), milestoneTracks(g), pack)
 	for i := range out.Nodes {
 		out.Nodes[i].Milestone = bandOf[out.Nodes[i].ID]
 	}
