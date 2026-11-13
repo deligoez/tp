@@ -80,6 +80,11 @@ type ReviewState struct {
 	Spec         string        `json:"spec"`
 	ReviewRounds []ReviewRound `json:"review_rounds"`
 	AuditRounds  []ReviewRound `json:"audit_rounds"`
+	// Epochs marks where a rewritten spec's new text begins (tp review
+	// --rewritten): rounds recorded before the newest one stop feeding the
+	// lists of earlier findings an emission carries. Omitted while empty, so a
+	// state.json recorded before epochs existed is written back unchanged.
+	Epochs []Epoch `json:"epochs,omitempty"`
 }
 
 // StateCorruptError marks an unusable state directory. Callers abort with
