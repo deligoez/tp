@@ -79,8 +79,10 @@ A fix that turns out to need a design choice stops and becomes a decision. Repai
 its first round delete or narrow; they do not add requirements.
 
 Open work is `BUGS.md` (the fix track, and entries awaiting an operator decision); the decision
-candidates in `spec/backlog/` are worked through. The audit's file list covering what changed shipped
-in v1.15.0 (`spec/backlog/checklist-covers-what-changed.md`, `spec/1.15.0-measurements.md`), a
+candidates in `spec/backlog/` are worked through. A carried blocking review row holding convergence
+open shipped in v1.16.0 (`spec/backlog/carried-rows-block.md`, `spec/1.16.0-measurements.md`), the
+audit's file list covering what changed in v1.15.0 (`spec/backlog/checklist-covers-what-changed.md`,
+`spec/1.15.0-measurements.md`), a
 rewritten spec starting an epoch in v1.14.0 (`spec/backlog/reconcile.md`,
 `spec/1.14.0-measurements.md`), the dashboard at a real plan's size in v1.13.0 and its field fixes in
 v1.14.2 (`spec/backlog/dashboard-ux.md`,
