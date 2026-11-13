@@ -1005,3 +1005,20 @@ func TestPage_HasAFaviconFromTheEmbed(t *testing.T) {
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Contains(t, resp.Header.Get("Content-Type"), "image/svg+xml")
 }
+
+// TestPure_TheAddressStaysOnThePagesOriginUnderADoubledSlash: at
+// http://127.0.0.1:7377// the address syncURL writes resolves on the page's
+// own origin and keeps its path and query, where "//#…" names another
+// origin and history.replaceState throws a SecurityError.
+func TestPure_TheAddressStaysOnThePagesOriginUnderADoubledSlash(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out(["http://127.0.0.1:7377//?x=1", "http://127.0.0.1:7377/"].map((base) => {
+  try {
+    const u = new URL(P.addressURL("tab=epics"), base);
+    return [u.origin, u.pathname + u.search + u.hash];
+  } catch (err) {
+    return [String(err.message)];
+  }
+}));`)
+	assert.JSONEq(t, `[["http://127.0.0.1:7377", "//?x=1#tab=epics"], ["http://127.0.0.1:7377", "/#tab=epics"]]`, got)
+}
