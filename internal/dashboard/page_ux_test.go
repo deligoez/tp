@@ -789,6 +789,24 @@ out([
 		"<h3>B</h3><dl><dt>Gate</dt><dd>open; 0 of 0 members done</dd><dt>Threshold</dt><dd>threshold written: from export</dd><dt>Purpose</dt><dd>none written</dd><dt>Described</dt><dd>0 of 2 epics described</dd></dl>"]`, got)
 }
 
+// TestPure_TheCardAndTheDrawerReadOneThreshold: a card's threshold line
+// and the drawer read the threshold text from one place, the export's
+// m.gate, else the graph's gate, so a written threshold the export omits
+// still shows its words on the card (1.15.1 review).
+func TestPure_TheCardAndTheDrawerReadOneThreshold(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const L = { written: "threshold written", absent: "no threshold", placeholder: "placeholder threshold", met: "threshold met" };
+out([
+  P.thresholdLine({ state: { threshold: "written" } }, { threshold: " graph text " }, L),
+  P.thresholdLine({ state: { threshold: "written" }, gate: { threshold: "export" } }, { threshold: "graph" }, L),
+  P.thresholdLine({ state: { threshold: "met" } }, { threshold: "x" }, L),
+  P.thresholdLine({ state: {} }, {}, L),
+  P.thresholdOf({ gate: { threshold: "export" } }, { threshold: "graph" }),
+  P.thresholdOf({}, undefined),
+]);`)
+	assert.JSONEq(t, `["threshold: graph text", "threshold: export", "threshold met", "no threshold", "export", ""]`, got)
+}
+
 // TestPure_AToggleKeepsItsKeyAcrossARedraw: a milestone card, a Waiting
 // section's header and a section's Show all each have a key read from
 // their data attribute, and the key gives that attribute and value back,
