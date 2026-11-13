@@ -42,3 +42,26 @@ out([count({ showCross: true, hidden: [] }), count({ showCross: false, hidden: [
 	assert.JSONEq(t, `[[1, 2, 2, 2, 7], [0, 1, 2, 2, 5]]`, got)
 }
 
+// TestPure_TheGraphsPlaceRoundTripsThroughTheAddress: the card's mode, gate
+// milestone, depth, packing, cross-edge toggle and search go into the
+// address as gv, gm, gd, pack, cross and q, each only when it is not the
+// default, and read back to the same place; a value outside its set reads
+// as the default.
+func TestPure_TheGraphsPlaceRoundTripsThroughTheAddress(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const s = { mode: "scope", milestone: "A3", depth: 3, pack: "tree", showCross: true, q: "cache" };
+const p = new URLSearchParams(P.graphParams(s));
+out([
+  p.toString(),
+  P.graphPlace((k) => p.get(k)),
+  P.graphParams({ mode: "plan", milestone: "A3", depth: 2, pack: "rows", showCross: false, q: "" }),
+  P.graphPlace((k) => ({ gv: "map", gd: "9", pack: "wide", cross: "yes" })[k] || null),
+]);`)
+	assert.JSONEq(t, `[
+		"gv=scope&gm=A3&gd=3&pack=tree&cross=1&q=cache",
+		{"mode": "scope", "milestone": "A3", "depth": 3, "pack": "tree", "showCross": true, "q": "cache"},
+		[],
+		{"mode": "plan", "milestone": null, "depth": 2, "pack": "rows", "showCross": false, "q": ""}
+	]`, got)
+}
+
