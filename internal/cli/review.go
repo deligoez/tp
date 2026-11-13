@@ -429,7 +429,7 @@ Modes (mutually exclusive):
 					os.Exit(ExitUsage)
 					return nil
 				}
-				return runReviewRewritten(engine.ResolveSpecArg(args[0]), rewrittenEvidence, forceFlag, noState)
+				return runReviewRewritten(engine.ResolveSpecArg(args[0]), rewrittenEvidence, forceFlag, noState, docsPath != "" || testPath != "")
 			default:
 				// "status" is the only value that reaches here: detectReviewMode
 				// returns one of the eight mode names, and the two remaining

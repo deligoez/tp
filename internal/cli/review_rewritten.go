@@ -34,9 +34,12 @@ func (r *rewrittenRefusal) Error() string { return r.msg }
 // the epoch keeps it if it read the current text; and an epoch whose position
 // in both phases equals the newest epoch's, since no round over an older text
 // is left uncut (exit 2).
-func runReviewRewritten(specPath, evidence string, force, noState bool) error {
-	if force || noState {
-		output.Error(ExitUsage, "--rewritten cannot be combined with --force or --no-state",
+//
+// dirFlags is whether --docs-path or --test-path was given: they feed a
+// perspective prompt, which --rewritten does not emit.
+func runReviewRewritten(specPath, evidence string, force, noState, dirFlags bool) error {
+	if force || noState || dirFlags {
+		output.Error(ExitUsage, "--rewritten cannot be combined with --force, --no-state, --docs-path or --test-path",
 			`--rewritten writes only the epoch: tp review <spec> --rewritten "<evidence>"`)
 		os.Exit(ExitUsage)
 		return nil
