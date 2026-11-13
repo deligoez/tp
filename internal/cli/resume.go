@@ -192,6 +192,9 @@ func resumeJSON(r *engine.ResumeResult, compact bool) map[string]any {
 	if r.Guidance != "" {
 		out["guidance"] = r.Guidance
 	}
+	if len(r.PendingCloses) > 0 {
+		out["pending_closes"] = r.PendingCloses
+	}
 	return out
 }
 

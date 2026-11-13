@@ -97,6 +97,18 @@ func pendingCloseIDs(taskFile string) []string {
 	return ids
 }
 
+// pendingCloseAction is tp resume's next action while pending closes wait:
+// their commits are finished work, so the next step integrates them rather
+// than resuming the wip task they belong to.
+func pendingCloseAction(ids []string) NextAction {
+	command := "tp run"
+	return NextAction{
+		Command: &command,
+		Summary: fmt.Sprintf("integrate the finished work of %s: tp run picks it onto the main branch and closes it before anything else", strings.Join(ids, ", ")),
+		Payload: map[string]any{"pending_closes": ids},
+	}
+}
+
 // HasPendingClose reports whether the cycle holds a pending close for id.
 func HasPendingClose(root, taskFile, id string) bool {
 	return fileExists(pendingClosePath(root, taskFile, id))

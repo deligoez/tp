@@ -104,7 +104,7 @@ func AssembleResume(start, taskFilePath, specPath string, tf *model.TaskFile) (R
 	}
 	batchBriefs(nextUnits)
 
-	return ResumeResult{
+	res := ResumeResult{
 		Phase:       phase,
 		Spec:        shown,
 		Changes:     changes,
@@ -121,7 +121,11 @@ func AssembleResume(start, taskFilePath, specPath string, tf *model.TaskFile) (R
 		Blockers:      blockers,
 		PendingCloses: pendingCloseIDs(taskFilePath),
 		EpicNotice:    epicNotice,
-	}, nil
+	}
+	if len(res.PendingCloses) > 0 {
+		res.NextAction = pendingCloseAction(res.PendingCloses)
+	}
+	return res, nil
 }
 
 // resumeLoops is what tp resume reads a task file's phase from: its review
