@@ -2292,7 +2292,8 @@ a parameter the view does not take, a parameter given twice, a missing or empty 
 `epic`, or a `depth` that is not an integer answer 400 with code 2. `milestone` and `epic` are
 looked up among the milestones a track lists and the graph's epic ids, never built into a path, and
 one the graph does not hold answers 404 with code 4. `depth` is clamped to 1-4, an integer of any
-size included. A graph that cannot be read answers as `tp epic export` exits.
+size included. An error echoes a value of the query cut to its first 80 characters. A graph that
+cannot be read answers as `tp epic export` exits.
 
 The answer is `{view, milestone?, epic?, depth?, layers, bands?, nodes, edges}`: `milestone` for
 `scope`, `epic` and the clamped `depth` for `neighbourhood`; `layers` the number of layers;
