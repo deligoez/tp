@@ -1313,7 +1313,6 @@
   // specs, its own stepper and its graph history, fetched from
   // /api/epic-history when it opens and again on every push.
   const epicHist = { id: null, data: null, error: null, seq: 0 };
-  INFO.chain = "The selected epic's chain from the graph: every epic it depends on, transitively, and every epic that depends on it, each edge with the why the graph gives for it. A dashed group is an any-of group: one of its members is enough.";
   INFO.matrix = "Row depends on column: each number counts the dependency edges from the row milestone's epics to the column's, each member of an any-of group one, and its colour says how many of those dependencies are done. The diagonal is the milestone's own share of work epics done. From the summary's matrix and the export's milestones.";
   INFO.drawer = "One epic from tp epic export and the graph: its fields, what it depends on and what depends on it with the whys, downstream (the not-done work epics that wait on it), the specs bound to it with their phase and loops, its stepper (claimed, with who claimed it, or skipped when it was bound unclaimed; bound; done), and its graph history from tp epic review --history --of-epic.";
   const ESTEPS = [["claimed", "Claimed"], ["bound", "Bound"], ["done", "Done"]];
