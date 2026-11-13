@@ -322,3 +322,14 @@ func TestPage_PlanReviewNamesASetSliceByItsName(t *testing.T) {
 	assert.Contains(t, script, `"set " + k.name`)
 	assert.Contains(t, script, "esc(sliceTitle(s))")
 }
+
+// TestPage_PlanReviewStacksIntoCardsOnAPhone: on a narrow screen each slice
+// row becomes a card, each cell labelled by its column, instead of a table
+// scrolled sideways.
+func TestPage_PlanReviewStacksIntoCardsOnAPhone(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	assert.Contains(t, page, "#slices .loops tr { display: grid;")
+	assert.Contains(t, page, "#slices .loops td[data-l]::before { content: attr(data-l)")
+	assert.Contains(t, script, `<td data-l="State">`)
+}
