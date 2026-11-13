@@ -838,6 +838,19 @@ out(steps);`)
 		[null, "e1", false], [null, null, false], [null, "e2", false], [null, null, false]]`, got)
 }
 
+// TestPage_TheDrawerFollowsItsReducer: the page moves the drawer only by
+// tpPure.drawerNext, drops a milestone the export no longer carries before
+// drawing, so a later push cannot reopen it and take focus, and marks the
+// cards expanded by tpPure.cardExpanded (1.15.1 review).
+func TestPage_TheDrawerFollowsItsReducer(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, s := range []string{"tpPure.drawerNext(", `moveDrawer({ type: "present", milestones: `, `moveDrawer({ type: "epic", id });`, `moveDrawer({ type: "milestone", id });`, "tpPure.cardExpanded(drawerState(), b.dataset.ms)"} {
+		assert.Contains(t, script, s)
+	}
+	assert.NotContains(t, script, "b.dataset.ms === msd.milestone")
+}
+
 // TestPure_AToggleKeepsItsKeyAcrossARedraw: a milestone card, a Waiting
 // section's header and a section's Show all each have a key read from
 // their data attribute, and the key gives that attribute and value back,
