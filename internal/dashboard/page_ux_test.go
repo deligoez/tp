@@ -1,10 +1,12 @@
 package dashboard_test
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -234,4 +236,28 @@ func TestPure_AScopedViewOpensWholeWhenItFits(t *testing.T) {
 	got := runPure(t, `const r = (v) => Object.fromEntries(Object.entries(v).map(([k, x]) => [k, Math.round(x * 100) / 100]));
 out([r(P.containView(200, 100, 400, 400)), r(P.containView(2000, 500, 400, 400))]);`)
 	assert.JSONEq(t, `[{"x": -33.33, "y": -83.33, "w": 266.67, "h": 266.67}, {"x": -8, "y": -8, "w": 400, "h": 400}]`, got)
+}
+
+// TestPage_DrawsTheThreeScopedViewsFromTheLayoutEndpoint is the scoped
+// views at the page (spec/backlog/dashboard-ux.md §2): the Dependencies card
+// switches between the milestones, a gate's closure and an epic's
+// neighbourhood, each fetched from /api/layout and placed from its layers and
+// orders alone; it draws the bands, the critical path, any-of forks and the
+// neighbourhood's centre, can go full screen, keeps the chain as a
+// collapsible text view, and keeps its view, milestone and depth in the
+// address.
+func TestPage_DrawsTheThreeScopedViewsFromTheLayoutEndpoint(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	for _, s := range []string{`id="gsvg"`, `data-gv="milestones"`, `data-gv="scope"`, `data-gv="neighbourhood"`, `id="chaintext"`, `data-fs="chaincard"`} {
+		assert.Contains(t, page, s)
+	}
+	for _, s := range []string{`"/api/layout?"`, "tpPure.placeLayout(", "tpPure.containView", ".bands", ".critical", ".any_of", ".centre", ".inbound"} {
+		assert.Contains(t, script, s)
+	}
+	m := regexp.MustCompile(`const URL_KEYS = (\[.*\]);`).FindStringSubmatch(script)
+	require.NotNil(t, m)
+	var urlKeys []string
+	require.NoError(t, json.Unmarshal([]byte(m[1]), &urlKeys))
+	assert.Subset(t, urlKeys, []string{"gv", "gm", "gd"})
 }
