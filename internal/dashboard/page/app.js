@@ -437,7 +437,7 @@
     if (deferred) parts.push(plural(deferred, "deferrable gate member", "deferrable gate members") + " left out");
     const shown = waitView.all ? w.groups : w.groups.slice(0, WAIT_SHOWN);
     const group = (gr, i) => '<div class="wgroup" data-wg="' + i + '"><div class="wh">' + (gr.blocker ? epicLink(gr.blocker) : '<span class="muted">one of</span> ' + gr.any_of.map(epicLink).join(", ")) +
-      '<span class="bst" data-b="' + esc(gr.state) + '">' + esc(BLOCKER_LABEL[gr.state]) + '</span><span class="wn num">' + esc(plural(gr.epics.length, "waits", "wait")) + " on it</span></div>" +
+      '<span class="bst" data-b="' + esc(gr.state) + '">' + esc(BLOCKER_LABEL[gr.state]) + '</span><span class="wn num" title="epics of open milestones that wait on it directly">' + esc(plural(gr.epics.length, "waits", "wait")) + " on it here</span></div>" +
       '<div class="wids">' + gr.epics.map(epicLink).join(" ") + "</div></div>";
     return '<p class="wsum"><b class="num">' + esc(plural(blocked, "blocked epic", "blocked epics")) + "</b>: " + esc(parts.join("; ")) + ".</p>" +
       shown.map(group).join("") +
