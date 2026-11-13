@@ -23,7 +23,7 @@ func TestGradeAuditRoles_CountsDistinctFileChecksOfAnyVerdict(t *testing.T) {
 		{"role": "security", "item_id": "list-2-3", "status": "PASS"},
 		{"role": "spec-coverage", "item_id": "file-security-d-go.0000000000000004", "status": "PASS"},
 	}
-	assert.Equal(t, []RoleGraded{{Role: "security", Graded: 3, Of: 14}, {Role: "quality", Graded: 0, Of: 14}},
+	assert.Equal(t, []RoleGraded{{Role: "security", Graded: 3, Pool: 14}, {Role: "quality", Graded: 0, Pool: 14}},
 		GradeAuditRoles(pools, rows), "pool order, and a role that returned nothing graded 0")
 }
 

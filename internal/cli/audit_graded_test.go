@@ -54,8 +54,8 @@ func TestAuditGraded_RecordStatusAndNextActionSayNOfM(t *testing.T) {
 	var rec map[string]any
 	require.NoError(t, json.Unmarshal([]byte(stdout), &rec))
 	want := []any{
-		map[string]any{"role": "security", "graded": float64(4), "of": float64(14)},
-		map[string]any{"role": "maintainability-conventions", "graded": float64(0), "of": float64(14)},
+		map[string]any{"role": "security", "graded": float64(4), "pool": float64(14)},
+		map[string]any{"role": "maintainability-conventions", "graded": float64(0), "pool": float64(14)},
 	}
 	assert.Equal(t, want, rec["graded"], "--record reports graded N of M per code role")
 	assert.Contains(t, rec["next_action"], "(latest round graded security 4 of 14, maintainability-conventions 0 of 14)")
@@ -64,7 +64,7 @@ func TestAuditGraded_RecordStatusAndNextActionSayNOfM(t *testing.T) {
 	st, err := engine.LoadReviewState(specPath)
 	require.NoError(t, err)
 	require.Len(t, st.AuditRounds, 1)
-	assert.Equal(t, []engine.RoleGraded{{Role: "security", Graded: 4, Of: 14}, {Role: "maintainability-conventions", Graded: 0, Of: 14}},
+	assert.Equal(t, []engine.RoleGraded{{Role: "security", Graded: 4, Pool: 14}, {Role: "maintainability-conventions", Graded: 0, Pool: 14}},
 		st.AuditRounds[0].Graded, "the counts land in the round's entry in state.json")
 
 	stdout, stderr, code = runTP(t, dir, "audit", specPath, "--status", "--compact")
