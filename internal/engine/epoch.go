@@ -31,6 +31,34 @@ func EpochCut(st *ReviewState, phase string) int {
 	return newest.AfterReviewRound
 }
 
+// EpochPosition returns where an epoch started now sits in phase: after the
+// last recorded round that read an older text than specHash, so the rounds
+// over the current text stay uncut. A round reads the current text only when
+// its hash is of its own emission snapshot and equals specHash; an unmarked or
+// no-emission round's reading cannot be established and counts as older. The
+// position never moves backwards: the newest epoch's position is its floor,
+// so a result equal to EpochCut means the epoch would cut nothing new.
+//
+// A spec reverted to an earlier text cuts the rounds that read that text the
+// first time as well, since the position is one number per phase; the result
+// errs toward more review, as everything an epoch cuts does.
+func EpochPosition(st *ReviewState, phase, specHash string) int {
+	pos := EpochCut(st, phase)
+	if st == nil {
+		return pos
+	}
+	rounds := st.ReviewRounds
+	if phase == PhaseAudit {
+		rounds = st.AuditRounds
+	}
+	for i := len(rounds) - 1; i >= 0; i-- {
+		if rounds[i].HashScheme != HashSchemeSnapshot || rounds[i].SpecHash != specHash {
+			return max(pos, rounds[i].Round)
+		}
+	}
+	return pos
+}
+
 // RoundsSinceEpoch returns the recorded rounds of phase after the newest epoch,
 // in recorded order: the rounds whose findings an emission may still carry.
 // Every recorded round when there is no epoch.
