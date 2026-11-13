@@ -681,7 +681,7 @@ tp owns the review/audit round lifecycle in `<spec-dir>/.tp-review/<spec-base>/`
 | `snapshot-ground-round-<N>.md` | Byte copy of the spec at ground round N emission |
 | `floor-ground-round-<N>.txt` | The floor index that emission derived from that snapshot |
 | `ground-round-<N>.ndjson` | Recorded ground round N dispositions |
-| `audit-inbox/round-<N>.pools.json` | Each code role's file pool at audit round N emission, removed at `--record` (v1.15.0) |
+| `audit-inbox/round-<N>.pools.json` | Each code role's file pool and listed `file_check` ids at audit round N emission, removed at `--record` (v1.15.0) |
 
 Each round entry is `{round, findings, clean, recorded_at, file, spec_hash, hash_scheme}`, and an audit round recorded after its emission adds `graded` (v1.15.0, see the Audit JSON Schema). `spec_hash` is `sha256:<hex>` of the text the round read and powers the staleness rule; `hash_scheme` names which text that is — `snapshot`, the round's own emission snapshot, or `no-emission`, no snapshot on disk at record time, so the hash is of the spec file and names text no prompt read. Both markers are written from v1.2.2; a round recorded before them carries none and keeps the meaning it was written with, the spec as it stood at record time. Staleness compares the current spec against the last recorded round that read text, skipping `no-emission` rounds; where no round of the phase ever read text the spec is stale whatever it holds, since a record clears staleness only through the snapshot of its own emission. Such a `--record` is still accepted, and says on stderr why `spec-stale` stays and that `tp <phase> <spec>` emits the round that binds to the text. An unmarked round from before v1.2.2 counts as one that read text, so a history converged before the markers stays as it was. tp writes `snapshot-round-<N>.md` **atomically** (write to a `.tmp` then rename) when round N begins (prompt emission) and `review-round-<N>.ndjson`/`audit-round-<N>.ndjson` when the round is recorded; a snapshot with no round file means a round was started and never recorded, and `--status` reports it as `in_flight_round: N` (`tp resume` then points at `{action:"record-round", round:N}`). Re-emitting an unrecorded round is idempotent while the spec is unchanged; if the spec changed since the emission, `tp ground`, `tp review` and `tp audit` exit 3 naming the round and the files they would overwrite, and `--force` discards the emission (exit 2 under `TP_UNATTENDED`). A refused `--role` writes nothing to the state directory. A snapshot that is present but unreadable aborts `--record` with exit 3, naming the round, the snapshot path and the way out: remove or repair it, then re-emit the round and record its findings — the recorded hash is that snapshot's, so tp does not guess the spec file in its place. A directory holding round files with no `state.json` aborts state-reading commands with exit 3 and a `repair or delete <path>` hint — that index referenced recorded history, and tp never rebuilds over it. A directory holding only snapshots is the in-flight window between emitting a round and recording it: nothing was ever recorded there, so the next `--record` rebuilds the index rather than refusing.
 
@@ -872,35 +872,48 @@ on a rune boundary, the prompt's marker names the same counts, and the key survi
   `secret` or `perm` first, then the rest, each group by churn — lines added plus deleted over the
   audit's own ranges, descending, ties by path. The churn is read with `-c diff.external=
   --no-ext-diff --numstat -M -z`, so a renamed file ranks by its own edit under its new path; a
-  file with no measured diff, a binary's `-` included, comes last in path order. `CodeFileCap`
-  (10) then cuts the list; spec-coverage keeps its own order and `AuditFileCap` (20).
+  file with no measured diff, a binary's `-` included, comes last in path order. Every path list the
+  audit reads from git is NUL-separated (`-z`), so a path git would C-quote under `core.quotePath`
+  (non-ASCII, a tab) matches its churn. `CodeFileCap` (10) then cuts the list; spec-coverage keeps
+  its own order and `AuditFileCap` (20).
 - **A named list is not cut.** When `--affected-files` or `--affected-from-tasks` replaced the
   universe, every code role gets the whole list, and its prompt's heading reads
   `## Affected Files (all <n> named)`. The other headings stay: `(max <cap>)` when nothing was cut,
   `(<n> of <pool>)` when the cap bit.
 - **`prompts[].file_count` and `prompts[].file_pool`.** How many files the prompt lists and how
-  many its list was cut from; equal when nothing was cut. Both survive `--compact`, which drops
-  `affected_files`, so a long named list shows its cost before fan-out.
-- **`notices`.** Every cut and universe notice the emission printed on stderr, repeated as
-  `[{kind, message, files?}]` and omitted when there are none. It survives `--compact` and
-  `--quiet`. The kinds:
+  many its list was cut from; equal when nothing was cut. The pool is counted after the 50-file
+  auto-detect cap, which the `auto-detect-cap` notice reports on its own. Both survive `--compact`,
+  which drops `affected_files`, so a long named list shows its cost before fan-out.
+- **`notices`.** Every cut and universe notice of the round, repeated from stderr as
+  `[{kind, message, files?, …}]` and omitted when there are none. It survives `--compact` and
+  `--quiet`, and it is taken from the round's prompts before `--role`, so every sibling unit carries
+  the same cuts, as `file_summary.truncated` does. The kinds are a closed set:
+  - `auto-detect-cap`: auto-detection kept the first 50 of the changed files; `total_changed` is
+    the pre-cap count.
   - `code-files-cut`: the code roles' list is cut below the auto-detect cap.
   - `spec-coverage-files-cut`: spec-coverage's own list is cut at 20.
-  - `merge-only-files`: under auto-detection, a file is in `<rev>...HEAD` but no first-parent,
-    non-merge commit of `<rev>..HEAD` changed it, and the working tree has not changed it either,
-    so `git log --first-parent` sees fewer files than the audit. `files` names them all; stderr names
-    five.
+  - `merge-only-files`: under auto-detection, with a committed range (`--base` or the latest tag), a
+    file is in `<rev>...HEAD` but no first-parent, non-merge commit of `<rev>..HEAD` changed it, so
+    `git log --first-parent` sees fewer files than the audit. Only the committed range is compared;
+    a working-tree edit does not take a file out. `merge_only` is the count, `files` names up to 20,
+    and stderr names five.
   - `tasks-differ`: under `--affected-from-tasks`, the task-commit files and the auto-detected
-    diff (auditable files, no cap) differ. `files` holds both sides: changed files no task touched,
-    and task files outside the diff.
-- **What a round graded.** At emission tp keeps each code role's `file_pool` in
-  `audit-inbox/round-<N>.pools.json`, written atomically and identically by every sibling unit. At
-  `--record` the round's entry in `state.json` gains `graded: [{role, graded, of}]`. `graded`
-  counts the distinct `file-<role>-` item ids the role returned a row for, whatever the verdict, so
-  a file read and found clean counts. `of` is the pool. The pools file is removed with the round's
-  role files. `--record` reports the same array, and so does each `audit_rounds[]` entry of
-  `--status`. Both `next_action`s end with `(latest round graded <role> <n> of <m>, …)`. A round
-  recorded with no emission has no pools and carries no `graded`.
+    diff (auditable files, no cap) differ. `untasked` counts the changed files no task touched.
+    `outside` counts the task files outside the diff, and is present only when a tag gives the
+    diff a committed range — without one the diff is the working tree, which every committed task
+    file lies outside. `files` names up to 20 of each side, untasked first.
+- **What a round graded.** At emission tp keeps each code role's `file_pool` and the `file_check`
+  item ids its prompt listed in `audit-inbox/round-<N>.pools.json`, written atomically and
+  identically by every sibling unit. At `--record` the round's entry in `state.json` gains
+  `graded: [{role, graded, pool}]`. `graded` counts the distinct listed ids the role returned a row
+  for, whatever the verdict, so a file read and found clean counts and an id the round never emitted
+  does not; it never exceeds `file_count`. `pool` is the prompt's `file_pool`. The pools file is
+  removed with the round's role files; a re-record of the same round (`TP_ROUND`) finds none and
+  keeps the `graded` already stored. Only a round whose `hash_scheme` is `snapshot` is graded, so a
+  round recorded with no emission carries no `graded`, whatever sits in the inbox. `--record`
+  reports the same array, and so does each `audit_rounds[]` entry of `--status`. Both
+  `next_action`s open with `latest round graded <role> <n> of <m>, …. ` and end with the step
+  unchanged, so the command is still the end of the string.
 
 ## Grounding (`tp ground`, v1.0.0)
 
