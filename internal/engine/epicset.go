@@ -98,8 +98,8 @@ func parseGatesSet(value string) (func(*model.EpicGraph) error, error) {
 
 // EpicGateFieldSetKeys are the gate fields tp epic set gates.<m>.<field>
 // writes: threshold and purpose take the text as written, deferrable and
-// members a comma-separated id list, empty to clear (members [] is the
-// implicit list).
+// members a comma-separated id list or a JSON array of ids, empty to clear
+// (members [] is the implicit list).
 var EpicGateFieldSetKeys = []string{"threshold", "purpose", "deferrable", "members"}
 
 // parseGateFieldSet decodes value for gates.<m>.<field>, rest being
@@ -141,16 +141,43 @@ func gateFieldSetter(field, value string) (func(*model.EpicGate), error) {
 	case "purpose":
 		return func(gate *model.EpicGate) { gate.Purpose = value }, nil
 	case "deferrable":
-		ids := SplitEpicIDs(value)
+		ids, err := parseGateIDList(value)
+		if err != nil {
+			return nil, err
+		}
 		return func(gate *model.EpicGate) { gate.Deferrable = ids }, nil
 	case "members":
-		ids := SplitEpicIDs(value)
+		ids, err := parseGateIDList(value)
+		if err != nil {
+			return nil, err
+		}
 		if ids == nil {
 			ids = []string{}
 		}
 		return func(gate *model.EpicGate) { gate.Members = ids }, nil
 	}
 	return nil, fmt.Errorf("unknown gate field %q: one of %v", field, EpicGateFieldSetKeys)
+}
+
+// parseGateIDList reads a gate list value: a JSON array of ids when it
+// starts with [, as tags= takes, else a comma-separated list (SplitEpicIDs).
+// Either way each id is trimmed and empty ones are dropped; nil when none is
+// left.
+func parseGateIDList(value string) ([]string, error) {
+	if !strings.HasPrefix(strings.TrimSpace(value), "[") {
+		return SplitEpicIDs(value), nil
+	}
+	var raw []string
+	if err := decodeStrict(value, &raw); err != nil {
+		return nil, err
+	}
+	var ids []string
+	for _, id := range raw {
+		if id = strings.TrimSpace(id); id != "" {
+			ids = append(ids, id)
+		}
+	}
+	return ids, nil
 }
 
 // SplitEpicIDs splits a comma-separated id list, trimming each id and
