@@ -18,7 +18,7 @@ type auditKey struct {
 }
 
 func auditKeyOf(row map[string]any) auditKey {
-	return auditKey{role: rowString(row, "role"), item: rowString(row, "item_id")}
+	return auditKey{role: AuditRowRole(row), item: rowString(row, "item_id")}
 }
 
 // positionalAuditID reports whether an audit item id names a position in the
@@ -177,11 +177,11 @@ func (s *snapshotItemTexts) movedTo(round int, id, text string) bool {
 
 // samePositionalItem reports whether a PASS at a positional id in round b
 // re-grades the item the id named in round a: their spec texts are equal, or,
-// for a table row or list item, round a's text at the id is not at another id
-// of round b — it is at the same id, or nowhere because the item itself was
-// repaired. When it sits at another id the item moved, and the id now names
-// another item. A finding's ordinal has no text to compare, and a missing
-// snapshot no text to read, so either keeps the row unless the texts match.
+// for a table row or list item, round b's snapshot holds round a's text at the
+// id, or holds it at no other id because the item itself was repaired. When it
+// sits only at another id the item moved, and the id now names another item. A
+// finding's ordinal has no text to compare, and a missing snapshot no text to
+// read, so either keeps the row unless the spec texts match.
 func samePositionalItem(texts *snapshotItemTexts, id string, a, b int, hashA, hashB string) bool {
 	if hashA == hashB {
 		return true
@@ -193,16 +193,35 @@ func samePositionalItem(texts *snapshotItemTexts, id string, a, b int, hashA, ha
 	if !ok {
 		return false
 	}
-	if _, readable := texts.text(b, id); !readable {
+	now, readable := texts.text(b, id)
+	if !readable {
 		return false
 	}
-	return !texts.movedTo(b, id, old)
+	return now == old || !texts.movedTo(b, id, old)
+}
+
+// followsMove reports whether a PASS at passID in round b re-grades an open
+// table row or list item that sat at openID in round a and moved: round a's
+// text at openID is round b's text at passID.
+func followsMove(texts *snapshotItemTexts, openID string, a int, passID string, b int) bool {
+	if !positionalAuditID(openID) || strings.HasPrefix(openID, "finding-") || openID == passID {
+		return false
+	}
+	old, okA := texts.text(a, openID)
+	now, okB := texts.text(b, passID)
+	return okA && okB && old == now
 }
 
 // carryAuditRow applies one round's worst row under k to the open set.
 func carryAuditRow(open map[auditKey]*auditOpen, texts *snapshotItemTexts, k auditKey, r *ReviewRound, file string, index int, row map[string]any) {
 	cur := open[k]
 	if AuditRowIsPass(row) {
+		// A PASS also re-grades an item of the same role that moved here.
+		for other, o := range open {
+			if other.role == k.role && o.hash != r.SpecHash && followsMove(texts, other.item, o.row.Round, k.item, r.Round) {
+				delete(open, other)
+			}
+		}
 		if cur != nil && positionalAuditID(k.item) && !samePositionalItem(texts, k.item, cur.row.Round, r.Round, cur.hash, r.SpecHash) {
 			return
 		}
@@ -240,7 +259,13 @@ func latestAuditPolicy(rounds []ReviewRound) string {
 // operator's decision past a blocking row.
 func AuditCarriedBlockingClause(rows []CarriedRow, specPath string, atCap bool) string {
 	first := &rows[0]
-	key := rowString(first.Row, "role") + ":" + rowString(first.Row, "item_id")
+	key := AuditRowRole(first.Row) + ":" + rowString(first.Row, "item_id")
+	selector := key
+	if AuditRowRole(first.Row) == "" || rowString(first.Row, "item_id") == "" {
+		// A row missing its role or item shares its key with every such row
+		// of the round, so it is resolved by its own index.
+		selector = fmt.Sprint(first.Index)
+	}
 	noun, pronoun := "row holds", "it"
 	if len(rows) > 1 {
 		noun, pronoun = "rows hold", "them"
@@ -249,7 +274,7 @@ func AuditCarriedBlockingClause(rows []CarriedRow, specPath string, atCap bool) 
 	if len(rows) > 1 {
 		clause += fmt.Sprintf(", and tp audit %s --status lists all %d", specPath, len(rows))
 	}
-	resolve := fmt.Sprintf("tp audit %s --resolve %s wontfix|duplicate \"<evidence>\"", first.File, key)
+	resolve := fmt.Sprintf("tp audit %s --resolve %s wontfix|duplicate \"<evidence>\"", first.File, selector)
 	orphaned := orphanedAuditRows(rows, specPath)
 	switch {
 	case orphaned == len(rows):
@@ -287,7 +312,7 @@ func orphanedAuditRows(rows []CarriedRow, specPath string) int {
 	}
 	n := 0
 	for i := range rows {
-		if !active[rowString(rows[i].Row, "role")] {
+		if !active[AuditRowRole(rows[i].Row)] {
 			n++
 		}
 	}

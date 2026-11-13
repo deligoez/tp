@@ -16,9 +16,8 @@ type auditCarryKey struct {
 }
 
 func auditCarryKeyOf(row map[string]any) auditCarryKey {
-	role, _ := row["role"].(string)
 	itemID, _ := row["item_id"].(string)
-	return auditCarryKey{role: role, itemID: itemID}
+	return auditCarryKey{role: engine.AuditRowRole(row), itemID: itemID}
 }
 
 // carryAuditAcceptances is the audit carry at --record: an acceptance the
