@@ -229,3 +229,19 @@ func TestPage_EveryInfoIsAShortBulletList(t *testing.T) {
 	}
 	assert.Positive(t, infos)
 }
+
+// TestPage_AnInfoPopoverIsAHeadingAndABulletList: an (i) opens a popover
+// named by its heading (aria-labelledby) that lists its bullets, at most
+// about 420 pixels wide and scrolling when tall; focus moves to its one ×,
+// and Esc or × closes it and gives focus back to the (i), Esc stopping
+// there so an open drawer stays open.
+func TestPage_AnInfoPopoverIsAHeadingAndABulletList(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	for _, s := range []string{`'<div class="pophead"><h3 id="pop-h">' + esc(infoTitle(btn)) + '</h3><button type="button" class="popx" id="pop-x"`,
+		`"<ul>" + items.map((s) => "<li>" + s + "</li>").join("") + "</ul>";`, `pop.setAttribute("aria-labelledby", "pop-h");`, `$("pop-x").focus({ preventScroll: true });`,
+		"if (back && was && was.isConnected) was.focus({ preventScroll: true });", "ev.stopImmediatePropagation();\n    closeInfo(true);"} {
+		assert.Contains(t, script, s)
+	}
+	assert.Contains(t, page, ".pop { position: absolute; z-index: var(--z-tooltip); max-width: min(420px, calc(100vw - 32px)); max-height: min(70vh, 560px); overflow-y: auto;")
+}
