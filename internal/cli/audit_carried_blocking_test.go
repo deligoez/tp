@@ -106,7 +106,8 @@ func TestAuditCarriedBlocking_AnEpochPastABlockingAuditRowIsTheOperators(t *test
 	assert.Equal(t, 2, code, stderr)
 	env := errorEnvelope(t, stderr)
 	assert.Contains(t, env["error"], "unresolved blocking")
-	assert.Contains(t, env["hint"], "--resolve spec-coverage:§2")
+	assert.Contains(t, env["hint"], "re-grade spec-coverage:§2")
+	assert.Contains(t, env["hint"], "tp escalate --decision accept-finding", "unattended, the acceptance itself is refused, so it is escalated")
 	assert.Contains(t, env["hint"], "tp escalate --decision rewrite-past-blocking")
 
 	stdout, stderr, code := runTPFence(t, dir, false, "review", "spec.md", "--rewritten", "replaced the spec")
@@ -118,6 +119,21 @@ func TestAuditCarriedBlocking_AnEpochPastABlockingAuditRowIsTheOperators(t *test
 	cut := carriedRows(t, map[string]any{"carried_blocking_rows": out["cut_blocking_rows"]})
 	require.Len(t, cut, 1)
 	assert.Equal(t, "§2", cut[0]["item_id"])
+}
+
+// TestAuditCarriedBlocking_AFixedAuditRowIsNotCutPastUnattended: an audit
+// row marked fixed still blocks (only a re-grade clears it), so an epoch that
+// cuts it is past a blocking row too: a unit that writes fixed and then starts
+// an epoch, both unattended, is refused at the epoch.
+func TestAuditCarriedBlocking_AFixedAuditRowIsNotCutPastUnattended(t *testing.T) {
+	t.Parallel()
+	dir := auditCarriedRepro(t, auditCarriedFail)
+	_, stderr, code := runTPFence(t, dir, true, "audit", ".tp-review/spec/audit-round-1.ndjson", "--resolve", "spec-coverage:§2", "fixed", "abc1234 repairs it")
+	require.Equal(t, 0, code, stderr)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(carriedSpec+"\n## 3. Added\n\nA new rule.\n"), 0o600))
+
+	_, stderr, code = runTPFence(t, dir, true, "review", "spec.md", "--rewritten", "replaced the spec")
+	assert.Equal(t, 2, code, "the epoch would cut a fixed audit row nobody re-graded: %s", stderr)
 }
 
 // TestAuditCarriedBlocking_ExportCountsTheCarriedRows: tp export's audit loop
