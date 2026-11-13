@@ -18,10 +18,6 @@ fix needs a design choice leaves this file for a decision note.
 
 ## Fix track
 
-- **`tp epic set gates.<m>.members=` takes a comma-separated list, not JSON.** `members=["x"]` is
-  refused as a dangling reference to the literal `["x"]`, while `tags=` and `tag_checks=` take JSON.
-  Failing test: the JSON array form is accepted, or the refusal names the expected form.
-
 ## Decided elsewhere, not a fix
 
 - **`tp review --check` converges with roles that never ran.** A role that found nothing writes no
