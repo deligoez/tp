@@ -73,3 +73,17 @@ func TestReviewCarried_AnEpochCutsTheRow(t *testing.T) {
 	assert.True(t, ReviewConverged(spec, st, 2, "h", ReviewConvergeOnBlocking))
 }
 
+// TestReviewCarried_CapDoesNotEndTheLoopPastACarriedRow: at the cap with the
+// latest round fully dispositioned, a carried blocking row still keeps the
+// loop open.
+func TestReviewCarried_CapDoesNotEndTheLoopPastACarriedRow(t *testing.T) {
+	t.Parallel()
+	spec := filepath.Join(t.TempDir(), "spec.md")
+	st := &ReviewState{ReviewRounds: loopRounds(t, spec, []string{carriedOpen}, []string{}, []string{})}
+
+	d := ReviewLoopDone(spec, st, 2, 3, "h", ReviewConvergeOnBlocking)
+	assert.True(t, d.CapReached)
+	assert.False(t, d.Done)
+	assert.Empty(t, d.By)
+	assert.Len(t, d.CarriedBlocking, 1)
+}
