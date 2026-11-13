@@ -76,6 +76,10 @@ const (
 	// EpicRuleGateHeldByCondition is the info on a gate member that waits,
 	// through epics without a done record, on a condition without one.
 	EpicRuleGateHeldByCondition = "gate-held-by-condition"
+	// EpicRuleGateEmpty is the warning on a gate with no effective members
+	// and no threshold that some milestone opens after: it is green at once,
+	// so that milestone opens without waiting on anything.
+	EpicRuleGateEmpty = "gate-empty"
 )
 
 // EpicRuleForbiddenDependency is the error on a direct edge, or an any-of
@@ -154,6 +158,7 @@ func LintEpicGraph(g *model.EpicGraph, unknown []EpicGraphUnknownKey) []EpicLint
 	out = append(out, lintEpicPartialParallel(g)...)
 	out = append(out, lintEpicDependencyOpensLater(g)...)
 	out = append(out, lintEpicGateHeldByCondition(g)...)
+	out = append(out, lintEpicGateEmpty(g)...)
 	return out
 }
 
