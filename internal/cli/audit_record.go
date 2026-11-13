@@ -179,8 +179,8 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 	if len(graded) > 0 {
 		result["graded"] = graded
 	}
-	result["next_action"] = engine.AuditNextAction(engine.RepoRelative(specPath), done, clean, findings, engine.LatestRoundFile(specPath, st.AuditRounds)) +
-		engine.GradedSuffix(graded)
+	result["next_action"] = engine.GradedPrefix(graded) +
+		engine.AuditNextAction(engine.RepoRelative(specPath), done, clean, findings, engine.LatestRoundFile(specPath, st.AuditRounds))
 	noteRecordWithoutEmission(engine.PhaseAudit, specPath, &st.AuditRounds[round-1], stale)
 	return output.JSON(result)
 }
@@ -522,8 +522,8 @@ func runAuditStatus(specPath string, check bool) error {
 	if n := len(rounds); n > 0 {
 		latestClean, latestFindings, latestGraded = rounds[n-1].Clean, rounds[n-1].Findings, rounds[n-1].Graded
 	}
-	result["next_action"] = engine.AuditNextAction(engine.RepoRelative(specPath), done, latestClean, latestFindings, engine.LatestRoundFile(specPath, rounds)) +
-		engine.GradedSuffix(latestGraded)
+	result["next_action"] = engine.GradedPrefix(latestGraded) +
+		engine.AuditNextAction(engine.RepoRelative(specPath), done, latestClean, latestFindings, engine.LatestRoundFile(specPath, rounds))
 
 	if jsonErr := output.JSON(result); jsonErr != nil {
 		// Exiting, not falling through: without this the process printed a
