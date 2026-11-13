@@ -778,7 +778,7 @@
   const fold = (s) => String(s).replace(FOLD_RE, (c) => FOLD[c]).normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
   // searchHit reports whether the epic's id or title holds the folded query.
   const searchHit = (e, q) => !q || fold(e.id).includes(q) || fold(e.title || "").includes(q);
-  INFO.map = "Lanes from the opening order: the main lane is the longest chain of milestone openings, parallel lanes the other chains, the triggered lane the milestones that open on a trigger. A milestone's column is its opening depth. tp computes every place (the export's layout); the page only draws it. Colour and shape both carry an epic's state; a diamond is a condition. The orange line is the critical path. The bar on a box's right edge is its gate's members done. Click an epic for its chain; All edges draws every edge. Neighbours keeps the selected epic, the epics it depends on and the epics that depend on it, marks each edge in or out, and shows an edge's why on hover. The search matches ids and titles ignoring case and accents, Turkish ı and İ included.";
+  INFO.map = "Lanes from the opening order: the main lane is the longest chain of milestone openings, parallel lanes the other chains, the triggered lane the milestones that open on a trigger. A milestone's column is its opening depth. tp computes every place (the export's layout); the page only draws it. Colour and shape both carry an epic's state; a diamond is a condition. The orange line is the critical path. The bar on a box's right edge is its gate's members done. Click an epic for its chain; All edges draws every edge. Direct only keeps the selected epic, the epics it depends on and the epics that depend on it, marks each edge in or out, and shows an edge's why on hover. The search matches ids and titles ignoring case and accents, Turkish ı and İ included.";
 
   // mapGeometry turns the export's layout into boxes and points. Milestones
   // sharing a lane and a column (the triggered lane's) sit side by side in
@@ -1304,7 +1304,7 @@
     '<span><b class="dmark" aria-hidden="true">¶</b>has a description</span>' +
     '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path class="edge in" d="M1 7.5H14"/></svg>in: what it depends on</span>' +
     '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path class="edge out" d="M1 7.5H14"/></svg>out: what depends on it</span>' +
-    '<span class="help">Click an epic for its chain, again to clear; Neighbours narrows it to one step each way. Drag to pan; Ctrl or ⌘ with the wheel, or a pinch, zooms; in full screen the wheel alone zooms and Esc leaves.</span>';
+    '<span class="help">Click an epic for its chain, again to clear; Direct only narrows it to one step each way. Drag to pan; Ctrl or ⌘ with the wheel, or a pinch, zooms; in full screen the wheel alone zooms and Esc leaves.</span>';
 
   // ---------- the selected epic: its chain, its drawer (§4, §11) ----------
   // Selecting an epic on the map, in a now list or in the drawer draws its
