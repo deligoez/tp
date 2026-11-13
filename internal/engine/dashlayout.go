@@ -163,10 +163,9 @@ func bandEdges(bands []string, bandOf map[string]string, edges []LayoutEdge) [][
 // bandComponents numbers the strongly connected components of the band
 // graph next in the order of their first band, returning each band's
 // component and their count.
-func bandComponents(next [][]bool) ([]int, int) {
+func bandComponents(next [][]bool) (comp []int, count int) {
 	reach := reachability(next)
-	comp := slices.Repeat([]int{-1}, len(next))
-	count := 0
+	comp = slices.Repeat([]int{-1}, len(next))
 	for i := range next {
 		if comp[i] >= 0 {
 			continue
