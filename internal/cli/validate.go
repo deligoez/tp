@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -46,6 +47,13 @@ func runValidate(_ *cobra.Command, _ []string) error {
 
 	specPath, specExists := engine.ResolveSpecPath(taskFilePath, tf.Spec)
 	result := engine.Validate(tf, specPath, specExists, validateStrict)
+	// The touches rule reads the effective run_max_parallel, the project layer
+	// included, which Validate's task-file-only workflow does not see.
+	if extra := engine.TouchesWarnings(tf, engine.EffectiveWorkflowForTaskFile(taskFilePath).RunMaxParallel); len(extra) > 0 {
+		result.Findings = append(result.Findings, extra...)
+		result.Warnings += len(extra)
+		result.Checks["touches"] = fmt.Sprintf("%d warnings", len(extra))
+	}
 
 	if err := output.JSON(result); err != nil {
 		output.Error(ExitFile, err.Error())

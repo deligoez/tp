@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"fmt"
 	"path/filepath"
 
 	"github.com/deligoez/tp/internal/model"
@@ -66,6 +67,24 @@ func implementBatch(units []NextUnit) bool {
 		}
 	}
 	return true
+}
+
+// TouchesWarnings names each open task without touches when maxParallel is
+// above 1: such a task never runs beside another, so the batch the operator
+// raised the cap for cannot form around it (tp validate's touches rule).
+func TouchesWarnings(tf *model.TaskFile, maxParallel int) []Finding {
+	if maxParallel <= 1 {
+		return nil
+	}
+	var out []Finding
+	for i := range tf.Tasks {
+		t := &tf.Tasks[i]
+		if t.Status != model.StatusDone && len(t.Touches) == 0 {
+			out = append(out, Finding{Severity: "warning", Rule: "touches", Message: fmt.Sprintf(
+				"task %s: no touches, so it never runs beside another task (run_max_parallel %d)", t.ID, maxParallel)})
+		}
+	}
+	return out
 }
 
 // batchBriefs gives each unit of an implement batch the brief that names its
