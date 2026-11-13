@@ -1,6 +1,7 @@
 package dashboard_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -148,4 +149,21 @@ func TestPure_TheThemeIsAutoUnlessLightOrDarkIsStored(t *testing.T) {
 	t.Parallel()
 	got := runPure(t, `out([P.themeChoice(null), P.themeChoice("dark"), P.themeChoice("light"), P.themeChoice("blue"), P.themeStore("auto"), P.themeStore("light"), P.themeStore("dark"), P.themeStore("x")]);`)
 	assert.JSONEq(t, `["auto", "dark", "light", "auto", null, "light", "dark", null]`, got)
+}
+
+// TestPage_TheThemeControlFollowsTheSystemLiveOnAuto: the header holds
+// three buttons, Auto, Light and Dark, worded in both languages; Auto
+// removes the stored choice; a change of the system's setting tells the
+// graph, which bumps its theme version so deck.gl draws every colour again
+// without a reload.
+func TestPage_TheThemeControlFollowsTheSystemLiveOnAuto(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	header := page[strings.Index(page, `<header class="top">`):strings.Index(page, "</header>")]
+	for _, s := range []string{`data-theme-pick="auto"`, `data-theme-pick="light"`, `data-theme-pick="dark"`, `data-i18n="theme.auto"`} {
+		assert.Contains(t, header, s)
+	}
+	for _, s := range []string{"tpPure.themeStore(", "localStorage.removeItem(THEME_KEY)", `SYSTEM_DARK.addEventListener("change", () => applyTheme(tpPure.pickTheme(storedTheme())))`, "G.themeVer++", `"theme.auto": "Auto"`} {
+		assert.Contains(t, script, s)
+	}
 }
