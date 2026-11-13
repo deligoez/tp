@@ -21,7 +21,7 @@ func TestRunDryRun_SaysABatchRunsInFreshCheckouts(t *testing.T) {
 	_, stderr, code := runTP(t, dir, "add",
 		`{"id":"grow","title":"Grow","estimate_minutes":5,"acceptance":"Seeded.","source_sections":["### 1.1 Seed"],"depends_on":[]}`)
 	require.Equal(t, 0, code, "add: %s", stderr)
-	stdout, stderr, code := runTP(t, dir, "run", "--dry-run")
+	_, stderr, code = runTP(t, dir, "run", "--dry-run")
 	require.Equal(t, 0, code, stderr)
 	assert.NotContains(t, stderr, "fresh worktree", "no batch at run_max_parallel 1")
 
@@ -32,7 +32,7 @@ func TestRunDryRun_SaysABatchRunsInFreshCheckouts(t *testing.T) {
 		_, stderr, code = runTP(t, dir, set...)
 		require.Equal(t, 0, code, "%v: %s", set, stderr)
 	}
-	stdout, stderr, code = runTP(t, dir, "run", "--dry-run")
+	stdout, stderr, code := runTP(t, dir, "run", "--dry-run")
 	require.Equal(t, 0, code, stderr)
 	assert.Contains(t, stdout, `"brief_command": "tp brief grow"`)
 	assert.Contains(t, stderr, "fresh worktree of HEAD, without ignored files")
