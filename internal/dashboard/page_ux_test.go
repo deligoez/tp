@@ -239,6 +239,35 @@ func TestPure_AMergedBandIsNamedForEveryMilestoneItHolds(t *testing.T) {
 	assert.JSONEq(t, `[{"name": "M1 + M2", "x": 10, "w": 200}]`, got)
 }
 
+// TestPure_TheDependencyViewDrawsOnlyTheDataOfItsKey: a view draws only
+// the layout fetched for the query it shows; until that layout arrives it
+// reads as loading, even with another query's layout still held, so a
+// click or a milestone change never draws, fits or centres stale data. An
+// error shows for the query it came from, and no query shows nothing.
+func TestPure_TheDependencyViewDrawsOnlyTheDataOfItsKey(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const L = { view: "neighbourhood" };
+out([
+  P.layoutReady({ key: null, dataKey: null, data: null, error: null }),
+  P.layoutReady({ key: "a", dataKey: null, data: null, error: null }),
+  P.layoutReady({ key: "b", dataKey: "a", data: L, error: null }),
+  P.layoutReady({ key: "b", dataKey: "b", data: L, error: null }),
+  P.layoutReady({ key: "b", dataKey: "a", data: L, error: { error: "x" } }),
+]);`)
+	assert.JSONEq(t, `["none", "loading", "loading", "draw", "error"]`, got)
+}
+
+// TestPage_TheDependencyViewRecordsTheKeyItsDataCameFor: the page keeps the
+// key each layout was fetched for, clears an error when a new key starts,
+// and asks layoutReady before drawing.
+func TestPage_TheDependencyViewRecordsTheKeyItsDataCameFor(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, s := range []string{"tpPure.layoutReady(gview)", "dataKey: key", "Object.assign(gview, { key, error: null })"} {
+		assert.Contains(t, script, s)
+	}
+}
+
 // TestPure_AScopedViewOpensWholeWhenItFits: a scoped view opens centred
 // and whole when it fits at a readable scale, never blown up past the
 // largest; one that does not fit opens at its top left.
