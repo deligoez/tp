@@ -83,6 +83,20 @@ func ReadPendingCloses(root, taskFile string) ([]PendingClose, error) {
 	return out, nil
 }
 
+// pendingCloseIDs names the task file's pending closes, nil when there are
+// none or they cannot be read: tp resume only reports them.
+func pendingCloseIDs(taskFile string) []string {
+	pending, err := ReadPendingCloses(CanonicalProjectRoot(filepath.Dir(taskFile)), taskFile)
+	if err != nil || len(pending) == 0 {
+		return nil
+	}
+	ids := make([]string, len(pending))
+	for i := range pending {
+		ids[i] = pending[i].ID
+	}
+	return ids
+}
+
 // HasPendingClose reports whether the cycle holds a pending close for id.
 func HasPendingClose(root, taskFile, id string) bool {
 	return fileExists(pendingClosePath(root, taskFile, id))
