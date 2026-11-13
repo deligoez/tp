@@ -166,20 +166,20 @@ func TestAuditPrompts_AffectedFilesHeaderForms(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
-	args := []string{"audit", "spec.md"}
+	initGitRepo(t, dir)
 	// 14 eligible code files: over CodeFileCap (10), under AuditFileCap (20).
+	// Auto-detected from the staged diff, since a named list is never cut.
 	for i := 1; i <= 14; i++ {
 		name := fmt.Sprintf("f%02d.go", i)
 		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("package main\n"), 0o600))
-		args = append(args, "--affected-files", name)
 	}
 	// Dropped by the filter, so neither total counts them.
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "logo.png"), []byte("\x89PNG\r\n"), 0o600))
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, "testdata"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "testdata", "fixture.go"), []byte("package main\n"), 0o600))
-	args = append(args, "--affected-files", "logo.png", "--affected-files", filepath.Join("testdata", "fixture.go"))
+	git(t, dir, "add", "-A")
 
-	stdout, stderr, code := runTP(t, dir, args...)
+	stdout, stderr, code := runTP(t, dir, "audit", "spec.md")
 	require.Equal(t, 0, code, "stderr: %s", stderr)
 	byRole := auditPromptsByRole(t, stdout)
 
@@ -195,10 +195,10 @@ func TestAuditPrompts_AffectedFilesHeaderForms(t *testing.T) {
 	assert.Len(t, specCov["affected_files"].([]any), 14)
 	assert.Contains(t, specCov["prompt"].(string), "## Affected Files (max 20)\n")
 
-	// Shared arm, nothing truncated: the untruncated form naming CodeFileCap.
+	// Shared arm over a named list: no cap applies, so the named form.
 	shortRun := setupThreeRoleAudit(t)
 	shortByRole := auditPromptsByRole(t, shortRun)
-	assert.Contains(t, shortByRole["security"]["prompt"].(string), "## Affected Files (max 10)\n")
+	assert.Contains(t, shortByRole["security"]["prompt"].(string), "## Affected Files (all 1 named)\n")
 }
 
 // TestAuditPrompts_SpecCoverageHeaderTruncated: spec-coverage renders the

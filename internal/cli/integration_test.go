@@ -59,15 +59,15 @@ func TestAudit_FileFilterCap(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## S\ntext\n"), 0o600))
+	initGitRepo(t, dir)
 
-	files := make([]string, 0, 50)
+	// Auto-detected from the staged diff: a named list is never cut.
 	for i := range 50 {
 		name := fmt.Sprintf("auth_%02d.go", i) // all priority-matching by path
 		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("package main\n"), 0o600))
-		files = append(files, "--affected-files", name)
 	}
-	args := append([]string{"audit", "spec.md"}, files...)
-	stdout, stderr, code := runTP(t, dir, args...)
+	git(t, dir, "add", "-A")
+	stdout, stderr, code := runTP(t, dir, "audit", "spec.md")
 	require.Equal(t, 0, code, "stderr: %s", stderr)
 
 	byRole := auditPromptsByRole(t, stdout)
