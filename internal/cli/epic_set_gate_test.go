@@ -228,3 +228,14 @@ func TestEpicSet_GateDeferrableTakesAJSONArray(t *testing.T) {
 	setGateField(t, dir, `gates.A.deferrable=["a2"]`)
 	assert.Equal(t, []string{"a2"}, gatesOnFile(t, dir)["A"].Deferrable)
 }
+
+// TestEpicSet_GateMembersEmptyJSONArrayIsTheImplicitList: members=[] clears
+// an explicit list back to [], as members= does.
+func TestEpicSet_GateMembersEmptyJSONArrayIsTheImplicitList(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicGateFieldGraph(`{"A": {"members": ["a1"]}}`))
+	setGateField(t, dir, "gates.A.members=[]")
+	gate := gatesOnFile(t, dir)["A"]
+	require.NotNil(t, gate.Members)
+	assert.Empty(t, *gate.Members)
+}
