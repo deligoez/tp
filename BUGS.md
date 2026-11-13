@@ -18,12 +18,6 @@ fix needs a design choice leaves this file for a decision note.
 
 ## Fix track
 
-- **A hidden dashboard tab keeps its event stream open, and enough tabs starve the page's fetches.**
-  Each tab holds one `EventSource` to `/api/events` for as long as it is open, hidden or not, and a
-  browser allows six HTTP/1.1 connections per host. Repro (v1.16.0, the operator's report, not
-  rerun here): with several tabs open, `/api/layout` and `/api/history` stay pending. Failing
-  test: the page closes its stream on `visibilitychange` to hidden and opens it again, with the
-  current state, when it is visible.
 - **The first push waits for all three derivations, one after another.** A cold `/api/events`
   stream sends nothing until `Live()` has derived the epic export, the task file list and the
   summary in turn. Repro (v1.16.0, the synthetic graph of the graph-card prototype): the
