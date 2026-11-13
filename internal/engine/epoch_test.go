@@ -59,6 +59,17 @@ func TestEpochPosition_IsTheLastRoundOverAnOlderTextPerPhase(t *testing.T) {
 	assert.Equal(t, 0, EpochPosition(nil, PhaseReview, "H2"))
 }
 
+// TestEpochPosition_TheFirstRoundAloneOverAnOlderText: the walk back reaches
+// the first round, so a history whose only old-text round is round 1 is cut
+// after it, and a history that read only the current text cuts nothing.
+func TestEpochPosition_TheFirstRoundAloneOverAnOlderText(t *testing.T) {
+	t.Parallel()
+	st := &ReviewState{ReviewRounds: []ReviewRound{snap(1, "H1"), snap(2, "H2")}}
+	assert.Equal(t, 1, EpochPosition(st, PhaseReview, "H2"))
+	current := &ReviewState{ReviewRounds: []ReviewRound{snap(1, "H2")}}
+	assert.Equal(t, 0, EpochPosition(current, PhaseReview, "H2"))
+}
+
 // TestEpochPosition_ARoundWithNoSnapshotHashReadAnOlderText: a round whose
 // read text cannot be established — unmarked (recorded before the marker
 // existed) or marked no-emission — counts as having read an older text,
