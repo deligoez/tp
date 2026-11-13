@@ -50,6 +50,17 @@
     return { pos, bands, W: 2 * dims.left + (layout.layers || 0) * dims.colW, H: 2 * dims.top + dims.head + most * dims.rowH };
   };
 
+  // layoutReady is what the dependency view shows for s, its key (the query
+  // it shows, null when it needs a selection it lacks), dataKey (the query
+  // its data was fetched for), data and error: none without a key, the
+  // error the current key's fetch gave, the data only when it was fetched
+  // for the current key, and else loading, so stale data is never drawn.
+  P.layoutReady = function (s) {
+    if (!s.key) return "none";
+    if (s.error) return "error";
+    return s.data && s.dataKey === s.key ? "draw" : "loading";
+  };
+
   // centreView is v moved to centre the drawing point p in a box rw pixels
   // wide: at v's zoom, or zoomed in to SCALE.min when v is further out.
   P.centreView = function (v, p, rw) {
