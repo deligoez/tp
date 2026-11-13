@@ -264,3 +264,12 @@ func TestForestLayout_RowPackingNothing(t *testing.T) {
 	assert.InDelta(t, 0.0, got.Columns, 0)
 	assert.Empty(t, got.Places)
 }
+
+// TestForestLayout_TheEarliestOfTwoEqualEdgesIsTheTreeEdge: an edge given
+// twice ties on every rank, and the earlier one is the tree edge; with no
+// path marked, ranking the first edge never reads past the missing marks.
+func TestForestLayout_TheEarliestOfTwoEqualEdgesIsTheTreeEdge(t *testing.T) {
+	t.Parallel()
+	got := ForestLayout(&ForestInput{IDs: []string{"p", "q"}, Edges: []LayoutEdge{{"p", "q"}, {"p", "q"}}, Pack: PackTree})
+	assert.Equal(t, []EdgeRole{RoleTree, RoleCross}, got.Roles)
+}
