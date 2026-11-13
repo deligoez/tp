@@ -556,6 +556,14 @@ body.dopen:not([data-tab="epics"]) { padding: 0; }
 .gcard .legend i.ln { width: 18px; height: 3px; border-radius: 2px; }
 .gcard .legend .lhead { flex-basis: 100%; height: 0; }
 .gcard .legend .lh { color: var(--muted); }
+/* the toolbar keeps one line where the card is wide enough, its count
+   line below it */
+.gcard { container-type: inline-size; }
+@container (min-width: 1040px) { .gcard .toolbar { flex-wrap: nowrap; } }
+.gcount { margin: 0; padding: 4px var(--space-md); border-bottom: 1px solid var(--line); min-height: 1.6em; }
+.chaintext .deeper { margin-top: var(--space-xs); }
+.chaintext .deeper summary { cursor: pointer; font-size: var(--text-sm); color: var(--ink-2); }
+.theme { min-height: 30px; }
 .gcard .legend [data-lwhole] { border: 1px solid var(--color-rule-2); }
 .gcard .legend [data-lwhole][aria-pressed="false"] { opacity: 1; text-decoration: none; }
 .gcard .legend [data-lwhole][aria-pressed="true"] { background: var(--accent); color: var(--color-accent-ink); }

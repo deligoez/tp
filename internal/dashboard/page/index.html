@@ -12,7 +12,8 @@
   <header class="top">
     <div class="brand"><span class="tp">tp</span><span>dashboard</span></div>
     <div class="live"><span id="conn" class="conn" data-state="connecting">Connecting</span><span id="pushed"></span>
-      <span class="seg lang" id="lang" role="group" aria-label="Language" data-i18n-aria-label="lang.label"><button type="button" data-lang="en" aria-pressed="true" lang="en">EN</button><button type="button" data-lang="tr" aria-pressed="false" lang="tr">TR</button></span></div>
+      <span class="seg lang" id="lang" role="group" aria-label="Language" data-i18n-aria-label="lang.label"><button type="button" data-lang="en" aria-pressed="true" lang="en">EN</button><button type="button" data-lang="tr" aria-pressed="false" lang="tr">TR</button></span>
+      <button type="button" class="key theme" id="theme" title="Switch light and dark" data-i18n-title="theme.title">Dark</button></div>
   </header>
   <div id="banners" class="banners" role="alert"></div>
   <section id="since" class="since" aria-label="Since you last looked" data-i18n-aria-label="since.title" hidden></section>
@@ -51,15 +52,14 @@
           </span>
           <label class="gpick" id="gc-ms-pick" hidden><span data-i18n="graph.milestone">Milestone</span> <select id="gc-ms"></select></label>
           <label class="gpick" id="gc-depth-pick" hidden><span data-i18n="graph.depth">Depth</span> <select id="gc-depth"><option>1</option><option selected>2</option><option>3</option><option>4</option></select></label>
-          <input type="search" id="gc-q" placeholder="Find an epic by id or title  /" data-i18n-placeholder="graph.search" aria-label="Find epics in the graph; Enter selects the next match" data-i18n-aria-label="graph.searchLabel" autocomplete="off">
+          <input type="search" id="gc-q" placeholder="Find an epic by id or title  /" aria-label="Find epics in the graph; Enter selects the next match" data-i18n-aria-label="graph.searchLabel" autocomplete="off">
           <button class="chip" type="button" id="gc-cross" aria-pressed="false" title="Show every edge that is not a tree edge (K)" data-i18n-title="graph.crossTitle" data-i18n="graph.cross">Cross edges</button>
-          <span class="sm muted num" id="gc-n" aria-live="polite"></span>
           <span class="spacer"></span>
           <button type="button" class="key" id="gc-fit" title="Fit the whole graph (F)" data-i18n-title="graph.fitTitle" data-i18n="graph.fit">Fit</button>
-          <button type="button" class="key" id="gc-theme" title="Switch light and dark" data-i18n-title="graph.themeTitle">Dark</button>
           <button type="button" class="key" id="gc-full" data-fs="graphcard" aria-pressed="false">Full screen</button>
         </div>
-        <div class="map gcanvas" id="gc-canvas" tabindex="0" role="application" aria-roledescription="graph canvas" data-i18n-aria-roledescription="graph.canvasRole" aria-label="Graph canvas: the arrow keys pan, + and − zoom, F fits. Epics are reached through the search, the lists and the chain as text below." data-i18n-aria-label="graph.canvasLabel"><p class="gmsg" id="gc-msg">The graph loads when it scrolls into view.</p></div>
+        <p class="gcount sm muted num" id="gc-n" aria-live="polite"></p>
+        <div class="map gcanvas" id="gc-canvas" tabindex="0" role="application" aria-roledescription="graph canvas" data-i18n-aria-roledescription="graph.canvasRole" aria-label="Graph canvas: the arrow keys pan, + and − zoom, F fits, K shows or hides cross edges, Esc clears the selection. Epics are reached through the search, the lists and the chain as text below." data-i18n-aria-label="graph.canvasLabel"><p class="gmsg" id="gc-msg">The graph loads when it scrolls into view.</p></div>
         <div class="legend" id="gc-legend"></div>
         <details class="chaintext" id="chaintext"><summary data-i18n="chain.summary">The selected epic's chain as text</summary><div id="chain"></div></details>
       </section>

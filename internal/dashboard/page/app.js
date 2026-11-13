@@ -51,6 +51,7 @@
     });
     document.querySelectorAll("[data-lang]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lang === t.locale)));
     $("conn").textContent = t(CONN_TEXT[$("conn").dataset.state]);
+    themeLabel();
     fullScreenLabels();
   }
   // The header's EN | TR switch loads the language picked, keeps the
@@ -89,6 +90,35 @@
   // descHTML shows an epic's description as escaped preformatted text: it is
   // markdown, and the page renders no markup from it.
   const descHTML = (s) => '<div><h4>' + esc(t("drawer.description")) + '</h4><pre class="ddesc">' + esc(s) + "</pre></div>";
+
+  // ---------- the theme ----------
+  // The header's Light/Dark toggle sets <html data-theme>, keeps the choice
+  // in this browser and tells the graph card (tp-theme); without a stored
+  // choice the system's setting rules. The toggle names the theme it
+  // switches to.
+  const THEME_KEY = "tp-dashboard-theme";
+  function storedTheme() {
+    try { return localStorage.getItem(THEME_KEY); } catch (e) { return null; }
+  }
+  const SYSTEM_DARK = window.matchMedia("(prefers-color-scheme: dark)");
+  const darkNow = () => {
+    const set = document.documentElement.dataset.theme;
+    return set ? set === "dark" : SYSTEM_DARK.matches;
+  };
+  const themeLabel = () => { $("theme").textContent = t(darkNow() ? tk("theme.light") : tk("theme.dark")); };
+  function applyTheme(theme) {
+    if (theme) document.documentElement.dataset.theme = theme;
+    else delete document.documentElement.dataset.theme;
+    themeLabel();
+    document.dispatchEvent(new Event("tp-theme"));
+  }
+  applyTheme(tpPure.pickTheme(storedTheme()));
+  SYSTEM_DARK.addEventListener("change", themeLabel);
+  $("theme").addEventListener("click", () => {
+    const next = tpPure.nextTheme(darkNow());
+    try { localStorage.setItem(THEME_KEY, next); } catch (e) { /* the choice lasts this load */ }
+    applyTheme(next);
+  });
 
   // live holds, per event, the last good payload and the error pushed after
   // it, if any; graph records whether tp pushed the epic export at all.
@@ -403,7 +433,9 @@
     }
     closeInfo();
     const pop = $("pop");
-    pop.textContent = INFO[btn.dataset.info] ? t(INFO[btn.dataset.info]) : "";
+    // A help is a key, or a function that words a help with live figures.
+    const help = INFO[btn.dataset.info];
+    pop.textContent = typeof help === "function" ? help() : help ? t(help) : "";
     pop.hidden = false;
     const r = btn.getBoundingClientRect();
     pop.style.top = (r.bottom + window.scrollY + 6) + "px";
@@ -905,7 +937,9 @@
   const MARK_LABEL = { done: tk("mark.done"), ready: tk("mark.ready"), claimed: tk("mark.claimed"), specced: tk("mark.specced"), in_progress: tk("mark.in_progress"),
     blocked: tk("mark.blocked"), held: tk("mark.held"), waiting: tk("mark.waiting"), moot: tk("mark.moot") };
   const mapView = { selected: null, deps: {}, dependents: {}, stage: null };
-  INFO.graph = tk("info.graph");
+  // The graph card's help ends with graph.js's note, a gate closure's
+  // described count.
+  INFO.graph = () => [t("info.graph"), window.tpApp && window.tpApp.graphNote ? window.tpApp.graphNote() : ""].filter(Boolean).join(" ");
 
   // FOLD maps the letters the epic search folds before Unicode decomposition:
   // the Turkish dotless and dotted i, which decomposition and lower-casing do
@@ -2116,6 +2150,7 @@
     markText: (m) => tpPure.markText(m, words(MARK_LABEL)),
     markWord: (k) => word(MARK_LABEL, k),
     onSelect: null,
+    graphNote: null,
     graphParams: null,
     readGraphPlace: null,
   };

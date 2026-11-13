@@ -26,16 +26,22 @@
   const EDGE_TEXT = { tree: tk("graph.edge.tree"), cross: tk("graph.edge.cross"), back: tk("graph.edge.back"), critical: tk("graph.edge.critical"), any: tk("graph.edge.any") };
   const milestoneLabel = (n) => n.id + "  " + n.done + "/" + n.epics;
   const milestoneTitle = (n) => t("graph.msTitle", { state: n.open ? t("ms.open") : t("ms.closed"), done: n.done, n: n.epics, in: n.inbound });
-  // countLine is the toolbar's count line: what the card drew and, for a
-  // gate closure or a neighbourhood, what it is drawn from.
-  function countLine(P, described) {
+  // countLine is the count line under the toolbar: what the card drew and,
+  // for a gate closure or a neighbourhood, what it is drawn from.
+  function countLine(P) {
     const L = P.L;
     const nodes = L.view === "milestones" ? t("graph.countMilestones", { n: P.nodes.length }) : t("count.epics", { n: P.nodes.length });
     const line = t("graph.count", { nodes, edges: P.links.length, layers: L.layers, cols: L.columns });
-    if (L.view === "scope") return line + " " + t("graph.inClosure", { ms: L.milestone }) + "; " + pure.closureDescribed(L.nodes, described, app.tr());
+    if (L.view === "scope") return line + " " + t("graph.inClosure", { ms: L.milestone });
     if (L.view === "neighbourhood") return line + " " + t("graph.within", { depth: L.depth, epic: L.epic });
     return line;
   }
+  // The card's info popover ends with how many of a gate closure's epics
+  // are described.
+  app.graphNote = () => {
+    const P = G.prepared;
+    return P && P.L.view === "scope" ? pure.closureDescribed(P.L.nodes, P.described, app.tr()) : "";
+  };
 
   // World geometry, one unit a screen pixel at zoom 0: an epic is a box of
   // w by h, one column col wide, one layer row tall.
@@ -645,7 +651,8 @@
     $("gc-ms").value = gateMilestone(g) || "";
     $("gc-depth").value = String(G.depth);
     $("gc-cross").setAttribute("aria-pressed", String(pure.crossShown(G)));
-    $("gc-theme").textContent = G.colors && G.colors.dark ? t("graph.light") : t("graph.dark");
+    // The search's placeholder names what it finds in this mode.
+    $("gc-q").placeholder = t(G.mode === "milestones" ? tk("graph.searchMilestone") : tk("graph.search"));
     if ($("gc-q").value !== G.q && document.activeElement !== $("gc-q")) $("gc-q").value = G.q;
   }
   function drawLegend() {
@@ -668,7 +675,7 @@
       '</b></span><span><i class="ln" style="background:' + rgb(c.desc) + '"></i>' + escape(t("graph.waitedOn")) + " <b>" + escape(t("graph.near", { n: P.desc.size, near: pure.withinTwo(P.desc) })) + "</b></span>" +
       '<button type="button" data-lwhole aria-pressed="' + G.whole + '">' + escape(t("graph.whole")) + "</button>" : "";
     $("gc-legend").innerHTML = marks + '<span class="lhead"></span>' + edges + sel +
-      '<span class="help">' + escape(t("graph.help")) + (G.loadMs !== null ? " " + escape(t("graph.loadedIn", { ms: G.loadMs })) : "") + "</span>";
+      '<span class="help">' + escape(P.L.view === "milestones" ? t("graph.help.milestones") : t("graph.help.epics")) + (G.loadMs !== null ? " " + escape(t("graph.loadedIn", { ms: G.loadMs })) : "") + "</span>";
   }
   $("gc-legend").addEventListener("click", (ev) => {
     const m = ev.target.closest("[data-lmark]");
@@ -709,10 +716,8 @@
   }
   $("gc-cross").addEventListener("click", toggleCross);
   $("gc-fit").addEventListener("click", () => { if (G.prepared) goTo(fitView()); });
-  $("gc-theme").addEventListener("click", () => {
-    document.documentElement.dataset.theme = G.colors && G.colors.dark ? "light" : "dark";
-    retheme();
-  });
+  // The page's header switches the theme (tp-theme); the card reads its
+  // colours again.
   function retheme() {
     readColors();
     drawToolbar(app.data("epic-export") || {});
@@ -720,6 +725,7 @@
     render();
   }
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", retheme);
+  document.addEventListener("tp-theme", retheme);
 
   // ---------- the search and the keys ----------
   // exportMatches is the search over the export's epics, by id or title,
@@ -812,7 +818,7 @@
     else if (ev.key === "Escape" && app.selected() && $("drawer").hidden) app.selectEpic(null);
   });
   function countText() {
-    return G.prepared ? countLine(G.prepared, G.prepared.described) : "";
+    return G.prepared ? countLine(G.prepared) : "";
   }
 
   // ---------- the panel ----------
