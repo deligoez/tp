@@ -181,6 +181,18 @@ func AuditCarriedBlockingClause(rows []CarriedRow, specPath string, atCap bool) 
 		clause += fmt.Sprintf(", and tp audit %s --status lists all %d", specPath, len(rows))
 	}
 	resolve := fmt.Sprintf("tp audit %s --resolve %s wontfix|duplicate \"<evidence>\"", first.File, key)
+	orphaned := orphanedAuditRows(rows, specPath)
+	switch {
+	case orphaned == len(rows):
+		// No prompt reaches a row whose role the panel no longer holds, so
+		// no round re-grades it, under the cap or past it.
+		clause += fmt.Sprintf("; no role of the next round can re-grade %s, since the audit panel no longer holds its role: accept each, the operator's decision (%s) — %s",
+			pronoun, EscalateAcceptFinding, resolve)
+		return clause + "; if the spec was rewritten, an epoch cuts " + pronoun + " instead: tp review " + specPath +
+			" --rewritten \"<evidence>\", the operator's decision " + EscalateRewritePastBlocking
+	case orphaned > 0:
+		clause += fmt.Sprintf("; %d of them belong to a role the audit panel no longer holds, which no round re-grades", orphaned)
+	}
 	if atCap {
 		clause += fmt.Sprintf("; the round cap admits no round to re-grade %s: accept each, the operator's decision (%s) — %s; or raise audit_max_rounds for a round that re-grades %s, the operator's decision (%s)",
 			pronoun, EscalateAcceptFinding, resolve, pronoun, EscalateRaiseAuditCap)
@@ -190,6 +202,27 @@ func AuditCarriedBlockingClause(rows []CarriedRow, specPath string, atCap bool) 
 	}
 	return clause + "; if the spec was rewritten, an epoch cuts " + pronoun + " instead: tp review " + specPath +
 		" --rewritten \"<evidence>\", the operator's decision " + EscalateRewritePastBlocking
+}
+
+// orphanedAuditRows counts the rows whose role the spec's resolved audit panel
+// does not hold: no prompt of a later round reaches them. A panel that cannot
+// be resolved counts none, so the clause falls back to naming the next round.
+func orphanedAuditRows(rows []CarriedRow, specPath string) int {
+	panel, err := ResolveRolePanel(specPath, PhaseAuditors)
+	if err != nil {
+		return 0
+	}
+	active := make(map[string]bool, len(panel.Roles))
+	for i := range panel.Roles {
+		active[panel.Roles[i].ID] = true
+	}
+	n := 0
+	for i := range rows {
+		if !active[rowString(rows[i].Row, "role")] {
+			n++
+		}
+	}
+	return n
 }
 
 // AuditCarriedBlocking returns the audit carried set's rows that hold the loop
