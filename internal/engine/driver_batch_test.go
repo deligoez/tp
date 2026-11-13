@@ -162,6 +162,24 @@ func TestRunDriver_ImplementBatchRunsSideBySideAndIntegrates(t *testing.T) {
 	assert.Empty(t, pending)
 }
 
+// TestRunDriver_APendingCloseForADoneTaskIsDropped: a driver that died after
+// closing a task but before removing its pending close leaves both; the next
+// run drops the request rather than picking again and reopening a done task.
+func TestRunDriver_APendingCloseForADoneTaskIsDropped(t *testing.T) {
+	root, spec, taskFile, _ := batchProject(t, oneDoneTask)
+	require.NoError(t, WritePendingClose(root, taskFile, &PendingClose{ID: "t", Commits: []string{gitIn(t, root, "rev-parse", "HEAD")}}))
+	closer := &fakeCloser{closed: map[string][]string{}}
+
+	res := driveBatch(t, root, spec, taskFile, closer)
+	assert.Equal(t, StopConverged, res.StopReason)
+	task := taskByID(t, taskFile, "t")
+	assert.Equal(t, model.StatusDone, task.Status)
+	assert.False(t, task.Solo)
+	pending, err := ReadPendingCloses(root, taskFile)
+	require.NoError(t, err)
+	assert.Empty(t, pending)
+}
+
 // TestAssembleResume_NamesPendingCloses: a pending close a crashed run left is
 // named by tp resume until a run integrates it (§2.6).
 func TestAssembleResume_NamesPendingCloses(t *testing.T) {
