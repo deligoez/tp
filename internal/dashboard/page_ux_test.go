@@ -261,3 +261,13 @@ func TestPage_DrawsTheThreeScopedViewsFromTheLayoutEndpoint(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(m[1]), &urlKeys))
 	assert.Subset(t, urlKeys, []string{"gv", "gm", "gd"})
 }
+
+// TestPage_TheLoopsFigureSplitsStaleFromNeedingARound: the review loops
+// KPI shows the loops that need a round, the summary's open loops less its
+// stale ones, and names the stale ones apart.
+func TestPage_TheLoopsFigureSplitsStaleFromNeedingARound(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Contains(t, script, "f.open_loops - (f.stale_loops || 0)")
+	assert.Contains(t, script, "review loops needing a round")
+}
