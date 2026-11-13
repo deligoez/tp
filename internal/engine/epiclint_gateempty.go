@@ -13,7 +13,8 @@ import (
 // it (EffectiveOpensAfter): that gate is green at once, so the milestones
 // opening after it open without waiting on anything, a condition the
 // milestone holds included. A milestone with no epics yet holds nothing that
-// looks like a gate, so it is not reported. One warning per milestone, in
+// looks like a gate, and one whose epics are all done conditions holds a
+// trigger that has fired, so neither is reported. One warning per milestone, in
 // track order, epics the milestone's own epics, its message naming every
 // milestone that opens after it.
 func lintEpicGateEmpty(g *model.EpicGraph) []EpicLintFinding {
@@ -30,8 +31,8 @@ func lintEpicGateEmpty(g *model.EpicGraph) []EpicLintFinding {
 	}
 	var out []EpicLintFinding
 	for _, m := range order {
-		own := milestoneEpicIDs(g, m)
-		if len(own) == 0 || g.Gates[m].Threshold != "" {
+		own, fired := milestoneEpics(g, m)
+		if len(own) == 0 || fired || g.Gates[m].Threshold != "" {
 			continue
 		}
 		if members, _ := GateMembers(g, m); len(members) > 0 {
@@ -62,12 +63,16 @@ func lintEpicGateEmpty(g *model.EpicGraph) []EpicLintFinding {
 }
 
 // milestoneEpicIDs returns the ids of milestone m's epics, in graph order.
-func milestoneEpicIDs(g *model.EpicGraph, m string) []string {
-	var ids []string
+// milestoneEpics returns the ids of milestone m's epics, in graph order, and
+// whether every one is a condition with a done record: a trigger that has
+// fired, so the milestones opening after m are meant to be open.
+func milestoneEpics(g *model.EpicGraph, m string) (ids []string, fired bool) {
+	fired = true
 	for i := range g.Epics {
-		if g.Epics[i].Milestone == m {
-			ids = append(ids, g.Epics[i].ID)
+		if e := &g.Epics[i]; e.Milestone == m {
+			ids = append(ids, e.ID)
+			fired = fired && e.Condition && e.Done != nil
 		}
 	}
-	return ids
+	return ids, fired
 }
