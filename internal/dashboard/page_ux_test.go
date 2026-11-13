@@ -181,12 +181,24 @@ out([r(P.containAt(1240, 110, 966, 576, { x: 600, y: 50 })), r(P.containAt(1240,
 		{"x": -83.33, "y": -108.33, "w": 266.67, "h": 266.67}]`, got)
 }
 
+// TestPure_FitAtViewHoldsTheLayoutCentredOnTheEpic: the view re-centring
+// takes for a drawing of size in a box of rect: containAt's, or none while
+// the box has no size or there is no point to centre (1.14.1 review).
+func TestPure_FitAtViewHoldsTheLayoutCentredOnTheEpic(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const r = (v) => v && Object.fromEntries(Object.entries(v).map(([k, x]) => [k, Math.round(x * 100) / 100]));
+const size = { W: 1240, H: 110 };
+out([r(P.fitAtView(size, { width: 966, height: 576 }, { x: 600, y: 50 })), P.fitAtView(size, { width: 0, height: 576 }, { x: 600, y: 50 }),
+  P.fitAtView(size, { width: 966, height: 0 }, { x: 600, y: 50 }), P.fitAtView(size, { width: 966, height: 576 }, null)]);`)
+	assert.JSONEq(t, `[{"x": -48, "y": -336.39, "w": 1296, "h": 772.77}, null, null, null]`, got)
+}
+
 // TestPage_ReCentringFitsTheNewLayout: a neighbourhood drawn for a new key
 // takes the view containAt gives for its centre epic, not the old zoom.
 func TestPage_ReCentringFitsTheNewLayout(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
-	assert.Contains(t, script, "tpPure.containAt(")
+	assert.Contains(t, script, "tpPure.fitAtView(size, r, p)")
 	assert.Contains(t, script, "gport.fitAt(geo.pos[L.epic])")
 	assert.NotContains(t, script, "gport.centre(geo.pos[L.epic])")
 }
