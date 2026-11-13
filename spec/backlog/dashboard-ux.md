@@ -37,7 +37,8 @@ with the drawing; the export is a versioned contract. The endpoint takes a close
 milestone or epic it is about, and returns nodes with **layer and order as small integers**, not
 pixels, and edges listed explicitly with their marks (on the critical path, an any-of group), so the
 page computes nothing about the graph. Every parameter is matched against ids the graph holds by
-lookup and never builds a path; `view` is a closed set; `depth` is clamped; anything else is a 400.
+lookup and never builds a path; `view` is a closed set; `depth` is clamped; a milestone or epic id
+the graph does not hold is a 404, and anything malformed is a 400.
 Those refusals are tested first, and a golden test on a small graph pins the layout.
 
 **The graph is shown in scoped views, never all at once.**
