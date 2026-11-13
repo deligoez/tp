@@ -589,19 +589,21 @@
   // the actionable conditions, the any-of groups as their choices, the gates
   // awaiting --met, each placeholder threshold once as its rewrite, the
   // slices that may take --grant-round, and the bound specs' escalations.
+  // Each command carries a Copy button (1.17.1).
+  const copyCmd = (cmd) => "<code>" + esc(cmd) + '</code> <button type="button" class="key copy" data-copy="' + esc(cmd) + '">' + esc(t("copy.copy")) + "</button>";
   function operatorRows(v) {
-    const evidence = ' --evidence "&lt;' + esc(t("op.evidence")) + '&gt;"';
-    const done = (id) => "<code>tp epic done " + esc(id) + evidence + "</code>";
+    const evidence = ' --evidence "<' + t("op.evidence") + '>"';
+    const done = (id) => copyCmd("tp epic done " + id + evidence);
     const ops = v.plan.operator_conditions.map((id) => row(id, titleOf(v, id), t("op.condition"), done(id)));
     (v.plan.operator_groups || []).forEach((c) => ops.push(row(c.epic, titleOf(v, c.epic), t("op.chooseOne", { n: c.any_of.length }),
       c.any_of.map(done).join(" " + esc(t("op.or")) + " "))));
     (v.g.milestones || []).forEach((m) => {
       const o = m.operator || {};
-      (o.gates || []).forEach((gate) => ops.push(row(gate.milestone, gate.threshold, t("op.gate"), "<code>tp epic gate " + esc(gate.milestone) + " --met" + evidence + "</code>")));
-      (o.threshold_rewrites || []).forEach((r) => ops.push(row(r.milestone, r.threshold, t("op.threshold"), "<code>" + esc(r.command) + "</code>")));
+      (o.gates || []).forEach((gate) => ops.push(row(gate.milestone, gate.threshold, t("op.gate"), copyCmd("tp epic gate " + gate.milestone + " --met" + evidence))));
+      (o.threshold_rewrites || []).forEach((r) => ops.push(row(r.milestone, r.threshold, t("op.threshold"), copyCmd(r.command))));
     });
     (v.g.slices || []).filter((s) => s.grantable).forEach((s) => ops.push(row(t("op.slice"), sliceLabel(s), roundText(s),
-      esc(t("op.staleAtCap")) + ": <code>tp epic review " + esc(sliceLabel(s)) + " --grant-round</code>")));
+      esc(t("op.staleAtCap")) + ": " + copyCmd("tp epic review " + sliceLabel(s) + " --grant-round"))));
     return ops.concat(escalationRows());
   }
 
@@ -2042,6 +2044,11 @@
       setTab("specs");
       return;
     }
+    const b = ev.target.closest("[data-copy]");
+    if (b) copyKey(b);
+  });
+  // The operator decisions list copies each settling command.
+  $("now-operator").addEventListener("click", (ev) => {
     const b = ev.target.closest("[data-copy]");
     if (b) copyKey(b);
   });
