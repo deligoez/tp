@@ -46,6 +46,17 @@
     return { x: p.x - w / 2, y: p.y - h / 2, w, h };
   };
 
+  // LABEL_CH is the width, in drawing units, of one character of an 11-unit
+  // monospaced epic id.
+  const LABEL_CH = 6.7;
+
+  // labelBox is the box behind an id label of n characters whose baseline
+  // starts at x, y: opaque in the dependency views, so an edge passing
+  // behind the label never runs through its text.
+  P.labelBox = function (x, y, n) {
+    return { x: x - 2, y: y - 10, w: n * LABEL_CH + 4, h: 14 };
+  };
+
   // placeLayout turns a /api/layout payload into drawing points: a column of
   // dims.colW per layer from dims.left, a row of dims.rowH per order below
   // dims.top and dims.head, a layer shorter than the longest centred against

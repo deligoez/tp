@@ -1468,14 +1468,21 @@
   }
   panel(["epic-export"], graphPanel);
 
-  // gedgePath draws one edge from the right of its dependency to the left of
-  // its dependent; an any-of member's edge ends at its group's fork.
-  function gedgePath(p, q, view, fork) {
+  // gedgePath draws one edge from the right of its dependency, past the end
+  // of the dependency's label box, to the left of its dependent; an any-of
+  // member's edge ends at its group's fork.
+  function gedgePath(p, q, view, fork, from) {
     const d = GDIMS[view];
-    const a = view === "milestones" ? { x: p.x + d.box, y: p.y } : { x: p.x + d.colW - d.inset - 40, y: p.y };
+    const lb = gLabelBox(p, from);
+    const a = view === "milestones" ? { x: p.x + d.box, y: p.y } : { x: lb.x + lb.w + 2, y: p.y };
     const b = view === "milestones" ? { x: q.x, y: q.y } : { x: q.x - (fork ? 26 : 8), y: q.y };
     return edgePath(a, b);
   }
+
+  // gLabelBox is the box behind the id label of the epic id drawn at p;
+  // lbgHTML draws it.
+  const gLabelBox = (p, id) => tpPure.labelBox(p.x + 12, p.y + 4, clip(id, 22).length);
+  const lbgHTML = (b) => '<rect class="lbg" x="' + b.x + '" y="' + b.y + '" width="' + b.w + '" height="' + b.h + '" rx="3"/>';
 
   // gnodeHTML draws one node: a milestone as a box with its counts, an epic
   // as its mark and id.
@@ -1495,7 +1502,7 @@
     const s = markState(e, { report: ctx.ms[e.milestone] });
     return '<g class="' + cls + '" data-id="' + esc(n.id) + '"' + tab + ' aria-label="' + esc(n.id + ": " + (e.title || "") + ", " + MARK_LABEL[s]) + '">' +
       (n.id === mapView.selected ? '<circle cx="' + p.x + '" cy="' + p.y + '" r="10" fill="none" stroke="var(--accent)" stroke-width="2.2"/>' : "") +
-      mark(e.condition, s, p.x, p.y, 4.8) + '<text class="eid" x="' + (p.x + 12) + '" y="' + (p.y + 4) + '">' + esc(clip(n.id, 22)) + "</text>" +
+      mark(e.condition, s, p.x, p.y, 4.8) + lbgHTML(gLabelBox(p, n.id)) + '<text class="eid" x="' + (p.x + 12) + '" y="' + (p.y + 4) + '">' + esc(clip(n.id, 22)) + "</text>" +
       descMark(ctx.described.has(n.id), p.x + 12, p.y + 4, clip(n.id, 22).length) +
       '<rect class="rowhit" x="' + (p.x - 9) + '" y="' + (p.y - 11) + '" width="' + (GDIMS[view].colW - 40) + '" height="22" fill="transparent"/></g>';
   }
@@ -1512,7 +1519,7 @@
       if (!p || !q) return;
       const mine = hl && (e.from === hl || e.to === hl);
       const cls = "gedge" + (e.critical ? " crit" : "") + (e.any_of ? " any" : "") + (hl ? (mine ? " hl" : " dimmed") : "");
-      out.push('<path class="' + cls + '" d="' + gedgePath(p, q, L.view, !!e.any_of) + '"/>');
+      out.push('<path class="' + cls + '" d="' + gedgePath(p, q, L.view, !!e.any_of, e.from) + '"/>');
       const fork = e.any_of && e.to + "\u0000" + e.any_of.join("\u0000");
       if (fork && !forks.has(fork)) {
         forks.add(fork);

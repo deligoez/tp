@@ -301,6 +301,7 @@ body.mapfs .card.fs .legend { max-height: 30vh; overflow: auto; }
 .map .gnode:focus { outline: none; }
 .map .gnode:focus-visible .rowhit, .map .gnode:focus-visible .msbox { stroke: var(--color-focus); stroke-width: 2; }
 .map .gnode.dim { opacity: .2; }
+.map .lbg { fill: var(--surface); }
 .map .gnode.centre .eid { font-weight: 600; fill: var(--ink); }
 .map .gsub { font: 400 12px var(--font-display); fill: var(--muted); }
 .map .gband { fill: var(--surface); stroke: var(--line); opacity: .7; }
