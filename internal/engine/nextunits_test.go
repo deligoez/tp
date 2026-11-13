@@ -154,6 +154,30 @@ func TestBuildNextUnits_ImplementAndDecomposeSubjects(t *testing.T) {
 	assert.Equal(t, NextUnit{Kind: UnitDecompose, ID: "spec", BriefCommand: "tp resume"}, units[0])
 }
 
+// TestBuildNextUnits_ImplementBatchUnderRunMaxParallel: with run_max_parallel
+// above 1, the implement phase returns the batch ImplementBatch picks, each
+// unit's brief naming its own task (spec/backlog/parallel-implement.md §2.2);
+// a batch of one keeps tp next's brief.
+func TestBuildNextUnits_ImplementBatchUnderRunMaxParallel(t *testing.T) {
+	root, taskFile, spec := nextUnitsRepo(t)
+	three := 3
+	tf := &model.TaskFile{Spec: spec, Workflow: model.WorkflowOverride{RunMaxParallel: &three}, Tasks: []model.Task{
+		{ID: "a", Status: model.StatusOpen, Touches: []string{"internal/cli/"}},
+		{ID: "b", Status: model.StatusOpen, Touches: []string{"internal/cli/next.go"}},
+		{ID: "c", Status: model.StatusOpen, Touches: []string{"docs/"}},
+	}}
+
+	units, _ := BuildNextUnits(root, taskFile, spec, PhaseImplement, tf, nil, nil)
+	assert.Equal(t, []NextUnit{
+		{Kind: UnitImplement, ID: "a", BriefCommand: "tp brief a"},
+		{Kind: UnitImplement, ID: "c", BriefCommand: "tp brief c"},
+	}, units)
+
+	tf.Tasks[2].Touches = nil
+	units, _ = BuildNextUnits(root, taskFile, spec, PhaseImplement, tf, nil, nil)
+	assert.Equal(t, []NextUnit{{Kind: UnitImplement, ID: "a", BriefCommand: "tp next --brief"}}, units)
+}
+
 // TestBuildNextUnits_EmptyCases: §4.1's three empty cases — release, a phase
 // whose work is blocked, and a phase awaiting an operator decision (the
 // escalate blocker class). Never nil: an empty next_units serializes as [].
