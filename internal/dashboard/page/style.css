@@ -477,7 +477,12 @@ body.mapfs .card.fs .legend { max-height: 30vh; overflow: auto; }
 .matrix td.diag { font-size: 10px; }
 .mkey { display: flex; flex-wrap: wrap; gap: var(--space-2xs) var(--space-md); margin-top: var(--space-sm); font-size: var(--text-sm); color: var(--muted); }
 .mkey i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
-.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(440px, 100%); z-index: var(--z-modal); background: var(--surface); border-left: 1px solid var(--color-rule-2); display: flex; flex-direction: column; box-shadow: -8px 0 24px rgb(0 0 0 / .12); }
+/* an open drawer narrows the page, and a full-screen card, instead of covering them */
+:root { --drawer-w: min(440px, 100%); --drawer-h: 60vh; }
+body.dopen { padding-right: var(--drawer-w); }
+body.mapfs.dopen .card.fs { right: var(--drawer-w); }
+body.dopen:not([data-tab="epics"]) { padding: 0; }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: var(--drawer-w); z-index: var(--z-modal); background: var(--surface); border-left: 1px solid var(--color-rule-2); display: flex; flex-direction: column; box-shadow: -8px 0 24px rgb(0 0 0 / .12); }
 .drawer[hidden], body:not([data-tab="epics"]) .drawer { display: none; }
 .dhead { display: flex; gap: var(--space-xs); align-items: center; padding: var(--space-xs) var(--space-md); border-bottom: 1px solid var(--line); min-height: 52px; }
 .dhead .k { font: 600 var(--text-sm) var(--font-display); color: var(--muted); }
@@ -496,7 +501,9 @@ body.mapfs .card.fs .legend { max-height: 30vh; overflow: auto; }
 .ehr { list-style: none; margin: 0; padding: 0 0 0 var(--space-sm); border-left: 1px solid var(--line); display: grid; gap: var(--space-xs); font-size: var(--text-sm); }
 .ehr > li > b { display: block; font: 600 var(--text-xs) var(--font-display); color: var(--ink-2); }
 @media (max-width: 760px) {
-  .drawer { top: auto; height: 78vh; width: 100%; border-left: 0; border-top: 1px solid var(--color-rule-2); }
+  .drawer { top: auto; height: var(--drawer-h); width: 100%; border-left: 0; border-top: 1px solid var(--color-rule-2); }
+  body.dopen { padding-right: 0; padding-bottom: var(--drawer-h); }
+  body.mapfs.dopen .card.fs { right: 0; bottom: var(--drawer-h); }
   .stepper.e3 { grid-template-columns: minmax(0, 1fr); }
 }
 .esub { color: var(--muted); font-size: var(--text-xs); }
