@@ -333,3 +333,20 @@ func TestPage_PlanReviewStacksIntoCardsOnAPhone(t *testing.T) {
 	assert.Contains(t, page, "#slices .loops td[data-l]::before { content: attr(data-l)")
 	assert.Contains(t, script, `<td data-l="State">`)
 }
+
+// TestPure_TheUpdateTimeReadsRelative: the header's update time reads as
+// how long ago tp last pushed, in the largest whole unit.
+func TestPure_TheUpdateTimeReadsRelative(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([0, 9999, 10000, 59000, 60000, 3599000, 3600000, 7300000, -5].map(P.relTime));`)
+	assert.JSONEq(t, `["just now", "just now", "10 s ago", "59 s ago", "1 min ago", "59 min ago", "1 h ago", "2 h ago", "just now"]`, got)
+}
+
+// TestPage_TheHeaderSaysHowLongAgoTpPushed: the header's update time is
+// relative, kept current by a timer, the clock time in its title.
+func TestPage_TheHeaderSaysHowLongAgoTpPushed(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Contains(t, script, "tpPure.relTime(")
+	assert.Contains(t, script, "setInterval(")
+}
