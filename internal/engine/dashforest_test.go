@@ -298,3 +298,12 @@ func TestForestLayout_ASpineChildFirstInFileOrderHoldsItsParent(t *testing.T) {
 	got := ForestLayout(&ForestInput{IDs: ids, Edges: edges, OnPath: []bool{true, true}, Pack: PackTree})
 	assert.Equal(t, map[string]ForestPlace{"a": {0, 0}, "d": {1, 0}, "b": {1, 1}}, got.Places)
 }
+
+// TestForestLayout_AnUnnamedBandIsListedBesideNamedOnes: a node with no
+// band lands in the unnamed band after the named ones, and that band is
+// listed once there is more than one.
+func TestForestLayout_AnUnnamedBandIsListedBesideNamedOnes(t *testing.T) {
+	t.Parallel()
+	got := ForestLayout(&ForestInput{IDs: []string{"x", "y"}, Bands: []string{"M1"}, BandOf: map[string]string{"x": "M1"}, Pack: PackTree})
+	assert.Equal(t, []LayoutBand{{Name: "M1", From: 0, To: 0}, {Name: "", From: 1, To: 1}}, got.Bands)
+}
