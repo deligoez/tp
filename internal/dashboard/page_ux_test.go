@@ -649,6 +649,17 @@ func TestPage_TheKPIRowReadsEvenlyAtDesktopWidth(t *testing.T) {
 	assert.NotContains(t, page, "minmax(160px, 1fr)")
 }
 
+// TestPure_TheKPIRowsBalance: the KPI row takes the fewest rows its width
+// allows for cards of at least minCard px, and the fewest columns giving
+// that many rows, so nine cards read 9, 5 + 4 or 3 + 3 + 3, never 8 + 1 or
+// 7 + 2; a row with no width (a hidden tab) or no cards has no answer yet
+// (1.15.1).
+func TestPure_TheKPIRowsBalance(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([1408, 1300, 1168, 968, 608, 358, 100, 0].map((w) => P.balancedColumns(9, w, 140, 8)).concat([P.balancedColumns(4, 1408, 140, 8), P.balancedColumns(0, 1408, 140, 8)]));`)
+	assert.JSONEq(t, `[9, 5, 5, 5, 3, 2, 1, null, 4, null]`, got)
+}
+
 // TestPure_TheEpicTotalsNameTheConditions: the Epics tab counts every epic
 // while the share and the Lifecycle count work epics, so the totals read as
 // one sentence that names the condition epics between them (1.14.1).
