@@ -2484,7 +2484,10 @@ the fullest one, or of 0.4 columns per layer when that is wider and the tree is 
 graph always lays out alike.
 
 The page's graph card draws these views with deck.gl, vendored as
-`/vendor/deckgl-9.3.12.min.js` and served gzip-compressed to a client that accepts it; it loads
+`/vendor/deckgl-9.3.12.min.js`, the one file served under `/vendor/`, gzip-compressed to a client
+that accepts it, cached as immutable and revalidated by its ETag. The page asks for its own
+scripts, styles and words with `?v=<stamp>`, a hash of the embedded files, and is itself served
+`no-cache`, so a browser never runs one tp version's script beside another's. The renderer loads
 when the card first scrolls into view, and a browser without WebGL2 gets a message instead. Its
 place lives in the address: `gv` the mode (`milestones`, `scope` or `neighbourhood`; none for
 `plan`), `gm` the gate milestone, `gd` the depth, `pack=tree`, `cross=1` with cross edges shown and
