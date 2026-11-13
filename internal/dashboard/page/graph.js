@@ -874,6 +874,16 @@
     boxSize = next;
     if (refit && G.prepared && G.deck && G.atFit) fit();
   }).observe($("gc-canvas"));
+  // The full-screen pill keeps its words whole while it fits: measured with
+  // them whole, it shortens them (.tight) only when it overflows its room,
+  // beside an open drawer or on a narrow screen (tpPure.pillTight).
+  const pill = card.querySelector(".toolbar");
+  function fitPill() {
+    pill.classList.remove("tight");
+    if (isFull()) pill.classList.toggle("tight", pure.pillTight(pill.scrollWidth, pill.clientWidth));
+  }
+  new ResizeObserver(fitPill).observe(pill);
+  document.addEventListener("tp-fs", fitPill);
   showLegend(pure.legendOpen(storedLegend(), isFull()));
   $("gc-fit").addEventListener("click", () => { if (G.prepared) fit(); });
   // The canvas's own + − Fit, bottom right, in the page and in full screen.

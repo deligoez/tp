@@ -471,6 +471,13 @@
     return Math.abs(prev.w * prev.dpr - next.w * next.dpr) > tol || Math.abs(prev.h * prev.dpr - next.h * next.dpr) > tol;
   };
 
+  // pillTight says whether the full-screen toolbar, measured with its words
+  // whole (scrollWidth against clientWidth), overflows the room it has; only
+  // then do the mode switch and the cross-edge toggle shorten their words.
+  P.pillTight = function (scrollWidth, clientWidth) {
+    return scrollWidth > clientWidth + 1;
+  };
+
   // wheelDelta is a wheel event's [x, y] in pixels: its deltaMode counts
   // pixels, lines of 16 pixels, or pages of height pixels.
   P.wheelDelta = function (ev, height) {
