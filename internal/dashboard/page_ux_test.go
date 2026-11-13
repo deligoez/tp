@@ -350,3 +350,14 @@ func TestPage_TheHeaderSaysHowLongAgoTpPushed(t *testing.T) {
 	assert.Contains(t, script, "tpPure.relTime(")
 	assert.Contains(t, script, "setInterval(")
 }
+
+// TestPage_HasAFaviconFromTheEmbed: the page links an SVG favicon the
+// binary serves, so the tab is told apart without a request elsewhere.
+func TestPage_HasAFaviconFromTheEmbed(t *testing.T) {
+	t.Parallel()
+	page, _ := pageText(t)
+	assert.Contains(t, page, `<link rel="icon" href="favicon.svg" type="image/svg+xml">`)
+	resp := serve(t, http.MethodGet, "127.0.0.1:7377", "/favicon.svg")
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Contains(t, resp.Header.Get("Content-Type"), "image/svg+xml")
+}
