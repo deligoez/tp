@@ -1964,6 +1964,9 @@ file to `release`; it is `null` when the epic is not done or that round carries 
 A gate's members are its listed `members`, or, when it lists none or `gates` has no entry for the
 milestone, every epic of the milestone that is neither a condition nor `deferrable`; `deferrable`
 epics never hold it. Every milestone therefore has a gate.
+A gate whose effective members are empty and that has no `threshold` is green, so a milestone holding
+only conditions never holds back what opens after it; a trigger belongs inside the milestone it
+gates (SKILL, Workflow E, Conditions).
 
 - **Green**: every member `done` and, when the gate has a `threshold`, a `met` record. Members are
   read live, so one that falls back turns the gate red while `met` stands. `--met` copies the
