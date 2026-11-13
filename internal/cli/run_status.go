@@ -174,6 +174,6 @@ func addAuditSignals(result map[string]any, specPath string, cleanRounds int) {
 	}
 	auditSignalFields(result, specPath, rounds, cleanRounds,
 		engine.StateStale(rounds, specHash),
-		engine.Converged(rounds, cleanRounds, specHash),
+		engine.Converged(rounds, cleanRounds, specHash) && len(engine.AuditCarriedBlocking(specPath, st)) == 0,
 		rolesHash)
 }

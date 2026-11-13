@@ -39,9 +39,11 @@ func refuseIfBudgetExhausted(kind, specPath string, st *engine.ReviewState, capR
 		// Audit convergence waits on the carried set too
 		// (spec/backlog/audit-carried-fail-blocks.md): empty rounds at the
 		// cap do not let it end past a FAIL no round re-graded.
-		converged := engine.Converged(rounds, requiredClean, specHash) && len(engine.AuditCarriedBlocking(specPath, st)) == 0
+		var converged bool
 		if kind == "review" {
 			converged = engine.ReviewConverged(specPath, st, requiredClean, specHash, convergeOn)
+		} else {
+			converged = engine.Converged(rounds, requiredClean, specHash) && len(engine.AuditCarriedBlocking(specPath, st)) == 0
 		}
 		if converged {
 			return
