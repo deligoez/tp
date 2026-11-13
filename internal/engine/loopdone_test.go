@@ -138,17 +138,20 @@ func TestAuditRoundClean_AnAcceptedFindingClearsTheRound(t *testing.T) {
 	}
 }
 
+// TestAuditLoopDone_PassRowsNeedNoDisposition: at the cap a PASS row needs no
+// disposition. Round 3 re-grades x PASS, which also clears the FAIL rounds 1
+// and 2 carried (spec/backlog/audit-carried-fail-blocks.md).
 func TestAuditLoopDone_PassRowsNeedNoDisposition(t *testing.T) {
 	t.Parallel()
 	spec := filepath.Join(t.TempDir(), "spec.md")
 	open := `{"role":"r","item_id":"x","status":"FAIL","severity":"error"}`
 	rounds := loopRounds(t, spec, []string{open}, []string{open}, []string{
-		`{"role":"r","item_id":"p","status":"PASS","severity":null}`,
+		`{"role":"r","item_id":"x","status":"PASS","severity":null}`,
 		`{"role":"r","item_id":"w","status":"FAIL","severity":"warning","resolved":{"status":"fixed","evidence":"code changed"}}`,
 	})
 	rounds[2].ConvergeOn = AuditConvergeOnBlocking // a warning does not block under blocking
 
-	d := AuditLoopDone(spec, rounds, 2, 3, "h")
+	d := AuditLoopDone(spec, &ReviewState{AuditRounds: rounds}, 2, 3, "h")
 	assert.True(t, d.Done)
 	assert.Equal(t, DoneByCap, d.By)
 	assert.Equal(t, 1, d.FixedAtCap)
@@ -166,7 +169,7 @@ func TestAuditLoopDone_ABlockingFixedAtTheCapKeepsItOpen(t *testing.T) {
 		`{"role":"r","item_id":"x","status":"FAIL","severity":"error","resolved":{"status":"fixed","evidence":"code changed"}}`,
 	})
 
-	d := AuditLoopDone(spec, rounds, 2, 3, "h")
+	d := AuditLoopDone(spec, &ReviewState{AuditRounds: rounds}, 2, 3, "h")
 	assert.False(t, d.Done)
 	assert.Equal(t, 1, d.BlockingFixedAtCap)
 }
