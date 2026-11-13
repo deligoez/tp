@@ -2398,8 +2398,9 @@ exist, and a hint naming `tp export --list`. A listed task file whose `spec` nam
 elsewhere, or that is a symlink, is read exactly as `tp export` reads it.
 
 **Events.** `/api/events` is a server-sent event stream. While at least one page listens, the server
-derives three payloads in-process every 2 seconds and pushes each, as one line of JSON under its event
-name, only when it differs from the last push with a top-level `generated_at` left out:
+derives three payloads in-process every 2 seconds, concurrently (v1.16.1), and pushes each, as one
+line of JSON under its event name, only when it differs from the last push with a top-level
+`generated_at` left out:
 
 | Event | Payload |
 |-------|---------|
@@ -2407,10 +2408,12 @@ name, only when it differs from the last push with a top-level `generated_at` le
 | `export-list` | `tp export --list`'s JSON |
 | `summary` | the summary below, over an empty graph when there is none |
 
-A page that connects first receives the current state, in the order the payloads were derived. A
+A page that connects first receives the current state, in the order the table lists the payloads. A
 derivation that fails is pushed under its event as tp's `{error, code, hint}`; the page shows it as a
 banner over the last good payload, greyed. A page more than 32 events behind is dropped and
-reconnects, and the loop stops when no page listens.
+reconnects, and the loop stops when no page listens. A hidden tab closes its stream and opens a new
+one when it is visible again, reading the current state afresh (v1.16.1), so hidden tabs hold none
+of the browser's connections to the dashboard.
 
 The epic drawer shows a selected epic's `description` (v1.11.0), read from the export's raw graph,
 as preformatted text: escaped, never rendered as markup.
