@@ -48,11 +48,13 @@ const layoutSweeps = 4
 // an edge naming an id not in ids is ignored. With bands nil every node
 // shares one band; otherwise bandOf names each node's band, and the bands
 // become runs of consecutive layers in dependency order, bands breaking a
-// tie in the order given. Bands that depend on each other in a cycle,
-// through different nodes, share one run, so no edge points back. Inside a
-// run a node's layer is its longest path from the run's sources over the
-// run's own edges. Each layer is then ordered by layoutSweeps barycenter
-// sweeps, ties broken by file order, so one input always lays out alike.
+// tie in the order given; a band named twice counts once, and a band a
+// node names that bands leaves out is added after them. Bands that depend
+// on each other in a cycle, through different nodes, share one run, so no
+// edge points back. Inside a run a node's layer is its longest path from
+// the run's sources over the run's own edges. Each layer is then ordered
+// by layoutSweeps barycenter sweeps, ties broken by file order, so one
+// input always lays out alike.
 func LayeredLayout(ids []string, edges []LayoutEdge, bands []string, bandOf map[string]string) Layout {
 	file := make(map[string]int, len(ids))
 	for i, id := range ids {
@@ -70,7 +72,7 @@ func LayeredLayout(ids []string, edges []LayoutEdge, bands []string, bandOf map[
 		bands, bandOf = []string{""}, map[string]string{}
 	}
 	out := Layout{Places: make(map[string]LayoutPlace, len(ids))}
-	layer, spans := bandLayers(ids, kept, bandRuns(bands, bandOf, kept), bandOf)
+	layer, spans := bandLayers(ids, kept, bandRuns(bandList(bands, ids, bandOf), bandOf, kept), bandOf)
 	for _, s := range spans {
 		if s.Name != "" || len(spans) > 1 {
 			out.Bands = append(out.Bands, s)
@@ -85,10 +87,31 @@ func LayeredLayout(ids []string, edges []LayoutEdge, bands []string, bandOf map[
 	return out
 }
 
-// bandRuns groups bands into runs of layers and orders them: bands that
-// reach each other through edges, a cycle of the band graph, make one run,
-// listed in the given order; a run follows every run it depends on, the
-// run holding the earliest given band first among the ready ones.
+// bandList is bands with each named once, where it is first named, then
+// each band a node of ids names that bands leaves out, in ids order.
+func bandList(bands, ids []string, bandOf map[string]string) []string {
+	seen := map[string]bool{}
+	out := make([]string, 0, len(bands))
+	add := func(b string) {
+		if !seen[b] {
+			seen[b] = true
+			out = append(out, b)
+		}
+	}
+	for _, b := range bands {
+		add(b)
+	}
+	for _, id := range ids {
+		add(bandOf[id])
+	}
+	return out
+}
+
+// bandRuns groups bands, each named once, into runs of layers and orders
+// them: bands that reach each other through edges, a cycle of the band
+// graph, make one run, listed in the given order; a run follows every run
+// it depends on, the run holding the earliest given band first among the
+// ready ones.
 func bandRuns(bands []string, bandOf map[string]string, edges []LayoutEdge) [][]string {
 	next := bandEdges(bands, bandOf, edges)
 	run, count := bandComponents(next)
@@ -121,9 +144,7 @@ func bandRuns(bands []string, bandOf map[string]string, edges []LayoutEdge) [][]
 func bandEdges(bands []string, bandOf map[string]string, edges []LayoutEdge) [][]bool {
 	index := make(map[string]int, len(bands))
 	for i, b := range bands {
-		if _, ok := index[b]; !ok {
-			index[b] = i
-		}
+		index[b] = i
 	}
 	next := make([][]bool, len(bands))
 	for i := range next {
