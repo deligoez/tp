@@ -1065,8 +1065,18 @@
   // next Enter there steps to the next match.
   let opener = null;
   let keepFocusOnce = false;
+  // noteOpener records what held focus for a selection made outside the
+  // drawer, whether the drawer is closed or already open, so Esc gives
+  // focus back to where the last selection came from (1.17.1).
+  function noteOpener() {
+    const el = document.activeElement;
+    if ($("drawer").contains(el)) return;
+    const from = { el, key: focusKey(el) };
+    if ($("drawer").hidden) opener = from;
+    else drawerReturn = { el: from.el, keys: [from.key].filter(Boolean) };
+  }
   function selectEpic(id, centre, keepFocus) {
-    if ($("drawer").hidden) opener = { el: document.activeElement, key: focusKey(document.activeElement) };
+    noteOpener();
     // An epic takes the drawer over from a milestone shown in it.
     moveDrawer({ type: "epic", id });
     keepFocusOnce = !!keepFocus;
@@ -1079,7 +1089,7 @@
   // openMilestone shows milestone id in the drawer, or closes the drawer
   // when id is the milestone it shows; a selected epic gives way to it.
   function openMilestone(id) {
-    if ($("drawer").hidden) opener = { el: document.activeElement, key: focusKey(document.activeElement) };
+    noteOpener();
     const had = mapView.selected;
     moveDrawer({ type: "milestone", id });
     drawSelected();
