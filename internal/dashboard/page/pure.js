@@ -229,6 +229,29 @@
       .map((s) => ({ milestone: s.milestone, groups: s.groups, epics: s.ids.size }));
   };
 
+  // flipWait is the Waiting view v with key flipped in its kind of set:
+  // folded (a section's header) or all (a section's Show all); v itself and
+  // every other key are left as they were.
+  P.flipWait = function (v, kind, key) {
+    const next = { all: new Set(v.all), folded: new Set(v.folded) };
+    if (next[kind].has(key)) next[kind].delete(key);
+    else next[kind].add(key);
+    return next;
+  };
+
+  // waitSection is what a waitingSections section s shows under the view
+  // v, n groups before its Show all: its key, its title ("no milestone"
+  // when it has none), whether it is expanded, the groups shown (none when
+  // folded) and its Show all, null when folded or when n groups hold it.
+  P.waitSection = function (s, v, n) {
+    const key = s.milestone;
+    const name = key || "no milestone";
+    const expanded = !v.folded.has(key);
+    const all = v.all.has(key);
+    const more = expanded && s.groups.length > n ? { expanded: all, text: all ? "Show the largest " + n : "Show all " + s.groups.length + " blockers in " + name } : null;
+    return { key, title: "Blockers in " + name, expanded, groups: !expanded ? [] : all ? s.groups : s.groups.slice(0, n), more };
+  };
+
   // describedCounts counts, per milestone, the graph's epics and those with
   // a description, one holding more than whitespace, as tp treats it.
   P.describedCounts = function (epics) {

@@ -465,7 +465,7 @@
   // counted row. Its total is the KPI's blocked epics, the parts named.
   const WAIT_SHOWN = 3;
   const BLOCKER_LABEL = { startable: "startable", claimed: "claimed", specced: "specced", in_progress: "in progress", decision: "operator decision", waiting: "waiting" };
-  const waitView = { all: new Set(), folded: new Set() };
+  let waitView = { all: new Set(), folded: new Set() };
   // waitGroupHTML draws one group; wg keys it for focus to come back to a
   // link inside it after a redraw.
   function waitGroupHTML(gr, wg) {
@@ -475,15 +475,14 @@
       '<span class="wn num" title="epics of open milestones that wait on it directly">' + esc(plural(gr.epics.length, "waits", "wait")) + " on it here</span></div>" +
       '<div class="wids">' + gr.epics.map(epicLink).join(" ") + "</div></div>";
   }
+  // waitSectionHTML draws a section as tpPure.waitSection decides it under
+  // waitView.
   function waitSectionHTML(s) {
-    const key = s.milestone;
-    const open = !waitView.folded.has(key);
-    const all = waitView.all.has(key);
-    const shown = all ? s.groups : s.groups.slice(0, WAIT_SHOWN);
-    return '<section class="wsec"><button type="button" class="wsh" data-wsec="' + esc(key) + '" aria-expanded="' + open + '"><b>Blockers in ' + esc(key || "no milestone") + "</b>" +
+    const w = tpPure.waitSection(s, waitView, WAIT_SHOWN);
+    return '<section class="wsec"><button type="button" class="wsh" data-wsec="' + esc(w.key) + '" aria-expanded="' + w.expanded + '"><b>' + esc(w.title) + "</b>" +
       '<span class="muted num">' + esc(plural(s.groups.length, "blocker", "blockers") + ", " + plural(s.epics, "epic waits", "epics wait") + " on them") + "</span></button>" +
-      (open ? shown.map((gr, i) => waitGroupHTML(gr, key + ":" + i)).join("") + (s.groups.length > WAIT_SHOWN ? '<button type="button" class="chip wall" data-wall="' + esc(key) + '" aria-expanded="' + all + '">' +
-        (all ? "Show the largest " + WAIT_SHOWN : "Show all " + s.groups.length + " blockers in " + esc(key)) + "</button>" : "") : "") + "</section>";
+      w.groups.map((gr, i) => waitGroupHTML(gr, w.key + ":" + i)).join("") +
+      (w.more ? '<button type="button" class="chip wall" data-wall="' + esc(w.key) + '" aria-expanded="' + w.more.expanded + '">' + esc(w.more.text) + "</button>" : "") + "</section>";
   }
   function waitingHTML(v) {
     const open = {};
@@ -509,10 +508,8 @@
   $("waitcard").addEventListener("click", (ev) => {
     const b = ev.target.closest("[data-wall], [data-wsec]");
     if (!b) return;
-    const [set, ms] = b.dataset.wall !== undefined ? [waitView.all, b.dataset.wall] : [waitView.folded, b.dataset.wsec];
     const key = focusKey(b);
-    if (set.has(ms)) set.delete(ms);
-    else set.add(ms);
+    waitView = tpPure.flipWait(waitView, b.dataset.wall !== undefined ? "all" : "folded", b.dataset.wall !== undefined ? b.dataset.wall : b.dataset.wsec);
     render();
     refocus(key);
   });
