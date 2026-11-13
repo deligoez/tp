@@ -50,3 +50,21 @@ func TestEpoch_ConvergenceAndTheCapStillCountEveryRound(t *testing.T) {
 	assert.Equal(t, float64(0), st["rounds_remaining"])
 }
 
+// TestEpoch_TheCapStillRefusesTheNextEmission: three unclean rounds reach the
+// default cap of 3; an epoch after them does not reset it, so the next
+// emission is still refused with exit 4 and the budget message.
+func TestEpoch_TheCapStillRefusesTheNextEmission(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeSpec(t, dir, epochOldSpec)
+	for range 3 {
+		_, stderr, code := recordRound(t, dir, epochHighRow)
+		require.Equal(t, 0, code, stderr)
+	}
+	writeSpec(t, dir, epochNewSpec)
+	startEpoch(t, dir)
+
+	_, stderr, code := runTP(t, dir, "review", "spec.md")
+	assert.Equal(t, 4, code, stderr)
+	assert.Contains(t, stderr, "review round budget exhausted: 3 rounds recorded with a cap of 3")
+}
