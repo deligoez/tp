@@ -2132,10 +2132,13 @@ func loadReviewRoundState(cmd *cobra.Command, specPath string, round int, findin
 		rs.required, rs.consecutive, rs.converged, rs.stale = &req, &cc, &conv, &stale
 	}
 
-	// Previous findings from rounds 1..R-1 unless --findings overrides
+	// Previous findings from rounds 1..R-1 unless --findings overrides; a
+	// round recorded before the newest epoch read a text the spec no longer
+	// holds, so its rows are not carried (tp review --rewritten).
 	if findingsPath == "" && st != nil {
-		for i := range st.ReviewRounds {
-			r := st.ReviewRounds[i]
+		carried := engine.RoundsSinceEpoch(st, engine.PhaseReview)
+		for i := range carried {
+			r := carried[i]
 			rows, found := engine.LoadRoundRows(specPath, &r)
 			if !found {
 				output.Notice(fmt.Sprintf("round %d file %s is missing; skipping its rows", r.Round, r.File))
