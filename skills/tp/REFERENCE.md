@@ -2471,8 +2471,11 @@ after the first in closure order, and its epics' layers come from the longest pa
 edges.
 
 The columns come from a forest. Each node takes one primary parent: of the edges into it from an
-earlier layer and from its own track, the one from the deepest layer, the earliest in graph-file
-order on a tie. That edge is a `tree` edge; any other edge pointing down the layers is `cross`, and
+earlier layer and from its own track, one on the critical path, then the one from the deepest
+layer, then the earliest in graph-file order. In `scope` and `neighbourhood` that path is the one
+marked; in `plan` it is the graph's critical path with every epic counted open, so finishing an
+epic never moves a node to another layer or column, while `critical` still marks the live path.
+In `milestones` a milestone's track is its group. That edge is a `tree` edge; any other edge pointing down the layers is `cross`, and
 an edge that points up or along a layer, which only a cycle leaves, is `back`. A node with no
 such edge, none into it or all from other tracks, is a root. The roots are grouped by track, and
 `pack=tree` gives every leaf its own column and centres each parent over its children, so subtrees
