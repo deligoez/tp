@@ -289,9 +289,6 @@
     links.forEach((l, k) => { succs[l.s].push(k); preds[l.d].push(k); });
     links.forEach((l) => { l.path = curve(nodes[l.s], nodes[l.d], l.role === "back"); });
     const bands = bandRegions(L, nodes, geo);
-    const chars = new Set();
-    nodes.forEach((n) => { for (const ch of n.label + n.title) chars.add(ch); });
-    bands.forEach((b) => { for (const ch of b.name + " ·0123456789") chars.add(ch); });
     const bounds = nodes.length ? {
       x0: Math.min(...nodes.map((n) => n.x), ...bands.map((b) => b.x0)) - geo.w / 2 - 20, x1: Math.max(...nodes.map((n) => n.x)) + geo.w / 2 + 40,
       y0: Math.min(...nodes.map((n) => n.y), ...bands.map((b) => b.y0)) - 30, y1: Math.max(...nodes.map((n) => n.y)) + geo.h + 30,
@@ -303,7 +300,7 @@
       if (l.critical) counts.edges.critical = (counts.edges.critical || 0) + 1;
       if (l.any) counts.edges.any = (counts.edges.any || 0) + 1;
     });
-    return { L, geo, nodes, links, preds, succs, bands, bounds, counts, index, described, charSet: [...chars].join(""), sel: -1, anc: null, desc: null, ver: 0 };
+    return { L, geo, nodes, links, preds, succs, bands, bounds, counts, index, described, charSet: pure.glyphsOf(nodes, bands), sel: -1, anc: null, desc: null, ver: 0 };
   }
 
   // curve is an edge's path: a cubic from the bottom of its dependency to

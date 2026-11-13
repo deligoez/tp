@@ -548,6 +548,15 @@
     return [id.slice(0, cut), rest.length <= per ? rest : rest.slice(0, per - 1) + "…"];
   };
 
+  // glyphsOf is every character the graph's text layers draw, the set
+  // deck.gl builds its font atlas from: a character left out is not drawn.
+  P.glyphsOf = function (nodes, bands) {
+    const chars = new Set();
+    nodes.forEach((n) => { for (const ch of n.label + n.title + (n.text || "") + (n.short || "")) chars.add(ch); });
+    bands.forEach((b) => { for (const ch of b.name + " ·0123456789") chars.add(ch); });
+    return [...chars].join("");
+  };
+
   // fitFloor is the furthest a fit zooms out, as a power of two: where a
   // label of fs units (11 for an epic) is 9 pixels on screen for a gate
   // closure, a neighbourhood or any layout under 200 nodes, so a small
