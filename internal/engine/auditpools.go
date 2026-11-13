@@ -78,10 +78,12 @@ func ReadAuditPools(specPath string, round int) (pools []AuditRolePool, found bo
 	return f.Pools, true, nil
 }
 
-// GradedSuffix renders a round's Graded entries as the clause next_action
-// carries, " (latest round graded security 7 of 46, quality 10 of 46)", or ""
-// when the round recorded none.
-func GradedSuffix(graded []RoleGraded) string {
+// GradedPrefix renders a round's Graded entries as the sentence that opens
+// next_action, "latest round graded security 7 of 46, quality 10 of 46. ", or
+// "" when the round recorded none. It leads rather than follows: next_action
+// ends with the command to run, and copying that command must copy nothing
+// else.
+func GradedPrefix(graded []RoleGraded) string {
 	if len(graded) == 0 {
 		return ""
 	}
@@ -89,7 +91,7 @@ func GradedSuffix(graded []RoleGraded) string {
 	for _, g := range graded {
 		parts = append(parts, fmt.Sprintf("%s %d of %d", g.Role, g.Graded, g.Pool))
 	}
-	return " (latest round graded " + strings.Join(parts, ", ") + ")"
+	return "latest round graded " + strings.Join(parts, ", ") + ". "
 }
 
 // GradeAuditRoles returns, in pool order, how many distinct emitted
