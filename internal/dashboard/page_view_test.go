@@ -81,3 +81,12 @@ out([
 ]);`)
 	assert.JSONEq(t, `[true, true, false, false, [], [["cross", "0"]], false, true, true]`, got)
 }
+
+// TestPure_ALongEdgeSpansThreeLayersOrEightColumns: an edge whose ends lie
+// three layers or more apart, or eight columns or more either way, is long,
+// and the card draws it faded beneath the others.
+func TestPure_ALongEdgeSpansThreeLayersOrEightColumns(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([P.edgeLong(1, 0), P.edgeLong(2, 7), P.edgeLong(3, 0), P.edgeLong(0, 8), P.edgeLong(1, -9), P.edgeLong(-3, 0)]);`)
+	assert.JSONEq(t, `[false, false, true, true, true, true]`, got)
+}
