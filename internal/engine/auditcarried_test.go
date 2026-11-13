@@ -137,6 +137,51 @@ func TestAuditCarried_APositionalIdClearsUnlessItsItemMoved(t *testing.T) {
 	}
 }
 
+// TestAuditCarried_APositionalRowFollowsItsMovedItem: when the item moved, a
+// PASS at the id where its text now sits clears the row; and an item whose
+// words another item shares is the same item while they stay at its own id.
+func TestAuditCarried_APositionalRowFollowsItsMovedItem(t *testing.T) {
+	t.Parallel()
+	fail := `{"role":"spec-coverage","item_id":"list-0-1","status":"FAIL","severity":"error"}`
+	movedPass := `{"role":"spec-coverage","item_id":"list-0-2","status":"PASS","severity":null}`
+	samePass := `{"role":"spec-coverage","item_id":"list-0-1","status":"PASS","severity":null}`
+	for _, tc := range []struct {
+		name, first, later, pass string
+	}{
+		{"moved", "# S\n\n## 1. Rules\n\n1. Every row is checked.\n", "# S\n\n## 1. Rules\n\n1. A new first rule.\n2. Every row is checked.\n", movedPass},
+		{"shared words", "# S\n\n## 1. Rules\n\n1. Run the gate.\n\n## 2. More\n\n1. Run the gate.\n", "# S\n\n## 1. Rules\n\nA line.\n\n1. Run the gate.\n\n## 2. More\n\n1. Run the gate.\n", samePass},
+	} {
+		spec := auditSpec(t)
+		st := auditState(t, spec, AuditConvergeOnAll, []string{fail}, []string{tc.pass})
+		st.AuditRounds[1].SpecHash = "h2"
+		require.NoError(t, WriteSnapshotAtomic(spec, PhaseAudit, 1, []byte(tc.first)))
+		require.NoError(t, WriteSnapshotAtomic(spec, PhaseAudit, 2, []byte(tc.later)))
+		assert.Empty(t, AuditCarriedBlocking(spec, st), tc.name)
+	}
+}
+
+// TestAuditCarried_ARoleIsReadTrimmed: the key reads the role as --resolve
+// does, trimmed, so " r " and "r" are one role.
+func TestAuditCarried_ARoleIsReadTrimmed(t *testing.T) {
+	t.Parallel()
+	spec := auditSpec(t)
+	st := auditState(t, spec, AuditConvergeOnAll,
+		[]string{`{"role":" r ","item_id":"task-t1","status":"FAIL","severity":"error"}`}, []string{auditPass})
+	assert.Empty(t, AuditCarriedBlocking(spec, st))
+}
+
+// TestAuditCarried_ARowWithNoItemIsResolvedByIndex: rows without an item_id
+// share one key, so the clause names the first by its index rather than a
+// selector that would dispose of them all.
+func TestAuditCarried_ARowWithNoItemIsResolvedByIndex(t *testing.T) {
+	t.Parallel()
+	spec := auditSpec(t)
+	st := auditState(t, spec, AuditConvergeOnAll, []string{auditPass, `{"role":"spec-coverage","status":"FAIL","severity":"error"}`}, []string{})
+	rows := AuditCarriedBlocking(spec, st)
+	require.Len(t, rows, 1)
+	assert.Contains(t, AuditCarriedBlockingClause(rows, spec, false), "--resolve 1 wontfix|duplicate")
+}
+
 // TestAuditCarried_ALowerReGradeKeepsTheHighestSeverity: a FAIL error re-graded
 // PARTIAL warning with no disposition is still graded error, so the blocking
 // policy does not let it go.
