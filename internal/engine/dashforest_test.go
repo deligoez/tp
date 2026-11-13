@@ -273,3 +273,17 @@ func TestForestLayout_TheEarliestOfTwoEqualEdgesIsTheTreeEdge(t *testing.T) {
 	got := ForestLayout(&ForestInput{IDs: []string{"p", "q"}, Edges: []LayoutEdge{{"p", "q"}, {"p", "q"}}, Pack: PackTree})
 	assert.Equal(t, []EdgeRole{RoleTree, RoleCross}, got.Roles)
 }
+
+// TestForestLayout_APathFromTheFirstNodeTakesItsParentsColumn: under row
+// packing a squeezes into the column after s, and d, on the path from a
+// by the first edge, takes a's squeezed column rather than its own scaled
+// one, even though a is the first node in file order.
+func TestForestLayout_APathFromTheFirstNodeTakesItsParentsColumn(t *testing.T) {
+	t.Parallel()
+	ids := []string{"a", "d", "r", "u", "s", "z1", "z2"}
+	edges := []LayoutEdge{{"a", "d"}, {"u", "a"}, {"r", "s"}}
+	groupOf := map[string]string{"a": "g", "d": "g", "r": "g", "u": "g", "s": "g", "z1": "h", "z2": "k"}
+	got := ForestLayout(&ForestInput{IDs: ids, Edges: edges, GroupOf: groupOf, OnPath: []bool{true}, Pack: PackRows})
+	assert.Equal(t, ForestPlace{1, 1}, got.Places["a"])
+	assert.Equal(t, ForestPlace{2, 1}, got.Places["d"])
+}
