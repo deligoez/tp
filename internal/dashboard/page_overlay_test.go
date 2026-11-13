@@ -41,3 +41,14 @@ func TestPage_TheFirstFitInFullScreenRefitsAndANoteCloses(t *testing.T) {
 	}
 }
 
+// TestPage_AMissedGestureEndNeverSticks is the review's L2: a gesture flag
+// whose gestureend never came clears after a pause, and on the next plain
+// wheel.
+func TestPage_AMissedGestureEndNeverSticks(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, s := range []string{"const GESTURE_IDLE_MS = 500;", "G.gestureTimer = setTimeout(() => { G.gesture = false; }, GESTURE_IDLE_MS);", "if (!ev.ctrlKey && !ev.metaKey) G.gesture = false;"} {
+		assert.Contains(t, script, s)
+	}
+}
+
