@@ -250,6 +250,17 @@ func latestAuditPolicy(rounds []ReviewRound) string {
 	return AuditConvergeOnAll
 }
 
+// AuditCarriedResolveCommand is the acceptance command for one carried audit
+// row: its round file and its role:item_id, or its index when the row lacks
+// either and so shares its key with every such row of the round.
+func AuditCarriedResolveCommand(row *CarriedRow) string {
+	selector := AuditRowRole(row.Row) + ":" + rowString(row.Row, "item_id")
+	if AuditRowRole(row.Row) == "" || rowString(row.Row, "item_id") == "" {
+		selector = fmt.Sprint(row.Index)
+	}
+	return fmt.Sprintf("tp audit %s --resolve %s wontfix|duplicate \"<evidence>\"", row.File, selector)
+}
+
 // AuditCarriedBlockingClause words what stands between an audit and
 // convergence when its carried set holds blocking rows, and how each clears.
 // Below the cap the next round's prompts list them, and a PASS clears one;
@@ -260,42 +271,32 @@ func latestAuditPolicy(rounds []ReviewRound) string {
 func AuditCarriedBlockingClause(rows []CarriedRow, specPath string, atCap bool) string {
 	first := &rows[0]
 	key := AuditRowRole(first.Row) + ":" + rowString(first.Row, "item_id")
-	selector := key
-	if AuditRowRole(first.Row) == "" || rowString(first.Row, "item_id") == "" {
-		// A row missing its role or item shares its key with every such row
-		// of the round, so it is resolved by its own index.
-		selector = fmt.Sprint(first.Index)
-	}
-	noun, pronoun := "row holds", "it"
+	resolve := AuditCarriedResolveCommand(first)
+	pronoun, each := "it", "it"
+	clause := fmt.Sprintf("1 carried blocking audit row holds the audit open: %s %s from round %d", first.Severity, key, first.Round)
 	if len(rows) > 1 {
-		noun, pronoun = "rows hold", "them"
+		pronoun, each = "them", "each"
+		clause = fmt.Sprintf("%d carried blocking audit rows hold the audit open, the first %s %s from round %d (tp audit %s --status lists all)",
+			len(rows), first.Severity, key, first.Round, specPath)
 	}
-	clause := fmt.Sprintf("%d carried blocking audit %s the audit open — the first, %s %s from round %d", len(rows), noun, first.Severity, key, first.Round)
-	if len(rows) > 1 {
-		clause += fmt.Sprintf(", and tp audit %s --status lists all %d", specPath, len(rows))
-	}
-	resolve := fmt.Sprintf("tp audit %s --resolve %s wontfix|duplicate \"<evidence>\"", first.File, selector)
+	epoch := "; if the spec was rewritten, an epoch cuts " + pronoun + " instead: tp review " + specPath +
+		" --rewritten \"<evidence>\", the operator's decision " + EscalateRewritePastBlocking
 	orphaned := orphanedAuditRows(rows, specPath)
 	switch {
 	case orphaned == len(rows):
 		// No prompt reaches a row whose role the panel no longer holds, so
 		// no round re-grades it, under the cap or past it.
-		clause += fmt.Sprintf("; no role of the next round can re-grade %s, since the audit panel no longer holds its role: accept each, the operator's decision (%s) — %s",
-			pronoun, EscalateAcceptFinding, resolve)
-		return clause + "; if the spec was rewritten, an epoch cuts " + pronoun + " instead: tp review " + specPath +
-			" --rewritten \"<evidence>\", the operator's decision " + EscalateRewritePastBlocking
+		return clause + fmt.Sprintf("; no role of the next round can re-grade %s, since the audit panel no longer holds its role: accept %s, the operator's decision (%s) — %s",
+			pronoun, each, EscalateAcceptFinding, resolve) + epoch
 	case orphaned > 0:
 		clause += fmt.Sprintf("; %d of them belong to a role the audit panel no longer holds, which no round re-grades", orphaned)
 	}
 	if atCap {
-		clause += fmt.Sprintf("; the round cap admits no round to re-grade %s: accept each, the operator's decision (%s) — %s; or raise audit_max_rounds for a round that re-grades %s, the operator's decision (%s)",
-			pronoun, EscalateAcceptFinding, resolve, pronoun, EscalateRaiseAuditCap)
-	} else {
-		clause += fmt.Sprintf("; the next round's prompts list %s to re-grade, and only a PASS clears one: run it — tp audit %s --record <file>; or accept one, the operator's decision (%s) — %s",
-			pronoun, specPath, EscalateAcceptFinding, resolve)
+		return clause + fmt.Sprintf("; the round cap admits no round to re-grade %s: accept %s, the operator's decision (%s) — %s; or raise audit_max_rounds for a round that re-grades %s, the operator's decision (%s)",
+			pronoun, each, EscalateAcceptFinding, resolve, pronoun, EscalateRaiseAuditCap) + epoch
 	}
-	return clause + "; if the spec was rewritten, an epoch cuts " + pronoun + " instead: tp review " + specPath +
-		" --rewritten \"<evidence>\", the operator's decision " + EscalateRewritePastBlocking
+	return clause + fmt.Sprintf("; the next round's prompts list %s to re-grade, and only a PASS clears it: run it — tp audit %s --record <file>; or accept %s, the operator's decision (%s) — %s",
+		pronoun, specPath, each, EscalateAcceptFinding, resolve) + epoch
 }
 
 // orphanedAuditRows counts the rows whose role the spec's resolved audit panel

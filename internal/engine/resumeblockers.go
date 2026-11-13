@@ -338,7 +338,13 @@ func auditBudgetBlocker(in *BlockerInputs) Blocker {
 				rows[i] = in.AuditCarriedBlocking[i]
 				rows[i].File = filepath.Join(ReviewStateDir(in.SpecPath), filepath.Base(rows[i].File))
 			}
-			msg = fmt.Sprintf("audit reached its %d-round cap with the latest round dispositioned; ", in.AuditMaxRounds) + AuditCarriedBlockingClause(rows, in.SpecPath, true)
+			msg = AuditCarriedBlockingClause(rows, in.SpecPath, true)
+			// --compact drops the message, so the data carries the rows and
+			// the exits, as review-carried-blocking's does.
+			emit := "tp audit " + in.SpecPath
+			data["rows"] = CarriedRowsJSON(rows)
+			data["commands"] = []string{AuditCarriedResolveCommand(&rows[0])}
+			data["operator"] = map[string]any{"decision": EscalateRaiseAuditCap, "commands": []string{emit, emit + " --record <file>"}}
 		}
 	}
 	return Blocker{Code: "audit-budget-exhausted", Class: ClassEscalate, Message: msg, Data: data}
