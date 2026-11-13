@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
@@ -121,4 +122,26 @@ func TestDashboard_LayoutGoldenViews(t *testing.T) {
 		require.Equal(t, http.StatusOK, status, body)
 		assert.JSONEq(t, want, body, query)
 	}
+}
+
+// TestDashboard_MilestonesLayoutGroupsEachTrack: in the overview a
+// milestone's group is its track, so a milestone that opens after one of
+// another track is a root of its own track's columns and that edge is a
+// cross edge, while an edge inside a track stays a tree edge.
+func TestDashboard_MilestonesLayoutGroupsEachTrack(t *testing.T) {
+	t.Parallel()
+	graph := `{"version": 1, "milestones": [["M1", "M2"], ["T1"]], "opens_after": {"T1": ["M1"]},
+  "epics": [{"id": "a", "title": "A", "milestone": "M1"}, {"id": "b", "title": "B", "milestone": "M2"}, {"id": "c", "title": "C", "milestone": "T1"}]}`
+	srv := startDashboard(t, epicGraphDir(t, graph), freePort(t))
+	status, body := getPage(t, strings.TrimSuffix(srv.url, "/")+"/api/layout?view=milestones&pack=tree")
+	require.Equal(t, http.StatusOK, status, body)
+	var got struct {
+		Edges []struct{ From, To, Role string } `json:"edges"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(body), &got))
+	roles := map[string]string{}
+	for _, e := range got.Edges {
+		roles[e.From+">"+e.To] = e.Role
+	}
+	assert.Equal(t, map[string]string{"M1>M2": "tree", "M1>T1": "cross"}, roles)
 }
