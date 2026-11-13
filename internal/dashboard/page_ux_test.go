@@ -48,6 +48,18 @@ func TestPage_LoadsThePureFunctionsBeforeTheScript(t *testing.T) {
 	assert.Less(t, pure, app, "pure.js loads before app.js")
 }
 
+// TestPage_AMissingPureScriptSaysSoInsteadOfABlankPage: when pure.js did
+// not load, the script shows that on the page and stops, rather than
+// failing on its first call and leaving the page blank.
+func TestPage_AMissingPureScriptSaysSoInsteadOfABlankPage(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	guard := strings.Index(script, "if (!window.tpPure)")
+	require.GreaterOrEqual(t, guard, 0)
+	assert.Contains(t, script, "pure.js did not load")
+	assert.Less(t, guard, strings.Index(script, "tpPure."), "the guard runs before any use of tpPure")
+}
+
 // TestPure_TheFirstViewFitsTheWidthAtAReadableScale is the map's first view
 // (spec/backlog/dashboard-ux.md §2): the drawing's width fits the box, never
 // below the readable scale, where the view starts at the top left and the
