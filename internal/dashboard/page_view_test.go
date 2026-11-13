@@ -468,6 +468,22 @@ func TestPage_TheEpicDrawerIsQuiet(t *testing.T) {
 	}
 }
 
+// TestPage_TheDrawersFinishReviewIsApplied is the Hallmark finish review of
+// the epic drawer: dependency rows sit further apart and name their epic in
+// the mono face the drawer's own id uses; a description's headings sit below
+// the section label in tone; the current step is outlined, not filled; a
+// field's value breaks without a stub line; and the history's fold takes no
+// extra space above it.
+func TestPage_TheDrawersFinishReviewIsApplied(t *testing.T) {
+	t.Parallel()
+	page, _ := pageText(t)
+	for _, s := range []string{".drows { gap: var(--space-sm); }", ".drows .link { font-family: var(--mono); }",
+		".ddesc h3.sub { font: 600 var(--text-sm)/1.4 var(--font-display); color: var(--ink-2);", ".stepper.e3 li.cur .sn { background: none; color: var(--accent); }",
+		".dbody dd { margin: 0; min-width: 0; overflow-wrap: anywhere; white-space: pre-line; text-wrap: pretty; }", ".dbody > .dmore > summary { margin-top: 0; }"} {
+		assert.Contains(t, page, s)
+	}
+}
+
 // TestPage_TheFullScreenPillKeepsItsControlsWhole: beside an open drawer
 // the full-screen toolbar keeps every control on one line and whole, and
 // its count gives way first, as the 1440 × 900 screenshot with an epic
