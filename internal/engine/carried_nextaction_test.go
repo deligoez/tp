@@ -51,3 +51,29 @@ func TestReviewNextAction_AFixAwaitingARoundNamesTheRound(t *testing.T) {
 	assert.NotContains(t, atCap, "--resolve")
 	assert.NotContains(t, atCap, "tp import")
 }
+
+// TestCarriedBlockingClause_CountsAndWordsEachKind: the clause counts the
+// unresolved rows and the fixed ones apart, words each count in the singular
+// or the plural, points past the first unresolved row only when there are
+// more, and leaves out a kind that has no rows.
+func TestCarriedBlockingClause_CountsAndWordsEachKind(t *testing.T) {
+	t.Parallel()
+	fixed := earlierHigh()
+	fixed.Disposition = CarryResolved
+
+	one := CarriedBlockingClause([]CarriedRow{earlierHigh()}, "spec.md", false)
+	assert.Contains(t, one, "1 carried blocking finding stands unresolved, and the next round's roles are told not to re-report it:")
+	assert.Contains(t, one, "an epoch cuts it instead")
+	assert.NotContains(t, one, "more are listed")
+	assert.NotContains(t, one, "marked fixed")
+
+	mixed := CarriedBlockingClause([]CarriedRow{earlierHigh(), earlierHigh(), fixed}, "spec.md", false)
+	assert.Contains(t, mixed, "2 carried blocking findings stand unresolved, and the next round's roles are told not to re-report them:")
+	assert.Contains(t, mixed, "; 1 more are listed by tp review spec.md --status")
+	assert.Contains(t, mixed, "an epoch cuts them instead")
+	assert.Contains(t, mixed, "; 1 carried blocking finding marked fixed awaits a review round that reads the fix")
+
+	twoFixed := CarriedBlockingClause([]CarriedRow{fixed, fixed}, "spec.md", false)
+	assert.True(t, strings.HasPrefix(twoFixed, "2 carried blocking findings marked fixed await a review round that reads the fix"), twoFixed)
+	assert.NotContains(t, twoFixed, "unresolved")
+}
