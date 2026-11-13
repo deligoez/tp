@@ -4,10 +4,15 @@
 package dashboard
 
 import (
+	"bytes"
+	"compress/gzip"
 	"embed"
+	"io"
 	"io/fs"
+	"mime"
 	"net"
 	"net/http"
+	"path"
 	"strconv"
 	"strings"
 )
@@ -58,8 +63,61 @@ func Handler(port int, api API) http.Handler {
 			serveAPI(w, r, handle)
 			return
 		}
+		if serveCompressed(w, r, sub) {
+			return
+		}
 		files.ServeHTTP(w, r)
 	})
+}
+
+// serveCompressed answers a page file stored only gzip-compressed, as
+// name.gz beside where name would be (the vendored renderer): the stored
+// bytes with Content-Encoding gzip to a client that accepts gzip, the file
+// decompressed to any other. It reports false, having written nothing, for
+// a path with no such file.
+func serveCompressed(w http.ResponseWriter, r *http.Request, sub fs.FS) bool {
+	name := strings.TrimPrefix(r.URL.Path, "/")
+	if name == "" || strings.HasSuffix(name, ".gz") {
+		return false
+	}
+	gz, err := fs.ReadFile(sub, name+".gz")
+	if err != nil {
+		return false
+	}
+	w.Header().Set("Content-Type", mime.TypeByExtension(path.Ext(name)))
+	w.Header().Set("Vary", "Accept-Encoding")
+	if acceptsGzip(r.Header.Get("Accept-Encoding")) {
+		w.Header().Set("Content-Encoding", "gzip")
+		w.Header().Set("Content-Length", strconv.Itoa(len(gz)))
+		_, _ = w.Write(gz)
+		return true
+	}
+	zr, err := gzip.NewReader(bytes.NewReader(gz))
+	if err != nil {
+		// The embedded file is checked by TestVendor_DeckGLIsTheUpstreamFileWithItsLicence.
+		http.Error(w, "the stored file is not gzip: "+err.Error(), http.StatusInternalServerError)
+		return true
+	}
+	_, _ = io.Copy(w, zr)
+	return true
+}
+
+// acceptsGzip reports whether an Accept-Encoding header names gzip with a
+// quality above zero.
+func acceptsGzip(header string) bool {
+	for part := range strings.SplitSeq(header, ",") {
+		coding, params, _ := strings.Cut(part, ";")
+		if !strings.EqualFold(strings.TrimSpace(coding), "gzip") {
+			continue
+		}
+		_, q, hasQ := strings.Cut(strings.ReplaceAll(params, " ", ""), "q=")
+		if !hasQ {
+			return true
+		}
+		v, err := strconv.ParseFloat(q, 64)
+		return err == nil && v > 0
+	}
+	return false
 }
 
 // allowedHost reports whether host names the bound address, or localhost,
