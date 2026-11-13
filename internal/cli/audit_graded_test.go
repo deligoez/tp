@@ -61,7 +61,11 @@ func TestAuditGraded_RecordStatusAndNextActionSayNOfM(t *testing.T) {
 		map[string]any{"role": "maintainability-conventions", "graded": float64(0), "pool": float64(14)},
 	}
 	assert.Equal(t, want, rec["graded"], "--record reports graded N of M per code role")
-	assert.Contains(t, rec["next_action"], "(latest round graded security 4 of 14, maintainability-conventions 0 of 14)")
+	next := rec["next_action"].(string)
+	assert.True(t, strings.HasPrefix(next, "latest round graded security 4 of 14, maintainability-conventions 0 of 14. "),
+		"the graded clause leads next_action, apart from the step: %q", next)
+	assert.True(t, strings.HasSuffix(next, "--resolve <role:item_id> wontfix|duplicate \"<evidence>\" (the operator's decision)") ||
+		strings.HasSuffix(next, "--record <file>"), "and the step ends it unchanged, so copying the command copies only the command: %q", next)
 	assert.NoFileExists(t, pools, "the pools leave with the recorded round's inbox")
 
 	st, err := engine.LoadReviewState(specPath)
@@ -76,7 +80,7 @@ func TestAuditGraded_RecordStatusAndNextActionSayNOfM(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(stdout), &status))
 	round := status["audit_rounds"].([]any)[0].(map[string]any)
 	assert.Equal(t, want, round["graded"], "--status reads them from the state file")
-	assert.Contains(t, status["next_action"], "graded security 4 of 14")
+	assert.True(t, strings.HasPrefix(status["next_action"].(string), "latest round graded security 4 of 14"), "--status leads with it too")
 }
 
 // TestAuditGraded_RecordWithoutEmissionStoresNone: a round recorded with no
