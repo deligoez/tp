@@ -532,17 +532,17 @@ body.dopen:not([data-tab="epics"]) { padding: 0; }
 }
 .esub { color: var(--muted); font-size: var(--text-xs); }
 
-/* The graph card (prototype): one deck.gl canvas for the plan, the
-   milestones, a gate closure and a neighbourhood. The two cards it replaces
-   stay in the page, retired, until the prototype is judged. */
-.retired { display: none !important; }
-:root { --g-claimed: #b7791f; --g-specced: #0f8b8d; --g-inprog: #b4489a; --g-anc: #2563eb; --g-desc: #2f8a5b; --g-back: #8b5cf6; }
+/* The graph card (spec/backlog/dashboard-graph.md): one deck.gl canvas for
+   the plan, the milestones, a gate closure and a neighbourhood. A blocked
+   epic is drawn in a muted red so the ready and held epics stand out. */
+:root { --g-claimed: #b7791f; --g-specced: #0f8b8d; --g-inprog: #b4489a; --g-anc: #2563eb; --g-desc: #2f8a5b; --g-back: #8b5cf6; --g-blocked: #b07a72; }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { --g-claimed: #e0a93a; --g-specced: #3cc7c9; --g-inprog: #e07ac8; --g-anc: #6ea0ff; --g-desc: #46b07a; --g-back: #b69cff; }
+  :root:not([data-theme="light"]) { --g-claimed: #e0a93a; --g-specced: #3cc7c9; --g-inprog: #e07ac8; --g-anc: #6ea0ff; --g-desc: #46b07a; --g-back: #b69cff; --g-blocked: #a8746c; }
 }
-:root[data-theme="dark"] { --g-claimed: #e0a93a; --g-specced: #3cc7c9; --g-inprog: #e07ac8; --g-anc: #6ea0ff; --g-desc: #46b07a; --g-back: #b69cff; }
+:root[data-theme="dark"] { --g-claimed: #e0a93a; --g-specced: #3cc7c9; --g-inprog: #e07ac8; --g-anc: #6ea0ff; --g-desc: #46b07a; --g-back: #b69cff; --g-blocked: #a8746c; }
 .gcanvas { height: min(78vh, 820px); background-image: none; cursor: default; }
 .gcanvas canvas { outline: none; }
+.gcanvas:focus-visible { outline: 2px solid var(--color-focus); outline-offset: -2px; }
 .gmsg { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; padding: var(--space-md); text-align: center; color: var(--muted); font-size: var(--text-sm); }
 .gcard #gc-q { min-height: 32px; min-width: 12rem; padding: 0 var(--space-xs); border: 1px solid var(--color-rule-2); border-radius: var(--radius-input); background: var(--surface); color: var(--ink); font: inherit; font-size: var(--text-sm); }
 .gcard .legend button { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 2px 4px; border-radius: 4px; font: inherit; color: var(--ink-2); cursor: pointer; }
