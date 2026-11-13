@@ -223,9 +223,9 @@ func TestReviewConsecutiveCleanAndConverged_SeverityAware(t *testing.T) {
 	assert.Equal(t, 0, ReviewConsecutiveClean(specPath, rounds, ReviewConvergeOnAll),
 		"every round has a survivor, so none are clean under all")
 
-	assert.True(t, ReviewConverged(specPath, rounds, 2, "sha256:z", ReviewConvergeOnBlocking))
-	assert.False(t, ReviewConverged(specPath, rounds, 2, "sha256:z", ReviewConvergeOnAll))
-	assert.False(t, ReviewConverged(specPath, rounds, 2, "sha256:edited", ReviewConvergeOnBlocking),
+	assert.True(t, ReviewConverged(specPath, &ReviewState{ReviewRounds: rounds}, 2, "sha256:z", ReviewConvergeOnBlocking))
+	assert.False(t, ReviewConverged(specPath, &ReviewState{ReviewRounds: rounds}, 2, "sha256:z", ReviewConvergeOnAll))
+	assert.False(t, ReviewConverged(specPath, &ReviewState{ReviewRounds: rounds}, 2, "sha256:edited", ReviewConvergeOnBlocking),
 		"a stale spec unconverges regardless of severity")
 }
 

@@ -44,7 +44,7 @@ func TestReviewLoopDone_ConvergedWins(t *testing.T) {
 	spec := filepath.Join(t.TempDir(), "spec.md")
 	rounds := loopRounds(t, spec, []string{highOpen}, []string{mediumOpen}, []string{})
 
-	d := ReviewLoopDone(spec, rounds, 2, 3, "h", ReviewConvergeOnBlocking)
+	d := ReviewLoopDone(spec, &ReviewState{ReviewRounds: rounds}, 2, 3, "h", ReviewConvergeOnBlocking)
 	assert.True(t, d.Done)
 	assert.Equal(t, DoneByConverged, d.By)
 }
@@ -54,7 +54,7 @@ func TestReviewLoopDone_AtTheCapEveryFindingDispositioned(t *testing.T) {
 	spec := filepath.Join(t.TempDir(), "spec.md")
 	rounds := loopRounds(t, spec, []string{highOpen}, []string{highOpen}, []string{highWontfix, mediumFixed, mediumWontfix})
 
-	d := ReviewLoopDone(spec, rounds, 2, 3, "changed", ReviewConvergeOnBlocking)
+	d := ReviewLoopDone(spec, &ReviewState{ReviewRounds: rounds}, 2, 3, "changed", ReviewConvergeOnBlocking)
 	assert.True(t, d.Done, "at the cap, a fully dispositioned latest round ends the loop")
 	assert.Equal(t, DoneByCap, d.By)
 	assert.True(t, d.CapReached)
@@ -72,7 +72,7 @@ func TestReviewLoopDone_ABlockingFixedAtTheCapKeepsItOpen(t *testing.T) {
 	spec := filepath.Join(t.TempDir(), "spec.md")
 	rounds := loopRounds(t, spec, []string{highOpen}, []string{highOpen}, []string{highFixed, mediumWontfix})
 
-	d := ReviewLoopDone(spec, rounds, 2, 3, "h", ReviewConvergeOnBlocking)
+	d := ReviewLoopDone(spec, &ReviewState{ReviewRounds: rounds}, 2, 3, "h", ReviewConvergeOnBlocking)
 	assert.False(t, d.Done, "a blocking finding marked fixed at the cap is not an acceptance")
 	assert.True(t, d.CapReached)
 	assert.Equal(t, 1, d.BlockingFixedAtCap)
@@ -84,7 +84,7 @@ func TestReviewLoopDone_AtTheCapAnOpenFindingKeepsItOpen(t *testing.T) {
 	spec := filepath.Join(t.TempDir(), "spec.md")
 	rounds := loopRounds(t, spec, []string{highOpen}, []string{highOpen}, []string{highWontfix, mediumOpen})
 
-	d := ReviewLoopDone(spec, rounds, 2, 3, "h", ReviewConvergeOnBlocking)
+	d := ReviewLoopDone(spec, &ReviewState{ReviewRounds: rounds}, 2, 3, "h", ReviewConvergeOnBlocking)
 	assert.False(t, d.Done)
 	assert.True(t, d.CapReached)
 	assert.Equal(t, 1, d.Undisposed)
@@ -95,7 +95,7 @@ func TestReviewLoopDone_EmptyEvidenceIsNotADisposition(t *testing.T) {
 	spec := filepath.Join(t.TempDir(), "spec.md")
 	rounds := loopRounds(t, spec, []string{highOpen}, []string{highOpen}, []string{mediumBareWF})
 
-	d := ReviewLoopDone(spec, rounds, 2, 3, "h", ReviewConvergeOnAll)
+	d := ReviewLoopDone(spec, &ReviewState{ReviewRounds: rounds}, 2, 3, "h", ReviewConvergeOnAll)
 	assert.False(t, d.Done, "a wontfix whose evidence is blank clears nothing, so it cannot end the loop")
 	assert.Equal(t, 1, d.Undisposed)
 }
@@ -105,11 +105,11 @@ func TestReviewLoopDone_BelowTheCapAndUncapped(t *testing.T) {
 	spec := filepath.Join(t.TempDir(), "spec.md")
 	rounds := loopRounds(t, spec, []string{highOpen}, []string{mediumWontfix})
 
-	below := ReviewLoopDone(spec, rounds, 2, 3, "h", ReviewConvergeOnAll)
+	below := ReviewLoopDone(spec, &ReviewState{ReviewRounds: rounds}, 2, 3, "h", ReviewConvergeOnAll)
 	assert.False(t, below.Done)
 	assert.False(t, below.CapReached)
 
-	uncapped := ReviewLoopDone(spec, rounds, 2, 0, "h", ReviewConvergeOnAll)
+	uncapped := ReviewLoopDone(spec, &ReviewState{ReviewRounds: rounds}, 2, 0, "h", ReviewConvergeOnAll)
 	assert.False(t, uncapped.Done)
 	assert.False(t, uncapped.CapReached, "a cap of 0 is uncapped and never ends a loop")
 }
