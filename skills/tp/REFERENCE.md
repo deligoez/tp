@@ -685,20 +685,29 @@ tp owns the review/audit round lifecycle in `<spec-dir>/.tp-review/<spec-base>/`
 Each round entry is `{round, findings, clean, recorded_at, file, spec_hash, hash_scheme}`. `spec_hash` is `sha256:<hex>` of the text the round read and powers the staleness rule; `hash_scheme` names which text that is — `snapshot`, the round's own emission snapshot, or `no-emission`, no snapshot on disk at record time, so the hash is of the spec file and names text no prompt read. Both markers are written from v1.2.2; a round recorded before them carries none and keeps the meaning it was written with, the spec as it stood at record time. Staleness compares the current spec against the last recorded round that read text, skipping `no-emission` rounds; where no round of the phase ever read text the spec is stale whatever it holds, since a record clears staleness only through the snapshot of its own emission. Such a `--record` is still accepted, and says on stderr why `spec-stale` stays and that `tp <phase> <spec>` emits the round that binds to the text. An unmarked round from before v1.2.2 counts as one that read text, so a history converged before the markers stays as it was. tp writes `snapshot-round-<N>.md` **atomically** (write to a `.tmp` then rename) when round N begins (prompt emission) and `review-round-<N>.ndjson`/`audit-round-<N>.ndjson` when the round is recorded; a snapshot with no round file means a round was started and never recorded, and `--status` reports it as `in_flight_round: N` (`tp resume` then points at `{action:"record-round", round:N}`). Re-emitting an unrecorded round is idempotent while the spec is unchanged; if the spec changed since the emission, `tp ground`, `tp review` and `tp audit` exit 3 naming the round and the files they would overwrite, and `--force` discards the emission (exit 2 under `TP_UNATTENDED`). A refused `--role` writes nothing to the state directory. A snapshot that is present but unreadable aborts `--record` with exit 3, naming the round, the snapshot path and the way out: remove or repair it, then re-emit the round and record its findings — the recorded hash is that snapshot's, so tp does not guess the spec file in its place. A directory holding round files with no `state.json` aborts state-reading commands with exit 3 and a `repair or delete <path>` hint — that index referenced recorded history, and tp never rebuilds over it. A directory holding only snapshots is the in-flight window between emitting a round and recording it: nothing was ever recorded there, so the next `--record` rebuilds the index rather than refusing.
 
 **Epochs (v1.14.0).** `tp review <spec> --rewritten "<evidence>"` appends `{after_review_round,
-after_audit_round, evidence, at}` to `epochs`: the number of rounds each phase had recorded, the
-evidence verbatim, and the RFC 3339 UTC time. Each phase's rounds numbered at or below the newest
-epoch's position were recorded before it, and stop feeding the lists of earlier findings an emission
-carries: the review carry list (`UNRESOLVED`/`ACCEPTED findings from previous rounds`), the
-regression pass's fixed findings (and with them `tp run`'s regression unit), the audit Prior Round
-block, the audit acceptance carry at `--record`, and `scripts/audit-round-prep.py`, which exits 2
-`round-before-epoch`. Nothing recorded changes and no disposition is written; convergence, staleness
-and the round cap read every recorded round as before. `--status` in both phases reports `epochs`
-when there is one, and keeps it under `--compact`. The mode writes `state.json` only and reads the
-task file's side (no working tree). It exits 2 with blank evidence, with no recorded round in either
-phase, and when the spec's hash equals either phase's last recorded round's `spec_hash` (nothing was
-rewritten); it exits 3 with a round of either phase in flight — the hint names that round's record,
-and its `--force` discard as the operator's decision when the round's snapshot is not the spec — and
-it refuses `--force`, `--no-state` and every other mode's flags with exit 2.
+after_audit_round, evidence, at}` to `epochs`. Each position is, per phase, the number of the last
+recorded round that read an older text than the spec now holds — a round whose `spec_hash` differs
+from the spec's, or whose `hash_scheme` is not `snapshot` (an unmarked or `no-emission` round, whose
+reading cannot be established) — and never less than the newest earlier epoch's position for that
+phase; rounds over the current text stay uncut. A spec reverted to an earlier text cuts the rounds
+that read that text the first time too, since the position is one number per phase. The evidence is
+kept verbatim and `at` is the RFC 3339 UTC time. Each phase's rounds numbered at or below the newest
+epoch's position stop feeding the lists of earlier findings an emission carries: the review carry
+list (`UNRESOLVED`/`ACCEPTED findings from previous rounds`), the regression pass's fixed findings
+(and with them `tp run`'s regression unit), the audit Prior Round block, the audit acceptance carry
+at `--record`, and `scripts/audit-round-prep.py`, which exits 2 `round-before-epoch`. Nothing
+recorded changes and no disposition is written; convergence, staleness and the round cap read every
+recorded round as before, and so do the mechanize candidates, `--report`, the exports and the audit
+role streaks the ship rule reads. `--status` in both phases reports `epochs` when there is one, and
+keeps it under `--compact`. The mode writes `state.json` only and reads the task file's side (no
+working tree). It exits 2 with blank evidence, with no recorded round in either phase, and when the
+epoch would cut nothing — in both phases every recorded round already read the current text or was
+cut by an earlier epoch, which is also a second `--rewritten` in a row. It exits 3 with a round of
+either phase in flight: the hint names that round's record, after which `--rewritten` keeps the
+round if it read the current text, and its `--force` discard as the operator's decision when the
+round's snapshot is not the spec. It refuses `--force`, `--no-state`, `--docs-path`, `--test-path`
+and every other mode's flags with exit 2. `--rewritten` run concurrently with an emission of either
+phase is unsupported: an emission takes no state lock, so the in-flight check can race it.
 
 **Dispositions.** `--resolve`/`--resolve-all` write `resolved: {status, evidence, resolved_at}` onto
 rows in place. The loop verdict reads the recorded round files, so a resolve into a file no
