@@ -2298,9 +2298,10 @@ The answer is `{view, milestone?, epic?, depth?, layers, bands?, nodes, edges}`:
 `scope`, `epic` and the clamped `depth` for `neighbourhood`; `layers` the number of layers;
 `bands`, for `scope` only, `[{milestone, from_layer, to_layer}]`, each milestone of the closure a
 run of consecutive layers, in dependency order. `nodes` lists each node by layer, then order:
-`{id, layer, order}`, both small integers from 0, plus, for an epic, its `milestone`, in `scope`
-its closure marks `any_of` and `deferrable` (`tp epic scope`'s), and in `neighbourhood` `centre:
-true` on the epic asked for; for a milestone, `epics` and `done` (its work epics and those done),
+`{id, layer, order}`, both small integers from 0, plus, in `scope`, `deferrable` (`tp epic scope`'s
+closure mark; an epic's milestone is in `tp epic export`, its any-of group on its edges), in
+`neighbourhood` the epic's `milestone`, which the view has no band for, and `centre: true` on the
+epic asked for; for a milestone, `epics` and `done` (its work epics and those done),
 `inbound` (the dependency edges from other milestones' epics into its epics, an any-of member one
 each) and `open`. `edges` is `[{from, to, critical?, any_of?}]`: from a dependency to its dependent
 (in `milestones`, from a milestone to one that opens after it), `critical: true` on an edge between
