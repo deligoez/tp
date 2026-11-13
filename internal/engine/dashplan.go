@@ -34,7 +34,8 @@ type DashboardPlan struct {
 // length (the operator conditions, the any-of groups to choose in, the gates
 // whose written threshold awaits --met, the placeholder thresholds to rewrite
 // and the slices that may take --grant-round), the epic review slices
-// whose loop is not done, and the graph-wide throughput per ISO week.
+// whose loop is not done and, of those, the ones only stale after a graph
+// edit, and the graph-wide throughput per ISO week.
 type DashboardFigures struct {
 	Work          int             `json:"work"`
 	Ready         int             `json:"ready"`
@@ -45,6 +46,7 @@ type DashboardFigures struct {
 	CriticalPath  int             `json:"critical_path"`
 	OperatorQueue int             `json:"operator_queue"`
 	OpenLoops     int             `json:"open_loops"`
+	StaleLoops    int             `json:"stale_loops"`
 	Throughput    []DashboardWeek `json:"throughput"`
 }
 
@@ -78,6 +80,7 @@ func DashboardPlanOf(g *model.EpicGraph, states map[string]EpicState, bound map[
 		CriticalPath:  len(GraphCriticalPath(g, states)),
 		OperatorQueue: queue,
 		OpenLoops:     openLoops(reviewSlices),
+		StaleLoops:    staleLoops(reviewSlices),
 		Throughput:    graphThroughput(g, states),
 	}
 	return plan
@@ -105,6 +108,18 @@ func mostWaitedOn(g *model.EpicGraph, states map[string]EpicState) []string {
 		return cmp.Compare(down[b].LongestChain, down[a].LongestChain)
 	})
 	return out
+}
+
+// staleLoops counts the slices whose loop is only stale: a graph edit
+// changed their units since their last round, which a re-review settles.
+func staleLoops(reviewSlices []EpicSliceState) int {
+	n := 0
+	for i := range reviewSlices {
+		if reviewSlices[i].State == LoopStateStale {
+			n++
+		}
+	}
+	return n
 }
 
 // openLoops counts the slices whose loop is not done.
