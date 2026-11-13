@@ -67,25 +67,16 @@ func TestPage_AMissingPureScriptSaysSoInsteadOfABlankPage(t *testing.T) {
 // (spec/backlog/dashboard-ux.md §2): a toolbar button asks the Fullscreen API
 // for the page and marks the card to fill it, leaving full screen (Esc, which
 // the browser handles) unmarks it, and while full screen the plain wheel
-// zooms, as Ctrl or ⌘ with the wheel does outside it; the help says so.
+// pans, while Ctrl or ⌘ with the wheel zooms everywhere; the help says so.
 func TestPage_TheGraphGoesFullScreen(t *testing.T) {
 	t.Parallel()
 	page, script := pageText(t)
 	assert.Contains(t, page, `id="gc-full" data-fs="graphcard"`)
-	for _, s := range []string{"requestFullscreen(", "exitFullscreen(", `"fullscreenchange"`, "document.fullscreenElement", `"mapfs"`, "pure.wheelZooms("} {
+	for _, s := range []string{"requestFullscreen(", "exitFullscreen(", `"fullscreenchange"`, "document.fullscreenElement", `"mapfs"`, "pure.wheelAction("} {
 		assert.Contains(t, script, s)
 	}
 	assert.Contains(t, page, "body.mapfs")
-	assert.Equal(t, 1, strings.Count(script, "in full screen the wheel alone zooms and Esc leaves"))
-}
-
-// TestPure_ThePlainWheelZoomsOnlyInFullScreen: Ctrl or ⌘ with the wheel
-// zooms anywhere; the plain wheel zooms only while the card fills the
-// screen, and scrolls the page otherwise.
-func TestPure_ThePlainWheelZoomsOnlyInFullScreen(t *testing.T) {
-	t.Parallel()
-	got := runPure(t, `out([P.wheelZooms({ ctrlKey: true }, false), P.wheelZooms({ metaKey: true }, false), P.wheelZooms({}, false), P.wheelZooms({}, true)]);`)
-	assert.JSONEq(t, `[true, true, false, true]`, got)
+	assert.Equal(t, 1, strings.Count(script, "in full screen the wheel pans, outside it the page scrolls"))
 }
 
 // TestPage_TheDrawerNarrowsThePageInsteadOfCoveringIt is the drawer rule
