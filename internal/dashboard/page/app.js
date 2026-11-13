@@ -2118,6 +2118,8 @@
     const past = (step) => STEPS.indexOf(phase) > STEPS.indexOf(step);
     const last = (l) => (l && l.rounds && l.rounds.length ? l.rounds[l.rounds.length - 1] : null);
     const loopLine = (l, r, step) => {
+      // A carried blocking finding holds the loop open whatever the streak says.
+      if (l.carried_blocking > 0) return plural(l.carried_blocking, "carried blocking finding", "carried blocking findings") + " unresolved";
       if (l.streak >= l.clean_rounds_needed) return "converged in round " + r.round;
       if (past(step)) return "ended in round " + r.round;
       return "round " + r.round + (l.cap ? " of " + l.cap : "") + ", " + l.streak + " of " + l.clean_rounds_needed + " clean";

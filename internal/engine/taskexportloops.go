@@ -19,10 +19,14 @@ type ExportLoops struct {
 // recorded round in order. Ground needs one clean round: its --check reads
 // the latest round alone.
 type ExportLoop struct {
-	Cap               *int          `json:"cap"`
-	CleanRoundsNeeded int           `json:"clean_rounds_needed"`
-	Streak            int           `json:"streak"`
-	Rounds            []ExportRound `json:"rounds"`
+	Cap               *int `json:"cap"`
+	CleanRoundsNeeded int  `json:"clean_rounds_needed"`
+	Streak            int  `json:"streak"`
+	// CarriedBlocking is, on the review loop, the count of carried blocking
+	// rows holding it open whatever the streak says (ReviewCarriedBlocking);
+	// absent when there are none and on the other loops.
+	CarriedBlocking int           `json:"carried_blocking,omitempty"`
+	Rounds          []ExportRound `json:"rounds"`
 }
 
 // ExportRound is one recorded round: when it was recorded, its finding count
@@ -85,9 +89,11 @@ func exportLoops(taskFilePath, specPath string) (ExportLoops, error) {
 	for i := range audit {
 		auditClean[i] = audit[i].Clean
 	}
+	reviewLoop := specExportLoop(specPath, PhaseReview, review, reviewClean, wf.EffectiveReviewMaxRounds(), wf.ReviewCleanRounds)
+	reviewLoop.CarriedBlocking = len(ReviewCarriedBlocking(specPath, st, wf.ReviewConvergeOn))
 	return ExportLoops{
 		Ground: ground,
-		Review: specExportLoop(specPath, PhaseReview, review, reviewClean, wf.EffectiveReviewMaxRounds(), wf.ReviewCleanRounds),
+		Review: reviewLoop,
 		Audit:  specExportLoop(specPath, PhaseAudit, audit, auditClean, wf.EffectiveAuditMaxRounds(), wf.AuditCleanRounds),
 	}, nil
 }
