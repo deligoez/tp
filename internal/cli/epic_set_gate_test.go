@@ -219,3 +219,12 @@ func TestEpicSet_GateMembersTakesAJSONArray(t *testing.T) {
 	require.NotNil(t, gate.Members)
 	assert.Equal(t, []string{"a2", "a1"}, *gate.Members)
 }
+
+// TestEpicSet_GateDeferrableTakesAJSONArray: deferrable= shares members=
+// parser, so it takes the JSON array form too.
+func TestEpicSet_GateDeferrableTakesAJSONArray(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicGateFieldGraph(""))
+	setGateField(t, dir, `gates.A.deferrable=["a2"]`)
+	assert.Equal(t, []string{"a2"}, gatesOnFile(t, dir)["A"].Deferrable)
+}
