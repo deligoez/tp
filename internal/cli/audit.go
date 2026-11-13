@@ -65,6 +65,13 @@ type auditPrompt struct {
 	ChecklistCount int                      `json:"checklist_count"`
 	ChecklistItems *[]ChecklistItem         `json:"checklist_items,omitempty"`
 	AffectedFiles  *[]engine.AuditFileEntry `json:"affected_files,omitempty"`
+	// FileCount is how many files the prompt lists and FilePool how many its
+	// list was cut from; the two are equal when nothing was cut. Both survive
+	// --compact, which drops affected_files, so the size of a named list and
+	// the size of a cut show before fan-out
+	// (spec/backlog/checklist-covers-what-changed.md, decisions 2 and 3).
+	FileCount int `json:"file_count"`
+	FilePool  int `json:"file_pool"`
 }
 
 // auditFileSummary is tp audit's file_summary: the shared affected-file counts

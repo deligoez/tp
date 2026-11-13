@@ -406,6 +406,8 @@ func buildRolePrompt(role string, rules []string, items []ChecklistItem, files [
 		ChecklistCount: len(items),
 		ChecklistItems: &items,
 		AffectedFiles:  &files,
+		FileCount:      len(files),
+		FilePool:       max(fileTotal, len(files)),
 	}
 }
 
