@@ -173,6 +173,9 @@ func resumeBlockers(taskFilePath, shownSpec string, changes []string, tf *model.
 
 		ReviewBlockingFixedAtCap: loops.reviewDone.BlockingFixedAtCap,
 		AuditBlockingFixedAtCap:  loops.auditDone.BlockingFixedAtCap,
+
+		ReviewCarriedBlocking: loops.reviewDone.CarriedBlocking,
+		ReviewLatestRound:     latestRoundNumber(loops.reviewRounds),
 	}), notice, nil
 }
 
@@ -210,6 +213,14 @@ func readResumeLoops(taskFilePath, specPath string, tf *model.TaskFile) (resumeL
 	}
 	l.phase = DetectPhase(len(tf.Tasks), numDone, l.reviewDone.Done, l.auditDone.Done)
 	return l, nil
+}
+
+// latestRoundNumber is the number of the latest recorded round, 0 when none.
+func latestRoundNumber(rounds []ReviewRound) int {
+	if len(rounds) == 0 {
+		return 0
+	}
+	return rounds[len(rounds)-1].Round
 }
 
 // reviewInFlight returns the review round emitted and not recorded (0 when

@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"path/filepath"
 	"sort"
 
 	"github.com/deligoez/tp/internal/model"
@@ -53,6 +54,13 @@ type BlockerInputs struct {
 	ReviewBlockingFixedAtCap int
 	AuditBlockingFixedAtCap  int
 
+	// ReviewCarriedBlocking is the review loop's carried blocking rows
+	// (LoopDone.CarriedBlocking), and ReviewLatestRound the latest recorded
+	// review round: a carried row from an earlier round is one no further
+	// round can clear.
+	ReviewCarriedBlocking []CarriedRow
+	ReviewLatestRound     int
+
 	// EpicBlock is the task file's epic block (EpicBlockFor), nil for an
 	// unbound file or outside the implement phase.
 	EpicBlock *EpicBlock
@@ -103,6 +111,13 @@ func BuildBlockers(in *BlockerInputs) []Blocker {
 			Message: budgetBlockerMessage("review", in.ReviewMaxRounds, in.ReviewBlockingFixedAtCap),
 			Data:    map[string]any{"cap": in.ReviewMaxRounds, "blocking_fixed_at_cap": in.ReviewBlockingFixedAtCap},
 		})
+	}
+
+	// review-carried-blocking — escalate: a blocking row of a round before the
+	// latest stands unresolved in the carried set, so its roles are told not
+	// to re-report it and no further round can clear it.
+	if b := carriedBlockingBlocker(in); b != nil {
+		blockers = append(blockers, *b)
 	}
 
 	// audit-budget-exhausted — escalate: the same at the audit cap (cap 0 never fires).
@@ -223,6 +238,39 @@ func epicBlockedBlocker(in *BlockerInputs) *Blocker {
 		b.Data["operator"] = op
 	}
 	return b
+}
+
+// carriedBlockingBlocker is the review-carried-blocking blocker, or nil. It
+// stands in the review phase while the carried set holds an unresolved
+// blocking row recorded before the latest round: the latest round's own rows
+// are the review-resolve unit's, and an earlier one no round will re-raise.
+// Its message names the first row's command and the epoch; its data counts
+// them all and lists the first CarriedRowsShown.
+func carriedBlockingBlocker(in *BlockerInputs) *Blocker {
+	if in.Phase != PhaseReview || in.ReviewConverged {
+		return nil
+	}
+	earlier := make([]CarriedRow, 0, len(in.ReviewCarriedBlocking))
+	for i := range in.ReviewCarriedBlocking {
+		if row := in.ReviewCarriedBlocking[i]; row.Round < in.ReviewLatestRound {
+			// Named through the spec as tp resume shows it, so the command
+			// runs from where the payload's other commands do.
+			row.File = filepath.Join(ReviewStateDir(in.SpecPath), filepath.Base(row.File))
+			earlier = append(earlier, row)
+		}
+	}
+	if len(earlier) == 0 {
+		return nil
+	}
+	return &Blocker{
+		Code:    "review-carried-blocking",
+		Class:   ClassEscalate,
+		Message: CarriedBlockingClause(earlier, in.SpecPath),
+		Data: map[string]any{
+			"count": len(earlier),
+			"rows":  CarriedRowsJSON(earlier),
+		},
+	}
 }
 
 // budgetBlockerMessage words a *-budget-exhausted blocker: what is left at the
