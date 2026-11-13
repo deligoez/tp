@@ -64,6 +64,24 @@ func TestCleanEmissionsKnowsTheInboxes(t *testing.T) {
 	assert.Contains(t, out, "unrecorded inbox file")
 }
 
+// TestCleanEmissionsKnowsTheAuditPools: the pools an audit emission keeps
+// beside its role files (engine.AuditPoolsPath) are judged like them — --record
+// removes them, so an old one is removable whether its round is recorded or
+// not.
+func TestCleanEmissionsKnowsTheAuditPools(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	initGitRepo(t, dir)
+	state := filepath.Join(dir, "spec", ".tp-review", "a")
+	writeOld(t, filepath.Join(state, "audit-inbox", "round-1.pools.json"))
+	writeOld(t, filepath.Join(state, "audit-inbox", "round-2.pools.json"))
+	writeOld(t, filepath.Join(state, "audit-round-1.ndjson"))
+
+	out := runCleanEmissions(t, dir)
+	assert.Contains(t, out, filepath.Join("audit-inbox", "round-1.pools.json")+"  recorded inbox file")
+	assert.Contains(t, out, filepath.Join("audit-inbox", "round-2.pools.json")+"  unrecorded inbox file")
+}
+
 // TestCleanEmissionsReportsOldLayoutRoundDirectories: a round directory under
 // the pre-1.12.0 layout, .tp/rounds/<base>/<phase>-r<N>, for a task file that
 // is not at the root is no longer read by the driver
