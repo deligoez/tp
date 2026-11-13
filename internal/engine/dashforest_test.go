@@ -126,3 +126,13 @@ func TestForestLayout_InvariantsOnARandomGraph(t *testing.T) {
 	}
 }
 
+// TestForestLayout_IsStable: the same input lays out the same.
+func TestForestLayout_IsStable(t *testing.T) {
+	t.Parallel()
+	ids := []string{"a1", "a2", "a3", "a4", "a5", "a6"}
+	edges := []LayoutEdge{{"a1", "a2"}, {"a1", "a3"}, {"a2", "a4"}, {"a3", "a4"}, {"a4", "a5"}, {"a1", "a6"}}
+	first := ForestLayout(ids, edges, nil, nil, nil, PackRows)
+	for range 20 {
+		assert.Equal(t, first, ForestLayout(ids, edges, nil, nil, nil, PackRows))
+	}
+}
