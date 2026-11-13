@@ -17,12 +17,18 @@ import (
 // each with the parameters it takes beside view; the first one it lists is
 // required, except for milestones, which takes none.
 const (
+	layoutViewPlan          = "plan"
 	layoutViewMilestones    = "milestones"
 	layoutViewScope         = "scope"
 	layoutViewNeighbourhood = "neighbourhood"
 )
 
+// layoutPackParam is the parameter every view takes beside its own: how the
+// forest's columns are packed, rows (the default) or tree.
+const layoutPackParam = "pack"
+
 var layoutViewParams = map[string][]string{
+	layoutViewPlan:          {},
 	layoutViewMilestones:    {},
 	layoutViewScope:         {"milestone"},
 	layoutViewNeighbourhood: {"epic", "depth"},
@@ -36,7 +42,7 @@ const (
 )
 
 // dashboardLayoutHint answers a /api/layout query the endpoint refuses.
-const dashboardLayoutHint = "name one view: ?view=milestones, ?view=scope&milestone=<m>, or ?view=neighbourhood&epic=<id>[&depth=<n>], depth clamped to 1-4"
+const dashboardLayoutHint = "name one view: ?view=plan, ?view=milestones, ?view=scope&milestone=<m>, or ?view=neighbourhood&epic=<id>[&depth=<n>], depth clamped to 1-4, each with an optional &pack=rows|tree"
 
 // dashboardLayoutAbsentHint answers a milestone or epic the graph does not
 // hold.
@@ -60,6 +66,7 @@ type layoutQuery struct {
 	milestone string
 	epic      string
 	depth     int
+	pack      engine.ForestPacking
 }
 
 // dashboardLayout is /api/layout's payload: the view and what it is about,
@@ -72,6 +79,8 @@ type dashboardLayout struct {
 	Epic      string              `json:"epic,omitempty"`
 	Depth     int                 `json:"depth,omitempty"`
 	Layers    int                 `json:"layers"`
+	Packing   string              `json:"packing"`
+	Columns   float64             `json:"columns"`
 	Bands     []engine.LayoutBand `json:"bands,omitempty"`
 	Nodes     []layoutNode        `json:"nodes"`
 	Edges     []layoutEdge        `json:"edges"`
@@ -86,13 +95,14 @@ type dashboardLayout struct {
 type layoutNode struct {
 	ID string `json:"id"`
 	engine.LayoutPlace
-	Milestone  string `json:"milestone,omitempty"`
-	Deferrable bool   `json:"deferrable,omitempty"`
-	Centre     bool   `json:"centre,omitempty"`
-	Epics      *int   `json:"epics,omitempty"`
-	Done       *int   `json:"done,omitempty"`
-	Inbound    *int   `json:"inbound,omitempty"`
-	Open       *bool  `json:"open,omitempty"`
+	Col        float64 `json:"col"`
+	Milestone  string  `json:"milestone,omitempty"`
+	Deferrable bool    `json:"deferrable,omitempty"`
+	Centre     bool    `json:"centre,omitempty"`
+	Epics      *int    `json:"epics,omitempty"`
+	Done       *int    `json:"done,omitempty"`
+	Inbound    *int    `json:"inbound,omitempty"`
+	Open       *bool   `json:"open,omitempty"`
 }
 
 // layoutEdge is one edge: from the dependency to its dependent, or from a
@@ -100,10 +110,11 @@ type layoutNode struct {
 // critical path drawn; AnyOf names the group of an edge from an any-of
 // member.
 type layoutEdge struct {
-	From     string   `json:"from"`
-	To       string   `json:"to"`
-	Critical bool     `json:"critical,omitempty"`
-	AnyOf    []string `json:"any_of,omitempty"`
+	From     string          `json:"from"`
+	To       string          `json:"to"`
+	Critical bool            `json:"critical,omitempty"`
+	AnyOf    []string        `json:"any_of,omitempty"`
+	Role     engine.EdgeRole `json:"role"`
 }
 
 // Layout answers /api/layout: the view the query names, laid out by
@@ -122,14 +133,16 @@ func (dashboardAPI) Layout(q url.Values) (any, *dashboard.Error) {
 		if _, tracked := engine.MilestoneGates(g, states)[lq.milestone]; !tracked {
 			return nil, dashboard.NewError(ExitState, fmt.Sprintf("milestone %q is not one a track lists", layoutEcho(lq.milestone)), dashboardLayoutAbsentHint)
 		}
-		return scopeLayout(g, states, lq.milestone), nil
+		return scopeLayout(g, states, lq.milestone, lq.pack), nil
 	case layoutViewNeighbourhood:
 		if !slices.ContainsFunc(g.Epics, func(e model.Epic) bool { return e.ID == lq.epic }) {
 			return nil, dashboard.NewError(ExitState, fmt.Sprintf("epic %q is not in the graph", layoutEcho(lq.epic)), dashboardLayoutAbsentHint)
 		}
-		return neighbourhoodLayout(g, states, lq.epic, lq.depth), nil
+		return neighbourhoodLayout(g, states, lq.epic, lq.depth, lq.pack), nil
+	case layoutViewPlan:
+		return planLayout(g, states, lq.pack), nil
 	default:
-		return milestonesLayout(g, states), nil
+		return milestonesLayout(g, states, lq.pack), nil
 	}
 }
 
@@ -143,10 +156,10 @@ func dashboardLayoutQuery(q url.Values) (layoutQuery, *dashboard.Error) {
 	view := q.Get("view")
 	params, known := layoutViewParams[view]
 	if len(q["view"]) != 1 || !known {
-		return bad("/api/layout takes view once: milestones, scope or neighbourhood")
+		return bad("/api/layout takes view once: plan, milestones, scope or neighbourhood")
 	}
 	for key, values := range q {
-		if key != "view" && !slices.Contains(params, key) {
+		if key != "view" && key != layoutPackParam && !slices.Contains(params, key) {
 			return bad(fmt.Sprintf("view %s takes no %s", view, layoutEcho(key)))
 		}
 		if len(values) != 1 {
@@ -156,7 +169,14 @@ func dashboardLayoutQuery(q url.Values) (layoutQuery, *dashboard.Error) {
 	if len(params) > 0 && q.Get(params[0]) == "" {
 		return bad(fmt.Sprintf("view %s needs %s", view, params[0]))
 	}
-	lq := layoutQuery{view: view, milestone: q.Get("milestone"), epic: q.Get("epic")}
+	lq := layoutQuery{view: view, milestone: q.Get("milestone"), epic: q.Get("epic"), pack: engine.PackRows}
+	switch p := engine.ForestPacking(q.Get(layoutPackParam)); p {
+	case "", engine.PackRows:
+	case engine.PackTree:
+		lq.pack = p
+	default:
+		return bad("pack is rows or tree")
+	}
 	if view == layoutViewNeighbourhood {
 		lq.depth = layoutDefaultDepth
 		if q.Has("depth") {
@@ -174,7 +194,7 @@ func dashboardLayoutQuery(q url.Values) (layoutQuery, *dashboard.Error) {
 
 // milestonesLayout is the overview: every tracked milestone, an edge from
 // each milestone it opens after, and its counts.
-func milestonesLayout(g *model.EpicGraph, states map[string]engine.EpicState) dashboardLayout {
+func milestonesLayout(g *model.EpicGraph, states map[string]engine.EpicState, pack engine.ForestPacking) dashboardLayout {
 	ids := trackedMilestones(g)
 	after := engine.EffectiveOpensAfter(g)
 	var edges []layoutEdge
@@ -185,7 +205,7 @@ func milestonesLayout(g *model.EpicGraph, states map[string]engine.EpicState) da
 	}
 	inbound := milestoneInbound(g)
 	gates := engine.MilestoneGates(g, states)
-	out := layoutOf(layoutViewMilestones, ids, edges, nil, nil)
+	out := layoutOf(layoutViewMilestones, ids, edges, nil, nil, nil, pack)
 	for i := range out.Nodes {
 		m := out.Nodes[i].ID
 		f := engine.WorkFigures(g, states, nil, m)
@@ -218,7 +238,7 @@ func milestoneInbound(g *model.EpicGraph) map[string]int {
 
 // scopeLayout is a gate's closure as tp epic scope derives it, banded by
 // milestone, its critical path marked.
-func scopeLayout(g *model.EpicGraph, states map[string]engine.EpicState, milestone string) dashboardLayout {
+func scopeLayout(g *model.EpicGraph, states map[string]engine.EpicState, milestone string, pack engine.ForestPacking) dashboardLayout {
 	scope := engine.MilestoneScope(g, states, nil, milestone)
 	in := map[string]bool{}
 	bandOf := map[string]string{}
@@ -231,7 +251,7 @@ func scopeLayout(g *model.EpicGraph, states map[string]engine.EpicState, milesto
 		}
 	}
 	ids, edges := epicEdges(g, in, scope.CriticalPath.ByCount)
-	out := layoutOf(layoutViewScope, ids, edges, bands, bandOf)
+	out := layoutOf(layoutViewScope, ids, edges, bands, bandOf, trackGroups(g), pack)
 	out.Milestone = milestone
 	for i := range out.Nodes {
 		out.Nodes[i].Deferrable = marks[out.Nodes[i].ID].Deferrable
@@ -241,7 +261,7 @@ func scopeLayout(g *model.EpicGraph, states map[string]engine.EpicState, milesto
 
 // neighbourhoodLayout is epic with what it depends on and what depends on
 // it, depth steps each way, the graph's critical path marked.
-func neighbourhoodLayout(g *model.EpicGraph, states map[string]engine.EpicState, epic string, depth int) dashboardLayout {
+func neighbourhoodLayout(g *model.EpicGraph, states map[string]engine.EpicState, epic string, depth int, pack engine.ForestPacking) dashboardLayout {
 	deps, dependents := map[string][]string{}, map[string][]string{}
 	milestoneOf := map[string]string{}
 	for i := range g.Epics {
@@ -258,7 +278,7 @@ func neighbourhoodLayout(g *model.EpicGraph, states map[string]engine.EpicState,
 	walkSteps(epic, deps, depth, in)
 	walkSteps(epic, dependents, depth, in)
 	ids, edges := epicEdges(g, in, engine.GraphCriticalPath(g, states))
-	out := layoutOf(layoutViewNeighbourhood, ids, edges, nil, nil)
+	out := layoutOf(layoutViewNeighbourhood, ids, edges, nil, nil, nil, pack)
 	out.Epic, out.Depth = epic, depth
 	for i := range out.Nodes {
 		n := &out.Nodes[i]
@@ -316,21 +336,63 @@ func epicEdges(g *model.EpicGraph, in map[string]bool, path []string) ([]string,
 
 // layoutOf lays ids and edges out, bands and bandOf as engine.LayeredLayout
 // takes them, and lists the nodes by layer, then order.
-func layoutOf(view string, ids []string, edges []layoutEdge, bands []string, bandOf map[string]string) dashboardLayout {
+// layoutOf lays ids and edges out, bands and bandOf as engine.LayeredLayout
+// takes them, groupOf and pack as engine.ForestLayout does, and lists the
+// nodes by layer, then column, each with its barycenter order and its
+// forest column, each edge with its role.
+func layoutOf(view string, ids []string, edges []layoutEdge, bands []string, bandOf, groupOf map[string]string, pack engine.ForestPacking) dashboardLayout {
 	in := make([]engine.LayoutEdge, len(edges))
 	for i, e := range edges {
 		in[i] = engine.LayoutEdge{From: e.From, To: e.To}
 	}
 	l := engine.LayeredLayout(ids, in, bands, bandOf)
-	out := dashboardLayout{View: view, Layers: l.Layers, Bands: l.Bands, Nodes: make([]layoutNode, 0, len(ids)), Edges: edges}
+	f := engine.ForestLayout(ids, in, bands, bandOf, groupOf, pack)
+	out := dashboardLayout{View: view, Layers: l.Layers, Packing: string(pack), Columns: f.Columns, Bands: l.Bands, Nodes: make([]layoutNode, 0, len(ids)), Edges: edges}
 	if out.Edges == nil {
 		out.Edges = []layoutEdge{}
 	}
+	for i := range out.Edges {
+		out.Edges[i].Role = f.Roles[i]
+	}
 	for _, id := range ids {
-		out.Nodes = append(out.Nodes, layoutNode{ID: id, LayoutPlace: l.Places[id]})
+		out.Nodes = append(out.Nodes, layoutNode{ID: id, LayoutPlace: l.Places[id], Col: f.Places[id].Col})
 	}
 	slices.SortFunc(out.Nodes, func(a, b layoutNode) int {
-		return cmp.Or(cmp.Compare(a.Layer, b.Layer), cmp.Compare(a.Order, b.Order))
+		return cmp.Or(cmp.Compare(a.Layer, b.Layer), cmp.Compare(a.Col, b.Col), cmp.Compare(a.Order, b.Order))
 	})
+	return out
+}
+
+// planLayout is the whole graph: every epic, banded by milestone in track
+// order, its roots grouped by track, the graph's critical path marked.
+func planLayout(g *model.EpicGraph, states map[string]engine.EpicState, pack engine.ForestPacking) dashboardLayout {
+	in := map[string]bool{}
+	bandOf := map[string]string{}
+	for i := range g.Epics {
+		in[g.Epics[i].ID], bandOf[g.Epics[i].ID] = true, g.Epics[i].Milestone
+	}
+	ids, edges := epicEdges(g, in, engine.GraphCriticalPath(g, states))
+	out := layoutOf(layoutViewPlan, ids, edges, trackedMilestones(g), bandOf, trackGroups(g), pack)
+	for i := range out.Nodes {
+		out.Nodes[i].Milestone = bandOf[out.Nodes[i].ID]
+	}
+	return out
+}
+
+// trackGroups maps each epic to the track its milestone is first listed in,
+// so the forest packs each track's trees side by side.
+func trackGroups(g *model.EpicGraph) map[string]string {
+	track := map[string]string{}
+	for t, ms := range g.Milestones {
+		for _, m := range ms {
+			if _, seen := track[m]; !seen {
+				track[m] = strconv.Itoa(t)
+			}
+		}
+	}
+	out := make(map[string]string, len(g.Epics))
+	for i := range g.Epics {
+		out[g.Epics[i].ID] = track[g.Epics[i].Milestone]
+	}
 	return out
 }
