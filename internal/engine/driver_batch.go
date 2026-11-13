@@ -206,7 +206,9 @@ func warnTouchesEscape(root string, tf *model.TaskFile, id, pre string) {
 	if err != nil || len(task.Touches) == 0 {
 		return
 	}
-	files, err := gitOut(root, "diff", "--name-only", pre, "HEAD")
+	// --relative: touches are relative to the project root, which in a
+	// monorepo sits below the git top level.
+	files, err := gitOut(root, "diff", "--name-only", "--relative", pre, "HEAD")
 	if err != nil {
 		return
 	}
