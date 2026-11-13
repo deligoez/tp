@@ -209,3 +209,74 @@ func TestReviewRewritten_RefusesTheFlagsOfOtherModes(t *testing.T) {
 	}
 	assert.NotContains(t, stateJSONBytes(t, dir), "epochs")
 }
+
+// rewrittenEpoch runs --rewritten, requires exit 0 and returns the epoch.
+func rewrittenEpoch(t *testing.T, dir string) map[string]any {
+	t.Helper()
+	stdout, stderr, code := runTP(t, dir, "review", "spec.md", "--rewritten", "replaced the spec")
+	require.Equal(t, 0, code, stderr)
+	var out map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+	epoch, ok := out["epoch"].(map[string]any)
+	require.True(t, ok, "the payload names the epoch: %s", stdout)
+	return epoch
+}
+
+// TestReviewRewritten_RecordingTheRoundInFlightOpensTheEpoch: the refusal's
+// hint is the way out. Rewrite, emit a round over the new text, --rewritten
+// exits 3; record that round, and --rewritten then exits 0, cutting only the
+// round over the old text — the recorded new-text round is kept.
+func TestReviewRewritten_RecordingTheRoundInFlightOpensTheEpoch(t *testing.T) {
+	t.Parallel()
+	dir := rewrittenFixture(t)
+	_, stderr, code := runTP(t, dir, "review", "spec.md")
+	require.Equal(t, 0, code, "emit round 2 over the new text: %s", stderr)
+
+	_, stderr, code = runTP(t, dir, "review", "spec.md", "--rewritten", "replaced the spec")
+	require.Equal(t, 3, code, stderr)
+	assert.Contains(t, errorEnvelope(t, stderr)["hint"], "record review round 2 first")
+
+	_, stderr, code = recordRound(t, dir, "")
+	require.Equal(t, 0, code, "record round 2: %s", stderr)
+	epoch := rewrittenEpoch(t, dir)
+	assert.Equal(t, float64(1), epoch["after_review_round"], "round 1 read the old text; round 2 read the current one")
+}
+
+// TestReviewRewritten_ARoundOverTheNewTextStrandsNoAuditRound: review and audit
+// rounds over the old text, then one review round over the new text. Each
+// phase is cut at its own last round over the old text, so the review round
+// over the new text neither refuses the epoch nor leaves the audit rounds
+// uncut.
+func TestReviewRewritten_ARoundOverTheNewTextStrandsNoAuditRound(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeSpec(t, dir, epochOldSpec)
+	for range 2 {
+		_, stderr, code := recordRound(t, dir, "")
+		require.Equal(t, 0, code, stderr)
+		_, stderr, code = auditRecord(t, dir, `{"id":"a","status":"PASS"}`+"\n")
+		require.Equal(t, 0, code, stderr)
+	}
+	writeSpec(t, dir, epochNewSpec)
+	_, stderr, code := recordRound(t, dir, "")
+	require.Equal(t, 0, code, "review round 3 over the new text: %s", stderr)
+
+	epoch := rewrittenEpoch(t, dir)
+	assert.Equal(t, float64(2), epoch["after_review_round"])
+	assert.Equal(t, float64(2), epoch["after_audit_round"])
+}
+
+// TestReviewRewritten_TwiceInARowIsRefused: the second call finds every round
+// over an older text already cut by the first epoch, so it has nothing to cut:
+// exit 2, naming why, and no second epoch.
+func TestReviewRewritten_TwiceInARowIsRefused(t *testing.T) {
+	t.Parallel()
+	dir := rewrittenFixture(t)
+	rewrittenEpoch(t, dir)
+	before := stateJSONBytes(t, dir)
+
+	_, stderr, code := runTP(t, dir, "review", "spec.md", "--rewritten", "replaced the spec")
+	assert.Equal(t, 2, code, stderr)
+	assert.Contains(t, errorEnvelope(t, stderr)["error"], "or was cut by an earlier epoch")
+	assert.Equal(t, before, stateJSONBytes(t, dir), "a refusal writes nothing")
+}
