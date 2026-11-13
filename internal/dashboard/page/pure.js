@@ -421,6 +421,19 @@
     return rel.format(-Math.floor(s / 86400), "day");
   };
 
+  // weekRange words an ISO week, "2026-W48", as its Monday-to-Sunday dates
+  // the locale writes (23–29 Kas, Nov 23 – 29); anything else reads as
+  // itself.
+  P.weekRange = function (week, locale) {
+    const m = /^(\d{4})-W(\d{2})$/.exec(String(week || ""));
+    if (!m) return String(week || "");
+    const jan4 = Date.UTC(Number(m[1]), 0, 4);
+    const dow = new Date(jan4).getUTCDay() || 7;
+    const monday = jan4 - (dow - 1) * 86400000 + (Number(m[2]) - 1) * 7 * 86400000;
+    const fmt = new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone: "UTC" });
+    return fmt.formatRange(new Date(monday), new Date(monday + 6 * 86400000));
+  };
+
   // wheelAction is what a wheel event does to the graph, with no guess at
   // whether a trackpad or a mouse sent it: "zoom" with Ctrl or ⌘ held, which
   // is also how Chrome and Firefox report a pinch; else "pan" while the

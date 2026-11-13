@@ -145,7 +145,7 @@
   "kpi.loops": "tur bekleyen inceleme döngüsü",
   "kpi.stale": "+ {n} güncel değil",
   "kpi.lint": "lint hata / uyarı",
-  "kpi.inWeek": "{week} haftası",
+  "kpi.inWeek": "{week}",
   "kpi.throughput": "haftalık biten epic",
   "list.dependents": "{n} epic bunu bekliyor",
   "list.noReady": "Şu an başlanabilir epic yok.",

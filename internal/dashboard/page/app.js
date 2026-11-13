@@ -519,7 +519,7 @@
       kpi("operator", esc(t.num(queue)), t("kpi.operator"), queue ? "op" : ""),
       kpi("loops", esc(t.num(f.open_loops - (f.stale_loops || 0))) + (f.stale_loops ? "<small> " + esc(t("kpi.stale", { n: f.stale_loops })) + "</small>" : ""), t("kpi.loops")),
       kpi("lint", esc(t.num(lint.errors)) + "<small> / " + esc(t.num(lint.warnings)) + "</small>", t("kpi.lint"), lint.errors ? "warn" : ""),
-      kpi("throughput", last ? esc(t.num(last.done)) + "<small> " + esc(t("kpi.inWeek", { week: last.week })) + "</small>" : "0", t("kpi.throughput")).replace("</div>", spark(weeks) + "</div>"),
+      kpi("throughput", last ? esc(t.num(last.done)) + "<small> " + esc(t("kpi.inWeek", { week: tpPure.weekRange(last.week, t.locale) })) + "</small>" : "0", t("kpi.throughput")).replace("</div>", spark(weeks) + "</div>"),
     ].join("");
     fitAllRows();
   });
