@@ -48,6 +48,9 @@ type AuditFileSelection struct {
 	// prompt can report how much of the pool the cap left out.
 	SpecCoverageTotal int
 	CodeFilesTotal    int
+	// CodeFilesNamed says the caller named the universe, so CodeFiles is the
+	// whole of it rather than a cut (AuditFileInputs.Named).
+	CodeFilesNamed bool
 }
 
 // AuditFileInputs carries the pre-collected facts the selection operates on,
@@ -64,6 +67,12 @@ type AuditFileInputs struct {
 	// contain a path the caller named, so rendering the fallback +0/-0 would
 	// hand every role an unmeasured zero as measured fact.
 	DiffUnmeasured bool
+	// Named says the caller replaced the universe (--affected-files,
+	// --affected-from-tasks): the code roles then get the whole list, uncut
+	// (spec/backlog/checklist-covers-what-changed.md, decision 2). It is its
+	// own flag and not DiffUnmeasured, which answers a different question:
+	// whether an absent diff stat means unmeasured.
+	Named bool
 }
 
 // SelectAuditFiles applies the drop rules to the universe FIRST, then every
@@ -78,6 +87,7 @@ func SelectAuditFiles(in *AuditFileInputs) AuditFileSelection {
 		CodeFiles:         selectCodeFiles(in, universe),
 		SpecCoverageTotal: specCoverageTotal,
 		CodeFilesTotal:    len(universe),
+		CodeFilesNamed:    in.Named,
 	}
 }
 
@@ -170,7 +180,8 @@ func selectSpecCoverage(in *AuditFileInputs, universe []string) (selected []Audi
 
 // selectCodeFiles orders the filtered universe with path-keyword-matching files
 // first and every other file after, each group by churn (rankByChurn), capped
-// at CodeFileCap. A non-empty universe therefore never yields an empty list.
+// at CodeFileCap unless the caller named the universe. A non-empty universe
+// therefore never yields an empty list.
 func selectCodeFiles(in *AuditFileInputs, universe []string) []AuditFileEntry {
 	priority := make([]string, 0, len(universe))
 	rest := make([]string, 0, len(universe))
@@ -184,10 +195,15 @@ func selectCodeFiles(in *AuditFileInputs, universe []string) []AuditFileEntry {
 	in.rankByChurn(priority)
 	in.rankByChurn(rest)
 
-	entries := make([]AuditFileEntry, 0, CodeFileCap)
+	// A named list is the operator's, and goes whole (decision 2).
+	limit := CodeFileCap
+	if in.Named {
+		limit = len(universe)
+	}
+	entries := make([]AuditFileEntry, 0, limit)
 	for _, group := range [][]string{priority, rest} {
 		for _, p := range group {
-			if len(entries) >= CodeFileCap {
+			if len(entries) >= limit {
 				return entries
 			}
 			entries = append(entries, AuditFileEntry{Path: p, Tasks: []string{}, DiffSummary: in.diffSummaryOf(p)})
