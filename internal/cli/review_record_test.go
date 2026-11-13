@@ -73,6 +73,11 @@ func TestReviewRecord_Lifecycle(t *testing.T) {
 	assert.Equal(t, float64(2), out["findings"])
 	assert.Equal(t, false, out["clean"], "a surviving high finding blocks a clean round")
 	assert.Equal(t, false, out["converged"])
+	// The high is fixed: left open, it would stay carried under "DO NOT
+	// re-report" and hold convergence whatever rounds 2 and 3 say
+	// (spec/backlog/carried-rows-block.md).
+	_, stderr, code = runTP(t, dir, "review", filepath.Join(dir, ".tp-review", "spec", "review-round-1.ndjson"), "--resolve", "0", "fixed", "reworded L1")
+	require.Equal(t, 0, code, "resolve failed: %s", stderr)
 
 	// Round 2: clean (zero rows)
 	out, _, code = recordRound(t, dir, "\n  \n")
