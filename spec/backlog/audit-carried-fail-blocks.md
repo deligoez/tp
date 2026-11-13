@@ -26,31 +26,34 @@ rule 13 says an audit ships with no FAIL in any round.
    `fixed` disposition; `fixed` alone clears nothing, since an empty round is exactly the "graded 0
    of N" this note closes. `task-` and `file-` ids name their item whatever the text. A positional
    id (`table-`, `list-`, `finding-`) may name another item once the spec changes, so a PASS over a
-   different spec text clears a table row or list item only when the row's round snapshot text for
-   that id does not sit at another id of the PASS round's snapshot: it is at the same id, or nowhere
-   because the item itself was repaired. A moved item keeps its row; a `finding-` ordinal has no text
-   and clears only over the same spec text.
+   different spec text clears a table row or list item only when the PASS round's snapshot holds the
+   row's text at that id, or nowhere because the item itself was repaired; when the item moved, the
+   PASS at the id its text now sits at clears it. A `finding-` ordinal has no text and clears only
+   over the same spec text.
 3. **Every later prompt asks for it.** The Prior Round block lists every carried row whose latest
    grade is not PASS, from whichever round since the epoch, each with its round; the acceptance carry
    reads the same latest row. A row nobody is asked to re-grade must not block in silence.
-4. **Where it shows.** `--status` and `--check`, `next_action` and `tp resume` name the carried
-   blocking rows and how each clears: a later round's PASS, an acceptance with evidence
-   (`accept-finding`, the operator's), or an epoch. When no role of the next round can re-grade a row
+4. **Where it shows.** `--status` and `--check` and `next_action` name the carried blocking rows and
+   how each clears: a later round's PASS, an acceptance with evidence (`accept-finding`, the
+   operator's), or an epoch; at the cap `tp resume`'s budget blocker names them too, while below it
+   `tp resume` offers the round that re-grades them. When no role of the next round can re-grade a row
    (its role retired or disabled), the surface says so and names the operator's exits.
-5. **An epoch past a blocking audit row is the operator's decision.** `--rewritten` whose cut holds an
-   unresolved blocking review or audit row is `rewrite-past-blocking`; one decision, its text
-   reworded from "review finding" to "finding".
+5. **An epoch past a blocking audit row is the operator's decision.** `--rewritten` whose cut holds a
+   blocking review row that is unresolved, or any blocking audit row (a `fixed` one still awaits its
+   re-grade), is `rewrite-past-blocking`; one decision, its text reworded from "review finding" to
+   "finding".
 
 ## 3. Consequences
 
 - Shipped specs whose audit ended past a FAIL no round re-graded read as not ended after the
   upgrade; as in 1.16.0 they are left so, measured and listed in `spec/1.18.0-measurements.md`,
   tp's own included.
-- An operator switching `audit_converge_on` to `blocking` releases carried warning and info rows on
-  the next status read: the policy is the latest round's, as the cap's grading already is.
+- An operator switching `audit_converge_on` to `blocking` releases carried warning and info rows once
+  a round is recorded under it: the policy is the latest recorded round's, as the cap's grading
+  already is. At the cap no round is admitted, so there the switch releases nothing.
 - A deleted item whose id now names a following item that is graded PASS is cleared: the snapshot
   text says the old item is gone, not where. The deletion itself went through the spec-stale review
-  rounds; a moved item, the common shift, is caught.
+  rounds.
 - Accepting an audit row is already `accept-finding`; this adds occasions for it, not a decision.
 
 ## 4. Alternatives
