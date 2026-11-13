@@ -2332,9 +2332,11 @@ contract:
   `operator_groups` is `[{epic, any_of}]`, each unsatisfied any-of group of conditions a not-done work
   epic of an open milestone, not a deferrable member, waits on: the operator records one of them.
   `figures` is `{work, ready, blocked, held, done, share_done, critical_path, operator_queue,
-  open_loops, throughput}` over work epics, `operator_queue` counting actionable conditions, those
-  groups, gates awaiting `--met`, threshold rewrites and the slices whose `grantable` is true,
-  `open_loops` the epic review slices not `done`, `throughput` `[{week, done}]` over every
+  open_loops, stale_loops, throughput}` over work epics, `operator_queue` counting actionable
+  conditions, those groups, gates awaiting `--met`, threshold rewrites and the slices whose
+  `grantable` is true, `open_loops` the epic review slices not `done`, `stale_loops` (v1.13.0) those of
+  them only `stale` (a graph edit changed their units since their last round), so the loops needing a
+  round are `open_loops - stale_loops`, `throughput` `[{week, done}]` over every
   milestone. `waiting` leaves `deferrable` gate members out, as `tp epic status`'s and `export`'s
   `blocked` do, and `operator_conditions` is `tp epic ready`'s actionable conditions (v1.8.0: none
   deferrable, none only deferrable work waits on). Empty with no graph.
