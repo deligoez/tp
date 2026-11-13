@@ -83,3 +83,13 @@ func TestPage_TheReviewsSmallItemsAreInPlace(t *testing.T) {
 	assert.Contains(t, script, "milestone: { w: 200, h: 54, col: 240, row: 110, fs: 22, chars: 14 },")
 }
 
+// TestPage_TheTurkishLightThemeIsAydinlik is the operator's 1.17.1
+// decision: in Turkish the light theme is Aydınlık, since Açık also names
+// an open milestone; the theme control reads Otomatik · Aydınlık · Koyu.
+func TestPage_TheTurkishLightThemeIsAydinlik(t *testing.T) {
+	t.Parallel()
+	tr := dictionary(t, "tr")
+	for key, want := range map[string]string{"theme.auto": `"Otomatik"`, "theme.light": `"Aydınlık"`, "theme.dark": `"Koyu"`, "theme.lightTitle": `"Aydınlık tema"`} {
+		assert.JSONEq(t, want, string(tr[key]), key)
+	}
+}
