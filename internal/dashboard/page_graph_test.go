@@ -65,3 +65,13 @@ out([
 	]`, got)
 }
 
+// TestPure_HopsCountTheStepsFromTheSelection: the highlight of a
+// selection's chain fades with distance, so the page counts each reachable
+// node's steps from the selected one, breadth first, the selection itself
+// not among them.
+func TestPure_HopsCountTheStepsFromTheSelection(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const next = [[1, 2], [3], [3], [4], []];
+out([[...P.hops(0, (v) => next[v])], P.chainAlpha(1), P.chainAlpha(2), P.chainAlpha(3), P.chainAlpha(9)]);`)
+	assert.JSONEq(t, `[[[1, 1], [2, 1], [3, 2], [4, 3]], 255, 255, 170, 70]`, got)
+}
