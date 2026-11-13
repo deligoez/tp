@@ -372,6 +372,12 @@ case "$(cat "$tmp/err-e.txt")" in
 *'"error": "round-before-epoch"'*) pass "the refusal names the epoch" ;;
 *) fail "the refusal names the epoch" "$(cat "$tmp/err-e.txt")" ;;
 esac
+# A position that is not a non-negative integer is no epoch: JSON `true` is a
+# bool, which Python's isinstance(…, int) would take for 1 and cut round 1.
+e_state true
+python3 "$script" spec/e.md --no-build --out "$out" >"$summary" 2>"$out/err.txt"
+check_eq "a bool epoch position run exit code" 0 "$?"
+check_eq "a bool epoch position cuts nothing" 1 "$(field '["roles"]["go-safety"]["carried"]')"
 
 if [ "$failures" != 0 ]; then
 	printf '%s assertion(s) failed\n' "$failures"
