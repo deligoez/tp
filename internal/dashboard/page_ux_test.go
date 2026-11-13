@@ -1,12 +1,10 @@
 package dashboard_test
 
 import (
-	"encoding/json"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -60,43 +58,20 @@ func TestPage_AMissingPureScriptSaysSoInsteadOfABlankPage(t *testing.T) {
 	assert.Less(t, guard, strings.Index(script, "tpPure."), "the guard runs before any use of tpPure")
 }
 
-// TestPure_TheFirstViewFitsTheWidthAtAReadableScale is the map's first view
-// (spec/backlog/dashboard-ux.md §2): the drawing's width fits the box, never
-// below the readable scale, where the view starts at the top left and the
-// rest is panned to, and never above the largest scale, so a small drawing is
-// not blown up.
-func TestPure_TheFirstViewFitsTheWidthAtAReadableScale(t *testing.T) {
-	t.Parallel()
-	got := runPure(t, `out([P.initialView(1184, 3000, 1400, 660), P.initialView(1184, 3000, 358, 500), P.initialView(200, 100, 1400, 660)]);`)
-	assert.JSONEq(t, `[
-		{"x": -8, "y": -8, "w": 1200, "h": 565.7142857142857},
-		{"x": -8, "y": -8, "w": 358, "h": 500},
-		{"x": -8, "y": -8, "w": 933.3333333333334, "h": 440}
-	]`, got)
-}
-
-// TestPage_TheMapGoesFullScreen is the map's full-screen control
+// TestPage_TheGraphGoesFullScreen is the card's full-screen control
 // (spec/backlog/dashboard-ux.md §2): a toolbar button asks the Fullscreen API
-// for the page and marks the map to fill it, leaving full screen (Esc, which
+// for the page and marks the card to fill it, leaving full screen (Esc, which
 // the browser handles) unmarks it, and while full screen the plain wheel
-// zooms, as Ctrl or ⌘ with the wheel does outside it.
-func TestPage_TheMapGoesFullScreen(t *testing.T) {
+// zooms, as Ctrl or ⌘ with the wheel does outside it; the help says so.
+func TestPage_TheGraphGoesFullScreen(t *testing.T) {
 	t.Parallel()
 	page, script := pageText(t)
-	assert.Contains(t, page, `id="f-full"`)
-	for _, s := range []string{"requestFullscreen(", "exitFullscreen(", `"fullscreenchange"`, "document.fullscreenElement", `"mapfs"`, "tpPure.wheelZooms("} {
+	assert.Contains(t, page, `id="gc-full" data-fs="graphcard"`)
+	for _, s := range []string{"requestFullscreen(", "exitFullscreen(", `"fullscreenchange"`, "document.fullscreenElement", `"mapfs"`, "pure.wheelZooms("} {
 		assert.Contains(t, script, s)
 	}
 	assert.Contains(t, page, "body.mapfs")
-}
-
-// TestPage_BothMapsSayHowFullScreenZoomsAndLeaves: the Plan map's help and
-// the dependency views' each say that in full screen the plain wheel zooms
-// and Esc leaves.
-func TestPage_BothMapsSayHowFullScreenZoomsAndLeaves(t *testing.T) {
-	t.Parallel()
-	_, script := pageText(t)
-	assert.Equal(t, 2, strings.Count(script, "in full screen the wheel alone zooms and Esc leaves"))
+	assert.Equal(t, 1, strings.Count(script, "in full screen the wheel alone zooms and Esc leaves"))
 }
 
 // TestPure_ThePlainWheelZoomsOnlyInFullScreen: Ctrl or ⌘ with the wheel
@@ -108,113 +83,6 @@ func TestPure_ThePlainWheelZoomsOnlyInFullScreen(t *testing.T) {
 	assert.JSONEq(t, `[true, true, false, true]`, got)
 }
 
-// TestPure_APinchZoomsAboutTheFingersAndFollowsThem is touch on the map
-// (spec/backlog/dashboard-ux.md §2): two fingers moving apart zoom in by the
-// ratio of their spans, and the drawing point under their first midpoint
-// stays under their current one, so two fingers moving together pan.
-func TestPure_APinchZoomsAboutTheFingersAndFollowsThem(t *testing.T) {
-	t.Parallel()
-	got := runPure(t, `const r = (v) => Object.fromEntries(Object.entries(v).map(([k, x]) => [k, Math.round(x * 100) / 100]));
-const v0 = { x: 0, y: 0, w: 400, h: 200 };
-out([
-  r(P.pinchView(v0, { x: 100, y: 100 }, { x: 300, y: 100 }, { x: 50, y: 100 }, { x: 350, y: 100 }, 400, 200)),
-  r(P.pinchView(v0, { x: 100, y: 100 }, { x: 300, y: 100 }, { x: 150, y: 150 }, { x: 350, y: 150 }, 400, 200)),
-]);`)
-	assert.JSONEq(t, `[{"x": 66.67, "y": 33.33, "w": 266.67, "h": 133.33}, {"x": -50, "y": -50, "w": 400, "h": 200}]`, got)
-}
-
-// TestPure_APointerPansPinchesOrIsIgnored: a mouse's main button and one
-// finger pan, a second finger pinches, and any other mouse button or a
-// third finger is ignored.
-func TestPure_APointerPansPinchesOrIsIgnored(t *testing.T) {
-	t.Parallel()
-	got := runPure(t, `out([
-  P.pointerAction(0, { pointerType: "mouse", button: 0 }), P.pointerAction(0, { pointerType: "mouse", button: 2 }),
-  P.pointerAction(0, { pointerType: "pen", button: 0 }), P.pointerAction(1, { pointerType: "touch", button: 0 }),
-  P.pointerAction(2, { pointerType: "touch", button: -1 }), P.pointerAction(3, { pointerType: "touch", button: -1 }),
-]);`)
-	assert.JSONEq(t, `["pan", "none", "pan", "pan", "pinch", "none"]`, got)
-}
-
-// TestPage_TheMapTakesTouch: a touch pans the map with one finger and pinches
-// it with two, so the map no longer leaves touch to the page.
-func TestPage_TheMapTakesTouch(t *testing.T) {
-	t.Parallel()
-	page, script := pageText(t)
-	assert.NotContains(t, script, `ev.pointerType === "touch") return`)
-	assert.Contains(t, script, "tpPure.pinchView(")
-	assert.Contains(t, script, "tpPure.pointerAction(")
-	assert.Contains(t, page, "touch-action: none")
-}
-
-// TestPage_TheMapsOneStepFilterReadsDirectOnly: the chip that narrows the
-// map to the selected epic's direct edges is named Direct only, on the
-// page and in the help that names it.
-func TestPage_TheMapsOneStepFilterReadsDirectOnly(t *testing.T) {
-	t.Parallel()
-	page, script := pageText(t)
-	assert.Contains(t, page, `>Direct only</button>`)
-	assert.NotContains(t, page, `>Neighbours<`)
-	assert.NotContains(t, script, "Neighbours")
-	assert.Equal(t, 2, strings.Count(script, "Direct only"), "the map's help and its legend name the chip")
-}
-
-// TestPure_CentringKeepsTheZoomUnlessItIsUnreadable: taking the view to an
-// epic centres it at the current zoom, zoomed in to the readable scale when
-// the view was further out.
-func TestPure_CentringKeepsTheZoomUnlessItIsUnreadable(t *testing.T) {
-	t.Parallel()
-	got := runPure(t, `out([P.centreView({ x: 0, y: 0, w: 400, h: 200 }, { x: 1000, y: 500 }, 400), P.centreView({ x: 0, y: 0, w: 1200, h: 600 }, { x: 1000, y: 500 }, 400)]);`)
-	assert.JSONEq(t, `[{"x": 800, "y": 400, "w": 400, "h": 200}, {"x": 800, "y": 400, "w": 400, "h": 200}]`, got)
-}
-
-// TestPure_ReCentringANeighbourhoodShowsItWhole: re-centring the
-// neighbourhood view on an epic fits the new layout and puts the epic at the
-// view's centre, zoomed out as far as that takes to keep every node in the
-// box, never above the largest scale; 1.13.0 kept the zoom, so at depth 2 the
-// outer nodes sat outside the box until Fit (1.14.1).
-func TestPure_ReCentringANeighbourhoodShowsItWhole(t *testing.T) {
-	t.Parallel()
-	got := runPure(t, `const r = (v) => Object.fromEntries(Object.entries(v).map(([k, x]) => [k, Math.round(x * 100) / 100]));
-out([r(P.containAt(1240, 110, 966, 576, { x: 600, y: 50 })), r(P.containAt(1240, 110, 966, 576, { x: 1000, y: 50 })), r(P.containAt(100, 50, 400, 400, { x: 50, y: 25 }))]);`)
-	assert.JSONEq(t, `[{"x": -48, "y": -336.39, "w": 1296, "h": 772.77}, {"x": -8, "y": -551.04, "w": 2016, "h": 1202.09},
-		{"x": -83.33, "y": -108.33, "w": 266.67, "h": 266.67}]`, got)
-}
-
-// TestPure_FitAtViewHoldsTheLayoutCentredOnTheEpic: the view re-centring
-// takes for a drawing of size in a box of rect: containAt's, or none while
-// the box has no size or there is no point to centre (1.14.1 review).
-func TestPure_FitAtViewHoldsTheLayoutCentredOnTheEpic(t *testing.T) {
-	t.Parallel()
-	got := runPure(t, `const r = (v) => v && Object.fromEntries(Object.entries(v).map(([k, x]) => [k, Math.round(x * 100) / 100]));
-const size = { W: 1240, H: 110 };
-out([r(P.fitAtView(size, { width: 966, height: 576 }, { x: 600, y: 50 })), P.fitAtView(size, { width: 0, height: 576 }, { x: 600, y: 50 }),
-  P.fitAtView(size, { width: 966, height: 0 }, { x: 600, y: 50 }), P.fitAtView(size, { width: 966, height: 576 }, null)]);`)
-	assert.JSONEq(t, `[{"x": -48, "y": -336.39, "w": 1296, "h": 772.77}, null, null, null]`, got)
-}
-
-// TestPage_ReCentringFitsTheNewLayout: a neighbourhood drawn for a new key
-// takes the view containAt gives for its centre epic, not the old zoom.
-func TestPage_ReCentringFitsTheNewLayout(t *testing.T) {
-	t.Parallel()
-	_, script := pageText(t)
-	assert.Contains(t, script, "tpPure.fitAtView(size, r, p)")
-	assert.Contains(t, script, "gport.fitAt(geo.pos[L.epic])")
-	assert.NotContains(t, script, "gport.centre(geo.pos[L.epic])")
-}
-
-// TestPage_SearchAndListsTakeTheMapToTheEpic is the map's selection rule
-// (spec/backlog/dashboard-ux.md §2): the search centres its first match as
-// it is typed and selects it on Enter, and selecting an epic from any list
-// centres it on the map.
-func TestPage_SearchAndListsTakeTheMapToTheEpic(t *testing.T) {
-	t.Parallel()
-	_, script := pageText(t)
-	assert.Contains(t, script, "tpPure.centreView(")
-	assert.Contains(t, script, `$("map-q").addEventListener("keydown"`)
-	assert.Contains(t, script, "selectEpic(a.dataset.epic, true)")
-	assert.Contains(t, script, "if (centre && mapView.selected && mapView.geo) mapPort.centre(", "selectEpic centres the map when asked to")
-}
 
 // TestPage_TheDrawerNarrowsThePageInsteadOfCoveringIt is the drawer rule
 // (spec/backlog/dashboard-ux.md §2): an open drawer takes its width from the
@@ -229,33 +97,24 @@ func TestPage_TheDrawerNarrowsThePageInsteadOfCoveringIt(t *testing.T) {
 	}
 }
 
-// TestPure_ArrowKeysMoveToTheNearestEpicThatWay is the map's roving focus
-// (spec/backlog/dashboard-ux.md §2): an arrow moves to the nearest epic in
-// its direction, a step across counting thrice a step along, and stays put
-// when nothing lies that way.
-func TestPure_ArrowKeysMoveToTheNearestEpicThatWay(t *testing.T) {
+// TestPage_TheKeyboardRunsThroughSearchListsAndTheCanvasBox is decision 4
+// of spec/backlog/dashboard-graph.md at the page: the canvas has no
+// focusable node, its box takes focus and the arrows pan it and + and −
+// zoom, "/" reaches the graph's search ahead of the Specs filter, Enter
+// there selects and centres the next match, Esc clears the search and then
+// the selection, and a link in a list, the drawer or the chain selects on
+// the graph.
+func TestPage_TheKeyboardRunsThroughSearchListsAndTheCanvasBox(t *testing.T) {
 	t.Parallel()
-	got := runPure(t, `const pos = { a: { x: 0, y: 0 }, b: { x: 0, y: 10 }, c: { x: 100, y: 0 }, d: { x: 100, y: 30 } };
-out([P.roveNext(pos, "a", "ArrowDown"), P.roveNext(pos, "a", "ArrowRight"), P.roveNext(pos, "a", "ArrowUp"), P.roveNext(pos, "a", "ArrowLeft"),
-  P.roveNext(pos, "b", "ArrowRight"), P.roveNext(pos, "d", "ArrowLeft"), P.roveNext(pos, "a", "Tab")]);`)
-	assert.JSONEq(t, `["b", "c", "a", "a", "c", "b", "a"]`, got)
-}
-
-// TestPure_ExactlyOneEpicIsATabStop: of a view's epics only the focused
-// one takes tabindex 0, the first when the focus is on none of them.
-func TestPure_ExactlyOneEpicIsATabStop(t *testing.T) {
-	t.Parallel()
-	got := runPure(t, `out([P.tabStops(["a", "b", "c"], "b"), P.tabStops(["a", "b", "c"], "z"), P.tabStops(["a", "b"], null), P.tabStops([], "a")]);`)
-	assert.JSONEq(t, `[[-1, 0, -1], [0, -1, -1], [0, -1], []]`, got)
-}
-
-// TestPage_MapEpicsTakeFocusAndEnterSelects: one epic of the map is in the
-// tab order at a time, the arrows move it, and Enter or Space selects it.
-func TestPage_MapEpicsTakeFocusAndEnterSelects(t *testing.T) {
-	t.Parallel()
-	_, script := pageText(t)
-	assert.Equal(t, 2, strings.Count(script, "tpPure.tabStops("), "the map and the dependency view each take their tab stops from tabStops")
-	for _, s := range []string{"tpPure.roveNext(", `ev.key === "Enter" || ev.key === " "`} {
+	page, script := pageText(t)
+	assert.Contains(t, page, `id="gc-canvas" tabindex="0"`)
+	assert.NotContains(t, script, "tpPure.tabStops(", "no canvas node is a tab stop")
+	for _, s := range []string{
+		`const KEY_PAN = { ArrowLeft: [-PAN_PX, 0], ArrowRight: [PAN_PX, 0], ArrowUp: [0, -PAN_PX], ArrowDown: [0, PAN_PX] };`,
+		`ev.target === $("gc-canvas")`, "zoomBy(ZOOM_STEP)", "ev.stopImmediatePropagation();", "}, true);",
+		"flyTo(n);", `if (ev.key === "Escape") {`, `ev.key === "Escape" && app.selected() && $("drawer").hidden`,
+		"selectEpic(a.dataset.epic, true)", "if (centre && id && P.index[id] !== undefined && G.vs) flyTo(",
+	} {
 		assert.Contains(t, script, s)
 	}
 }
@@ -456,27 +315,32 @@ out({ marks, band, holds, words, pills: w.groups.map((g) => (g.blocker || g.any_
 	}`, got)
 }
 
-// TestPage_MapNodesCarryTheirStatus: each map node carries the status the
-// export serves, and the legend names the three stages after planned.
-func TestPage_MapNodesCarryTheirStatus(t *testing.T) {
+// TestPage_GraphNodesReadTheirMarkFromTheStatus: each graph node's mark
+// comes from tpPure.markState over the export's status, and the legend
+// names the three stages after planned.
+func TestPage_GraphNodesReadTheirMarkFromTheStatus(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
-	assert.Contains(t, script, `data-status="' + esc(e.status)`)
 	assert.Contains(t, script, "tpPure.markState(")
+	assert.Contains(t, script, "app.markOf(e, ctx.reports[e.milestone])")
+	for _, s := range []string{`in_progress: "in progress"`, `specced: "specced"`, `claimed: "claimed"`} {
+		assert.Contains(t, script, s)
+	}
 	assert.NotContains(t, script, "claimed or under way")
 	assert.NotContains(t, script, "function markState(")
 }
 
-// TestPage_WaitingEpicsSitBelowThePlanMapInGroups: the Waiting epics card
-// follows the Plan map, draws the groups waitingGroups returns with the rest
-// behind "show all", and names the deferrable members its total leaves out.
-func TestPage_WaitingEpicsSitBelowThePlanMapInGroups(t *testing.T) {
+// TestPage_WaitingEpicsSitBelowTheGraphInGroups: the Waiting epics card
+// follows the graph card, draws the groups waitingGroups returns with the
+// rest behind "show all", and names the deferrable members its total leaves
+// out.
+func TestPage_WaitingEpicsSitBelowTheGraphInGroups(t *testing.T) {
 	t.Parallel()
 	page, script := pageText(t)
-	mapAt := strings.Index(page, `id="mapcard"`)
+	graphAt := strings.Index(page, `id="graphcard"`)
 	waitAt := strings.Index(page, `id="waitcard"`)
 	require.GreaterOrEqual(t, waitAt, 0, "the page has a Waiting epics card")
-	assert.Greater(t, waitAt, mapAt, "Waiting epics follows the Plan map")
+	assert.Greater(t, waitAt, graphAt, "Waiting epics follows the graph card")
 	for _, s := range []string{"tpPure.waitingGroups(", "data-wall", "deferrable gate member", "in milestones not yet open"} {
 		assert.Contains(t, script, s)
 	}
@@ -492,140 +356,91 @@ func TestPage_AWaitingGroupSaysItCountsOnlyThisList(t *testing.T) {
 	assert.Contains(t, script, `title="epics of open milestones that wait on it directly"`)
 }
 
-// TestPure_ALayoutBecomesPointsColumnByLayer: a layout from /api/layout
-// becomes drawing points, one column per layer and one row per order, a
-// short layer centred against the longest, each band spanning its layers'
-// columns, and the drawing's size.
-func TestPure_ALayoutBecomesPointsColumnByLayer(t *testing.T) {
-	t.Parallel()
-	got := runPure(t, `out(P.placeLayout({ layers: 2, bands: [{ milestone: "M", from_layer: 0, to_layer: 1 }],
-  nodes: [{ id: "a", layer: 0, order: 0 }, { id: "b", layer: 0, order: 1 }, { id: "c", layer: 1, order: 0 }] },
-  { colW: 100, rowH: 20, left: 10, top: 5, head: 0, inset: 10 }));`)
-	assert.JSONEq(t, `{"pos": {"a": {"x": 20, "y": 15}, "b": {"x": 20, "y": 35}, "c": {"x": 120, "y": 25}},
-		"bands": [{"name": "M", "x": 10, "w": 200}], "W": 220, "H": 50}`, got)
-}
-
-// TestPure_AMergedBandIsNamedForEveryMilestoneItHolds: a band tp reports
+// TestPage_AMergedBandIsNamedForEveryMilestoneItHolds: a band tp reports
 // with others sharing its span, a cycle between milestones, is drawn once
 // and labelled with each of its milestones.
-func TestPure_AMergedBandIsNamedForEveryMilestoneItHolds(t *testing.T) {
+func TestPage_AMergedBandIsNamedForEveryMilestoneItHolds(t *testing.T) {
 	t.Parallel()
-	got := runPure(t, `out(P.placeLayout({ layers: 2, bands: [{ milestone: "M1", with: ["M2"], from_layer: 0, to_layer: 1 }],
-  nodes: [{ id: "a", layer: 0, order: 0 }, { id: "b", layer: 1, order: 0 }] },
-  { colW: 100, rowH: 20, left: 10, top: 5, head: 0, inset: 10 }).bands);`)
-	assert.JSONEq(t, `[{"name": "M1 + M2", "x": 10, "w": 200}]`, got)
+	_, script := pageText(t)
+	assert.Contains(t, script, "const names = [b.milestone].concat(b.with || []);")
+	assert.Contains(t, script, `name: names.join(" + ")`)
 }
 
-// TestPure_ADependencyLabelSitsOnAnOpaqueBox: an epic's id label in the
-// dependency views sits on a box as wide as its characters, so an edge
-// passing behind it never runs through the text, and the epic's edges leave
-// from the box's right end rather than from inside a long label (1.14.1).
-func TestPure_ADependencyLabelSitsOnAnOpaqueBox(t *testing.T) {
-	t.Parallel()
-	got := runPure(t, `out([P.labelBox(100, 50, 10), P.labelBox(0, 0, 0)]);`)
-	assert.JSONEq(t, `[{"x": 98, "y": 40, "w": 71, "h": 14}, {"x": -2, "y": -10, "w": 4, "h": 14}]`, got)
-}
-
-// TestPage_DependencyEdgesRunBehindOpaqueLabels: the dependency views draw
-// their edges first and each epic's label on its box after them, the box
-// filled with the card's surface.
-func TestPage_DependencyEdgesRunBehindOpaqueLabels(t *testing.T) {
-	t.Parallel()
-	page, script := pageText(t)
-	assert.Contains(t, script, `'<rect class="lbg"`)
-	assert.Contains(t, page, ".map .lbg { fill: var(--surface); }")
-	edges := strings.Index(script, `"<g>" + gedgesHTML(`)
-	nodes := strings.Index(script, "L.nodes.map((n, i) => gnodeHTML(")
-	require.GreaterOrEqual(t, edges, 0)
-	assert.Less(t, edges, nodes, "edges are drawn before the nodes, so the nodes cover them")
-}
-
-// TestPage_AMilestoneSaysItsInboundCountIsEpicEdges: the Milestones view
+// TestPage_AMilestoneSaysItsInboundCountIsEpicEdges: the Milestones mode
 // draws opens-after lines between milestones, while a milestone's inbound
 // count counts dependency edges between epics, so the number says "epic
 // edges in", never a bare "edges in" that reads as the lines drawn (1.14.1).
 func TestPage_AMilestoneSaysItsInboundCountIsEpicEdges(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
-	assert.Contains(t, script, `plural(n.inbound, "epic edge", "epic edges") + " in"`)
 	assert.Contains(t, script, `n.inbound + " epic edges in"`)
-	assert.NotContains(t, script, `plural(n.inbound, "edge", "edges")`)
+	assert.NotContains(t, script, `n.inbound + " edges in"`)
 }
 
-// TestPure_TheDependencyViewDrawsOnlyTheDataOfItsKey: a view draws only
-// the layout fetched for the query it shows; until that layout arrives it
-// reads as loading, even with another query's layout still held, so a
-// click or a milestone change never draws, fits or centres stale data. An
-// error shows for the query it came from, and no query shows nothing.
-func TestPure_TheDependencyViewDrawsOnlyTheDataOfItsKey(t *testing.T) {
-	t.Parallel()
-	got := runPure(t, `const L = { view: "neighbourhood" };
-out([
-  P.layoutReady({ key: null, dataKey: null, data: null, error: null }),
-  P.layoutReady({ key: "a", dataKey: null, data: null, error: null }),
-  P.layoutReady({ key: "b", dataKey: "a", data: L, error: null }),
-  P.layoutReady({ key: "b", dataKey: "b", data: L, error: null }),
-  P.layoutReady({ key: "b", dataKey: "a", data: L, error: { error: "x" } }),
-]);`)
-	assert.JSONEq(t, `["none", "loading", "loading", "draw", "error"]`, got)
-}
-
-// TestPage_TheDependencyViewRecordsTheKeyItsDataCameFor: the page keeps the
-// key each layout was fetched for, clears an error when a new key starts,
-// and asks layoutReady before drawing.
-func TestPage_TheDependencyViewRecordsTheKeyItsDataCameFor(t *testing.T) {
+// TestPage_TheGraphDrawsOnlyTheDataOfItsKey: the card keeps the key each
+// layout was fetched for, clears an error when a new key starts, drops a
+// fetch a later one overtook, and draws only the layout fetched for the
+// query it shows, so a click or a milestone change never draws, fits or
+// centres stale data.
+func TestPage_TheGraphDrawsOnlyTheDataOfItsKey(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
-	for _, s := range []string{"tpPure.layoutReady(gview)", "dataKey: key", "Object.assign(gview, { key, error: null })"} {
+	for _, s := range []string{"G.error = null;", "if (seq !== G.seq) return;", "dataKey: key", "if (!G.data || G.dataKey !== key) return;"} {
 		assert.Contains(t, script, s)
 	}
 }
 
-// TestPure_AScopedViewOpensWhole: a scoped view opens, and Fit shows it,
-// centred and whole, never blown up past the largest scale; one too large
-// for the readable scale is zoomed out until it fits, so no band of a large
-// gate closure and no milestone of a long chain is cut off (1.14.1).
-func TestPure_AScopedViewOpensWhole(t *testing.T) {
-	t.Parallel()
-	got := runPure(t, `const r = (v) => Object.fromEntries(Object.entries(v).map(([k, x]) => [k, Math.round(x * 100) / 100]));
-out([r(P.containView(200, 100, 400, 400)), r(P.containView(2000, 500, 400, 400)), r(P.containView(3592, 316, 1406, 576))]);`)
-	assert.JSONEq(t, `[{"x": -33.33, "y": -83.33, "w": 266.67, "h": 266.67}, {"x": -8, "y": -758, "w": 2016, "h": 2016},
-		{"x": -8, "y": -581.05, "w": 3608, "h": 1478.1}]`, got)
-}
-
-// TestPage_DrawsTheThreeScopedViewsFromTheLayoutEndpoint is the scoped
-// views at the page (spec/backlog/dashboard-ux.md §2): the Dependencies card
-// switches between the milestones, a gate's closure and an epic's
-// neighbourhood, each fetched from /api/layout and placed from its layers and
-// orders alone; it draws the bands, the critical path, any-of forks and the
-// neighbourhood's centre, can go full screen, keeps the chain as a
-// collapsible text view, and keeps its view, milestone and depth in the
-// address.
-func TestPage_DrawsTheThreeScopedViewsFromTheLayoutEndpoint(t *testing.T) {
+// TestPage_OneGraphCardDrawsEveryMode is decision 2 of
+// spec/backlog/dashboard-graph.md at the page: one card switches between
+// Plan, Milestones, Gate closure and Neighbourhood, each fetched from
+// /api/layout; it draws the bands, the critical path, any-of edges and the
+// neighbourhood's centre, goes full screen, keeps the chain as a
+// collapsible text view, and the 1.13.0 Plan map and Dependencies card are
+// gone with their drawing code.
+func TestPage_OneGraphCardDrawsEveryMode(t *testing.T) {
 	t.Parallel()
 	page, script := pageText(t)
-	for _, s := range []string{`id="gsvg"`, `data-gv="milestones"`, `data-gv="scope"`, `data-gv="neighbourhood"`, `id="chaintext"`, `data-fs="chaincard"`} {
+	for _, s := range []string{`id="graphcard"`, `data-gmode="plan"`, `data-gmode="milestones"`, `data-gmode="scope"`, `data-gmode="neighbourhood"`, `id="chaintext"`, `data-fs="graphcard"`} {
 		assert.Contains(t, page, s)
 	}
-	for _, s := range []string{`"/api/layout?"`, "tpPure.placeLayout(", "tpPure.containView", ".bands", ".critical", ".any_of", ".centre", ".inbound"} {
+	for _, s := range []string{`id="mapcard"`, `id="chaincard"`, `id="mapsvg"`, `id="gsvg"`, `class="card mapcard retired"`, ".retired"} {
+		assert.NotContains(t, page, s)
+	}
+	for _, s := range []string{"function drawMap(", "function drawGraph(", "function makePort(", "tpPure.placeLayout("} {
+		assert.NotContains(t, script, s)
+	}
+	for _, s := range []string{`"/api/layout?"`, "L.bands", ".critical", ".any_of", ".centre", ".inbound"} {
 		assert.Contains(t, script, s)
 	}
-	m := regexp.MustCompile(`const URL_KEYS = (\[.*\]);`).FindStringSubmatch(script)
-	require.NotNil(t, m)
-	var urlKeys []string
-	require.NoError(t, json.Unmarshal([]byte(m[1]), &urlKeys))
-	assert.Subset(t, urlKeys, []string{"gv", "gm", "gd"})
+	chain := strings.Index(page, `id="chaintext"`)
+	assert.Greater(t, chain, strings.Index(page, `id="graphcard"`))
+	assert.Less(t, chain, strings.Index(page, `id="waitcard"`), "the chain as text sits inside the graph card")
 }
 
-// TestPage_TheDependencyViewsHelpIsDefinedOnceAndNamesTheCentre: the
-// views' help is one INFO.chain, which says where the neighbourhood's
-// centre sits and its dependencies and dependents lie.
-func TestPage_TheDependencyViewsHelpIsDefinedOnceAndNamesTheCentre(t *testing.T) {
+// TestPage_TheGraphsHelpIsDefinedOnceAndNamesTheTrade: the card's help is
+// one INFO.graph, which names every mode and says the keyboard runs through
+// the search, the lists, the drawer and the chain as text.
+func TestPage_TheGraphsHelpIsDefinedOnceAndNamesTheTrade(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
-	assert.Equal(t, 1, strings.Count(script, "INFO.chain ="))
-	assert.Contains(t, script, "highlighted, its dependencies left, its dependents right")
-	assert.NotContains(t, script, "the selected epic in the middle")
+	assert.Equal(t, 1, strings.Count(script, "INFO.graph ="))
+	for _, s := range []string{"Plan:", "Milestones:", "Gate closure:", "Neighbourhood:", "the critical path in orange whatever its class", "the search, the lists, the drawer and the chain as text below carry the keyboard"} {
+		assert.Contains(t, script, s)
+	}
+}
+
+// TestPage_TheGraphRecordsWhatItDrew is decision 4's draw check at the
+// page: after deck.gl renders a frame the card carries the mode drawn and
+// the nodes and edges it drew, the nodes the layout's and the edges those
+// tpPure.edgeLayers keeps, so a blank canvas reads as zero.
+func TestPage_TheGraphRecordsWhatItDrew(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	assert.Contains(t, page, `data-drawn-nodes="0" data-drawn-edges="0"`)
+	for _, s := range []string{"onAfterRender: recordDrawn", "card.dataset.drawnNodes = String(d.nodes);", "card.dataset.drawnEdges = String(d.edges);",
+		"G.drawing = { mode: P.L.view, nodes: P.nodes.length, edges: sets.drawn };", "pure.edgeLayers(P.links,", "card.dataset.firstDrawMs"} {
+		assert.Contains(t, script, s)
+	}
 }
 
 // TestPage_TheLoopsFigureSplitsStaleFromNeedingARound: the review loops
@@ -886,7 +701,7 @@ func TestPage_TheMilestoneShownLivesInTheAddress(t *testing.T) {
 	for _, re := range []string{`const URL_KEYS = \[[^\]]*"ms"[^\]]*\];`, `const PLACE_KEYS = \[[^\]]*"ms"[^\]]*\];`} {
 		assert.Regexp(t, re, script)
 	}
-	for _, s := range []string{`put("ms", msView.detail);`, `msView.detail = p.get("ms") || null;`, "moveDrawer({ type: \"milestone\", id });\n    if (had) drawMap();\n    drawSelected();\n    syncURL();"} {
+	for _, s := range []string{`put("ms", msView.detail);`, `msView.detail = p.get("ms") || null;`, "moveDrawer({ type: \"milestone\", id });\n    drawSelected();\n    syncURL();"} {
 		assert.Contains(t, script, s)
 	}
 }
@@ -912,7 +727,7 @@ out({ keys, back: keys.filter(Boolean).map(P.toggleOf) });`)
 func TestPage_AToggleGivesFocusBackToItsReplacement(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
-	assert.Contains(t, script, `const FOCUSABLE = "#mapsvg .node, #gsvg .gnode, [data-epic], [data-ms], [data-wsec], [data-wall]";`)
+	assert.Contains(t, script, `const FOCUSABLE = "[data-epic], [data-ms], [data-wsec], [data-wall]";`)
 	assert.Contains(t, script, "tpPure.toggleKey(")
 	assert.Equal(t, 1, strings.Count(script, "refocus(key);"), "the Waiting toggles refocus; a milestone card is given focus back by the drawer")
 }
@@ -937,21 +752,21 @@ func TestPure_AGateClosureCountsItsDescribedEpics(t *testing.T) {
 	assert.JSONEq(t, `["2 of 3 in the closure described", "0 of 0 in the closure described"]`, got)
 }
 
-// TestPage_TheClosureHeaderSaysHowManyAreDescribed: the closure view's
-// header carries closureDescribed's sentence.
+// TestPage_TheClosureHeaderSaysHowManyAreDescribed: the graph card's
+// count line in Gate closure carries closureDescribed's sentence.
 func TestPage_TheClosureHeaderSaysHowManyAreDescribed(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
-	assert.Contains(t, script, "tpPure.closureDescribed(L.nodes, ctx.described)")
+	assert.Contains(t, script, "pure.closureDescribed(L.nodes, described)")
 }
 
 // TestPage_MarksDescribedEpicsAndCountsThemPerMilestone: a described epic
-// carries a mark on the map and in the dependency views, and each
-// milestone's entry says how many of its epics are described.
+// carries a mark after its id on the graph, and each milestone's entry says
+// how many of its epics are described.
 func TestPage_MarksDescribedEpicsAndCountsThemPerMilestone(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
-	for _, s := range []string{"tpPure.describedCounts(", "descMark(", " described"} {
+	for _, s := range []string{"tpPure.describedCounts(", `ctx.described.has(n.id) ? " ¶" : ""`, " described"} {
 		assert.Contains(t, script, s)
 	}
 }
