@@ -49,7 +49,12 @@ const (
 	// past review_max_rounds to a stale slice: the cap is the operator's, so
 	// lifting it for a round is too.
 	EscalateGrantRound = "grant-round"
-	EscalateOther      = "other"
+	// EscalateRewritePastBlocking is tp review --rewritten whose cut holds an
+	// unresolved blocking review row (spec/backlog/carried-rows-block.md
+	// §2.5): the epoch stops the row blocking without a fix or an acceptance,
+	// so it is the operator's, like accepting the row.
+	EscalateRewritePastBlocking = "rewrite-past-blocking"
+	EscalateOther               = "other"
 )
 
 // escalationDecisions is the closed set in the order §5.2 writes it, which is
@@ -66,6 +71,7 @@ var escalationDecisions = []string{
 	EscalateGateMet,
 	EscalateEpicBinding,
 	EscalateGrantRound,
+	EscalateRewritePastBlocking,
 	EscalateOther,
 }
 
