@@ -2236,11 +2236,12 @@ It writes nothing to the repository and loads nothing remote.
 |---------|--------|
 | a `Host` other than `127.0.0.1:<port>` or `localhost:<port>` (name case-insensitive, port required) | 403, before anything else |
 | any method but `GET` | 405 with `Allow: GET` |
-| `/`, `/style.css`, `/app.js` | the page |
+| `/`, `/style.css`, `/pure.js`, `/app.js`, `/favicon.svg` | the page |
 | `/api/events` | the event stream below |
 | `/api/export?file=<path>`, `<path>` a `tp export --list` row's `path` | `tp export --file <path>`'s JSON, uncompacted |
 | `/api/history?milestone=<m>` (or `epic=`, `epics=`, with `name=`, and `from=`/`to=`) | that slice's `tp epic review --history` JSON |
 | `/api/epic-history?epic=<id>` | `tp epic review --history --of-epic <id>`'s JSON |
+| `/api/layout?view=<milestones\|scope\|neighbourhood>` (v1.13.0) | one scoped view of the graph laid out in layers (**Layout** below) |
 
 A GET answer is byte-equal to the command's stdout. An error answers tp's `{error, code, hint}`:
 HTTP 400 for code 2, 404 for codes 3 and 4. No response carries a CORS header.
@@ -2275,6 +2276,41 @@ reconnects, and the loop stops when no page listens.
 
 The epic drawer shows a selected epic's `description` (v1.11.0), read from the export's raw graph,
 as preformatted text: escaped, never rendered as markup.
+
+**Layout** (v1.13.0). `/api/layout` lays one scoped view of the graph out in layers, so the page
+draws it and computes nothing about the graph. It is presentation, not a versioned contract, and no
+command prints it. The query names one `view` of a closed set, each taking only its own parameters:
+
+| Query | View |
+|-------|------|
+| `?view=milestones` | every tracked milestone, an edge from each milestone it opens after |
+| `?view=scope&milestone=<m>` | `tp epic scope <m>`'s closure, banded by milestone, its critical path marked |
+| `?view=neighbourhood&epic=<id>[&depth=<n>]` | the epic, what it depends on and what depends on it, `depth` steps each way (default 2) |
+
+The refusals, each tp's `{error, code, hint}`: no `view` or one outside the set, `view` given twice,
+a parameter the view does not take, a parameter given twice, a missing or empty `milestone` or
+`epic`, or a `depth` that is no whole number answer 400 with code 2. `milestone` and `epic` are
+looked up among the milestones a track lists and the graph's epic ids, never built into a path, and
+one the graph does not hold answers 404 with code 4. `depth` is clamped to 1-4. A graph that cannot
+be read answers as `tp epic export` exits.
+
+The answer is `{view, milestone?, epic?, depth?, layers, bands?, nodes, edges}`: `milestone` for
+`scope`, `epic` and the clamped `depth` for `neighbourhood`; `layers` the number of layers;
+`bands`, for `scope` only, `[{milestone, from_layer, to_layer}]`, each milestone of the closure a
+run of consecutive layers, in dependency order. `nodes` lists each node by layer, then order:
+`{id, layer, order}`, both small integers from 0, plus, for an epic, its `milestone`, in `scope`
+its closure marks `any_of` and `deferrable` (`tp epic scope`'s), and in `neighbourhood` `centre:
+true` on the epic asked for; for a milestone, `epics` and `done` (its work epics and those done),
+`inbound` (the dependency edges from other milestones' epics into its epics, an any-of member one
+each) and `open`. `edges` is `[{from, to, critical?, any_of?}]`: from a dependency to its dependent
+(in `milestones`, from a milestone to one that opens after it), `critical: true` on an edge between
+two consecutive epics of the critical path drawn (the scope's own, or the graph's in
+`neighbourhood`), and `any_of` naming the group of an edge from an any-of member.
+
+A node's layer is its dependency depth: its longest path over the view's edges. In `scope` each
+band's layers come from the longest path among that band's own epics, the bands laid end to end so
+a band follows every band it depends on. Each layer is ordered by four barycenter sweeps, down, up,
+down, up, ties broken by graph-file order, so one graph always lays out alike.
 
 **The summary** is the page's own payload, figures no command prints; its keys are not a versioned
 contract:
