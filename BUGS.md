@@ -30,11 +30,6 @@ fix needs a design choice leaves this file for a decision note.
   three take ~58, ~43 and ~54 ms, `Live()` 164–206 ms, and the first byte of a cold stream arrives
   at 215 ms on an idle machine; under load the operator saw ~2 s of blank page. Failing test: the
   live derivations run concurrently and keep their order.
-- **A doubled slash in the address breaks the page.** Loading `http://127.0.0.1:7377//` makes
-  `syncURL` call `history.replaceState` with `//#tab=…`, a protocol-relative URL naming another
-  origin, which throws a `SecurityError`. Repro (v1.16.0): open the dashboard at `//`; the console
-  shows the error and the address never follows the page. Failing test: the address the page writes
-  stays on the page's origin under a `//` path.
 
 ## Decided elsewhere, not a fix
 
