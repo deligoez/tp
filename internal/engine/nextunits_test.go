@@ -342,7 +342,7 @@ func TestBuildNextUnits_ReviewResolveWhileAFindingLacksDisposition(t *testing.T)
 	assert.Equal(t, 2, *round)
 
 	merged := writeRoundFile(t, root, taskFile, PhaseReview, 1, "merged.ndjson", ndjson(
-		`{"id":"f1","resolved":{"disposition":"fixed"}}`,
+		`{"id":"f1","resolved":{"status":"fixed","evidence":"reworded"}}`,
 		`{"id":"f2"}`,
 	))
 
@@ -357,8 +357,8 @@ func TestBuildNextUnits_ReviewResolveWhileAFindingLacksDisposition(t *testing.T)
 	assert.Equal(t, 1, *round, "the unit acts on the findings of the round just recorded")
 
 	require.NoError(t, os.WriteFile(merged, []byte(ndjson(
-		`{"id":"f1","resolved":{"disposition":"fixed"}}`,
-		`{"id":"f2","resolved":{"disposition":"wontfix"}}`,
+		`{"id":"f1","resolved":{"status":"fixed","evidence":"reworded"}}`,
+		`{"id":"f2","resolved":{"status":"wontfix","evidence":"operator accepted"}}`,
 	)), 0o600))
 
 	units, round = BuildNextUnits(root, taskFile, spec, PhaseReview, tf, st, nil)

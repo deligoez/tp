@@ -137,7 +137,7 @@ func TestUnitKind_DurableWrite_DecidableWithNoBaseline(t *testing.T) {
 			},
 			present: func(t *testing.T, dir string) {
 				writeUnitFile(t, MergedFindingsPath(unitRoundDir(dir)),
-					"{\"class\":\"a\",\"resolved\":{\"status\":\"fixed\"}}\n{\"class\":\"b\",\"resolved\":{\"status\":\"wontfix\"}}\n")
+					"{\"class\":\"a\",\"resolved\":{\"status\":\"fixed\"}}\n{\"class\":\"b\",\"resolved\":{\"status\":\"wontfix\",\"evidence\":\"operator accepted\"}}\n")
 			},
 			absent: func(t *testing.T, dir string) {
 				writeUnitFile(t, MergedFindingsPath(unitRoundDir(dir)),
