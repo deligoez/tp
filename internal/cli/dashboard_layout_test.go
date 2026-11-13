@@ -145,3 +145,87 @@ func TestDashboard_MilestonesLayoutGroupsEachTrack(t *testing.T) {
 	}
 	assert.Equal(t, map[string]string{"M1>M2": "tree", "M1>T1": "cross"}, roles)
 }
+
+// pathGraph is one milestone holding two chains into x: a -> b -> c, the
+// deeper, and d -> e. With every epic open the critical path runs through
+// c; with a and b done (done set to `, "done": {...}` on both) it runs
+// d -> e -> x, through x's shallower dependency.
+func pathGraph(done string) string {
+	return `{"version": 1, "milestones": [["M1"]], "epics": [
+  {"id": "a", "title": "A", "milestone": "M1"` + done + `},
+  {"id": "b", "title": "B", "milestone": "M1", "depends_on": [{"id": "a", "why": "w"}]` + done + `},
+  {"id": "c", "title": "C", "milestone": "M1", "depends_on": [{"id": "b", "why": "w"}]},
+  {"id": "d", "title": "D", "milestone": "M1"},
+  {"id": "e", "title": "E", "milestone": "M1", "depends_on": [{"id": "d", "why": "w"}]},
+  {"id": "x", "title": "X", "milestone": "M1", "depends_on": [{"id": "c", "why": "w"}, {"id": "e", "why": "w"}]}]}`
+}
+
+// pathDone marks an epic of pathGraph done.
+const pathDone = `, "done": {"at": "2026-01-02T03:04:05Z", "evidence": "shipped"}`
+
+// layoutAt reads one /api/layout answer: each node's layer and column, and
+// each edge's role and whether it is critical.
+func layoutAt(t *testing.T, dir, query string) (places map[string][2]float64, edges map[string]string) {
+	t.Helper()
+	srv := startDashboard(t, dir, freePort(t))
+	status, body := getPage(t, strings.TrimSuffix(srv.url, "/")+"/api/layout?"+query)
+	require.Equal(t, http.StatusOK, status, body)
+	var got struct {
+		Nodes []struct {
+			ID    string  `json:"id"`
+			Layer int     `json:"layer"`
+			Col   float64 `json:"col"`
+		} `json:"nodes"`
+		Edges []struct {
+			From, To, Role string
+			Critical       bool
+		} `json:"edges"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(body), &got))
+	places, edges = map[string][2]float64{}, map[string]string{}
+	for _, n := range got.Nodes {
+		places[n.ID] = [2]float64{float64(n.Layer), n.Col}
+	}
+	for _, e := range got.Edges {
+		mark := ""
+		if e.Critical {
+			mark = " critical"
+		}
+		edges[e.From+">"+e.To] = e.Role + mark
+	}
+	return places, edges
+}
+
+// TestDashboard_AGateClosuresCriticalPathRunsAsTreeEdges: in Gate closure
+// a node's primary parent is its dependency on the live critical path
+// before its deepest one, so the path draws as one run of tree edges even
+// where the two break a tie differently: x's dependencies c and e are
+// equally deep, the path takes e, first in x's depends_on, and the
+// deepest-first rule alone would take c, first in the file.
+func TestDashboard_AGateClosuresCriticalPathRunsAsTreeEdges(t *testing.T) {
+	t.Parallel()
+	graph := `{"version": 1, "milestones": [["M1"]], "epics": [
+  {"id": "b", "title": "B", "milestone": "M1"},
+  {"id": "d", "title": "D", "milestone": "M1"},
+  {"id": "c", "title": "C", "milestone": "M1", "depends_on": [{"id": "b", "why": "w"}]},
+  {"id": "e", "title": "E", "milestone": "M1", "depends_on": [{"id": "d", "why": "w"}]},
+  {"id": "x", "title": "X", "milestone": "M1", "depends_on": [{"id": "e", "why": "w"}, {"id": "c", "why": "w"}]}]}`
+	_, edges := layoutAt(t, epicGraphDir(t, graph), "view=scope&milestone=M1")
+	assert.Equal(t, "tree critical", edges["d>e"])
+	assert.Equal(t, "tree critical", edges["e>x"])
+	assert.Equal(t, "cross", edges["c>x"])
+}
+
+// TestDashboard_ThePlanKeepsItsPlacesAsEpicsFinish: Plan mode's primary
+// parents follow the critical path computed with every epic open, so
+// finishing epics, which moves the live path from c -> x to e -> x, moves
+// no node to another layer or column.
+func TestDashboard_ThePlanKeepsItsPlacesAsEpicsFinish(t *testing.T) {
+	t.Parallel()
+	for _, pack := range []string{"rows", "tree"} {
+		open, _ := layoutAt(t, epicGraphDir(t, pathGraph("")), "view=plan&pack="+pack)
+		done, edges := layoutAt(t, epicGraphDir(t, pathGraph(pathDone)), "view=plan&pack="+pack)
+		assert.Equal(t, open, done, pack)
+		assert.Equal(t, "cross critical", edges["e>x"], pack)
+	}
+}
