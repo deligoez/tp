@@ -50,9 +50,10 @@ const (
 	// lifting it for a round is too.
 	EscalateGrantRound = "grant-round"
 	// EscalateRewritePastBlocking is tp review --rewritten whose cut holds an
-	// unresolved blocking review row (spec/backlog/carried-rows-block.md
-	// §2.5): the epoch stops the row blocking without a fix or an acceptance,
-	// so it is the operator's, like accepting the row.
+	// unresolved blocking review or audit row (spec/backlog/carried-rows-block.md
+	// §2.5, spec/backlog/audit-carried-fail-blocks.md §2.5): the epoch stops
+	// the row blocking without a fix or an acceptance, so it is the
+	// operator's, like accepting the row.
 	EscalateRewritePastBlocking = "rewrite-past-blocking"
 	EscalateOther               = "other"
 )
