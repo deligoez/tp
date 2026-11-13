@@ -2,6 +2,7 @@ package cli
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"net/url"
 	"slices"
@@ -147,11 +148,13 @@ func dashboardLayoutQuery(q url.Values) (layoutQuery, *dashboard.Error) {
 	if view == layoutViewNeighbourhood {
 		lq.depth = layoutDefaultDepth
 		if q.Has("depth") {
-			d, err := strconv.Atoi(q.Get("depth"))
-			if err != nil {
-				return bad("depth is a whole number of steps")
+			// ParseInt saturates an integer out of int64's range to the
+			// bound of its sign, which the clamp then takes.
+			d, err := strconv.ParseInt(q.Get("depth"), 10, 64)
+			if err != nil && !errors.Is(err, strconv.ErrRange) {
+				return bad("depth is not an integer")
 			}
-			lq.depth = min(layoutMaxDepth, max(layoutMinDepth, d))
+			lq.depth = int(min(layoutMaxDepth, max(layoutMinDepth, d)))
 		}
 	}
 	return lq, nil
