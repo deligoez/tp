@@ -76,3 +76,18 @@ func TestLintEpicGraph_GateEmptyNamesEveryFollower(t *testing.T) {
 	require.Len(t, found, 1, "%v", found)
 	assert.Contains(t, found[0].Message, `"T1", "T2" open after it`)
 }
+
+// TestLintEpicGraph_GateEmptySkipsAFiredTrigger: once TG's only epic, the
+// condition, is done, the trigger has fired and T1 is meant to be open, so
+// there is nothing to fix; with a second, undone condition beside it the
+// warning stands.
+func TestLintEpicGraph_GateEmptySkipsAFiredTrigger(t *testing.T) {
+	g := triggerGateGraph()
+	g.Epics[1].Done = epicDoneRecord()
+	assert.Empty(t, findingsOf(t, LintEpicGraph(g, nil), EpicRuleGateEmpty))
+
+	other := dependsOn("other", "TG")
+	other.Condition, other.Acceptance = true, "the board signs"
+	g.Epics = append(g.Epics, other)
+	assert.Len(t, findingsOf(t, LintEpicGraph(g, nil), EpicRuleGateEmpty), 1)
+}
