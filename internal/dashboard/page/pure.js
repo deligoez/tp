@@ -32,6 +32,20 @@
     return { x: W / 2 - w / 2, y: H / 2 - h / 2, w, h };
   };
 
+  // containAt is the view of a W by H drawing in a box of bw by bh pixels
+  // centred on the drawing point p and holding the whole drawing: as wide
+  // as p's farther side needs each way, never above SCALE.max. Re-centring
+  // the neighbourhood view takes it, so a new layout is never drawn at the
+  // old zoom with its outer nodes outside the box.
+  P.containAt = function (W, H, bw, bh, p) {
+    const hx = Math.max(p.x + VIEW_PAD, W + VIEW_PAD - p.x);
+    const hy = Math.max(p.y + VIEW_PAD, H + VIEW_PAD - p.y);
+    const s = Math.min(P.SCALE.max, bw / (2 * hx), bh / (2 * hy));
+    const w = bw / s;
+    const h = bh / s;
+    return { x: p.x - w / 2, y: p.y - h / 2, w, h };
+  };
+
   // placeLayout turns a /api/layout payload into drawing points: a column of
   // dims.colW per layer from dims.left, a row of dims.rowH per order below
   // dims.top and dims.head, a layer shorter than the longest centred against

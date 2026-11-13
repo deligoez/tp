@@ -1172,6 +1172,18 @@
           apply();
         });
       },
+      // fitAt shows the whole drawing centred on p (tpPure.containAt), once
+      // the layout settles; the box width it read is the one a later resize
+      // scales from.
+      fitAt(p) {
+        requestAnimationFrame(() => {
+          const r = el.getBoundingClientRect();
+          if (!p || !r.width || !r.height) return;
+          v = tpPure.containAt(size.W, size.H, r.width, r.height, p);
+          boxW = r.width;
+          apply();
+        });
+      },
       // reveal centres p only when it lies outside the view.
       reveal(p) {
         if (v && p && (p.x < v.x || p.x > v.x + v.w || p.y < v.y || p.y > v.y + v.h)) this.centre(p);
@@ -1555,7 +1567,7 @@
     if (hadFocus) gfocus(gview.focus);
     const key = gview.key;
     gport.bounds(geo.W, geo.H, gview.drawn !== key);
-    if (gview.drawn !== key && view === "neighbourhood") gport.centre(geo.pos[L.epic]);
+    if (gview.drawn !== key && view === "neighbourhood") gport.fitAt(geo.pos[L.epic]);
     else if (hl && (gview.drawn !== key || gview.hl !== hl)) gport.reveal(geo.pos[hl]);
     gview.drawn = key;
     gview.hl = hl;
