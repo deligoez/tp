@@ -36,7 +36,10 @@ func refuseIfBudgetExhausted(kind, specPath string, st *engine.ReviewState, capR
 	}
 	hint := budgetEscalationHint
 	if specHash, err := engine.SpecHash(specPath); err == nil {
-		converged := engine.Converged(rounds, requiredClean, specHash)
+		// Audit convergence waits on the carried set too
+		// (spec/backlog/audit-carried-fail-blocks.md): empty rounds at the
+		// cap do not let it end past a FAIL no round re-graded.
+		converged := engine.Converged(rounds, requiredClean, specHash) && len(engine.AuditCarriedBlocking(specPath, st)) == 0
 		if kind == "review" {
 			converged = engine.ReviewConverged(specPath, st, requiredClean, specHash, convergeOn)
 		}
@@ -54,6 +57,10 @@ func refuseIfBudgetExhausted(kind, specPath string, st *engine.ReviewState, capR
 				hint += "; raising review_max_rounds stays user-approved (" + engine.EscalateRaiseReviewCap + ")"
 			}
 		}
+	} else if carried := engine.AuditCarriedBlocking(specPath, st); len(carried) > 0 {
+		// The carried clause at the cap names each row's acceptance and the
+		// cap's raise, so it replaces the latest-round hint.
+		hint = engine.AuditCarriedBlockingClause(carried, specPath, true)
 	}
 	output.Error(ExitState, fmt.Sprintf("%s round budget exhausted: %d rounds recorded with a cap of %d and not converged", kind, len(rounds), capRounds), hint)
 	os.Exit(ExitState)

@@ -63,6 +63,12 @@ type BlockerInputs struct {
 	// ReviewUndisposedAtCap is the latest round's findings with no
 	// disposition at the cap (LoopDone.Undisposed).
 	ReviewUndisposedAtCap int
+	// AuditCarriedBlocking is the audit loop's carried blocking rows
+	// (LoopDone.CarriedBlocking) and AuditUndisposedAtCap its latest round's
+	// undispositioned findings at the cap: at the cap with that round
+	// dispositioned, the carried rows are what the budget blocker names.
+	AuditCarriedBlocking []CarriedRow
+	AuditUndisposedAtCap int
 
 	// EpicBlock is the task file's epic block (EpicBlockFor), nil for an
 	// unbound file or outside the implement phase.
@@ -133,12 +139,7 @@ func BuildBlockers(in *BlockerInputs) []Blocker {
 
 	// audit-budget-exhausted — escalate: the same at the audit cap (cap 0 never fires).
 	if in.Phase == PhaseAudit && in.AuditMaxRounds != 0 && in.AuditRounds >= in.AuditMaxRounds && !in.AuditConverged {
-		blockers = append(blockers, Blocker{
-			Code:    "audit-budget-exhausted",
-			Class:   ClassEscalate,
-			Message: budgetBlockerMessage("audit", in.AuditMaxRounds, in.AuditBlockingFixedAtCap),
-			Data:    map[string]any{"cap": in.AuditMaxRounds, "blocking_fixed_at_cap": in.AuditBlockingFixedAtCap},
-		})
+		blockers = append(blockers, auditBudgetBlocker(in))
 	}
 	// spec-stale — escalate: the spec changed since the last review round while
 	// implementing/auditing.
@@ -319,6 +320,28 @@ func carriedBlockingBlocker(in *BlockerInputs) *Blocker {
 		Message: CarriedBlockingClause(earlier, in.SpecPath, atCap),
 		Data:    data,
 	}
+}
+
+// auditBudgetBlocker is the audit-budget-exhausted blocker. With the latest
+// round dispositioned, what holds the loop open at the cap is its carried
+// blocking rows, so the message names them and the operator's exits
+// (AuditCarriedBlockingClause), each row through the spec as tp resume shows
+// it, and the data counts them.
+func auditBudgetBlocker(in *BlockerInputs) Blocker {
+	msg := budgetBlockerMessage("audit", in.AuditMaxRounds, in.AuditBlockingFixedAtCap)
+	data := map[string]any{"cap": in.AuditMaxRounds, "blocking_fixed_at_cap": in.AuditBlockingFixedAtCap}
+	if len(in.AuditCarriedBlocking) > 0 {
+		data["carried_blocking"] = len(in.AuditCarriedBlocking)
+		if in.AuditUndisposedAtCap == 0 && in.AuditBlockingFixedAtCap == 0 {
+			rows := make([]CarriedRow, len(in.AuditCarriedBlocking))
+			for i := range in.AuditCarriedBlocking {
+				rows[i] = in.AuditCarriedBlocking[i]
+				rows[i].File = filepath.Join(ReviewStateDir(in.SpecPath), filepath.Base(rows[i].File))
+			}
+			msg = fmt.Sprintf("audit reached its %d-round cap with the latest round dispositioned; ", in.AuditMaxRounds) + AuditCarriedBlockingClause(rows, in.SpecPath, true)
+		}
+	}
+	return Blocker{Code: "audit-budget-exhausted", Class: ClassEscalate, Message: msg, Data: data}
 }
 
 // budgetBlockerMessage words a *-budget-exhausted blocker: what is left at the
