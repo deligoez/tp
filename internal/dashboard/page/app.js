@@ -413,7 +413,28 @@
       kpi("lint", esc(lint.errors) + "<small> / " + esc(lint.warnings) + "</small>", "lint errors / warnings", lint.errors ? "warn" : ""),
       kpi("throughput", last ? esc(last.done) + "<small> in " + esc(last.week) + "</small>" : "0", "epics done per week").replace("</div>", spark(weeks) + "</div>"),
     ].join("");
+    fitKPIs();
   });
+
+  // fitKPIs gives the KPI row the columns that balance its rows for its
+  // width (tpPure.balancedColumns), a lone last card spanning its row; with
+  // no width yet, in a hidden tab, the CSS's auto-fit holds until the row is
+  // laid out and changes size.
+  const KPI_MIN = 140;
+  function fitKPIs() {
+    const box = $("kpis");
+    const n = box.children.length;
+    const cols = tpPure.balancedColumns(n, box.clientWidth, KPI_MIN, parseFloat(getComputedStyle(box).columnGap) || 0);
+    if (cols === null) {
+      delete box.dataset.cols;
+      box.classList.remove("lone");
+      return;
+    }
+    box.dataset.cols = String(cols);
+    box.style.setProperty("--kpi-cols", String(cols));
+    box.classList.toggle("lone", tpPure.lastSpans(n, cols));
+  }
+  new ResizeObserver(fitKPIs).observe($("kpis"));
 
   // spark draws the weekly throughput as bars, scaled to the busiest week.
   function spark(weeks) {
