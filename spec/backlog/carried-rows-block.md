@@ -37,10 +37,23 @@ without a fix and without the acceptance CLAUDE.md rule 9 reserves for the opera
    row is the operator's decision `rewrite-past-blocking` (exit 2 under `tp run`, a member of the
    escalation set, and named in CLAUDE.md rule 9). An epoch whose cut holds no unresolved blocking row
    stays an ordinary mode, as 1.14.0 shipped it.
+6. **A fix counts once a round verifies it.** Review raised it and the operator approved it. A
+   carried blocking row whose latest disposition is `fixed` keeps blocking until a review round
+   whose emission listed it as fixed — the RESOLVED section shown to roles for verification — has
+   been recorded. The order is kept by round numbers, not times: the disposition stores
+   `resolved_after_round`, the highest review round recorded or emitted when it was written, and a
+   round numbered above that verifies it. A round already emitted when the fix was made does not. A
+   disposition with no recorded order counts as verified if a round later than its row's round is
+   recorded. A row is graded at the highest severity among its occurrences since its last resolving
+   disposition, so a later copy graded lower does not take a high out of the blocking set.
+   `--status`, `next_action` and `tp resume` name the two states apart — unresolved (resolve it) and
+   fixed, awaiting a verifying round (run the next round) — and at the cap, where no round is
+   admitted, the way past a fix is the operator's raise of the cap, never another `fixed`.
 
 Verified by tests, not only by design: the rows an emission prints under the do-not-re-report heading
-and the rows `--check` names as blocking are compared over a history holding every disposition; two
-distinct findings at one location, one resolved and one not, leave the unresolved one blocking.
+and as fixed for verification, and the rows `--check` counts as blocking, are compared over a history
+holding every disposition, a verified and an unverified fix and a downgraded copy; two distinct
+findings at one location, one resolved and one not, leave the unresolved one blocking.
 
 ## 3. Consequences
 
@@ -52,7 +65,13 @@ distinct findings at one location, one resolved and one not, leave the unresolve
   operator sees that before the release.
 - Resolving a finding without a change stays the operator's decision; this rule only stops the
   silence from standing in for it.
-
+- A fixed blocking row costs one more review round in the worst case: the one that reads the fix.
+  At the cap that round is not admitted, so a fix made there is the operator's decision to raise the
+  cap for it, or to accept the row instead.
+- A disposition with no recorded order counts as verified if a round later than its row's round is
+  recorded. The rule reads the row, not the version that wrote it, so it covers a hand-edited or
+  imported row the same way. The shipped histories that converge only through it are counted and
+  listed in `spec/1.16.0-measurements.md`.
 ## 4. Alternatives
 
 - **Block only on rounds over the current text.** Rejected: one edited character takes an old round
