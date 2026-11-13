@@ -535,9 +535,16 @@ body.dopen:not([data-tab="epics"]) { padding: 0; }
 .dbody dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px var(--space-md); margin: 0; font-size: var(--text-sm); }
 .dbody dt { color: var(--muted); }
 .dbody dd { margin: 0; min-width: 0; overflow-wrap: anywhere; white-space: pre-line; }
-/* An epic's description is prose: the body face, unboxed, its line breaks
-   kept, a long one scrolling inside its own height. */
-.ddesc { font: 400 var(--text-sm)/1.6 var(--font-body); color: var(--ink-2); background: none; border: 0; padding: 0; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 18em; overflow: auto; }
+/* An epic's description is markdown drawn as prose: the body face,
+   unboxed, its headings a step above the text, its code in the mono face. */
+.ddesc { font: 400 var(--text-sm)/1.6 var(--font-body); color: var(--ink-2); background: none; border: 0; padding: 0; margin: 0; overflow-wrap: anywhere; }
+.ddesc > * { margin: 0 0 var(--space-xs); }
+.ddesc > :last-child { margin-bottom: 0; }
+.ddesc h3.sub { font: 600 var(--text-sm)/1.4 var(--font-display); color: var(--ink); margin-top: var(--space-sm); }
+.ddesc > h3.sub:first-child { margin-top: 0; }
+.ddesc ul, .ddesc ol { padding-left: 1.25em; }
+.ddesc code { font: 400 0.92em var(--mono); background: var(--sunk); border-radius: 4px; padding: 0 4px; }
+.ddesc pre { font: 400 var(--text-xs)/1.5 var(--mono); background: var(--sunk); border: 1px solid var(--line); border-radius: var(--radius-input); padding: var(--space-xs) var(--space-sm); white-space: pre-wrap; }
 .dmeta { display: flex; flex-wrap: wrap; gap: var(--space-2xs) var(--space-sm); align-items: center; font-size: var(--text-sm); color: var(--muted); }
 .critpill { color: var(--crit); border: 1px solid var(--crit); border-radius: 999px; padding: 0 var(--space-xs); font-size: var(--text-xs); }
 /* The epic's stepper is one quiet line in the drawer: a numbered or ticked

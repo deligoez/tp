@@ -87,9 +87,9 @@
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-  // descHTML shows an epic's description as escaped preformatted text: it is
-  // markdown, and the page renders no markup from it.
-  const descHTML = (s) => '<div><h4>' + esc(t("drawer.description")) + '</h4><pre class="ddesc">' + esc(s) + "</pre></div>";
+  // descHTML draws an epic's description, markdown, through tpPure.markdown,
+  // which escapes everything it does not draw.
+  const descHTML = (s) => '<div><h4>' + esc(t("drawer.description")) + '</h4><div class="ddesc">' + tpPure.markdown(s) + "</div></div>";
 
   // ---------- the theme ----------
   // The header's Auto, Light and Dark set <html data-theme>, keep an
