@@ -1,0 +1,79 @@
+package cli
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+
+	"github.com/deligoez/tp/internal/engine"
+	"github.com/deligoez/tp/internal/model"
+	"github.com/deligoez/tp/internal/output"
+)
+
+// pendingCloseHint is how a unit in a worktree closes its task.
+const pendingCloseHint = "in a unit's worktree, commit on the unit's branch, then run tp done <id> \"<evidence>\" --commit <sha>; the driver integrates and closes it"
+
+// donePendingRoot returns the main tree's project root when the working
+// directory is a linked worktree of the task file's repository, else "".
+func donePendingRoot(taskFilePath string) string {
+	root := engine.CanonicalProjectRoot(filepath.Dir(taskFilePath))
+	if engine.LinkedWorktreeOf(".", root) {
+		return root
+	}
+	return ""
+}
+
+// runDonePending is tp done in a unit's linked worktree
+// (spec/backlog/parallel-implement.md §2.4): it checks the evidence and the
+// commits, runs no gate, closes nothing, and writes a pending close the driver
+// integrates on the main branch.
+func runDonePending(root, taskFilePath string, taskIDs []string, reason string) error {
+	switch {
+	case len(taskIDs) != 1:
+		exitUsage("a close in a unit's worktree names one task", pendingCloseHint)
+	case doneAutoCommit || doneCoveredBy != "" || doneSkipGate != "":
+		exitUsage("--auto-commit, --covered-by and --skip-gate do not apply in a unit's worktree", pendingCloseHint)
+	case len(doneCommits) == 0:
+		exitUsage("a close in a unit's worktree needs --commit <sha>", pendingCloseHint)
+	}
+	id := taskIDs[0]
+
+	tf, err := model.ReadTaskFile(taskFilePath)
+	if err != nil {
+		output.Error(ExitFile, err.Error())
+		os.Exit(ExitFile)
+	}
+	task, _, findErr := model.FindTask(tf, id)
+	if findErr != nil {
+		output.Error(ExitState, findErr.Error())
+		os.Exit(ExitState)
+	}
+	if task.Status != model.StatusWIP {
+		output.Error(ExitState, fmt.Sprintf("cannot done: task %s is %s (the driver claims a unit's task)", id, task.Status))
+		os.Exit(ExitState)
+	}
+	if ce := checkDoneTarget(tf, id, reason, "", nil); ce != nil {
+		exitDoneCheckError(ce)
+	}
+
+	specPath, _ := engine.ResolveSpecPath(taskFilePath, tf.Spec)
+	worktree, _ := os.Getwd()
+	if checkErr := engine.CheckUnitCommits(root, worktree, taskFilePath, specPath, doneCommits); checkErr != nil {
+		output.Error(ExitValidation, checkErr.Error(), pendingCloseHint)
+		os.Exit(ExitValidation)
+	}
+
+	record := &engine.PendingClose{ID: id, Reason: reason, Commits: doneCommits, Worktree: worktree}
+	if writeErr := engine.WritePendingClose(root, taskFilePath, record); writeErr != nil {
+		output.Error(ExitFile, writeErr.Error())
+		os.Exit(ExitFile)
+	}
+	output.Success(fmt.Sprintf("pending close for %s: the driver integrates it", id))
+	printResultOrExit(map[string]any{"pending": true, "id": id, "commits": doneCommits})
+	return nil
+}
+
+func exitUsage(msg, hint string) {
+	output.Error(ExitUsage, msg, hint)
+	os.Exit(ExitUsage)
+}
