@@ -183,7 +183,7 @@ kinds and no others; `(kind, id)` identifies a unit, and `id` is its durable sub
 
 | Kind | `id` | Durable write | Concurrency | `brief_command` |
 |------|------|---------------|-------------|-----------------|
-| `implement` | task id | the task's `status` is `done` | alone | `tp next --brief` |
+| `implement` | task id | the task's `status` is `done`; in a batch, a pending close for the task | alone, or side by side in an implement batch (v1.19.0) | `tp next --brief`; `tp brief <id>` in a batch |
 | `review-role` | role id | `$TP_ROUND_DIR/role-$TP_UNIT_ID.ndjson` exists and every content line parses | parallel with sibling roles | `tp review <spec>` |
 | `review-record` | round number | `$TP_ROUND_DIR/merged.ndjson` **and** a review round file for `$TP_ROUND` exist | alone | `[ -f "$TP_ROUND_DIR/merged.ndjson" ] \|\| tp review --merge "$TP_ROUND_DIR"/role-*.ndjson -o "$TP_ROUND_DIR/merged.ndjson" && tp review <spec> --record "$TP_ROUND_DIR/merged.ndjson"` |
 | `review-resolve` | spec base name | every finding in `$TP_ROUND_DIR/merged.ndjson` carries a disposition | alone | `tp review <spec> --status` |
@@ -219,6 +219,39 @@ newest earlier snapshot or a recorded finding is resolved `fixed`), one more `re
 id is `regression`, after the corpus roles. The oracle and the emission read the same predicate, so
 neither side can name a role the other lacks. The regression unit counts against `run_max_units`
 like any other unit.
+
+### Implement batches (v1.19.0)
+
+With `run_max_parallel` above 1 the implement phase returns a **batch**: the task `tp next` would
+take, then each later ready task whose `touches` are disjoint from every task already in it, up to
+that many. Two globs overlap unless their literal prefixes diverge, compared case-insensitively, and
+an empty literal prefix overlaps everything. A wip task is resumed alone first; a task without
+`touches`, or one carrying `solo: true`, never joins a batch and, leading, runs alone. A batch of one
+is the ordinary implement unit.
+
+- **Claim and worktrees.** The driver claims the batch's tasks, then adds a git worktree per unit
+  under the system temporary directory (`tp-worktrees/<project hash>/<run id>/<task id>`) on a branch
+  `tp-unit/<run id>/<task id>` from the main branch's `HEAD`. Each child is spawned in its worktree
+  with `TP_FILE` naming the main tree's task file by absolute path, and its brief is `tp brief <id>`.
+- **The unit asks; the driver closes.** In a linked worktree of the task file's repository,
+  `tp done <id> "<evidence>" --commit <sha>...` checks the evidence and the commits, runs no gate and
+  closes nothing: it writes a pending close to `.tp/runs/pending/<key>/<id>.json`. `--commit` is
+  required and names one task; `--auto-commit`, `--covered-by` and `--skip-gate` are usage errors
+  (exit 2). A sha that is not on the unit's branch, is already on the main branch, or changes the task
+  file, the spec's `.tp-review/` or the project's `.tp/` is refused (exit 1) and nothing is written.
+- **Integration.** After the batch, whatever it ended as, the driver integrates every pending close in
+  id order: it cherry-picks the commits onto the main branch and runs `tp done <id> "<evidence>"
+  --commit <picked sha>...` there, so the gate and the record are `tp done`'s and the gates run one at
+  a time. A conflicting pick or a failing gate resets the main branch to before the pick with
+  `git reset --keep` (the task file's other closes survive), reopens the task and sets `solo: true`,
+  so it runs alone next. A picked diff that leaves the task's `touches` is reported on stderr and not
+  reopened. The worktrees and branches are then removed.
+- **A crash** leaves pending closes, worktrees or `tp-unit/` branches; the next `tp run` integrates
+  the pending closes and removes the rest before its first batch. A task whose unit never asked to
+  close stays wip and is resumed alone.
+- **Limits.** A worktree is a fresh checkout of `HEAD`, without ignored files (dependencies, `.env`,
+  build output); a project whose units need them keeps `run_max_parallel` at 1. The caps are checked
+  between iterations, so a batch can overshoot `run_max_units` by up to its size less one.
 
 ### Stop reasons
 
@@ -568,10 +601,11 @@ spec/
 | `run_max_budget_usd` | number | 0 (disabled) | 0-10000 | settable (v0.35.0; decimal dollars) |
 | `run_max_unit_budget_usd` | number | 0 (flag omitted) | 0-1000 | settable (v0.35.0; decimal dollars, passed to the runner's own budget flag) |
 | `run_max_unit_retries` | int | 1 | 0-5 | settable (v0.35.0; a unit is attempted `1 + this`) |
+| `run_max_parallel` | int | 1 | 1-8 | settable (v1.19.0; the implement units one `tp run` batch runs side by side, see Implement batches; raising it is the operator's, fenced under `TP_UNATTENDED` like the other caps) |
 | `runner` | string or object | `"claude"` | built-in name, runner object, or per-kind map | **not a `tp set --workflow` field** (`unknown workflow field`, exit 2) — hand-written under `workflow` in `.tp/config.json` or a task file |
 | `notify_cmd` | string | unset | any command string | **not a `tp set` field of any form** — hand-written at the top level of `.tp/local.json` |
 
-The five `run_max_*` fields resolve through the normal precedence and are settable with
+The six `run_max_*` fields resolve through the normal precedence and are settable with
 `tp set --workflow` and `tp set --workflow --project`. `runner` and `notify_cmd` are the two
 exceptions, and both name a command the driver executes, so neither has a setter:
 
