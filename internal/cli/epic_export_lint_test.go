@@ -12,11 +12,11 @@ import (
 // member and as deferrable of A's gate (gate-member-deferrable, an error),
 // w's edge to c gives "c" as its why (thin-why, a warning), and a, a member
 // of A's gate, waits through w on the condition c of the earlier P
-// (gate-held-by-condition, info).
+// (gate-held-by-condition, info). P's gate names c, so it is not empty.
 const lintSummaryGraph = `{
   "version": 1,
   "milestones": [["P", "A"]],
-  "gates": {"A": {"members": ["a", "w"], "deferrable": ["a"]}},
+  "gates": {"P": {"members": ["c"]}, "A": {"members": ["a", "w"], "deferrable": ["a"]}},
   "epics": [
     {"id": "c", "title": "Board approval", "milestone": "P", "condition": true, "acceptance": "the board signs off", "root": true},
     {"id": "w", "title": "Wiring", "milestone": "A", "depends_on": [{"id": "c", "why": "c"}]},
