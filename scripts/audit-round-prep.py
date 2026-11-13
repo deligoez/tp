@@ -59,7 +59,8 @@ and `brief` — the last a ready-to-paste paragraph per role.
 
 Exit 0 when the prep succeeded; 2 when there is nothing to carry (no round
 directory, no recorded audit round, a round file git does not track, a round
-holding an earlier-derivation `file_check` id, or bad arguments) — a first
+holding an earlier-derivation `file_check` id, a round recorded before the
+newest epoch in state.json, or bad arguments) — a first
 round carries nothing and must be briefed by hand; 3 when
 the clone or the build failed, with the failing step named. Errors are a JSON
 object on stderr so stdout stays parseable either way.
@@ -152,6 +153,25 @@ def previous_round(review_dir: pathlib.Path) -> tuple[int, pathlib.Path]:
             detail="no audit-round-<N>.ndjson; a first audit round has nothing to carry",
         )
     return best  # type: ignore[return-value]
+
+
+def epoch_cut(review_dir: pathlib.Path) -> int:
+    """The newest epoch's audit position in state.json, or 0 with none.
+
+    An epoch (`tp review <spec> --rewritten`) marks a rewrite: audit rounds
+    numbered at or below its `after_audit_round` graded the text before it. A
+    missing or unreadable state.json has no epoch to read; tp itself refuses
+    such a directory, and this script's carry needs only the round file.
+    """
+    try:
+        state = json.loads((review_dir / "state.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return 0
+    epochs = state.get("epochs") if isinstance(state, dict) else None
+    if not isinstance(epochs, list) or not epochs or not isinstance(epochs[-1], dict):
+        return 0
+    cut = epochs[-1].get("after_audit_round", 0)
+    return cut if isinstance(cut, int) else 0
 
 
 def rows_of(path: pathlib.Path) -> list[tuple[bytes, dict]]:
@@ -334,8 +354,20 @@ def main(argv: list[str]) -> int:
         fail(2, error="no-such-spec", spec=str(spec))
 
     root = pathlib.Path(git(spec.resolve().parent, "rev-parse", "--show-toplevel").strip())
-    round_n, round_file = previous_round(spec.parent / ".tp-review" / spec.stem)
+    review_dir = spec.parent / ".tp-review" / spec.stem
+    round_n, round_file = previous_round(review_dir)
     round_rel = os.path.relpath(round_file.resolve(), root)
+    cut = epoch_cut(review_dir)
+    if round_n <= cut:
+        fail(
+            2,
+            error="round-before-epoch",
+            file=round_rel,
+            epoch_after_audit_round=cut,
+            detail="nothing to carry: the previous round was recorded before the newest "
+                   "epoch (tp review --rewritten), so it graded a text the spec no longer "
+                   "holds; brief the round by hand",
+        )
 
     rows = rows_of(round_file)
     earlier = earlier_derivation_ids(rows)
