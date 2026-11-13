@@ -60,6 +60,30 @@ func assertEdgesForward(t *testing.T, l Layout, edges []LayoutEdge) {
 	}
 }
 
+// TestLayeredLayout_AChainInOneBandTakesOneLayerPerStep: a node enters the
+// longest-path walk only once its last in-run predecessor is done, so a
+// chain of single-predecessor steps with a skip edge into its end still
+// lays out one layer per step.
+func TestLayeredLayout_AChainInOneBandTakesOneLayerPerStep(t *testing.T) {
+	t.Parallel()
+	edges := []LayoutEdge{{"a", "b"}, {"b", "c"}, {"c", "d"}, {"a", "d"}}
+	got := LayeredLayout([]string{"a", "b", "c", "d"}, edges, nil, nil)
+	assertEdgesForward(t, got, edges)
+	assert.Equal(t, 4, got.Layers)
+	assert.Equal(t, 3, got.Places["d"].Layer)
+}
+
+// TestLayeredLayout_OrdersALayerByItsNeighbours: the barycenter sweeps
+// uncross two edges, so q, fed by the first node of layer 0, comes before p,
+// fed by the second, although p is first in file order.
+func TestLayeredLayout_OrdersALayerByItsNeighbours(t *testing.T) {
+	t.Parallel()
+	edges := []LayoutEdge{{"x", "q"}, {"y", "p"}}
+	got := LayeredLayout([]string{"x", "y", "p", "q"}, edges, nil, nil)
+	assert.Equal(t, 0, got.Places["q"].Order)
+	assert.Equal(t, 1, got.Places["p"].Order)
+}
+
 // TestLayeredLayout_BandCycleMergesIntoOneSpan: two bands that depend on
 // each other through different epics (a -> b from M1 into M2, c -> d from
 // M2 into M1) cannot run one after the other without an edge pointing
