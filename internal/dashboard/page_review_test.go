@@ -30,3 +30,86 @@ func TestPage_TheToolbarHasNoPackingControl(t *testing.T) {
 		assert.NotContains(t, script, s)
 	}
 }
+
+// TestPage_TheNeighbourhoodKeepsItsCentreAndTheSearchWorksUnprepared is
+// the review's H2: closing the drawer in Neighbourhood keeps the centre
+// epic; with nothing laid out the search runs over the export's epics; "/"
+// reaches the graph's search whenever the Epics tab shows the card, laid
+// out or not, and never an input of a hidden tab.
+func TestPage_TheNeighbourhoodKeepsItsCentreAndTheSearchWorksUnprepared(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, s := range []string{"const sel = app.selected() || G.centre;", "G.centre = id;", "function exportMatches(", "const cardShown = () => !card.hidden && !$(\"view-epics\").hidden;"} {
+		assert.Contains(t, script, s)
+	}
+	assert.NotContains(t, script, "!!G.prepared && !$(\"view-epics\").hidden")
+}
+
+// TestPage_AFailedLayoutClearsTheCanvasAndRecordsZero is the review's
+// R1-L2: a layout fetch that fails clears deck.gl's layers and records 0
+// drawn for the mode, so the canvas never shows the previous mode's picture
+// under the error.
+func TestPage_AFailedLayoutClearsTheCanvasAndRecordsZero(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Contains(t, script, "if (G.error) {\n      clearCanvas();\n      say(G.error.error);")
+	assert.Contains(t, script, "G.drawing = { mode: G.mode, nodes: 0, edges: 0 };\n    recordDrawn();\n    if (G.deck) G.deck.setProps({ layers: [] });")
+}
+
+// TestPage_TheNeighbourhoodOpensWhereIdsRead is the review's M1: the
+// neighbourhood opens at zoom 0 or nearer, where an epic's id is drawn at
+// its full 11 pixels.
+func TestPage_TheNeighbourhoodOpensWhereIdsRead(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Contains(t, script, "const NEAR_ZOOM = 0;")
+}
+
+// TestPage_TheCanvasIsNoTabStop is the review's M9: deck.gl's canvas takes
+// tabIndex -1, so the canvas box is the card's one tab stop.
+func TestPage_TheCanvasIsNoTabStop(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Contains(t, script, `$("gc-canvas").querySelectorAll("canvas").forEach((c) => { c.tabIndex = -1; });`)
+}
+
+// TestPage_MilestonesDrawCrossEdgesLighterThanTheSpine is the review's H3
+// at the page: the card asks tpPure.crossShown, so Milestones draws its
+// cross edges by default, and K toggles the mode's own flag.
+func TestPage_MilestonesDrawCrossEdgesLighterThanTheSpine(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, s := range []string{"pure.crossShown(G)", "msCross: true", "function toggleCross() {"} {
+		assert.Contains(t, script, s)
+	}
+}
+
+// TestPage_TheLegendCountsNodesAndTheNearChain is the review's M2 and M3:
+// the marks' counts are labelled as the nodes drawn, conditions included,
+// one mark each; the selection's counts say how many lie within two steps,
+// and a toggle shows the whole chain unfaded.
+func TestPage_TheLegendCountsNodesAndTheNearChain(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, s := range []string{`t("graph.legendNodes")`, `t("graph.near", { n: P.desc.size, near: pure.withinTwo(P.desc) })`, `data-lwhole`, "pure.chainAlpha(stepsOf(P, n.i), G.whole)"} {
+		assert.Contains(t, script, s)
+	}
+}
+
+// TestPage_BandLabelsAreShortenedOrLeftOutWhereTheyWouldCollide is the
+// review's L1: each frame places the band labels through tpPure.placeLabels
+// in screen pixels, so two never overlap.
+func TestPage_BandLabelsAreShortenedOrLeftOutWhereTheyWouldCollide(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Contains(t, script, "pure.placeLabels(")
+}
+
+// TestPage_WithoutWebGL2TheControlsHide is the review's L3: without WebGL2
+// the card hides its controls and legend and shows its message alone.
+func TestPage_WithoutWebGL2TheControlsHide(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	assert.Contains(t, script, `card.classList.add("nogl");`)
+	assert.Contains(t, page, ".gcard.nogl .toolbar > :not(h2), .gcard.nogl .legend, .gcard.nogl .gcount { display: none; }")
+}
