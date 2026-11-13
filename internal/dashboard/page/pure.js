@@ -222,6 +222,13 @@
     return out;
   };
 
+  // closureDescribed says how many of a gate closure's nodes are in
+  // described, the set of described epic ids, as the closure view's header
+  // reads it.
+  P.closureDescribed = function (nodes, described) {
+    return nodes.filter((n) => described.has(n.id)).length + " of " + nodes.length + " in the closure described";
+  };
+
   // relTime says how long ago ms milliseconds is, in its largest whole
   // unit; under ten seconds, or a clock gone backwards, is just now.
   P.relTime = function (ms) {

@@ -1590,7 +1590,7 @@
     const stops = tpPure.tabStops(L.nodes.map((n) => n.id), gview.focus);
     $("gsvg").innerHTML += "<g>" + gedgesHTML(L, geo, hl) + "</g>" + L.nodes.map((n, i) => gnodeHTML(n, geo.pos[n.id], view, ctx, stops[i])).join("");
     $("g-n").textContent = plural(L.nodes.length, view === "milestones" ? "milestone" : "epic", view === "milestones" ? "milestones" : "epics") +
-      (L.view === "scope" ? " in " + L.milestone + "'s closure" : L.view === "neighbourhood" ? " within " + plural(L.depth, "step", "steps") + " of " + L.epic : "");
+      (L.view === "scope" ? " in " + L.milestone + "'s closure; " + tpPure.closureDescribed(L.nodes, ctx.described) : L.view === "neighbourhood" ? " within " + plural(L.depth, "step", "steps") + " of " + L.epic : "");
     if (hadFocus) gfocus(gview.focus);
     const key = gview.key;
     gport.bounds(geo.W, geo.H, gview.drawn !== key);
