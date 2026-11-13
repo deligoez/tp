@@ -93,6 +93,51 @@ func TestAuditCarriedBlocking_TheCapRefusesAFourthRound(t *testing.T) {
 	assert.Contains(t, env["hint"], "raise-audit-cap")
 }
 
+// TestAuditCarriedBlocking_AnEpochPastABlockingAuditRowIsTheOperators: an epoch
+// whose audit cut holds an unresolved blocking audit row stops it blocking
+// with neither a re-grade nor an acceptance, so it is rewrite-past-blocking as
+// for a review row: refused under TP_UNATTENDED, and by hand it names the cut.
+func TestAuditCarriedBlocking_AnEpochPastABlockingAuditRowIsTheOperators(t *testing.T) {
+	t.Parallel()
+	dir := auditCarriedRepro(t, auditCarriedFail)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(carriedSpec+"\n## 3. Added\n\nA new rule.\n"), 0o600))
+
+	_, stderr, code := runTPFence(t, dir, true, "review", "spec.md", "--rewritten", "replaced the spec")
+	assert.Equal(t, 2, code, stderr)
+	env := errorEnvelope(t, stderr)
+	assert.Contains(t, env["error"], "unresolved blocking")
+	assert.Contains(t, env["hint"], "--resolve spec-coverage:§2")
+	assert.Contains(t, env["hint"], "tp escalate --decision rewrite-past-blocking")
+
+	stdout, stderr, code := runTPFence(t, dir, false, "review", "spec.md", "--rewritten", "replaced the spec")
+	require.Equal(t, 0, code, stderr)
+	assert.Contains(t, stderr, "rewrite-past-blocking")
+	var out map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+	assert.Equal(t, float64(1), out["cut_blocking"])
+	cut := carriedRows(t, map[string]any{"carried_blocking_rows": out["cut_blocking_rows"]})
+	require.Len(t, cut, 1)
+	assert.Equal(t, "§2", cut[0]["item_id"])
+}
+
+// TestAuditCarriedBlocking_ExportCountsTheCarriedRows: tp export's audit loop
+// counts the carried blocking rows holding it open, as its review loop does.
+func TestAuditCarriedBlocking_ExportCountsTheCarriedRows(t *testing.T) {
+	t.Parallel()
+	dir := auditCarriedRepro(t, auditCarriedFail, "")
+	_, stderr, code := runTP(t, dir, "init", "spec.md")
+	require.Equal(t, 0, code, stderr)
+	stdout, stderr, code := runTP(t, dir, "export")
+	require.Equal(t, 0, code, stderr)
+	var out struct {
+		Loops struct {
+			Audit map[string]any `json:"audit"`
+		} `json:"loops"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+	assert.Equal(t, float64(1), out.Loops.Audit["carried_blocking"])
+}
+
 // TestAuditCarriedBlocking_EveryLaterPromptAsksForTheReGrade: a FAIL only a
 // re-grade clears must reach a role in every later round, not only the one
 // after it. Round 2 records nothing; round 3's security prompt still lists
