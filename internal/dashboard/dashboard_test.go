@@ -5,8 +5,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"os/exec"
 	"regexp"
 	"strings"
 	"testing"
@@ -386,37 +384,16 @@ func TestPage_AWaitingEpicNamesItsAnyOfGroups(t *testing.T) {
 	assert.Contains(t, script, `esc(t("wait.oneOf")) + "</span> " + gr.any_of`)
 }
 
-// TestPage_DrawsAnEpicsDescriptionAsEscapedPreformattedText is the drawer's
-// description (spec/backlog/epic-description.md): the graph epic's
-// description goes through descHTML, which wraps the escaped text in a <pre>
-// and renders no markup. With node on PATH the page's own esc and descHTML
-// run on a description holding a script and HTML, which come out as text;
-// without node it skips locally and fails under CI, where it must run.
-func TestPage_DrawsAnEpicsDescriptionAsEscapedPreformattedText(t *testing.T) {
+// TestPage_DrawsAnEpicsDescriptionAsMarkdown is the drawer's description
+// (spec/backlog/epic-description.md): the graph epic's description goes
+// through descHTML, which draws it with tpPure.markdown; that it escapes a
+// script, raw HTML and a javascript: link is
+// TestPure_MarkdownDrawsADescriptionSafely.
+func TestPage_DrawsAnEpicsDescriptionAsMarkdown(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
 	assert.Contains(t, script, "descHTML(ge.description)")
-	var defs []string
-	for line := range strings.SplitSeq(script, "\n") {
-		if strings.HasPrefix(strings.TrimSpace(line), "const esc = ") || strings.HasPrefix(strings.TrimSpace(line), "const descHTML = ") {
-			defs = append(defs, line)
-		}
-	}
-	require.Len(t, defs, 2, "the page defines esc and descHTML on one line each")
-	node, err := exec.LookPath("node")
-	if err != nil && os.Getenv("CI") != "" {
-		t.Fatal("node is not on PATH under CI (CI is set, as GitHub Actions sets CI=true): the escaping check must run there")
-	}
-	if err != nil {
-		t.Skip("node is not on PATH: the static half above ran")
-	}
-	en := serve(t, http.MethodGet, "127.0.0.1:7377", "/i18n/en.json")
-	dict, err := io.ReadAll(en.Body)
-	require.NoError(t, err)
-	prog := "const EN = " + string(dict) + ";\nconst t = (k) => EN[k];\n" + strings.Join(defs, "\n") + "\nprocess.stdout.write(descHTML(\"<script>alert(1)</script>\\n<b>bold</b> & 'q'\"));\n"
-	out, err := exec.CommandContext(t.Context(), node, "-e", prog).Output()
-	require.NoError(t, err)
-	assert.Equal(t, `<div><h4>Description</h4><pre class="ddesc">&lt;script&gt;alert(1)&lt;/script&gt;`+"\n"+`&lt;b&gt;bold&lt;/b&gt; &amp; &#39;q&#39;</pre></div>`, string(out))
+	assert.Contains(t, script, `'</h4><div class="ddesc">' + tpPure.markdown(s) + "</div></div>"`)
 }
 
 // TestPage_DrawsTheEpicDrawerItsChainAndTheMatrix is §4 and §11 at the page:
