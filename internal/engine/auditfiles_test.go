@@ -191,6 +191,24 @@ func TestFilterFiles_CodeFilesChurnDecidesTheCut(t *testing.T) {
 	assert.Equal(t, "m05.go", sel.CodeFiles[9].Path, "the five smallest fall outside the cap")
 }
 
+// TestFilterFiles_NamedListIsNotCut pins decision 2: a universe the caller
+// named goes whole to the code roles, and the selection says it was named.
+// DiffUnmeasured alone does not decide this; Named does.
+func TestFilterFiles_NamedListIsNotCut(t *testing.T) {
+	in := &AuditFileInputs{Named: true, DiffUnmeasured: true}
+	for i := range 25 {
+		in.Universe = append(in.Universe, fmt.Sprintf("n%02d.go", i))
+	}
+	sel := SelectAuditFiles(in)
+	assert.Len(t, sel.CodeFiles, 25, "no cut on a named list")
+	assert.Equal(t, 25, sel.CodeFilesTotal)
+	assert.True(t, sel.CodeFilesNamed)
+
+	unnamed := SelectAuditFiles(&AuditFileInputs{Universe: in.Universe, DiffUnmeasured: true})
+	assert.Len(t, unnamed.CodeFiles, CodeFileCap, "an unmeasured but auto-detected universe is still cut")
+	assert.False(t, unnamed.CodeFilesNamed)
+}
+
 func TestPriorityPathSubstrings_ExactValues(t *testing.T) {
 	assert.Equal(t, []string{"lock", "validate", "auth", "secret", "perm"}, priorityPathSubstrings)
 }
