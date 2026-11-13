@@ -29,6 +29,9 @@ func securityRows(t *testing.T, sec map[string]any, n int) string {
 		row(items[i].(map[string]any)["item_id"].(string), "PASS", "null")
 	}
 	row(items[0].(map[string]any)["item_id"].(string), "FAIL", `"error"`)
+	// Well-formed ids the round never emitted: graded must not count them.
+	row("file-security-not-emitted-go.00000000000000ff", "PASS", "null")
+	row("file-security-another-go.00000000000000fe", "PASS", "null")
 	return b.String()
 }
 
