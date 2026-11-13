@@ -1379,7 +1379,7 @@
     scope: { colW: 200, rowH: 26, left: 16, top: 12, head: 30, inset: 12 },
     neighbourhood: { colW: 210, rowH: 28, left: 16, top: 12, head: 0, inset: 12 },
   };
-  const gview = { view: null, milestone: null, depth: 2, data: null, error: null, key: null, drawn: null, seen: null, seq: 0, pos: {}, focus: null };
+  const gview = { view: null, milestone: null, depth: 2, data: null, dataKey: null, error: null, key: null, drawn: null, seen: null, seq: 0, pos: {}, focus: null };
   INFO.chain = "The plan's dependencies in three views tp lays out, each read left to right, what a node depends on to its left. Milestones: each milestone with its work epics done of all, the dependency edges into it from other milestones' epics, and an edge from each milestone it opens after; click one for its gate's closure. Gate closure: what the milestone's gate pulls in (tp epic scope), banded by milestone, its critical path in orange, the alternatives of an any-of group drawn as one dashed fork. Neighbourhood: the selected epic in the middle, what it depends on to the left and what depends on it to the right, to the depth picked; clicking an epic re-centres on it. Selecting an epic highlights its edges and dims the rest. An edge that skips layers is a plain curve. The chain as text lists every edge with its why.";
 
   // gviewNow is the view shown: the one picked, else the selected epic's
@@ -1411,9 +1411,11 @@
     return p;
   }
 
+  // fetchLayout fetches key's layout, clearing the error of the key before;
+  // what it holds is drawn only once dataKey says it came for key.
   async function fetchLayout(key) {
     const seq = ++gview.seq;
-    gview.key = key;
+    Object.assign(gview, { key, error: null });
     let body;
     try {
       const res = await fetch("/api/layout?" + key, { cache: "no-store" });
@@ -1422,7 +1424,7 @@
       body = { error: "the layout could not be fetched: " + err.message, hint: "check that tp dashboard is still running" };
     }
     if (seq !== gview.seq) return;
-    Object.assign(gview, isError(body) ? { data: null, error: body } : { data: body, error: null });
+    Object.assign(gview, isError(body) ? { data: null, dataKey: null, error: body } : { data: body, dataKey: key, error: null });
     drawGraph();
   }
 
@@ -1437,7 +1439,7 @@
       gview.seen = g;
       fetchLayout(key);
     }
-    if (!key) Object.assign(gview, { key: null, data: null, error: null });
+    if (!key) Object.assign(gview, { key: null, data: null, dataKey: null, error: null });
     drawGraph();
   }
   panel(["epic-export"], graphPanel);
@@ -1517,8 +1519,9 @@
     const L = gview.data;
     const say = (text) => { $("gsvg").innerHTML = ""; $("g-n").textContent = text; };
     if (!layoutQuery(g)) return say("Select an epic on the map or in a list to see its neighbourhood.");
-    if (gview.error) return say(gview.error.error);
-    if (!L || L.view !== view) return say("Reading " + GVIEW_LABEL[view] + " from tp.");
+    const ready = tpPure.layoutReady(gview);
+    if (ready === "error") return say(gview.error.error);
+    if (ready !== "draw") return say("Reading " + GVIEW_LABEL[view] + " from tp.");
     const geo = tpPure.placeLayout(L, GDIMS[view]);
     gview.pos = geo.pos;
     if (!geo.pos[gview.focus]) gview.focus = (L.nodes.find((n) => n.centre) || L.nodes[0] || {}).id || null;
