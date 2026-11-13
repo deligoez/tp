@@ -667,6 +667,14 @@ from a done record.
    status marks it `moot: true`; it counts again once something live depends on it.
    `gate-held-by-condition` (info) names, per gate and condition outside the gate's own milestone, the
    members waiting on it, with one path.
+   **A milestone that opens on something outside the plan** (a vendor signs, a date passes) keeps
+   `opens_after: []` and holds its trigger as a condition epic of its own milestone, which every epic
+   of the milestone with no other dependency depends on. The milestone reads open, but its epics are
+   held: `tp epic ready` offers none of them and asks the operator for the trigger, and a bound file's
+   `tp next` exits 4 naming it. Firing it is `tp epic done <trigger> --evidence "<text or URL>"`. To
+   make lint refuse an epic that forgets the edge, tag the milestone's epics and add `tag_checks:
+   {"<tag>": {"provided_by": "<trigger>"}}`. Do not put the trigger alone in a milestone the triggered
+   one opens after: a gate names no condition by default, so that gate is green with no members.
 7. **Long-lead epics.** Place an epic that takes long in the earliest milestone where it can start,
    its real dependencies as edges, not in the milestone it must finish by: `tp epic ready` offers it
    as soon as they are done, and `critical_path` shows the chain it lengthens.
