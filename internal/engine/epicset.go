@@ -3,7 +3,9 @@ package engine
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 
@@ -271,6 +273,11 @@ func decodeStrict(value string, v any) error {
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(v); err != nil {
 		return fmt.Errorf("invalid JSON value: %w", err)
+	}
+	// One value and nothing after it: `["a"] junk` and `["a"]["b"]` are
+	// refused rather than read as their first value.
+	if err := dec.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		return errors.New("invalid JSON value: text after the value")
 	}
 	return nil
 }
