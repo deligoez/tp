@@ -307,3 +307,16 @@ func TestForestLayout_AnUnnamedBandIsListedBesideNamedOnes(t *testing.T) {
 	got := ForestLayout(&ForestInput{IDs: []string{"x", "y"}, Bands: []string{"M1"}, BandOf: map[string]string{"x": "M1"}, Pack: PackTree})
 	assert.Equal(t, []LayoutBand{{Name: "M1", From: 0, To: 0}, {Name: "", From: 1, To: 1}}, got.Bands)
 }
+
+// TestForestLayout_BandsInACycleShareOneSpanInLanes: in lanes, two bands
+// whose nodes depend on each other share one span, named for the first
+// and listing the second.
+func TestForestLayout_BandsInACycleShareOneSpanInLanes(t *testing.T) {
+	t.Parallel()
+	in := ForestInput{
+		IDs: []string{"a", "b"}, Edges: []LayoutEdge{{"a", "b"}, {"b", "a"}},
+		Bands: []string{"A", "B"}, BandOf: map[string]string{"a": "A", "b": "B"},
+		LaneOf: map[string]string{"A": "x", "B": "x"}, Pack: PackTree,
+	}
+	assert.Equal(t, []LayoutBand{{Name: "A", With: []string{"B"}, From: 0, To: 0}}, ForestLayout(&in).Bands)
+}
