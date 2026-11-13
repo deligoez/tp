@@ -21,3 +21,14 @@ out([en("hi", { who: "<b>" }), en("n", { n: 1 }), en("n", { n: 12345 }), en("mis
 	assert.JSONEq(t, `["hi <b>", "1 epic", "12,345 epics", "missing", "<code>&lt;b&gt;</code>", "1 epic", "12.345 epic", "en", "tr"]`, got)
 }
 
+// TestPure_TheTranslatorFormatsPercentsAndDurationsByLocale: a share reads
+// as the locale writes a percent (40% in English, %40 in Turkish), and a
+// task's minutes as minutes under an hour, else hours to one decimal.
+func TestPure_TheTranslatorFormatsPercentsAndDurationsByLocale(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const en = P.translator({}, "en");
+const tr = P.translator({}, "tr");
+out([en.pct(0.4), tr.pct(0.4), en.dur(45), en.dur(90), tr.dur(45), tr.dur(90)]);`)
+	assert.JSONEq(t, `["40%", "%40", "45 min", "1.5 hr", "45 dk.", "1,5 sa."]`, got)
+}
+
