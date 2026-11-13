@@ -767,7 +767,7 @@ func TestPage_AMilestonesDetailReadsItsGateInFull(t *testing.T) {
 	page, script := pageText(t)
 	assert.Contains(t, page, `id="dkind"`)
 	assert.Contains(t, page, ".dbody dd { margin: 0; min-width: 0; overflow-wrap: anywhere; white-space: pre-line; }")
-	for _, s := range []string{"function milestoneHTML(", `["Gate", `, `["Threshold", `, `["Purpose", `, `["Described", `, `$("dkind").textContent = msd ? "Milestone" : "Epic";`, "msView.detail = null;"} {
+	for _, s := range []string{"tpPure.milestoneHTML(msd, gateOf(g, msd.milestone)", "tpPure.thresholdLine(m, gateOf(g, m.milestone), THRESHOLD_LABEL)", `$("dkind").textContent = msd ? "Milestone" : "Epic";`} {
 		assert.Contains(t, script, s)
 	}
 }
