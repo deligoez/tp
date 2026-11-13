@@ -47,6 +47,11 @@ type DriverOptions struct {
 	// been picked onto the main branch (spec/backlog/parallel-implement.md
 	// §2.4). Only a batch calls it.
 	CloseTask CloseFunc
+	// ClaimTasks claims a batch's tasks, and ReopenSolo reopens a task that
+	// failed to integrate and marks it solo. Both write the task file, which
+	// only internal/cli does, so tp run supplies them.
+	ClaimTasks func(ids []string) error
+	ReopenSolo func(id string) error
 }
 
 // DriverResult is what one run ended as. It is the loop's own answer, not a

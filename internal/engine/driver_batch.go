@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/deligoez/tp/internal/model"
 	"github.com/deligoez/tp/internal/output"
@@ -36,7 +35,10 @@ func (d *driver) startBatch(units []NextUnit) (map[string]batchUnit, error) {
 	for i := range units {
 		ids[i] = units[i].ID
 	}
-	if err := ClaimBatch(d.opts.TaskFile, ids); err != nil {
+	if d.opts.ClaimTasks == nil {
+		return nil, driverErrorf(fmt.Errorf("no claim function"), "claim the implement batch")
+	}
+	if err := d.opts.ClaimTasks(ids); err != nil {
 		return nil, driverErrorf(err, "claim the implement batch")
 	}
 	base := WorktreeBase(d.opts.Root)
@@ -117,7 +119,10 @@ func (d *driver) integrateOne(tf *model.TaskFile, p *PendingClose) error {
 			return driverErrorf(resetErr, "restore the main branch after task %q", p.ID)
 		}
 		output.Notice(fmt.Sprintf("task %s did not integrate (%v); it reopens to run alone", p.ID, pickErr))
-		if err := ReopenSolo(d.opts.TaskFile, p.ID); err != nil {
+		if d.opts.ReopenSolo == nil {
+			return driverErrorf(fmt.Errorf("no reopen function"), "reopen task %q", p.ID)
+		}
+		if err := d.opts.ReopenSolo(p.ID); err != nil {
 			return driverErrorf(err, "reopen task %q", p.ID)
 		}
 	}
@@ -214,50 +219,4 @@ func (d *driver) reconcileBatches() error {
 	}
 	_, _ = gitOut(d.opts.Root, "worktree", "prune")
 	return nil
-}
-
-// ClaimBatch moves the batch's open tasks to wip under the task file's lock;
-// a task already wip — an interrupted attempt — is left as it is.
-func ClaimBatch(taskFile string, ids []string) error {
-	return WithFileLock(taskFile, func() error {
-		tf, err := model.ReadTaskFile(taskFile)
-		if err != nil {
-			return err
-		}
-		now := time.Now().UTC()
-		for _, id := range ids {
-			task, _, findErr := model.FindTask(tf, id)
-			if findErr != nil {
-				return findErr
-			}
-			if task.Status == model.StatusOpen {
-				task.Status = model.StatusWIP
-				task.StartedAt = &now
-				task.DurationSource = model.DurationSourceClaimed
-			}
-		}
-		tf.UpdatedAt = now
-		return model.WriteTaskFile(taskFile, tf)
-	})
-}
-
-// ReopenSolo returns a task that failed to integrate to open and marks it to
-// run alone from then on (§2.4).
-func ReopenSolo(taskFile, id string) error {
-	return WithFileLock(taskFile, func() error {
-		tf, err := model.ReadTaskFile(taskFile)
-		if err != nil {
-			return err
-		}
-		task, _, err := model.FindTask(tf, id)
-		if err != nil {
-			return err
-		}
-		task.Status = model.StatusOpen
-		task.StartedAt = nil
-		task.DurationSource = ""
-		task.Solo = true
-		tf.UpdatedAt = time.Now().UTC()
-		return model.WriteTaskFile(taskFile, tf)
-	})
 }

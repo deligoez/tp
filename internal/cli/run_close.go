@@ -5,9 +5,62 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	"github.com/deligoez/tp/internal/engine"
+	"github.com/deligoez/tp/internal/model"
 )
+
+// claimBatchFunc is how tp run claims an implement batch's tasks: open moves
+// to wip under the task file's lock, and a task already wip (an interrupted
+// attempt) is left as it is.
+func claimBatchFunc(taskFile string) func(ids []string) error {
+	return func(ids []string) error {
+		return engine.WithFileLock(taskFile, func() error {
+			tf, err := model.ReadTaskFile(taskFile)
+			if err != nil {
+				return err
+			}
+			now := time.Now().UTC()
+			for _, id := range ids {
+				task, _, findErr := model.FindTask(tf, id)
+				if findErr != nil {
+					return findErr
+				}
+				if task.Status == model.StatusOpen {
+					task.Status = model.StatusWIP
+					task.StartedAt = &now
+					task.DurationSource = model.DurationSourceClaimed
+				}
+			}
+			tf.UpdatedAt = now
+			return model.WriteTaskFile(taskFile, tf)
+		})
+	}
+}
+
+// reopenSoloFunc is how tp run reopens a task whose unit failed to integrate:
+// back to open, marked solo so it runs alone from then on.
+func reopenSoloFunc(taskFile string) func(id string) error {
+	return func(id string) error {
+		return engine.WithFileLock(taskFile, func() error {
+			tf, err := model.ReadTaskFile(taskFile)
+			if err != nil {
+				return err
+			}
+			task, _, err := model.FindTask(tf, id)
+			if err != nil {
+				return err
+			}
+			task.Status = model.StatusOpen
+			task.StartedAt = nil
+			task.DurationSource = ""
+			task.Solo = true
+			tf.UpdatedAt = time.Now().UTC()
+			return model.WriteTaskFile(taskFile, tf)
+		})
+	}
+}
 
 // closeTaskFunc is how tp run closes an integrated batch unit
 // (spec/backlog/parallel-implement.md §2.4): it runs this binary's own tp done

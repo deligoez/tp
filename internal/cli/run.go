@@ -83,11 +83,13 @@ func runRun(_ *cobra.Command, args []string) error {
 
 	root := engine.CanonicalProjectRoot(filepath.Dir(taskFilePath))
 	opts := engine.DriverOptions{
-		Root:      root,
-		TaskFile:  taskFilePath,
-		Spec:      specPath,
-		Workflow:  engine.EffectiveWorkflowForTaskFile(taskFilePath),
-		CloseTask: closeTaskFunc(root, taskFilePath),
+		Root:       root,
+		TaskFile:   taskFilePath,
+		Spec:       specPath,
+		Workflow:   engine.EffectiveWorkflowForTaskFile(taskFilePath),
+		CloseTask:  closeTaskFunc(root, taskFilePath),
+		ClaimTasks: claimBatchFunc(taskFilePath),
+		ReopenSolo: reopenSoloFunc(taskFilePath),
 	}
 
 	var result engine.DriverResult

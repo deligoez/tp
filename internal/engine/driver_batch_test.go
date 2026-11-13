@@ -69,12 +69,43 @@ func (c *fakeCloser) close(taskFile string) CloseFunc {
 	}
 }
 
+// editTasks applies edit to each named task under the task file's lock, the
+// test's stand-in for the CLI's claim and reopen.
+func editTasks(taskFile string, ids []string, edit func(*model.Task)) error {
+	return WithFileLock(taskFile, func() error {
+		tf, err := model.ReadTaskFile(taskFile)
+		if err != nil {
+			return err
+		}
+		for _, id := range ids {
+			task, _, findErr := model.FindTask(tf, id)
+			if findErr != nil {
+				return findErr
+			}
+			edit(task)
+		}
+		return model.WriteTaskFile(taskFile, tf)
+	})
+}
+
 func driveBatch(t *testing.T, root, spec, taskFile string, closer *fakeCloser) DriverResult {
 	t.Helper()
 	done := make(chan DriverResult, 1)
 	go func() {
 		res, err := RunDriver(&DriverOptions{
 			Root: root, TaskFile: taskFile, Spec: spec, Workflow: *driverWorkflow(), CloseTask: closer.close(taskFile),
+			ClaimTasks: func(ids []string) error {
+				return editTasks(taskFile, ids, func(task *model.Task) {
+					if task.Status == model.StatusOpen {
+						task.Status = model.StatusWIP
+					}
+				})
+			},
+			ReopenSolo: func(id string) error {
+				return editTasks(taskFile, []string{id}, func(task *model.Task) {
+					task.Status, task.Solo = model.StatusOpen, true
+				})
+			},
 		})
 		assert.NoError(t, err)
 		done <- res
