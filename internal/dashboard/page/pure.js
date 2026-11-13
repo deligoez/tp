@@ -452,6 +452,12 @@
     return { attr: "data-" + key.slice(0, at), value: key.slice(at + 1) };
   };
 
+  // addressURL is the address syncURL writes for the page's place, hash, at
+  // loc (location's pathname and search).
+  P.addressURL = function (loc, hash) {
+    return loc.pathname + loc.search + "#" + hash;
+  };
+
   if (typeof module === "object" && module.exports) module.exports = P;
   else root.tpPure = P;
 })(this);
