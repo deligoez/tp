@@ -434,13 +434,41 @@
     return fmt.formatRange(new Date(monday), new Date(monday + 6 * 86400000));
   };
 
-  // wheelAction is what a wheel event does to the graph, with no guess at
-  // whether a trackpad or a mouse sent it: "zoom" with Ctrl or ⌘ held, which
-  // is also how Chrome and Firefox report a pinch; else "pan" while the
-  // graph fills the screen, and "page", the page's own scroll, outside it.
-  P.wheelAction = function (ev, fullscreen) {
-    if (ev.ctrlKey || ev.metaKey) return "zoom";
-    return fullscreen ? "pan" : "page";
+  // wheelAction is what a wheel event does, with no guess at whether a
+  // trackpad or a mouse sent it, by where it lands: on the canvas, Ctrl or
+  // ⌘ held, which is also how Chrome and Firefox report a pinch, zooms, and
+  // the plain wheel pans in full screen and scrolls the page outside it. In
+  // full screen a zoom over the rest of the card, its floating toolbar and
+  // legend, zooms the graph, and one anywhere else is cancelled ("block"),
+  // so a pinch never zooms the page behind a graph that fills the screen.
+  // Everything else is the page's own.
+  P.wheelAction = function (ev, fullscreen, place) {
+    const zoomKey = ev.ctrlKey || ev.metaKey;
+    if (place === "canvas") return zoomKey ? "zoom" : fullscreen ? "pan" : "page";
+    if (!fullscreen || !zoomKey) return "page";
+    return place === "card" ? "zoom" : "block";
+  };
+
+  // gestureAction is what Safari's pinch, its gesture events, does by where
+  // it lands: zoom the graph on the canvas, and in full screen anywhere over
+  // the card; elsewhere in full screen it is cancelled, and outside full
+  // screen a pinch off the canvas zooms the page as Safari does.
+  P.gestureAction = function (fullscreen, place) {
+    if (place === "canvas" || (fullscreen && place === "card")) return "zoom";
+    return fullscreen ? "block" : "page";
+  };
+
+  // resizeRefits says whether a change of the canvas box's size, from prev
+  // to next, each {w, h} in CSS pixels at devicePixelRatio dpr, refits a
+  // graph sitting at its fit: only when the box changed on the screen, in
+  // device pixels, beyond a CSS pixel's rounding. A page zoom shrinks the
+  // box in CSS pixels by the factor it raises dpr, so it does not refit and
+  // the graph zooms with the page; refitting kept the drawing's size while
+  // the labels in pixels grew. The first size always fits.
+  P.resizeRefits = function (prev, next) {
+    if (!prev) return true;
+    const tol = Math.max(prev.dpr, next.dpr);
+    return Math.abs(prev.w * prev.dpr - next.w * next.dpr) > tol || Math.abs(prev.h * prev.dpr - next.h * next.dpr) > tol;
   };
 
   // wheelDelta is a wheel event's [x, y] in pixels: its deltaMode counts

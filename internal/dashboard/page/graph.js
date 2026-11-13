@@ -620,44 +620,67 @@
     const wy = G.vs.target[1] + py / s0;
     goTo({ ...G.vs, zoom: z, target: [wx - px / s1, wy - py / s1, 0] });
   }
-  // The wheel (tpPure.wheelAction): Ctrl or ⌘ with it, and Chrome's and
-  // Firefox's pinch, zoom about the pointer; in full screen the plain wheel
-  // pans; outside it the page scrolls. The box listens in the capture
-  // phase, ahead of deck.gl's canvas inside it.
-  $("gc-canvas").addEventListener("wheel", (ev) => {
+  // The wheel (tpPure.wheelAction): on the canvas, Ctrl or ⌘ with it, and
+  // Chrome's and Firefox's pinch, zoom about the pointer; in full screen the
+  // plain wheel pans; outside it the page scrolls. The box listens in the
+  // capture phase, ahead of deck.gl's canvas inside it.
+  function onWheel(ev, place) {
     if (!G.vs || !G.prepared) return;
     if (!ev.ctrlKey && !ev.metaKey) G.gesture = false;
-    const act = pure.wheelAction(ev, card.classList.contains("fs"));
+    const act = pure.wheelAction(ev, isFull(), place);
     if (act === "page") return;
     ev.preventDefault();
     // A pinch Safari reports as a gesture zooms there alone.
-    if (act === "zoom" && G.gesture) return;
+    if (act === "block" || (act === "zoom" && G.gesture)) return;
     const [dx, dy] = pure.wheelDelta(ev, $("gc-canvas").clientHeight);
     if (act === "zoom") zoomAt(pure.wheelZoom(dy), ev.clientX, ev.clientY);
     else pan(dx, dy);
-  }, { passive: false, capture: true });
-  // Safari's pinch: gesture events carry the scale since the pinch began,
-  // and each step zooms by its change. They are heard, and cancelled, only
-  // on the canvas, so a pinch elsewhere zooms the page as Safari does.
-  $("gc-canvas").addEventListener("gesturestart", (ev) => {
-    if (!G.vs) return;
+  }
+  // Safari's pinch (tpPure.gestureAction): gesture events carry the scale
+  // since the pinch began, and each step zooms by its change, through
+  // zoomAt like the wheel's.
+  function onGesture(ev, place) {
+    const act = pure.gestureAction(isFull(), place);
+    if (act === "page" || !G.vs) return;
     ev.preventDefault();
-    G.pinch = 1;
-    G.gesture = true;
-  });
-  $("gc-canvas").addEventListener("gesturechange", (ev) => {
-    if (!G.vs || !G.prepared) return;
-    ev.preventDefault();
+    if (act === "block") return;
+    if (ev.type === "gesturestart") {
+      G.pinch = 1;
+      G.gesture = true;
+      return;
+    }
+    if (ev.type === "gestureend") {
+      G.gesture = false;
+      return;
+    }
+    if (!G.prepared) return;
     zoomAt(pure.pinchZoom(G.pinch, ev.scale), ev.clientX, ev.clientY);
     G.pinch = ev.scale;
     // A gestureend Safari never sends must not leave Ctrl-wheel zoom off.
     clearTimeout(G.gestureTimer);
     G.gestureTimer = setTimeout(() => { G.gesture = false; }, GESTURE_IDLE_MS);
-  });
-  $("gc-canvas").addEventListener("gestureend", (ev) => {
-    ev.preventDefault();
-    G.gesture = false;
-  });
+  }
+  const GESTURES = ["gesturestart", "gesturechange", "gestureend"];
+  $("gc-canvas").addEventListener("wheel", (ev) => onWheel(ev, "canvas"), { passive: false, capture: true });
+  GESTURES.forEach((type) => $("gc-canvas").addEventListener(type, (ev) => onGesture(ev, "canvas")));
+  // In full screen the document hears what lands off the canvas: over the
+  // card's floating toolbar and legend, by the pointer's point, a zoom
+  // zooms the graph, and anywhere else it is cancelled, so a pinch never
+  // zooms the page behind a graph that fills the screen.
+  const overCard = (ev) => {
+    const r = card.getBoundingClientRect();
+    return ev.clientX >= r.left && ev.clientX < r.right && ev.clientY >= r.top && ev.clientY < r.bottom;
+  };
+  const offCanvas = (handle) => (ev) => {
+    if (!$("gc-canvas").contains(ev.target)) handle(ev, overCard(ev) ? "card" : "page");
+  };
+  const fsWheel = offCanvas(onWheel);
+  const fsGesture = offCanvas(onGesture);
+  function listenOffCanvas(on) {
+    const m = on ? "addEventListener" : "removeEventListener";
+    document[m]("wheel", fsWheel, { passive: false, capture: true });
+    GESTURES.forEach((type) => document[m](type, fsGesture, { passive: false, capture: true }));
+  }
 
   function tooltip({ object, layer }) {
     if (!object || !layer || layer.id !== "nodes") return null;
@@ -834,11 +857,23 @@
     showLegend(open);
   }
   $("gc-lg").addEventListener("click", toggleLegend);
-  // Entering or leaving full screen reads that place's choice. The canvas's
-  // own size, read once the window has grown or shrunk, refits a graph
-  // still at its fit, whatever changed the size.
-  document.addEventListener("tp-fs", () => showLegend(pure.legendOpen(storedLegend(), isFull())));
-  new ResizeObserver(() => { if (G.prepared && G.deck && G.atFit) fit(); }).observe($("gc-canvas"));
+  // Entering or leaving full screen reads that place's choice and starts or
+  // stops hearing the pinch off the canvas. The canvas's own size, read
+  // once the window has grown or shrunk, refits a graph still at its fit
+  // when the box changed on the screen (tpPure.resizeRefits); a page zoom
+  // leaves the graph to zoom with the page.
+  document.addEventListener("tp-fs", () => {
+    showLegend(pure.legendOpen(storedLegend(), isFull()));
+    listenOffCanvas(isFull());
+  });
+  let boxSize = null;
+  new ResizeObserver(() => {
+    const box = $("gc-canvas");
+    const next = { w: box.clientWidth, h: box.clientHeight, dpr: window.devicePixelRatio || 1 };
+    const refit = pure.resizeRefits(boxSize, next);
+    boxSize = next;
+    if (refit && G.prepared && G.deck && G.atFit) fit();
+  }).observe($("gc-canvas"));
   showLegend(pure.legendOpen(storedLegend(), isFull()));
   $("gc-fit").addEventListener("click", () => { if (G.prepared) fit(); });
   // The canvas's own + − Fit, bottom right, in the page and in full screen.
