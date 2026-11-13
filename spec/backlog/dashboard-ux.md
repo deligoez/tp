@@ -64,7 +64,9 @@ Lifecycle count work epics; one sentence names the condition epics between them)
 
 **The map becomes usable.** A full-screen control (the Fullscreen API, the plain wheel zooming while
 in full screen, Esc leaving it); pan and pinch on touch; search and any list selection centre and
-select the epic; the drawer narrows the map instead of covering it; nodes take focus with a roving
+select the epic; the drawer narrows the map instead of covering it (changed by the operator in
+1.17.1: the drawer is an overlay over a dimmed page, which keeps its width; a click on the backdrop
+or Esc closes it, and a phone keeps its bottom sheet); nodes take focus with a roving
 tabindex and Enter selects; the drawer takes focus when it opens and returns it on close; the first
 view fits the width at a readable scale.
 
