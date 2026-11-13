@@ -75,6 +75,9 @@ type EpicReviewStatus struct {
 	Done             bool
 	DoneBy           string
 	Stale            bool
+	// CleanEnough says ConsecutiveClean reaches the policy's clean rounds:
+	// the slice is converged unless it is stale.
+	CleanEnough bool
 	// StaleUnits names, in slice order, the units whose hash differs from
 	// the last recorded round's snapshot or has none there (spec/1.8.0.md
 	// §5): every unit before a round is recorded, none on a fresh slice.
@@ -141,7 +144,8 @@ func EpicReviewLoopStatus(stateDir string, units []EpicReviewUnit, p EpicReviewP
 		epicCountOpen(&st, rounds[len(rounds)-1])
 	}
 	st.ConsecutiveClean = epicConsecutiveClean(rounds, p.ConvergeOn)
-	st.Converged = st.ConsecutiveClean >= p.CleanRounds && !st.Stale
+	st.CleanEnough = st.ConsecutiveClean >= p.CleanRounds
+	st.Converged = st.CleanEnough && !st.Stale
 	if _, err := os.Stat(filepath.Join(stateDir, epicSnapshotFile(st.Round+1))); err == nil {
 		st.InFlightRound = st.Round + 1
 	}
