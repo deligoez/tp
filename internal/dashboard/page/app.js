@@ -1374,6 +1374,21 @@
       plural((t.done || 0), "task", "tasks") + " done of " + ((t.open || 0) + (t.wip || 0) + (t.done || 0)), loop("ground", f.ground), loop("review", f.review), loop("audit", f.audit)].filter(Boolean).join(", ")) + "</small></li>";
   }
 
+  // drawerReturn is what held focus when the drawer opened: the element, and
+  // the map epic or the list link and its box it was, to find it again when
+  // a redraw replaced it. Null while the drawer is closed.
+  let drawerReturn = null;
+  function returnFocus() {
+    const r = drawerReturn;
+    drawerReturn = null;
+    if (r.el && r.el.isConnected && r.el !== document.body) r.el.focus({ preventScroll: true });
+    else if (r.map) focusNode(r.map);
+    else if (r.epic && r.box && $(r.box)) {
+      const again = [...$(r.box).querySelectorAll("[data-epic]")].find((x) => x.dataset.epic === r.epic);
+      if (again) again.focus({ preventScroll: true });
+    }
+  }
+
   function drawDrawer() {
     const g = data("epic-export");
     const id = mapView.selected;
@@ -1381,6 +1396,14 @@
     const open = !!e && state.tab === "epics";
     $("drawer").hidden = !open;
     document.body.classList.toggle("dopen", open);
+    // Opening takes focus to the close button; closing gives it back.
+    if (open && !drawerReturn) {
+      const from = document.activeElement;
+      drawerReturn = { el: from, map: from && from.closest && from.closest("#mapsvg .node") ? from.dataset.id : null,
+        epic: from && from.dataset ? from.dataset.epic : null, box: from && from.closest && from.closest("[id]") ? from.closest("[id]").id : null };
+      $("dclose").focus({ preventScroll: true });
+    }
+    if (!open && drawerReturn) returnFocus();
     if (!open) return;
     const ge = graphEpic(g, id) || {};
     const ms = (g.milestones || []).find((m) => m.milestone === e.milestone) || {};
