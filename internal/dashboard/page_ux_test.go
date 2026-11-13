@@ -669,6 +669,20 @@ func TestPure_ALoneLastKPICardSpansItsRow(t *testing.T) {
 	assert.JSONEq(t, `[true, true, false, false, false, false]`, got)
 }
 
+// TestPage_TheKPIRowFitsItsColumnsOnRenderAndResize: the page sets the
+// KPI row's columns from tpPure.balancedColumns when it draws the row and
+// whenever the row changes size, and the CSS reads them (1.15.1).
+func TestPage_TheKPIRowFitsItsColumnsOnRenderAndResize(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	for _, s := range []string{"tpPure.balancedColumns(", "tpPure.lastSpans(", `new ResizeObserver(fitKPIs).observe($("kpis"))`} {
+		assert.Contains(t, script, s)
+	}
+	assert.Contains(t, script, "].join(\"\");\n    fitKPIs();", "the row is fitted as soon as it is drawn")
+	assert.Contains(t, page, ".kpis[data-cols] { grid-template-columns: repeat(var(--kpi-cols), minmax(0, 1fr)); }")
+	assert.Contains(t, page, ".kpis.lone > :last-child { grid-column: 1 / -1; }")
+}
+
 // TestPure_TheEpicTotalsNameTheConditions: the Epics tab counts every epic
 // while the share and the Lifecycle count work epics, so the totals read as
 // one sentence that names the condition epics between them (1.14.1).
