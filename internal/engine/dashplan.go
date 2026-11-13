@@ -110,12 +110,12 @@ func mostWaitedOn(g *model.EpicGraph, states map[string]EpicState) []string {
 	return out
 }
 
-// staleLoops counts the slices whose loop is only stale: a graph edit
-// changed their units since their last round, which a re-review settles.
+// staleLoops counts the slices a re-review alone settles (StaleOnly): stale
+// after a graph edit, otherwise done, and under their cap.
 func staleLoops(reviewSlices []EpicSliceState) int {
 	n := 0
 	for i := range reviewSlices {
-		if reviewSlices[i].State == LoopStateStale {
+		if reviewSlices[i].StaleOnly {
 			n++
 		}
 	}
