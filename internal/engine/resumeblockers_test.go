@@ -63,6 +63,23 @@ func TestBuildBlockers_AuditBudgetExhaustedFiresAtTheAuditCap(t *testing.T) {
 	assert.Empty(t, bs, "the audit cap does not stop the review phase")
 }
 
+// TestBuildBlockers_TheAuditBudgetNamesItsCarriedRow: at the audit cap with the
+// latest round dispositioned, what holds the loop open is a carried row of an
+// earlier round, so the budget blocker names it and the operator's exits
+// rather than the latest round (spec/backlog/audit-carried-fail-blocks.md).
+func TestBuildBlockers_TheAuditBudgetNamesItsCarriedRow(t *testing.T) {
+	tf := &model.TaskFile{Tasks: []model.Task{{ID: "t", Status: model.StatusDone}}}
+	row := CarriedRow{Round: 1, File: "/elsewhere/audit-round-1.ndjson", Index: 0, Severity: "error",
+		Row: map[string]any{"role": "r", "item_id": "task-t1", "status": "FAIL"}, Disposition: CarryUnresolved}
+	bs := BuildBlockers(&BlockerInputs{Phase: PhaseAudit, AuditRounds: 3, AuditMaxRounds: 3, TaskFile: tf, SpecPath: "spec.md",
+		AuditCarriedBlocking: []CarriedRow{row}})
+	require.Len(t, bs, 1)
+	assert.Equal(t, "audit-budget-exhausted", bs[0].Code)
+	assert.Contains(t, bs[0].Message, "tp audit .tp-review/spec/audit-round-1.ndjson --resolve r:task-t1 wontfix|duplicate")
+	assert.Contains(t, bs[0].Message, EscalateRaiseAuditCap)
+	assert.Equal(t, 1, bs[0].Data["carried_blocking"])
+}
+
 func TestBuildBlockers_SpecStaleEscalate(t *testing.T) {
 	tf := &model.TaskFile{Tasks: []model.Task{{ID: "t", Status: model.StatusWIP}}}
 	bs := BuildBlockers(&BlockerInputs{Phase: PhaseImplement, ReviewStale: true, SpecPath: "spec.md", TaskFile: tf})
