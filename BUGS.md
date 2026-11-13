@@ -20,8 +20,8 @@ fix needs a design choice leaves this file for a decision note.
 
 - **A hidden dashboard tab keeps its event stream open, and enough tabs starve the page's fetches.**
   Each tab holds one `EventSource` to `/api/events` for as long as it is open, hidden or not, and a
-  browser allows six HTTP/1.1 connections per host. Repro (v1.16.0, Chrome): open `tp dashboard` in
-  six tabs; in a seventh, `/api/layout` and `/api/history` stay pending until a tab closes. Failing
+  browser allows six HTTP/1.1 connections per host. Repro (v1.16.0, the operator's report, not
+  rerun here): with several tabs open, `/api/layout` and `/api/history` stay pending. Failing
   test: the page closes its stream on `visibilitychange` to hidden and opens it again, with the
   current state, when it is visible.
 - **The first push waits for all three derivations, one after another.** A cold `/api/events`
