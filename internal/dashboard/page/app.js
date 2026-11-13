@@ -1506,7 +1506,9 @@
     const key = gview.key;
     gport.bounds(geo.W, geo.H, gview.drawn !== key);
     if (gview.drawn !== key && view === "neighbourhood") gport.centre(geo.pos[L.epic]);
+    else if (hl && (gview.drawn !== key || gview.hl !== hl)) gport.reveal(geo.pos[hl]);
     gview.drawn = key;
+    gview.hl = hl;
   }
 
   // gnodeAt is the dependency view's node under the pointer.
