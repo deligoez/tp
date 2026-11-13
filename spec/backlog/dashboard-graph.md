@@ -39,6 +39,14 @@ noise; the scoped views of 1.13.0 sit in a second card.
    collapsible text list under the card, as 1.13.0 kept it; together they carry keyboard use and
    give a keyboard user the dependency picture. This is a trade, recorded as one.
 
+**Amended in 1.17.1.** The operator reviewed the shipped card and changed decision 2's default: cross
+edges are drawn by default in every mode, light and under the tree edges and the critical path, and
+K hides them; the address carries `cross=0` only when they are hidden. What keeps the plan readable
+with them on is the drawing order (bands, cross edges, long tree edges, tree edges, the critical
+path, nodes, labels) and fading the long edges, those spanning three layers or eight columns. A
+selected epic's own chain draws its cross edges even with the toggle off
+(`spec/1.17.1-measurements.md`).
+
 ## 3. Alternatives
 
 - **A plain 2D canvas, the same layout, no library.** Rejected because the operator has a working,
