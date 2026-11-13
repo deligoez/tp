@@ -119,15 +119,12 @@ out(P.placeLabels([
 	assert.JSONEq(t, `[{"kind":"full","x":0,"y":-24}, {"kind":"full","x":300,"y":6}, null]`, got)
 }
 
-// TestPure_TheGlyphAtlasHoldsEveryCharacterAShortenedIdDraws: deck.gl
-// draws only the characters its atlas was built from, so an id shortened
-// with an ellipsis must put the ellipsis in the atlas, or the id reads as
-// cut off at a hyphen.
-func TestPure_TheGlyphAtlasHoldsEveryCharacterAShortenedIdDraws(t *testing.T) {
+// TestPure_TheGlyphAtlasHoldsEveryCharacterANodeDraws: deck.gl draws only
+// the characters its atlas was built from, so the atlas takes them from the
+// text a node draws, not only from its id and title.
+func TestPure_TheGlyphAtlasHoldsEveryCharacterANodeDraws(t *testing.T) {
 	t.Parallel()
-	got := runPure(t, `const lines = P.wrapId("inference-policy-group-model-review", 20);
-const node = { label: "inference-policy-group-model-review", title: "", text: lines.join("\n"), short: lines[0] + "…" };
-out(P.glyphsOf([node], []).includes("…"));`)
+	got := runPure(t, `out(P.glyphsOf([{ label: "a", title: "", text: "a\n…" }], []).includes("…"));`)
 	assert.Equal(t, "true", got)
 }
 

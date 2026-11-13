@@ -331,22 +331,28 @@ func TestPage_AnInfoPopoverIsAHeadingAndABulletList(t *testing.T) {
 }
 
 // TestPure_TheDetailFollowsTheOnScreenFontSize: below 9 pixels on screen
-// a node draws no text (far), below 12 its id on one line (mid), and from
-// 12 its whole id (near).
+// a node draws no text (far), and from 9 its whole id (near).
 func TestPure_TheDetailFollowsTheOnScreenFontSize(t *testing.T) {
 	t.Parallel()
 	got := runPure(t, `out([P.detailLevel(4), P.detailLevel(8.9), P.detailLevel(9), P.detailLevel(11.9), P.detailLevel(12), P.detailLevel(30)]);`)
-	assert.JSONEq(t, `["far", "far", "mid", "mid", "near", "near"]`, got)
+	assert.JSONEq(t, `["far", "far", "near", "near", "near", "near"]`, got)
 }
 
-// TestPure_ALongIdWrapsAtAPunctuationMarkInsideItsBox: an id longer than a
-// line breaks after the last ".", "-" or ":" that fits, else at the line's
-// end; a second line too long for the box ends in an ellipsis, so the text
-// never leaves the box and the box never widens.
-func TestPure_ALongIdWrapsAtAPunctuationMarkInsideItsBox(t *testing.T) {
+// TestPure_ALongIdWrapsWholeInsideItsBox: an id longer than a line breaks
+// after the last ".", "-" or ":" in the line's second half, else at the
+// line's end, and is never cut short. Up to two lines of the box's width
+// draw at its font; a longer id takes the line width whose wrap draws
+// largest in the same box, the font cut to the longest line's width and to
+// two lines' height.
+func TestPure_ALongIdWrapsWholeInsideItsBox(t *testing.T) {
 	t.Parallel()
-	got := runPure(t, `out([P.wrapId("api-gw-replay", 20), P.wrapId("inventory-export-backfill", 20), P.wrapId("abcdefghijklmnopqrstuvwxyz", 10), P.wrapId("a.b:c-very-long-tail-of-the-identifier-here", 12)]);`)
-	assert.JSONEq(t, `[["api-gw-replay"], ["inventory-export-", "backfill"], ["abcdefghij", "klmnopqrs…"], ["a.b:c-very-", "long-tail-o…"]]`, got)
+	got := runPure(t, `out([P.fitId("api-gw-replay", 20), P.fitId("inventory-export-backfill", 20), P.fitId("abcdefghijklmnopqrstuvwxyz", 10), P.fitId("a.b:c-very-long-tail-of-the-identifier-here", 12)]);`)
+	assert.JSONEq(t, `[
+  {"lines": ["api-gw-replay"], "fit": 1},
+  {"lines": ["inventory-export-", "backfill"], "fit": 1},
+  {"lines": ["abcdefghijklm", "nopqrstuvwxyz"], "fit": 0.7692},
+  {"lines": ["a.b:c-very-long-", "tail-of-the-", "identifier-here"], "fit": 0.6667}
+]`, got)
 }
 
 // TestPure_ASmallGraphFitsNoFurtherOutThanItsLabelsRead: a gate closure, a
@@ -361,8 +367,8 @@ out([r(P.fitFloor(819, "scope")), r(P.fitFloor(60, "neighbourhood")), r(P.fitFlo
 
 // TestPage_TheGraphDrawsByLabelSizeWithItsOwnZoomAndKeys is 1.17.1's
 // readability and full-screen work at the page: each frame picks its level
-// of detail from the label's size on screen, draws the wrapped id near and
-// its first line mid, tints far nodes toward their band and drops their
+// of detail from the label's size on screen, draws the whole id, smaller in
+// more lines where two would not hold it, tints far nodes toward their band and drops their
 // borders, takes its colours from tpPure.graphPalette, labels a band as a
 // pill inside its corner, fits a small graph no further out than its
 // labels read, fits again on entering or leaving full screen only when the
@@ -373,7 +379,7 @@ func TestPage_TheGraphDrawsByLabelSizeWithItsOwnZoomAndKeys(t *testing.T) {
 	t.Parallel()
 	page, script := pageText(t)
 	for _, s := range []string{
-		"G.detail = pure.detailLevel(P.geo.fs * scale);", "pure.wrapId(out.label, geo.chars)", "const nodeText = (n) => (G.detail === \"near\" ? n.text : n.short);",
+		"G.detail = pure.detailLevel(P.geo.fs * scale);", "pure.fitId(out.label, geo.chars)", "const nodeText = (n) => n.text;", "getSize: (n) => P.geo.fs * n.fit,",
 		"mix(mark, bandFill(c, n.band), REGION_TINT)", "return G.detail === \"far\" ? 0 : 1;", "G.colors = pure.graphPalette(tok);",
 		"background: true, getBackgroundColor: [...c.page, 235]", "pure.fitFloor(P.nodes.length, P.L.view, P.geo.fs)",
 		"if (refit && G.prepared && G.deck && G.atFit) fit();", `$("gc-zin").addEventListener("click"`, `$("gc-nfs").textContent = $("gc-n").textContent;`,
