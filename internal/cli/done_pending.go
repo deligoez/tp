@@ -40,6 +40,7 @@ func runDonePending(root, taskFilePath string, taskIDs []string, reason string) 
 
 	tf, err := model.ReadTaskFile(taskFilePath)
 	if err != nil {
+		// task-file-hint: the task file itself could not be read
 		output.Error(ExitFile, err.Error())
 		os.Exit(ExitFile)
 	}
@@ -65,7 +66,7 @@ func runDonePending(root, taskFilePath string, taskIDs []string, reason string) 
 
 	record := &engine.PendingClose{ID: id, Reason: reason, Commits: doneCommits, Worktree: worktree}
 	if writeErr := engine.WritePendingClose(root, taskFilePath, record); writeErr != nil {
-		output.Error(ExitFile, writeErr.Error())
+		output.Error(ExitFile, writeErr.Error(), runtimeFailureHint)
 		os.Exit(ExitFile)
 	}
 	output.Success(fmt.Sprintf("pending close for %s: the driver integrates it", id))
