@@ -524,35 +524,54 @@
   };
 
   // detailLevel is how much a graph node draws at a label size of px
-  // pixels on screen: "far", no text, below 9; "mid", its id on one line,
-  // below 12; "near", its whole id, from 12.
+  // pixels on screen: "far", no text, below 9; "near", its whole id, from 9.
   P.detailLevel = function (px) {
-    if (px < 9) return "far";
-    return px < 12 ? "mid" : "near";
+    return px < 9 ? "far" : "near";
   };
 
-  // wrapId is an id as the lines its box draws, per characters to a line:
-  // one line when it fits, else a break after the last ".", "-" or ":" in
-  // the line's second half, else at the line's end, the second line ended
-  // by an ellipsis when it would not fit, so the text never leaves the box.
+  // wrapId is an id as lines of at most per characters: a break after the
+  // last ".", "-" or ":" in the line's second half, else at the line's end.
+  // Nothing is cut.
   P.wrapId = function (id, per) {
-    if (id.length <= per) return [id];
-    let cut = per;
-    for (let i = per; i >= Math.ceil(per / 2); i--) {
-      if (".-:".includes(id[i - 1])) {
-        cut = i;
-        break;
+    const lines = [];
+    let rest = id;
+    while (rest.length > per) {
+      let cut = per;
+      for (let i = per; i >= Math.ceil(per / 2); i--) {
+        if (".-:".includes(rest[i - 1])) {
+          cut = i;
+          break;
+        }
       }
+      lines.push(rest.slice(0, cut));
+      rest = rest.slice(cut);
     }
-    const rest = id.slice(cut);
-    return [id.slice(0, cut), rest.length <= per ? rest : rest.slice(0, per - 1) + "…"];
+    lines.push(rest);
+    return lines;
+  };
+
+  // fitId is an id whole in a box that holds two lines of per characters at
+  // its font: the line width, from per up, whose wrap (wrapId) draws at the
+  // largest fit, a fraction of the font no larger than 1, per over the
+  // longest line, or 2 over the line count, so the text fills the same box
+  // as large as it can and is never cut.
+  P.fitId = function (id, per) {
+    let best = null;
+    for (let w = per; w <= Math.max(per, id.length); w++) {
+      const lines = P.wrapId(id, w);
+      const longest = Math.max(...lines.map((l) => l.length));
+      const fit = Math.round(Math.min(1, per / longest, 2 / lines.length) * 10000) / 10000;
+      if (!best || fit > best.fit) best = { lines, fit };
+      if (fit === 1) break;
+    }
+    return best;
   };
 
   // glyphsOf is every character the graph's text layers draw, the set
   // deck.gl builds its font atlas from: a character left out is not drawn.
   P.glyphsOf = function (nodes, bands) {
     const chars = new Set();
-    nodes.forEach((n) => { for (const ch of n.label + n.title + (n.text || "") + (n.short || "")) chars.add(ch); });
+    nodes.forEach((n) => { for (const ch of n.label + n.title + (n.text || "")) chars.add(ch); });
     bands.forEach((b) => { for (const ch of b.name + " ·0123456789") chars.add(ch); });
     return [...chars].join("");
   };

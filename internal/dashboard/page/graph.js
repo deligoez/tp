@@ -48,7 +48,7 @@
 
   // World geometry, one unit a screen pixel at zoom 0: an epic is a box of
   // w by h, one column col wide, one layer row tall, its id in lines of at
-  // most chars characters (tpPure.wrapId) of the fs-unit monospace font.
+  // most chars characters (tpPure.fitId) of the fs-unit monospace font.
   const GEO = {
     epic: { w: 150, h: 28, col: 172, row: 40, fs: 11, chars: 20 },
     milestone: { w: 200, h: 54, col: 240, row: 110, fs: 22, chars: 14 },
@@ -222,12 +222,12 @@
       out.status = e.status;
       out.label = n.id + (ctx.described.has(n.id) ? " ¶" : "");
     }
-    // The id in its fixed-width box: wrapped at a punctuation mark onto a
-    // second line near (tpPure.wrapId), its first line alone at mid, the
-    // box never widened.
-    const lines = pure.wrapId(out.label, geo.chars);
-    out.text = lines.join("\n");
-    out.short = lines.length > 1 ? lines[0].slice(0, geo.chars - 1) + "…" : lines[0];
+    // The id whole in its fixed-width box: wrapped at punctuation marks, and
+    // drawn smaller in more lines when two would not hold it (tpPure.fitId);
+    // the box never widened, the id never cut.
+    const fitted = pure.fitId(out.label, geo.chars);
+    out.text = fitted.lines.join("\n");
+    out.fit = fitted.fit;
     out.band = -1;
     const { w, h } = out;
     out.poly = out.cond
@@ -485,10 +485,9 @@
     return order.map((b, i) => (at[i] ? { b, text: at[i].kind === "full" ? full(b) : b.name, wx: at[i].x / scale, wy: at[i].y / scale } : null)).filter(Boolean);
   }
 
-  // nodeText is what a node's id reads at the frame's detail: its whole
-  // wrapped id near, its first line mid, nothing far (the tooltip still
-  // names it).
-  const nodeText = (n) => (G.detail === "near" ? n.text : n.short);
+  // nodeText is a node's whole wrapped id, drawn from the near detail on
+  // (nothing far, where the tooltip still names it).
+  const nodeText = (n) => n.text;
 
   function render() {
     const P = G.prepared;
@@ -526,7 +525,7 @@
       }),
       new TextLayer({
         id: "ids", data: P.nodes, visible: G.detail !== "far", getPosition: (n) => [n.x, n.y + n.h / 2], getText: nodeText,
-        getSize: P.geo.fs, sizeUnits: "common", getTextAnchor: "middle", getAlignmentBaseline: "center", lineHeight: 1.05,
+        getSize: (n) => P.geo.fs * n.fit, sizeUnits: "common", getTextAnchor: "middle", getAlignmentBaseline: "center", lineHeight: 1.05,
         getColor: (n) => [...c.ink, nodeAlpha(P, hits, n) >= 170 ? 255 : 70],
         fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", characterSet: P.charSet, fontSettings,
         updateTriggers: { getColor: v, getText: v },
