@@ -95,3 +95,51 @@ func TestAuditGraded_RecordWithoutEmissionStoresNone(t *testing.T) {
 	assert.NotContains(t, rec, "graded")
 	assert.NotContains(t, rec["next_action"], "graded")
 }
+
+// TestAuditGraded_ReRecordKeepsWhatWasGraded: a unit's re-record of its own
+// round (TP_ROUND, the idempotent retry) finds no pools, since the first record
+// removed them, and must keep the graded the first record stored rather than
+// wipe it.
+func TestAuditGraded_ReRecordKeepsWhatWasGraded(t *testing.T) {
+	t.Parallel()
+	dir, specPath := auditRepoWithChangedFiles(t, 14)
+	stdout, stderr, code := runTP(t, dir, "audit", specPath)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	results := filepath.Join(dir, "results.ndjson")
+	require.NoError(t, os.WriteFile(results, []byte(securityRows(t, auditPromptsByRole(t, stdout)["security"], 4)), 0o600))
+
+	_, stderr, code = runTPEnv(t, dir, []string{"TP_ROUND=1"}, "audit", specPath, "--record", results)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	_, stderr, code = runTPEnv(t, dir, []string{"TP_ROUND=1"}, "audit", specPath, "--record", results)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	st, err := engine.LoadReviewState(specPath)
+	require.NoError(t, err)
+	require.Len(t, st.AuditRounds, 1, "the retry rewrote round 1")
+	assert.Equal(t, []engine.RoleGraded{{Role: "security", Graded: 4, Pool: 14}, {Role: "maintainability-conventions", Graded: 0, Pool: 14}},
+		st.AuditRounds[0].Graded, "the re-record keeps what the first record graded")
+}
+
+// TestAuditGraded_StrayPoolsGradeNoNoEmissionRecord: a round recorded with no
+// emission of its own (hash_scheme no-emission) answers for no reading, so a
+// pools file left at its number does not give it a graded.
+func TestAuditGraded_StrayPoolsGradeNoNoEmissionRecord(t *testing.T) {
+	t.Parallel()
+	dir, specPath := auditRepoWithChangedFiles(t, 3)
+	require.NoError(t, engine.WriteAuditPools(specPath, 1, []engine.AuditRolePool{
+		{Role: "security", Pool: 3, Items: []string{"file-security-x.0000000000000000"}},
+	}))
+	results := filepath.Join(dir, "results.ndjson")
+	require.NoError(t, os.WriteFile(results, []byte(`{"role":"security","item_id":"file-security-x.0000000000000000","status":"PASS","category":null,"severity":null,"notes":""}`+"\n"), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "audit", specPath, "--record", results)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var rec map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &rec))
+	assert.NotContains(t, rec, "graded", "no emission, no graded, whatever sits in the inbox")
+	st, err := engine.LoadReviewState(specPath)
+	require.NoError(t, err)
+	require.Len(t, st.AuditRounds, 1)
+	assert.Equal(t, engine.HashSchemeNoEmission, st.AuditRounds[0].HashScheme)
+	assert.Nil(t, st.AuditRounds[0].Graded)
+}
