@@ -349,24 +349,38 @@ func TestPage_WaitingEpicsReadInSectionsThatFoldAndShowAll(t *testing.T) {
 // is specced everywhere, never "claimed" in a pill or "claimed or under way"
 // on the map, and the Lifecycle count of each stage, the work epics with
 // that status, equals the marks of that stage; a planned epic's mark says
-// what holds it (1.14.1).
+// what holds it (1.14.1). An epic past planned that is also blocked or
+// held keeps both facts: its stage as the mark, the hold as an overlay and
+// in its words, "claimed, blocked", as the KPI and Waiting count it blocked
+// (1.14.1 review).
 func TestPure_EveryStateWordReadsTheOneStatusField(t *testing.T) {
 	t.Parallel()
 	got := runPure(t, `const ep = (id, status, x) => Object.assign({ id, milestone: "M", status, blocked_by: [], blocked_by_any_of: [] }, x || {});
 const work = [ep("a", "planned"), ep("b", "planned", { blocked: true }), ep("g", "planned", { held: true, blocked: true }), ep("c", "claimed", { blocked: true }),
-  ep("d", "specced"), ep("h", "specced", { milestone: "N" }), ep("e", "in_progress", { blocked: true }), ep("f", "done")];
+  ep("d", "specced"), ep("h", "specced", { milestone: "N" }), ep("i", "specced", { held: true, blocked: true }), ep("e", "in_progress", { blocked: true }), ep("f", "done")];
 const closed = { N: true };
 const marks = {};
-work.forEach((e) => { const m = P.markState(e, !!closed[e.milestone]); marks[m] = (marks[m] || 0) + 1; });
+const holds = {};
+const words = {};
+const LABEL = { claimed: "claimed", specced: "specced", in_progress: "in progress", blocked: "blocked", held: "held by a condition", ready: "can start", done: "done", waiting: "milestone closed" };
+work.forEach((e) => {
+  const m = P.markState(e, !!closed[e.milestone]);
+  marks[m.mark] = (marks[m.mark] || 0) + 1;
+  if (m.hold) holds[e.id] = m.hold;
+  words[e.id] = P.markText(m, LABEL);
+});
 const band = {};
 work.forEach((e) => { band[e.status] = (band[e.status] || 0) + 1; });
 const epics = {};
 work.concat([ep("x", "planned", { blocked: true, blocked_by: ["d", "e", "c"] }), ep("y", "planned", { blocked: true, blocked_by_any_of: [["d", "c"]] })]).forEach((e) => { epics[e.id] = e; });
 const w = P.waitingGroups(["x", "y"], epics, [], { M: true });
-out({ marks, band, pills: w.groups.map((g) => (g.blocker || g.any_of.join("|")) + ":" + g.state) });`)
+out({ marks, band, holds, words, pills: w.groups.map((g) => (g.blocker || g.any_of.join("|")) + ":" + g.state) });`)
 	assert.JSONEq(t, `{
-		"marks": {"ready": 1, "blocked": 1, "held": 1, "claimed": 1, "specced": 2, "in_progress": 1, "done": 1},
-		"band": {"planned": 3, "claimed": 1, "specced": 2, "in_progress": 1, "done": 1},
+		"marks": {"ready": 1, "blocked": 1, "held": 1, "claimed": 1, "specced": 3, "in_progress": 1, "done": 1},
+		"band": {"planned": 3, "claimed": 1, "specced": 3, "in_progress": 1, "done": 1},
+		"holds": {"c": "blocked", "i": "held", "e": "blocked"},
+		"words": {"a": "can start", "b": "blocked", "g": "held by a condition", "c": "claimed, blocked", "d": "specced", "h": "specced",
+			"i": "specced, held by a condition", "e": "in progress, blocked", "f": "done"},
 		"pills": ["d:specced", "e:in_progress", "c:claimed", "d|c:specced"]
 	}`, got)
 }
