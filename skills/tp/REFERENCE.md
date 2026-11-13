@@ -2374,12 +2374,12 @@ It writes nothing to the repository and loads nothing remote.
 |---------|--------|
 | a `Host` other than `127.0.0.1:<port>` or `localhost:<port>` (name case-insensitive, port required) | 403, before anything else |
 | any method but `GET` | 405 with `Allow: GET` |
-| `/`, `/style.css`, `/pure.js`, `/app.js`, `/favicon.svg` | the page |
+| `/`, `/style.css`, `/pure.js`, `/app.js`, `/graph.js`, `/favicon.svg`, `/vendor/deckgl-9.3.12.min.js` | the page; the vendored renderer with `Content-Encoding: gzip` when the request accepts it, decompressed otherwise |
 | `/api/events` | the event stream below |
 | `/api/export?file=<path>`, `<path>` a `tp export --list` row's `path` | `tp export --file <path>`'s JSON, uncompacted |
 | `/api/history?milestone=<m>` (or `epic=`, `epics=`, with `name=`, and `from=`/`to=`) | that slice's `tp epic review --history` JSON |
 | `/api/epic-history?epic=<id>` | `tp epic review --history --of-epic <id>`'s JSON |
-| `/api/layout?view=<milestones\|scope\|neighbourhood>` (v1.13.0) | one scoped view of the graph laid out in layers (**Layout** below) |
+| `/api/layout?view=<plan\|milestones\|scope\|neighbourhood>[&pack=rows\|tree]` (v1.13.0, `plan` and `pack` v1.17.0) | one view of the graph laid out as a forest packed into columns (**Layout** below) |
 
 A GET answer is byte-equal to the command's stdout. An error answers tp's `{error, code, hint}`:
 HTTP 400 for code 2, 404 for codes 3 and 4. No response carries a CORS header.
@@ -2418,48 +2418,69 @@ of the browser's connections to the dashboard.
 The epic drawer shows a selected epic's `description` (v1.11.0), read from the export's raw graph,
 as preformatted text: escaped, never rendered as markup.
 
-**Layout** (v1.13.0). `/api/layout` lays one scoped view of the graph out in layers, so the page
-draws it and computes nothing about the graph. It is presentation, not a versioned contract, and no
-command prints it. The query names one `view` of a closed set, each taking only its own parameters:
+**Layout** (v1.13.0; the forest, `plan` and `pack` v1.17.0). `/api/layout` lays one view of the
+graph out, so the page draws it and computes nothing about the graph. It is presentation, not a
+versioned contract, and no command prints it. The query names one `view` of a closed set, each taking
+only its own parameters, and every view takes an optional `pack=rows|tree` (default `rows`):
 
 | Query | View |
 |-------|------|
+| `?view=plan` | the whole graph: every epic, banded by milestone, tracks side by side, the graph's critical path marked |
 | `?view=milestones` | every tracked milestone, an edge from each milestone it opens after |
 | `?view=scope&milestone=<m>` | `tp epic scope <m>`'s closure, banded by milestone, its critical path marked |
 | `?view=neighbourhood&epic=<id>[&depth=<n>]` | the epic, what it depends on and what depends on it, `depth` steps each way (default 2) |
 
 The refusals, each tp's `{error, code, hint}`: no `view` or one outside the set, `view` given twice,
 a parameter the view does not take, a parameter given twice, a missing or empty `milestone` or
-`epic`, or a `depth` that is not an integer answer 400 with code 2. `milestone` and `epic` are
-looked up among the milestones a track lists and the graph's epic ids, never built into a path, and
-one the graph does not hold answers 404 with code 4. `depth` is clamped to 1-4, an integer of any
-size included. An error echoes a value of the query cut to its first 80 characters. A graph that
-cannot be read answers as `tp epic export` exits.
+`epic`, a `depth` that is not an integer, or a `pack` other than `rows` or `tree` answer 400 with
+code 2. `milestone` and `epic` are looked up among the milestones a track lists and the graph's epic
+ids, never built into a path, and one the graph does not hold answers 404 with code 4. `depth` is
+clamped to 1-4, an integer of any size included. An error echoes a value of the query cut to its
+first 80 characters. A graph that cannot be read answers as `tp epic export` exits.
 
-The answer is `{view, milestone?, epic?, depth?, layers, bands?, nodes, edges}`: `milestone` for
-`scope`, `epic` and the clamped `depth` for `neighbourhood`; `layers` the number of layers;
-`bands`, for `scope` only, `[{milestone, with?, from_layer, to_layer}]`, each milestone of the
-closure a run of consecutive layers, in dependency order, `with` listing the milestones that share
-the run (below). `nodes` lists each node by layer, then order:
-`{id, layer, order}`, both small integers from 0, plus, in `scope`, `deferrable` (`tp epic scope`'s
-closure mark; an epic's milestone is in `tp epic export`, its any-of group on its edges), in
-`neighbourhood` the epic's `milestone`, which the view has no band for, and `centre: true` on the
-epic asked for; for a milestone, `epics` and `done` (its work epics and those done),
-`inbound` (the dependency edges from other milestones' epics into its epics, an any-of member one
-each) and `open`. `edges` is `[{from, to, critical?, any_of?}]`: from a dependency to its dependent
-(in `milestones`, from a milestone to one that opens after it), `critical: true` on an edge between
-two consecutive epics of the critical path drawn (the scope's own, or the graph's in
-`neighbourhood`), and `any_of` naming the group of an edge from an any-of member.
+The answer is `{view, milestone?, epic?, depth?, layers, packing, columns, bands?, nodes, edges}`:
+`milestone` for `scope`, `epic` and the clamped `depth` for `neighbourhood`; `layers` the number of
+layers; `packing` the `pack` used and `columns` the width in columns; `bands`, for `plan` and
+`scope`, `[{milestone, with?, from_layer, to_layer}]`, each milestone a run of consecutive layers,
+`with` listing the milestones that share the run (below). `nodes` lists each node by layer, then
+column: `{id, layer, order, col}`, `layer` and `order` small integers from 0, `col` its column from
+0, possibly half-way between two, plus, in `plan` the epic's `milestone`, in `scope` `deferrable`
+(`tp epic scope`'s closure mark; an epic's milestone is in `tp epic export`, its any-of group on
+its edges), in `neighbourhood` the epic's `milestone`, which the view has no band for, and
+`centre: true` on the epic asked for; for a milestone, `epics` and `done` (its work epics and those
+done), `inbound` (the dependency edges from other milestones' epics into its epics, an any-of member
+one each) and `open`. `edges` is `[{from, to, critical?, any_of?, role}]`: from a dependency to its
+dependent (in `milestones`, from a milestone to one that opens after it), `critical: true` on an
+edge between two consecutive epics of the critical path drawn (the scope's own, or the graph's in
+`plan` and `neighbourhood`), `any_of` naming the group of an edge from an any-of member, and `role`
+its place in the forest below: `tree`, `cross` or `back`.
 
-A node's layer is its dependency depth: its longest path over the view's edges. In `scope` each
-band's layers come from the longest path among that band's own epics, the bands laid end to end so
-a band follows every band it depends on. Two milestones can depend on each other through different
-epics while the epic graph stays acyclic (an epic of A on one of B, another of B on another of A):
-no order of the two bands keeps every edge pointing forward, so milestones on such a cycle share one
-band, `with` naming the rest after the first in closure order, and its epics' layers come from the
-longest path over all their edges. Every edge runs from a lower layer to a higher one. Each layer is
-ordered by four barycenter sweeps, down, up, down, up, ties broken by graph-file order, so one graph
-always lays out alike.
+A node's layer is its dependency depth: its longest path over the view's edges. In `plan` and
+`scope` each band's layers come from the longest path among that band's own epics; a band starts
+right after the bands it depends on and the band before it in its own track, so the tracks share
+layers. Two milestones can depend on each other through different epics while the epic graph stays
+acyclic (an epic of A on one of B, another of B on another of A): no order of the two bands keeps
+every edge pointing forward, so milestones on such a cycle share one band, `with` naming the rest
+after the first in closure order, and its epics' layers come from the longest path over all their
+edges. `order` is each layer's barycenter order, four sweeps, ties broken by graph-file order.
+
+The columns come from a forest. Each node takes one primary parent: of the edges into it from an
+earlier layer and from its own track, the one from the deepest layer, the earliest in graph-file
+order on a tie. That edge is a `tree` edge; any other edge pointing down the layers is `cross`, and
+an edge that points up or along a layer, which only a cycle leaves, is `back`. A node with no
+such edge, none into it or all from other tracks, is a root. The roots are grouped by track, and
+`pack=tree` gives every leaf its own column and centres each parent over its children, so subtrees
+never overlap; `pack=rows` keeps that left-to-right order but squeezes each layer into the width of
+the fullest one, or of 0.4 columns per layer when that is wider and the tree is wider still. One
+graph always lays out alike.
+
+The page's graph card draws these views with deck.gl, vendored as
+`/vendor/deckgl-9.3.12.min.js` and served gzip-compressed to a client that accepts it; it loads
+when the card first scrolls into view, and a browser without WebGL2 gets a message instead. Its
+place lives in the address: `gv` the mode (`milestones`, `scope` or `neighbourhood`; none for
+`plan`), `gm` the gate milestone, `gd` the depth, `pack=tree`, `cross=1` with cross edges shown and
+`q` the search, each only when it is not the default. An edge of the critical path is drawn whatever
+its role; cross edges wait for the toggle.
 
 **The summary** is the page's own payload, figures no command prints; its keys are not a versioned
 contract:
