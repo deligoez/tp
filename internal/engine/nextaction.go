@@ -222,6 +222,10 @@ func mechanizeOrNextRound(specPath string, mechanizeClasses []string, checks *Ch
 //     command. A loop the cap ended says so instead of "converged".
 //  2. the cap is reached and a finding still carries no disposition →
 //     disposition it in the recorded round file; no further round is named.
+//     Before it (2a), a carried blocking row (LoopDone.CarriedBlocking) stands
+//     while the latest round is clean, or at the cap with every finding of the
+//     latest round dispositioned → name it and how it clears
+//     (AuditCarriedBlockingClause).
 //  3. the latest recorded round is unclean → fix and re-audit, or, for a
 //     finding that needs no code change, disposition it (the operator's call).
 //  4. clean but not yet converged (the default) → run the next audit round.
@@ -243,6 +247,8 @@ func AuditNextAction(specPath string, done LoopDone, latestRoundClean bool, late
 		return "converged — implementation verified, proceed to release"
 	case done.CapReached && done.BlockingFixedAtCap > 0:
 		return blockingFixedAtCap(done.BlockingFixedAtCap) + " — tp audit " + roundFile + " --resolve <role:item_id> wontfix \"<evidence>\" --force"
+	case len(done.CarriedBlocking) > 0 && (latestRoundClean || done.CapReached) && done.Undisposed == 0:
+		return AuditCarriedBlockingClause(done.CarriedBlocking, specPath, done.CapReached)
 	case done.CapReached:
 		return "the audit round cap is reached: disposition each remaining finding in " + roundFile +
 			" — tp audit " + roundFile + " --resolve <role:item_id> fixed|wontfix|duplicate \"<evidence>\"; accepting a finding without a code change is the operator's decision"

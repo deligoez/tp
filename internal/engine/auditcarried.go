@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"fmt"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -159,6 +160,36 @@ func latestAuditPolicy(rounds []ReviewRound) string {
 		return rounds[n-1].ConvergeOn
 	}
 	return AuditConvergeOnAll
+}
+
+// AuditCarriedBlockingClause words what stands between an audit and
+// convergence when its carried set holds blocking rows, and how each clears.
+// Below the cap the next round's prompts list them, and a PASS clears one;
+// at the cap no round is admitted, so raising the cap for one is the
+// operator's decision. Either way an acceptance clears one, the operator's
+// decision, and an epoch cuts them when the spec was rewritten, the
+// operator's decision past a blocking row.
+func AuditCarriedBlockingClause(rows []CarriedRow, specPath string, atCap bool) string {
+	first := &rows[0]
+	key := rowString(first.Row, "role") + ":" + rowString(first.Row, "item_id")
+	noun, pronoun := "row holds", "it"
+	if len(rows) > 1 {
+		noun, pronoun = "rows hold", "them"
+	}
+	clause := fmt.Sprintf("%d carried blocking audit %s the audit open — the first, %s %s from round %d", len(rows), noun, first.Severity, key, first.Round)
+	if len(rows) > 1 {
+		clause += fmt.Sprintf(", and tp audit %s --status lists all %d", specPath, len(rows))
+	}
+	resolve := fmt.Sprintf("tp audit %s --resolve %s wontfix|duplicate \"<evidence>\"", first.File, key)
+	if atCap {
+		clause += fmt.Sprintf("; the round cap admits no round to re-grade %s: accept each, the operator's decision (%s) — %s; or raise audit_max_rounds for a round that re-grades %s, the operator's decision (%s)",
+			pronoun, EscalateAcceptFinding, resolve, pronoun, EscalateRaiseAuditCap)
+	} else {
+		clause += fmt.Sprintf("; the next round's prompts list %s to re-grade, and only a PASS clears one: run it — tp audit %s --record <file>; or accept one, the operator's decision (%s) — %s",
+			pronoun, specPath, EscalateAcceptFinding, resolve)
+	}
+	return clause + "; if the spec was rewritten, an epoch cuts " + pronoun + " instead: tp review " + specPath +
+		" --rewritten \"<evidence>\", the operator's decision " + EscalateRewritePastBlocking
 }
 
 // AuditCarriedBlocking returns the audit carried set's rows that hold the loop
