@@ -567,7 +567,14 @@
       },
       getCursor: ({ isHovering, isDragging }) => (isDragging ? "grabbing" : isHovering ? "pointer" : "grab"),
       getTooltip: tooltip,
+      onLoad: noTabStop,
     });
+    noTabStop();
+  }
+  // noTabStop takes deck.gl's canvas out of the tab order, so the canvas
+  // box, which takes the arrows, is the card's one tab stop.
+  function noTabStop() {
+    $("gc-canvas").querySelectorAll("canvas").forEach((c) => { c.tabIndex = -1; });
   }
 
   // setPlace changes the card's place and keeps it in the address.
