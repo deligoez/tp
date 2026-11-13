@@ -105,13 +105,17 @@ out([
 // TestPage_TheCanvasTakesTheWheelAndSafarisPinchBeforeDeckGL: the canvas
 // box listens in the capture phase, ahead of deck.gl's own canvas, with a
 // listener that may cancel the page's scroll; Safari's gesture events zoom
-// by the pinch's scale and are cancelled only on the canvas, where they are
-// heard; the help says the rule in one sentence.
+// by the pinch's scale through the same rule by place; in full screen the
+// document hears what lands off the canvas, and a resize refits only when
+// the box changed on the screen; the help says the rule in one sentence.
 func TestPage_TheCanvasTakesTheWheelAndSafarisPinchBeforeDeckGL(t *testing.T) {
 	t.Parallel()
-	_, script := pageText(t)
-	for _, s := range []string{"pure.wheelAction(ev, card.classList.contains(\"fs\"))", "pure.wheelDelta(ev, ", "pure.wheelZoom(", "{ passive: false, capture: true }",
-		`"gesturestart"`, `"gesturechange"`, "pure.pinchZoom(G.pinch, ev.scale)", `"graph.help.input": "A pinch, or Ctrl or ⌘ with the wheel, zooms; in full screen the wheel pans, outside it the page scrolls."`} {
+	page, script := pageText(t)
+	assert.Contains(t, page, "body.mapfs { touch-action: pan-x pan-y; }")
+	for _, s := range []string{"pure.wheelAction(ev, isFull(), place)", "pure.wheelDelta(ev, ", "pure.wheelZoom(", "{ passive: false, capture: true }",
+		`"gesturestart"`, `"gesturechange"`, "pure.pinchZoom(G.pinch, ev.scale)", "pure.gestureAction(isFull(), place)",
+		"listenOffCanvas(isFull())", "pure.resizeRefits(boxSize, next)",
+		`"graph.help.input": "A pinch, or Ctrl or ⌘ with the wheel, zooms; in full screen the wheel pans, outside it the page scrolls."`} {
 		assert.Contains(t, script, s)
 	}
 	assert.NotContains(t, script, "wheelZooms")
@@ -339,7 +343,7 @@ func TestPage_TheGraphDrawsByLabelSizeWithItsOwnZoomAndKeys(t *testing.T) {
 		"G.detail = pure.detailLevel(P.geo.fs * scale);", "pure.wrapId(out.label, geo.chars)", "const nodeText = (n) => (G.detail === \"near\" ? n.text : n.short);",
 		"mix(mark, bandFill(c, n.band), REGION_TINT)", "return G.detail === \"far\" ? 0 : 1;", "G.colors = pure.graphPalette(tok);",
 		"background: true, getBackgroundColor: [...c.page, 235]", "pure.fitFloor(P.nodes.length, P.L.view, P.geo.fs)",
-		"if (G.prepared && G.deck && G.atFit) fit();", `$("gc-zin").addEventListener("click"`, `$("gc-nfs").textContent = $("gc-n").textContent;`,
+		"if (refit && G.prepared && G.deck && G.atFit) fit();", `$("gc-zin").addEventListener("click"`, `$("gc-nfs").textContent = $("gc-n").textContent;`,
 		`crossFar: [24, 28, 0.6], cross: [40, 45, 0.75]`, `tree: [170, 150, 1.4]`,
 	} {
 		assert.Contains(t, script, s)

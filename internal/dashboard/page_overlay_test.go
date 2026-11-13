@@ -34,7 +34,7 @@ func TestPage_TheFirstFitInFullScreenRefitsAndANoteCloses(t *testing.T) {
 	_, script := pageText(t)
 	for _, s := range []string{
 		"G.vs = fitView();\n        G.atFit = true;", "G.atFit = false;\n          }",
-		"new ResizeObserver(() => { if (G.prepared && G.deck && G.atFit) fit(); }).observe($(\"gc-canvas\"));",
+		"if (refit && G.prepared && G.deck && G.atFit) fit();\n  }).observe($(\"gc-canvas\"));",
 		`document.addEventListener("fullscreenchange", () => { closeInfo(); `,
 	} {
 		assert.Contains(t, script, s)
