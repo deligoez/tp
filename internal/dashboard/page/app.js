@@ -175,6 +175,12 @@
   panel(["epic-export", "export-list"], () => {
     const g = data("epic-export");
     $("c-epics").textContent = g && Array.isArray(g.epics) ? plural(g.epics.length, "epic", "epics") : state.tab && !state.graph ? "no graph" : "";
+    // The tab counts every epic, the share and the Lifecycle work epics:
+    // one sentence names the conditions between them wherever both show.
+    const totals = g && Array.isArray(g.epics) ? tpPure.epicTotals(g.epics) : "";
+    $("tab-epics").title = totals;
+    $("totals").textContent = totals ? totals + "." : "";
+    $("totals").hidden = !totals;
     const list = data("export-list");
     $("c-specs").textContent = list && Array.isArray(list.files) ? plural(list.files.length, "task file", "task files") : "";
   });
@@ -338,7 +344,7 @@
   document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") closeInfo(); });
 
   const info = (key, label) => '<button class="info" type="button" data-info="' + key + '" aria-label="About ' + esc(label) + '" aria-expanded="false">i</button>';
-  const kpi = (key, value, label, cls) => '<div class="card kpi' + (cls ? " " + cls : "") + '">' + info(key, label) +
+  const kpi = (key, value, label, cls, title) => '<div class="card kpi' + (cls ? " " + cls : "") + '"' + (title ? ' title="' + esc(title) + '"' : "") + ">" + info(key, label) +
     '<span class="v">' + value + '</span><span class="l">' + esc(label) + "</span></div>";
 
   // The plan as the page reads it: the summary's plan and the export's
@@ -364,8 +370,9 @@
     // The plan's queue, plus the bound specs' escalations the task file list
     // carries (§7), so the figure counts the rows the list draws.
     const queue = f.operator_queue + escalationRows().length;
+    const totals = tpPure.epicTotals(v.g.epics);
     $("kpis").innerHTML = [
-      kpi("share", Math.round(f.share_done * 100) + "%<small> " + esc(f.done) + " of " + esc(f.work) + "</small>", "share of work epics done"),
+      kpi("share", Math.round(f.share_done * 100) + "%<small> " + esc(f.done) + " of " + esc(f.work) + "</small>", "share of work epics done", "", totals),
       kpi("ready", esc(f.ready), "ready epics"),
       kpi("critical", esc(f.critical_path), "epics on the critical path", "crit"),
       kpi("blocked", esc(f.blocked), "blocked epics", f.blocked ? "warn" : ""),

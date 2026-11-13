@@ -222,6 +222,17 @@
     return out;
   };
 
+  // epicTotals is the one sentence that puts the count of every epic, which
+  // the Epics tab shows, beside the work epics the share and the Lifecycle
+  // count, naming the condition epics between them.
+  P.epicTotals = function (epics) {
+    const n = (k, one, many) => k + " " + (k === 1 ? one : many);
+    const conds = (epics || []).filter((e) => e.condition).length;
+    const all = (epics || []).length;
+    return n(all, "epic", "epics") + ": " + n(all - conds, "work epic", "work epics") + " and " + n(conds, "condition epic", "condition epics") +
+      "; the Lifecycle and the share count the work epics";
+  };
+
   // closureDescribed says how many of a gate closure's nodes are in
   // described, the set of described epic ids, as the closure view's header
   // reads it.

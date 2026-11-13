@@ -115,6 +115,7 @@ button.pcell { font: inherit; text-align: left; cursor: pointer; }
 button.pcell:hover { border-color: var(--muted); }
 button.pcell:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
 button.pcell[aria-pressed="true"] { background: var(--color-accent-wash); border-color: var(--accent); }
+.totals { margin-top: var(--space-xs); }
 .msstate { margin-top: var(--space-xs); }
 .msstate[hidden] { display: none; }
 .mscells { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: var(--space-xs); }
