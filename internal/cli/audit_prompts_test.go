@@ -74,7 +74,7 @@ func TestAuditPrompts_BodyOrderAndEmbedding(t *testing.T) {
 // shared-arm role the conventions of whatever repository the caller happened to
 // stand in, at exit 0 with an empty stderr and nothing in the payload naming
 // which repo answered. Every sibling git call (gitExists, latestGitTag,
-// execGitDiffProbe) sets cmd.Dir; this one has to as well.
+// execGitPaths) sets cmd.Dir; this one has to as well.
 //
 // Since spec/backlog/project-layer-from-task-file.md an audit of another
 // checkout's spec is refused, so the lookup's own directory is pinned by

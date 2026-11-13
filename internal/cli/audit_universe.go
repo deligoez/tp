@@ -51,14 +51,14 @@ func mergeOnlyNotice(dir, base string, universe []string) []auditNotice {
 	if rev == "" || !engine.SafeGitRev(rev) {
 		return nil
 	}
-	inRange := pathSet(execGitDiffProbe(dir, "diff --name-only",
+	inRange := pathSet(execGitPaths(dir, "diff --name-only",
 		"-c", "diff.external=", "diff", "--no-ext-diff", "--name-only", rev+"...HEAD"))
-	firstParent := pathSet(execGitDiffProbe(dir, "log --first-parent",
+	firstParent := pathSet(execGitPaths(dir, "log --first-parent",
 		"-c", "diff.external=", "log", "--first-parent", "--no-merges", "--name-only", "--format=", rev+"..HEAD"))
 	if base == "" {
 		// Auto-detection without --base also reads the working tree.
 		for _, rng := range [][]string{{}, {"--cached"}} {
-			for f := range pathSet(execGitDiffProbe(dir, "diff --name-only", append([]string{"diff", "--name-only"}, rng...)...)) {
+			for f := range pathSet(execGitPaths(dir, "diff --name-only", append([]string{"diff", "--name-only"}, rng...)...)) {
 				firstParent[f] = true
 			}
 		}

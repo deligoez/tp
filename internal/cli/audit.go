@@ -669,7 +669,7 @@ func filesChangedSinceRound(specPath string, round *engine.ReviewRound) map[stri
 		// -c diff.external= for the same reason scripts/audit-round-prep.py sets
 		// it: under a configured external differ, `git diff` from a non-TTY child
 		// can answer near-empty, and a delta built on that carries every row.
-		for _, f := range execGitDiff(dir, "-c", "diff.external=", "diff", "--name-only", base+"..HEAD") {
+		for _, f := range execGitPaths(dir, "-c diff.external= diff --name-only", "-c", "diff.external=", "diff", "--name-only", base+"..HEAD") {
 			changed[f] = true
 		}
 		return changed
@@ -717,7 +717,7 @@ func roundRecordBase(dir, specPath string, round *engine.ReviewRound) string {
 	return strings.TrimSpace(empty)
 }
 
-// gitQuiet runs git in dir and returns its stdout. Unlike execGitDiff it emits
+// gitQuiet runs git in dir and returns its stdout. Unlike execGitPaths it emits
 // no advisory: its callers read a git failure as "git cannot answer this" and
 // fall back to the recorded_at window, where a warning would only be noise.
 func gitQuiet(dir string, args ...string) (string, error) {
@@ -738,7 +738,7 @@ func filesChangedSince(dir, since string) map[string]bool {
 	if since == "" {
 		return changed
 	}
-	for _, f := range execGitDiff(dir, "log", "--since="+since, "--name-only", "--pretty=format:") {
+	for _, f := range execGitPaths(dir, "log --since --name-only", "log", "--since="+since, "--name-only", "--pretty=format:") {
 		changed[f] = true
 	}
 	return changed
@@ -970,7 +970,7 @@ func autoDetectedFiles(dir, base string) (filtered, allFiles []string, notRepo b
 	// the same list, so selection and stats can never describe different
 	// ranges — the failure that let a committed change be reported as +0/-0.
 	for i, rng := range auditDiffRanges(dir, base) {
-		changed := execGitDiffProbe(dir, "diff --name-only", append([]string{"diff", "--name-only"}, rng...)...)
+		changed := execGitPaths(dir, "diff --name-only", append([]string{"diff", "--name-only"}, rng...)...)
 		if i == 0 && len(changed) == 0 && !gitExists(dir) {
 			return nil, nil, true
 		}
@@ -1005,17 +1005,20 @@ func latestGitTag(dir string) string {
 	return strings.TrimSpace(string(out))
 }
 
-func execGitDiff(dir string, args ...string) []string {
-	return execGitDiffProbe(dir, strings.Join(args, " "), args...)
-}
-
-// execGitDiffProbe is execGitDiff with an explicit advisory key. Callers that
-// run the SAME probe once per selection range pass a key naming the probe, not
-// the invocation: a condition that breaks one range (no repository, unknown
-// revision) breaks every range, and without the key one broken condition costs
-// the caller one advisory per range.
-func execGitDiffProbe(dir, probe string, args ...string) []string {
-	cmd := exec.Command("git", args...)
+// execGitPaths runs a git command that lists paths and reads them
+// NUL-separated: it appends -z, so a path holding non-ASCII bytes, a tab or a
+// newline arrives as written rather than C-quoted under core.quotePath, and
+// matches the keys `--numstat -z` gives the same file. A path is never
+// trimmed, since its own spaces are part of it.
+//
+// probe is the advisory key. Callers that run the SAME probe once per
+// selection range pass a key naming the probe, not the invocation: a
+// condition that breaks one range (no repository, unknown revision) breaks
+// every range, and without the key one broken condition costs the caller one
+// advisory per range. The advisory names the invocation as the caller wrote
+// it, without the -z.
+func execGitPaths(dir, probe string, args ...string) []string {
+	cmd := exec.Command("git", append(append([]string{}, args...), "-z")...)
 	cmd.Dir = dir
 	out, err := cmd.Output()
 	if err != nil {
@@ -1025,18 +1028,17 @@ func execGitDiffProbe(dir, probe string, args ...string) []string {
 		warnGitFailure(probe, err, args...)
 		return []string{}
 	}
+	return splitNulPaths(out)
+}
+
+// splitNulPaths splits NUL-separated git output into paths, dropping the
+// empty fields and the newline `git log -z` leaves between commits.
+func splitNulPaths(out []byte) []string {
 	var files []string
-	scanner := bufio.NewScanner(strings.NewReader(string(out))) // line-cap: git diff output, one path per line, not NDJSON
-	for scanner.Scan() {
-		f := strings.TrimSpace(scanner.Text())
-		if f != "" {
+	for f := range strings.SplitSeq(string(out), "\x00") {
+		if f = strings.Trim(f, "\n"); f != "" {
 			files = append(files, f)
 		}
-	}
-	if err := scanner.Err(); err != nil {
-		// Notice, not raw stderr: this is a dropped-content advisory like its
-		// siblings, so --quiet silences it and JSON mode does not.
-		noticeOnce("git-scan:"+probe, fmt.Sprintf("warning: stopped scanning git diff output early (%v); files after the over-long line were dropped (line cap is 64KB)", err))
 	}
 	return files
 }
@@ -1313,8 +1315,8 @@ func expandCommaFiles(files []string) []string {
 }
 
 // execCommitFiles lists the paths a commit touched (its diff, not its full
-// tree — §5.1c). execGitDiff is a generic "run git, return non-empty stdout
-// lines" helper, so it serves git show as well as git diff.
+// tree — §5.1c). execGitPaths is a generic "run git, return the listed paths"
+// helper, so it serves git show as well as git diff.
 func execCommitFiles(dir, sha string) []string {
 	// A sha reaches here from the task file, which import and add also write,
 	// so the entry-point check in resolveCommitSHAs is not the only writer.
@@ -1327,7 +1329,7 @@ func execCommitFiles(dir, sha string) []string {
 		noticeOnce("sha:"+sha, fmt.Sprintf("warning: commit sha %q was skipped; git would read it as an option", sha))
 		return nil
 	}
-	return execGitDiff(dir, "show", "--name-only", "--pretty=format:", sha)
+	return execGitPaths(dir, "show --name-only "+sha, "show", "--name-only", "--pretty=format:", sha)
 }
 
 // suggestFilesFromTasks derives the union of paths touched by the commits

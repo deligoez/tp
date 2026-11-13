@@ -496,7 +496,7 @@ func claudeMDExcerptFor(specPath string) string {
 		candidates = append(candidates, filepath.Join(filepath.Dir(tfPath), "CLAUDE.md"))
 	}
 	// cmd.Dir, like every other git call this command makes (gitExists,
-	// latestGitTag, execGitDiffProbe): without it the repo root comes from the
+	// latestGitTag, execGitPaths): without it the repo root comes from the
 	// process cwd, so auditing a spec in another checkout injects the CONVENTIONS
 	// OF THE CURRENT DIRECTORY'S repository into every shared-arm role prompt —
 	// silently, and with nothing in the output naming which repo answered.
@@ -641,7 +641,7 @@ func auditDeletedFiles(dir, base string) map[string]bool {
 	deleted := make(map[string]bool)
 	for _, rng := range auditDiffRanges(dir, base) {
 		args := append([]string{"diff", "--name-only", "--diff-filter=D"}, rng...)
-		for _, f := range execGitDiffProbe(dir, "diff --name-only --diff-filter=D", args...) {
+		for _, f := range execGitPaths(dir, "diff --name-only --diff-filter=D", args...) {
 			deleted[f] = true
 		}
 	}
