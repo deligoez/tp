@@ -2,6 +2,7 @@ package engine
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -211,4 +212,19 @@ func TestLatestByIdentity_KeepsTheHighestGradeAcrossOpenCopies(t *testing.T) {
 		require.Len(t, kept, 1)
 		assert.Equal(t, tc.want, kept[0].Severity, "%s then %s", tc.first, tc.later)
 	}
+}
+
+// TestFindingIdentityKey_ReadsExactlyTheFirst80Bytes: findings that differ
+// at byte 80 are two rows, findings that first differ at byte 81 are one, and
+// a payload cuts the finding at the same 80 bytes.
+func TestFindingIdentityKey_ReadsExactlyTheFirst80Bytes(t *testing.T) {
+	t.Parallel()
+	stem := strings.Repeat("a", 79)
+	assert.NotEqual(t, FindingIdentityKey("c", "§1", stem+"X"), FindingIdentityKey("c", "§1", stem+"Y"), "byte 80 differs")
+	assert.Equal(t, FindingIdentityKey("c", "§1", stem+"X1"), FindingIdentityKey("c", "§1", stem+"X2"), "only byte 81 differs")
+
+	long := CarriedRow{Row: map[string]any{"finding": stem + "X1"}}
+	assert.Equal(t, stem+"X...", long.JSON().Finding)
+	whole := CarriedRow{Row: map[string]any{"finding": stem + "X"}}
+	assert.Equal(t, stem+"X", whole.JSON().Finding)
 }
