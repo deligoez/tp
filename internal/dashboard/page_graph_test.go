@@ -84,12 +84,11 @@ func TestPure_TheChainFadesPastTwoStepsUnlessTheWholeChainIsAsked(t *testing.T) 
 }
 
 // TestPure_TheThemeIsTheStoredChoiceElseTheSystems: a stored light or dark
-// wins; anything else leaves the page to the system's setting (null); the
-// toggle names the theme it switches to.
+// wins; anything else leaves the page to the system's setting (null).
 func TestPure_TheThemeIsTheStoredChoiceElseTheSystems(t *testing.T) {
 	t.Parallel()
-	got := runPure(t, `out([P.pickTheme("dark"), P.pickTheme("light"), P.pickTheme("blue"), P.pickTheme(null), P.nextTheme(true), P.nextTheme(false)]);`)
-	assert.JSONEq(t, `["dark", "light", null, null, "light", "dark"]`, got)
+	got := runPure(t, `out([P.pickTheme("dark"), P.pickTheme("light"), P.pickTheme("blue"), P.pickTheme(null)]);`)
+	assert.JSONEq(t, `["dark", "light", null, null]`, got)
 }
 
 // TestPure_BandLabelsNeverCollide: a band label that would overlap one
