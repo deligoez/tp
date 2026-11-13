@@ -1057,3 +1057,14 @@ func TestPage_SyncURLWritesTheRelativeAddress(t *testing.T) {
 	assert.Contains(t, script, "const url = tpPure.addressURL(next.toString());")
 	assert.NotContains(t, script, "location.pathname + location.search")
 }
+
+// TestPage_AReopenedStreamSaysConnectingAndPausedHasItsOwnMark: opening a
+// stream sets the indicator to Connecting, so a tab shown again does not
+// keep reading Paused until the stream opens, and Paused has a mark of its
+// own.
+func TestPage_AReopenedStreamSaysConnectingAndPausedHasItsOwnMark(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	assert.Contains(t, script, "function openStream() {\n    conn.dataset.state = \"connecting\";\n    conn.textContent = \"Connecting\";\n")
+	assert.Contains(t, page, `.conn[data-state="paused"]::before {`)
+}
