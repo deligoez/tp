@@ -341,6 +341,8 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 		// file nothing measured. Annotate only what the audit's own comparison
 		// covers; say nothing about the rest.
 		inputs.DiffUnmeasured = true
+		// And the list is the operator's: the code roles get it whole.
+		inputs.Named = true
 	} else {
 		inputs.DiffStats = auditDiffStats(filepath.Dir(specPath), base)
 		inputs.Deleted = auditDeletedFiles(filepath.Dir(specPath), base)

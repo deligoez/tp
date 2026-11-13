@@ -351,10 +351,14 @@ func buildRolePrompt(role string, rules []string, items []ChecklistItem, files [
 	b.WriteString(renderPriorRoundSection(prior))
 
 	// §2.6: the header states the role's own cap, or the applied count against
-	// the pre-cap total once the cap has bitten — never a fixed literal 20.
-	if fileTotal <= len(files) {
+	// the pre-cap total once the cap has bitten — never a fixed literal 20. A
+	// fileCap of 0 is a named list, which no cap applies to.
+	switch {
+	case fileCap == 0:
+		fmt.Fprintf(&b, "## Affected Files (all %d named)\n", len(files))
+	case fileTotal <= len(files):
 		fmt.Fprintf(&b, "## Affected Files (max %d)\n", fileCap)
-	} else {
+	default:
 		fmt.Fprintf(&b, "## Affected Files (%d of %d)\n", len(files), fileTotal)
 	}
 	for _, fl := range files {
@@ -431,6 +435,9 @@ func generateRoleAuditPrompts(auditorRoles []model.Role, specItems []ChecklistIt
 			files = sel.CodeFiles
 			items = fileCheckItems(files, role.ID)
 			fileCap, fileTotal = engine.CodeFileCap, sel.CodeFilesTotal
+			if sel.CodeFilesNamed {
+				fileCap = 0 // a named list: buildRolePrompt states no cap
+			}
 		}
 		if len(items) == 0 {
 			skipped = append(skipped, engine.SkippedRole{Role: role.ID, Reason: engine.SkipNoChecklistItems})
