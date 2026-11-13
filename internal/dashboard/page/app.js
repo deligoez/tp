@@ -29,8 +29,10 @@
   function storeLang(lang) {
     try { localStorage.setItem(LANG_KEY, lang); } catch (e) { /* the choice lasts this load */ }
   }
+  // The words are asked for with the page's stamp, as its scripts are, so
+  // a browser never reads an older tp's words.
   async function loadLang(lang) {
-    const res = await fetch("i18n/" + lang + ".json");
+    const res = await fetch("i18n/" + lang + ".json?v=" + document.documentElement.dataset.v);
     if (!res.ok) throw new Error("i18n/" + lang + ".json: " + res.status);
     t = tpPure.translator(await res.json(), lang);
     document.documentElement.lang = lang;

@@ -58,6 +58,11 @@ func Handler(port int, api API) http.Handler {
 			serveVendor(w, r)
 			return
 		}
+		if r.URL.Path == "/" {
+			serveIndex(w)
+			return
+		}
+		w.Header().Set("Cache-Control", pageCache(r))
 		files.ServeHTTP(w, r)
 	})
 }
