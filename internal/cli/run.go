@@ -185,6 +185,9 @@ func runRunDryRun(args []string) error {
 	if err != nil {
 		return err
 	}
+	if len(units) > 1 && units[0].Kind == engine.UnitImplement {
+		output.Notice(engine.BatchCheckoutNotice)
+	}
 
 	// §4.1: the entries are tp resume's next_units, key for key, so an
 	// operator and a driver read one contract rather than two spellings of

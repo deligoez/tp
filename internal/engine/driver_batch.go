@@ -17,6 +17,10 @@ import (
 // finds one at start left it behind in a crash (spec/backlog/parallel-implement.md §2.6).
 const unitBranchPrefix = "tp-unit/"
 
+// BatchCheckoutNotice is what tp run --dry-run says before an implement
+// batch: its units start from a fresh checkout (spec/backlog/parallel-implement.md §3).
+const BatchCheckoutNotice = "an implement batch runs each unit in a fresh worktree of HEAD, without ignored files (dependencies, .env, build output); if the units need them, keep run_max_parallel at 1"
+
 // CloseFunc closes a task on the main branch once its commits are picked
 // there: it runs the quality gate and records the close, as tp done does, and
 // returns an error when the gate fails or the close is refused. logPath is
