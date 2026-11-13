@@ -151,3 +151,12 @@ out({ raw, near });`)
 		assert.GreaterOrEqual(t, res.Near[0].(float64), 12.0, "theme %q: the closest marks %s", over, res.Near[1])
 	}
 }
+
+// TestPure_ColourDifferenceIsCIE76: deltaE is the Euclidean distance of two
+// colours in CIELAB, 0 for the same colour and about 100 from black to
+// white.
+func TestPure_ColourDifferenceIsCIE76(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([P.deltaE([10, 20, 30], [10, 20, 30]), Math.round(P.deltaE([0, 0, 0], [255, 255, 255]))]);`)
+	assert.JSONEq(t, `[0, 100]`, got)
+}
