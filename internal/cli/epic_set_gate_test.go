@@ -251,3 +251,17 @@ func TestEpicSet_GateMembersMalformedJSONIsRefused(t *testing.T) {
 	assert.NotContains(t, stderr, "dangling-reference")
 	assert.Equal(t, before, readEpicGraphFile(t, dir))
 }
+
+// TestEpicSet_GateMembersJSONWithTrailingJunkIsRefused: a JSON array
+// followed by more text, `["a1"] x`, is no JSON value, so it exits 2 and
+// writes nothing rather than reading the array and dropping the rest.
+func TestEpicSet_GateMembersJSONWithTrailingJunkIsRefused(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicGateFieldGraph(""))
+	before := readEpicGraphFile(t, dir)
+	for _, value := range []string{`["a1"] x`, `["a1"]["a2"]`} {
+		_, stderr, code := runTP(t, dir, "epic", "set", "gates.A.members="+value)
+		require.Equal(t, 2, code, "%s: stderr: %s", value, stderr)
+		assert.Equal(t, before, readEpicGraphFile(t, dir), value)
+	}
+}
