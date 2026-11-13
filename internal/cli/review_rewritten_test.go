@@ -105,3 +105,20 @@ func TestReviewRewritten_AnAuditRoundInFlightIsRefused(t *testing.T) {
 	assert.Contains(t, env["hint"], "tp audit spec.md --record <file>")
 }
 
+// TestReviewRewritten_NothingRewrittenIsRefused: a spec whose hash equals the
+// last recorded round's snapshot hash was not rewritten, so there is no epoch
+// to start: exit 2, and nothing written.
+func TestReviewRewritten_NothingRewrittenIsRefused(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeSpec(t, dir, epochOldSpec)
+	_, stderr, code := recordRound(t, dir, epochHighRow)
+	require.Equal(t, 0, code, stderr)
+	before := stateJSONBytes(t, dir)
+
+	_, stderr, code = runTP(t, dir, "review", "spec.md", "--rewritten", "replaced the spec")
+	assert.Equal(t, 2, code, stderr)
+	assert.Contains(t, errorEnvelope(t, stderr)["error"], "nothing was rewritten")
+	assert.Equal(t, before, stateJSONBytes(t, dir))
+}
+
