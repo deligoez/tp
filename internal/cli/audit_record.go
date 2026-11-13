@@ -173,7 +173,14 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 	// converged and clean-but-not-converged branches render.
 	done := engine.AuditLoopDone(specPath, st.AuditRounds, wf.AuditCleanRounds, wf.AuditMaxRounds, specHash)
 	addLoopDone(result, done)
-	result["next_action"] = engine.AuditNextAction(engine.RepoRelative(specPath), done, clean, findings, engine.LatestRoundFile(specPath, st.AuditRounds))
+	// Decision 4: the round says what it graded, here and in next_action;
+	// both survive --compact.
+	graded := st.AuditRounds[round-1].Graded
+	if len(graded) > 0 {
+		result["graded"] = graded
+	}
+	result["next_action"] = engine.AuditNextAction(engine.RepoRelative(specPath), done, clean, findings, engine.LatestRoundFile(specPath, st.AuditRounds)) +
+		engine.GradedSuffix(graded)
 	noteRecordWithoutEmission(engine.PhaseAudit, specPath, &st.AuditRounds[round-1], stale)
 	return output.JSON(result)
 }
