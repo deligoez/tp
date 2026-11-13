@@ -90,21 +90,31 @@ func (dashboardAPI) EpicHistory(epic string) (any, *dashboard.Error) {
 // Live derives what the server pushes (spec/1.8.0.md §2): tp epic export
 // while a graph exists, read afresh each tick so a graph written while the
 // server runs is pushed, tp export --list, and the summary of the figures no
-// command prints. A derivation that fails carries tp's error and hint.
+// command prints. A derivation that fails carries tp's error and hint. The
+// three run concurrently, so a cold stream waits for the slowest alone.
 func (dashboardAPI) Live() []dashboard.Payload {
 	hasGraph, _ := engine.DashboardSources(".")
-	out := make([]dashboard.Payload, 0, 3)
+	derivations := make([]func() dashboard.Payload, 0, 3)
 	if hasGraph {
-		p := dashboard.Payload{Event: "epic-export"}
-		if res, err := epicExport(); err != nil {
-			p.Err = runErrorOf(err)
-		} else {
-			p.Data = res
-		}
-		out = append(out, p)
+		derivations = append(derivations, dashboardEpicExportPayload)
 	}
-	out = append(out, dashboard.Payload{Event: "export-list", Data: engine.TaskFileListOf(".")})
-	return append(out, dashboardSummaryPayload(hasGraph))
+	derivations = append(derivations,
+		func() dashboard.Payload {
+			return dashboard.Payload{Event: "export-list", Data: engine.TaskFileListOf(".")}
+		},
+		func() dashboard.Payload { return dashboardSummaryPayload(hasGraph) })
+	return dashboard.DeriveConcurrently(derivations...)
+}
+
+// dashboardEpicExportPayload derives tp epic export's payload, or its error.
+func dashboardEpicExportPayload() dashboard.Payload {
+	p := dashboard.Payload{Event: "epic-export"}
+	if res, err := epicExport(); err != nil {
+		p.Err = runErrorOf(err)
+	} else {
+		p.Data = res
+	}
+	return p
 }
 
 // dashboardSummaryPayload derives the summary over the graph, or over an
