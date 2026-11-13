@@ -18,40 +18,25 @@
   // escape is s safe to place in HTML.
   const escape = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
-  // TEXT is every word the card writes, in one place.
-  const TEXT = {
-    notYet: "The graph loads when it scrolls into view.",
-    noGL: "This graph is drawn with WebGL2, which this browser does not offer. Everything else on the page works without it; the drawer, the lists above and the chain as text below still show each epic's dependencies.",
-    loading: "Loading the graph renderer.",
-    failed: "The graph renderer did not load. Reload the page; if it stays, check that tp dashboard is still running.",
-    fetchFailed: "the layout could not be fetched: ",
-    fetchHint: "check that tp dashboard is still running",
-    pickEpic: "Select an epic, on the graph, in a list above or with the search, to see its neighbourhood.",
-    marks: {
-      done: "done", in_progress: "in progress", specced: "specced", claimed: "claimed", ready: "can start",
-      blocked: "blocked", held: "held by a condition", waiting: "milestone closed", moot: "moot",
-    },
-    edges: { tree: "tree edges", cross: "cross edges", back: "back edges", critical: "critical path", any: "one of an any-of group" },
-    waitsOn: "what it waits on",
-    waitedOn: "what waits on it",
-    help: "Click an epic for its chain, again or Esc to clear. / search, Enter the next match · F fit · K cross edges · on the focused canvas the arrows pan and + − zoom. Drag pans; Ctrl or ⌘ with the wheel, or a pinch, zooms; in full screen the wheel alone zooms and Esc leaves.",
-    loadedIn: (ms) => " Renderer loaded in " + ms + " ms.",
-    matches: (n) => n + (n === 1 ? " match" : " matches"),
-    packing: (p) => "Packing: " + p,
-    dark: "Dark",
-    light: "Light",
-    milestoneLabel: (n) => n.id + "  " + n.done + "/" + n.epics,
-    milestoneTitle: (n) => (n.open ? "open" : "closed") + ", " + n.done + " of " + n.epics + " work epics done, " + n.inbound + " epic edges in",
-    condition: " · condition",
-    deferrable: ", deferrable",
-    count: (P, described) => {
-      const L = P.L;
-      const what = L.view === "milestones" ? "milestones" : "epics";
-      const extra = L.view === "scope" ? " in " + L.milestone + "'s closure; " + pure.closureDescribed(L.nodes, described, app.tr())
-        : L.view === "neighbourhood" ? " within " + L.depth + " steps of " + L.epic : "";
-      return P.nodes.length + " " + what + ", " + P.links.length + " edges, " + L.layers + " layers × " + L.columns + " columns" + extra;
-    },
-  };
+  // t words the card in the page's language (tpApp.tr), so every word the
+  // card writes is a key of i18n/<lang>.json; tk marks a key a table holds.
+  // EDGE_TEXT is each edge class's legend key and PACK_TEXT each packing's.
+  const t = (key, params) => app.tr()(key, params);
+  const tk = (key) => key;
+  const EDGE_TEXT = { tree: tk("graph.edge.tree"), cross: tk("graph.edge.cross"), back: tk("graph.edge.back"), critical: tk("graph.edge.critical"), any: tk("graph.edge.any") };
+  const PACK_TEXT = { rows: tk("graph.pack.rows"), tree: tk("graph.pack.tree") };
+  const milestoneLabel = (n) => n.id + "  " + n.done + "/" + n.epics;
+  const milestoneTitle = (n) => t("graph.msTitle", { state: n.open ? t("ms.open") : t("ms.closed"), done: n.done, n: n.epics, in: n.inbound });
+  // countLine is the toolbar's count line: what the card drew and, for a
+  // gate closure or a neighbourhood, what it is drawn from.
+  function countLine(P, described) {
+    const L = P.L;
+    const nodes = L.view === "milestones" ? t("graph.countMilestones", { n: P.nodes.length }) : t("count.epics", { n: P.nodes.length });
+    const line = t("graph.count", { nodes, edges: P.links.length, layers: L.layers, cols: L.columns });
+    if (L.view === "scope") return line + " " + t("graph.inClosure", { ms: L.milestone }) + "; " + pure.closureDescribed(L.nodes, described, app.tr());
+    if (L.view === "neighbourhood") return line + " " + t("graph.within", { depth: L.depth, epic: L.epic });
+    return line;
+  }
 
   // World geometry, one unit a screen pixel at zoom 0: an epic is a box of
   // w by h, one column col wide, one layer row tall.
@@ -83,7 +68,7 @@
     data: null, key: null, dataKey: null, error: null, seq: 0, seen: null,
     deck: null, deckState: "idle", visible: false, built: null, builtFor: null, prepared: null,
     vs: null, far: null, fitted: null, matchIdx: -1, colors: null, loadMs: null, firstDrawMs: null,
-    sets: null, setsKey: null, drawing: null,
+    sets: null, setsKey: null, drawing: null, msgKey: tk("graph.notYet"),
   };
   window.tpGraph = G;
 
@@ -124,20 +109,24 @@
       return false;
     }
   }
-  function say(text) {
+  // say shows text in the card's message, or hides it for none; a message
+  // said by its key keeps the key, so a change of language words it again.
+  function say(text, key) {
     const m = $("gc-msg");
+    G.msgKey = key || null;
     m.textContent = text;
     m.hidden = !text;
   }
+  const sayKey = (key) => say(t(key), key);
   function loadDeck() {
     if (G.deckState !== "idle") return;
     if (!hasWebGL2() || new URLSearchParams(location.search).has("nogl")) {
       G.deckState = "nogl";
-      say(TEXT.noGL);
+      sayKey(tk("graph.noGL"));
       return;
     }
     G.deckState = "loading";
-    say(TEXT.loading);
+    sayKey(tk("graph.loading"));
     const t0 = performance.now();
     G.loadFrom = t0;
     const s = document.createElement("script");
@@ -149,7 +138,7 @@
     };
     s.onerror = () => {
       G.deckState = "failed";
-      say(TEXT.failed);
+      sayKey(tk("graph.failed"));
     };
     document.head.appendChild(s);
   }
@@ -194,7 +183,7 @@
       const res = await fetch("/api/layout?" + key, { cache: "no-store" });
       body = await res.json();
     } catch (err) {
-      body = { error: TEXT.fetchFailed + err.message, hint: TEXT.fetchHint };
+      body = { error: t("graph.fetchFailed", { message: err.message }), hint: t("err.stillRunning") };
     }
     if (seq !== G.seq) return;
     if (body && typeof body.error === "string") Object.assign(G, { data: null, dataKey: null, error: body });
@@ -211,8 +200,8 @@
       centre: !!n.centre, deferrable: !!n.deferrable, layer: n.layer, status: null };
     if (L.view === "milestones") {
       out.mark = n.open ? (n.epics && n.done === n.epics ? "done" : "ready") : "waiting";
-      out.label = TEXT.milestoneLabel(n);
-      out.title = TEXT.milestoneTitle(n);
+      out.label = milestoneLabel(n);
+      out.title = milestoneTitle(n);
     } else {
       const e = ctx.epics[n.id] || { id: n.id, status: "planned" };
       out.ms = e.milestone || out.ms;
@@ -553,8 +542,8 @@
     const n = object;
     const lines = G.prepared.L.view === "milestones"
       ? "<b>" + escape(n.id) + "</b><br>" + escape(n.title)
-      : '<span style="opacity:.7;font-family:ui-monospace,monospace;font-size:11px">' + escape(n.id) + (n.ms ? " · " + escape(n.ms) : "") + (n.cond ? TEXT.condition : "") + "</span><br>" +
-        escape(n.title) + "<br>" + escape(app.markText({ mark: n.mark, hold: n.hold })) + (n.deferrable ? TEXT.deferrable : "");
+      : '<span style="opacity:.7;font-family:ui-monospace,monospace;font-size:11px">' + escape(n.id) + (n.ms ? " · " + escape(n.ms) : "") + (n.cond ? " · " + escape(t("drawer.condition")) : "") + "</span><br>" +
+        escape(n.title) + "<br>" + escape(app.markText({ mark: n.mark, hold: n.hold })) + (n.deferrable ? ", " + escape(t("graph.deferrable")) : "");
     const c = G.colors;
     return { html: lines, style: { background: "rgb(" + c.ink + ")", color: "rgb(" + c.surface + ")", borderRadius: "6px", maxWidth: "320px", fontSize: "13px", padding: "6px 10px", lineHeight: "1.4" } };
   }
@@ -625,8 +614,8 @@
     $("gc-ms").value = gateMilestone(g) || "";
     $("gc-depth").value = String(G.depth);
     $("gc-cross").setAttribute("aria-pressed", String(G.showCross));
-    $("gc-pack").textContent = TEXT.packing(G.pack);
-    $("gc-theme").textContent = G.colors && G.colors.dark ? TEXT.light : TEXT.dark;
+    $("gc-pack").textContent = t("graph.packing", { p: t(PACK_TEXT[G.pack]) });
+    $("gc-theme").textContent = G.colors && G.colors.dark ? t("graph.light") : t("graph.dark");
     if ($("gc-q").value !== G.q && document.activeElement !== $("gc-q")) $("gc-q").value = G.q;
   }
   function drawLegend() {
@@ -635,13 +624,13 @@
     const c = G.colors;
     const rgb = (a) => "rgb(" + a.join(",") + ")";
     const marks = MARKS.filter(([k]) => P.counts.marks[k]).map(([k]) =>
-      '<button type="button" data-lmark="' + k + '" aria-pressed="' + !G.hiddenMarks.has(k) + '"><i style="background:' + rgb(c.mark[k]) + '"></i>' + escape(TEXT.marks[k]) + " <b>" + P.counts.marks[k] + "</b></button>").join("");
+      '<button type="button" data-lmark="' + k + '" aria-pressed="' + !G.hiddenMarks.has(k) + '"><i style="background:' + rgb(c.mark[k]) + '"></i>' + escape(app.markWord(k)) + " <b>" + escape(app.tr().num(P.counts.marks[k])) + "</b></button>").join("");
     const ecol = { tree: c.muted, cross: c.muted, back: c.back, critical: c.crit, any: c.accent };
     const edges = EDGE_CLASSES.filter((k) => P.counts.edges[k]).map((k) =>
-      '<button type="button" data-ledge="' + k + '" aria-pressed="' + (k === "cross" ? G.showCross : !G.hiddenEdges.has(k)) + '"><i class="ln" style="background:' + rgb(ecol[k]) + (k === "cross" ? ";opacity:.45" : "") + '"></i>' + escape(TEXT.edges[k]) + " <b>" + P.counts.edges[k] + "</b></button>").join("");
-    const sel = P.sel >= 0 ? '<span><i class="ln" style="background:' + rgb(c.anc) + '"></i>' + escape(TEXT.waitsOn) + " <b>" + P.anc.size + '</b></span><span><i class="ln" style="background:' + rgb(c.desc) + '"></i>' + escape(TEXT.waitedOn) + " <b>" + P.desc.size + "</b></span>" : "";
+      '<button type="button" data-ledge="' + k + '" aria-pressed="' + (k === "cross" ? G.showCross : !G.hiddenEdges.has(k)) + '"><i class="ln" style="background:' + rgb(ecol[k]) + (k === "cross" ? ";opacity:.45" : "") + '"></i>' + escape(t(EDGE_TEXT[k])) + " <b>" + escape(app.tr().num(P.counts.edges[k])) + "</b></button>").join("");
+    const sel = P.sel >= 0 ? '<span><i class="ln" style="background:' + rgb(c.anc) + '"></i>' + escape(t("graph.waitsOn")) + " <b>" + P.anc.size + '</b></span><span><i class="ln" style="background:' + rgb(c.desc) + '"></i>' + escape(t("graph.waitedOn")) + " <b>" + P.desc.size + "</b></span>" : "";
     $("gc-legend").innerHTML = marks + '<span class="lhead"></span>' + edges + sel +
-      '<span class="help">' + escape(TEXT.help) + (G.loadMs !== null ? escape(TEXT.loadedIn(G.loadMs)) : "") + "</span>";
+      '<span class="help">' + escape(t("graph.help")) + (G.loadMs !== null ? " " + escape(t("graph.loadedIn", { ms: G.loadMs })) : "") + "</span>";
   }
   $("gc-legend").addEventListener("click", (ev) => {
     const m = ev.target.closest("[data-lmark]");
@@ -691,7 +680,7 @@
   function showMatches() {
     const P = G.prepared;
     const hits = P && matches(P);
-    $("gc-n").textContent = hits ? TEXT.matches(hits.size) : countText();
+    $("gc-n").textContent = hits ? t("graph.matches", { n: hits.size }) : countText();
   }
   $("gc-q").addEventListener("input", (ev) => {
     G.q = ev.target.value;
@@ -756,7 +745,7 @@
     else if (ev.key === "Escape" && app.selected() && $("drawer").hidden) app.selectEpic(null);
   });
   function countText() {
-    return G.prepared ? TEXT.count(G.prepared, G.prepared.described) : "";
+    return G.prepared ? countLine(G.prepared, G.prepared.described) : "";
   }
 
   // ---------- the panel ----------
@@ -765,6 +754,7 @@
     card.hidden = !g;
     if (!g) return;
     if (!G.colors) readColors();
+    if (G.msgKey) sayKey(G.msgKey);
     drawToolbar(g);
     if (!G.visible || G.deckState !== "ready") return;
     const key = query(g);
@@ -775,7 +765,7 @@
       G.drawing = { mode: G.mode, nodes: 0, edges: 0 };
       recordDrawn();
       if (G.deck) G.deck.setProps({ layers: [] });
-      say(TEXT.pickEpic);
+      sayKey(tk("graph.pickEpic"));
       return;
     }
     if (key !== G.key || G.seen !== g) {
