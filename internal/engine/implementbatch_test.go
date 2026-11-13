@@ -5,6 +5,7 @@ import (
 
 	"github.com/deligoez/tp/internal/model"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func batchTask(id string, touches ...string) model.Task {
@@ -26,6 +27,20 @@ func TestImplementBatch_TakesDisjointReadyTasksUpToTheCap(t *testing.T) {
 	assert.Equal(t, []string{"a", "c", "d"}, ImplementBatch(tf, 3))
 	assert.Equal(t, []string{"a", "c"}, ImplementBatch(tf, 2))
 	assert.Equal(t, []string{"a"}, ImplementBatch(tf, 1), "the default cap runs one at a time")
+}
+
+// TestTouchesWarnings: under run_max_parallel above 1 each open task without
+// touches is named, since it never runs beside another; at 1 nothing is.
+func TestTouchesWarnings(t *testing.T) {
+	t.Parallel()
+	done := batchTask("d")
+	done.Status = model.StatusDone
+	tf := &model.TaskFile{Tasks: []model.Task{batchTask("a"), batchTask("b", "x/"), done}}
+	assert.Empty(t, TouchesWarnings(tf, 1))
+	got := TouchesWarnings(tf, 3)
+	require.Len(t, got, 1)
+	assert.Equal(t, Finding{Severity: "warning", Rule: "touches",
+		Message: "task a: no touches, so it never runs beside another task (run_max_parallel 3)"}, got[0])
 }
 
 // TestImplementBatch_ATaskWithoutTouchesOrMarkedSoloRunsAlone: a lead without
