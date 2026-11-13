@@ -90,6 +90,15 @@ func TestPage_TheMapGoesFullScreen(t *testing.T) {
 	assert.Contains(t, page, "body.mapfs")
 }
 
+// TestPage_BothMapsSayHowFullScreenZoomsAndLeaves: the Plan map's help and
+// the dependency views' each say that in full screen the plain wheel zooms
+// and Esc leaves.
+func TestPage_BothMapsSayHowFullScreenZoomsAndLeaves(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Equal(t, 2, strings.Count(script, "in full screen the wheel alone zooms and Esc leaves"))
+}
+
 // TestPure_ThePlainWheelZoomsOnlyInFullScreen: Ctrl or ⌘ with the wheel
 // zooms anywhere; the plain wheel zooms only while the card fills the
 // screen, and scrolls the page otherwise.
