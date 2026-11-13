@@ -120,3 +120,34 @@ const a = P.nudgeContrast([184, 193, 203], light, 3), b = P.nudgeContrast([58, 6
 out([P.contrast(a, light) >= 3, a[0] < 184, P.contrast(b, dark) >= 3, b[0] > 58, c, Math.round(P.contrast([0, 0, 0], [255, 255, 255]))]);`)
 	assert.JSONEq(t, `[true, true, true, true, [20, 20, 20], 21]`, got)
 }
+
+// TestPage_TheStatusHuesReadBeforeTheNudgeAndStayApart: the nudge lifts
+// every hue to 3:1, so the contrast check alone would pass any token. Each
+// status hue reads at 2:1 or more against the canvas before it, and after
+// it no two marks come closer than a colour difference (CIE76 ΔE) of 12,
+// so the graph's marks stay told apart on both themes.
+func TestPage_TheStatusHuesReadBeforeTheNudgeAndStayApart(t *testing.T) {
+	t.Parallel()
+	css := string(served(t, "/style.css"))
+	for _, over := range []string{"", darkByControl} {
+		tok, err := json.Marshal(themeTokens(t, css, over))
+		require.NoError(t, err)
+		got := runPure(t, `const tok = `+string(tok)+`;
+const hex = (v) => [1, 3, 5].map((i) => parseInt(v.slice(i, i + 2), 16));
+const pal = P.graphPalette(tok);
+const raw = P.GRAPH_MARKS.map(([k, name]) => [k, Math.round(P.contrast(hex(tok[name]), pal.page) * 100) / 100]);
+const keys = Object.keys(pal.mark);
+let near = [99, ""];
+keys.forEach((a, i) => keys.slice(i + 1).forEach((b) => { const d = P.deltaE(pal.mark[a], pal.mark[b]); if (d < near[0]) near = [Math.round(d * 10) / 10, a + "/" + b]; }));
+out({ raw, near });`)
+		var res struct {
+			Raw  [][]any `json:"raw"`
+			Near []any   `json:"near"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(got), &res))
+		for _, r := range res.Raw {
+			assert.GreaterOrEqual(t, r[1].(float64), 2.0, "theme %q: the %s token before the nudge", over, r[0])
+		}
+		assert.GreaterOrEqual(t, res.Near[0].(float64), 12.0, "theme %q: the closest marks %s", over, res.Near[1])
+	}
+}
