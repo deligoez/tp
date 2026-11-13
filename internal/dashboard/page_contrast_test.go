@@ -10,16 +10,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// The theme blocks style.css can hold over its :root: the dark theme as
+// the header's control sets it, and the dark theme the system's setting
+// asks for under Auto.
+const (
+	darkByControl = `:root[data-theme="dark"]`
+	darkBySystem  = `:root:not([data-theme="light"])`
+)
+
 // themeTokens is style.css's colour tokens for one theme: every :root
-// block's custom properties, the dark theme's :root[data-theme="dark"]
-// blocks over them, each var() reference resolved.
-func themeTokens(t *testing.T, css string, dark bool) map[string]string {
+// block's custom properties, the blocks named over (darkByControl,
+// darkBySystem or none for the light theme) over them, each var()
+// reference resolved.
+func themeTokens(t *testing.T, css, over string) map[string]string {
 	t.Helper()
 	tok := map[string]string{}
-	block := regexp.MustCompile(`(?s)(:root(?:\[data-theme="dark"\])?) \{([^}]*)\}`)
+	block := regexp.MustCompile(`(?s)(:root(?:\[data-theme="dark"\]|:not\(\[data-theme="light"\]\))?) \{([^}]*)\}`)
 	prop := regexp.MustCompile(`(--[\w-]+):\s*([^;]+);`)
-	for _, pass := range []string{":root", `:root[data-theme="dark"]`} {
-		if pass != ":root" && !dark {
+	for _, pass := range []string{":root", over} {
+		if pass == "" {
 			break
 		}
 		for _, m := range block.FindAllStringSubmatch(css, -1) {
@@ -45,16 +54,31 @@ func themeTokens(t *testing.T, css string, dark bool) map[string]string {
 	return tok
 }
 
+// TestPage_BothDarkThemesHoldTheSameTokens: the dark theme the control
+// sets and the one the system's setting brings under Auto are written in
+// two places of style.css; they hold the same tokens, so the contrast
+// check of one covers the other.
+func TestPage_BothDarkThemesHoldTheSameTokens(t *testing.T) {
+	t.Parallel()
+	css := string(served(t, "/style.css"))
+	light := themeTokens(t, css, "")
+	byControl := themeTokens(t, css, darkByControl)
+	bySystem := themeTokens(t, css, darkBySystem)
+	assert.Equal(t, byControl, bySystem)
+	assert.NotEqual(t, light["--sunk"], bySystem["--sunk"], "the system's dark block is read")
+}
+
 // TestPage_EveryColourPairReadsAgainstItsBackground is 1.17.1's contrast
-// check, run on both themes from style.css's own tokens through the
-// palette the graph draws with (tpPure.graphPalette): text on a node's fill
-// and the page's small texts read at 4.5:1 or more, and every node border,
-// edge colour and control outline at 3:1 or more against what it sits on.
+// check, run on the light theme and both dark ones from style.css's own
+// tokens through the palette the graph draws with (tpPure.graphPalette):
+// text on a node's fill and the page's small texts read at 4.5:1 or more,
+// and every node border, edge colour and control outline at 3:1 or more
+// against what it sits on.
 func TestPage_EveryColourPairReadsAgainstItsBackground(t *testing.T) {
 	t.Parallel()
 	css := string(served(t, "/style.css"))
-	for _, dark := range []bool{false, true} {
-		tok, err := json.Marshal(themeTokens(t, css, dark))
+	for _, over := range []string{"", darkByControl, darkBySystem} {
+		tok, err := json.Marshal(themeTokens(t, css, over))
 		require.NoError(t, err)
 		got := runPure(t, `const tok = `+string(tok)+`;
 const hex = (v) => [1, 3, 5].map((i) => parseInt(v.slice(i, i + 2), 16));
@@ -76,7 +100,7 @@ out(pairs);`)
 			if p[0] == "text" {
 				floor = 4.5
 			}
-			assert.GreaterOrEqual(t, p[2].(float64), floor, "dark=%v: %s", dark, p[1])
+			assert.GreaterOrEqual(t, p[2].(float64), floor, "theme %q: %s", over, p[1])
 		}
 	}
 	assert.Contains(t, css, ".tab .c { font-family: var(--mono); font-size: var(--text-xs); color: var(--muted);")
