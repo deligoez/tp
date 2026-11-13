@@ -1148,46 +1148,16 @@ func isRepoMetadataDotfile(path string) bool {
 
 func buildChecklist(specLines []string, specPath string, findingRows []findingRow) []checklistEntry {
 	entries := make([]checklistEntry, 0)
-
-	tableRows := engine.ExtractTableRows(specLines)
-	currentTableIdx := -1
-	rowIndex := 0
-	var prevSection string
-	for _, row := range tableRows {
-		if row.Section != prevSection || currentTableIdx < 0 {
-			currentTableIdx++
-			rowIndex = 0
-			prevSection = row.Section
-		}
+	for _, item := range engine.SpecPositionalItems(specLines) {
 		entries = append(entries, checklistEntry{
-			ID:       fmt.Sprintf("table-%d-%d", currentTableIdx, rowIndex),
-			Type:     "table_row",
-			SpecLine: row.Line,
-			Section:  row.Section,
-			Text:     row.Raw,
-			Prompt:   0,
-		})
-		rowIndex++
-	}
-
-	listItems := engine.ExtractNumberedItems(specLines)
-	listIdx := -1
-	var prevListSection string
-	for _, item := range listItems {
-		if (item.Number == 1 && item.Section != prevListSection) || listIdx < 0 {
-			listIdx++
-			prevListSection = item.Section
-		}
-		entries = append(entries, checklistEntry{
-			ID:       fmt.Sprintf("list-%d-%d", listIdx, item.Number),
-			Type:     "list_item",
+			ID:       item.ID,
+			Type:     item.Type,
 			SpecLine: item.Line,
 			Section:  item.Section,
 			Text:     item.Text,
 			Prompt:   0,
 		})
 	}
-
 	entries = append(entries, taskAcceptanceEntries(specPath)...)
 	entries = append(entries, findingChecklistEntries(findingRows)...)
 
