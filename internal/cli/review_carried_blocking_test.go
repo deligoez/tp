@@ -1,0 +1,87 @@
+package cli_test
+
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// The spec/backlog/carried-rows-block.md fixtures: a two-section spec and the
+// BUGS.md row, a high finding nobody fixes or accepts.
+const (
+	carriedSpec      = "# Spec\n\n## 1. Scope\n\nThe tool reads one file.\n\n## 2. Rules\n\nRule 1 applies to every row.\n"
+	carriedHighRow   = `{"role":"r","severity":"high","finding":"Rule 1 is ambiguous","location":"§2","evidence":"line 9","class":"ambiguity"}` + "\n"
+	carriedRoundFile = ".tp-review/spec/review-round-1.ndjson"
+)
+
+// carriedRepro is the BUGS.md reproduction: round 1 records the high row, and
+// rounds 2 and 3 record nothing, the spec unchanged throughout. Three rounds
+// reach the default cap of 3.
+func carriedRepro(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	writeSpec(t, dir, carriedSpec)
+	for _, rows := range []string{carriedHighRow, "", ""} {
+		_, stderr, code := recordRound(t, dir, rows)
+		require.Equal(t, 0, code, "record: %s", stderr)
+	}
+	return dir
+}
+
+// reviewStatusCheck runs tp review spec.md --status --check and returns its
+// payload and exit code.
+func reviewStatusCheck(t *testing.T, dir string) (out map[string]any, code int) {
+	t.Helper()
+	stdout, stderr, code := runTP(t, dir, "review", "spec.md", "--status", "--check")
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out), "status payload: %s", stderr)
+	return out, code
+}
+
+// carriedRows returns the carried_blocking_rows of a payload.
+func carriedRows(t *testing.T, out map[string]any) []map[string]any {
+	t.Helper()
+	raw, _ := out["carried_blocking_rows"].([]any)
+	rows := make([]map[string]any, 0, len(raw))
+	for _, r := range raw {
+		m, ok := r.(map[string]any)
+		require.True(t, ok, "a carried row is an object: %v", r)
+		rows = append(rows, m)
+	}
+	return rows
+}
+
+// TestCarriedBlocking_EmptyRoundsDoNotConvergePastAnUnresolvedHigh is the
+// BUGS.md repro: the high is carried under "DO NOT re-report", so the empty
+// rounds after it say nothing about it, and the loop is not converged while
+// it stands. --status names the row and how it clears.
+func TestCarriedBlocking_EmptyRoundsDoNotConvergePastAnUnresolvedHigh(t *testing.T) {
+	t.Parallel()
+	dir := carriedRepro(t)
+
+	out, code := reviewStatusCheck(t, dir)
+	assert.Equal(t, 1, code, "--check exits 1 while a carried blocking row stands")
+	assert.Equal(t, false, out["converged"])
+	assert.Equal(t, false, out["done"])
+	assert.Equal(t, float64(1), out["carried_blocking"])
+	rows := carriedRows(t, out)
+	require.Len(t, rows, 1)
+	assert.Equal(t, float64(1), rows[0]["round"])
+	assert.Equal(t, float64(0), rows[0]["index"])
+	assert.Equal(t, "§2", rows[0]["location"])
+	assert.Equal(t, "high", rows[0]["severity"])
+	assert.Equal(t, "Rule 1 is ambiguous", rows[0]["finding"])
+	assert.Equal(t, carriedRoundFile, rows[0]["file"])
+
+	next, _ := out["next_action"].(string)
+	assert.Contains(t, next, "tp review "+carriedRoundFile+" --resolve 0")
+	assert.Contains(t, next, "--rewritten", "an epoch is named for a rewritten text")
+	assert.NotContains(t, next, "decompose")
+}
+
