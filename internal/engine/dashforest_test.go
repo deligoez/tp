@@ -19,7 +19,7 @@ func TestForestLayout_GoldenTreeColumns(t *testing.T) {
 	ids := []string{"a1", "a2", "a3", "a4", "a5", "a6", "b1", "b2"}
 	edges := []LayoutEdge{{"a1", "a2"}, {"a1", "a3"}, {"a2", "a4"}, {"a3", "a4"}, {"a4", "a5"}, {"a1", "a6"}}
 	groupOf := map[string]string{"a1": "a", "a2": "a", "a3": "a", "a4": "a", "a5": "a", "a6": "a", "b1": "b", "b2": "b"}
-	got := ForestLayout(ids, edges, nil, nil, groupOf, PackTree)
+	got := ForestLayout(ForestInput{IDs: ids, Edges: edges, GroupOf: groupOf, Pack: PackTree})
 	assert.Equal(t, Forest{
 		Layers:  4,
 		Columns: 8.5,
@@ -41,7 +41,7 @@ func TestForestLayout_GoldenBandsAndBackEdges(t *testing.T) {
 	ids := []string{"p", "q", "r", "x", "y"}
 	edges := []LayoutEdge{{"p", "q"}, {"q", "r"}, {"p", "r"}, {"x", "y"}, {"y", "x"}, {"p", "zz"}}
 	bandOf := map[string]string{"p": "M1", "q": "M1", "r": "M2", "x": "M3", "y": "M3"}
-	got := ForestLayout(ids, edges, []string{"M1", "M2", "M3"}, bandOf, nil, PackTree)
+	got := ForestLayout(ForestInput{IDs: ids, Edges: edges, Bands: []string{"M1", "M2", "M3"}, BandOf: bandOf, Pack: PackTree})
 	assert.Equal(t, []EdgeRole{RoleTree, RoleTree, RoleCross, RoleBack, RoleBack, RoleBack}, got.Roles)
 	assert.Equal(t, []LayoutBand{{Name: "M1", From: 0, To: 1}, {Name: "M2", From: 2, To: 2}, {Name: "M3", From: 3, To: 3}}, got.Bands)
 	assert.Equal(t, ForestPlace{2, 0}, got.Places["r"])
@@ -58,9 +58,9 @@ func TestForestLayout_GoldenRowPacking(t *testing.T) {
 	ids := []string{"a0", "a1", "a2", "b0", "b1", "b2"}
 	edges := []LayoutEdge{{"a0", "a1"}, {"a0", "a2"}, {"b0", "b1"}, {"b0", "b2"}}
 	groupOf := map[string]string{"a0": "a", "a1": "a", "a2": "a", "b0": "b", "b1": "b", "b2": "b"}
-	tree := ForestLayout(ids, edges, nil, nil, groupOf, PackTree)
+	tree := ForestLayout(ForestInput{IDs: ids, Edges: edges, GroupOf: groupOf, Pack: PackTree})
 	assert.InDelta(t, 7.0, tree.Columns, 0)
-	got := ForestLayout(ids, edges, nil, nil, groupOf, PackRows)
+	got := ForestLayout(ForestInput{IDs: ids, Edges: edges, GroupOf: groupOf, Pack: PackRows})
 	assert.InDelta(t, 4.0, got.Columns, 0)
 	assert.Equal(t, map[string]ForestPlace{
 		"a0": {0, 0}, "b0": {0, 3},
@@ -69,11 +69,12 @@ func TestForestLayout_GoldenRowPacking(t *testing.T) {
 }
 
 // TestForestLayout_InvariantsOnARandomGraph checks, on a seeded random
-// graph banded in three milestones, under both packings: no tree edge
-// points backwards, every node with an edge from an earlier layer has
-// exactly one tree edge in and a root none, no two nodes of a layer share
-// a column, every column is inside the width, and no edge but a back edge
-// points up.
+// graph banded in three milestones and grouped in three tracks, under both
+// packings, stacked and in lanes: no tree edge points backwards or joins
+// two groups, every node with an edge from an earlier layer of its own
+// group has exactly one tree edge in and any other none, no two nodes of a
+// layer share a column, every column is inside the width, and no edge but
+// a back edge points up.
 func TestForestLayout_InvariantsOnARandomGraph(t *testing.T) {
 	t.Parallel()
 	r := rand.New(rand.NewPCG(7, 11))
@@ -92,36 +93,40 @@ func TestForestLayout_InvariantsOnARandomGraph(t *testing.T) {
 			edges = append(edges, LayoutEdge{From: ids[r.IntN(i)], To: ids[i]})
 		}
 	}
-	for _, pack := range []ForestPacking{PackTree, PackRows} {
-		got := ForestLayout(ids, edges, []string{"M0", "M1", "M2"}, bandOf, groupOf, pack)
-		require.Len(t, got.Roles, len(edges))
-		treeIn := map[string]int{}
-		earlierIn := map[string]bool{}
-		for i, e := range edges {
-			from, to := got.Places[e.From], got.Places[e.To]
-			if from.Layer < to.Layer {
-				earlierIn[e.To] = true
+	lanes := map[string]string{"M0": "a", "M1": "b", "M2": "a"}
+	for _, laneOf := range []map[string]string{nil, lanes} {
+		for _, pack := range []ForestPacking{PackTree, PackRows} {
+			got := ForestLayout(ForestInput{IDs: ids, Edges: edges, Bands: []string{"M0", "M1", "M2"}, BandOf: bandOf, GroupOf: groupOf, LaneOf: laneOf, Pack: pack})
+			require.Len(t, got.Roles, len(edges))
+			treeIn := map[string]int{}
+			earlierIn := map[string]bool{}
+			for i, e := range edges {
+				from, to := got.Places[e.From], got.Places[e.To]
+				if from.Layer < to.Layer && groupOf[e.From] == groupOf[e.To] {
+					earlierIn[e.To] = true
+				}
+				switch got.Roles[i] {
+				case RoleTree:
+					assert.Less(t, from.Layer, to.Layer, "%s: tree edge %s->%s points backwards", pack, e.From, e.To)
+					assert.Equal(t, groupOf[e.From], groupOf[e.To], "%s: tree edge %s->%s joins two groups", pack, e.From, e.To)
+					treeIn[e.To]++
+				case RoleCross:
+					assert.Less(t, from.Layer, to.Layer, "%s: cross edge %s->%s points up", pack, e.From, e.To)
+				}
 			}
-			switch got.Roles[i] {
-			case RoleTree:
-				assert.Less(t, from.Layer, to.Layer, "%s: tree edge %s->%s points backwards", pack, e.From, e.To)
-				treeIn[e.To]++
-			case RoleCross:
-				assert.Less(t, from.Layer, to.Layer, "%s: cross edge %s->%s points up", pack, e.From, e.To)
+			taken := map[[2]float64]string{}
+			for _, id := range ids {
+				want := 0
+				if earlierIn[id] {
+					want = 1
+				}
+				assert.Equal(t, want, treeIn[id], "%s: tree edges into %s", pack, id)
+				p := got.Places[id]
+				key := [2]float64{float64(p.Layer), p.Col}
+				assert.Empty(t, taken[key], "%s: %s and %s share a place", pack, id, taken[key])
+				taken[key] = id
+				assert.True(t, p.Col >= 0 && p.Col < got.Columns, "%s: %s at column %v of %v", pack, id, p.Col, got.Columns)
 			}
-		}
-		taken := map[[2]float64]string{}
-		for _, id := range ids {
-			want := 0
-			if earlierIn[id] {
-				want = 1
-			}
-			assert.Equal(t, want, treeIn[id], "%s: tree edges into %s", pack, id)
-			p := got.Places[id]
-			key := [2]float64{float64(p.Layer), p.Col}
-			assert.Empty(t, taken[key], "%s: %s and %s share a place", pack, id, taken[key])
-			taken[key] = id
-			assert.True(t, p.Col >= 0 && p.Col < got.Columns, "%s: %s at column %v of %v", pack, id, p.Col, got.Columns)
 		}
 	}
 }
@@ -131,8 +136,9 @@ func TestForestLayout_IsStable(t *testing.T) {
 	t.Parallel()
 	ids := []string{"a1", "a2", "a3", "a4", "a5", "a6"}
 	edges := []LayoutEdge{{"a1", "a2"}, {"a1", "a3"}, {"a2", "a4"}, {"a3", "a4"}, {"a4", "a5"}, {"a1", "a6"}}
-	first := ForestLayout(ids, edges, nil, nil, nil, PackRows)
+	in := ForestInput{IDs: ids, Edges: edges, Pack: PackRows}
+	first := ForestLayout(in)
 	for range 20 {
-		assert.Equal(t, first, ForestLayout(ids, edges, nil, nil, nil, PackRows))
+		assert.Equal(t, first, ForestLayout(in))
 	}
 }

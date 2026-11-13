@@ -205,7 +205,7 @@ func milestonesLayout(g *model.EpicGraph, states map[string]engine.EpicState, pa
 	}
 	inbound := milestoneInbound(g)
 	gates := engine.MilestoneGates(g, states)
-	out := layoutOf(layoutViewMilestones, ids, edges, nil, nil, nil, pack)
+	out := layoutOf(layoutViewMilestones, ids, edges, nil, nil, nil, nil, pack)
 	for i := range out.Nodes {
 		m := out.Nodes[i].ID
 		f := engine.WorkFigures(g, states, nil, m)
@@ -251,7 +251,7 @@ func scopeLayout(g *model.EpicGraph, states map[string]engine.EpicState, milesto
 		}
 	}
 	ids, edges := epicEdges(g, in, scope.CriticalPath.ByCount)
-	out := layoutOf(layoutViewScope, ids, edges, bands, bandOf, trackGroups(g), pack)
+	out := layoutOf(layoutViewScope, ids, edges, bands, bandOf, trackGroups(g), milestoneTracks(g), pack)
 	out.Milestone = milestone
 	for i := range out.Nodes {
 		out.Nodes[i].Deferrable = marks[out.Nodes[i].ID].Deferrable
@@ -278,7 +278,7 @@ func neighbourhoodLayout(g *model.EpicGraph, states map[string]engine.EpicState,
 	walkSteps(epic, deps, depth, in)
 	walkSteps(epic, dependents, depth, in)
 	ids, edges := epicEdges(g, in, engine.GraphCriticalPath(g, states))
-	out := layoutOf(layoutViewNeighbourhood, ids, edges, nil, nil, nil, pack)
+	out := layoutOf(layoutViewNeighbourhood, ids, edges, nil, nil, nil, nil, pack)
 	out.Epic, out.Depth = epic, depth
 	for i := range out.Nodes {
 		n := &out.Nodes[i]
@@ -340,14 +340,14 @@ func epicEdges(g *model.EpicGraph, in map[string]bool, path []string) ([]string,
 // takes them, groupOf and pack as engine.ForestLayout does, and lists the
 // nodes by layer, then column, each with its barycenter order and its
 // forest column, each edge with its role.
-func layoutOf(view string, ids []string, edges []layoutEdge, bands []string, bandOf, groupOf map[string]string, pack engine.ForestPacking) dashboardLayout {
+func layoutOf(view string, ids []string, edges []layoutEdge, bands []string, bandOf, groupOf, laneOf map[string]string, pack engine.ForestPacking) dashboardLayout {
 	in := make([]engine.LayoutEdge, len(edges))
 	for i, e := range edges {
 		in[i] = engine.LayoutEdge{From: e.From, To: e.To}
 	}
 	l := engine.LayeredLayout(ids, in, bands, bandOf)
-	f := engine.ForestLayout(ids, in, bands, bandOf, groupOf, pack)
-	out := dashboardLayout{View: view, Layers: l.Layers, Packing: string(pack), Columns: f.Columns, Bands: l.Bands, Nodes: make([]layoutNode, 0, len(ids)), Edges: edges}
+	f := engine.ForestLayout(engine.ForestInput{IDs: ids, Edges: in, Bands: bands, BandOf: bandOf, GroupOf: groupOf, LaneOf: laneOf, Pack: pack})
+	out := dashboardLayout{View: view, Layers: f.Layers, Packing: string(pack), Columns: f.Columns, Bands: f.Bands, Nodes: make([]layoutNode, 0, len(ids)), Edges: edges}
 	if out.Edges == nil {
 		out.Edges = []layoutEdge{}
 	}
@@ -355,7 +355,7 @@ func layoutOf(view string, ids []string, edges []layoutEdge, bands []string, ban
 		out.Edges[i].Role = f.Roles[i]
 	}
 	for _, id := range ids {
-		out.Nodes = append(out.Nodes, layoutNode{ID: id, LayoutPlace: l.Places[id], Col: f.Places[id].Col})
+		out.Nodes = append(out.Nodes, layoutNode{ID: id, LayoutPlace: engine.LayoutPlace{Layer: f.Places[id].Layer, Order: l.Places[id].Order}, Col: f.Places[id].Col})
 	}
 	slices.SortFunc(out.Nodes, func(a, b layoutNode) int {
 		return cmp.Or(cmp.Compare(a.Layer, b.Layer), cmp.Compare(a.Col, b.Col), cmp.Compare(a.Order, b.Order))
@@ -372,7 +372,7 @@ func planLayout(g *model.EpicGraph, states map[string]engine.EpicState, pack eng
 		in[g.Epics[i].ID], bandOf[g.Epics[i].ID] = true, g.Epics[i].Milestone
 	}
 	ids, edges := epicEdges(g, in, engine.GraphCriticalPath(g, states))
-	out := layoutOf(layoutViewPlan, ids, edges, trackedMilestones(g), bandOf, trackGroups(g), pack)
+	out := layoutOf(layoutViewPlan, ids, edges, trackedMilestones(g), bandOf, trackGroups(g), milestoneTracks(g), pack)
 	for i := range out.Nodes {
 		out.Nodes[i].Milestone = bandOf[out.Nodes[i].ID]
 	}
@@ -381,7 +381,20 @@ func planLayout(g *model.EpicGraph, states map[string]engine.EpicState, pack eng
 
 // trackGroups maps each epic to the track its milestone is first listed in,
 // so the forest packs each track's trees side by side.
+// trackGroups maps each epic to the track its milestone is first listed in,
+// so the forest packs each track's trees side by side.
 func trackGroups(g *model.EpicGraph) map[string]string {
+	track := milestoneTracks(g)
+	out := make(map[string]string, len(g.Epics))
+	for i := range g.Epics {
+		out[g.Epics[i].ID] = track[g.Epics[i].Milestone]
+	}
+	return out
+}
+
+// milestoneTracks maps each milestone to the track it is first listed in,
+// the lane its band runs in, so tracks lay out side by side in the layers.
+func milestoneTracks(g *model.EpicGraph) map[string]string {
 	track := map[string]string{}
 	for t, ms := range g.Milestones {
 		for _, m := range ms {
@@ -390,9 +403,5 @@ func trackGroups(g *model.EpicGraph) map[string]string {
 			}
 		}
 	}
-	out := make(map[string]string, len(g.Epics))
-	for i := range g.Epics {
-		out[g.Epics[i].ID] = track[g.Epics[i].Milestone]
-	}
-	return out
+	return track
 }
