@@ -355,6 +355,30 @@ func TestPure_AMergedBandIsNamedForEveryMilestoneItHolds(t *testing.T) {
 	assert.JSONEq(t, `[{"name": "M1 + M2", "x": 10, "w": 200}]`, got)
 }
 
+// TestPure_ADependencyLabelSitsOnAnOpaqueBox: an epic's id label in the
+// dependency views sits on a box as wide as its characters, so an edge
+// passing behind it never runs through the text, and the epic's edges leave
+// from the box's right end rather than from inside a long label (1.14.1).
+func TestPure_ADependencyLabelSitsOnAnOpaqueBox(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([P.labelBox(100, 50, 10), P.labelBox(0, 0, 0)]);`)
+	assert.JSONEq(t, `[{"x": 98, "y": 40, "w": 71, "h": 14}, {"x": -2, "y": -10, "w": 4, "h": 14}]`, got)
+}
+
+// TestPage_DependencyEdgesRunBehindOpaqueLabels: the dependency views draw
+// their edges first and each epic's label on its box after them, the box
+// filled with the card's surface.
+func TestPage_DependencyEdgesRunBehindOpaqueLabels(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	assert.Contains(t, script, `'<rect class="lbg"`)
+	assert.Contains(t, page, ".map .lbg { fill: var(--surface); }")
+	edges := strings.Index(script, `"<g>" + gedgesHTML(`)
+	nodes := strings.Index(script, "L.nodes.map((n, i) => gnodeHTML(")
+	require.GreaterOrEqual(t, edges, 0)
+	assert.Less(t, edges, nodes, "edges are drawn before the nodes, so the nodes cover them")
+}
+
 // TestPure_TheDependencyViewDrawsOnlyTheDataOfItsKey: a view draws only
 // the layout fetched for the query it shows; until that layout arrives it
 // reads as loading, even with another query's layout still held, so a
