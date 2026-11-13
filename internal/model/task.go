@@ -33,6 +33,7 @@ type Task struct {
 	Acceptance        string     `json:"acceptance"`
 	SourceSections    []string   `json:"source_sections"`
 	SourceLines       string     `json:"source_lines,omitempty"`
+	Touches           []string   `json:"touches,omitempty"`
 	StartedAt         *time.Time `json:"started_at"`
 	DurationSource    string     `json:"duration_source,omitempty"`
 	ClosedAt          *time.Time `json:"closed_at"`

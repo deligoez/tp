@@ -188,6 +188,9 @@ func validateSchema(tf *model.TaskFile) []Finding {
 		if len(t.SourceSections) == 0 && t.SourceLines == "" {
 			findings = append(findings, Finding{Severity: "error", Rule: "schema", Message: fmt.Sprintf("task %s: needs source_sections (canonical headings) or source_lines", t.ID)})
 		}
+		if err := ValidTouches(t.Touches); err != nil {
+			findings = append(findings, Finding{Severity: "error", Rule: "schema", Message: fmt.Sprintf("task %s: %v", t.ID, err)})
+		}
 	}
 	return findings
 }
