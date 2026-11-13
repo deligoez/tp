@@ -59,3 +59,17 @@ func TestReviewCarried_TwoFindingsAtOneLocationStayTwo(t *testing.T) {
 	assert.Equal(t, "Rule 2 contradicts rule 1", d.CarriedBlocking[0].Row["finding"])
 }
 
+// TestReviewCarried_AnEpochCutsTheRow: a row an epoch cut is no longer carried,
+// so roles may raise it again and it does not block.
+func TestReviewCarried_AnEpochCutsTheRow(t *testing.T) {
+	t.Parallel()
+	spec := filepath.Join(t.TempDir(), "spec.md")
+	st := &ReviewState{
+		ReviewRounds: loopRounds(t, spec, []string{carriedOpen}, []string{}, []string{}),
+		Epochs:       []Epoch{{AfterReviewRound: 1, Evidence: "rewrote §2"}},
+	}
+
+	assert.Empty(t, ReviewCarriedBlocking(spec, st, ReviewConvergeOnBlocking))
+	assert.True(t, ReviewConverged(spec, st, 2, "h", ReviewConvergeOnBlocking))
+}
+
