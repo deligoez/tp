@@ -207,3 +207,15 @@ func TestEpicSet_GateMemberAlsoDeferrableIsRefused(t *testing.T) {
 	assert.Contains(t, stderr, "gate-member-deferrable")
 	assert.Equal(t, before, readEpicGraphFile(t, dir))
 }
+
+// TestEpicSet_GateMembersTakesAJSONArray: members= takes the JSON array form
+// tags= and tag_checks= take, as well as the comma-separated list, and reads
+// it as ids, not as one id spelled `["a2", "a1"]`.
+func TestEpicSet_GateMembersTakesAJSONArray(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicGateFieldGraph(""))
+	setGateField(t, dir, `gates.A.members=["a2", "a1"]`)
+	gate := gatesOnFile(t, dir)["A"]
+	require.NotNil(t, gate.Members)
+	assert.Equal(t, []string{"a2", "a1"}, *gate.Members)
+}
