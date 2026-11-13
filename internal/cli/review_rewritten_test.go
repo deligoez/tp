@@ -122,3 +122,16 @@ func TestReviewRewritten_NothingRewrittenIsRefused(t *testing.T) {
 	assert.Equal(t, before, stateJSONBytes(t, dir))
 }
 
+// TestReviewRewritten_NoRecordedRoundIsRefused: with no recorded round there is
+// no earlier text to cut, so the call is refused as a usage error and creates
+// no state directory.
+func TestReviewRewritten_NoRecordedRoundIsRefused(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeSpec(t, dir, epochNewSpec)
+	_, stderr, code := runTP(t, dir, "review", "spec.md", "--rewritten", "replaced the spec")
+	assert.Equal(t, 2, code, stderr)
+	assert.Contains(t, errorEnvelope(t, stderr)["error"], "no recorded round")
+	assert.NoDirExists(t, filepath.Join(dir, ".tp-review"))
+}
+
