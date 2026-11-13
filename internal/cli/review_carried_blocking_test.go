@@ -85,29 +85,108 @@ func TestCarriedBlocking_EmptyRoundsDoNotConvergePastAnUnresolvedHigh(t *testing
 	assert.NotContains(t, next, "decompose")
 }
 
-// TestCarriedBlocking_ResolvingTheRowConverges: the row clears by its own
-// disposition, fixed or accepted with evidence, and nothing else changes.
-func TestCarriedBlocking_ResolvingTheRowConverges(t *testing.T) {
+// TestCarriedBlocking_AnAcceptanceConverges: the row clears by an acceptance
+// with evidence, at the cap too.
+func TestCarriedBlocking_AnAcceptanceConverges(t *testing.T) {
 	t.Parallel()
-	for _, disposition := range [][]string{
-		{"fixed", "reworded rule 1"},
-		{"wontfix", "rule 1 is meant to read this way; operator accepted"},
-	} {
-		dir := carriedRepro(t)
-		_, stderr, code := runTP(t, dir, append([]string{"review", carriedRoundFile, "--resolve", "0"}, disposition...)...)
-		require.Equal(t, 0, code, "%s: %s", disposition[0], stderr)
+	dir := carriedRepro(t)
+	_, stderr, code := runTP(t, dir, "review", carriedRoundFile, "--resolve", "0", "wontfix", "rule 1 is meant to read this way; operator accepted")
+	require.Equal(t, 0, code, stderr)
 
-		out, code := reviewStatusCheck(t, dir)
-		assert.Equal(t, 0, code, "%s: --check exits 0 once the row is resolved", disposition[0])
-		assert.Equal(t, true, out["done"], disposition[0])
-		assert.NotContains(t, out, "carried_blocking", disposition[0])
+	out, code := reviewStatusCheck(t, dir)
+	assert.Equal(t, 0, code, "--check exits 0 once the row is accepted")
+	assert.Equal(t, true, out["done"])
+	assert.NotContains(t, out, "carried_blocking")
+}
+
+// carriedWithCap is a spec with a task file whose review cap is n.
+func carriedWithCap(t *testing.T, n string) string {
+	t.Helper()
+	dir := t.TempDir()
+	writeSpec(t, dir, carriedSpec)
+	_, stderr, code := runTP(t, dir, "init", "spec.md")
+	require.Equal(t, 0, code, stderr)
+	_, stderr, code = runTP(t, dir, "set", "--workflow", "review_max_rounds="+n)
+	require.Equal(t, 0, code, stderr)
+	return dir
+}
+
+// TestCarriedBlocking_AFixAtTheCapDoesNotEndTheLoop (§2.6): the BUGS.md
+// sequence, then the row marked fixed. No round read the fix, so the row keeps
+// blocking; at the cap no round is admitted, so the way out named is the
+// operator's raise of the cap, never another fixed.
+func TestCarriedBlocking_AFixAtTheCapDoesNotEndTheLoop(t *testing.T) {
+	t.Parallel()
+	dir := carriedRepro(t)
+	_, stderr, code := runTP(t, dir, "review", carriedRoundFile, "--resolve", "0", "fixed", "reworded rule 1")
+	require.Equal(t, 0, code, stderr)
+
+	out, code := reviewStatusCheck(t, dir)
+	assert.Equal(t, 1, code)
+	assert.Equal(t, false, out["done"])
+	assert.Nil(t, out["done_by"])
+	assert.Equal(t, float64(1), out["carried_fixed_unverified"])
+	rows := carriedRows(t, out)
+	require.Len(t, rows, 1)
+	assert.Equal(t, "fixed-unverified", rows[0]["state"])
+	next, _ := out["next_action"].(string)
+	assert.Contains(t, next, "raise-review-cap")
+	assert.NotContains(t, next, "--resolve")
+}
+
+// TestCarriedBlocking_AFixIsVerifiedByTheNextRound: below the cap a fixed row
+// blocks until a round emitted after the fix is recorded, and then the loop
+// converges.
+func TestCarriedBlocking_AFixIsVerifiedByTheNextRound(t *testing.T) {
+	t.Parallel()
+	dir := carriedWithCap(t, "5")
+	for _, rows := range []string{carriedHighRow, "", ""} {
+		_, stderr, code := recordRound(t, dir, rows)
+		require.Equal(t, 0, code, stderr)
 	}
+	_, stderr, code := runTP(t, dir, "review", carriedRoundFile, "--resolve", "0", "fixed", "reworded rule 1")
+	require.Equal(t, 0, code, stderr)
+
+	out, code := reviewStatusCheck(t, dir)
+	assert.Equal(t, 1, code, "the fix is not verified yet")
+	assert.Contains(t, out["next_action"], "run the next review round")
+
+	_, stderr, code = recordRound(t, dir, "")
+	require.Equal(t, 0, code, stderr)
+	out, code = reviewStatusCheck(t, dir)
+	assert.Equal(t, 0, code, "round 4 read the fix: %v", out["next_action"])
+	assert.NotContains(t, out, "carried_blocking")
+}
+
+// TestCarriedBlocking_ARoundInFlightAtTheFixDoesNotVerifyIt: a round emitted
+// before the fix was written did not list it as fixed, so recording it
+// verifies nothing; the round after it does.
+func TestCarriedBlocking_ARoundInFlightAtTheFixDoesNotVerifyIt(t *testing.T) {
+	t.Parallel()
+	dir := carriedWithCap(t, "5")
+	_, stderr, code := recordRound(t, dir, carriedHighRow)
+	require.Equal(t, 0, code, stderr)
+	_, stderr, code = runTP(t, dir, "review", "spec.md")
+	require.Equal(t, 0, code, "emit round 2: %s", stderr)
+	_, stderr, code = runTP(t, dir, "review", carriedRoundFile, "--resolve", "0", "fixed", "reworded rule 1")
+	require.Equal(t, 0, code, stderr)
+	_, stderr, code = recordRound(t, dir, "")
+	require.Equal(t, 0, code, "record round 2: %s", stderr)
+
+	out, code := reviewStatusCheck(t, dir)
+	assert.Equal(t, 1, code, "round 2 was emitted before the fix")
+	assert.Equal(t, float64(1), out["carried_fixed_unverified"])
+
+	_, stderr, code = recordRound(t, dir, "")
+	require.Equal(t, 0, code, stderr)
+	out, code = reviewStatusCheck(t, dir)
+	assert.Equal(t, 0, code, "round 3 was emitted after the fix: %v", out["next_action"])
 }
 
 // TestCarriedBlocking_TheCapRefusalNamesTheCarriedRow: at the cap with a
 // carried blocking row the loop is not done, so the next emission is refused,
-// and the hint names the row in its own round file rather than only the
-// latest round's.
+// and the hint names the row in its own round file instead of the latest
+// round's, keeping only the cap's raise as the other way out.
 func TestCarriedBlocking_TheCapRefusalNamesTheCarriedRow(t *testing.T) {
 	t.Parallel()
 	dir := carriedRepro(t)
@@ -116,53 +195,115 @@ func TestCarriedBlocking_TheCapRefusalNamesTheCarriedRow(t *testing.T) {
 	assert.Equal(t, 4, code, "the cap refuses a fourth round: %s", stderr)
 	env := errorEnvelope(t, stderr)
 	assert.Contains(t, env["error"], "round budget exhausted")
-	assert.Contains(t, env["hint"], "tp review "+carriedRoundFile+" --resolve 0")
+	assert.Contains(t, env["hint"], "tp review "+carriedRoundFile+" --resolve 0 wontfix|duplicate")
 	assert.Contains(t, env["hint"], "1 carried blocking finding")
+	assert.Contains(t, env["hint"], "raise-review-cap")
+	assert.NotContains(t, env["hint"], "disposition each remaining finding in the latest recorded round file")
+}
+
+// carriedResume runs tp resume and returns its payload and blockers by code.
+func carriedResume(t *testing.T, dir string) (out map[string]any, blockers []map[string]any) {
+	t.Helper()
+	stdout, stderr, code := runTP(t, dir, "resume")
+	require.Equal(t, 0, code, stderr)
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+	bs, _ := out["blockers"].([]any)
+	for _, b := range bs {
+		if m, ok := b.(map[string]any); ok {
+			blockers = append(blockers, m)
+		}
+	}
+	return out, blockers
 }
 
 // TestCarriedBlocking_ResumeNamesTheRow: under the cap, tp resume stops on the
 // carried row as an escalate blocker naming it, since another round cannot
-// clear what its roles are told not to re-report.
+// clear what its roles are told not to re-report. Its data names the command
+// and, as spec-stale does, the operator's way past it.
 func TestCarriedBlocking_ResumeNamesTheRow(t *testing.T) {
 	t.Parallel()
-	dir := t.TempDir()
-	writeSpec(t, dir, carriedSpec)
-	_, stderr, code := runTP(t, dir, "init", "spec.md")
-	require.Equal(t, 0, code, stderr)
-	_, stderr, code = runTP(t, dir, "set", "--workflow", "review_max_rounds=5")
-	require.Equal(t, 0, code, stderr)
+	dir := carriedWithCap(t, "5")
 	for _, rows := range []string{carriedHighRow, "", ""} {
-		_, stderr, code = recordRound(t, dir, rows)
+		_, stderr, code := recordRound(t, dir, rows)
 		require.Equal(t, 0, code, stderr)
 	}
 
-	stdout, stderr, code := runTP(t, dir, "resume")
-	require.Equal(t, 0, code, stderr)
-	var out map[string]any
-	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+	out, blockers := carriedResume(t, dir)
 	assert.Equal(t, "review", out["phase"])
-	var found map[string]any
-	bs, _ := out["blockers"].([]any)
-	for _, b := range bs {
-		if m, ok := b.(map[string]any); ok && m["code"] == "review-carried-blocking" {
-			found = m
-		}
-	}
-	require.NotNil(t, found, "the carried row is a blocker: %s", stdout)
+	require.NotEmpty(t, blockers)
+	found := blockers[0]
+	require.Equal(t, "review-carried-blocking", found["code"], "the carried row is a blocker: %v", blockers)
 	assert.Equal(t, "escalate", found["class"])
 	assert.Contains(t, found["message"], "tp review "+carriedRoundFile+" --resolve 0")
 	data, _ := found["data"].(map[string]any)
 	assert.Equal(t, float64(1), data["count"])
+	assert.Equal(t, []any{"tp review " + carriedRoundFile + " --resolve 0 fixed|wontfix|duplicate \"<evidence>\""}, data["commands"])
+	assert.Equal(t, map[string]any{"decision": "rewrite-past-blocking", "commands": []any{"tp review spec.md --rewritten \"<evidence>\""}}, data["operator"])
 	assert.Empty(t, out["next_units"], "no round is offered while the blocker stands")
+}
+
+// TestCarriedBlocking_ResumeAtTheCapLeadsWithTheCarriedRow: at the cap with the
+// latest round empty, the carried blocker comes first, so next_action's
+// summary names the row rather than "the remaining findings of the latest
+// round", and the budget blocker points at it.
+func TestCarriedBlocking_ResumeAtTheCapLeadsWithTheCarriedRow(t *testing.T) {
+	t.Parallel()
+	dir := carriedWithCap(t, "3")
+	for _, rows := range []string{carriedHighRow, "", ""} {
+		_, stderr, code := recordRound(t, dir, rows)
+		require.Equal(t, 0, code, stderr)
+	}
+
+	out, blockers := carriedResume(t, dir)
+	require.Len(t, blockers, 2)
+	assert.Equal(t, "review-carried-blocking", blockers[0]["code"])
+	assert.Equal(t, "review-budget-exhausted", blockers[1]["code"])
+	assert.Contains(t, blockers[1]["message"], "review-carried-blocking")
+	assert.NotContains(t, blockers[1]["message"], "remaining findings of the latest round")
+	na, _ := out["next_action"].(map[string]any)
+	assert.Contains(t, na["summary"], "1 carried blocking finding stands unresolved")
+}
+
+// TestCarriedBlocking_TheExportCountsTheRows: tp export's review loop carries
+// the count, which the dashboard drawer shows instead of "converged".
+func TestCarriedBlocking_TheExportCountsTheRows(t *testing.T) {
+	t.Parallel()
+	dir := carriedWithCap(t, "5")
+	for _, rows := range []string{carriedHighRow, "", ""} {
+		_, stderr, code := recordRound(t, dir, rows)
+		require.Equal(t, 0, code, stderr)
+	}
+	stdout, stderr, code := runTP(t, dir, "export")
+	require.Equal(t, 0, code, stderr)
+	var out map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+	loops, _ := out["loops"].(map[string]any)
+	review, _ := loops["review"].(map[string]any)
+	assert.Equal(t, float64(1), review["carried_blocking"])
+	assert.Equal(t, float64(2), review["streak"], "the streak alone would read converged")
 }
 
 // carriedMarker pulls the MK-<letter> marker out of a finding's text.
 var carriedMarker = regexp.MustCompile(`MK-[A-Z]`)
 
+// markersOf returns the sorted markers in lines.
+func markersOf(lines []string) []string {
+	out := []string{}
+	for _, line := range lines {
+		if m := carriedMarker.FindString(line); m != "" {
+			out = append(out, m)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
 // TestCarriedBlocking_ThePromptAndTheCheckReadOneSet: over a history holding
 // every disposition kind, the rows an emission prints under "UNRESOLVED … DO
-// NOT re-report" with a blocking tag are exactly the rows --check names as
-// blocking, and the medium row it prints there blocks nothing.
+// NOT re-report" with a blocking tag, plus the rows it shows as fixed for a
+// round to verify that no round has, are exactly what --check counts as
+// blocking; the rows --status lists are those of them from rounds before the
+// latest.
 func TestCarriedBlocking_ThePromptAndTheCheckReadOneSet(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
@@ -170,19 +311,25 @@ func TestCarriedBlocking_ThePromptAndTheCheckReadOneSet(t *testing.T) {
 	row := func(sev, marker string) string {
 		return `{"severity":"` + sev + `","category":"clarity","location":"§2","finding":"` + marker + ` rule text","evidence":"e","suggestion":"s"}` + "\n"
 	}
-	// Round 1: A open, B to be fixed, C to be accepted, D accepted with blank
-	// evidence (which accepts nothing), E a medium left open, F a critical
-	// marked duplicate, G open here and fixed in round 2, H an out-of-vocabulary
-	// severity left open.
+	// Round 1: A open, B fixed before round 2 (verified by it), C accepted, D
+	// accepted with blank evidence (which accepts nothing), E a medium left
+	// open, F a critical marked duplicate, G open here and fixed in round 2,
+	// H an out-of-vocabulary severity left open, J fixed after round 2 (no
+	// round read it), K high here and re-reported low in round 2.
 	_, stderr, code := recordRound(t, dir,
 		row("high", "MK-A")+row("high", "MK-B")+row("high", "MK-C")+row("high", "MK-D")+
-			row("medium", "MK-E")+row("critical", "MK-F")+row("high", "MK-G")+row("severe", "MK-H"))
+			row("medium", "MK-E")+row("critical", "MK-F")+row("high", "MK-G")+row("severe", "MK-H")+
+			row("high", "MK-J")+row("high", "MK-K"))
 	require.Equal(t, 0, code, stderr)
 	round1 := filepath.Join(dir, carriedRoundFile)
-	for _, r := range [][]string{{"1", "fixed", "reworded"}, {"2", "wontfix", "operator accepted"}, {"5", "duplicate", "same as MK-A"}} {
-		_, stderr, code = runTP(t, dir, append([]string{"review", round1, "--resolve"}, r...)...)
+	resolve := func(file string, r ...string) {
+		t.Helper()
+		_, stderr, code := runTP(t, dir, append([]string{"review", file, "--resolve"}, r...)...)
 		require.Equal(t, 0, code, stderr)
 	}
+	resolve(round1, "1", "fixed", "reworded")
+	resolve(round1, "2", "wontfix", "operator accepted")
+	resolve(round1, "5", "duplicate", "same as MK-A")
 	data, err := os.ReadFile(round1)
 	require.NoError(t, err)
 	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
@@ -194,46 +341,55 @@ func TestCarriedBlocking_ThePromptAndTheCheckReadOneSet(t *testing.T) {
 	lines[3] = string(blank)
 	require.NoError(t, os.WriteFile(round1, []byte(strings.Join(lines, "\n")+"\n"), 0o600))
 
-	// Round 2: G again, then fixed; I a new open high.
-	_, stderr, code = recordRound(t, dir, row("high", "MK-G")+row("high", "MK-I"))
+	// Round 2: G again, then fixed; I a new open high; K again, graded low.
+	_, stderr, code = recordRound(t, dir, row("high", "MK-G")+row("high", "MK-I")+row("low", "MK-K"))
 	require.Equal(t, 0, code, stderr)
-	_, stderr, code = runTP(t, dir, "review", filepath.Join(dir, ".tp-review", "spec", "review-round-2.ndjson"), "--resolve", "0", "fixed", "reworded")
-	require.Equal(t, 0, code, stderr)
+	resolve(filepath.Join(dir, ".tp-review", "spec", "review-round-2.ndjson"), "0", "fixed", "reworded")
+	resolve(round1, "8", "fixed", "reworded")
 
 	out, code := reviewStatusCheck(t, dir)
 	assert.Equal(t, 1, code)
-	blocking := []string{}
+	listed, states := []string{}, map[string]string{}
 	for _, r := range carriedRows(t, out) {
-		blocking = append(blocking, carriedMarker.FindString(r["finding"].(string)))
+		m := carriedMarker.FindString(r["finding"].(string))
+		listed = append(listed, m)
+		states[m], _ = r["state"].(string)
 	}
-	sort.Strings(blocking)
-	assert.Equal(t, float64(len(blocking)), out["carried_blocking"], "every blocking row is listed")
+	sort.Strings(listed)
 
 	stdout, stderr, code := runTP(t, dir, "review", "spec.md")
 	require.Equal(t, 0, code, "emit round 3: %s", stderr)
 	var emission map[string]any
 	require.NoError(t, json.Unmarshal([]byte(stdout), &emission))
+	loop, _ := emission["review_loop"].(map[string]any)
+	assert.Contains(t, loop["convergence"], "no carried blocking finding unresolved")
 	prompts, _ := emission["prompts"].([]any)
 	require.NotEmpty(t, prompts)
-	unresolved := carrySection(prompts[0].(map[string]any)["prompt"].(string), "UNRESOLVED findings from previous rounds")
+	prompt := prompts[0].(map[string]any)["prompt"].(string)
+	unresolved := carrySection(prompt, "UNRESOLVED findings from previous rounds")
 	require.NotEmpty(t, unresolved, "round 3 carries the unresolved rows")
-	printedBlocking, printedOther := []string{}, []string{}
+	blockingLines, otherLines := []string{}, []string{}
 	for _, line := range strings.Split(unresolved, "\n")[1:] {
-		marker := carriedMarker.FindString(line)
-		if marker == "" {
-			continue
-		}
 		if strings.Contains(line, "[MED]") || strings.Contains(line, "[LOW]") {
-			printedOther = append(printedOther, marker)
+			otherLines = append(otherLines, line)
 			continue
 		}
-		printedBlocking = append(printedBlocking, marker)
+		blockingLines = append(blockingLines, line)
 	}
-	sort.Strings(printedBlocking)
+	printedBlocking := markersOf(blockingLines)
+	printedFixed := markersOf(strings.Split(carrySection(prompt, "Resolved high/critical (DO NOT regress)"), "\n"))
 
-	assert.Equal(t, []string{"MK-A", "MK-D", "MK-H", "MK-I"}, printedBlocking, "the prompt's blocking rows")
-	assert.Equal(t, printedBlocking, blocking, "the prompt and --check read one set")
-	assert.Equal(t, []string{"MK-E"}, printedOther, "a medium is carried and blocks nothing")
+	assert.Equal(t, []string{"MK-A", "MK-D", "MK-H", "MK-I", "MK-K"}, printedBlocking,
+		"the prompt's blocking rows; K keeps its high, not its later low")
+	assert.Equal(t, []string{"MK-E"}, markersOf(otherLines), "a medium is carried and blocks nothing")
+	assert.Equal(t, []string{"MK-B", "MK-G", "MK-J"}, printedFixed, "the fixes shown for a round to verify")
+	assert.Equal(t, float64(len(printedBlocking)+2), out["carried_blocking"],
+		"the count is the prompt's unresolved blocking rows and G and J, the two fixes no round has read")
+	assert.Equal(t, float64(2), out["carried_fixed_unverified"])
+	assert.Equal(t, []string{"MK-A", "MK-D", "MK-H", "MK-J"}, listed,
+		"--status lists the blocking rows of rounds before the latest: not G, I or K")
+	assert.Equal(t, "fixed-unverified", states["MK-J"])
+	assert.Equal(t, "unresolved", states["MK-A"])
 }
 
 // TestCarriedBlocking_AnEpochPastABlockingRowIsTheOperators: --rewritten whose
