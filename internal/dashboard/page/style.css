@@ -556,11 +556,11 @@ body.dopen:not([data-tab="epics"]) { padding: 0; }
 /* The graph card (spec/backlog/dashboard-graph.md): one deck.gl canvas for
    the plan, the milestones, a gate closure and a neighbourhood. A blocked
    epic is drawn in a muted red so the ready and held epics stand out. */
-:root { --g-claimed: #b7791f; --g-specced: #0f8b8d; --g-inprog: #b4489a; --g-anc: #2563eb; --g-desc: #2f8a5b; --g-back: #8b5cf6; --g-blocked: #b07a72; }
+:root { --g-claimed: #b7791f; --g-specced: #0f8b8d; --g-inprog: #b4489a; --g-anc: #2563eb; --g-desc: #2f8a5b; --g-back: #8b5cf6; --g-blocked: #b07a72; --g-waiting: #8c9ac4; }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { --g-claimed: #e0a93a; --g-specced: #3cc7c9; --g-inprog: #e07ac8; --g-anc: #6ea0ff; --g-desc: #46b07a; --g-back: #b69cff; --g-blocked: #a8746c; }
+  :root:not([data-theme="light"]) { --g-claimed: #e0a93a; --g-specced: #3cc7c9; --g-inprog: #e07ac8; --g-anc: #6ea0ff; --g-desc: #46b07a; --g-back: #b69cff; --g-blocked: #a8746c; --g-waiting: #56688f; }
 }
-:root[data-theme="dark"] { --g-claimed: #e0a93a; --g-specced: #3cc7c9; --g-inprog: #e07ac8; --g-anc: #6ea0ff; --g-desc: #46b07a; --g-back: #b69cff; --g-blocked: #a8746c; }
+:root[data-theme="dark"] { --g-claimed: #e0a93a; --g-specced: #3cc7c9; --g-inprog: #e07ac8; --g-anc: #6ea0ff; --g-desc: #46b07a; --g-back: #b69cff; --g-blocked: #a8746c; --g-waiting: #56688f; }
 .gcanvas { height: min(78vh, 820px); background-image: none; cursor: default; }
 .gcanvas canvas { outline: none; }
 .gcanvas:focus-visible { outline: 2px solid var(--color-focus); outline-offset: -2px; }

@@ -561,7 +561,7 @@
   // stand out, 0.32 for the rest.
   P.GRAPH_MARKS = [
     ["done", "--done"], ["in_progress", "--g-inprog"], ["specced", "--g-specced"], ["claimed", "--g-claimed"],
-    ["ready", "--ready"], ["blocked", "--g-blocked"], ["held", "--held"], ["waiting", "--waiting"], ["moot", "--moot"],
+    ["ready", "--ready"], ["blocked", "--g-blocked"], ["held", "--held"], ["waiting", "--g-waiting"], ["moot", "--moot"],
   ];
   const FILL_SHARE = { ready: 0.5, held: 0.5, waiting: 0.55, moot: 0.55 };
   // GRAPH_TOKENS are every token graphPalette reads.
