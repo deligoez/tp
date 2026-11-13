@@ -643,6 +643,17 @@
     ["ready", "--ready"], ["blocked", "--g-blocked"], ["held", "--held"], ["waiting", "--g-waiting"], ["moot", "--moot"],
   ];
   const FILL_SHARE = { ready: 0.5, held: 0.5, waiting: 0.55, moot: 0.55 };
+  // markToken is the colour token a mark is drawn in on the graph, the muted
+  // ink for a mark the graph does not draw.
+  P.markToken = function (mark) {
+    const m = P.GRAPH_MARKS.find(([k]) => k === mark);
+    return m ? m[1] : "--muted";
+  };
+  // foldAt is a list as the rows shown and the rows folded away: its first
+  // n, the rest folded, unless only one row would be folded, which shows.
+  P.foldAt = function (list, n) {
+    return list.length <= n + 1 ? [list, []] : [list.slice(0, n), list.slice(n)];
+  };
   // GRAPH_TOKENS are every token graphPalette reads.
   P.GRAPH_TOKENS = ["--sunk", "--surface", "--ink", "--muted", "--line", "--accent", "--crit", "--g-back", "--g-anc", "--g-desc", "--color-paper-3"]
     .concat(P.GRAPH_MARKS.map((m) => m[1]));
