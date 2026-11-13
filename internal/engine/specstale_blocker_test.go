@@ -59,3 +59,35 @@ func TestSpecStaleBlocker_InFlightOverTheCurrentTextNamesTheRecordAlone(t *testi
 	assert.NotContains(t, b.Data, "operator")
 	assert.Contains(t, b.Message, "review round 3 is in flight over the current text")
 }
+
+// TestSpecStaleBlocker_AtTheReviewCapNamesTheRaiseAsTheOperators: with the
+// review budget spent, the emission exits 4, so it is no command for the
+// agent; it is named under operator with the decision raising the cap maps
+// to, raise-review-cap.
+func TestSpecStaleBlocker_AtTheReviewCapNamesTheRaiseAsTheOperators(t *testing.T) {
+	t.Parallel()
+	b := builtSpecStale(t, &BlockerInputs{ReviewRounds: 3, ReviewMaxRounds: 3})
+	assert.Equal(t, []string{}, b.Data["commands"])
+	assert.Equal(t, map[string]any{
+		"decision": EscalateRaiseReviewCap,
+		"commands": []string{"tp review spec.md", "tp review spec.md --record <file>"},
+	}, b.Data["operator"])
+	assert.Contains(t, b.Message, "3-round cap")
+	assert.Contains(t, b.Message, "operator's decision (raise-review-cap)")
+
+	under := builtSpecStale(t, &BlockerInputs{ReviewRounds: 2, ReviewMaxRounds: 3})
+	assert.Equal(t, []string{"tp review spec.md", "tp review spec.md --record <file>"}, under.Data["commands"])
+	assert.NotContains(t, under.Data, "operator")
+}
+
+// TestSpecStaleBlocker_AtTheCapAfterTheRecordNamesTheRecordAlone: a round in
+// flight over the old text whose record spends the budget leaves the record
+// as the agent's only command, since the emission after it would exit 4; its
+// discard stays the operator's way to a round over the new text within the cap.
+func TestSpecStaleBlocker_AtTheCapAfterTheRecordNamesTheRecordAlone(t *testing.T) {
+	t.Parallel()
+	b := builtSpecStale(t, &BlockerInputs{ReviewRounds: 2, ReviewMaxRounds: 3, ReviewInFlightRound: 3, ReviewInFlightOverOldText: true})
+	assert.Equal(t, []string{"tp review spec.md --record <file>"}, b.Data["commands"])
+	assert.Equal(t, EscalateDiscardEmission, b.Data["operator"].(map[string]any)["decision"])
+	assert.Contains(t, b.Message, "3-round cap")
+}
