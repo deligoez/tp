@@ -20,11 +20,15 @@ type LayoutPlace struct {
 }
 
 // LayoutBand is one band of a banded layout: the layers From to To,
-// inclusive, that hold the nodes of the band Name.
+// inclusive, that hold the nodes of the band Name and of the bands With.
+// With is empty unless bands depend on each other in a cycle, through
+// different nodes: those bands share one span, Name the first of them in
+// the given order and With the rest.
 type LayoutBand struct {
-	Name string `json:"milestone"`
-	From int    `json:"from_layer"`
-	To   int    `json:"to_layer"`
+	Name string   `json:"milestone"`
+	With []string `json:"with,omitempty"`
+	From int      `json:"from_layer"`
+	To   int      `json:"to_layer"`
 }
 
 // Layout is a layered layout (spec/backlog/dashboard-ux.md §2): each node's
@@ -44,10 +48,11 @@ const layoutSweeps = 4
 // an edge naming an id not in ids is ignored. With bands nil every node
 // shares one band; otherwise bandOf names each node's band, and the bands
 // become runs of consecutive layers in dependency order, bands breaking a
-// tie or a cycle in the order given. Inside a band a node's layer is its
-// longest path from the band's sources over the band's own edges. Each
-// layer is then ordered by layoutSweeps barycenter sweeps, ties broken by
-// file order, so one input always lays out alike.
+// tie in the order given. Bands that depend on each other in a cycle,
+// through different nodes, share one run, so no edge points back. Inside a
+// run a node's layer is its longest path from the run's sources over the
+// run's own edges. Each layer is then ordered by layoutSweeps barycenter
+// sweeps, ties broken by file order, so one input always lays out alike.
 func LayeredLayout(ids []string, edges []LayoutEdge, bands []string, bandOf map[string]string) Layout {
 	file := make(map[string]int, len(ids))
 	for i, id := range ids {
@@ -65,7 +70,7 @@ func LayeredLayout(ids []string, edges []LayoutEdge, bands []string, bandOf map[
 		bands, bandOf = []string{""}, map[string]string{}
 	}
 	out := Layout{Places: make(map[string]LayoutPlace, len(ids))}
-	layer, spans := bandLayers(ids, kept, bandOrder(bands, bandOf, kept), bandOf)
+	layer, spans := bandLayers(ids, kept, bandRuns(bands, bandOf, kept), bandOf)
 	for _, s := range spans {
 		if s.Name != "" || len(spans) > 1 {
 			out.Bands = append(out.Bands, s)
@@ -80,83 +85,179 @@ func LayeredLayout(ids []string, edges []LayoutEdge, bands []string, bandOf map[
 	return out
 }
 
-// bandOrder sorts bands so a band follows every band it depends on through
-// edges: Kahn's order, the earliest given band first among the ready ones,
-// and the earliest given band left when a cycle leaves none ready.
-func bandOrder(bands []string, bandOf map[string]string, edges []LayoutEdge) []string {
-	after := map[string]map[string]bool{}
-	for _, e := range edges {
-		from, to := bandOf[e.From], bandOf[e.To]
-		if from != to {
-			if after[to] == nil {
-				after[to] = map[string]bool{}
+// bandRuns groups bands into runs of layers and orders them: bands that
+// reach each other through edges, a cycle of the band graph, make one run,
+// listed in the given order; a run follows every run it depends on, the
+// run holding the earliest given band first among the ready ones.
+func bandRuns(bands []string, bandOf map[string]string, edges []LayoutEdge) [][]string {
+	next := bandEdges(bands, bandOf, edges)
+	run, count := bandComponents(next)
+	after := make([][]bool, count)
+	for r := range after {
+		after[r] = make([]bool, count)
+	}
+	for a := range next {
+		for b, on := range next[a] {
+			if on && run[a] != run[b] {
+				after[run[b]][run[a]] = true
 			}
-			after[to][from] = true
 		}
 	}
-	placed := map[string]bool{}
-	out := make([]string, 0, len(bands))
-	for len(out) < len(bands) {
-		next := ""
-		for _, b := range bands {
-			if !placed[b] && readyBand(after[b], placed) {
-				next = b
-				break
+	out := make([][]string, 0, count)
+	for _, r := range runOrder(after) {
+		var members []string
+		for i, b := range bands {
+			if run[i] == r {
+				members = append(members, b)
 			}
 		}
-		if next == "" {
-			next = bands[slices.IndexFunc(bands, func(b string) bool { return !placed[b] })]
-		}
-		placed[next] = true
-		out = append(out, next)
+		out = append(out, members)
 	}
 	return out
 }
 
-// readyBand reports whether every band of deps is placed.
-func readyBand(deps, placed map[string]bool) bool {
-	for d := range deps {
-		if !placed[d] {
+// bandEdges is the band graph: next[i][j] when an edge runs from a node of
+// bands[i] to one of bands[j], another band.
+func bandEdges(bands []string, bandOf map[string]string, edges []LayoutEdge) [][]bool {
+	index := make(map[string]int, len(bands))
+	for i, b := range bands {
+		if _, ok := index[b]; !ok {
+			index[b] = i
+		}
+	}
+	next := make([][]bool, len(bands))
+	for i := range next {
+		next[i] = make([]bool, len(bands))
+	}
+	for _, e := range edges {
+		from, okFrom := index[bandOf[e.From]]
+		to, okTo := index[bandOf[e.To]]
+		if okFrom && okTo && from != to {
+			next[from][to] = true
+		}
+	}
+	return next
+}
+
+// bandComponents numbers the strongly connected components of the band
+// graph next in the order of their first band, returning each band's
+// component and their count.
+func bandComponents(next [][]bool) ([]int, int) {
+	reach := reachability(next)
+	comp := slices.Repeat([]int{-1}, len(next))
+	count := 0
+	for i := range next {
+		if comp[i] >= 0 {
+			continue
+		}
+		for j := i; j < len(next); j++ {
+			if reach[i][j] && reach[j][i] {
+				comp[j] = count
+			}
+		}
+		count++
+	}
+	return comp, count
+}
+
+// reachability is next's reflexive transitive closure.
+func reachability(next [][]bool) [][]bool {
+	reach := make([][]bool, len(next))
+	for i := range next {
+		reach[i] = slices.Clone(next[i])
+		reach[i][i] = true
+	}
+	for k := range reach {
+		for i := range reach {
+			if !reach[i][k] {
+				continue
+			}
+			for j := range reach {
+				reach[i][j] = reach[i][j] || reach[k][j]
+			}
+		}
+	}
+	return reach
+}
+
+// runOrder is Kahn's order over runs, after[r][s] saying r follows s, the
+// lowest-numbered ready run first; after is acyclic, so one is always ready.
+func runOrder(after [][]bool) []int {
+	placed := make([]bool, len(after))
+	out := make([]int, 0, len(after))
+	for len(out) < len(after) {
+		for r := range after {
+			if !placed[r] && readyRun(after[r], placed) {
+				placed[r] = true
+				out = append(out, r)
+				break
+			}
+		}
+	}
+	return out
+}
+
+// readyRun reports whether every run deps marks is placed.
+func readyRun(deps, placed []bool) bool {
+	for s, d := range deps {
+		if d && !placed[s] {
 			return false
 		}
 	}
 	return true
 }
 
-// bandLayers gives each node its layer: its band's first layer plus its
-// longest path inside the band, the bands laid end to end in order.
-func bandLayers(ids []string, edges []LayoutEdge, order []string, bandOf map[string]string) (map[string]int, []LayoutBand) {
-	local := longestPaths(ids, edges, bandOf)
-	width := map[string]int{}
-	for _, id := range ids {
-		width[bandOf[id]] = max(width[bandOf[id]], local[id]+1)
+// bandLayers gives each node its layer: its run's first layer plus its
+// longest path inside the run, the runs laid end to end in order. A run's
+// span names the bands of it that hold a node.
+func bandLayers(ids []string, edges []LayoutEdge, runs [][]string, bandOf map[string]string) (map[string]int, []LayoutBand) {
+	runOfBand := map[string]int{}
+	for r, members := range runs {
+		for _, b := range members {
+			runOfBand[b] = r
+		}
 	}
-	start := map[string]int{}
-	spans := make([]LayoutBand, 0, len(order))
+	runOf := make(map[string]int, len(ids))
+	held := map[string]bool{}
+	for _, id := range ids {
+		runOf[id], held[bandOf[id]] = runOfBand[bandOf[id]], true
+	}
+	local := longestPaths(ids, edges, runOf)
+	width := make([]int, len(runs))
+	for _, id := range ids {
+		width[runOf[id]] = max(width[runOf[id]], local[id]+1)
+	}
+	start := make([]int, len(runs))
+	spans := make([]LayoutBand, 0, len(runs))
 	next := 0
-	for _, b := range order {
-		if width[b] == 0 {
+	for r, members := range runs {
+		if width[r] == 0 {
 			continue
 		}
-		start[b] = next
-		spans = append(spans, LayoutBand{Name: b, From: next, To: next + width[b] - 1})
-		next += width[b]
+		named := slices.DeleteFunc(slices.Clone(members), func(b string) bool { return !held[b] })
+		span := LayoutBand{Name: named[0], From: next, To: next + width[r] - 1}
+		if len(named) > 1 {
+			span.With = named[1:]
+		}
+		start[r] = next
+		spans = append(spans, span)
+		next += width[r]
 	}
 	layer := make(map[string]int, len(ids))
 	for _, id := range ids {
-		layer[id] = start[bandOf[id]] + local[id]
+		layer[id] = start[runOf[id]] + local[id]
 	}
 	return layer, spans
 }
 
 // longestPaths is each node's longest path from a source over the edges
-// whose two ends share a band, in Kahn's order; a node on a cycle, which a
+// whose two ends share a run, in Kahn's order; a node on a cycle, which a
 // linted graph has none of, keeps the depth it reached.
-func longestPaths(ids []string, edges []LayoutEdge, bandOf map[string]string) map[string]int {
+func longestPaths(ids []string, edges []LayoutEdge, runOf map[string]int) map[string]int {
 	preds := map[string]int{}
 	next := map[string][]string{}
 	for _, e := range edges {
-		if bandOf[e.From] == bandOf[e.To] {
+		if runOf[e.From] == runOf[e.To] {
 			preds[e.To]++
 			next[e.From] = append(next[e.From], e.To)
 		}
