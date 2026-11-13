@@ -24,3 +24,20 @@ func TestPage_TheDrawerIsAnOverlayOverADimmedPage(t *testing.T) {
 	}
 }
 
+// TestPage_TheFirstFitInFullScreenRefitsAndANoteCloses is the review's H1,
+// L1 and M3: the first fit a layout opens with counts as a fit, so full
+// screen refits it; the refit follows the canvas's size, read after the
+// window grew; and leaving or entering full screen closes an open note,
+// whose Esc the browser takes.
+func TestPage_TheFirstFitInFullScreenRefitsAndANoteCloses(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, s := range []string{
+		"G.vs = fitView();\n        G.atFit = true;", "G.atFit = false;\n          }",
+		"new ResizeObserver(() => { if (G.prepared && G.deck && G.atFit) fit(); }).observe($(\"gc-canvas\"));",
+		`document.addEventListener("fullscreenchange", () => { closeInfo(); `,
+	} {
+		assert.Contains(t, script, s)
+	}
+}
+
