@@ -238,7 +238,7 @@ func TestPage_DrawsTheLifecycleChartFromTheSeries(t *testing.T) {
 		keys = append(keys, b[0])
 	}
 	assert.Equal(t, []string{"done", "in_progress", "specced", "claimed", "unknown"}, keys)
-	assert.Contains(t, script, "planning time is not recorded, so an epic added to the graph later counts as planned from the chart's first day")
+	assert.Contains(t, script, "Planning time is not recorded, so an epic added later counts as planned from the chart's first day")
 }
 
 // untk reads a table of tk("key") marks as the JSON of its keys.
