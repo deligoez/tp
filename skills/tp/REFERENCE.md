@@ -2296,8 +2296,9 @@ be read answers as `tp epic export` exits.
 
 The answer is `{view, milestone?, epic?, depth?, layers, bands?, nodes, edges}`: `milestone` for
 `scope`, `epic` and the clamped `depth` for `neighbourhood`; `layers` the number of layers;
-`bands`, for `scope` only, `[{milestone, from_layer, to_layer}]`, each milestone of the closure a
-run of consecutive layers, in dependency order. `nodes` lists each node by layer, then order:
+`bands`, for `scope` only, `[{milestone, with?, from_layer, to_layer}]`, each milestone of the
+closure a run of consecutive layers, in dependency order, `with` listing the milestones that share
+the run (below). `nodes` lists each node by layer, then order:
 `{id, layer, order}`, both small integers from 0, plus, in `scope`, `deferrable` (`tp epic scope`'s
 closure mark; an epic's milestone is in `tp epic export`, its any-of group on its edges), in
 `neighbourhood` the epic's `milestone`, which the view has no band for, and `centre: true` on the
@@ -2310,8 +2311,13 @@ two consecutive epics of the critical path drawn (the scope's own, or the graph'
 
 A node's layer is its dependency depth: its longest path over the view's edges. In `scope` each
 band's layers come from the longest path among that band's own epics, the bands laid end to end so
-a band follows every band it depends on. Each layer is ordered by four barycenter sweeps, down, up,
-down, up, ties broken by graph-file order, so one graph always lays out alike.
+a band follows every band it depends on. Two milestones can depend on each other through different
+epics while the epic graph stays acyclic (an epic of A on one of B, another of B on another of A):
+no order of the two bands keeps every edge pointing forward, so milestones on such a cycle share one
+band, `with` naming the rest after the first in closure order, and its epics' layers come from the
+longest path over all their edges. Every edge runs from a lower layer to a higher one. Each layer is
+ordered by four barycenter sweeps, down, up, down, up, ties broken by graph-file order, so one graph
+always lays out alike.
 
 **The summary** is the page's own payload, figures no command prints; its keys are not a versioned
 contract:
