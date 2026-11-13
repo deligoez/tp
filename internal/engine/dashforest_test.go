@@ -74,6 +74,23 @@ func TestForestLayout_GoldenLanes(t *testing.T) {
 	}, ForestLayout(&in))
 }
 
+// TestForestLayout_GoldenRoots pins the forest's roots (decision 1 of
+// spec/backlog/dashboard-graph.md): a0 has no predecessor and b0's only
+// predecessors sit in another track, so both are roots, b0 packed in its
+// own group's columns, and both edges into b0 are cross edges.
+func TestForestLayout_GoldenRoots(t *testing.T) {
+	t.Parallel()
+	ids := []string{"a0", "a1", "b0"}
+	edges := []LayoutEdge{{"a0", "a1"}, {"a0", "b0"}, {"a1", "b0"}}
+	groupOf := map[string]string{"a0": "A", "a1": "A", "b0": "B"}
+	assert.Equal(t, Forest{
+		Layers:  3,
+		Columns: 5,
+		Roles:   []EdgeRole{RoleTree, RoleCross, RoleCross},
+		Places:  map[string]ForestPlace{"a0": {0, 0}, "a1": {1, 0}, "b0": {2, 4}},
+	}, ForestLayout(&ForestInput{IDs: ids, Edges: edges, GroupOf: groupOf, Pack: PackTree}))
+}
+
 // TestForestLayout_GoldenRowPacking pins the row packing: two groups of
 // one root and two children, seven tree columns wide with the group gap,
 // squeezed into the four columns of the fullest layer, each layer keeping
