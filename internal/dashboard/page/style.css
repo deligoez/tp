@@ -574,6 +574,8 @@ body.dopen:not([data-tab="epics"]) { padding: 0; }
 .chaintext .deeper { margin-top: var(--space-xs); }
 .chaintext .deeper summary { cursor: pointer; font-size: var(--text-sm); color: var(--ink-2); }
 .theme { min-height: 30px; }
+.theme button { display: inline-flex; align-items: center; gap: 5px; }
+.ti { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
 .gcard .legend [data-lwhole] { border: 1px solid var(--color-rule-2); }
 .gcard .legend [data-lwhole][aria-pressed="false"] { opacity: 1; text-decoration: none; }
 .gcard .legend [data-lwhole][aria-pressed="true"] { background: var(--accent); color: var(--color-accent-ink); }
