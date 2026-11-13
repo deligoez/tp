@@ -122,6 +122,26 @@ func TestAuditCarry_AFixedRowIsNeverCarried(t *testing.T) {
 	assert.NotContains(t, carriedRow(t, dir, 2), "resolved", "a fixed disposition is not carried")
 }
 
+// TestAuditCarry_AnAcceptanceCarriesAcrossAnEmptyRound: the acceptance is
+// read from the item's latest graded row, not only from the round before:
+// round 2 records nothing, and round 3's re-recorded FAIL still carries round
+// 1's acceptance, so the accepted row neither dirties round 3 nor blocks
+// (spec/backlog/audit-carried-fail-blocks.md §2.3).
+func TestAuditCarry_AnAcceptanceCarriesAcrossAnEmptyRound(t *testing.T) {
+	t.Parallel()
+	dir := carryRepo(t, "2021-01-01T00:00:00Z", carryFailRow, carryWontfix)
+	_, stderr, code := auditRecord(t, dir, "")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	out, stderr, code := auditRecord(t, dir, carryFailRow)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.Equal(t, true, out["clean"], "the carried acceptance leaves round 3 clean")
+	assert.Equal(t, float64(1), out["carried"])
+	resolved, ok := carriedRow(t, dir, 3)["resolved"].(map[string]any)
+	require.True(t, ok, "round 3's row carries the disposition")
+	assert.Equal(t, float64(1), resolved["carried_from"], "carried_from still names round 1")
+}
+
 // TestAuditCarry_TheCarryIsNotFencedUnattended: the carry re-applies the
 // operator's earlier acceptance and writes no new one, so under TP_UNATTENDED
 // it still carries and --record exits 0 — the accept-finding fence belongs to
