@@ -21,6 +21,19 @@ type Payload struct {
 	Err   *Error
 }
 
+// DeriveConcurrently runs every derivation at once and returns their
+// payloads in the order given, so a cold stream waits for the slowest one
+// rather than for their sum, and a page still reads them in that order.
+func DeriveConcurrently(derivations ...func() Payload) []Payload {
+	out := make([]Payload, len(derivations))
+	var wg sync.WaitGroup
+	for i, derive := range derivations {
+		wg.Go(func() { out[i] = derive() })
+	}
+	wg.Wait()
+	return out
+}
+
 // subscriberBuffer is how many events a page may fall behind by before the
 // server drops it; its EventSource reconnects and gets the current state.
 const subscriberBuffer = 32
