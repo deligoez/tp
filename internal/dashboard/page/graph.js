@@ -689,7 +689,8 @@
     showMatches();
     render();
   });
-  // Enter selects the next match and centres it; Esc clears the search.
+  // Enter selects the next match and centres it, Shift+Enter the previous,
+  // focus staying here so Enter steps on; Esc clears the search.
   $("gc-q").addEventListener("keydown", (ev) => {
     const P = G.prepared;
     if (ev.key === "Escape") {
@@ -707,10 +708,10 @@
     const hits = [...(matches(P) || [])];
     if (!hits.length) return;
     ev.preventDefault();
-    G.matchIdx = (G.matchIdx + 1) % hits.length;
+    G.matchIdx = pure.stepMatch(hits.length, G.matchIdx, ev.shiftKey);
     const n = P.nodes[hits[G.matchIdx]];
     flyTo(n);
-    if (P.L.view !== "milestones" && n.id !== app.selected()) app.selectEpic(n.id);
+    if (P.L.view !== "milestones" && n.id !== app.selected()) app.selectEpic(n.id, false, true);
   });
   // "/" reaches the graph's search while the card is on screen, ahead of
   // the page's own "/" for the Specs filter, so it listens in the capture
