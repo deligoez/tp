@@ -106,3 +106,13 @@ const count = (v) => { const s = P.edgeLayers(links, v); return [s.cross.length,
 out([count({ showCross: true, hidden: [] }), count({ showCross: false, hidden: [] }), count({ showCross: false, hidden: [], own: (l) => !!l.mine })]);`)
 	assert.JSONEq(t, `[[2, 1, 2, 1, 1, 7], [0, 1, 2, 1, 1, 5], [1, 1, 2, 1, 1, 6]]`, got)
 }
+
+// TestPure_TheLegendCardStartsCollapsedInFullScreenAndKeepsTheChoice: the
+// legend and keys card is open on the page and collapsed in full screen
+// until the viewer chooses, and each place keeps its own choice ("1" open,
+// "0" collapsed); anything else stored reads as no choice.
+func TestPure_TheLegendCardStartsCollapsedInFullScreenAndKeepsTheChoice(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([P.legendOpen(null, false), P.legendOpen(null, true), P.legendOpen("1", true), P.legendOpen("0", false), P.legendOpen("yes", true), P.legendKey(false), P.legendKey(true)]);`)
+	assert.JSONEq(t, `[true, false, true, false, false, "tp-dashboard-legend", "tp-dashboard-legend-fs"]`, got)
+}
