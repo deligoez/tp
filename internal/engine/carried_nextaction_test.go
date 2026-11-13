@@ -25,3 +25,14 @@ func TestReviewNextAction_LatestRoundBranchesCountTheCarriedRows(t *testing.T) {
 	assert.Contains(t, open, "1 carried blocking finding from earlier rounds")
 }
 
+// TestReviewNextAction_TheCarriedCommandEndsItsClause: the row's aside comes
+// before the command, and the clause ends right after "<evidence>".
+func TestReviewNextAction_TheCarriedCommandEndsItsClause(t *testing.T) {
+	t.Parallel()
+	next := ReviewNextAction("spec.md", LoopDone{CarriedBlocking: []CarriedRow{earlierHigh()}}, false, nil, "r3.ndjson", CheckVerdict{})
+	aside := strings.Index(next, "high §2 in round 1")
+	cmd := strings.Index(next, "tp review .tp-review/spec/review-round-1.ndjson --resolve 0 fixed|wontfix|duplicate \"<evidence>\";")
+	assert.Positive(t, aside, next)
+	assert.Greater(t, cmd, aside, "the aside precedes the command: %s", next)
+}
+
