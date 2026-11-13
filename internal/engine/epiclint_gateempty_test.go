@@ -32,7 +32,7 @@ func TestLintEpicGraph_GateEmptyWarnsWhenAMilestoneOpensAfterIt(t *testing.T) {
 	assert.Equal(t, EpicSeverityWarning, found[0].Severity)
 	assert.Equal(t, []string{"trigger"}, found[0].Epics)
 	assert.Equal(t, []string{"TG"}, found[0].Names)
-	assert.Contains(t, found[0].Message, `"T1"`)
+	assert.Contains(t, found[0].Message, `"T1" opens after it`)
 }
 
 // TestLintEpicGraph_GateEmptySkipsAThresholdOrMembers: a threshold holds
