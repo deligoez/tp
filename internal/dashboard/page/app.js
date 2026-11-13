@@ -172,13 +172,18 @@
     }).join("");
   }
 
+  // totalsOf is the one totals sentence (tpPure.epicTotals) of the export
+  // g, which the tab, the share card and the Lifecycle all show; empty
+  // without a graph.
+  const totalsOf = (g) => (g && Array.isArray(g.epics) ? tpPure.epicTotals(g.epics) : "");
+
   // The tab labels name what each tab holds, with its unit.
   panel(["epic-export", "export-list"], () => {
     const g = data("epic-export");
     $("c-epics").textContent = g && Array.isArray(g.epics) ? plural(g.epics.length, "epic", "epics") : state.tab && !state.graph ? "no graph" : "";
     // The tab counts every epic, the share and the Lifecycle work epics:
     // one sentence names the conditions between them wherever both show.
-    const totals = g && Array.isArray(g.epics) ? tpPure.epicTotals(g.epics) : "";
+    const totals = totalsOf(g);
     $("tab-epics").title = totals;
     $("totals").textContent = totals ? totals + "." : "";
     $("totals").hidden = !totals;
@@ -396,7 +401,7 @@
     // The plan's queue, plus the bound specs' escalations the task file list
     // carries (§7), so the figure counts the rows the list draws.
     const queue = f.operator_queue + escalationRows().length;
-    const totals = tpPure.epicTotals(v.g.epics);
+    const totals = totalsOf(v.g);
     $("kpis").innerHTML = [
       kpi("share", Math.round(f.share_done * 100) + "%<small> " + esc(f.done) + " of " + esc(f.work) + "</small>", "share of work epics done", "", totals),
       kpi("ready", esc(f.ready), "ready epics"),
