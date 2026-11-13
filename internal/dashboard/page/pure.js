@@ -120,6 +120,21 @@
     return best;
   };
 
+  // markState is the mark an epic of the export takes, closed saying its
+  // milestone is not open: done or its stage after planned (claimed,
+  // specced, in_progress) straight from the status field, so every place
+  // names a stage as the Lifecycle counts it; a planned epic's mark says
+  // what holds it: moot, held by a condition, blocked, its milestone closed,
+  // else ready.
+  P.markState = function (e, closed) {
+    if (e.status && e.status !== "planned") return e.status;
+    if (e.moot) return "moot";
+    if (e.held) return "held";
+    if (e.blocked) return "blocked";
+    if (closed) return "waiting";
+    return "ready";
+  };
+
   // BLOCKER_RANK orders a blocker's states from the readiest; an any-of
   // group takes its readiest member's.
   const BLOCKER_RANK = ["startable", "in_progress", "specced", "claimed", "decision", "waiting"];

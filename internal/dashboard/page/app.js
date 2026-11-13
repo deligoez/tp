@@ -759,8 +759,11 @@
   // those into coordinates and places nothing by any rule of its own.
   const MAP = { boxW: 178, rowH: 18, head: 34, padB: 12, colGap: 40, slotGap: 14, laneGap: 22, left: 92, top: 14 };
   const LANE_LABEL = { main: "Main", parallel: "Parallel", triggered: "Triggered" };
-  const MARK_LABEL = { done: "done", ready: "can start", active: "claimed or under way", blocked: "blocked", held: "held by a condition", waiting: "milestone closed", moot: "moot" };
-  const MARKS = ["done", "ready", "active", "blocked", "held", "waiting", "moot"];
+  const MARK_LABEL = { done: "done", ready: "can start", claimed: "claimed", specced: "specced", in_progress: "in progress", blocked: "blocked", held: "held by a condition", waiting: "milestone closed", moot: "moot" };
+  const MARKS = ["done", "in_progress", "specced", "claimed", "ready", "blocked", "held", "waiting", "moot"];
+  // UNDER_WAY are the stages after planned, each with its own shape in the
+  // colour of work under way.
+  const UNDER_WAY = ["claimed", "specced", "in_progress"];
   const mapView = { selected: null, focus: null, edges: false, nb: false, tracks: new Set(), geo: null, deps: {}, dependents: {}, byId: {}, q: "", stage: null };
   // NB_DIR names the two directions the neighbours filter marks an edge with:
   // in, from an epic the selected one depends on; out, to an epic depending
@@ -830,21 +833,14 @@
     return { ms, byMs, lanes, pos, placed, W: x, H: y };
   }
 
-  // markState reads an epic's mark from what the export says of it.
-  function markState(e, ms) {
-    if (e.status === "done") return "done";
-    if (e.moot) return "moot";
-    if (e.held) return "held";
-    if (e.blocked) return "blocked";
-    if (ms && ms.report && !ms.report.open) return "waiting";
-    if (e.status !== "planned") return "active";
-    return "ready";
-  }
+  // markOf reads an epic's mark (tpPure.markState) given its milestone's
+  // report from the export.
+  const markOf = (e, report) => tpPure.markState(e, !!report && !report.open);
 
   // mark draws one state: a circle for a work epic, a diamond for a
   // condition, and a shape inside for every state, so colour is never alone.
   function mark(cond, s, x, y, r) {
-    const c = "var(--" + s + ")";
+    const c = "var(--" + (UNDER_WAY.includes(s) ? "active" : s) + ")";
     const shape = (fill, stroke, dash) => (cond
       ? '<path d="M' + x + " " + (y - r - 1) + "L" + (x + r + 1) + " " + y + "L" + x + " " + (y + r + 1) + "L" + (x - r - 1) + " " + y + 'Z"'
       : '<circle cx="' + x + '" cy="' + y + '" r="' + r + '"') +
@@ -852,7 +848,9 @@
     switch (s) {
       case "done": return shape(c, c);
       case "ready": return '<circle cx="' + x + '" cy="' + y + '" r="' + (r + 2.8) + '" fill="none" stroke="' + c + '" stroke-width="1" opacity=".55"/>' + shape(c, c);
-      case "active": return shape("var(--surface)", c) + '<circle cx="' + x + '" cy="' + y + '" r="' + (r - 2.3) + '" fill="' + c + '"/>';
+      case "claimed": return shape("var(--surface)", c) + '<circle cx="' + x + '" cy="' + y + '" r="' + (r - 2.3) + '" fill="' + c + '"/>';
+      case "specced": return shape("var(--surface)", c) + '<rect x="' + (x - 2) + '" y="' + (y - 2) + '" width="4" height="4" fill="' + c + '"/>';
+      case "in_progress": return shape("var(--surface)", c) + '<path d="M' + x + " " + (y - r) + "A" + r + " " + r + " 0 0 1 " + x + " " + (y + r) + 'Z" fill="' + c + '"/>';
       case "blocked": return shape(c, c) + '<path d="M' + (x - r + 1.6) + " " + (y + r - 1.6) + "L" + (x + r - 1.6) + " " + (y - r + 1.6) + '" stroke="var(--surface)" stroke-width="1.6"/>';
       case "held": return shape(c, c) + '<rect x="' + (x - 2.3) + '" y="' + (y - 2.5) + '" width="1.5" height="5" fill="var(--surface)"/><rect x="' + (x + 0.8) + '" y="' + (y - 2.5) + '" width="1.5" height="5" fill="var(--surface)"/>';
       case "moot": return shape("none", "var(--moot)", "1.2 1.6");
@@ -1000,8 +998,8 @@
     const stops = tpPure.tabStops(geo.placed.map((e) => e.id), mapView.focus);
     geo.placed.forEach((e, i) => {
       const p = geo.pos[e.id];
-      const s = markState(e, geo.byMs[e.milestone]);
-      out.push('<g class="node' + (shown(e) ? "" : " dim") + '" data-id="' + esc(e.id) + '" role="button" tabindex="' + stops[i] +
+      const s = markOf(e, geo.byMs[e.milestone].report);
+      out.push('<g class="node' + (shown(e) ? "" : " dim") + '" data-id="' + esc(e.id) + '" data-status="' + esc(e.status) + '" role="button" tabindex="' + stops[i] +
         '" aria-label="' + esc(e.id + ": " + e.title + ", " + MARK_LABEL[s]) + '"' + (e.id === sel ? ' aria-pressed="true"' : "") + ">" +
         (e.id === sel ? '<circle cx="' + p.x + '" cy="' + p.y + '" r="10" fill="none" stroke="var(--accent)" stroke-width="2.2"/>' : "") +
         mark(e.condition, s, p.x, p.y, 4.8) + '<text class="eid" x="' + (p.x + 12) + '" y="' + (p.y + 4) + '">' + esc(clip(e.id, 19)) + "</text>" +
@@ -1257,9 +1255,9 @@
     if (!e && !edge) { tip.hidden = true; return; }
     if (edge) tip.innerHTML = edgeTip(edge.dataset);
     else {
-      const s = markState(e, mapView.geo.byMs[e.milestone]);
+      const s = markOf(e, mapView.geo.byMs[e.milestone].report);
       tip.innerHTML = '<span class="tid">' + esc(e.id) + ", milestone " + esc(e.milestone) + (e.condition ? ", condition" : "") + "</span><br>" + esc(e.title) +
-        "<br>" + esc(MARK_LABEL[s]) + ", " + esc(e.status.replace("_", " "));
+        "<br>" + esc(MARK_LABEL[s]) + (s === e.status ? "" : ", " + esc(e.status.replace("_", " ")));
     }
     tip.hidden = false;
     tip.style.left = Math.min(ev.clientX + 14, window.innerWidth - 310) + "px";
@@ -1499,7 +1497,7 @@
         '<text class="gsub" x="' + (p.x + 12) + '" y="' + (y + 56) + '">' + esc(plural(n.inbound, "epic edge", "epic edges") + " in") + "</text></g>";
     }
     const e = ctx.epics[n.id] || { id: n.id, status: "planned" };
-    const s = markState(e, { report: ctx.ms[e.milestone] });
+    const s = markOf(e, ctx.ms[e.milestone]);
     return '<g class="' + cls + '" data-id="' + esc(n.id) + '"' + tab + ' aria-label="' + esc(n.id + ": " + (e.title || "") + ", " + MARK_LABEL[s]) + '">' +
       (n.id === mapView.selected ? '<circle cx="' + p.x + '" cy="' + p.y + '" r="10" fill="none" stroke="var(--accent)" stroke-width="2.2"/>' : "") +
       mark(e.condition, s, p.x, p.y, 4.8) + lbgHTML(gLabelBox(p, n.id)) + '<text class="eid" x="' + (p.x + 12) + '" y="' + (p.y + 4) + '">' + esc(clip(n.id, 22)) + "</text>" +
