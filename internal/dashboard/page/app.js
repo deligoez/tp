@@ -1086,16 +1086,16 @@
       return { x: ev.clientX - r.left, y: ev.clientY - r.top };
     };
     el.addEventListener("pointerdown", (ev) => {
-      if (!v || (ev.button !== 0 && ev.pointerType !== "touch")) return;
-      if (ev.pointerType === "touch") {
-        fingers.set(ev.pointerId, inBox(ev));
-        if (fingers.size === 2) {
-          const [a, b] = [...fingers.values()];
-          pinch = { a, b, v: { ...v } };
-          drag = null;
-          moved = true;
-          return;
-        }
+      if (!v) return;
+      if (ev.pointerType === "touch") fingers.set(ev.pointerId, inBox(ev));
+      const act = tpPure.pointerAction(ev.pointerType === "touch" ? fingers.size : 0, ev);
+      if (act === "none") return;
+      if (act === "pinch") {
+        const [a, b] = [...fingers.values()];
+        pinch = { a, b, v: { ...v } };
+        drag = null;
+        moved = true;
+        return;
       }
       drag = { x: ev.clientX, y: ev.clientY, v: { ...v } };
       moved = false;
