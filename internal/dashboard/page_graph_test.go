@@ -99,7 +99,24 @@ func TestPure_BandLabelsNeverCollide(t *testing.T) {
 	t.Parallel()
 	got := runPure(t, `const box = (x, y, w, sw) => ({ x, y, w, h: 16, sw });
 out(P.placeLabels([box(100, 0, 100, 40), box(0, 0, 150, 60), box(40, 0, 100, 50), box(0, 40, 100, 40)]));`)
-	assert.JSONEq(t, `["full", "short", null, "full"]`, got)
+	assert.JSONEq(t, `[{"kind":"full","x":100,"y":0}, {"kind":"short","x":0,"y":0}, null, {"kind":"full","x":0,"y":40}]`, got)
+}
+
+// TestPure_ABandLabelNeverCoversANode: a label first tries its band's
+// top-left corner, then the strip just above the band, full and then short
+// at each; a node's box is an obstacle like a label already placed, and a
+// label with no free place is left out (the band's name still shows on
+// hover), never drawn over a node.
+func TestPure_ABandLabelNeverCoversANode(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const lab = (x, y, w, sw, above) => ({ x, y, w, h: 20, sw, alts: [{ x, y: above }] });
+const nodes = [{ x: 0, y: 0, w: 200, h: 28 }];
+out(P.placeLabels([
+  lab(0, 6, 120, 60, -24),
+  lab(300, 6, 120, 60, -24),
+  lab(0, 200, 120, 60, 170),
+], nodes.concat([{ x: 0, y: 160, w: 400, h: 70 }])));`)
+	assert.JSONEq(t, `[{"kind":"full","x":0,"y":-24}, {"kind":"full","x":300,"y":6}, null]`, got)
 }
 
 // TestPure_HopsCountTheStepsFromTheSelection: the highlight of a
