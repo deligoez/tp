@@ -133,16 +133,18 @@ func runReviewRegression(specPath, diffFrom, findingsPath string, q roleQuery) e
 }
 
 // collectFixedFindings returns findings with resolved.status == "fixed"
-// across recorded review rounds, newest first.
+// across the review rounds recorded after the newest epoch, newest first: a
+// fix to a text the spec no longer holds is no decision of the current one.
 func collectFixedFindings(specPath string, st *engine.ReviewState) []reviewFinding {
 	fixed := make([]reviewFinding, 0)
 	if st == nil {
 		return fixed
 	}
-	for i := len(st.ReviewRounds) - 1; i >= 0; i-- {
-		rows, found := engine.LoadRoundRows(specPath, &st.ReviewRounds[i])
+	rounds := engine.RoundsSinceEpoch(st, engine.PhaseReview)
+	for i := len(rounds) - 1; i >= 0; i-- {
+		rows, found := engine.LoadRoundRows(specPath, &rounds[i])
 		if !found {
-			output.Notice(fmt.Sprintf("round %d file %s is missing; skipping its rows", st.ReviewRounds[i].Round, st.ReviewRounds[i].File))
+			output.Notice(fmt.Sprintf("round %d file %s is missing; skipping its rows", rounds[i].Round, rounds[i].File))
 			continue
 		}
 		for _, row := range rows {
