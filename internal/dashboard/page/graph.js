@@ -51,7 +51,7 @@
   // most chars characters (tpPure.wrapId) of the fs-unit monospace font.
   const GEO = {
     epic: { w: 150, h: 28, col: 172, row: 40, fs: 11, chars: 20 },
-    milestone: { w: 200, h: 54, col: 240, row: 110, fs: 22, chars: 16 },
+    milestone: { w: 200, h: 54, col: 240, row: 110, fs: 22, chars: 14 },
   };
   // The neighbourhood opens no further out than this, where an epic's
   // 11-unit id reads at 12 pixels, its whole id drawn (tpPure.detailLevel).
