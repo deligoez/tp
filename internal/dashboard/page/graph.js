@@ -27,12 +27,14 @@
   const EDGE_TEXT = { tree: tk("graph.edge.tree"), cross: tk("graph.edge.cross"), back: tk("graph.edge.back"), critical: tk("graph.edge.critical"), any: tk("graph.edge.any") };
   const milestoneLabel = (n) => n.id + "  " + n.done + "/" + n.epics;
   const milestoneTitle = (n) => t("graph.msTitle", { state: n.open ? t("ms.open") : t("ms.closed"), done: n.done, n: n.epics, in: n.inbound });
-  // countLine is the count line under the toolbar: what the card drew and,
-  // for a gate closure or a neighbourhood, what it is drawn from.
+  // countLine is the count line under the toolbar, in full screen the
+  // toolbar's end: what the card drew and, for a gate closure or a
+  // neighbourhood, what it is drawn from. The layout's layers and columns
+  // and the renderer's load time stay in the card's data-* attributes.
   function countLine(P) {
     const L = P.L;
     const nodes = L.view === "milestones" ? t("graph.countMilestones", { n: P.nodes.length }) : t("count.epics", { n: P.nodes.length });
-    const line = t("graph.count", { nodes, edges: P.links.length, layers: L.layers, cols: L.columns });
+    const line = t("graph.count", { nodes, edges: P.links.length });
     if (L.view === "scope") return line + " " + t("graph.inClosure", { ms: L.milestone });
     if (L.view === "neighbourhood") return line + " " + t("graph.within", { depth: L.depth, epic: L.epic });
     return line;
@@ -45,29 +47,24 @@
   };
 
   // World geometry, one unit a screen pixel at zoom 0: an epic is a box of
-  // w by h, one column col wide, one layer row tall.
+  // w by h, one column col wide, one layer row tall, its id in lines of at
+  // most chars characters (tpPure.wrapId) of the fs-unit monospace font.
   const GEO = {
-    epic: { w: 150, h: 24, col: 172, row: 40, fs: 11 },
-    milestone: { w: 200, h: 54, col: 240, row: 110, fs: 22 },
+    epic: { w: 150, h: 28, col: 172, row: 40, fs: 11, chars: 20 },
+    milestone: { w: 200, h: 54, col: 240, row: 110, fs: 22, chars: 16 },
   };
-  // Below this on-screen glyph height ids are not drawn: boxes are blocks.
-  const MIN_TEXT_PX = 7;
   // The neighbourhood opens no further out than this, where an epic's
-  // 11-unit id reads at its full 11 pixels.
-  const NEAR_ZOOM = 0;
+  // 11-unit id reads at 12 pixels, its whole id drawn (tpPure.detailLevel).
+  const NEAR_ZOOM = 0.13;
   const CURVE = 10;
   // One arrow key pans this many screen pixels; + and − zoom by ZOOM_STEP.
   const PAN_PX = 90;
   // In full screen the toolbar floats over the canvas's top this tall.
   const FS_BAR_PX = 64;
   const ZOOM_STEP = 0.5;
-  // The marks in legend order, each with the colour token it is drawn in;
-  // a ready or held epic's box is filled stronger, so they stand out.
-  const MARKS = [
-    ["done", "--done"], ["in_progress", "--g-inprog"], ["specced", "--g-specced"], ["claimed", "--g-claimed"],
-    ["ready", "--ready"], ["blocked", "--g-blocked"], ["held", "--held"], ["waiting", "--waiting"], ["moot", "--moot"],
-  ];
-  const STRONG = { ready: 0.5, held: 0.5, waiting: 0.55, moot: 0.55 };
+  // The marks in legend order, each with the colour token it is drawn in
+  // (tpPure.GRAPH_MARKS).
+  const MARKS = pure.GRAPH_MARKS;
   const EDGE_CLASSES = ["tree", "cross", "back", "critical", "any"];
 
   const G = {
@@ -75,7 +72,7 @@
     hiddenMarks: new Set(), hiddenEdges: new Set(),
     data: null, key: null, dataKey: null, error: null, seq: 0, seen: null,
     deck: null, deckState: "idle", visible: false, built: null, builtFor: null, prepared: null,
-    vs: null, far: null, fitted: null, matchIdx: -1, colors: null, loadMs: null, firstDrawMs: null,
+    vs: null, detail: "near", fitted: null, matchIdx: -1, colors: null, loadMs: null, firstDrawMs: null,
     sets: null, setsKey: null, drawing: null, msgKey: tk("graph.notYet"), pinch: 1, gesture: false, themeVer: 0,
   };
   window.tpGraph = G;
@@ -90,22 +87,14 @@
   app.readGraphPlace = (p) => readPlace((k) => p.get(k));
 
   // ---------- colours, read from the page's tokens ----------
-  function token(name) {
-    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-    if (/^#[0-9a-f]{6}$/i.test(v)) return [1, 3, 5].map((i) => parseInt(v.slice(i, i + 2), 16));
-    const m = /rgba?\(([^)]+)\)/.exec(v);
-    return m ? m[1].split(",").slice(0, 3).map((x) => Math.round(Number(x))) : [128, 128, 128];
-  }
+  // readColors reads every token the palette needs and builds the graph's
+  // colours through tpPure.graphPalette, so the contrast the Go test checks
+  // on style.css is the contrast drawn.
   function readColors() {
-    const c = { mark: {} };
-    MARKS.forEach(([k, t]) => { c.mark[k] = token(t); });
-    Object.assign(c, {
-      page: token("--sunk"), surface: token("--surface"), ink: token("--ink"), muted: token("--muted"), line: token("--line"),
-      accent: token("--accent"), crit: token("--crit"), back: token("--g-back"), anc: token("--g-anc"), desc: token("--g-desc"),
-      band: token("--color-paper-3"),
-    });
-    c.dark = (0.2126 * c.page[0] + 0.7152 * c.page[1] + 0.0722 * c.page[2]) < 128;
-    G.colors = c;
+    const css = getComputedStyle(document.documentElement);
+    const tok = {};
+    pure.GRAPH_TOKENS.forEach((name) => { tok[name] = css.getPropertyValue(name).trim(); });
+    G.colors = pure.graphPalette(tok);
   }
   const mix = (a, b, t) => a.map((x, i) => Math.round(x + (b[i] - x) * t));
 
@@ -168,6 +157,13 @@
     const pick = ms.find((m) => m.milestone === G.milestone) || ms.find((m) => m.open && m.share_done < 1) || ms[0];
     return pick ? pick.milestone : null;
   }
+  // firstReady is the first epic of the export that can start, or null.
+  function firstReady(g) {
+    const reports = {};
+    (g.milestones || []).forEach((m) => { reports[m.milestone] = m; });
+    const e = (g.epics || []).find((x) => app.markOf(x, reports[x.milestone]).mark === "ready");
+    return e ? e.id : null;
+  }
   function query(g) {
     const p = new URLSearchParams({ view: G.mode });
     if (G.mode === "scope") {
@@ -176,8 +172,9 @@
       p.set("milestone", m);
     } else if (G.mode === "neighbourhood") {
       // The centre is the selection, else the last epic selected, so
-      // closing the drawer keeps the neighbourhood it showed.
-      const sel = app.selected() || G.centre;
+      // closing the drawer keeps the neighbourhood it showed, else the
+      // first epic that can start, so the mode never opens empty.
+      const sel = app.selected() || G.centre || firstReady(g);
       if (!sel) return null;
       p.set("epic", sel);
       p.set("depth", String(G.depth));
@@ -223,6 +220,13 @@
       out.status = e.status;
       out.label = n.id + (ctx.described.has(n.id) ? " ¶" : "");
     }
+    // The id in its fixed-width box: wrapped at a punctuation mark onto a
+    // second line near (tpPure.wrapId), its first line alone at mid, the
+    // box never widened.
+    const lines = pure.wrapId(out.label, geo.chars);
+    out.text = lines.join("\n");
+    out.short = lines.length > 1 ? lines[0].slice(0, geo.chars - 1) + "…" : lines[0];
+    out.band = -1;
     const { w, h } = out;
     out.poly = out.cond
       ? [[x - w / 2 + 8, y], [x + w / 2 - 8, y], [x + w / 2, y + h / 2], [x + w / 2 - 8, y + h], [x - w / 2 + 8, y + h], [x - w / 2, y + h / 2]]
@@ -254,6 +258,7 @@
       });
       const right = rows.flatMap((r) => [[r.x1, r.y0], [r.x1, r.y1]]);
       const left = rows.slice().reverse().flatMap((r) => [[r.x0, r.y1], [r.x0, r.y0]]);
+      inBand.forEach((n) => { n.band = k; });
       return { k, name: names.join(" + "), poly: right.concat(left), x0: rows[0].x0, y0: rows[0].y0, count: inBand.length };
     }).filter(Boolean);
   }
@@ -358,11 +363,17 @@
     if (hits && !hits.has(n.i)) return 50;
     return staged(n) ? 255 : 50;
   }
+  // bandFill is band k's area colour, two greys alternating.
+  const bandFill = (c, k) => mix(c.page, c.band, k % 2 ? 0.55 : 0.9);
+  // REGION_TINT is how far a node's fill leans to its band's area colour
+  // when no text is drawn, so the far view reads as regions, not as a
+  // brick texture of boxes.
+  const REGION_TINT = 0.45;
   function nodeFill(P, hits) {
     const c = G.colors;
     return (n) => {
-      const base = c.mark[n.mark] || c.muted;
-      const fill = G.far ? base : mix(c.surface, base, STRONG[n.mark] || 0.32);
+      const mark = c.mark[n.mark] || c.muted;
+      const fill = G.detail !== "far" ? c.fill[n.mark] || mark : n.band >= 0 ? mix(mark, bandFill(c, n.band), REGION_TINT) : mark;
       return [...fill, nodeAlpha(P, hits, n)];
     };
   }
@@ -382,12 +393,14 @@
       return [...(c.mark[n.mark] || c.muted), staged(n) ? 230 : 60];
     };
   }
+  // nodeLineWidth draws no border far out but the selection's cone, a
+  // search's matches and the marks a node holds.
   function nodeLineWidth(P, hits) {
     return (n) => {
       if (n.i === P.sel) return 3;
       if (P.sel >= 0 && (P.anc.has(n.i) || P.desc.has(n.i))) return stepsOf(P, n.i) <= 2 ? 2 : 1;
       if ((hits && hits.has(n.i)) || n.hold || n.centre) return 2;
-      return G.far ? 0 : 1;
+      return G.detail === "far" ? 0 : 1;
     };
   }
   // onChain says whether l lies on the selection's chain: into the selection
@@ -399,33 +412,39 @@
     const down = (s === P.sel || P.desc.has(s)) && P.desc.has(d);
     return up || down;
   }
-  // EDGE_ALPHA is each edge's opacity with nothing selected: a cross edge
-  // light enough to sit under the tree on both themes, a long edge (three
-  // layers or eight columns, tpPure.edgeLong) fainter still. With an epic
-  // selected, the edges of its chain draw full and the rest at OFF_CHAIN.
-  const EDGE_ALPHA = { cross: 60, crossLong: 32, tree: 190, treeFar: 130, long: 70, critical: 235 };
+  // EDGE_STYLE is each edge's opacity, light page then dark, and width with
+  // nothing selected, as the 1.17.1 audit rendered and compared them: cross
+  // edges faint under the tree, fainter far out; tree edges in the ink; a
+  // long edge (three layers or eight columns, tpPure.edgeLong) fainter than
+  // its class. With an epic selected, the edges of its chain draw full at
+  // CHAIN_WIDTH and the rest at OFF_CHAIN.
+  const EDGE_STYLE = {
+    crossFar: [24, 28, 0.6], cross: [40, 45, 0.75], crossLong: [18, 22, 0.6],
+    tree: [170, 150, 1.4], treeFar: [130, 120, 1.2], long: [80, 70, 1], critical: [235, 235, 2.4],
+  };
   const OFF_CHAIN = 12;
+  const CHAIN_WIDTH = 2.5;
+  // edgeStyle is l's EDGE_STYLE entry as nothing selected draws it.
+  function edgeStyle(l) {
+    if (l.critical) return EDGE_STYLE.critical;
+    if (l.role === "cross") return l.long ? EDGE_STYLE.crossLong : G.detail === "far" ? EDGE_STYLE.crossFar : EDGE_STYLE.cross;
+    if (l.long) return EDGE_STYLE.long;
+    return G.detail === "far" ? EDGE_STYLE.treeFar : EDGE_STYLE.tree;
+  }
   function edgeColor(P) {
     const c = G.colors;
     return (l) => {
-      const base = l.role === "back" ? c.back : l.critical ? c.crit : c.muted;
+      const base = l.role === "back" ? c.back : l.critical ? c.crit : l.role === "cross" ? c.muted : c.tree;
       if (P.sel >= 0) {
         if (!onChain(P, l)) return [...base, OFF_CHAIN];
         const hue = l.critical ? c.crit : l.role === "back" ? c.back : P.anc.has(l.s) ? c.anc : c.desc;
         return [...hue, fade(Math.max(stepsOf(P, l.s), stepsOf(P, l.d)))];
       }
-      if (l.critical) return [...base, EDGE_ALPHA.critical];
-      if (l.role === "cross") return [...base, l.long ? EDGE_ALPHA.crossLong : EDGE_ALPHA.cross];
-      if (l.long) return [...base, EDGE_ALPHA.long];
-      return [...base, G.far ? EDGE_ALPHA.treeFar : EDGE_ALPHA.tree];
+      return [...base, edgeStyle(l)[c.dark ? 1 : 0]];
     };
   }
   function edgeWidth(P) {
-    return (l) => {
-      if (P.sel >= 0 && onChain(P, l)) return 2.5;
-      if (l.critical) return 2.4;
-      return l.role === "cross" || l.long ? 1 : 1.3;
-    };
+    return (l) => (P.sel >= 0 && onChain(P, l) ? CHAIN_WIDTH : edgeStyle(l)[2]);
   }
   // edgeSets is the edge layers' data (tpPure.edgeLayers), kept while the
   // drawing, the selection and the toggles that choose them stay the same;
@@ -442,9 +461,11 @@
   }
 
   // LABEL_PX is a band label's height on screen and LABEL_CH the width of
-  // one of its characters, an estimate for its 13-pixel bold font.
-  const LABEL_PX = 16;
+  // one of its characters, an estimate for its 13-pixel bold font; a label
+  // is a pill inside its band's top-left corner, LABEL_INSET from it.
+  const LABEL_PX = 20;
   const LABEL_CH = 7.6;
+  const LABEL_INSET = 6;
   // bandLabels is each band's label as this frame draws it: its name and
   // count, its name alone where that would overlap a label already placed,
   // or none, placed top to bottom, left to right, in screen pixels at
@@ -452,10 +473,15 @@
   function bandLabels(P, scale) {
     const order = P.bands.slice().sort((a, b) => a.y0 - b.y0 || a.x0 - b.x0);
     const full = (b) => b.name + " · " + b.count;
-    const boxes = order.map((b) => ({ x: b.x0 * scale, y: b.y0 * scale - 3 - LABEL_PX, w: full(b).length * LABEL_CH, h: LABEL_PX, sw: b.name.length * LABEL_CH }));
+    const boxes = order.map((b) => ({ x: b.x0 * scale + LABEL_INSET, y: b.y0 * scale + LABEL_INSET, w: full(b).length * LABEL_CH + 12, h: LABEL_PX, sw: b.name.length * LABEL_CH + 12 }));
     const kinds = pure.placeLabels(boxes);
     return order.map((b, i) => (kinds[i] ? { b, text: kinds[i] === "full" ? full(b) : b.name } : null)).filter(Boolean);
   }
+
+  // nodeText is what a node's id reads at the frame's detail: its whole
+  // wrapped id near, its first line mid, nothing far (the tooltip still
+  // names it).
+  const nodeText = (n) => (G.detail === "near" ? n.text : n.short);
 
   function render() {
     const P = G.prepared;
@@ -463,9 +489,9 @@
     const { PolygonLayer, PathLayer, TextLayer } = window.deck;
     const c = G.colors;
     const scale = Math.pow(2, G.vs.zoom);
-    G.far = P.geo.fs * scale < MIN_TEXT_PX;
+    G.detail = pure.detailLevel(P.geo.fs * scale);
     const hits = matches(P);
-    const v = [P.ver, G.q, G.far, pure.crossShown(G), G.whole, [...G.hiddenMarks].join(), [...G.hiddenEdges].join(), G.themeVer, app.stage()];
+    const v = [P.ver, G.q, G.detail, pure.crossShown(G), G.whole, [...G.hiddenMarks].join(), [...G.hiddenEdges].join(), G.themeVer, app.stage()];
     const fontSettings = { sdf: true, fontSize: 64, buffer: 6, radius: 12, cutoff: 0.22 };
     const dash = window.deck.PathStyleExtension ? [new window.deck.PathStyleExtension({ dash: true })] : [];
     const sets = edgeSets(P);
@@ -478,7 +504,7 @@
     const layers = [
       new PolygonLayer({
         id: "bands", data: P.bands, getPolygon: (b) => b.poly, stroked: true, filled: true,
-        getFillColor: (b) => [...mix(c.page, c.band, b.k % 2 ? 0.55 : 0.9), 255],
+        getFillColor: (b) => [...bandFill(c, b.k), 255],
         getLineColor: [...c.line, 255], getLineWidth: 1, lineWidthUnits: "pixels", updateTriggers: { getFillColor: v },
       }),
       edgeLayer("cross", sets.cross),
@@ -492,17 +518,18 @@
         lineWidthUnits: "pixels", updateTriggers: { getFillColor: v, getLineColor: v, getLineWidth: v },
       }),
       new TextLayer({
-        id: "ids", data: P.nodes, visible: !G.far, getPosition: (n) => [n.x, n.y + n.h / 2], getText: (n) => n.label,
-        getSize: P.geo.fs, sizeUnits: "common", getTextAnchor: "middle", getAlignmentBaseline: "center",
+        id: "ids", data: P.nodes, visible: G.detail !== "far", getPosition: (n) => [n.x, n.y + n.h / 2], getText: nodeText,
+        getSize: P.geo.fs, sizeUnits: "common", getTextAnchor: "middle", getAlignmentBaseline: "center", lineHeight: 1.05,
         getColor: (n) => [...c.ink, nodeAlpha(P, hits, n) >= 170 ? 255 : 70],
         fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", characterSet: P.charSet, fontSettings,
-        updateTriggers: { getColor: v },
+        updateTriggers: { getColor: v, getText: v },
       }),
       new TextLayer({
-        id: "band-names", data: bandLabels(P, scale), getPosition: (l) => [l.b.x0 + 2, l.b.y0], getText: (l) => l.text,
-        getPixelOffset: [0, -3], getSize: 13, sizeUnits: "pixels", getTextAnchor: "start", getAlignmentBaseline: "bottom", getColor: [...c.ink, 230],
+        id: "band-names", data: bandLabels(P, scale), getPosition: (l) => [l.b.x0, l.b.y0], getText: (l) => l.text,
+        getPixelOffset: [LABEL_INSET + 6, LABEL_INSET + 3], getSize: 13, sizeUnits: "pixels", getTextAnchor: "start", getAlignmentBaseline: "top", getColor: [...c.ink, 235],
         fontFamily: "system-ui, sans-serif", fontWeight: 700, characterSet: P.charSet, fontSettings,
-        outlineWidth: 3, outlineColor: [...c.page, 255], updateTriggers: { getColor: v, outlineColor: v },
+        background: true, getBackgroundColor: [...c.page, 235], backgroundPadding: [6, 3, 6, 3],
+        getBorderColor: [...c.line, 255], getBorderWidth: 1, updateTriggers: { getColor: v, getBackgroundColor: v, getBorderColor: v },
       }),
       new TextLayer({
         id: "sel-title", data: sel && sel.title ? [sel] : [], getPosition: (n) => [n.x + n.w / 2 + 8, n.y + n.h / 2], getText: (n) => n.title,
@@ -512,19 +539,23 @@
       }),
     ];
     // What this frame holds, recorded on the card once deck.gl drew it.
-    G.drawing = { mode: P.L.view, nodes: P.nodes.length, edges: sets.drawn };
+    G.drawing = { mode: P.L.view, nodes: P.nodes.length, edges: sets.drawn, layers: P.L.layers, cols: P.L.columns };
     G.deck.setProps({ layers, viewState: G.vs });
   }
   // recordDrawn writes what the last frame drew onto the card, so the audit
   // reads per mode that the canvas holds the layout's nodes and edges, and
   // the first frame's time from the card asking for the renderer: loading
-  // it, fetching the layout, preparing it and drawing.
+  // it, fetching the layout, preparing it and drawing. The layout's layers
+  // and columns live here too, not in the count line.
   function recordDrawn() {
     const d = G.drawing;
     if (!d) return;
     card.dataset.drawnMode = d.mode;
     card.dataset.drawnNodes = String(d.nodes);
     card.dataset.drawnEdges = String(d.edges);
+    card.dataset.layers = String(d.layers || 0);
+    card.dataset.columns = String(d.cols || 0);
+    card.dataset.detail = G.detail;
     if (G.firstDrawMs === null && d.nodes) {
       G.firstDrawMs = Math.round(performance.now() - G.loadFrom);
       card.dataset.firstDrawMs = String(G.firstDrawMs);
@@ -533,26 +564,37 @@
   }
 
   // ---------- camera ----------
+  // fitView is the view that shows the whole layout: a margin of 24 pixels
+  // a side and, in full screen, the floating toolbar's strip at the top; a
+  // small graph is never magnified past zoom 0 and never fitted further out
+  // than its labels read (tpPure.fitFloor), and then it sits at the top.
   function fitView() {
     const P = G.prepared;
     const box = $("gc-canvas");
     const w = Math.max(1, box.clientWidth);
     const h = Math.max(1, box.clientHeight);
     const b = P.bounds;
-    // A margin of 24 pixels a side and the band names above the top band,
-    // and in full screen the floating toolbar's strip at the top; a small
-    // graph is shown at its size, never magnified.
     const bar = isFull() ? FS_BAR_PX : 0;
-    const zoom = Math.min(0, Math.log2(Math.min((w - 48) / (b.x1 - b.x0), (h - 64 - bar) / (b.y1 - b.y0))));
-    const shift = (10 + bar / 2) / Math.pow(2, zoom);
-    return { target: [(b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2 - shift, 0], zoom, minZoom: -8, maxZoom: 3 };
+    const whole = Math.log2(Math.min((w - 48) / (b.x1 - b.x0), (h - 48 - bar) / (b.y1 - b.y0)));
+    const floor = pure.fitFloor(P.nodes.length, P.L.view, P.geo.fs);
+    const zoom = Math.min(0, Math.max(floor, whole));
+    const s = Math.pow(2, zoom);
+    const top = zoom > whole ? b.y0 + (h / 2 - 24 - bar) / s : (b.y0 + b.y1) / 2 - bar / 2 / s;
+    return { target: [(b.x0 + b.x1) / 2, top, 0], zoom, minZoom: -8, maxZoom: 3 };
+  }
+  // fit goes to fitView and remembers the camera sits at its fit, so the
+  // card fits again when full screen changes the canvas's size.
+  function fit() {
+    goTo(fitView());
+    G.atFit = true;
   }
   function goTo(vs) {
     G.vs = vs;
+    G.atFit = false;
     render();
   }
   function flyTo(n) {
-    goTo({ ...G.vs, target: [n.x, n.y + n.h / 2, 0], zoom: Math.max(G.vs.zoom, 0) });
+    goTo({ ...G.vs, target: [n.x, n.y + n.h / 2, 0], zoom: Math.max(G.vs.zoom, NEAR_ZOOM) });
   }
   // pan moves the view by dx, dy screen pixels; zoomBy zooms about the
   // centre.
@@ -631,6 +673,7 @@
       viewState: G.vs,
       onViewStateChange: ({ viewState }) => {
         G.vs = viewState;
+        G.atFit = false;
         render();
       },
       onAfterRender: recordDrawn,
@@ -707,13 +750,13 @@
     if (!P) { $("gc-legend").innerHTML = ""; return; }
     const c = G.colors;
     const rgb = (a) => "rgb(" + a.join(",") + ")";
-    // The marks count the nodes drawn, one mark each and conditions
-    // included, so they differ from the plan figures above, which count
-    // work epics and let a held epic count as blocked too.
-    const head = '<span class="lh">' + escape(t("graph.legendNodes")) + "</span>";
-    const marks = head + MARKS.filter(([k]) => P.counts.marks[k]).map(([k]) =>
+    // One row of marks, each counting the nodes drawn with it (conditions
+    // included, so they differ from the plan figures above), then one row
+    // of edge toggles; since 1.17.1 no heading says so, the counts sit on
+    // the marks themselves.
+    const marks = MARKS.filter(([k]) => P.counts.marks[k]).map(([k]) =>
       '<button type="button" data-lmark="' + k + '" aria-pressed="' + !G.hiddenMarks.has(k) + '"><i style="background:' + rgb(c.mark[k]) + '"></i>' + escape(app.markWord(k)) + " <b>" + escape(app.tr().num(P.counts.marks[k])) + "</b></button>").join("");
-    const ecol = { tree: c.muted, cross: c.muted, back: c.back, critical: c.crit, any: c.accent };
+    const ecol = { tree: c.tree, cross: c.muted, back: c.back, critical: c.crit, any: c.accent };
     const edges = EDGE_CLASSES.filter((k) => P.counts.edges[k]).map((k) =>
       '<button type="button" data-ledge="' + k + '" aria-pressed="' + (k === "cross" ? pure.crossShown(G) : !G.hiddenEdges.has(k)) + '"><i class="ln" style="background:' + rgb(ecol[k]) + (k === "cross" ? ";opacity:.45" : "") + '"></i>' + escape(t(EDGE_TEXT[k])) + " <b>" + escape(app.tr().num(P.counts.edges[k])) + "</b></button>").join("");
     // The chain's counts say how many lie within two steps, the part drawn
@@ -722,8 +765,7 @@
       '</b></span><span><i class="ln" style="background:' + rgb(c.desc) + '"></i>' + escape(t("graph.waitedOn")) + " <b>" + escape(t("graph.near", { n: P.desc.size, near: pure.withinTwo(P.desc) })) + "</b></span>" +
       '<button type="button" data-lwhole aria-pressed="' + G.whole + '">' + escape(t("graph.whole")) + "</button>" : "";
     $("gc-legend").innerHTML = marks + '<span class="lhead"></span>' + edges + sel +
-      '<span class="help">' + escape((P.L.view === "milestones" ? t("graph.help.milestones") : t("graph.help.epics")) + " " + t("graph.help.input")) + (G.loadMs !== null ? " " + escape(t("graph.loadedIn", { ms: G.loadMs })) : "") + "</span>" +
-      '<span class="keys">' + escape(t("graph.keys")) + "</span>";
+      '<span class="help">' + escape((P.L.view === "milestones" ? t("graph.help.milestones") : t("graph.help.epics")) + " " + t("graph.help.input")) + "</span>";
   }
   $("gc-legend").addEventListener("click", (ev) => {
     const m = ev.target.closest("[data-lmark]");
@@ -784,10 +826,14 @@
   // graph to the canvas's new size once the browser has laid it out.
   document.addEventListener("tp-fs", () => {
     showLegend(pure.legendOpen(storedLegend(), isFull()));
-    requestAnimationFrame(() => { if (G.prepared && G.deck) goTo(fitView()); });
+    requestAnimationFrame(() => { if (G.prepared && G.deck && G.atFit) fit(); });
   });
   showLegend(pure.legendOpen(storedLegend(), isFull()));
-  $("gc-fit").addEventListener("click", () => { if (G.prepared) goTo(fitView()); });
+  $("gc-fit").addEventListener("click", () => { if (G.prepared) fit(); });
+  // The canvas's own + − Fit, bottom right, in the page and in full screen.
+  $("gc-zfit").addEventListener("click", () => { if (G.prepared) fit(); });
+  $("gc-zin").addEventListener("click", () => { if (G.vs) zoomBy(ZOOM_STEP); });
+  $("gc-zout").addEventListener("click", () => { if (G.vs) zoomBy(-ZOOM_STEP); });
   // The page's header switches the theme, or the system's setting changes
   // under Auto (tp-theme); the card reads its colours again and bumps its
   // theme version, which every layer's update triggers hold, so deck.gl
@@ -819,6 +865,8 @@
     }
     const hits = matches(P);
     $("gc-n").textContent = hits ? t("graph.matches", { n: hits.size }) : countText();
+    // In full screen the count sits at the toolbar's end.
+    $("gc-nfs").textContent = $("gc-n").textContent;
   }
   $("gc-q").addEventListener("input", (ev) => {
     G.q = ev.target.value;
@@ -887,7 +935,7 @@
     } else if (onCanvas && (ev.key === "-" || ev.key === "_")) {
       ev.preventDefault();
       zoomBy(-ZOOM_STEP);
-    } else if (ev.key === "f" || ev.key === "F") goTo(fitView());
+    } else if (ev.key === "f" || ev.key === "F") fit();
     else if (ev.key === "k" || ev.key === "K") toggleCross();
     else if (ev.key === "l" || ev.key === "L") toggleLegend();
     else if (ev.key === "Escape" && app.selected() && $("drawer").hidden) app.selectEpic(null);

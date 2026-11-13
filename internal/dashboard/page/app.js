@@ -417,6 +417,7 @@
     most: tk("info.most"),
     since: tk("info.since"),
     cfd: tk("info.cfd"),
+    keys: tk("info.keys"),
   };
 
   // The ⓘ buttons open one note at a time beside themselves: a heading

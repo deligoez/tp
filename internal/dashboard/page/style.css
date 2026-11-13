@@ -74,7 +74,7 @@ p { margin: 0; }
 .tab { display: flex; align-items: baseline; gap: var(--space-xs); border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; background: none; padding: 10px var(--space-md); color: var(--muted); cursor: pointer; min-width: 0; }
 .tab b { font: 600 var(--text-md)/1.2 var(--font-display); color: inherit; }
 .tab span { font-size: var(--text-sm); }
-.tab .c { font-family: var(--mono); font-size: var(--text-xs); color: var(--faint); max-width: 32ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tab .c { font-family: var(--mono); font-size: var(--text-xs); color: var(--muted); max-width: 32ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tab:hover { color: var(--ink); }
 .tab:active { color: var(--ink-2); }
 .tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
@@ -139,7 +139,7 @@ button.pcell[aria-pressed="true"] { background: var(--color-accent-wash); border
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 
 /* the ⓘ on every panel and figure, and the note it opens */
-.info { width: 20px; height: 20px; padding: 0; border-radius: 50%; font: 500 12px/1 var(--font-display); color: var(--muted); background: transparent; border: 1px solid var(--color-rule-2); display: inline-grid; place-items: center; flex: none; cursor: pointer; letter-spacing: 0; }
+.info { width: 20px; height: 20px; padding: 0; border-radius: 50%; font: 500 12px/1 var(--font-display); color: var(--muted); background: transparent; border: 1px solid var(--muted); display: inline-grid; place-items: center; flex: none; cursor: pointer; letter-spacing: 0; }
 .info:hover, .info[aria-expanded="true"] { color: var(--accent); border-color: var(--accent); }
 .pop { position: absolute; z-index: var(--z-tooltip); max-width: min(420px, calc(100vw - 32px)); max-height: min(70vh, 560px); overflow-y: auto; padding: var(--space-sm) var(--space-md) var(--space-sm) var(--space-md); background: var(--surface); color: var(--ink); border: 1px solid var(--color-rule-2); border-radius: var(--radius-card); box-shadow: 0 8px 28px rgba(0, 0, 0, .18); font-size: var(--text-sm); line-height: 1.5; }
 .pop:focus { outline: none; }
@@ -558,7 +558,9 @@ body.dopen:not([data-tab="epics"]) { padding: 0; }
 .gcard #gc-q { min-height: 32px; min-width: 12rem; padding: 0 var(--space-xs); border: 1px solid var(--color-rule-2); border-radius: var(--radius-input); background: var(--surface); color: var(--ink); font: inherit; font-size: var(--text-sm); }
 .gcard .legend button { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 2px 4px; border-radius: 4px; font: inherit; color: var(--ink-2); cursor: pointer; }
 .gcard .legend button:hover { background: var(--sunk); }
-.gcard .legend button[aria-pressed="false"] { opacity: .4; text-decoration: line-through; }
+.gcard #gc-q::placeholder { color: var(--muted); opacity: 1; }
+.gcard .legend button[aria-pressed="false"] { color: var(--muted); text-decoration: line-through; }
+.gcard .legend button[aria-pressed="false"] i { opacity: .35; }
 .gcard .legend b { font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
 .gcard .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
 .gcard .legend i.ln { width: 18px; height: 3px; border-radius: 2px; }
@@ -588,11 +590,17 @@ body.dopen:not([data-tab="epics"]) { padding: 0; }
 .lgtoggle:hover { color: var(--ink); }
 .lgtoggle kbd, .legend kbd, .pop kbd { display: inline-block; min-width: 1.6em; padding: 0 5px; border: 1px solid var(--color-rule-2); border-bottom-width: 2px; border-radius: 4px; background: var(--sunk); color: var(--ink); font: 500 var(--text-xs)/1.5 var(--mono); text-align: center; }
 .glegend.closed .legend { display: none; }
-.legend .keys { display: none; }
-body.mapfs .gcard.fs .legend .keys { display: block; flex-basis: 100%; }
+/* the canvas's own + − Fit, bottom right; a sideways swipe on the canvas
+   never turns into the browser's back */
+.gcanvas { overscroll-behavior-x: none; }
+.gzoom { position: absolute; right: 12px; bottom: 12px; z-index: 2; display: flex; gap: 4px; }
+.gzoom .key { min-width: 34px; background: var(--surface); box-shadow: 0 2px 8px rgba(0, 0, 0, .12); }
+.gcountfs { display: none; white-space: nowrap; }
+body.mapfs .gcard.fs .gcountfs { display: inline; }
+.gkeys { font-weight: 600; }
 body.mapfs .gcard.fs .toolbar { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 3; flex-wrap: nowrap; width: max-content; max-width: calc(100% - 24px); overflow-x: auto; padding: 6px 8px; border: 1px solid var(--color-rule-2); border-radius: 999px; background: var(--surface); box-shadow: 0 6px 24px rgba(0, 0, 0, .18); }
 body.mapfs .gcard.fs .toolbar h2, body.mapfs .gcard.fs .toolbar .spacer, body.mapfs .gcard.fs .gcount, body.mapfs .gcard.fs .legend .help, body.mapfs .gcard.fs .chaintext { display: none; }
-body.mapfs .gcard.fs .glegend { position: absolute; left: 12px; bottom: 12px; z-index: 3; width: min(560px, calc(100% - 24px)); max-height: 55vh; overflow: auto; border: 1px solid var(--color-rule-2); border-radius: var(--radius-card); background: var(--surface); box-shadow: 0 6px 24px rgba(0, 0, 0, .18); }
+body.mapfs .gcard.fs .glegend { position: absolute; left: 12px; bottom: 12px; z-index: 3; width: min(560px, calc(100% - 24px)); max-height: 55vh; overflow: auto; border: 1px solid var(--color-rule-2); border-radius: var(--radius-card); background: color-mix(in srgb, var(--surface) 90%, transparent); backdrop-filter: blur(6px); box-shadow: 0 6px 24px rgba(0, 0, 0, .18); }
 body.mapfs .gcard.fs .glegend.closed { width: auto; }
 body.mapfs .gcard.fs .glegend .legend { max-height: none; overflow: visible; }
 @media (max-width: 640px) {
