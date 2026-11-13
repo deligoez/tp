@@ -296,6 +296,7 @@ func newReviewCmd() *cobra.Command {
 	var checkFlag bool
 	var noState bool
 	var harnessNote string
+	var rewrittenEvidence string
 
 	cmd := &cobra.Command{
 		Use:   "review <spec.md>",
@@ -310,10 +311,11 @@ Modes (mutually exclusive):
 --merge: merge and deduplicate findings from NDJSON files.
 --resolve/--resolve-all: mark findings as fixed/wontfix/duplicate (findings NDJSON is the positional; --resolve uses a 0-based index).
 --verify: lightweight verification prompt.
---report: cross-round convergence report.`,
+--report: cross-round convergence report.
+--rewritten "<evidence>": start an epoch after a rewrite; earlier rounds stop feeding the carried findings.`,
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mode := detectReviewMode(mergeMode, resolveMode, resolveAllMode, verifyMode, reportMode, recordPath != "", statusMode)
+			mode := detectReviewMode(mergeMode, resolveMode, resolveAllMode, verifyMode, reportMode, recordPath != "", statusMode, cmd.Flags().Changed("rewritten"))
 			// --merge takes only its input NDJSON files and -o <file>: it
 			// records no round and reads no state, so a flag belonging to
 			// another mode is named here, ahead of the generic guards. That
@@ -421,9 +423,16 @@ Modes (mutually exclusive):
 				// --record runs the registered checks against the tree.
 				enterTree(emissionTarget(engine.ResolveSpecArg(args[0])), "tp review --record")
 				return runReviewRecord(engine.ResolveSpecArg(args[0]), recordPath, harnessNote)
+			case "rewritten":
+				if len(args) != 1 {
+					output.Error(ExitUsage, "spec path required for --rewritten")
+					os.Exit(ExitUsage)
+					return nil
+				}
+				return runReviewRewritten(engine.ResolveSpecArg(args[0]), rewrittenEvidence, forceFlag, noState)
 			default:
 				// "status" is the only value that reaches here: detectReviewMode
-				// returns one of the seven mode names, and the two remaining
+				// returns one of the eight mode names, and the two remaining
 				// returns — "" and a "conflict:" pair — already returned above.
 				if len(args) != 1 {
 					output.Error(ExitUsage, "spec path required for --status")
@@ -460,13 +469,14 @@ Modes (mutually exclusive):
 	cmd.Flags().BoolVar(&checkFlag, "check", false, "With --status: run registered mechanical checks")
 	cmd.Flags().StringVar(&harnessNote, "harness-note", "", "With --record: store an optional free-text note on the recorded round")
 	cmd.Flags().BoolVar(&noState, "no-state", false, "Disable all review-state reads and writes (pre-0.23.0 manual behavior)")
+	cmd.Flags().StringVar(&rewrittenEvidence, "rewritten", "", "Start an epoch after rewriting the spec: rounds recorded so far stop feeding the carried findings of both phases (evidence required)")
 
 	return cmd
 }
 
 // detectReviewMode returns the active mode name, or "" for default review.
 // Returns error-mode name if multiple modes are active.
-func detectReviewMode(merge, resolve, resolveAll, verify, report, record, status bool) string {
+func detectReviewMode(merge, resolve, resolveAll, verify, report, record, status, rewritten bool) string {
 	modes := make([]string, 0)
 	if merge {
 		modes = append(modes, "merge")
@@ -489,6 +499,9 @@ func detectReviewMode(merge, resolve, resolveAll, verify, report, record, status
 	if status {
 		modes = append(modes, "status")
 	}
+	if rewritten {
+		modes = append(modes, "rewritten")
+	}
 	if len(modes) == 0 {
 		return ""
 	}
@@ -509,13 +522,13 @@ func validateModeFlags(mode string, roundGiven bool, findingsPath string, affect
 		return fmt.Errorf("--%s are mutually exclusive", strings.Replace(pair, "+", " and --", 1))
 	}
 
-	// Record and status reject the prompt-generation flags and --perspective
-	if (mode == "record" || mode == "status") && perspective != "" {
+	// Record, status and rewritten reject the prompt-generation flags and --perspective
+	if (mode == "record" || mode == "status" || mode == "rewritten") && perspective != "" {
 		return fmt.Errorf("--%s is mutually exclusive with --perspective", mode)
 	}
 
-	// Merge, resolve, resolve-all, report, record, status reject modifier flags
-	if mode == "merge" || mode == "resolve" || mode == "resolve-all" || mode == "report" || mode == "record" || mode == "status" {
+	// Merge, resolve, resolve-all, report, record, status, rewritten reject modifier flags
+	if mode == "merge" || mode == "resolve" || mode == "resolve-all" || mode == "report" || mode == "record" || mode == "status" || mode == "rewritten" {
 		if roundGiven {
 			return fmt.Errorf("--%s is mutually exclusive with --round", mode)
 		}

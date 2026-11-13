@@ -60,6 +60,8 @@ var commandSides = map[string]string{
 	"tp review --report":      sideFile,
 	"tp review --resolve":     sideFile,
 	"tp review --resolve-all": sideFile,
+	// --rewritten writes an epoch into state.json and reads nothing else.
+	"tp review --rewritten": sideFile,
 	// --status --check runs registered checks only through runMechanicalChecks,
 	// which refuses a foreign task file itself.
 	"tp review --status": sideFile,
@@ -119,7 +121,7 @@ var commandSides = map[string]string{
 // own side. Every one is placed in commandSides as "<path> --<flag>".
 var commandModeFlags = map[string][]string{
 	"tp audit":  {"record", "status"},
-	"tp review": {"merge", "perspective", "record", "report", "resolve", "resolve-all", "status", "verify"},
+	"tp review": {"merge", "perspective", "record", "report", "resolve", "resolve-all", "rewritten", "status", "verify"},
 	"tp run":    {"dry-run", "status"},
 }
 
