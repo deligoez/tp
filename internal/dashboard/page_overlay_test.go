@@ -87,7 +87,7 @@ func TestPage_TheReviewsSmallItemsAreInPlace(t *testing.T) {
 	assert.Contains(t, page, ".kpi .v { padding-right: 30px; }")
 	assert.Contains(t, page, `id="gc-cross" aria-pressed="true"`)
 	assert.Contains(t, script, `"graph.crossTitle": "Show or hide every edge that is not a tree edge (K)"`)
-	assert.Contains(t, script, "milestone: { w: 200, h: 54, col: 240, row: 110, fs: 22, chars: 14 },")
+	assert.Contains(t, script, "milestone: { w: 200, h: 60, col: 240, row: 110, fs: 22, chars: 14 },")
 }
 
 // TestPage_TheTurkishLightThemeIsAydinlik is the operator's 1.17.1
