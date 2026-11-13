@@ -575,23 +575,54 @@ func auditDiffRanges(dir, base string) [][]string {
 func auditDiffStats(dir, base string) map[string][2]int {
 	stats := make(map[string][2]int)
 	for _, rng := range auditDiffRanges(dir, base) {
-		args := append([]string{"diff", "--numstat"}, rng...)
-		// execGitDiff names a failed invocation on stderr rather than
-		// letting an empty result read as an unchanged file.
-		for _, line := range execGitDiffProbe(dir, "diff --numstat", args...) {
-			parts := strings.Fields(line)
-			if len(parts) < 3 {
-				continue
-			}
-			added, aErr := strconv.Atoi(parts[0])
-			deleted, dErr := strconv.Atoi(parts[1])
-			if aErr != nil || dErr != nil {
-				continue // binary entries use "-"
-			}
-			path := strings.Join(parts[2:], " ")
-			prev := stats[path]
-			stats[path] = [2]int{prev[0] + added, prev[1] + deleted}
+		// External diff off, as every churn read must be: under a configured
+		// differ a non-TTY child can answer near-empty. -M and -z so a rename
+		// reports its own edit under its new path (decision 1 of
+		// spec/backlog/checklist-covers-what-changed.md); without -z it prints
+		// "old => new", which matches no universe path and fell back to +0/-0.
+		args := append([]string{"-c", "diff.external=", "diff", "--no-ext-diff", "--numstat", "-M", "-z"}, rng...)
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		out, err := cmd.Output()
+		if err != nil {
+			// Named on stderr rather than letting an empty result read as an
+			// unchanged file.
+			warnGitFailure("diff --numstat", err, args...)
+			continue
 		}
+		for path, counts := range parseNumstatZ(out) {
+			prev := stats[path]
+			stats[path] = [2]int{prev[0] + counts[0], prev[1] + counts[1]}
+		}
+	}
+	return stats
+}
+
+// parseNumstatZ reads `git diff --numstat -z` output into path -> {added,
+// deleted}. A record is "<added>\t<deleted>\t<path>\x00", or for a rename or
+// copy "<added>\t<deleted>\t\x00<old>\x00<new>\x00", which is keyed by the new
+// path. A binary's "-\t-" carries no measure and is left out, so it ranks with
+// the unmeasured files.
+func parseNumstatZ(out []byte) map[string][2]int {
+	stats := make(map[string][2]int)
+	fields := strings.Split(string(out), "\x00")
+	for i := 0; i < len(fields); i++ {
+		parts := strings.SplitN(fields[i], "\t", 3)
+		if len(parts) < 3 {
+			continue
+		}
+		path := parts[2]
+		if path == "" && i+2 < len(fields) {
+			path = fields[i+2]
+			i += 2
+		}
+		added, aErr := strconv.Atoi(parts[0])
+		deleted, dErr := strconv.Atoi(parts[1])
+		if aErr != nil || dErr != nil || path == "" {
+			continue
+		}
+		prev := stats[path]
+		stats[path] = [2]int{prev[0] + added, prev[1] + deleted}
 	}
 	return stats
 }
