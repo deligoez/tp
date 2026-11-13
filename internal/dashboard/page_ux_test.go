@@ -168,3 +168,47 @@ func TestPage_TheDrawerTakesFocusAndGivesItBack(t *testing.T) {
 		assert.Contains(t, script, s)
 	}
 }
+
+// TestPure_WaitingEpicsGroupUnderEachDirectBlocker is Waiting epics
+// (spec/backlog/dashboard-ux.md §2): the waiting epics of open milestones
+// are grouped by what they wait on directly, an epic under each of its
+// blockers and an any-of group as one blocker; each group carries its
+// blocker's state (startable when tp epic ready lists it, claimed when it is
+// under way, a decision when it is a condition, else waiting, an any-of
+// group taking its readiest member's); groups are ordered by their size, ties
+// in the order their blocker is first met; the waiting epics of milestones
+// not yet open are set apart, and open counts the distinct grouped epics.
+func TestPure_WaitingEpicsGroupUnderEachDirectBlocker(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const ep = (id, milestone, status, by, any, cond) => ({ id, milestone, status, blocked_by: by || [], blocked_by_any_of: any || [], condition: !!cond });
+const epics = {};
+[ep("a", "M", "planned"), ep("b", "M", "claimed"), ep("k", "M", "planned", [], [], true), ep("c", "M", "planned", ["b"]),
+ ep("x1", "M", "planned", ["a", "b"]), ep("x2", "M", "planned", ["a", "k"]), ep("x3", "M", "planned", [], [["a", "b"]]),
+ ep("y1", "N", "planned", ["a"])].forEach((e) => { epics[e.id] = e; });
+out(P.waitingGroups(["c", "x1", "x2", "x3", "y1"], epics, ["a"], { M: true, N: false }));`)
+	assert.JSONEq(t, `{
+		"groups": [
+			{"blocker": "b", "any_of": null, "state": "claimed", "epics": ["c", "x1"]},
+			{"blocker": "a", "any_of": null, "state": "startable", "epics": ["x1", "x2"]},
+			{"blocker": "k", "any_of": null, "state": "decision", "epics": ["x2"]},
+			{"blocker": null, "any_of": ["a", "b"], "state": "startable", "epics": ["x3"]}
+		],
+		"closed": ["y1"],
+		"open": 4
+	}`, got)
+}
+
+// TestPage_WaitingEpicsSitBelowThePlanMapInGroups: the Waiting epics card
+// follows the Plan map, draws the groups waitingGroups returns with the rest
+// behind "show all", and names the deferrable members its total leaves out.
+func TestPage_WaitingEpicsSitBelowThePlanMapInGroups(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	mapAt := strings.Index(page, `id="mapcard"`)
+	waitAt := strings.Index(page, `id="waitcard"`)
+	require.GreaterOrEqual(t, waitAt, 0, "the page has a Waiting epics card")
+	assert.Greater(t, waitAt, mapAt, "Waiting epics follows the Plan map")
+	for _, s := range []string{"tpPure.waitingGroups(", "data-wall", "deferrable gate member", "in milestones not yet open"} {
+		assert.Contains(t, script, s)
+	}
+}
