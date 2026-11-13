@@ -60,9 +60,20 @@
       lastLook.counts = sinceCounts(readSeen(), now);
       storeSeen(now);
     }
-    $("pushed").textContent = "Updated " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    pushedAt = new Date();
+    showPushed();
     render();
   }
+
+  // The header says how long ago tp last pushed, kept current by a timer,
+  // with the clock time in its title.
+  let pushedAt = null;
+  function showPushed() {
+    if (!pushedAt) return;
+    $("pushed").textContent = "Updated " + tpPure.relTime(Date.now() - pushedAt.getTime());
+    $("pushed").title = pushedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  }
+  setInterval(showPushed, 5000);
 
   function setTab(tab) {
     state.tab = tab;

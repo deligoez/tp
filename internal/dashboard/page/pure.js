@@ -142,6 +142,16 @@
     return out;
   };
 
+  // relTime says how long ago ms milliseconds is, in its largest whole
+  // unit; under ten seconds, or a clock gone backwards, is just now.
+  P.relTime = function (ms) {
+    const s = Math.floor(ms / 1000);
+    if (!(s >= 10)) return "just now";
+    if (s < 60) return s + " s ago";
+    if (s < 3600) return Math.floor(s / 60) + " min ago";
+    return Math.floor(s / 3600) + " h ago";
+  };
+
   // pinchView is the view after two fingers moved from a0 and b0 to a1 and
   // b1 (pixels from the box's top left, the box rw by rh) over the view v0
   // they started on: zoomed by the ratio of their spans, with the drawing
