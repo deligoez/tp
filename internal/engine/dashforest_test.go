@@ -233,3 +233,16 @@ func TestForestLayout_GoldenDeepRowPacking(t *testing.T) {
 		"c5": {5, 0}, "s5": {5, 2}, "c6": {6, 0}, "c7": {7, 0}, "s7": {7, 1}, "c8": {8, 0}, "c9": {9, 0},
 	}, got.Places)
 }
+
+// TestForestLayout_RowPackingALoneColumn: a chain one tree column wide
+// packs into one column, every node at column 0.
+func TestForestLayout_RowPackingALoneColumn(t *testing.T) {
+	t.Parallel()
+	got := ForestLayout(&ForestInput{IDs: []string{"a", "b"}, Edges: []LayoutEdge{{"a", "b"}}, Pack: PackRows})
+	assert.Equal(t, Forest{
+		Layers:  2,
+		Columns: 1,
+		Roles:   []EdgeRole{RoleTree},
+		Places:  map[string]ForestPlace{"a": {0, 0}, "b": {1, 0}},
+	}, got)
+}
