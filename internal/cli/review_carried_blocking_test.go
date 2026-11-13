@@ -236,3 +236,30 @@ func TestCarriedBlocking_ThePromptAndTheCheckReadOneSet(t *testing.T) {
 	assert.Equal(t, []string{"MK-E"}, printedOther, "a medium is carried and blocks nothing")
 }
 
+// TestCarriedBlocking_AnEpochPastABlockingRowIsTheOperators: --rewritten whose
+// cut holds an unresolved blocking row is the operator's decision
+// rewrite-past-blocking: under TP_UNATTENDED it exits 2 naming the escalation
+// and writes nothing; by hand it runs, and says which rows it cut.
+func TestCarriedBlocking_AnEpochPastABlockingRowIsTheOperators(t *testing.T) {
+	t.Parallel()
+	dir := rewrittenFixture(t)
+	before := stateJSONBytes(t, dir)
+
+	_, stderr, code := runTPFence(t, dir, true, "review", "spec.md", "--rewritten", "replaced the spec")
+	assert.Equal(t, 2, code, stderr)
+	env := errorEnvelope(t, stderr)
+	assert.Contains(t, env["error"], "unresolved blocking")
+	assert.Contains(t, env["hint"], "tp escalate --decision rewrite-past-blocking")
+	assert.Equal(t, before, stateJSONBytes(t, dir), "a refusal writes nothing")
+
+	stdout, stderr, code := runTPFence(t, dir, false, "review", "spec.md", "--rewritten", "replaced the spec")
+	require.Equal(t, 0, code, stderr)
+	assert.Contains(t, stderr, "rewrite-past-blocking", "the notice names the decision taken")
+	var out map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+	assert.Equal(t, float64(1), out["cut_blocking"])
+	cut := carriedRows(t, map[string]any{"carried_blocking_rows": out["cut_blocking_rows"]})
+	require.Len(t, cut, 1)
+	assert.Contains(t, cut[0]["finding"], "MARKER-OLD-TEXT")
+}
+
