@@ -62,6 +62,22 @@ func TestForestLayout_AnEdgeOnThePathIsThePrimaryParent(t *testing.T) {
 	assert.Equal(t, []EdgeRole{RoleTree, RoleCross, RoleTree}, marked.Roles)
 }
 
+// TestForestLayout_ThePathRunsDownOneColumn: a parent sits over its child
+// on the marked path rather than centred over all its children, and under
+// row packing a node on the path aims at its parent's column, so the path
+// draws as a vertical spine in both packings.
+func TestForestLayout_ThePathRunsDownOneColumn(t *testing.T) {
+	t.Parallel()
+	ids := []string{"a", "b", "c", "d", "e"}
+	edges := []LayoutEdge{{"a", "b"}, {"a", "c"}, {"a", "d"}, {"d", "e"}}
+	onPath := []bool{false, false, true, true}
+	for _, pack := range []ForestPacking{PackTree, PackRows} {
+		got := ForestLayout(&ForestInput{IDs: ids, Edges: edges, OnPath: onPath, Pack: pack})
+		assert.InDelta(t, got.Places["d"].Col, got.Places["a"].Col, 0, pack)
+		assert.InDelta(t, got.Places["d"].Col, got.Places["e"].Col, 0, pack)
+	}
+}
+
 // TestForestLayout_GoldenLanes pins bands in lanes: Y1 depends only on X1,
 // so with lanes it starts right after X1, beside X2, where stacked bands
 // would put it after X2. A tree edge never joins two groups: y1b's parent
