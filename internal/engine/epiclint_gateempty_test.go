@@ -35,3 +35,17 @@ func TestLintEpicGraph_GateEmptyWarnsWhenAMilestoneOpensAfterIt(t *testing.T) {
 	assert.Contains(t, found[0].Message, `"T1"`)
 }
 
+// TestLintEpicGraph_GateEmptySkipsAThresholdOrMembers: a threshold holds
+// TG's gate until a met record, and an explicit member holds it until that
+// epic is done, so neither gate is empty.
+func TestLintEpicGraph_GateEmptySkipsAThresholdOrMembers(t *testing.T) {
+	for name, gate := range map[string]model.EpicGate{
+		"threshold": {Threshold: "the vendor contract is signed"},
+		"members":   {Members: []string{"trigger"}},
+	} {
+		g := triggerGateGraph()
+		g.Gates = map[string]model.EpicGate{"TG": gate}
+		assert.Empty(t, findingsOf(t, LintEpicGraph(g, nil), EpicRuleGateEmpty), name)
+	}
+}
+
