@@ -23,17 +23,20 @@ const (
 
 // Task represents a single atomic work item.
 type Task struct {
-	ID                string     `json:"id"`
-	Title             string     `json:"title"`
-	Description       string     `json:"description,omitempty"`
-	Status            string     `json:"status"`
-	Tags              []string   `json:"tags"`
-	DependsOn         []string   `json:"depends_on"`
-	EstimateMinutes   int        `json:"estimate_minutes"`
-	Acceptance        string     `json:"acceptance"`
-	SourceSections    []string   `json:"source_sections"`
-	SourceLines       string     `json:"source_lines,omitempty"`
-	Touches           []string   `json:"touches,omitempty"`
+	ID              string   `json:"id"`
+	Title           string   `json:"title"`
+	Description     string   `json:"description,omitempty"`
+	Status          string   `json:"status"`
+	Tags            []string `json:"tags"`
+	DependsOn       []string `json:"depends_on"`
+	EstimateMinutes int      `json:"estimate_minutes"`
+	Acceptance      string   `json:"acceptance"`
+	SourceSections  []string `json:"source_sections"`
+	SourceLines     string   `json:"source_lines,omitempty"`
+	Touches         []string `json:"touches,omitempty"`
+	// Solo is managed by tp: a task whose side-by-side unit failed to
+	// integrate runs alone from then on (spec/backlog/parallel-implement.md).
+	Solo              bool       `json:"solo,omitempty"`
 	StartedAt         *time.Time `json:"started_at"`
 	DurationSource    string     `json:"duration_source,omitempty"`
 	ClosedAt          *time.Time `json:"closed_at"`
