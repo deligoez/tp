@@ -79,7 +79,9 @@ A fix that turns out to need a design choice stops and becomes a decision. Repai
 its first round delete or narrow; they do not add requirements.
 
 Open work is `BUGS.md` (the fix track, and entries awaiting an operator decision); the decision
-candidates in `spec/backlog/` are worked through. An audit FAIL no later round re-grades holding
+candidates in `spec/backlog/` are worked through. Implement units running side by side in worktrees
+under `tp run` shipped in v1.19.0 (`spec/backlog/parallel-implement.md`, `spec/1.19.0-measurements.md`),
+an audit FAIL no later round re-grades holding
 convergence open shipped in v1.18.0 (`spec/backlog/audit-carried-fail-blocks.md`,
 `spec/1.18.0-measurements.md`), a carried blocking review row holding convergence
 open in v1.16.0 (`spec/backlog/carried-rows-block.md`, `spec/1.16.0-measurements.md`), the
