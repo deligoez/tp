@@ -48,6 +48,24 @@ func TestDashboard_LayoutRefusesAnythingButAClosedView(t *testing.T) {
 	}
 }
 
+// TestDashboard_LayoutCutsALongValueInItsError: an error echoes what the
+// query named cut to its first 80 characters, so a long value does not
+// come back whole.
+func TestDashboard_LayoutCutsALongValueInItsError(t *testing.T) {
+	t.Parallel()
+	srv := startDashboard(t, epicGraphDir(t, layoutGraph), freePort(t))
+	long := strings.Repeat("x", 500)
+	for path, status := range map[string]int{
+		"/api/layout?view=neighbourhood&epic=" + long: http.StatusNotFound,
+		"/api/layout?view=scope&milestone=" + long:    http.StatusNotFound,
+		"/api/layout?view=milestones&" + long + "=1":  http.StatusBadRequest,
+	} {
+		e := getDashboardError(t, srv, path, status)
+		assert.Contains(t, e.Error, strings.Repeat("x", 80), path)
+		assert.NotContains(t, e.Error, strings.Repeat("x", 81), path)
+	}
+}
+
 // TestDashboard_LayoutClampsTheNeighbourhoodDepth: depth defaults to 2 and
 // is clamped to 1 through 4, the response naming the depth it drew.
 func TestDashboard_LayoutClampsTheNeighbourhoodDepth(t *testing.T) {
