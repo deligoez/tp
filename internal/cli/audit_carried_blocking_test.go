@@ -58,3 +58,27 @@ func TestAuditCarriedBlocking_EmptyRoundsDoNotConvergePastAFail(t *testing.T) {
 	assert.Equal(t, "error", rows[0]["severity"])
 	assert.Equal(t, ".tp-review/spec/audit-round-1.ndjson", rows[0]["file"])
 }
+
+// TestAuditCarriedBlocking_EveryLaterPromptAsksForTheReGrade: a FAIL only a
+// re-grade clears must reach a role in every later round, not only the one
+// after it. Round 2 records nothing; round 3's security prompt still lists
+// round 1's row, marked with the round it was graded in.
+func TestAuditCarriedBlocking_EveryLaterPromptAsksForTheReGrade(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "auth_helper.go"), []byte("package main\n"), 0o600))
+	_, _, code := runTP(t, dir, "init", "spec.md")
+	require.Equal(t, 0, code)
+	for _, rows := range []string{`{"item_id":"carried-sec","status":"FAIL","role":"security"}` + "\n", ""} {
+		_, stderr, code := auditRecord(t, dir, rows)
+		require.Equal(t, 0, code, "record: %s", stderr)
+	}
+
+	stdout, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "auth_helper.go")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	sec := auditPromptsByRole(t, stdout)["security"]["prompt"].(string)
+	assert.Contains(t, sec, "## Prior Round")
+	assert.Contains(t, sec, `{"role":"security","item_id":"carried-sec","status":"FAIL","round":1}`)
+	assert.Contains(t, sec, "graded in that earlier round")
+}
