@@ -320,3 +320,19 @@ func TestForestLayout_BandsInACycleShareOneSpanInLanes(t *testing.T) {
 	}
 	assert.Equal(t, []LayoutBand{{Name: "A", With: []string{"B"}, From: 0, To: 0}}, ForestLayout(&in).Bands)
 }
+
+// TestForestLayout_ABandWithoutNodesTakesNoLayers: a band no node names
+// takes no layers and no span, stacked or in lanes.
+func TestForestLayout_ABandWithoutNodesTakesNoLayers(t *testing.T) {
+	t.Parallel()
+	in := ForestInput{
+		IDs: []string{"a", "b"}, Edges: []LayoutEdge{{"a", "b"}},
+		Bands: []string{"A", "E", "B"}, BandOf: map[string]string{"a": "A", "b": "B"}, Pack: PackTree,
+	}
+	for _, laneOf := range []map[string]string{nil, {"A": "x", "E": "x", "B": "x"}} {
+		in.LaneOf = laneOf
+		got := ForestLayout(&in)
+		assert.Equal(t, []LayoutBand{{Name: "A", From: 0, To: 0}, {Name: "B", From: 1, To: 1}}, got.Bands)
+		assert.Equal(t, 2, got.Layers)
+	}
+}
