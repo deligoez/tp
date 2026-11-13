@@ -18,11 +18,12 @@ type AuditRolePool struct {
 // RoleGraded is "graded N of M" for one code role of a recorded audit round
 // (spec/backlog/checklist-covers-what-changed.md, decision 4): Graded is the
 // distinct file_check items the role returned a row for, whatever the
-// verdict, and Of is the pool its list was cut from.
+// verdict, and Pool is the pool its list was cut from, the prompt's file_pool
+// under the same name.
 type RoleGraded struct {
 	Role   string `json:"role"`
 	Graded int    `json:"graded"`
-	Of     int    `json:"of"`
+	Pool   int    `json:"pool"`
 }
 
 // auditPoolsFile is the on-disk form of a round's pools.
@@ -83,7 +84,7 @@ func GradedSuffix(graded []RoleGraded) string {
 	}
 	parts := make([]string, 0, len(graded))
 	for _, g := range graded {
-		parts = append(parts, fmt.Sprintf("%s %d of %d", g.Role, g.Graded, g.Of))
+		parts = append(parts, fmt.Sprintf("%s %d of %d", g.Role, g.Graded, g.Pool))
 	}
 	return " (latest round graded " + strings.Join(parts, ", ") + ")"
 }
@@ -108,7 +109,7 @@ func GradeAuditRoles(pools []AuditRolePool, rows []map[string]any) []RoleGraded 
 	}
 	graded := make([]RoleGraded, 0, len(pools))
 	for _, p := range pools {
-		graded = append(graded, RoleGraded{Role: p.Role, Graded: len(seen[p.Role]), Of: p.Pool})
+		graded = append(graded, RoleGraded{Role: p.Role, Graded: len(seen[p.Role]), Pool: p.Pool})
 	}
 	return graded
 }
