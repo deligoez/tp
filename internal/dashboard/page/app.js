@@ -276,7 +276,7 @@
     blocked: "Work epics waiting on a dependency that is not done. Held epics are the blocked ones a condition holds.",
     held: "Blocked work epics a condition epic, or a group of conditions, holds: they wait on an operator decision, not on work.",
     operator: "Decisions only the operator takes, each with the command that settles it: actionable conditions (tp epic done), any-of groups of conditions to choose one of, gates whose written threshold awaits --met, placeholder thresholds to rewrite (tp epic set), slices at their cap that can take one more round (tp epic review --grant-round), and the escalations stopping a spec bound to an epic. From the summary's plan, the export's milestones[].operator and slices, and the task file list's escalations.",
-    loops: "Epic review slices whose loop is not done: open, stale, at its cap or with a round in flight. From the export's slices.",
+    loops: "Epic review slices whose loop needs a round: open, at its cap or with a round in flight. After the plus, the slices only stale: a graph edit changed their units since their last round, and re-reviewing settles them. From the summary's open_loops and stale_loops.",
     lint: "The error and warning counts tp epic lint prints for the graph, from the export's lint.",
     throughput: "Work epics done per ISO week across every milestone, from their done time. From the summary's plan.",
     waiting: "What is blocked, and by what. The blocked work epics of open milestones, grouped under each dependency they wait on directly, an any-of group as one: an epic waiting on three blockers is in three groups, so the group sizes do not add up to the total. Each group names its blocker, what the blocker is doing (startable, claimed, an operator decision, or waiting itself) and how many epics wait on it directly, largest first. The blocked epics of milestones not yet open are one counted row, and deferrable gate members are left out, so the parts add up to the blocked epics figure. From the summary's waiting list and the export's blocked_by and blocked_by_any_of.",
@@ -348,7 +348,7 @@
       kpi("blocked", esc(f.blocked), "blocked epics", f.blocked ? "warn" : ""),
       kpi("held", esc(f.held), "held epics", f.held ? "op" : ""),
       kpi("operator", esc(queue), "operator decisions waiting", queue ? "op" : ""),
-      kpi("loops", esc(f.open_loops), "open review loops"),
+      kpi("loops", esc(f.open_loops - (f.stale_loops || 0)) + (f.stale_loops ? "<small> + " + esc(f.stale_loops) + " stale</small>" : ""), "review loops needing a round"),
       kpi("lint", esc(lint.errors) + "<small> / " + esc(lint.warnings) + "</small>", "lint errors / warnings", lint.errors ? "warn" : ""),
       kpi("throughput", last ? esc(last.done) + "<small> in " + esc(last.week) + "</small>" : "0", "epics done per week").replace("</div>", spark(weeks) + "</div>"),
     ].join("");
