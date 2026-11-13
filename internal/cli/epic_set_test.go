@@ -267,3 +267,14 @@ func TestEpicSet_OpensAfterReplacesTheWholeMap(t *testing.T) {
 	assert.Contains(t, stderr, "opens-after-cycle")
 	assert.Equal(t, before, readEpicGraphFile(t, dir), "a refused set writes nothing")
 }
+
+// TestEpicSet_TagsJSONWithTrailingJunkIsRefused: tags= decodes one JSON
+// value, so `["t"] junk` exits 2 and writes nothing.
+func TestEpicSet_TagsJSONWithTrailingJunkIsRefused(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicGateFieldGraph(""))
+	before := readEpicGraphFile(t, dir)
+	_, stderr, code := runTP(t, dir, "epic", "set", "a1", `tags=["t"] junk`)
+	require.Equal(t, 2, code, "stderr: %s", stderr)
+	assert.Equal(t, before, readEpicGraphFile(t, dir))
+}
