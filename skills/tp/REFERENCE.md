@@ -2490,8 +2490,9 @@ scripts, styles and words with `?v=<stamp>`, a hash of the embedded files, and i
 `no-cache`, so a browser never runs one tp version's script beside another's. The renderer loads
 when the card first scrolls into view, and a browser without WebGL2 gets a message instead. Its
 place lives in the address: `gv` the mode (`milestones`, `scope` or `neighbourhood`; none for
-`plan`), `gm` the gate milestone, `gd` the depth, `pack=tree`, `cross=1` with cross edges shown and
-`q` the search, each only when it is not the default. An edge of the critical path is drawn whatever
+`plan`), `gm` the gate milestone, `gd` the depth, `cross=1` with cross edges shown and `q` the
+search, each only when it is not the default; the card draws `pack=rows` and offers no packing
+control. An edge of the critical path is drawn whatever
 its role; cross edges wait for the toggle.
 
 **The summary** is the page's own payload, figures no command prints; its keys are not a versioned
