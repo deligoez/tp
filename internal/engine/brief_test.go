@@ -120,3 +120,20 @@ func TestCloseRecipeText_AutoResolvesToMatchingRecipe(t *testing.T) {
 	assert.Equal(t, CommitStrategyBuiltin, effBuiltin)
 	assert.Contains(t, CloseRecipeText(effBuiltin, "go test"), "--auto-commit")
 }
+
+// TestWorktreeCloseRecipeText: a unit in a worktree commits on its branch,
+// runs only the tests its change needs, and asks for the close with --commit;
+// the driver gates (spec/backlog/parallel-implement.md §2.4, §2.5).
+func TestWorktreeCloseRecipeText(t *testing.T) {
+	got := WorktreeCloseRecipeText("go test ./...")
+	for _, want := range []string{
+		"tp done <id> --commit <sha> -- \"<evidence>\"",
+		"only the tests your change needs",
+		"quality_gate (the driver runs it): go test ./...",
+		"the task file",
+		"One line per acceptance criterion",
+	} {
+		assert.Contains(t, got, want)
+	}
+	assert.NotContains(t, got, "--auto-commit", "a worktree close refuses it")
+}
