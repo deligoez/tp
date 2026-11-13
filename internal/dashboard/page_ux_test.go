@@ -138,6 +138,18 @@ func TestPage_TheMapTakesTouch(t *testing.T) {
 	assert.Contains(t, page, "touch-action: none")
 }
 
+// TestPage_TheMapsOneStepFilterReadsDirectOnly: the chip that narrows the
+// map to the selected epic's direct edges is named Direct only, on the
+// page and in the help that names it.
+func TestPage_TheMapsOneStepFilterReadsDirectOnly(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	assert.Contains(t, page, `>Direct only</button>`)
+	assert.NotContains(t, page, `>Neighbours<`)
+	assert.NotContains(t, script, "Neighbours")
+	assert.Equal(t, 2, strings.Count(script, "Direct only"), "the map's help and its legend name the chip")
+}
+
 // TestPure_CentringKeepsTheZoomUnlessItIsUnreadable: taking the view to an
 // epic centres it at the current zoom, zoomed in to the readable scale when
 // the view was further out.
