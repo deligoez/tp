@@ -521,6 +521,8 @@
   "graph.near": "{n} ({near} tanesi en çok iki adım ötede)",
   "graph.whole": "Bütün zinciri göster",
   "graph.help.epics": "Zincirini görmek için bir epic'e tıklayın. Tuşlar: / arar, Enter sonraki eşleşmeye gider (Shift+Enter öncekine), F sığdırır, K çapraz bağımlılıkları açıp kapar, Esc seçimi kaldırır; odaklanmış tuvalde ok tuşları kaydırır, + − yakınlaştırır.",
+  "graph.legendCard": "Gösterim ve tuşlar",
+  "graph.keys": "/ arar, Enter sonraki eşleşmeye gider, F sığdırır, K çapraz bağımlılıkları açıp kapar, L bu kartı açıp kapar, Esc seçimi kaldırır; iki parmakla sıkıştırma ya da Ctrl veya ⌘ basılıyken tekerlek yakınlaştırır, tekerlek tek başına kaydırır.",
   "graph.help.input": "İki parmakla sıkıştırma ya da Ctrl veya ⌘ basılıyken tekerlek haritayı yakınlaştırıp uzaklaştırır; tam ekranda tekerlek haritayı, tam ekran dışında sayfayı kaydırır.",
   "graph.help.milestones": "Geçiş kapsamını görmek için bir milestone'a tıklayın. Tuşlar: / arar, Enter sonraki eşleşmeye gider, F sığdırır, K çapraz bağımlılıkları açıp kapar; odaklanmış tuvalde ok tuşları kaydırır, + − yakınlaştırır.",
   "graph.searchMilestone": "Milestone bul  /",

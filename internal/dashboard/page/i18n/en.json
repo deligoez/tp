@@ -521,6 +521,8 @@
   "graph.near": "{n} ({near} within two steps)",
   "graph.whole": "Show the whole chain",
   "graph.help.epics": "Click an epic for its chain. Keys: / search, Enter next match (Shift+Enter back), F fit, K cross edges, Esc clear; on the focused canvas the arrows pan and + − zoom.",
+  "graph.legendCard": "Legend and keys",
+  "graph.keys": "/ search, Enter next match, F fit, K cross edges, L this card, Esc clear; a pinch or Ctrl or ⌘ with the wheel zooms, the wheel pans.",
   "graph.help.input": "A pinch, or Ctrl or ⌘ with the wheel, zooms; in full screen the wheel pans, outside it the page scrolls.",
   "graph.help.milestones": "Click a milestone for its gate's closure. Keys: / search, Enter next match, F fit, K cross edges; on the focused canvas the arrows pan and + − zoom.",
   "graph.searchMilestone": "Find a milestone  /",

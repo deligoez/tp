@@ -450,6 +450,22 @@
     return limitStep(Math.log2(scale / prev));
   };
 
+  // legendOpen says whether the graph's legend and keys card is open, from
+  // the choice stored for this place ("1" open, "0" collapsed): without
+  // one it is open on the page and collapsed in full screen, where it would
+  // cover the graph.
+  P.legendOpen = function (stored, fullscreen) {
+    if (stored === "1") return true;
+    if (stored === "0") return false;
+    return !fullscreen;
+  };
+
+  // legendKey is where the legend card's choice is kept, one key for the
+  // page and one for full screen.
+  P.legendKey = function (fullscreen) {
+    return fullscreen ? "tp-dashboard-legend-fs" : "tp-dashboard-legend";
+  };
+
   // focusAfterClose picks where focus goes back when the drawer closes:
   // "same" while the element that opened it is still on the page, else the
   // first key saved at opening that one of candidates, the keys of the

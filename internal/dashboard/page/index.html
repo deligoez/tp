@@ -60,7 +60,7 @@
         </div>
         <p class="gcount sm muted num" id="gc-n" aria-live="polite"></p>
         <div class="map gcanvas" id="gc-canvas" tabindex="0" role="application" aria-roledescription="graph canvas" data-i18n-aria-roledescription="graph.canvasRole" aria-label="Graph canvas: the arrow keys pan, + and − zoom, F fits, K shows or hides cross edges, Esc clears the selection. Epics are reached through the search, the lists and the chain as text below." data-i18n-aria-label="graph.canvasLabel"><p class="gmsg" id="gc-msg">The graph loads when it scrolls into view.</p></div>
-        <div class="legend" id="gc-legend"></div>
+        <section class="glegend" id="gc-legendcard"><button type="button" class="lgtoggle" id="gc-lg" aria-expanded="true" aria-controls="gc-legend"><span data-i18n="graph.legendCard">Legend and keys</span> <kbd>L</kbd></button><div class="legend" id="gc-legend"></div></section>
         <details class="chaintext" id="chaintext"><summary data-i18n="chain.summary">The selected epic's chain as text</summary><div id="chain"></div></details>
       </section>
       <section class="card" id="waitcard" aria-label="Waiting epics" data-i18n-aria-label="wait.title" data-src="summary epic-export" hidden>

@@ -58,6 +58,8 @@
   const CURVE = 10;
   // One arrow key pans this many screen pixels; + and − zoom by ZOOM_STEP.
   const PAN_PX = 90;
+  // In full screen the toolbar floats over the canvas's top this tall.
+  const FS_BAR_PX = 64;
   const ZOOM_STEP = 0.5;
   // The marks in legend order, each with the colour token it is drawn in;
   // a ready or held epic's box is filled stronger, so they stand out.
@@ -537,10 +539,12 @@
     const w = Math.max(1, box.clientWidth);
     const h = Math.max(1, box.clientHeight);
     const b = P.bounds;
-    // A margin of 24 pixels a side and the band names above the top band;
-    // a small graph is shown at its size, never magnified.
-    const zoom = Math.min(0, Math.log2(Math.min((w - 48) / (b.x1 - b.x0), (h - 64) / (b.y1 - b.y0))));
-    const shift = 10 / Math.pow(2, zoom);
+    // A margin of 24 pixels a side and the band names above the top band,
+    // and in full screen the floating toolbar's strip at the top; a small
+    // graph is shown at its size, never magnified.
+    const bar = isFull() ? FS_BAR_PX : 0;
+    const zoom = Math.min(0, Math.log2(Math.min((w - 48) / (b.x1 - b.x0), (h - 64 - bar) / (b.y1 - b.y0))));
+    const shift = (10 + bar / 2) / Math.pow(2, zoom);
     return { target: [(b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2 - shift, 0], zoom, minZoom: -8, maxZoom: 3 };
   }
   function goTo(vs) {
@@ -718,7 +722,8 @@
       '</b></span><span><i class="ln" style="background:' + rgb(c.desc) + '"></i>' + escape(t("graph.waitedOn")) + " <b>" + escape(t("graph.near", { n: P.desc.size, near: pure.withinTwo(P.desc) })) + "</b></span>" +
       '<button type="button" data-lwhole aria-pressed="' + G.whole + '">' + escape(t("graph.whole")) + "</button>" : "";
     $("gc-legend").innerHTML = marks + '<span class="lhead"></span>' + edges + sel +
-      '<span class="help">' + escape((P.L.view === "milestones" ? t("graph.help.milestones") : t("graph.help.epics")) + " " + t("graph.help.input")) + (G.loadMs !== null ? " " + escape(t("graph.loadedIn", { ms: G.loadMs })) : "") + "</span>";
+      '<span class="help">' + escape((P.L.view === "milestones" ? t("graph.help.milestones") : t("graph.help.epics")) + " " + t("graph.help.input")) + (G.loadMs !== null ? " " + escape(t("graph.loadedIn", { ms: G.loadMs })) : "") + "</span>" +
+      '<span class="keys">' + escape(t("graph.keys")) + "</span>";
   }
   $("gc-legend").addEventListener("click", (ev) => {
     const m = ev.target.closest("[data-lmark]");
@@ -756,6 +761,32 @@
     render();
   }
   $("gc-cross").addEventListener("click", toggleCross);
+
+  // ---------- the legend and keys card ----------
+  // One card holds the legend and the keys: open on the page, collapsed in
+  // full screen until the viewer chooses (tpPure.legendOpen), L or its
+  // header toggling it, each place's choice kept in this browser.
+  const isFull = () => card.classList.contains("fs");
+  function storedLegend() {
+    try { return localStorage.getItem(pure.legendKey(isFull())); } catch (e) { return null; }
+  }
+  function showLegend(open) {
+    $("gc-legendcard").classList.toggle("closed", !open);
+    $("gc-lg").setAttribute("aria-expanded", String(open));
+  }
+  function toggleLegend() {
+    const open = $("gc-legendcard").classList.contains("closed");
+    try { localStorage.setItem(pure.legendKey(isFull()), open ? "1" : "0"); } catch (e) { /* the choice lasts this load */ }
+    showLegend(open);
+  }
+  $("gc-lg").addEventListener("click", toggleLegend);
+  // Entering or leaving full screen reads that place's choice and fits the
+  // graph to the canvas's new size once the browser has laid it out.
+  document.addEventListener("tp-fs", () => {
+    showLegend(pure.legendOpen(storedLegend(), isFull()));
+    requestAnimationFrame(() => { if (G.prepared && G.deck) goTo(fitView()); });
+  });
+  showLegend(pure.legendOpen(storedLegend(), isFull()));
   $("gc-fit").addEventListener("click", () => { if (G.prepared) goTo(fitView()); });
   // The page's header switches the theme (tp-theme); the card reads its
   // colours again.
@@ -856,6 +887,7 @@
       zoomBy(-ZOOM_STEP);
     } else if (ev.key === "f" || ev.key === "F") goTo(fitView());
     else if (ev.key === "k" || ev.key === "K") toggleCross();
+    else if (ev.key === "l" || ev.key === "L") toggleLegend();
     else if (ev.key === "Escape" && app.selected() && $("drawer").hidden) app.selectEpic(null);
   });
   function countText() {

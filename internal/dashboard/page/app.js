@@ -982,6 +982,7 @@
     document.body.classList.toggle("mapfs", !!card);
     document.querySelectorAll("[data-fs]").forEach((b) => b.setAttribute("aria-pressed", String(!!card && b.dataset.fs === card.id)));
     fullScreenLabels();
+    document.dispatchEvent(new Event("tp-fs"));
   }
   // fullScreenLabels words each full-screen button by its pressed state.
   function fullScreenLabels() {
