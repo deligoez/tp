@@ -266,3 +266,13 @@ func TestPure_ALongIdWrapsAtAPunctuationMarkInsideItsBox(t *testing.T) {
 	got := runPure(t, `out([P.wrapId("api-gw-replay", 20), P.wrapId("inventory-export-backfill", 20), P.wrapId("abcdefghijklmnopqrstuvwxyz", 10), P.wrapId("a.b:c-very-long-tail-of-the-identifier-here", 12)]);`)
 	assert.JSONEq(t, `[["api-gw-replay"], ["inventory-export-", "backfill"], ["abcdefghij", "klmnopqrs…"], ["a.b:c-very-", "long-tail-o…"]]`, got)
 }
+
+// TestPure_ASmallGraphFitsNoFurtherOutThanItsLabelsRead: a gate closure, a
+// neighbourhood, or any layout under 200 nodes fits no further out than
+// where a label is 9 pixels on screen; a large plan may fit further out.
+func TestPure_ASmallGraphFitsNoFurtherOutThanItsLabelsRead(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const r = (x) => Math.round(x * 1000) / 1000;
+out([r(P.fitFloor(819, "scope")), r(P.fitFloor(60, "neighbourhood")), r(P.fitFloor(150, "plan")), P.fitFloor(819, "plan"), P.fitFloor(20, "milestones") < 0]);`)
+	assert.JSONEq(t, `[-0.29, -0.29, -0.29, null, true]`, got)
+}
