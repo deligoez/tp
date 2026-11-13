@@ -139,3 +139,13 @@ func TestPage_FullScreenFloatsTheToolbarAndTheLegendOverTheCanvas(t *testing.T) 
 		assert.Contains(t, script, s)
 	}
 }
+
+// TestPure_TheThemeIsAutoUnlessLightOrDarkIsStored: the header's theme
+// control reads Auto, Light or Dark; only an explicit Light or Dark is
+// stored, and choosing Auto clears the stored value, so the page follows
+// the system again.
+func TestPure_TheThemeIsAutoUnlessLightOrDarkIsStored(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([P.themeChoice(null), P.themeChoice("dark"), P.themeChoice("light"), P.themeChoice("blue"), P.themeStore("auto"), P.themeStore("light"), P.themeStore("dark"), P.themeStore("x")]);`)
+	assert.JSONEq(t, `["auto", "dark", "light", "auto", null, "light", "dark", null]`, got)
+}
