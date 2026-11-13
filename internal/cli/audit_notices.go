@@ -25,6 +25,12 @@ type auditNotice struct {
 	// TotalChanged is the auto-detect-cap notice's pre-cap count, the same
 	// number file_summary.total_changed carries where --compact keeps none.
 	TotalChanged int `json:"total_changed,omitempty"`
+	// Untasked and Outside size the two sides of a tasks-differ notice (Outside
+	// only when a committed range exists), and MergeOnly a merge-only-files
+	// notice; their files list is capped at universeNoticeFiles per side.
+	Untasked  *int `json:"untasked,omitempty"`
+	Outside   *int `json:"outside,omitempty"`
+	MergeOnly int  `json:"merge_only,omitempty"`
 }
 
 // autoDetectCapMessage is the auto-detect cut's one sentence, on stderr and
@@ -45,9 +51,9 @@ func autoDetectCapNotice(totalChanged, audited int) []auditNotice {
 }
 
 // emit prints the notice on stderr and returns it for the payload.
-func (n auditNotice) emit() auditNotice {
+func (n *auditNotice) emit() auditNotice {
 	output.Notice(n.Message)
-	return n
+	return *n
 }
 
 // cutNotices names every cut of an emitted prompt's file list below the
@@ -63,21 +69,21 @@ func cutNotices(prompts []auditPrompt) []auditNotice {
 			continue
 		}
 		if p.Role == roleSpecCoverage {
-			notices = append(notices, auditNotice{
+			notices = append(notices, (&auditNotice{
 				Kind:    noticeSpecCoverageFilesCut,
 				Message: fmt.Sprintf("spec-coverage lists %d of %d files", p.FileCount, p.FilePool),
-			}.emit())
+			}).emit())
 			continue
 		}
 		if codeSeen {
 			continue
 		}
 		codeSeen = true
-		notices = append(notices, auditNotice{
+		notices = append(notices, (&auditNotice{
 			Kind: noticeCodeFilesCut,
 			Message: fmt.Sprintf("code roles audit %d of %d files, the most-changed first; name the rest with --affected-files, which no cap cuts",
 				p.FileCount, p.FilePool),
-		}.emit())
+		}).emit())
 	}
 	return notices
 }
