@@ -1410,18 +1410,16 @@ func findingFromRow(row map[string]any) reviewFinding {
 // order of those occurrences, as the carried set does: a finding re-reported
 // and resolved in a later round is that later row.
 func dedupFindings(findings []reviewFinding) []reviewFinding {
-	seen := make(map[string]bool)
-	result := make([]reviewFinding, 0, len(findings))
-	for i := len(findings) - 1; i >= 0; i-- {
-		f := findings[i]
-		key := findingIdentityKey(f.Category, f.Location, f.Finding)
-		if seen[key] {
-			continue
-		}
-		seen[key] = true
-		result = append(result, f)
+	last := make(map[string]int, len(findings))
+	for i := range findings {
+		last[findingIdentityKey(findings[i].Category, findings[i].Location, findings[i].Finding)] = i
 	}
-	slices.Reverse(result)
+	result := make([]reviewFinding, 0, len(last))
+	for i := range findings {
+		if last[findingIdentityKey(findings[i].Category, findings[i].Location, findings[i].Finding)] == i {
+			result = append(result, findings[i])
+		}
+	}
 	return result
 }
 

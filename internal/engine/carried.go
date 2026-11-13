@@ -135,19 +135,18 @@ func ReviewCarriedSet(specPath string, st *ReviewState) (rows []CarriedRow, miss
 // latestByIdentity keeps each finding's last occurrence in rows, in the order
 // of those last occurrences.
 func latestByIdentity(rows []CarriedRow) []CarriedRow {
-	seen := make(map[string]bool, len(rows))
-	kept := make([]CarriedRow, 0, len(rows))
-	for i := len(rows) - 1; i >= 0; i-- {
-		row := rows[i].Row
-		key := FindingIdentityKey(rowString(row, "category"), rowString(row, "location"), rowString(row, "finding"))
-		if seen[key] {
-			continue
-		}
-		seen[key] = true
-		kept = append(kept, rows[i])
+	identity := func(row map[string]any) string {
+		return FindingIdentityKey(rowString(row, "category"), rowString(row, "location"), rowString(row, "finding"))
 	}
-	for i, j := 0, len(kept)-1; i < j; i, j = i+1, j-1 {
-		kept[i], kept[j] = kept[j], kept[i]
+	last := make(map[string]int, len(rows))
+	for i := range rows {
+		last[identity(rows[i].Row)] = i
+	}
+	kept := make([]CarriedRow, 0, len(last))
+	for i := range rows {
+		if last[identity(rows[i].Row)] == i {
+			kept = append(kept, rows[i])
+		}
 	}
 	return kept
 }
