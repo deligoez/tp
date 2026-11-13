@@ -171,6 +171,14 @@ out([P.roveNext(pos, "a", "ArrowDown"), P.roveNext(pos, "a", "ArrowRight"), P.ro
 	assert.JSONEq(t, `["b", "c", "a", "a", "c", "b", "a"]`, got)
 }
 
+// TestPure_ExactlyOneEpicIsATabStop: of a view's epics only the focused
+// one takes tabindex 0, the first when the focus is on none of them.
+func TestPure_ExactlyOneEpicIsATabStop(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([P.tabStops(["a", "b", "c"], "b"), P.tabStops(["a", "b", "c"], "z"), P.tabStops(["a", "b"], null), P.tabStops([], "a")]);`)
+	assert.JSONEq(t, `[[-1, 0, -1], [0, -1, -1], [0, -1], []]`, got)
+}
+
 // TestPage_MapEpicsTakeFocusAndEnterSelects: one epic of the map is in the
 // tab order at a time, the arrows move it, and Enter or Space selects it.
 func TestPage_MapEpicsTakeFocusAndEnterSelects(t *testing.T) {
