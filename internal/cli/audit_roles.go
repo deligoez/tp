@@ -195,10 +195,13 @@ func invertTaskFiles(taskFiles map[string][]string) map[string][]string {
 // DispositionEvidence are the row's recorded resolved.status and
 // resolved.evidence, omitted unless the disposition counts
 // (engine.RowDispositioned), so the next round sees what was accepted or fixed.
+// Round is the round a row was graded in when that is before the previous one:
+// a row no round since has re-graded. It is omitted otherwise.
 type priorAuditRow struct {
 	Role                string `json:"role"`
 	ItemID              string `json:"item_id"`
 	Status              string `json:"status"`
+	Round               int    `json:"round,omitempty"`
 	EvidenceFile        string `json:"evidence_file,omitempty"`
 	ChangedSince        *bool  `json:"changed_since,omitempty"`
 	Disposition         string `json:"disposition,omitempty"`
@@ -248,7 +251,22 @@ func (p *auditPriorRound) add(r *priorAuditRow) {
 const (
 	priorAcceptedFraming = "A row with disposition wontfix or duplicate is accepted, for the reason in its disposition_evidence. Unless changed_since is true: if it still stands, record it as before; tp carries the acceptance. When changed_since is true, re-check it: the acceptance is not carried.\n"
 	priorFixedFraming    = "A row with disposition fixed was repaired as its disposition_evidence says: verify the repair held.\n"
+	// priorEarlierRoundFraming is written when some row carries a round: it
+	// was graded in that earlier round and no round since re-graded it, so
+	// it holds the audit open until one grades it PASS.
+	priorEarlierRoundFraming = "A row with a round field was graded in that earlier round and no round since has re-graded it: re-grade it now. Until a round grades it PASS, it holds the audit open.\n"
 )
+
+// hasEarlierRound reports whether some row of the section was graded before
+// the previous round.
+func (p *auditPriorRound) hasEarlierRound() bool {
+	for _, r := range slices.Concat(p.rows, p.earlier) {
+		if r.Round > 0 {
+			return true
+		}
+	}
+	return false
+}
 
 // dispositionFraming returns the framing lines for the dispositions the
 // section's rows carry: accepted (wontfix, duplicate) and fixed.
@@ -288,6 +306,9 @@ func renderPriorRoundSection(prior *auditPriorRound) string {
 	b.WriteString("\n## Prior Round: context to re-check, not a verdict to repeat\n")
 	b.WriteString("These are your own non-PASS rows from the previous round. Re-check each item against the code and record your own status. Do NOT repeat the prior verdict without verifying.\n")
 	b.WriteString(prior.dispositionFraming())
+	if prior.hasEarlierRound() {
+		b.WriteString(priorEarlierRoundFraming)
+	}
 	b.WriteString("\n")
 	if prior.legacy {
 		b.WriteString("Note: the prior round was recorded before stable item ids, so these ids are positional (file-<role>-<n>) and NOT comparable to this round's stable ids.\n\n")

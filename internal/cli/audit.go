@@ -586,16 +586,20 @@ func loadAuditSpec(specPath string, force bool) (specLines []string, specContent
 	return specLines, specContent, cut, snap
 }
 
-// loadAuditPriorRound reads the previous recorded audit round and returns,
-// per role, that role's own non-PASS rows for the round-2+ prior-round
-// section (§10.2). It returns nil when no audit round is recorded (round 1)
-// or the prior round's file is missing; a missing state index is the normal
-// in-flight condition and yields nil, while genuine corruption aborts. The
-// changed-since flag per row is true when a commit touching that row's
-// evidence_file landed after the prior round's recorded_at; it is omitted
-// for rows with no file path (spec-derived or FAIL rows with no evidence).
-// A row resolved in the prior round's recorded file carries its disposition
-// and evidence (priorRowDisposition), so an acceptance is not re-opened blind.
+// loadAuditPriorRound returns, per role, that role's rows for the round-2+
+// prior-round section (§10.2): every row of the audit carried set
+// (engine.AuditCarriedSet) — each (role, item_id) whose latest grade since the
+// newest epoch is not PASS — so a row only a re-grade clears reaches a role in
+// every later round, not only the one after it
+// (spec/backlog/audit-carried-fail-blocks.md §2.3). A row graded before the
+// previous round carries that round. It returns nil when no audit round is
+// recorded (round 1); a missing state index is the normal in-flight condition
+// and yields nil, while genuine corruption aborts, and a round whose file is
+// missing is announced and skipped. The changed-since flag per row is true when
+// a commit touching that row's evidence_file landed after the row's own round
+// was recorded; it is omitted for rows with no file path. A row carrying a
+// disposition shows it (priorRowDisposition), so an acceptance is not
+// re-opened blind.
 func loadAuditPriorRound(specPath string) map[string]*auditPriorRound {
 	st, err := engine.LoadReviewState(specPath)
 	if err != nil {
@@ -614,36 +618,47 @@ func loadAuditPriorRound(specPath string) map[string]*auditPriorRound {
 		return nil
 	}
 	prior := &since[len(since)-1]
-	rows, found := engine.LoadRoundRows(specPath, prior)
-	if !found {
-		// Dropping the whole prior-round section silently makes a round-2
-		// prompt look like a round-1 one. review.go, review_record.go and
+	carried, missing := engine.AuditCarriedSet(specPath, st)
+	for i := range missing {
+		// Dropping a round's rows silently makes a later prompt look as if
+		// they were never graded. review.go, review_record.go and
 		// review_regression.go all say so on the same condition.
-		output.Notice(fmt.Sprintf("round %d file %s is missing; skipping its rows", prior.Round, prior.File))
-		return nil
+		output.Notice(fmt.Sprintf("round %d file %s is missing; skipping its rows", missing[i].Round, missing[i].File))
 	}
-	changedFiles := filesChangedSinceRound(specPath, prior)
+	byNumber := make(map[int]*engine.ReviewRound, len(since))
+	for i := range since {
+		byNumber[since[i].Round] = &since[i]
+	}
+	changedByRound := make(map[int]map[string]bool)
 	byRole := make(map[string]*auditPriorRound)
-	legacy := engine.IsLegacyRound(prior)
-	for _, row := range rows {
-		role, _ := row["role"].(string)
-		status, _ := row["status"].(string)
-		if status == "PASS" {
-			continue
-		}
-		itemID, _ := row["item_id"].(string)
-		ef, _ := row["evidence_file"].(string)
+	for i := range carried {
+		c := &carried[i]
+		role, _ := c.Row["role"].(string)
+		status, _ := c.Row["status"].(string)
+		itemID, _ := c.Row["item_id"].(string)
+		ef, _ := c.Row["evidence_file"].(string)
 		pr := priorAuditRow{Role: role, ItemID: itemID, Status: status}
-		pr.Disposition, pr.DispositionEvidence = priorRowDisposition(row)
+		if c.Round < prior.Round {
+			pr.Round = c.Round
+		}
+		pr.Disposition, pr.DispositionEvidence = priorRowDisposition(c.Row)
 		if ef != "" {
+			changedFiles, ok := changedByRound[c.Round]
+			if !ok {
+				changedFiles = filesChangedSinceRound(specPath, byNumber[c.Round])
+				changedByRound[c.Round] = changedFiles
+			}
 			pr.EvidenceFile = ef
 			changed := changedFiles[ef]
 			pr.ChangedSince = &changed
 		}
 		entry := byRole[role]
 		if entry == nil {
-			entry = &auditPriorRound{legacy: legacy}
+			entry = &auditPriorRound{legacy: engine.IsLegacyRound(prior)}
 			byRole[role] = entry
+		}
+		if engine.IsLegacyRound(byNumber[c.Round]) {
+			entry.legacy = true
 		}
 		entry.add(&pr)
 	}
