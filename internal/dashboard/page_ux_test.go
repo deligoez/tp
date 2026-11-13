@@ -379,6 +379,18 @@ func TestPage_DependencyEdgesRunBehindOpaqueLabels(t *testing.T) {
 	assert.Less(t, edges, nodes, "edges are drawn before the nodes, so the nodes cover them")
 }
 
+// TestPage_AMilestoneSaysItsInboundCountIsEpicEdges: the Milestones view
+// draws opens-after lines between milestones, while a milestone's inbound
+// count counts dependency edges between epics, so the number says "epic
+// edges in", never a bare "edges in" that reads as the lines drawn (1.14.1).
+func TestPage_AMilestoneSaysItsInboundCountIsEpicEdges(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Contains(t, script, `plural(n.inbound, "epic edge", "epic edges") + " in"`)
+	assert.Contains(t, script, `n.inbound + " epic edges in"`)
+	assert.NotContains(t, script, `plural(n.inbound, "edge", "edges")`)
+}
+
 // TestPure_TheDependencyViewDrawsOnlyTheDataOfItsKey: a view draws only
 // the layout fetched for the query it shows; until that layout arrives it
 // reads as loading, even with another query's layout still held, so a
