@@ -24,16 +24,32 @@ without a fix and without the acceptance CLAUDE.md rule 9 reserves for the opera
 2. **Unresolved and blocking keep their meanings.** Unresolved is the carry's own: not `fixed`, and
    not `wontfix`/`duplicate` with evidence. Blocking is `review_converge_on`'s.
 3. **A row's latest disposition counts.** The carried set takes, for each finding, its most recent
-   occurrence, so a row resolved in a later round is not held open by an earlier unresolved copy.
+   occurrence, so a row resolved in a later round is not held open by an earlier unresolved copy. A
+   finding is identified as the carry identifies it today — its category, location and the first 80
+   characters of its text — so two different findings at one location stay two rows, and resolving
+   one never hides the other.
 4. **Where it shows.** `--status` and `--check`, `next_action` and `tp resume` name the carried
    blocking rows as what stands between the spec and convergence, and how each clears: resolve it
    with `tp review <spec> --resolve`, or start an epoch if the text was rewritten.
+5. **An epoch that would cut a blocking row is the operator's decision.** With carried rows blocking,
+   an epoch is a way past an unresolved finding: edit the spec, start one, and the row stops
+   blocking unless a role raises it again. So `--rewritten` whose cut holds an unresolved blocking
+   row is the operator's decision `rewrite-past-blocking` (exit 2 under `tp run`, a member of the
+   escalation set, and named in CLAUDE.md rule 9). An epoch whose cut holds no unresolved blocking row
+   stays an ordinary mode, as 1.14.0 shipped it.
+
+Verified by tests, not only by design: the rows an emission prints under the do-not-re-report heading
+and the rows `--check` names as blocking are compared over a history holding every disposition; two
+distinct findings at one location, one resolved and one not, leave the unresolved one blocking.
 
 ## 3. Consequences
 
 - Histories that converged with an unresolved blocking row in a carried round read as not converged
   after the upgrade. In tp's own repository that is four shipped specs; the operator chose to leave
-  them so rather than backfill dispositions nobody checked.
+  them so rather than backfill dispositions nobody checked. What `tp resume`, the session-start hook,
+  the dashboard and `tp run` then report for such a spec is run before the release and recorded in
+  the measurements; if any of them starts proposing review work on a shipped spec every session, the
+  operator sees that before the release.
 - Resolving a finding without a change stays the operator's decision; this rule only stops the
   silence from standing in for it.
 
