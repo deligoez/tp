@@ -66,3 +66,18 @@ func TestPage_TheCanvasTakesTheWheelAndSafarisPinchBeforeDeckGL(t *testing.T) {
 	}
 	assert.NotContains(t, script, "wheelZooms")
 }
+
+// TestPure_CrossEdgesAreDrawnByDefaultAndTheAddressKeepsOnlyOff: since
+// 1.17.1 every mode draws cross edges until K hides them, one flag for all
+// modes, and the address carries cross=0 only when they are hidden; an old
+// link's cross=1 reads as the default.
+func TestPure_CrossEdgesAreDrawnByDefaultAndTheAddressKeepsOnlyOff(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const on = { mode: "plan", milestone: null, depth: 2, showCross: true, q: "" };
+out([
+  P.crossShown({ mode: "plan" }), P.crossShown({ mode: "milestones" }), P.crossShown({ mode: "scope", showCross: false }), P.crossShown({ mode: "milestones", showCross: false }),
+  P.graphParams(on), P.graphParams({ ...on, showCross: false }),
+  P.graphPlace((k) => ({ cross: "0" })[k] || null).showCross, P.graphPlace(() => null).showCross, P.graphPlace((k) => ({ cross: "1" })[k] || null).showCross,
+]);`)
+	assert.JSONEq(t, `[true, true, false, false, [], [["cross", "0"]], false, true, true]`, got)
+}
