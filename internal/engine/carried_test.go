@@ -228,3 +228,17 @@ func TestFindingIdentityKey_ReadsExactlyTheFirst80Bytes(t *testing.T) {
 	whole := CarriedRow{Row: map[string]any{"finding": stem + "X"}}
 	assert.Equal(t, stem+"X", whole.JSON().Finding)
 }
+
+// TestCarriedRowsJSON_ListsAtMostFiveRows: a payload lists the first five
+// carried rows, in order, however many there are.
+func TestCarriedRowsJSON_ListsAtMostFiveRows(t *testing.T) {
+	t.Parallel()
+	rows := make([]CarriedRow, 7)
+	for i := range rows {
+		rows[i] = CarriedRow{Round: 1, Index: i, Row: map[string]any{"finding": "f"}}
+	}
+	listed := CarriedRowsJSON(rows)
+	require.Len(t, listed, 5)
+	assert.Equal(t, 4, listed[4].Index)
+	assert.Len(t, CarriedRowsJSON(rows[:3]), 3)
+}
