@@ -48,3 +48,14 @@ func TestSpecStaleBlocker_InFlightOverTheOldTextNamesTheRecord(t *testing.T) {
 	assert.Contains(t, b.Message, "operator's decision")
 }
 
+// TestSpecStaleBlocker_InFlightOverTheCurrentTextNamesTheRecordAlone: a round
+// in flight that was emitted from the current text reads it, so recording it
+// is the whole way out, and there is nothing to discard.
+func TestSpecStaleBlocker_InFlightOverTheCurrentTextNamesTheRecordAlone(t *testing.T) {
+	t.Parallel()
+	b := builtSpecStale(t, &BlockerInputs{ReviewInFlightRound: 3})
+	assert.Equal(t, 3, b.Data["in_flight_round"])
+	assert.Equal(t, []string{"tp review spec.md --record <file>"}, b.Data["commands"])
+	assert.NotContains(t, b.Data, "operator")
+	assert.Contains(t, b.Message, "review round 3 is in flight over the current text")
+}
