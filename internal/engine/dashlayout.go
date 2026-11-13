@@ -173,7 +173,8 @@ func longestPaths(ids []string, edges []LayoutEdge, bandOf map[string]string) ma
 		queue = queue[1:]
 		for _, to := range next[id] {
 			depth[to] = max(depth[to], depth[id]+1)
-			if preds[to]--; preds[to] == 0 {
+			preds[to]--
+			if preds[to] == 0 {
 				queue = append(queue, to)
 			}
 		}
