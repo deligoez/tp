@@ -337,7 +337,7 @@ func TestPure_AnISOWeekReadsAsItsDates(t *testing.T) {
 func TestPage_TheAuditsPageItemsAreInPlace(t *testing.T) {
 	t.Parallel()
 	page, script := pageText(t)
-	for _, s := range []string{`<svg class="ti" aria-hidden="true"`, ".kpi .v small { white-space: nowrap; }", ".kpi .v { padding-right: 24px; }"} {
+	for _, s := range []string{`<svg class="ti" aria-hidden="true"`, ".kpi .v small { white-space: nowrap; }", ".kpi .v { padding-right: 30px; }"} {
 		assert.Contains(t, page, s)
 	}
 	for _, s := range []string{
