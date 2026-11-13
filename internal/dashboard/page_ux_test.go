@@ -605,6 +605,20 @@ func TestPage_AGatesThresholdAndPurposeReadInFull(t *testing.T) {
 	assert.Contains(t, script, ".purpose")
 }
 
+// TestPage_AMilestoneCardClampsLongTextAndExpands: a gate's threshold and
+// purpose show three lines with a control that opens them in full, shown
+// only when a text is cut, and the milestone grid aligns its cards to the
+// top, so one long card no longer stretches its whole row (1.14.1).
+func TestPage_AMilestoneCardClampsLongTextAndExpands(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	assert.Contains(t, page, ".mscells { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: var(--space-xs); align-items: start; }")
+	assert.Contains(t, page, ".ms .clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }")
+	for _, s := range []string{"data-msx=", "msView.open", "scrollHeight > ", `"Show less"`, `"Show all"`} {
+		assert.Contains(t, script, s)
+	}
+}
+
 // TestPure_DescribedEpicsAreCountedPerMilestone: an epic counts as
 // described when its description holds more than whitespace, as tp treats
 // one, and each milestone gets its described and all epics.
