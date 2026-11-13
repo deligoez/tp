@@ -208,8 +208,11 @@ func TestReviewConsecutiveCleanAndConverged_SeverityAware(t *testing.T) {
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 
-	// Round 1: surviving high (blocking); rounds 2 and 3: only medium/low.
-	writeRoundForClean(t, specPath, "review-round-1.ndjson", `{"severity":"high","finding":"h"}`)
+	// Round 1: a high marked fixed, which keeps its own round unclean until a
+	// later round re-reads it, and is carried as resolved, so it does not hold
+	// convergence (spec/backlog/carried-rows-block.md); rounds 2 and 3: only
+	// medium/low.
+	writeRoundForClean(t, specPath, "review-round-1.ndjson", `{"severity":"high","finding":"h","resolved":{"status":"fixed","evidence":"reworded"}}`)
 	writeRoundForClean(t, specPath, "review-round-2.ndjson", `{"severity":"medium","finding":"m"}`)
 	writeRoundForClean(t, specPath, "review-round-3.ndjson", `{"severity":"low","finding":"l"}`)
 	rounds := []ReviewRound{

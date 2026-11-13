@@ -39,10 +39,13 @@ const (
 	mediumBareWF  = `{"severity":"medium","finding":"m","resolved":{"status":"wontfix","evidence":"  "}}`
 )
 
+// TestReviewLoopDone_ConvergedWins: round 1's high is fixed — an open one would
+// stay carried and block (spec/backlog/carried-rows-block.md) — so the two
+// clean rounds after it converge.
 func TestReviewLoopDone_ConvergedWins(t *testing.T) {
 	t.Parallel()
 	spec := filepath.Join(t.TempDir(), "spec.md")
-	rounds := loopRounds(t, spec, []string{highOpen}, []string{mediumOpen}, []string{})
+	rounds := loopRounds(t, spec, []string{highFixed}, []string{mediumOpen}, []string{})
 
 	d := ReviewLoopDone(spec, &ReviewState{ReviewRounds: rounds}, 2, 3, "h", ReviewConvergeOnBlocking)
 	assert.True(t, d.Done)
