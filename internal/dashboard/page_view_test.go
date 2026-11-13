@@ -13,18 +13,62 @@ import (
 // TestPure_TheWheelZoomsWithAModifierPansInFullScreenAndElseScrollsThePage
 // is 1.17.1's input rule, with no trackpad-or-mouse guess: Ctrl or ⌘ with
 // the wheel, which is also how Chrome and Firefox report a pinch, zooms
-// everywhere; the plain wheel, a mouse's or two fingers', pans the graph in
-// full screen and scrolls the page outside it.
+// on the canvas; the plain wheel, a mouse's or two fingers', pans the graph
+// in full screen and scrolls the page outside it. In full screen a zoom
+// over the card's floating toolbar or legend zooms the graph too, and one
+// anywhere else, the drawer beside it, is cancelled: a pinch that reached
+// the browser there zoomed the page, and with the graph refitted to its
+// smaller box only the labels grew (the 1.17.1 pinch report).
 func TestPure_TheWheelZoomsWithAModifierPansInFullScreenAndElseScrollsThePage(t *testing.T) {
 	t.Parallel()
 	got := runPure(t, `out([
-  P.wheelAction({ ctrlKey: true, deltaY: 3 }, false),
-  P.wheelAction({ metaKey: true, deltaY: 3 }, true),
-  P.wheelAction({ deltaY: 40 }, false),
-  P.wheelAction({ deltaY: 40 }, true),
-  P.wheelAction({ deltaX: 12 }, true),
+  P.wheelAction({ ctrlKey: true, deltaY: 3 }, false, "canvas"),
+  P.wheelAction({ metaKey: true, deltaY: 3 }, true, "canvas"),
+  P.wheelAction({ deltaY: 40 }, false, "canvas"),
+  P.wheelAction({ deltaY: 40 }, true, "canvas"),
+  P.wheelAction({ deltaX: 12 }, true, "canvas"),
+  P.wheelAction({ ctrlKey: true, deltaY: 3 }, true, "card"),
+  P.wheelAction({ ctrlKey: true, deltaY: 3 }, true, "page"),
+  P.wheelAction({ deltaY: 40 }, true, "card"),
+  P.wheelAction({ ctrlKey: true, deltaY: 3 }, false, "card"),
+  P.wheelAction({ ctrlKey: true, deltaY: 3 }, false, "page"),
 ]);`)
-	assert.JSONEq(t, `["zoom", "zoom", "page", "pan", "pan"]`, got)
+	assert.JSONEq(t, `["zoom", "zoom", "page", "pan", "pan", "zoom", "block", "page", "page", "page"]`, got)
+}
+
+// TestPure_SafarisPinchZoomsTheCanvasAndInFullScreenNeverThePage: Safari's
+// gesture events zoom the graph on the canvas, and in full screen anywhere
+// over the card; elsewhere in full screen they are cancelled, and outside
+// it a pinch off the canvas zooms the page as Safari does.
+func TestPure_SafarisPinchZoomsTheCanvasAndInFullScreenNeverThePage(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([
+  P.gestureAction(false, "canvas"), P.gestureAction(true, "canvas"),
+  P.gestureAction(true, "card"), P.gestureAction(true, "page"),
+  P.gestureAction(false, "card"), P.gestureAction(false, "page"),
+]);`)
+	assert.JSONEq(t, `["zoom", "zoom", "zoom", "block", "page", "page"]`, got)
+}
+
+// TestPure_APageZoomDoesNotRefitTheGraph: the graph at its fit refits when
+// its box changes size on the screen, in device pixels, as full screen, the
+// drawer or the window change it; a page zoom shrinks the box in CSS
+// pixels by the very factor it raises devicePixelRatio, so the box covers
+// the same screen and the graph is left to zoom with the page. Refitting
+// there kept the drawing's size while every label in pixels grew.
+func TestPure_APageZoomDoesNotRefitTheGraph(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const at = { w: 1440, h: 900, dpr: 2 };
+out([
+  P.resizeRefits(null, at),
+  P.resizeRefits(at, { w: 1440, h: 900, dpr: 2 }),
+  P.resizeRefits(at, { w: 960, h: 600, dpr: 3 }),
+  P.resizeRefits(at, { w: 1309, h: 818, dpr: 2.2 }),
+  P.resizeRefits(at, { w: 1000, h: 900, dpr: 2 }),
+  P.resizeRefits(at, { w: 1440, h: 700, dpr: 2 }),
+  P.resizeRefits(at, { w: 1440, h: 900, dpr: 1 }),
+]);`)
+	assert.JSONEq(t, `[true, false, false, false, true, true, true]`, got)
 }
 
 // TestPure_AWheelsDeltaIsReadInPixels: a wheel's delta counts pixels, lines
