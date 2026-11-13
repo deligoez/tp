@@ -327,7 +327,7 @@ func TestPage_GraphNodesReadTheirMarkFromTheStatus(t *testing.T) {
 	_, script := pageText(t)
 	assert.Contains(t, script, "tpPure.markState(")
 	assert.Contains(t, script, "app.markOf(e, ctx.reports[e.milestone])")
-	for _, s := range []string{`in_progress: "in progress"`, `specced: "specced"`, `claimed: "claimed"`} {
+	for _, s := range []string{`"mark.in_progress": "in progress"`, `"mark.specced": "specced"`, `"mark.claimed": "claimed"`} {
 		assert.Contains(t, script, s)
 	}
 	assert.NotContains(t, script, "claimed or under way")
@@ -356,8 +356,9 @@ func TestPage_WaitingEpicsSitBelowTheGraphInGroups(t *testing.T) {
 func TestPage_AWaitingGroupSaysItCountsOnlyThisList(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
-	assert.Contains(t, script, `" on it here</span></div>"`)
-	assert.Contains(t, script, `title="epics of open milestones that wait on it directly"`)
+	assert.Contains(t, script, `"wait.here": { "one": "{n} waits on it here", "other": "{n} wait on it here" }`)
+	assert.Contains(t, script, `"wait.hereTitle": "epics of open milestones that wait on it directly"`)
+	assert.Contains(t, script, `'<span class="wn num" title="' + esc(t("wait.hereTitle")) + '">' + esc(t("wait.here", { n: gr.epics.length }))`)
 }
 
 // TestPage_AMergedBandIsNamedForEveryMilestoneItHolds: a band tp reports
@@ -552,7 +553,7 @@ func TestPage_TheTotalsSentenceSitsWhereBothCountsAppear(t *testing.T) {
 	for _, s := range []string{"tpPure.epicTotals(", `$("tab-epics").title = `, `$("totals").textContent = `, "kpi(\"share\""} {
 		assert.Contains(t, script, s)
 	}
-	assert.Contains(t, script, `"share of work epics done", "", totals`)
+	assert.Contains(t, script, `t("kpi.share"), "", totals`)
 	assert.Equal(t, 1, strings.Count(script, "tpPure.epicTotals("), "the tab, the share and the Lifecycle read the sentence from one call")
 }
 
@@ -599,7 +600,7 @@ func TestPage_AMilestonesDetailReadsItsGateInFull(t *testing.T) {
 	page, script := pageText(t)
 	assert.Contains(t, page, `id="dkind"`)
 	assert.Contains(t, page, ".dbody dd { margin: 0; min-width: 0; overflow-wrap: anywhere; white-space: pre-line; }")
-	for _, s := range []string{"tpPure.milestoneHTML(msd, gateOf(g, msd.milestone), dc, words(THRESHOLD_LABEL), t)", "tpPure.thresholdLine(m, gateOf(g, m.milestone), words(THRESHOLD_LABEL), t)", `$("dkind").textContent = msd ? "Milestone" : "Epic";`} {
+	for _, s := range []string{"tpPure.milestoneHTML(msd, gateOf(g, msd.milestone), dc, words(THRESHOLD_LABEL), t)", "tpPure.thresholdLine(m, gateOf(g, m.milestone), words(THRESHOLD_LABEL), t)", `$("dkind").textContent = msd ? t("drawer.milestone") : t("drawer.epic");`} {
 		assert.Contains(t, script, s)
 	}
 	assert.NotContains(t, script, "function milestoneHTML(", "the detail is built in pure.js, where its escaping is tested")
@@ -612,7 +613,8 @@ func TestPage_TheDrawersLabelsNameWhatItShows(t *testing.T) {
 	t.Parallel()
 	page, script := pageText(t)
 	assert.Contains(t, page, `id="dinfo"`)
-	for _, s := range []string{`$("drawer").setAttribute("aria-label", msd ? "Milestone detail" : "Epic detail");`, `$("dclose").setAttribute("aria-label", msd ? "Close the milestone detail" : "Close the epic detail");`, `$("dinfo").setAttribute("aria-label", msd ? "About the milestone detail" : "About the epic detail");`} {
+	for _, s := range []string{`$("drawer").setAttribute("aria-label", msd ? t("drawer.msLabel") : t("drawer.epicLabel"));`, `$("dclose").setAttribute("aria-label", msd ? t("drawer.msClose") : t("drawer.epicClose"));`,
+		`$("dinfo").setAttribute("aria-label", msd ? t("drawer.msAbout") : t("drawer.epicAbout"));`, `"drawer.msLabel": "Milestone detail"`, `"drawer.msClose": "Close the milestone detail"`, `"drawer.msAbout": "About the milestone detail"`} {
 		assert.Contains(t, script, s)
 	}
 }
@@ -782,7 +784,7 @@ func TestPage_PlanReviewNamesASetSliceByItsName(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
 	assert.Contains(t, script, "function sliceTitle(")
-	assert.Contains(t, script, `"set " + k.name`)
+	assert.Contains(t, script, `t("slice.set", { name: k.name })`)
 	assert.Contains(t, script, "esc(sliceTitle(s))")
 }
 
@@ -794,7 +796,7 @@ func TestPage_PlanReviewStacksIntoCardsOnAPhone(t *testing.T) {
 	page, script := pageText(t)
 	assert.Contains(t, page, "#slices .loops tr { display: grid;")
 	assert.Contains(t, page, "#slices .loops td[data-l]::before { content: attr(data-l)")
-	assert.Contains(t, script, `<td data-l="State">`)
+	assert.Contains(t, script, `<td data-l="' + esc(col.state) + '">`)
 }
 
 // TestPure_TheUpdateTimeReadsRelative: the header's update time reads as

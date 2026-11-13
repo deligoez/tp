@@ -85,17 +85,18 @@ func TestHandler_ServesThePageScriptAndStylesFromTheEmbed(t *testing.T) {
 }
 
 // pageText is the page, its scripts and its styles as the handler serves
-// them; script is app.js and graph.js, the graph card's script.
+// them; script is app.js and graph.js, the graph card's script, with the
+// page's English words, i18n/en.json, which their t(key) calls read.
 func pageText(t *testing.T) (page, script string) {
 	t.Helper()
 	var all strings.Builder
-	for _, path := range []string{"/", "/pure.js", "/app.js", "/graph.js", "/style.css"} {
+	for _, path := range []string{"/", "/pure.js", "/app.js", "/graph.js", "/style.css", "/i18n/en.json"} {
 		resp := serve(t, http.MethodGet, "127.0.0.1:7377", path)
 		require.Equal(t, http.StatusOK, resp.StatusCode, path)
 		body, err := io.ReadAll(resp.Body)
 		require.NoError(t, err)
 		all.Write(body)
-		if path == "/app.js" || path == "/graph.js" {
+		if path == "/app.js" || path == "/graph.js" || path == "/i18n/en.json" {
 			script += string(body) + "\n"
 		}
 	}
@@ -231,7 +232,7 @@ func TestPage_DrawsTheLifecycleChartFromTheSeries(t *testing.T) {
 	m := regexp.MustCompile(`const CFD_BANDS = (\[.*\]);`).FindStringSubmatch(script)
 	require.NotNil(t, m, "the script declares the chart's bands as const CFD_BANDS = [...];")
 	var bands [][]string
-	require.NoError(t, json.Unmarshal([]byte(m[1]), &bands))
+	require.NoError(t, json.Unmarshal([]byte(untk(m[1])), &bands))
 	keys := make([]string, 0, len(bands))
 	for _, b := range bands {
 		keys = append(keys, b[0])
@@ -264,7 +265,7 @@ func TestPage_BoardColumnsPartitionTheExportedTaskStates(t *testing.T) {
 	m := regexp.MustCompile(`const BOARD = (\[.*\]);`).FindStringSubmatch(script)
 	require.NotNil(t, m, "the script declares the Board's columns as const BOARD = [...];")
 	var cols [][]json.RawMessage
-	require.NoError(t, json.Unmarshal([]byte(m[1]), &cols))
+	require.NoError(t, json.Unmarshal([]byte(untk(m[1])), &cols))
 	byCol := map[string][]string{}
 	seen := map[string]int{}
 	for _, c := range cols {
@@ -381,7 +382,7 @@ func TestPage_AWaitingEpicNamesItsAnyOfGroups(t *testing.T) {
 	t.Parallel()
 	page, script := pageText(t)
 	assert.Contains(t, page, "e.blocked_by_any_of")
-	assert.Contains(t, script, `one of</span> ' + gr.any_of`)
+	assert.Contains(t, script, `esc(t("wait.oneOf")) + "</span> " + gr.any_of`)
 }
 
 // TestPage_DrawsAnEpicsDescriptionAsEscapedPreformattedText is the drawer's
@@ -408,7 +409,10 @@ func TestPage_DrawsAnEpicsDescriptionAsEscapedPreformattedText(t *testing.T) {
 	if err != nil {
 		t.Skip("node is not on PATH: the static half above ran")
 	}
-	prog := strings.Join(defs, "\n") + "\nprocess.stdout.write(descHTML(\"<script>alert(1)</script>\\n<b>bold</b> & 'q'\"));\n"
+	en := serve(t, http.MethodGet, "127.0.0.1:7377", "/i18n/en.json")
+	dict, err := io.ReadAll(en.Body)
+	require.NoError(t, err)
+	prog := "const EN = " + string(dict) + ";\nconst t = (k) => EN[k];\n" + strings.Join(defs, "\n") + "\nprocess.stdout.write(descHTML(\"<script>alert(1)</script>\\n<b>bold</b> & 'q'\"));\n"
 	out, err := exec.CommandContext(t.Context(), node, "-e", prog).Output()
 	require.NoError(t, err)
 	assert.Equal(t, `<div><h4>Description</h4><pre class="ddesc">&lt;script&gt;alert(1)&lt;/script&gt;`+"\n"+`&lt;b&gt;bold&lt;/b&gt; &amp; &#39;q&#39;</pre></div>`, string(out))
