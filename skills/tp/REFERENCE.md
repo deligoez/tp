@@ -2374,7 +2374,7 @@ It writes nothing to the repository and loads nothing remote.
 |---------|--------|
 | a `Host` other than `127.0.0.1:<port>` or `localhost:<port>` (name case-insensitive, port required) | 403, before anything else |
 | any method but `GET` | 405 with `Allow: GET` |
-| `/`, `/style.css`, `/pure.js`, `/app.js`, `/graph.js`, `/favicon.svg`, `/i18n/en.json`, `/i18n/tr.json`, `/vendor/deckgl-9.3.12.min.js` | the page; the vendored renderer with `Content-Encoding: gzip` when the request accepts it, decompressed otherwise |
+| `/`, `/style.css`, `/pure.js`, `/app.js`, `/graph.js`, `/favicon.svg`, `/i18n/en.json`, `/i18n/tr.json`, `/vendor/deckgl-9.3.12.min.js` | the page, `no-cache`, asking for its own files with `?v=<stamp>` (a stamped file is cached as immutable); the vendored renderer, the one file under `/vendor/`, with `Content-Encoding: gzip` when the request accepts it, decompressed otherwise |
 | `/api/events` | the event stream below |
 | `/api/export?file=<path>`, `<path>` a `tp export --list` row's `path` | `tp export --file <path>`'s JSON, uncompacted |
 | `/api/history?milestone=<m>` (or `epic=`, `epics=`, with `name=`, and `from=`/`to=`) | that slice's `tp epic review --history` JSON |
