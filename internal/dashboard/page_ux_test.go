@@ -891,6 +891,7 @@ func TestPage_SyncURLWritesTheRelativeAddress(t *testing.T) {
 func TestPage_AReopenedStreamSaysConnectingAndPausedHasItsOwnMark(t *testing.T) {
 	t.Parallel()
 	page, script := pageText(t)
-	assert.Contains(t, script, "function openStream() {\n    conn.dataset.state = \"connecting\";\n    conn.textContent = \"Connecting\";\n")
+	assert.Contains(t, script, "function openStream() {\n    connState(\"connecting\");\n")
+	assert.Contains(t, script, `paused: tk("conn.paused")`)
 	assert.Contains(t, page, `.conn[data-state="paused"]::before {`)
 }
