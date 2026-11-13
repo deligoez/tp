@@ -95,3 +95,36 @@ func TestAuditCodeFiles_RenameRanksByItsOwnChurn(t *testing.T) {
 	assert.Contains(t, sec["prompt"].(string), "- pkg/moved.go (diff: +10/-0)\n", "the rename's own edit, not the whole file")
 	assert.Contains(t, sec["prompt"].(string), "- small.go (diff: +6/-1)\n")
 }
+
+// TestAuditCodeFiles_QuotedPathsKeepTheirChurn: git C-quotes a path holding
+// non-ASCII bytes or a tab under core.quotePath, so a universe read from
+// `diff --name-only` without -z held "\"caf\\303\\251.go\"", matched no
+// `--numstat -z` key and ranked café.go last at +0/-0. Every universe read is
+// NUL-separated now.
+func TestAuditCodeFiles_QuotedPathsKeepTheirChurn(t *testing.T) {
+	t.Parallel()
+	dir, specPath := newAuditRepo(t)
+	writeLines(t, dir, "café.go", 1, "base")
+	writeLines(t, dir, "a b.go", 1, "base")
+	writeLines(t, dir, "old.go", 40, "body")
+	git(t, dir, "add", "-A")
+	git(t, dir, "commit", "-m", "base")
+	git(t, dir, "tag", "v0")
+	writeLines(t, dir, "café.go", 31, "next")
+	writeLines(t, dir, "a b.go", 21, "next")
+	git(t, dir, "mv", "old.go", "new.go")
+	f, err := os.OpenFile(filepath.Join(dir, "new.go"), os.O_APPEND|os.O_WRONLY, 0o600)
+	require.NoError(t, err)
+	_, err = f.WriteString("// one more\n")
+	require.NoError(t, err)
+	require.NoError(t, f.Close())
+	git(t, dir, "add", "-A")
+	git(t, dir, "commit", "-m", "change")
+
+	stdout, stderr, code := runTP(t, dir, "audit", specPath)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	sec := auditPromptsByRole(t, stdout)["security"]
+	assert.Equal(t, []string{"café.go", "a b.go", "new.go"}, affectedPaths(t, sec), "churn order, the quoted paths included")
+	assert.Contains(t, sec["prompt"].(string), "- café.go (diff: +31/-1)\n")
+	assert.Contains(t, sec["prompt"].(string), "- a b.go (diff: +21/-1)\n")
+}
