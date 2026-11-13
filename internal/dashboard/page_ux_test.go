@@ -723,6 +723,23 @@ func TestPure_AMilestoneCardReadsOneLine(t *testing.T) {
 	assert.JSONEq(t, `[{"kind": "purpose", "text": "A2 proves its slice"}, {"kind": "threshold", "text": "threshold: p95"}, {"kind": "threshold", "text": "no threshold"}]`, got)
 }
 
+// TestPage_AMilestoneCardIsOneLineThatOpensItsDetail: a milestone card is
+// a button holding one line cut to its width by an ellipsis, the whole
+// text in its title, and the cards top-aligned; 1.14.1's three-line clamp
+// and its Show all are gone (1.15.1).
+func TestPage_AMilestoneCardIsOneLineThatOpensItsDetail(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	assert.Contains(t, page, ".mscells { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: var(--space-xs); align-items: start; }")
+	assert.Contains(t, page, ".ms .line { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }")
+	for _, s := range []string{`'<button type="button" class="ms" data-ms="'`, "tpPure.msLine(", `' title="' + esc(line.text) + '">'`, "openMilestone(b.dataset.ms)"} {
+		assert.Contains(t, script, s)
+	}
+	for _, s := range []string{"clamp", "measureCards", "data-msx", "Show all of "} {
+		assert.NotContains(t, page+script, s)
+	}
+}
+
 // TestPure_AToggleKeepsItsKeyAcrossARedraw: a milestone card, a Waiting
 // section's header and a section's Show all each have a key read from
 // their data attribute, and the key gives that attribute and value back,
