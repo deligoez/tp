@@ -47,14 +47,15 @@ func lintEpicGateEmpty(g *model.EpicGraph) []EpicLintFinding {
 		if len(followers) == 0 {
 			continue
 		}
-		verb := "opens"
+		names := strings.Join(followers, ", ")
+		verb, target := "opens", "the"
 		if len(followers) > 1 {
-			verb = "open"
+			verb, target = "open", "a"
 		}
 		f := epicNamedError(EpicRuleGateEmpty, fmt.Sprintf(
 			"the gate of %q has no effective members and no threshold, so it is green at once and %s %s after it "+
 				"without waiting; name its members (tp epic set gates.%s.members=<ids>), give it a threshold, "+
-				"or move a trigger condition into the milestone it holds", m, strings.Join(followers, ", "), verb, m),
+				"or move a trigger condition into %s milestone that opens after it (%s)", m, names, verb, m, target, names),
 			[]string{m}, own...)
 		f.Severity = EpicSeverityWarning
 		out = append(out, f)
