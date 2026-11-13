@@ -71,3 +71,15 @@ func TestPage_TheFullScreenPillShrinksItsSearchNotItsEnds(t *testing.T) {
 	}
 }
 
+// TestPage_TheReviewsSmallItemsAreInPlace is the review's L3 to L5: a KPI's
+// small value keeps 30 px from its (i); the cross-edge toggle says it shows
+// or hides and starts pressed; a milestone's label fits its box.
+func TestPage_TheReviewsSmallItemsAreInPlace(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	assert.Contains(t, page, ".kpi .v { padding-right: 30px; }")
+	assert.Contains(t, page, `id="gc-cross" aria-pressed="true"`)
+	assert.Contains(t, script, `"graph.crossTitle": "Show or hide every edge that is not a tree edge (K)"`)
+	assert.Contains(t, script, "milestone: { w: 200, h: 54, col: 240, row: 110, fs: 22, chars: 14 },")
+}
+
