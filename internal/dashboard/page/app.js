@@ -257,7 +257,7 @@
         '<span class="sm">gate ' + esc(s.members_done || 0) + " of " + esc(s.members || 0) + ' done</span><span class="sm th' + clamp + '" data-th="' + esc(th) + '">' +
         esc(th === "written" && m.gate && m.gate.threshold ? "threshold: " + m.gate.threshold : THRESHOLD_LABEL[th] || th) + "</span>" +
         (purpose && purpose.trim() ? '<span class="sm purpose' + clamp + '">purpose: ' + esc(purpose.trim()) + "</span>" : "") +
-        '<button type="button" class="more" data-msx="' + esc(m.milestone) + '" aria-expanded="' + full + '">' + (full ? "Show less" : "Show all") + "</button>" +
+        '<button type="button" class="more" data-msx="' + esc(m.milestone) + '" aria-expanded="' + full + '" aria-label="' + esc((full ? "Show less of " : "Show all of ") + m.milestone + "'s threshold and purpose") + '">' + (full ? "Show less" : "Show all") + "</button>" +
         '<span class="sm muted">' + esc(dc.described + " of " + plural(dc.all, "epic", "epics") + " described") + "</span></div>";
     }).join("") + "</div>";
     measureCards();
