@@ -234,11 +234,13 @@ is the ordinary implement unit.
   `tp-unit/<run id>/<task id>` from the main branch's `HEAD`. Each child is spawned in its worktree
   with `TP_FILE` naming the main tree's task file by absolute path, and its brief is `tp brief <id>`.
 - **The unit asks; the driver closes.** In a linked worktree of the task file's repository,
-  `tp done <id> "<evidence>" --commit <sha>...` checks the evidence and the commits, runs no gate and
-  closes nothing: it writes a pending close to `.tp/runs/pending/<key>/<id>.json`. `--commit` is
-  required and names one task; `--auto-commit`, `--covered-by` and `--skip-gate` are usage errors
-  (exit 2). A sha that is not on the unit's branch, is already on the main branch, or changes the task
-  file, the spec's `.tp-review/` or the project's `.tp/` is refused (exit 1) and nothing is written.
+  `tp brief <id>` gives the worktree close: commit on the branch, run only the tests the change
+  needs while the units beside it run theirs, and ask for the close. `tp done <id> "<evidence>"
+  --commit <sha>...` there checks the evidence and the commits, runs no gate and closes nothing: it
+  writes a pending close to `.tp/runs/pending/<key>/<id>.json`. `--commit` is required and names one
+  task; `--auto-commit`, `--covered-by` and `--skip-gate` are usage errors (exit 2). A sha that is
+  not on the unit's branch, is already on the main branch, or changes the task file, the spec's
+  `.tp-review/` or the project's `.tp/` is refused (exit 1) and nothing is written.
 - **Integration.** After the batch, whatever it ended as, the driver integrates every pending close in
   id order: it cherry-picks the commits onto the main branch and runs `tp done <id> "<evidence>"
   --commit <picked sha>...` there, so the gate and the record are `tp done`'s and the gates run one at
@@ -246,12 +248,14 @@ is the ordinary implement unit.
   `git reset --keep` (the task file's other closes survive), reopens the task and sets `solo: true`,
   so it runs alone next. A picked diff that leaves the task's `touches` is reported on stderr and not
   reopened. The worktrees and branches are then removed.
-- **A crash** leaves pending closes, worktrees or `tp-unit/` branches; the next `tp run` integrates
-  the pending closes and removes the rest before its first batch. A task whose unit never asked to
-  close stays wip and is resumed alone.
+- **A crash** leaves pending closes, worktrees or `tp-unit/` branches. `tp resume` names the pending
+  closes under `pending_closes`; the next `tp run` integrates them and removes the rest before its
+  first batch. A task whose unit never asked to close stays wip and is resumed alone.
 - **Limits.** A worktree is a fresh checkout of `HEAD`, without ignored files (dependencies, `.env`,
-  build output); a project whose units need them keeps `run_max_parallel` at 1. The caps are checked
-  between iterations, so a batch can overshoot `run_max_units` by up to its size less one.
+  build output); `tp run --dry-run` says so on stderr before a batch, and a project whose units need
+  them keeps `run_max_parallel` at 1. `tp validate` warns on an open task without `touches` while
+  `run_max_parallel` is above 1. The caps are checked between iterations, so a batch can overshoot
+  `run_max_units` by up to its size less one.
 
 ### Stop reasons
 
