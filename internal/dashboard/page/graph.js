@@ -828,12 +828,11 @@
     showLegend(open);
   }
   $("gc-lg").addEventListener("click", toggleLegend);
-  // Entering or leaving full screen reads that place's choice and fits the
-  // graph to the canvas's new size once the browser has laid it out.
-  document.addEventListener("tp-fs", () => {
-    showLegend(pure.legendOpen(storedLegend(), isFull()));
-    requestAnimationFrame(() => { if (G.prepared && G.deck && G.atFit) fit(); });
-  });
+  // Entering or leaving full screen reads that place's choice. The canvas's
+  // own size, read once the window has grown or shrunk, refits a graph
+  // still at its fit, whatever changed the size.
+  document.addEventListener("tp-fs", () => showLegend(pure.legendOpen(storedLegend(), isFull())));
+  new ResizeObserver(() => { if (G.prepared && G.deck && G.atFit) fit(); }).observe($("gc-canvas"));
   showLegend(pure.legendOpen(storedLegend(), isFull()));
   $("gc-fit").addEventListener("click", () => { if (G.prepared) fit(); });
   // The canvas's own + − Fit, bottom right, in the page and in full screen.
@@ -995,11 +994,17 @@
       ensureDeck();
       say("");
       if (!keep) {
+        // The first view is a fit, so full screen fits it again; a
+        // neighbourhood's, centred on its epic, is not.
         G.vs = fitView();
+        G.atFit = true;
         G.fitted = key;
         if (G.data.view === "neighbourhood") {
           const c = G.prepared.nodes.find((n) => n.centre);
-          if (c) G.vs = { ...G.vs, target: [c.x, c.y + c.h / 2, 0], zoom: Math.max(G.vs.zoom, NEAR_ZOOM) };
+          if (c) {
+            G.vs = { ...G.vs, target: [c.x, c.y + c.h / 2, 0], zoom: Math.max(G.vs.zoom, NEAR_ZOOM) };
+            G.atFit = false;
+          }
         }
       }
     } else applySelection(G.prepared);
