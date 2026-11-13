@@ -460,6 +460,16 @@
     return "#" + hash;
   };
 
+  // streamStep is what the page does with its event stream when the tab's
+  // visibility changes: "close" a stream a hidden tab holds, so hidden tabs
+  // keep none of the browser's six connections per host, "open" one for a
+  // visible tab that has none, null otherwise.
+  P.streamStep = function (hidden, open) {
+    if (hidden && open) return "close";
+    if (!hidden && !open) return "open";
+    return null;
+  };
+
   if (typeof module === "object" && module.exports) module.exports = P;
   else root.tpPure = P;
 })(this);

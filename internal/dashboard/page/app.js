@@ -2808,20 +2808,37 @@
     address.applying = false;
   });
 
-  // The stream: a page that reconnects gets the current state again (§2).
+  // The stream: a page that reconnects gets the current state again (§2). A
+  // hidden tab closes it and a visible one opens a fresh one, which the
+  // server answers with the current state first, so the page resyncs.
   const conn = $("conn");
-  const source = new EventSource(STREAM);
-  source.addEventListener("open", () => { conn.dataset.state = "live"; conn.textContent = "Live"; });
-  source.addEventListener("error", () => { conn.dataset.state = "lost"; conn.textContent = "Reconnecting"; });
-  EVENTS.forEach((name) => {
-    source.addEventListener(name, (ev) => {
-      let payload;
-      try {
-        payload = JSON.parse(ev.data);
-      } catch (err) {
-        payload = { error: "the " + name + " event is not JSON: " + err.message, hint: "report it: tp pushes JSON only" };
-      }
-      receive(name, payload);
+  let source = null;
+  function openStream() {
+    source = new EventSource(STREAM);
+    source.addEventListener("open", () => { conn.dataset.state = "live"; conn.textContent = "Live"; });
+    source.addEventListener("error", () => { conn.dataset.state = "lost"; conn.textContent = "Reconnecting"; });
+    EVENTS.forEach((name) => {
+      source.addEventListener(name, (ev) => {
+        let payload;
+        try {
+          payload = JSON.parse(ev.data);
+        } catch (err) {
+          payload = { error: "the " + name + " event is not JSON: " + err.message, hint: "report it: tp pushes JSON only" };
+        }
+        receive(name, payload);
+      });
     });
+  }
+  document.addEventListener("visibilitychange", () => {
+    const step = tpPure.streamStep(document.hidden, source !== null);
+    if (step === "close") {
+      source.close();
+      source = null;
+      conn.dataset.state = "paused";
+      conn.textContent = "Paused";
+    } else if (step === "open") {
+      openStream();
+    }
   });
+  if (!document.hidden) openStream();
 })();
