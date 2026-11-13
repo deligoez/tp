@@ -256,3 +256,13 @@ func TestPure_TheDetailFollowsTheOnScreenFontSize(t *testing.T) {
 	got := runPure(t, `out([P.detailLevel(4), P.detailLevel(8.9), P.detailLevel(9), P.detailLevel(11.9), P.detailLevel(12), P.detailLevel(30)]);`)
 	assert.JSONEq(t, `["far", "far", "mid", "mid", "near", "near"]`, got)
 }
+
+// TestPure_ALongIdWrapsAtAPunctuationMarkInsideItsBox: an id longer than a
+// line breaks after the last ".", "-" or ":" that fits, else at the line's
+// end; a second line too long for the box ends in an ellipsis, so the text
+// never leaves the box and the box never widens.
+func TestPure_ALongIdWrapsAtAPunctuationMarkInsideItsBox(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([P.wrapId("api-gw-replay", 20), P.wrapId("inventory-export-backfill", 20), P.wrapId("abcdefghijklmnopqrstuvwxyz", 10), P.wrapId("a.b:c-very-long-tail-of-the-identifier-here", 12)]);`)
+	assert.JSONEq(t, `[["api-gw-replay"], ["inventory-export-", "backfill"], ["abcdefghij", "klmnopqrs…"], ["a.b:c-very-", "long-tail-o…"]]`, got)
+}
