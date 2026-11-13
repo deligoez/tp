@@ -169,3 +169,21 @@ func TestCarryDisposition_OnlyWontfixOrDuplicateWithEvidenceIsAccepted(t *testin
 	assert.Equal(t, CarryResolved, CarryDisposition(true, "fixed", ""))
 	assert.Equal(t, CarryUnresolved, CarryDisposition(false, "", ""))
 }
+
+// TestReviewCarriedSet_OnlyRowsBeforeTheLatestRoundAreEarlier: a row whose
+// latest occurrence is in an earlier round is Earlier; a row of the latest
+// recorded round is that round's own and is not.
+func TestReviewCarriedSet_OnlyRowsBeforeTheLatestRoundAreEarlier(t *testing.T) {
+	t.Parallel()
+	spec := filepath.Join(t.TempDir(), "spec.md")
+	st := &ReviewState{ReviewRounds: loopRounds(t, spec, []string{carriedOpen}, []string{carriedOtherAt})}
+
+	rows, missing := ReviewCarriedSet(spec, st)
+	require.Empty(t, missing)
+	require.Len(t, rows, 2)
+	assert.Equal(t, 1, rows[0].Round)
+	assert.True(t, rows[0].Earlier, "round 1 is before the latest round 2")
+	assert.Equal(t, 2, rows[1].Round)
+	assert.False(t, rows[1].Earlier, "round 2 is the latest round")
+	assert.Len(t, CarriedEarlier(rows), 1)
+}
