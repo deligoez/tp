@@ -91,6 +91,49 @@ func TestHandler_ServesTheRendererGzippedOrPlain(t *testing.T) {
 	}
 }
 
+// getWith answers one GET of path with the given request headers.
+func getWith(path string, headers map[string]string) *http.Response {
+	req := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:7377"+path, http.NoBody)
+	req.Host = "127.0.0.1:7377"
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+	rec := httptest.NewRecorder()
+	Handler(7377, nil).ServeHTTP(rec, req)
+	return rec.Result()
+}
+
+// TestHandler_ServesOnlyTheRendererUnderVendor: vendor/ answers the
+// renderer's .js route alone; its stored .gz, its licence and its
+// provenance note are embedded for the binary's readers, not served.
+func TestHandler_ServesOnlyTheRendererUnderVendor(t *testing.T) {
+	t.Parallel()
+	for _, path := range []string{"/vendor/deckgl-9.3.12.min.js.gz", "/vendor/LICENSE-deckgl", "/vendor/PROVENANCE.md", "/vendor/", "/vendor/nope.js"} {
+		assert.Equal(t, http.StatusNotFound, getWith(path, nil).StatusCode, path)
+	}
+	assert.Equal(t, http.StatusOK, getWith("/vendor/deckgl-9.3.12.min.js", nil).StatusCode)
+}
+
+// TestHandler_TheRendererCarriesAnETagAndCachesForever: the renderer's
+// name holds its version, so it is cached as immutable; each encoding has
+// its own ETag, and a request naming it is answered 304 with no body.
+func TestHandler_TheRendererCarriesAnETagAndCachesForever(t *testing.T) {
+	t.Parallel()
+	const path = "/vendor/deckgl-9.3.12.min.js"
+	gz := getWith(path, map[string]string{"Accept-Encoding": "gzip"})
+	plain := getWith(path, nil)
+	for _, resp := range []*http.Response{gz, plain} {
+		assert.Equal(t, "public, max-age=31536000, immutable", resp.Header.Get("Cache-Control"))
+		assert.NotEmpty(t, resp.Header.Get("ETag"))
+	}
+	assert.NotEqual(t, gz.Header.Get("ETag"), plain.Header.Get("ETag"))
+	again := getWith(path, map[string]string{"Accept-Encoding": "gzip", "If-None-Match": gz.Header.Get("ETag")})
+	assert.Equal(t, http.StatusNotModified, again.StatusCode)
+	body, err := io.ReadAll(again.Body)
+	require.NoError(t, err)
+	assert.Empty(t, body)
+}
+
 // TestPage_DeckGLIsVendoredAndLoadedLazily: no page file loads a script or
 // stylesheet from the network, and the page names the vendored file only
 // in graph.js, which adds it when the card first scrolls into view, never
