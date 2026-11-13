@@ -1,22 +1,12 @@
 package engine
 
-import (
-	"cmp"
-	"slices"
-)
+import "slices"
 
 // LayoutEdge is one edge to lay out: From, the dependency, is drawn left of
 // To, its dependent.
 type LayoutEdge struct {
 	From string
 	To   string
-}
-
-// LayoutPlace is a node's place in a layered layout: its layer, left to
-// right, and its order inside the layer, top to bottom, both from 0.
-type LayoutPlace struct {
-	Layer int `json:"layer"`
-	Order int `json:"order"`
 }
 
 // LayoutBand is one band of a banded layout: the layers From to To,
@@ -30,63 +20,6 @@ type LayoutBand struct {
 	From int      `json:"from_layer"`
 	To   int      `json:"to_layer"`
 }
-
-// Layout is a layered layout (spec/backlog/dashboard-ux.md §2): each node's
-// place, the bands in their order (none for an unbanded layout) and the
-// number of layers.
-type Layout struct {
-	Places map[string]LayoutPlace
-	Bands  []LayoutBand
-	Layers int
-}
-
-// layoutSweeps is how many barycenter sweeps order the layers, alternating
-// down and up.
-const layoutSweeps = 4
-
-// LayeredLayout lays out ids, given in file order, over edges between them;
-// an edge naming an id not in ids is ignored. With bands nil every node
-// shares one band; otherwise bandOf names each node's band, and the bands
-// become runs of consecutive layers in dependency order, bands breaking a
-// tie in the order given; a band named twice counts once, and a band a
-// node names that bands leaves out is added after them. Bands that depend
-// on each other in a cycle, through different nodes, share one run, so no
-// edge points back. Inside a run a node's layer is its longest path from
-// the run's sources over the run's own edges. Each layer is then ordered
-// by layoutSweeps barycenter sweeps, ties broken by file order, so one
-// input always lays out alike.
-func LayeredLayout(ids []string, edges []LayoutEdge, bands []string, bandOf map[string]string) Layout {
-	file := make(map[string]int, len(ids))
-	for i, id := range ids {
-		file[id] = i
-	}
-	kept := make([]LayoutEdge, 0, len(edges))
-	for _, e := range edges {
-		if _, ok := file[e.From]; ok {
-			if _, ok := file[e.To]; ok && e.From != e.To {
-				kept = append(kept, e)
-			}
-		}
-	}
-	if bands == nil {
-		bands, bandOf = []string{""}, map[string]string{}
-	}
-	out := Layout{Places: make(map[string]LayoutPlace, len(ids))}
-	layer, spans := bandLayers(ids, kept, bandRuns(bandList(bands, ids, bandOf), bandOf, kept), bandOf)
-	for _, s := range spans {
-		if s.Name != "" || len(spans) > 1 {
-			out.Bands = append(out.Bands, s)
-		}
-		out.Layers = max(out.Layers, s.To+1)
-	}
-	for l, row := range orderLayers(ids, kept, layer, file, out.Layers) {
-		for i, id := range row {
-			out.Places[id] = LayoutPlace{Layer: l, Order: i}
-		}
-	}
-	return out
-}
-
 // bandList is bands with each named once, where it is first named, then
 // each band a node of ids names that bands leaves out, in ids order.
 func bandList(bands, ids []string, bandOf map[string]string) []string {
@@ -301,64 +234,4 @@ func longestPaths(ids []string, edges []LayoutEdge, runOf map[string]int) map[st
 		}
 	}
 	return depth
-}
-
-// orderLayers buckets ids by layer in file order and runs the barycenter
-// sweeps: a down sweep keys each node by the mean order of its
-// predecessors, an up sweep by that of its successors, a node with none
-// keeping its own order as its key; equal keys go by file order.
-func orderLayers(ids []string, edges []LayoutEdge, layer, file map[string]int, layers int) [][]string {
-	rows := make([][]string, layers)
-	for _, id := range ids {
-		rows[layer[id]] = append(rows[layer[id]], id)
-	}
-	preds, succs := map[string][]string{}, map[string][]string{}
-	for _, e := range edges {
-		preds[e.To] = append(preds[e.To], e.From)
-		succs[e.From] = append(succs[e.From], e.To)
-	}
-	pos := map[string]int{}
-	index := func(row []string) {
-		for i, id := range row {
-			pos[id] = i
-		}
-	}
-	for _, row := range rows {
-		index(row)
-	}
-	for sweep := range layoutSweeps {
-		down := sweep%2 == 0
-		for i := range layers {
-			l := i
-			if !down {
-				l = layers - 1 - i
-			}
-			by := succs
-			if down {
-				by = preds
-			}
-			sortByBarycenter(rows[l], by, pos, file)
-			index(rows[l])
-		}
-	}
-	return rows
-}
-
-// sortByBarycenter sorts row by each node's mean neighbour order, a node
-// with no neighbour keyed by its own, ties by file order.
-func sortByBarycenter(row []string, neighbours map[string][]string, pos, file map[string]int) {
-	key := make(map[string]float64, len(row))
-	for _, id := range row {
-		key[id] = float64(pos[id])
-		if ns := neighbours[id]; len(ns) > 0 {
-			sum := 0
-			for _, n := range ns {
-				sum += pos[n]
-			}
-			key[id] = float64(sum) / float64(len(ns))
-		}
-	}
-	slices.SortFunc(row, func(a, b string) int {
-		return cmp.Or(cmp.Compare(key[a], key[b]), cmp.Compare(file[a], file[b]))
-	})
 }

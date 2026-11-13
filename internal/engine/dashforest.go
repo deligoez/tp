@@ -52,7 +52,7 @@ type ForestPlace struct {
 }
 
 // Forest is a forest layout: each node's place, each given edge's role in
-// the order given, the bands as LayeredLayout makes them, the number of
+// the order given, the bands with the layers each spans, the number of
 // layers and the width in columns.
 type Forest struct {
 	Places  map[string]ForestPlace
@@ -63,7 +63,7 @@ type Forest struct {
 }
 
 // ForestInput is what ForestLayout lays out: IDs in file order, Edges
-// between them, Bands and BandOf as LayeredLayout takes them, GroupOf
+// between them, Bands and BandOf naming the bands and each node's band,
 // naming each node's group (nil for one group), LaneOf naming each band's
 // lane (nil to stack every band after the last), OnPath marking, per edge
 // in Edges, the edges of the path the picture keeps straight (nil for
@@ -80,22 +80,24 @@ type ForestInput struct {
 }
 
 // ForestLayout lays in.IDs out as a forest packed into columns, after
-// lulus's layout. Layers come from the bands as LayeredLayout makes them: a
-// band is a run of consecutive layers, bands in a cycle share one run, and
-// inside a run a node's layer is its longest path over the run's edges.
-// With LaneOf nil every run starts after the one before it, as
-// LayeredLayout stacks them; with lanes, a run starts right after the runs
-// it depends on and the run before it in its own lane, so runs of different
+// lulus's layout. Layers come from the bands: with Bands nil every node
+// shares one band; otherwise BandOf names each node's band, a band named
+// twice counts once and a band a node names that Bands leaves out is added
+// after them. A band is a run of consecutive layers in dependency order,
+// bands in a cycle share one run, and inside a run a node's layer is its
+// longest path over the run's edges. With LaneOf nil every run starts after
+// the one before it; with lanes, a run starts right after the runs it
+// depends on and the run before it in its own lane, so runs of different
 // lanes share layers. Each node then picks one primary parent among the
 // edges into it from an earlier layer and its own group, one on the path
 // OnPath marks, then the one from the deepest layer, then the earliest in
-// file order; those edges form a
-// forest (RoleTree), every other edge pointing down is RoleCross and one
-// that does not is RoleBack. The forest's roots are grouped by GroupOf,
-// groups in the order of their first node and roots inside a group by
-// layer then file order, and packed left to right as Pack says. An edge
-// naming an id not in IDs, or a node to itself, is laid out as no edge and
-// its role is RoleBack. One input always lays out alike.
+// file order; those edges form a forest (RoleTree), every other edge
+// pointing down is RoleCross and one that does not is RoleBack. The
+// forest's roots are grouped by GroupOf, groups in the order of their
+// first node and roots inside a group by layer then file order, and packed
+// left to right as Pack says. An edge naming an id not in IDs, or a node to
+// itself, is laid out as no edge and its role is RoleBack. One input always
+// lays out alike.
 func ForestLayout(in *ForestInput) Forest {
 	ids, edges := in.IDs, in.Edges
 	file := make(map[string]int, len(ids))
@@ -126,7 +128,7 @@ func ForestLayout(in *ForestInput) Forest {
 }
 
 // forestLayers is each node's layer and the bands' spans: in.Bands run as
-// LayeredLayout runs them over the edges forestEdgeKept keeps, stacked, or
+// ForestLayout says, over the edges forestEdgeKept keeps, stacked, or
 // in lanes when in.LaneOf names them.
 func forestLayers(in *ForestInput, file map[string]int) (map[string]int, []LayoutBand) {
 	kept := make([]LayoutEdge, 0, len(in.Edges))
