@@ -403,7 +403,8 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	// only after it: a refusal leaves the state directory as it found it.
 	snap.write(specPath)
 	writeAuditRolePools(specPath, snap.round, pools)
-	notices := cutNotices(prompts)
+	cut := cutNotices(prompts)
+	notices := append(universeNotices(specPath, files, base, len(affectedFiles) > 0, affectedFromTasks), cut...)
 
 	summary := engine.BuildAffectedSummary(files, nil)
 
@@ -435,7 +436,7 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 		// reading false over it was decision 3's defect.
 		result.FileSummary = &auditFileSummary{
 			AffectedSummary: *summary,
-			Truncated:       totalChanged > len(files) || len(notices) > 0,
+			Truncated:       totalChanged > len(files) || len(cut) > 0,
 			TotalChanged:    totalChanged,
 		}
 	}

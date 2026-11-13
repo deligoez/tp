@@ -1,0 +1,144 @@
+package cli
+
+import (
+	"fmt"
+	"path/filepath"
+	"slices"
+	"strings"
+
+	"github.com/deligoez/tp/internal/engine"
+)
+
+// Universe notice kinds (decision 5 of
+// spec/backlog/checklist-covers-what-changed.md).
+const (
+	noticeMergeOnlyFiles = "merge-only-files"
+	noticeTasksDiffer    = "tasks-differ"
+)
+
+// universeNoticeNames caps how many paths a universe notice names on stderr;
+// the payload's files carries them all.
+const universeNoticeNames = 5
+
+// universeNotices says when the audited universe itself looks wrong: under
+// auto-detection, files that reach the committed range only through a merge;
+// under --affected-from-tasks, a difference between the files the plan's tasks
+// touched and the auto-detected diff. A list named with --affected-files is
+// the operator's own and draws neither.
+func universeNotices(specPath string, files []string, base string, named, fromTasks bool) []auditNotice {
+	dir := filepath.Dir(specPath)
+	switch {
+	case fromTasks:
+		return tasksDifferNotice(dir, files)
+	case named:
+		return nil
+	default:
+		return mergeOnlyNotice(dir, base, files)
+	}
+}
+
+// mergeOnlyNotice names the universe files the committed range holds only
+// through a merge: in `<rev>...HEAD`, and changed by no first-parent commit of
+// `<rev>..HEAD`, so `git log --first-parent` sees fewer files than the audit.
+// A file also changed in the working tree is in the universe on its own
+// account and is not named.
+func mergeOnlyNotice(dir, base string, universe []string) []auditNotice {
+	rev := base
+	if rev == "" {
+		rev = latestGitTag(dir)
+	}
+	// The sink: rev becomes a git argument below.
+	if rev == "" || !engine.SafeGitRev(rev) {
+		return nil
+	}
+	inRange := pathSet(execGitDiffProbe(dir, "diff --name-only",
+		"-c", "diff.external=", "diff", "--no-ext-diff", "--name-only", rev+"...HEAD"))
+	firstParent := pathSet(execGitDiffProbe(dir, "log --first-parent",
+		"-c", "diff.external=", "log", "--first-parent", "--no-merges", "--name-only", "--format=", rev+"..HEAD"))
+	if base == "" {
+		// Auto-detection without --base also reads the working tree.
+		for _, rng := range [][]string{{}, {"--cached"}} {
+			for f := range pathSet(execGitDiffProbe(dir, "diff --name-only", append([]string{"diff", "--name-only"}, rng...)...)) {
+				firstParent[f] = true
+			}
+		}
+	}
+	var merged []string
+	for _, f := range universe {
+		if inRange[f] && !firstParent[f] {
+			merged = append(merged, f)
+		}
+	}
+	if len(merged) == 0 {
+		return nil
+	}
+	return []auditNotice{auditNotice{
+		Kind: noticeMergeOnlyFiles,
+		Message: fmt.Sprintf("%s %s...HEAD only through a merge, so --first-parent sees fewer: %s",
+			countNoun(len(merged), "file reaches", "files reach"), rev, namedPaths(merged)),
+		Files: merged,
+	}.emit()}
+}
+
+// tasksDifferNotice compares the files --affected-from-tasks derived from the
+// plan's task commits with the auto-detected diff, and names the files in one
+// and not the other: a changed file no task touched is otherwise dropped
+// without a word.
+func tasksDifferNotice(dir string, taskFiles []string) []auditNotice {
+	if !gitExists(dir) {
+		return nil
+	}
+	detected, _, _ := autoDetectedFiles(dir, "")
+	tasked, inDiff := pathSet(taskFiles), pathSet(detected)
+	var untasked, outside []string
+	for _, f := range detected {
+		if !tasked[f] {
+			untasked = append(untasked, f)
+		}
+	}
+	for _, f := range taskFiles {
+		if !inDiff[f] {
+			outside = append(outside, f)
+		}
+	}
+	if len(untasked)+len(outside) == 0 {
+		return nil
+	}
+	msg := fmt.Sprintf("--affected-from-tasks audits %d files from task commits; %s to no task", len(taskFiles),
+		countNoun(len(untasked), "changed file belongs", "changed files belong"))
+	if len(untasked) > 0 {
+		msg += " (" + namedPaths(untasked) + ")"
+	}
+	msg += fmt.Sprintf(", and %s outside the auto-detected diff", countNoun(len(outside), "task file lies", "task files lie"))
+	if len(outside) > 0 {
+		msg += " (" + namedPaths(outside) + ")"
+	}
+	all := slices.Concat(untasked, outside)
+	slices.Sort(all)
+	return []auditNotice{auditNotice{Kind: noticeTasksDiffer, Message: msg, Files: all}.emit()}
+}
+
+// pathSet turns a path list into a set.
+func pathSet(paths []string) map[string]bool {
+	set := make(map[string]bool, len(paths))
+	for _, p := range paths {
+		set[p] = true
+	}
+	return set
+}
+
+// countNoun renders "1 file reaches" or "3 files reach".
+func countNoun(n int, one, many string) string {
+	if n == 1 {
+		return "1 " + one
+	}
+	return fmt.Sprintf("%d %s", n, many)
+}
+
+// namedPaths names up to universeNoticeNames paths, then how many more.
+func namedPaths(paths []string) string {
+	if len(paths) <= universeNoticeNames {
+		return strings.Join(paths, ", ")
+	}
+	return strings.Join(paths[:universeNoticeNames], ", ") + fmt.Sprintf(" and %d more", len(paths)-universeNoticeNames)
+}
