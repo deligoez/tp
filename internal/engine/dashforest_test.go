@@ -256,3 +256,11 @@ func TestForestLayout_RowPackingRoundsAHalfColumnUp(t *testing.T) {
 	assert.InDelta(t, 2.0, got.Columns, 0)
 	assert.Equal(t, map[string]ForestPlace{"r": {0, 1}, "a": {1, 0}, "b": {1, 1}}, got.Places)
 }
+
+// TestForestLayout_RowPackingNothing: no nodes pack into no columns.
+func TestForestLayout_RowPackingNothing(t *testing.T) {
+	t.Parallel()
+	got := ForestLayout(&ForestInput{Pack: PackRows})
+	assert.InDelta(t, 0.0, got.Columns, 0)
+	assert.Empty(t, got.Places)
+}
