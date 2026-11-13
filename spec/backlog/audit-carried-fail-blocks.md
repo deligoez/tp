@@ -24,9 +24,12 @@ rule 13 says an audit ships with no FAIL in any round.
    highest severity among its rows since its last resolving disposition.
 2. **Only a re-grade clears it.** A later PASS under the same key clears the row, with or without a
    `fixed` disposition; `fixed` alone clears nothing, since an empty round is exactly the "graded 0
-   of N" this note closes. A PASS clears a positional id (`table-`, `list-`, `finding-`) only when
-   its round read the same spec text as the row's round (equal `spec_hash`); `task-` and `file-` ids
-   name their item whatever the text.
+   of N" this note closes. `task-` and `file-` ids name their item whatever the text. A positional
+   id (`table-`, `list-`, `finding-`) may name another item once the spec changes, so a PASS over a
+   different spec text clears a table row or list item only when the row's round snapshot text for
+   that id does not sit at another id of the PASS round's snapshot: it is at the same id, or nowhere
+   because the item itself was repaired. A moved item keeps its row; a `finding-` ordinal has no text
+   and clears only over the same spec text.
 3. **Every later prompt asks for it.** The Prior Round block lists every carried row whose latest
    grade is not PASS, from whichever round since the epoch, each with its round; the acceptance carry
    reads the same latest row. A row nobody is asked to re-grade must not block in silence.
@@ -40,13 +43,14 @@ rule 13 says an audit ships with no FAIL in any round.
 
 ## 3. Consequences
 
-- Shipped specs whose audit converged past a FAIL read as not converged after the upgrade; as in
-  1.16.0 they are left so, measured and listed, tp's own included.
+- Shipped specs whose audit ended past a FAIL no round re-graded read as not ended after the
+  upgrade; as in 1.16.0 they are left so, measured and listed in `spec/1.18.0-measurements.md`,
+  tp's own included.
 - An operator switching `audit_converge_on` to `blocking` releases carried warning and info rows on
   the next status read: the policy is the latest round's, as the cap's grading already is.
-- A spec repair inside one epoch makes a positional row unclearable by PASS until the operator
-  accepts it or starts an epoch. A known limit: rows carry no item text, so tp cannot tell which
-  item a shifted id now names, and errs toward review.
+- A deleted item whose id now names a following item that is graded PASS is cleared: the snapshot
+  text says the old item is gone, not where. The deletion itself went through the spec-stale review
+  rounds; a moved item, the common shift, is caught.
 - Accepting an audit row is already `accept-finding`; this adds occasions for it, not a decision.
 
 ## 4. Alternatives
