@@ -146,6 +146,32 @@ func TestPure_AMarkNamesTheTokenItIsDrawnIn(t *testing.T) {
 	assert.JSONEq(t, `["--done", "--g-blocked", "--muted"]`, got)
 }
 
+// TestPure_MarkdownDrawsADescriptionSafely: an epic's description is
+// markdown: headings, lists, fenced code (a blank line inside the fence
+// does not end it), bold, italic, code spans and http(s) links draw, and
+// everything else is escaped text: a script, raw HTML, a javascript: link.
+func TestPure_MarkdownDrawsADescriptionSafely(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out(P.markdown([
+  "## Purpose",
+  "Make the **schema** dependable, *not* fast; see [the doc](https://x.dev/a?b=1&c=2).",
+  "",
+  "- one with ` + "`code`" + `",
+  "- two",
+  "",
+  "` + "```" + `",
+  "a <b>",
+  "",
+  "b",
+  "` + "```" + `",
+  "",
+  "<script>alert(1)</script> [bad](javascript:alert(1))",
+].join("\n")));`)
+	assert.Equal(t, `"<h3 class=\"sub\">Purpose</h3><p>Make the <b>schema</b> dependable, <i>not</i> fast; see <a href=\"https://x.dev/a?b=1&amp;c=2\" target=\"_blank\" rel=\"noopener noreferrer\">the doc</a>.</p>`+
+		`<ul><li>one with <code>code</code></li><li>two</li></ul><pre>a &lt;b&gt;\n\nb</pre>`+
+		`<p>&lt;script&gt;alert(1)&lt;/script&gt; [bad](javascript:alert(1))</p>"`, got)
+}
+
 // TestPure_HopsCountTheStepsFromTheSelection: the highlight of a
 // selection's chain fades with distance, so the page counts each reachable
 // node's steps from the selected one, breadth first, the selection itself
