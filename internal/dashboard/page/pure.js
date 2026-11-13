@@ -398,6 +398,51 @@
     return null;
   };
 
+  // LANGS are the page's languages, the first its fallback.
+  P.LANGS = ["en", "tr"];
+
+  // pickLang is the page's language: the stored choice when it is one of
+  // LANGS, else Turkish for a browser language starting tr, else English.
+  P.pickLang = function (stored, nav) {
+    if (P.LANGS.includes(stored)) return stored;
+    return /^tr(?:$|[-_])/i.test(String(nav || "")) ? "tr" : "en";
+  };
+
+  // PLURAL picks a text's form for a count: English has one and other;
+  // Turkish has one form, since a noun after a number stays singular.
+  const PLURAL = { en: (n) => (n === 1 ? "one" : "other"), tr: () => "other" };
+
+  // translator is t(key, params) over dict, one language's texts by key, for
+  // locale: the key's text with each {name} slot filled from params, a
+  // number formatted for the locale; a text given as { one, other } takes
+  // the form params.n asks for. A key dict lacks reads as the key. t.html
+  // escapes the values it fills, keeping the text's own markup; t.pct writes
+  // a share as a percent and t.dur minutes as minutes or hours, both as the
+  // locale writes them.
+  P.translator = function (dict, locale) {
+    const nf = new Intl.NumberFormat(locale);
+    const plural = PLURAL[locale] || PLURAL.en;
+    const pick = (key, params) => {
+      const v = dict[key];
+      if (v === undefined) return key;
+      if (typeof v === "string") return v;
+      return v[plural(params && params.n)] || v.other;
+    };
+    const fill = (text, params, wrap) => text.replace(/\{(\w+)\}/g, (slot, name) => {
+      if (!params || !(name in params)) return slot;
+      const v = params[name];
+      return wrap(typeof v === "number" ? nf.format(v) : String(v));
+    });
+    const t = (key, params) => fill(pick(key, params), params, String);
+    t.html = (key, params) => fill(pick(key, params), params, escText);
+    t.locale = locale;
+    t.pct = (share) => new Intl.NumberFormat(locale, { style: "percent" }).format(share);
+    t.dur = (minutes) => (minutes < 60
+      ? new Intl.NumberFormat(locale, { style: "unit", unit: "minute", unitDisplay: "short" }).format(minutes)
+      : new Intl.NumberFormat(locale, { style: "unit", unit: "hour", unitDisplay: "short", maximumFractionDigits: 1 }).format(minutes / 60));
+    return t;
+  };
+
   if (typeof module === "object" && module.exports) module.exports = P;
   else root.tpPure = P;
 })(this);
