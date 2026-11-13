@@ -68,3 +68,61 @@ func TestForestLayout_GoldenRowPacking(t *testing.T) {
 	}, got.Places)
 }
 
+// TestForestLayout_InvariantsOnARandomGraph checks, on a seeded random
+// graph banded in three milestones, under both packings: no tree edge
+// points backwards, every node with an edge from an earlier layer has
+// exactly one tree edge in and a root none, no two nodes of a layer share
+// a column, every column is inside the width, and no edge but a back edge
+// points up.
+func TestForestLayout_InvariantsOnARandomGraph(t *testing.T) {
+	t.Parallel()
+	r := rand.New(rand.NewPCG(7, 11))
+	var ids []string
+	bandOf := map[string]string{}
+	groupOf := map[string]string{}
+	for i := range 120 {
+		id := fmt.Sprintf("e%03d", i)
+		ids = append(ids, id)
+		bandOf[id] = fmt.Sprintf("M%d", i/40)
+		groupOf[id] = fmt.Sprintf("T%d", i%3)
+	}
+	var edges []LayoutEdge
+	for i := 1; i < len(ids); i++ {
+		for range r.IntN(4) {
+			edges = append(edges, LayoutEdge{From: ids[r.IntN(i)], To: ids[i]})
+		}
+	}
+	for _, pack := range []ForestPacking{PackTree, PackRows} {
+		got := ForestLayout(ids, edges, []string{"M0", "M1", "M2"}, bandOf, groupOf, pack)
+		require.Len(t, got.Roles, len(edges))
+		treeIn := map[string]int{}
+		earlierIn := map[string]bool{}
+		for i, e := range edges {
+			from, to := got.Places[e.From], got.Places[e.To]
+			if from.Layer < to.Layer {
+				earlierIn[e.To] = true
+			}
+			switch got.Roles[i] {
+			case RoleTree:
+				assert.Less(t, from.Layer, to.Layer, "%s: tree edge %s->%s points backwards", pack, e.From, e.To)
+				treeIn[e.To]++
+			case RoleCross:
+				assert.Less(t, from.Layer, to.Layer, "%s: cross edge %s->%s points up", pack, e.From, e.To)
+			}
+		}
+		taken := map[[2]float64]string{}
+		for _, id := range ids {
+			want := 0
+			if earlierIn[id] {
+				want = 1
+			}
+			assert.Equal(t, want, treeIn[id], "%s: tree edges into %s", pack, id)
+			p := got.Places[id]
+			key := [2]float64{float64(p.Layer), p.Col}
+			assert.Empty(t, taken[key], "%s: %s and %s share a place", pack, id, taken[key])
+			taken[key] = id
+			assert.True(t, p.Col >= 0 && p.Col < got.Columns, "%s: %s at column %v of %v", pack, id, p.Col, got.Columns)
+		}
+	}
+}
+
