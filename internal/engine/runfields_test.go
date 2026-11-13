@@ -42,6 +42,7 @@ func TestRunFields_BuiltInDefaults(t *testing.T) {
 	assert.Equal(t, 0.0, wf.RunMaxBudgetUSD, "run_max_budget_usd defaults to 0 (disabled)")
 	assert.Equal(t, 0.0, wf.RunMaxUnitBudgetUSD, "run_max_unit_budget_usd defaults to 0 (flag omitted)")
 	assert.Equal(t, 1, wf.RunMaxUnitRetries, "run_max_unit_retries defaults to 1 (two attempts)")
+	assert.Equal(t, 1, wf.RunMaxParallel, "run_max_parallel defaults to 1: implement units run one at a time")
 	assert.JSONEq(t, `"claude"`, string(wf.Runner), "runner defaults to the claude template")
 	assert.Empty(t, wf.NotifyCmd, "notify_cmd is unset by default")
 }
@@ -84,6 +85,11 @@ func TestRunFields_RangeEndpointsAndOneStepOutside(t *testing.T) {
 			field: "run_max_unit_budget_usd", lo: "0", hi: "1000", below: "-0.01", above: "1000.01",
 			loWant: 0, hiWant: 1000, defaultVal: 0,
 			get: func(w model.Workflow) float64 { return w.RunMaxUnitBudgetUSD },
+		},
+		{
+			field: "run_max_parallel", lo: "1", hi: "8", below: "0", above: "9",
+			loWant: 1, hiWant: 8, defaultVal: 1,
+			get: func(w model.Workflow) float64 { return float64(w.RunMaxParallel) },
 		},
 	}
 

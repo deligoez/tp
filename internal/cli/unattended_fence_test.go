@@ -139,6 +139,8 @@ func TestUnattendedFence_RunCapRaiseRefused(t *testing.T) {
 	require.Equal(t, 2, code, "more retries than resolved is a raise")
 	_, stderr, code = runTPEnv(t, dir, []string{unattendedOn}, "set", "--workflow", "run_max_unit_retries=0")
 	require.Equal(t, 0, code, "0 retries is the strictest value, not disabled: %s", stderr)
+	_, _, code = runTPEnv(t, dir, []string{unattendedOn}, "set", "--workflow", "run_max_parallel=2")
+	require.Equal(t, 2, code, "running units side by side is the operator's raise (spec/backlog/parallel-implement.md)")
 
 	// A budget's 0 is "disabled", so a real number under it is a lowering and
 	// a return to 0 is a raise.
