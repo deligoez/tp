@@ -55,6 +55,13 @@ Edges that skip layers are drawn as plain curves first, and selecting a node hig
 dims the rest. Routing them through dummy nodes is added only if a screenshot of a closure near the
 measured 90th-percentile size does not read without them; the measurements record which.
 
+**A number shown beside a drawing either counts what is drawn or says what else it counts.** Added
+in 1.14.1, after the Milestones view printed "edges in" under each milestone while the lines drawn
+were its opens-after edges and the count was of dependency edges between epics: the count now reads
+"epic edges in" and the view's help says those edges are counted, not drawn. The same holds for a
+total beside a total of something else (the Epics tab counts every epic, the share and the
+Lifecycle count work epics; one sentence names the condition epics between them).
+
 **The map becomes usable.** A full-screen control (the Fullscreen API, the plain wheel zooming while
 in full screen, Esc leaving it); pan and pinch on touch; search and any list selection centre and
 select the epic; the drawer narrows the map instead of covering it; nodes take focus with a roving
