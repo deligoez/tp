@@ -30,14 +30,17 @@ func dictionary(t *testing.T, lang string) map[string]json.RawMessage {
 	return d
 }
 
-// slotsOf is the {name} slots of a key's text, every plural form's together,
-// and fails unless the text is a string or one and other forms.
+// slotsOf is the {name} slots of a key's text, every plural form's or
+// bullet's together, and fails unless the text is a string, one and other
+// forms, or an array of bullets.
 func slotsOf(t *testing.T, lang, key string, raw json.RawMessage) []string {
 	t.Helper()
 	var texts []string
 	var one string
 	if json.Unmarshal(raw, &one) == nil {
 		texts = []string{one}
+	} else if json.Unmarshal(raw, &texts) == nil {
+		require.NotEmpty(t, texts, "%s %s holds a bullet", lang, key)
 	} else {
 		var forms map[string]string
 		require.NoError(t, json.Unmarshal(raw, &forms), "%s %s is a string or { one, other }", lang, key)
@@ -58,6 +61,16 @@ func slotsOf(t *testing.T, lang, key string, raw json.RawMessage) []string {
 	}
 	slices.Sort(slots)
 	return slots
+}
+
+// bulletsOf is how many bullets a key's text holds: its array's length, or
+// 0 for a string or plural forms.
+func bulletsOf(raw json.RawMessage) int {
+	var bullets []string
+	if json.Unmarshal(raw, &bullets) != nil {
+		return 0
+	}
+	return len(bullets)
 }
 
 // usedKeys is every key the page names: t("…"), t.html("…") and tk("…") in
@@ -93,6 +106,7 @@ func TestPage_BothLanguagesHoldTheSameKeysAndThePageUsesEachOne(t *testing.T) {
 			continue
 		}
 		assert.Equal(t, slotsOf(t, "en", key, raw), slotsOf(t, "tr", key, other), "the slots of %s", key)
+		assert.Equal(t, bulletsOf(raw), bulletsOf(other), "%s holds as many bullets in both languages", key)
 	}
 	for key := range tr {
 		assert.Contains(t, en, key, "en.json lacks %s, which tr.json holds", key)
