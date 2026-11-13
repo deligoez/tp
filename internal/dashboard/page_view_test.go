@@ -276,3 +276,33 @@ func TestPure_ASmallGraphFitsNoFurtherOutThanItsLabelsRead(t *testing.T) {
 out([r(P.fitFloor(819, "scope")), r(P.fitFloor(60, "neighbourhood")), r(P.fitFloor(150, "plan")), P.fitFloor(819, "plan"), P.fitFloor(20, "milestones") < 0]);`)
 	assert.JSONEq(t, `[-0.29, -0.29, -0.29, null, true]`, got)
 }
+
+// TestPage_TheGraphDrawsByLabelSizeWithItsOwnZoomAndKeys is 1.17.1's
+// readability and full-screen work at the page: each frame picks its level
+// of detail from the label's size on screen, draws the wrapped id near and
+// its first line mid, tints far nodes toward their band and drops their
+// borders, takes its colours from tpPure.graphPalette, labels a band as a
+// pill inside its corner, fits a small graph no further out than its
+// labels read, fits again on entering or leaving full screen only when the
+// camera sat at its fit, carries its own + − Fit and a ? for the keys, and
+// in full screen puts the count at the toolbar's end. The count line no
+// longer names layers and columns, nor the legend the renderer's time.
+func TestPage_TheGraphDrawsByLabelSizeWithItsOwnZoomAndKeys(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	for _, s := range []string{
+		"G.detail = pure.detailLevel(P.geo.fs * scale);", "pure.wrapId(out.label, geo.chars)", "const nodeText = (n) => (G.detail === \"near\" ? n.text : n.short);",
+		"mix(mark, bandFill(c, n.band), REGION_TINT)", "return G.detail === \"far\" ? 0 : 1;", "G.colors = pure.graphPalette(tok);",
+		"background: true, getBackgroundColor: [...c.page, 235]", "pure.fitFloor(P.nodes.length, P.L.view, P.geo.fs)",
+		"if (G.prepared && G.deck && G.atFit) fit();", `$("gc-zin").addEventListener("click"`, `$("gc-nfs").textContent = $("gc-n").textContent;`,
+		`crossFar: [24, 28, 0.6], cross: [40, 45, 0.75]`, `tree: [170, 150, 1.4]`,
+	} {
+		assert.Contains(t, script, s)
+	}
+	for _, s := range []string{`<div class="gzoom" role="group"`, `id="gc-zin"`, `id="gc-zout"`, `id="gc-zfit"`, `data-info="keys"`, `id="gc-nfs"`, ".gcanvas { overscroll-behavior-x: none; }"} {
+		assert.Contains(t, page, s)
+	}
+	for _, s := range []string{"graph.loadedIn", "{layers} layers", "MIN_TEXT_PX"} {
+		assert.NotContains(t, script, s)
+	}
+}
