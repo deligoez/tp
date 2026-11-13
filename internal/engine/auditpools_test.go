@@ -10,21 +10,29 @@ import (
 )
 
 // TestGradeAuditRoles_CountsDistinctFileChecksOfAnyVerdict pins decision 4's
-// N: the distinct file_check item ids a role returned a row for, whatever the
-// verdict, so a file read and found clean counts as graded. Another role's
-// rows, a spec item's row and a repeated id add nothing.
+// N: the distinct emitted file_check items a role returned a row for,
+// whatever the verdict, so a file read and found clean counts as graded.
+// Another role's rows, a spec item's row and a repeated id add nothing, and
+// neither does an id the round never emitted, however well it is formed: N
+// never exceeds the items the prompt listed.
 func TestGradeAuditRoles_CountsDistinctFileChecksOfAnyVerdict(t *testing.T) {
-	pools := []AuditRolePool{{Role: "security", Pool: 14}, {Role: "quality", Pool: 14}}
+	a, b, c := "file-security-a-go.0000000000000001", "file-security-b-go.0000000000000002", "file-security-c-go.0000000000000003"
+	pools := []AuditRolePool{
+		{Role: "security", Pool: 14, Items: []string{a, b, c}},
+		{Role: "quality", Pool: 14, Items: []string{"file-quality-a-go.0000000000000001"}},
+	}
 	rows := []map[string]any{
-		{"role": "security", "item_id": "file-security-a-go.0000000000000001", "status": "PASS"},
-		{"role": "security", "item_id": "file-security-b-go.0000000000000002", "status": "FAIL"},
-		{"role": "security", "item_id": "file-security-b-go.0000000000000002", "status": "PARTIAL"},
-		{"role": "security", "item_id": "file-security-c-go.0000000000000003", "status": "PARTIAL"},
+		{"role": "security", "item_id": a, "status": "PASS"},
+		{"role": "security", "item_id": b, "status": "FAIL"},
+		{"role": "security", "item_id": b, "status": "PARTIAL"},
+		{"role": "security", "item_id": c, "status": "PARTIAL"},
+		{"role": "security", "item_id": "file-security-bogus-go.00000000000000ff", "status": "PASS"},
+		{"role": "security", "item_id": "file-security-x-go.0000000000000009", "status": "PASS"},
 		{"role": "security", "item_id": "list-2-3", "status": "PASS"},
-		{"role": "spec-coverage", "item_id": "file-security-d-go.0000000000000004", "status": "PASS"},
+		{"role": "spec-coverage", "item_id": a, "status": "PASS"},
 	}
 	assert.Equal(t, []RoleGraded{{Role: "security", Graded: 3, Pool: 14}, {Role: "quality", Graded: 0, Pool: 14}},
-		GradeAuditRoles(pools, rows), "pool order, and a role that returned nothing graded 0")
+		GradeAuditRoles(pools, rows), "pool order, never-emitted ids ignored, and a role that returned nothing graded 0")
 }
 
 // TestAuditPools_RoundTripAndRemovedWithTheInbox: the pools an emission
