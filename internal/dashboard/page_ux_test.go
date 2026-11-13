@@ -121,3 +121,16 @@ func TestPage_SearchAndListsTakeTheMapToTheEpic(t *testing.T) {
 	assert.Contains(t, script, `$("map-q").addEventListener("keydown"`)
 	assert.Contains(t, script, "selectEpic(a.dataset.epic, true)")
 }
+
+// TestPage_TheDrawerNarrowsThePageInsteadOfCoveringIt is the drawer rule
+// (spec/backlog/dashboard-ux.md §2): an open drawer takes its width from the
+// page, beside it, and on a phone its height from below, so the map and a
+// full-screen card stay whole beside it.
+func TestPage_TheDrawerNarrowsThePageInsteadOfCoveringIt(t *testing.T) {
+	t.Parallel()
+	page, _ := pageText(t)
+	for _, rule := range []string{"body.dopen { padding-right: var(--drawer-w); }", "body.mapfs.dopen .card.fs { right: var(--drawer-w); }",
+		"body.dopen { padding-right: 0; padding-bottom: var(--drawer-h); }", "body.mapfs.dopen .card.fs { right: 0; bottom: var(--drawer-h); }"} {
+		assert.Contains(t, page, rule)
+	}
+}
