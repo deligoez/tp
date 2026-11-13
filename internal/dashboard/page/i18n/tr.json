@@ -117,6 +117,7 @@
   "since.epics": "{n} epic'in aşaması değişti",
   "tabs.noGraph": "graf yok",
   "count.taskFiles": "{n} görev dosyası",
+  "pop.close": "Bu notu kapat",
   "about.label": "{label} hakkında",
   "band.lane.epics": "Epic'ler",
   "band.lane.epicPhases": "Spec aşamasına göre epic'ler",

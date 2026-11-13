@@ -118,6 +118,7 @@
   "tabs.noGraph": "no graph",
   "count.taskFiles": { "one": "{n} task file", "other": "{n} task files" },
   "about.label": "About {label}",
+  "pop.close": "Close this note",
   "band.lane.epics": "Epics",
   "band.lane.epicPhases": "Epics by spec phase",
   "band.lane.filePhases": "Task files by phase",

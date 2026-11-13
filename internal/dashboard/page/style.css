@@ -141,8 +141,16 @@ button.pcell[aria-pressed="true"] { background: var(--color-accent-wash); border
 /* the ⓘ on every panel and figure, and the note it opens */
 .info { width: 20px; height: 20px; padding: 0; border-radius: 50%; font: 500 12px/1 var(--font-display); color: var(--muted); background: transparent; border: 1px solid var(--color-rule-2); display: inline-grid; place-items: center; flex: none; cursor: pointer; letter-spacing: 0; }
 .info:hover, .info[aria-expanded="true"] { color: var(--accent); border-color: var(--accent); }
-.pop { position: absolute; z-index: var(--z-tooltip); max-width: min(340px, calc(100vw - 32px)); padding: var(--space-sm) var(--space-md); background: var(--color-ink); color: var(--color-paper); border-radius: var(--radius-input); font-size: var(--text-sm); line-height: 1.45; }
-.pop code { color: inherit; }
+.pop { position: absolute; z-index: var(--z-tooltip); max-width: min(420px, calc(100vw - 32px)); max-height: min(70vh, 560px); overflow-y: auto; padding: var(--space-sm) var(--space-md) var(--space-sm) var(--space-md); background: var(--surface); color: var(--ink); border: 1px solid var(--color-rule-2); border-radius: var(--radius-card); box-shadow: 0 8px 28px rgba(0, 0, 0, .18); font-size: var(--text-sm); line-height: 1.5; }
+.pop:focus { outline: none; }
+.pophead { display: flex; align-items: flex-start; gap: var(--space-xs); margin: 0 0 var(--space-xs); }
+.pop h3 { flex: 1; font: 600 var(--text-sm)/1.3 var(--font-display); margin: 0; padding-top: 4px; color: var(--ink); }
+.popx { flex: none; width: 28px; height: 28px; margin: -2px -6px 0 0; border: 0; border-radius: var(--radius-input); background: none; color: var(--muted); font-size: 18px; line-height: 1; cursor: pointer; }
+.popx:hover { background: var(--sunk); color: var(--ink); }
+.pop ul { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; }
+.pop li { color: var(--ink-2); }
+.pop li::marker { color: var(--faint); }
+.pop code { color: inherit; font-size: .92em; }
 
 /* KPI strip */
 .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); gap: var(--space-xs); }

@@ -419,14 +419,31 @@
     cfd: tk("info.cfd"),
   };
 
-  // The ⓘ buttons open one note at a time beside themselves.
+  // The ⓘ buttons open one note at a time beside themselves: a heading
+  // naming what it is about, then its bullets (1.17.1), each a key's
+  // array of strings whose only markup is kbd, code and b.
   let openInfo = null;
-  function closeInfo() {
-    if (openInfo) openInfo.setAttribute("aria-expanded", "false");
+  // infoTitle is what an ⓘ is about: the title beside it in its card's
+  // heading, its figure's label, the drawer's kind, else its own label.
+  function infoTitle(btn) {
+    const head = btn.closest("h2, .kpi, .dhead");
+    const el = head && head.querySelector("h2 > span, .l, #dkind");
+    return (el && el.textContent.trim()) || btn.getAttribute("aria-label") || "";
+  }
+  // closeInfo closes the open note; back gives focus back to its ⓘ, as Esc
+  // and the note's × do.
+  function closeInfo(back) {
+    const was = openInfo;
+    if (was) was.setAttribute("aria-expanded", "false");
     openInfo = null;
     $("pop").hidden = true;
+    if (back && was && was.isConnected) was.focus({ preventScroll: true });
   }
   document.addEventListener("click", (ev) => {
+    if (ev.target.closest && ev.target.closest("#pop-x")) {
+      closeInfo(true);
+      return;
+    }
     const btn = ev.target.closest && ev.target.closest(".info");
     if (!btn) {
       if (!(ev.target.closest && ev.target.closest("#pop"))) closeInfo();
@@ -438,17 +455,30 @@
     }
     closeInfo();
     const pop = $("pop");
-    // A help is a key, or a function that words a help with live figures.
+    // A help is a key, or a function that gives its bullets with live
+    // figures. The note is named by its heading, has one × and takes
+    // focus, so Esc or × hand it back to the ⓘ.
     const help = INFO[btn.dataset.info];
-    pop.textContent = typeof help === "function" ? help() : help ? t(help) : "";
+    const items = typeof help === "function" ? help() : help ? t.list(help) : [];
+    pop.innerHTML = '<div class="pophead"><h3 id="pop-h">' + esc(infoTitle(btn)) + '</h3><button type="button" class="popx" id="pop-x" aria-label="' + esc(t("pop.close")) + '">×</button></div>' +
+      "<ul>" + items.map((s) => "<li>" + s + "</li>").join("") + "</ul>";
+    pop.setAttribute("aria-labelledby", "pop-h");
+    pop.scrollTop = 0;
     pop.hidden = false;
     const r = btn.getBoundingClientRect();
     pop.style.top = (r.bottom + window.scrollY + 6) + "px";
     pop.style.left = Math.max(16, Math.min(r.left + window.scrollX - 8, document.documentElement.clientWidth - pop.offsetWidth - 16)) + "px";
     btn.setAttribute("aria-expanded", "true");
     openInfo = btn;
+    $("pop-x").focus({ preventScroll: true });
   });
-  document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") closeInfo(); });
+  // Esc closes an open note first and stops there, so the drawer beside it
+  // stays open for the next Esc.
+  document.addEventListener("keydown", (ev) => {
+    if (ev.key !== "Escape" || !openInfo) return;
+    ev.stopImmediatePropagation();
+    closeInfo(true);
+  }, true);
 
   // info is the ⓘ button of the help INFO[key], labelled for what it is about.
   const info = (key, label) => '<button class="info" type="button" data-info="' + key + '" aria-label="' + esc(t("about.label", { label })) + '" aria-expanded="false">i</button>';
@@ -943,8 +973,8 @@
     blocked: tk("mark.blocked"), held: tk("mark.held"), waiting: tk("mark.waiting"), moot: tk("mark.moot") };
   const mapView = { selected: null, deps: {}, dependents: {}, stage: null };
   // The graph card's help ends with graph.js's note, a gate closure's
-  // described count.
-  INFO.graph = () => [t("info.graph"), window.tpApp && window.tpApp.graphNote ? window.tpApp.graphNote() : ""].filter(Boolean).join(" ");
+  // described count, as one more bullet.
+  INFO.graph = () => t.list(tk("info.graph")).concat([window.tpApp && window.tpApp.graphNote ? esc(window.tpApp.graphNote()) : ""].filter(Boolean));
 
   // FOLD maps the letters the epic search folds before Unicode decomposition:
   // the Turkish dotless and dotted i, which decomposition and lower-casing do
