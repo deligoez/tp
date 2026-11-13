@@ -24,14 +24,18 @@ remain wrong at v1.12.0:
 ## 2. Decision
 
 1. **`tp review <spec> --rewritten "<evidence>"` starts an epoch.** It appends `{after_round,
-   evidence, at}` to the state's epochs; the evidence is required. Rounds recorded before the newest
-   epoch stop feeding any list of earlier findings an emission carries — the review carry list, the
-   regression pass, the audit prior-round section and the audit acceptance carry — in both loop
-   phases; nothing recorded changes, no disposition is written, and no convergence rule changes.
-   `--status` of both phases reports the epochs. It is a state-writing mode placed on the
-   task-file side's rules like every other, and refused with a round in flight (that round was built
-   from the lists the epoch cuts; record or discard it first) and when the spec's hash equals the
-   last recorded round's snapshot (nothing was rewritten).
+   evidence, at}` to the state's epochs; the evidence is required. Rounds that read an older text than
+   the spec at the time of the epoch stop feeding any list of earlier findings an emission carries —
+   the review carry list, the regression pass, the audit prior-round section and the audit acceptance
+   carry — in both loop phases; nothing recorded changes, no disposition is written, and no
+   convergence rule changes. `--status` of both phases reports the epochs. It is a state-writing mode
+   placed on the task-file side's rules like every other, and refused with a round in flight (that
+   round was built from the lists the epoch cuts; record or discard it first) and when it would cut
+   nothing (every recorded round already read the current text, or was cut by an earlier epoch).
+
+   A spec reverted to an earlier text cuts the rounds that read that text the first time too: the
+   epoch's position is one number per phase, after the last round over a text other than the current
+   one, and that conservative result is intended, not a bug.
 
    An epoch changes prompts only, and that is why it is an ordinary mode and not an operator
    decision. Convergence already reads only the trailing clean rounds, so an open row in an earlier
@@ -41,7 +45,9 @@ remain wrong at v1.12.0:
    an unresolved high from being re-raised today (`BUGS.md`), so cutting it at an epoch makes the old
    text's highs visible to the new text's roles. In particular an audit
    finding accepted without a change before the epoch is not carried, so the operator may be asked
-   for that acceptance a second time.
+   for that acceptance a second time. With the position defined by the text each round read, any edit
+   to the spec makes `--rewritten` available; that is acceptable for the same reason, since
+   everything an epoch cuts errs toward more review, and it is why the mode stays an ordinary one.
 2. **The `spec-stale` blocker names its exit as data.** Its data carries the command that clears it;
    with a round in flight whose snapshot differs from the spec, the command is the record of that
    round (or its discard, as the operator's decision), not a new emission.
