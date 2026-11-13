@@ -201,6 +201,23 @@ func TestPage_TheDrawerTakesFocusAndGivesItBack(t *testing.T) {
 	}
 }
 
+// TestPure_ClosingTheDrawerGivesFocusBackToWhatOpenedIt: focus goes back to
+// the element that opened the drawer while it is still on the page, else to
+// the one a redraw put in its place, found by the key saved at opening (a
+// map epic, a dependency-view node, a waiting group's link by its group, a
+// list link by its box); nothing when none is there.
+func TestPure_ClosingTheDrawerGivesFocusBackToWhatOpenedIt(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([
+  P.focusAfterClose({ connected: true, keys: ["map:a"] }, []),
+  P.focusAfterClose({ connected: false, keys: ["graph:a"] }, ["map:a", "graph:a"]),
+  P.focusAfterClose({ connected: false, keys: ["wait:2:x"] }, ["wait:1:x", "wait:2:x", "link:now-ready:x"]),
+  P.focusAfterClose({ connected: false, keys: ["map:q"] }, ["map:a"]),
+  P.focusAfterClose(null, ["map:a"]),
+]);`)
+	assert.JSONEq(t, `["same", "graph:a", "wait:2:x", null, null]`, got)
+}
+
 // TestPure_WaitingEpicsGroupUnderEachDirectBlocker is Waiting epics
 // (spec/backlog/dashboard-ux.md §2): the waiting epics of open milestones
 // are grouped by what they wait on directly, an epic under each of its
