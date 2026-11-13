@@ -1,0 +1,114 @@
+package engine
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+// AuditRolePool is one code role's pool at emission: how many files the list
+// its prompt carried was cut from (the prompt's file_pool).
+type AuditRolePool struct {
+	Role string `json:"role"`
+	Pool int    `json:"pool"`
+}
+
+// RoleGraded is "graded N of M" for one code role of a recorded audit round
+// (spec/backlog/checklist-covers-what-changed.md, decision 4): Graded is the
+// distinct file_check items the role returned a row for, whatever the
+// verdict, and Of is the pool its list was cut from.
+type RoleGraded struct {
+	Role   string `json:"role"`
+	Graded int    `json:"graded"`
+	Of     int    `json:"of"`
+}
+
+// auditPoolsFile is the on-disk form of a round's pools.
+type auditPoolsFile struct {
+	Round int             `json:"round"`
+	Pools []AuditRolePool `json:"pools"`
+}
+
+// AuditPoolsPath is where an emission keeps a round's pools until --record:
+// <state dir>/audit-inbox/round-<N>.pools.json. The inbox is the round's
+// in-flight place — state.json may not exist yet, since an audit emission
+// never calls EnsureReviewState, and the snapshot beside it is the spec's
+// bytes, which the round's hash is taken from. The name ends in .json, not
+// .ndjson, so it is no role file: the write fence refuses it, --merge never
+// reads it, and RemoveRoundInbox takes it with the round's role files.
+func AuditPoolsPath(specPath string, round int) string {
+	return filepath.Join(roleInboxDir(specPath, PhaseAudit), fmt.Sprintf("round-%d.pools.json", round))
+}
+
+// WriteAuditPools writes a round's pools atomically. Every sibling unit of a
+// round emits, each writing the same pools, so a concurrent writer replaces
+// the file with the same bytes.
+func WriteAuditPools(specPath string, round int, pools []AuditRolePool) error {
+	path := AuditPoolsPath(specPath, round)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(auditPoolsFile{Round: round, Pools: pools}, "", "  ")
+	if err != nil {
+		return err
+	}
+	return writeFileAtomic(path, append(data, '\n'))
+}
+
+// ReadAuditPools reads a round's pools; found is false when no emission wrote
+// any, which is the normal case for a round recorded without one.
+func ReadAuditPools(specPath string, round int) (pools []AuditRolePool, found bool, err error) {
+	data, err := os.ReadFile(AuditPoolsPath(specPath, round)) //nolint:gosec // a path built from the spec's own state dir
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, false, nil
+		}
+		return nil, false, err
+	}
+	var f auditPoolsFile
+	if err := json.Unmarshal(data, &f); err != nil {
+		return nil, false, fmt.Errorf("%s: %w", AuditPoolsPath(specPath, round), err)
+	}
+	return f.Pools, true, nil
+}
+
+// GradedSuffix renders a round's Graded entries as the clause next_action
+// carries, " (latest round graded security 7 of 46, quality 10 of 46)", or ""
+// when the round recorded none.
+func GradedSuffix(graded []RoleGraded) string {
+	if len(graded) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(graded))
+	for _, g := range graded {
+		parts = append(parts, fmt.Sprintf("%s %d of %d", g.Role, g.Graded, g.Of))
+	}
+	return " (latest round graded " + strings.Join(parts, ", ") + ")"
+}
+
+// GradeAuditRoles returns, in pool order, how many distinct file_check items
+// each pooled role returned a row for. A row counts whatever its status, so a
+// file read and found clean is graded; a row of another role, or one whose
+// item id is not a file_check id, is not.
+func GradeAuditRoles(pools []AuditRolePool, rows []map[string]any) []RoleGraded {
+	seen := make(map[string]map[string]bool, len(pools))
+	for _, p := range pools {
+		seen[p.Role] = make(map[string]bool)
+	}
+	for _, row := range rows {
+		role, _ := row["role"].(string)
+		id, _ := row["item_id"].(string)
+		ids, pooled := seen[role]
+		if !pooled || !strings.HasPrefix(id, "file-"+role+"-") {
+			continue
+		}
+		ids[id] = true
+	}
+	graded := make([]RoleGraded, 0, len(pools))
+	for _, p := range pools {
+		graded = append(graded, RoleGraded{Role: p.Role, Graded: len(seen[p.Role]), Of: p.Pool})
+	}
+	return graded
+}

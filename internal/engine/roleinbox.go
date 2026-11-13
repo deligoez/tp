@@ -59,6 +59,11 @@ func RemoveRoundInbox(specPath, phase string, round int) error {
 	if err != nil {
 		return err
 	}
+	// An audit round's pools (AuditPoolsPath) are in-flight state of the same
+	// round, recorded into state.json by now.
+	if phase == PhaseAudit {
+		files = append(files, AuditPoolsPath(specPath, round))
+	}
 	for _, f := range files {
 		if rmErr := os.Remove(f); rmErr != nil && !os.IsNotExist(rmErr) {
 			return rmErr

@@ -57,6 +57,12 @@ type ReviewRound struct {
 	// staleness comparison (HarnessStale) judges it trimmed, but the stored
 	// value is never trimmed.
 	HarnessNote string `json:"harness_note,omitempty"`
+	// Graded is, per code role of an audit round, how many files the role
+	// graded of the pool its list was cut from (RoleGraded). Taken at --record
+	// from the round's rows and the pools its emission kept (AuditPoolsPath);
+	// omitted on a review round, on an audit round recorded with no emission,
+	// and on one recorded before this field existed.
+	Graded []RoleGraded `json:"graded,omitempty"`
 }
 
 // IDSchemeSlug is the marker value recorded on a v0.30.0+ audit round, whose
