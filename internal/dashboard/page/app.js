@@ -279,7 +279,7 @@
     loops: "Epic review slices whose loop is not done: open, stale, at its cap or with a round in flight. From the export's slices.",
     lint: "The error and warning counts tp epic lint prints for the graph, from the export's lint.",
     throughput: "Work epics done per ISO week across every milestone, from their done time. From the summary's plan.",
-    waiting: "Work epics waiting on a dependency that is not done, each with what it waits on; deferrable gate members are left out.",
+    waiting: "What is blocked, and by what. The blocked work epics of open milestones, grouped under each dependency they wait on directly, an any-of group as one: an epic waiting on three blockers is in three groups, so the group sizes do not add up to the total. Each group names its blocker, what the blocker is doing (startable, claimed, an operator decision, or waiting itself) and how many epics wait on it directly, largest first. The blocked epics of milestones not yet open are one counted row, and deferrable gate members are left out, so the parts add up to the blocked epics figure. From the summary's waiting list and the export's blocked_by and blocked_by_any_of.",
     most: "Not-done work epics other work epics depend on, transitively, most dependents first.",
     since: "What changed since this browser last saw the page: tasks closed and review, audit and plan review rounds recorded, and epics whose stage changed, counted and never named. This browser keeps the last state it saw and compares it on each load; tp stores nothing for it, and a private window or cleared storage shows no strip.",
     cfd: "Work epics per stage per day, from the times tp records: claimed at the claim, specced at the earliest binding time of the bound specs, in progress at the earliest start of their tasks, done at the done record or the audit that released the last bound spec. An epic that reached a stage at a time tp did not record (a spec bound before tp recorded binding times) is counted as time not recorded, never on a guessed day. An epic's planning time is not recorded, so an epic added to the graph later counts as planned from the chart's first day. Planned epics are left out of the bands. From the summary's series.",
@@ -400,20 +400,53 @@
     return ops.concat(escalationRows());
   }
 
+  // Waiting epics (dashboard-ux.md §2) answers what is blocked and by what:
+  // the waiting epics of open milestones grouped under each direct blocker
+  // (tpPure.waitingGroups), the largest groups first and the rest behind
+  // "show all"; those of milestones not yet open in one counted row. Its
+  // total is the KPI's blocked epics, the parts named.
+  const WAIT_SHOWN = 6;
+  const BLOCKER_LABEL = { startable: "startable", claimed: "claimed", decision: "operator decision", waiting: "waiting" };
+  const waitView = { all: false };
+  function waitingHTML(v) {
+    const open = {};
+    (v.g.milestones || []).forEach((m) => { open[m.milestone] = !!m.open; });
+    const w = tpPure.waitingGroups(v.plan.waiting, v.epics, v.plan.ready, open);
+    const blocked = v.plan.figures.blocked;
+    if (!blocked) return none("No epic waits on another.");
+    const deferred = blocked - v.plan.waiting.length;
+    const byMs = {};
+    w.closed.forEach((id) => { const m = (v.epics[id] || {}).milestone; byMs[m] = (byMs[m] || 0) + 1; });
+    const parts = [plural(w.open, "in an open milestone", "in open milestones") + ", grouped below under what each waits on directly, so an epic waiting on two blockers is in two groups"];
+    if (w.closed.length) parts.push(w.closed.length + " in milestones not yet open");
+    if (deferred) parts.push(plural(deferred, "deferrable gate member", "deferrable gate members") + " left out");
+    const shown = waitView.all ? w.groups : w.groups.slice(0, WAIT_SHOWN);
+    const group = (gr) => '<div class="wgroup"><div class="wh">' + (gr.blocker ? epicLink(gr.blocker) : '<span class="muted">one of</span> ' + gr.any_of.map(epicLink).join(", ")) +
+      '<span class="bst" data-b="' + esc(gr.state) + '">' + esc(BLOCKER_LABEL[gr.state]) + '</span><span class="wn num">' + esc(plural(gr.epics.length, "waits", "wait")) + " on it</span></div>" +
+      '<div class="wids">' + gr.epics.map(epicLink).join(" ") + "</div></div>";
+    return '<p class="wsum"><b class="num">' + esc(plural(blocked, "blocked epic", "blocked epics")) + "</b>: " + esc(parts.join("; ")) + ".</p>" +
+      shown.map(group).join("") +
+      (w.groups.length > WAIT_SHOWN ? '<button type="button" class="chip wall" data-wall aria-expanded="' + waitView.all + '">' +
+        (waitView.all ? "Show the largest " + WAIT_SHOWN : "Show all " + w.groups.length + " groups") + "</button>" : "") +
+      (w.closed.length ? '<div class="wgroup wclosed"><div class="wh"><span>' + esc(plural(w.closed.length, "epic waits", "epics wait")) +
+        ' in milestones not yet open</span></div><div class="wids muted">' + esc(Object.keys(byMs).map((m) => m + " " + byMs[m]).join(", ")) + "</div></div>" : "");
+  }
+  $("waitcard").addEventListener("click", (ev) => {
+    if (!ev.target.closest("[data-wall]")) return;
+    waitView.all = !waitView.all;
+    render();
+  });
+
   // The now lists (§4): what can start, what waits on the operator, what
   // waits on other work, and what the most work waits on.
   panel(["summary", "epic-export"], () => {
     const v = planView();
     $("now").hidden = !v;
+    $("waitcard").hidden = !v;
     if (!v) return;
     $("now-ready").innerHTML = v.plan.ready.map((id) => row(id, titleOf(v, id), dependents(v, id), "", true)).join("") || none("No epic can start now.");
     $("now-operator").innerHTML = operatorRows(v).join("") || none("Nothing waits on the operator.");
-    $("now-waiting").innerHTML = v.plan.waiting.map((id) => {
-      const e = v.epics[id] || {};
-      const code = (x) => "<code>" + esc(x) + "</code>";
-      const on = [(e.blocked_by || []).map(code).join(", ")].filter(Boolean).concat((e.blocked_by_any_of || []).map((g) => "one of " + g.map(code).join(", ")));
-      return row(id, titleOf(v, id), e.milestone || "", "waits on " + on.join("; "), true);
-    }).join("") || none("No epic waits on another.");
+    $("now-waiting").innerHTML = waitingHTML(v);
     $("now-most").innerHTML = v.plan.most_waited_on.slice(0, 10).map((id) => row(id, titleOf(v, id), dependents(v, id), "", true)).join("") || none("No epic is waited on.");
   });
 

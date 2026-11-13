@@ -160,6 +160,20 @@ button.pcell[aria-pressed="true"] { background: var(--color-accent-wash); border
 .row .why { grid-column: 2 / 4; font-size: var(--text-sm); color: var(--muted); overflow-wrap: anywhere; }
 .row .why code { color: var(--ink-2); }
 
+/* waiting epics: groups under each direct blocker */
+.wsum { font-size: var(--text-sm); color: var(--ink-2); margin-bottom: var(--space-sm); max-width: 100ch; }
+.wgroup { padding: var(--space-xs) 0; border-top: 1px solid var(--line); }
+.wh { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2xs) var(--space-sm); font-size: var(--text-sm); }
+.wh .link { font-family: var(--mono); font-size: var(--text-sm); }
+.wn { margin-left: auto; color: var(--muted); }
+.bst { font-size: var(--text-xs); border: 1px solid var(--c, var(--line)); color: var(--c, var(--muted)); border-radius: 999px; padding: 0 var(--space-xs); }
+.bst[data-b="startable"] { --c: var(--ready); }
+.bst[data-b="claimed"] { --c: var(--active); }
+.bst[data-b="decision"] { --c: var(--held); }
+.wids { display: flex; flex-wrap: wrap; gap: var(--space-3xs) var(--space-sm); margin-top: var(--space-3xs); font: 400 var(--text-xs) var(--mono); }
+.wall { margin-top: var(--space-xs); }
+.wclosed .wh span { color: var(--ink-2); }
+
 /* plan review: one row per slice */
 .loops { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
 .loops th { text-align: left; font: 500 var(--text-sm) var(--font-display); color: var(--muted); padding: 6px var(--space-xs); border-bottom: 1px solid var(--color-rule-2); white-space: nowrap; }

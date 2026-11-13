@@ -53,6 +53,54 @@
     return best;
   };
 
+  // BLOCKER_RANK orders a blocker's states from the readiest; an any-of
+  // group takes its readiest member's.
+  const BLOCKER_RANK = ["startable", "claimed", "decision", "waiting"];
+
+  // blockerState is what an epic others wait on is doing: startable when tp
+  // epic ready lists it, a decision when it is a condition, claimed when it
+  // is under way, else waiting itself.
+  const blockerState = (e, ready) => {
+    if (!e) return "waiting";
+    if (ready.includes(e.id)) return "startable";
+    if (e.condition) return "decision";
+    return e.status && e.status !== "planned" && e.status !== "done" ? "claimed" : "waiting";
+  };
+
+  // waitingGroups groups waiting, the summary's waiting epic ids, by what
+  // they wait on directly, read from epics (the export's epics by id): an
+  // epic sits under each undone dependency and each any-of group it waits
+  // on. Each group carries its blocker's state; groups run from the largest,
+  // ties in the order their blocker is first met. The waiting epics of
+  // milestones open does not mark open are set apart in closed, and open
+  // counts the distinct epics the groups hold.
+  P.waitingGroups = function (waiting, epics, ready, open) {
+    const groups = new Map();
+    const closed = [];
+    let count = 0;
+    const add = (key, blocker, anyOf, state, id) => {
+      if (!groups.has(key)) groups.set(key, { blocker, any_of: anyOf, state, epics: [] });
+      groups.get(key).epics.push(id);
+    };
+    waiting.forEach((id) => {
+      const e = epics[id];
+      if (!e) return;
+      if (!open[e.milestone]) {
+        closed.push(id);
+        return;
+      }
+      count++;
+      (e.blocked_by || []).forEach((b) => add("e:" + b, b, null, blockerState(epics[b], ready), id));
+      (e.blocked_by_any_of || []).forEach((g) => {
+        const best = g.map((m) => blockerState(epics[m], ready)).sort((x, y) => BLOCKER_RANK.indexOf(x) - BLOCKER_RANK.indexOf(y))[0];
+        add("g:" + g.join("\u0000"), null, g, best, id);
+      });
+    });
+    const list = [...groups.values()];
+    list.sort((x, y) => y.epics.length - x.epics.length);
+    return { groups: list, closed, open: count };
+  };
+
   // pinchView is the view after two fingers moved from a0 and b0 to a1 and
   // b1 (pixels from the box's top left, the box rw by rh) over the view v0
   // they started on: zoomed by the ratio of their spans, with the drawing

@@ -35,7 +35,6 @@
     <section class="now" id="now" aria-label="What moves now in the plan" data-src="summary epic-export" hidden>
       <div class="card"><h2>Ready epics <button class="info" type="button" data-info="ready" aria-label="About ready epics" aria-expanded="false">i</button></h2><div class="list" id="now-ready"></div></div>
       <div class="card"><h2>Operator decisions <button class="info" type="button" data-info="operator" aria-label="About operator decisions" aria-expanded="false">i</button></h2><div class="list" id="now-operator"></div></div>
-      <div class="card"><h2>Waiting epics <button class="info" type="button" data-info="waiting" aria-label="About waiting epics" aria-expanded="false">i</button></h2><div class="list" id="now-waiting"></div></div>
       <div class="card"><h2>Most waited-on epics <button class="info" type="button" data-info="most" aria-label="About the most waited-on epics" aria-expanded="false">i</button></h2><div class="list" id="now-most"></div></div>
     </section>
     <div id="epics-body" class="view" data-src="epic-export">
@@ -55,6 +54,10 @@
         </div>
         <div class="map" id="map"><svg id="mapsvg" role="group" aria-label="Plan map: lanes of milestones as boxes, epics as marks; the arrows move between epics and Enter selects one"></svg></div>
         <div class="legend" id="maplegend"></div>
+      </section>
+      <section class="card" id="waitcard" aria-label="Waiting epics" data-src="summary epic-export" hidden>
+        <h2>Waiting epics <button class="info" type="button" data-info="waiting" aria-label="About waiting epics" aria-expanded="false">i</button></h2>
+        <div id="now-waiting"></div>
       </section>
       <section class="card" id="chaincard" aria-label="Chain of the selected epic" aria-live="polite" hidden>
         <h2>Chain <button class="info" type="button" data-info="chain" aria-label="About the chain" aria-expanded="false">i</button></h2>
