@@ -61,7 +61,7 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 	// consumes no round and the budget it would otherwise exhaust does not
 	// apply — a retry after a partial failure must converge, not be refused.
 	if _, rewrite := engine.RecordRound(len(preRounds)); !rewrite {
-		refuseIfBudgetExhausted("review", specPath, preRounds, wfPre.ReviewMaxRounds, wfPre.ReviewCleanRounds, wfPre.ReviewConvergeOn)
+		refuseIfBudgetExhausted("review", specPath, stPre, wfPre.ReviewMaxRounds, wfPre.ReviewCleanRounds, wfPre.ReviewConvergeOn)
 	}
 
 	data, err := os.ReadFile(recordPath)
@@ -214,7 +214,7 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 	candidates := computeMechanizeCandidates(roundFindings)
 
 	wf, taskFilePath := engine.ResolveWorkflow(specPath, flagFile)
-	done := engine.ReviewLoopDone(specPath, st.ReviewRounds, wf.ReviewCleanRounds, wf.ReviewMaxRounds, specHash, wf.ReviewConvergeOn)
+	done := engine.ReviewLoopDone(specPath, st, wf.ReviewCleanRounds, wf.ReviewMaxRounds, specHash, wf.ReviewConvergeOn)
 	// §3.2 candidate suppression, mode 1: a mechanized class is withheld from
 	// all three of this mode's sinks — the emitted mechanize_candidates array,
 	// the register-a-check hint that accompanies it, and the class list handed
@@ -240,11 +240,10 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 	// same live predicate --status reports, so both agree on the just-recorded
 	// round.
 	liveClean := engine.ReviewRoundClean(specPath, &st.ReviewRounds[round-1], wf.ReviewConvergeOn)
-	// One walk, not two: ReviewConverged re-reads every recorded round's file,
-	// and it was previously called once for the payload and once for
-	// next_action. The audit record path hoists the same value; keeping the
-	// two paths consistent is what stops the cost from creeping back.
-	converged := engine.ReviewConverged(specPath, st.ReviewRounds, wf.ReviewCleanRounds, specHash, wf.ReviewConvergeOn)
+	// No second walk: the loop verdict above already read every recorded
+	// round's file and the carried set, and it ends by convergence exactly
+	// when ReviewConverged holds.
+	converged := done.Done && done.By == engine.DoneByConverged
 	result := map[string]any{
 		"round":                 round,
 		"findings":              findings,

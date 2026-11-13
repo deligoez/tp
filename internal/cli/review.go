@@ -828,11 +828,7 @@ func validateReviewInputs(perspective string, round int, roundGiven bool, findin
 				}
 				stBudget = nil
 			}
-			rounds := []engine.ReviewRound{}
-			if stBudget != nil {
-				rounds = stBudget.ReviewRounds
-			}
-			refuseIfBudgetExhausted("review", specPath, rounds, wfBudget.ReviewMaxRounds, wfBudget.ReviewCleanRounds, wfBudget.ReviewConvergeOn)
+			refuseIfBudgetExhausted("review", specPath, stBudget, wfBudget.ReviewMaxRounds, wfBudget.ReviewCleanRounds, wfBudget.ReviewConvergeOn)
 		}
 	}
 
@@ -2127,7 +2123,7 @@ func loadReviewRoundState(cmd *cobra.Command, specPath string, round int, findin
 		}
 		req := wfState.ReviewCleanRounds
 		cc := engine.ReviewConsecutiveClean(specPath, rounds, wfState.ReviewConvergeOn)
-		conv := engine.ReviewConverged(specPath, rounds, req, specHash, wfState.ReviewConvergeOn)
+		conv := engine.ReviewConverged(specPath, st, req, specHash, wfState.ReviewConvergeOn)
 		stale := engine.StateStale(rounds, specHash)
 		rs.required, rs.consecutive, rs.converged, rs.stale = &req, &cc, &conv, &stale
 	}

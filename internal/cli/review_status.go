@@ -63,11 +63,12 @@ func runReviewStatus(specPath string, check bool) error {
 		rounds[i].Clean = engine.ReviewRoundClean(specPath, &rounds[i], wf.ReviewConvergeOn)
 	}
 
-	converged := engine.Converged(rounds, wf.ReviewCleanRounds, specHash)
 	// done is the one verdict import, next_action, tp resume and --check read:
 	// converged, or the cap reached with every finding of the latest round
-	// dispositioned. converged stays the narrower fact it always reported.
-	done := engine.ReviewLoopDone(specPath, rounds, wf.ReviewCleanRounds, wf.ReviewMaxRounds, specHash, wf.ReviewConvergeOn)
+	// dispositioned, and in both cases no carried blocking row. converged
+	// stays the narrower fact it always reported, with the carried rows in it.
+	done := engine.ReviewLoopDone(specPath, st, wf.ReviewCleanRounds, wf.ReviewMaxRounds, specHash, wf.ReviewConvergeOn)
+	converged := engine.Converged(rounds, wf.ReviewCleanRounds, specHash) && len(done.CarriedBlocking) == 0
 	rolesHash := phaseRolesHash(specPath, engine.PhaseReviewers)
 
 	// Plain --status runs no check, so it keeps §3.2's registration rule and

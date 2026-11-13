@@ -61,7 +61,7 @@ func loadImportLoop(targetPath string, tf *model.TaskFile) (*importLoop, error) 
 		wf:         wf,
 		checksFile: checksFile,
 		specHash:   specHash,
-		done:       engine.ReviewLoopDone(stateSpec, st.ReviewRounds, wf.ReviewCleanRounds, wf.ReviewMaxRounds, specHash, wf.ReviewConvergeOn),
+		done:       engine.ReviewLoopDone(stateSpec, st, wf.ReviewCleanRounds, wf.ReviewMaxRounds, specHash, wf.ReviewConvergeOn),
 	}, nil
 }
 
@@ -152,7 +152,7 @@ func (g *importCheckGate) enforce(loop *importLoop) {
 	if len(loop.wf.Checks) == 0 {
 		return
 	}
-	if g == nil || g.done != loop.done || !slices.Equal(g.checks, loop.wf.Checks) {
+	if g == nil || !g.done.Same(&loop.done) || !slices.Equal(g.checks, loop.wf.Checks) {
 		output.Error(ExitState, "the review loop or its registered checks changed while tp import ran the checks",
 			"nothing was imported; run the same tp import again")
 		os.Exit(ExitState)

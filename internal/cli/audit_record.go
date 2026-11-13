@@ -66,7 +66,7 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 	// The audit half of the same exemption: a re-record adds no round, so it
 	// cannot exhaust the round budget (section 6.3).
 	if _, rewrite := engine.RecordRound(len(preRounds)); !rewrite {
-		refuseIfBudgetExhausted("audit", specPath, preRounds, wfPre.AuditMaxRounds, wfPre.AuditCleanRounds, "")
+		refuseIfBudgetExhausted("audit", specPath, stPre, wfPre.AuditMaxRounds, wfPre.AuditCleanRounds, "")
 	}
 
 	data, err := os.ReadFile(recordPath)

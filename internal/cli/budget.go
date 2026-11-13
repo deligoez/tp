@@ -19,15 +19,24 @@ const budgetEscalationHint = "disposition each remaining finding in the latest r
 // parsing, row validation, and any state write. The review caller passes its
 // effective review_converge_on so the refusal uses the live severity-aware
 // predicate (ReviewConverged) and agrees with tp review --status/--record;
-// audit callers pass "" and keep the frozen-flag Converged.
-func refuseIfBudgetExhausted(kind, specPath string, rounds []engine.ReviewRound, capRounds, requiredClean int, convergeOn string) {
+// audit callers pass "" and keep the frozen-flag Converged. st is the spec's
+// state, nil when none; the review refusal's hint leads with the carried
+// blocking rows, which may sit in a round before the latest.
+func refuseIfBudgetExhausted(kind, specPath string, st *engine.ReviewState, capRounds, requiredClean int, convergeOn string) {
+	rounds := []engine.ReviewRound{}
+	if st != nil {
+		rounds = st.AuditRounds
+		if kind == "review" {
+			rounds = st.ReviewRounds
+		}
+	}
 	if capRounds <= 0 || len(rounds) < capRounds {
 		return
 	}
 	if specHash, err := engine.SpecHash(specPath); err == nil {
 		converged := engine.Converged(rounds, requiredClean, specHash)
 		if kind == "review" {
-			converged = engine.ReviewConverged(specPath, rounds, requiredClean, specHash, convergeOn)
+			converged = engine.ReviewConverged(specPath, st, requiredClean, specHash, convergeOn)
 		}
 		if converged {
 			return

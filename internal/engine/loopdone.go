@@ -16,12 +16,16 @@ const DefaultMaxRounds = 3
 // tp resume read, so none of them can keep a loop open that another has let
 // end. Done is the verdict and By its reason; the rest describe the latest
 // round when the cap is reached and are zero otherwise.
+//
+// The three flags sit together so the struct stays small enough to pass by
+// value (gocritic's hugeParam).
 type LoopDone struct {
-	Done       bool
-	By         string
-	CapReached bool
-	Undisposed int // latest round's findings with no disposition that counts
-	FixedAtCap int // latest round's non-blocking findings dispositioned fixed, which no round re-read
+	Done        bool
+	CapReached  bool
+	StaleWaived bool // the spec changed after the latest round, which ended the loop anyway
+	By          string
+	Undisposed  int // latest round's findings with no disposition that counts
+	FixedAtCap  int // latest round's non-blocking findings dispositioned fixed, which no round re-read
 	// BlockingFixedAtCap counts the latest round's blocking findings marked
 	// fixed at the cap. fixed says the text or code changed, and at the cap no
 	// round will re-read it, so for a blocking finding it would be an
@@ -29,7 +33,26 @@ type LoopDone struct {
 	// Such a row keeps the loop open until the operator accepts it with
 	// evidence or raises the cap for a verification round.
 	BlockingFixedAtCap int
-	StaleWaived        bool // the spec changed after the latest round, which ended the loop anyway
+	// CarriedBlocking is the review carried set's unresolved blocking rows
+	// (ReviewCarriedBlocking). While it is non-empty the loop is open, by
+	// convergence and by the cap alike. Review only; audit leaves it nil.
+	CarriedBlocking []CarriedRow
+}
+
+// Same reports whether d and o are one verdict: every count and flag equal,
+// and the same carried blocking rows, by round file and index.
+func (d *LoopDone) Same(o *LoopDone) bool {
+	if d.Done != o.Done || d.By != o.By || d.CapReached != o.CapReached || d.Undisposed != o.Undisposed ||
+		d.FixedAtCap != o.FixedAtCap || d.BlockingFixedAtCap != o.BlockingFixedAtCap || d.StaleWaived != o.StaleWaived ||
+		len(d.CarriedBlocking) != len(o.CarriedBlocking) {
+		return false
+	}
+	for i := range d.CarriedBlocking {
+		if d.CarriedBlocking[i].File != o.CarriedBlocking[i].File || d.CarriedBlocking[i].Index != o.CarriedBlocking[i].Index {
+			return false
+		}
+	}
+	return true
 }
 
 // RowDispositioned reports whether a finding row carries a disposition that
@@ -58,13 +81,23 @@ func rowFixed(row map[string]any) bool {
 
 // ReviewLoopDone reports whether the review loop has ended. Every review row
 // is a finding; a finding blocks when it would hold a round open under the
-// resolved review_converge_on.
-func ReviewLoopDone(specPath string, rounds []ReviewRound, requiredClean, maxRounds int, currentHash, convergeOn string) LoopDone {
-	converged := ReviewConverged(specPath, rounds, requiredClean, currentHash, convergeOn)
+// resolved review_converge_on. A carried blocking row keeps the loop open
+// whatever the trailing rounds or the cap say (CarriedBlocking).
+func ReviewLoopDone(specPath string, st *ReviewState, requiredClean, maxRounds int, currentHash, convergeOn string) LoopDone {
+	rounds := reviewRoundsOf(st)
+	carried := ReviewCarriedBlocking(specPath, st, convergeOn)
+	converged := len(carried) == 0 && reviewTrailConverged(specPath, rounds, requiredClean, currentHash, convergeOn)
 	blocking := func(row map[string]any) bool {
 		return convergeOn == ReviewConvergeOnAll || ReviewRowBlocking(row)
 	}
-	return loopDone(converged, specPath, rounds, maxRounds, currentHash, func(map[string]any) bool { return true }, blocking)
+	d := loopDone(converged, specPath, rounds, maxRounds, currentHash, func(map[string]any) bool { return true }, blocking)
+	if len(carried) > 0 {
+		// The cap does not end a loop over a carried blocking row either: no
+		// round will re-read it, and its silence is not its disposition.
+		d.Done, d.By, d.StaleWaived = false, "", false
+		d.CarriedBlocking = carried
+	}
+	return d
 }
 
 // AuditLoopDone reports whether the audit loop has ended. Only non-PASS rows

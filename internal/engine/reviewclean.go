@@ -151,9 +151,19 @@ func ReviewConsecutiveClean(specPath string, rounds []ReviewRound, convergeOn st
 }
 
 // ReviewConverged reports review convergence: enough trailing severity-aware
-// clean rounds (§3.4) and a spec unchanged since the last recorded round. It
-// mirrors Converged but consumes review_converge_on; audit convergence keeps
-// using Converged.
-func ReviewConverged(specPath string, rounds []ReviewRound, requiredCleanRounds int, currentHash, convergeOn string) bool {
+// clean rounds (§3.4), a spec unchanged since the last recorded round, and no
+// unresolved blocking row in the carried set (ReviewCarriedBlocking) — a row
+// the next round's roles are told not to re-report cannot be converged away
+// by their silence (spec/backlog/carried-rows-block.md). It mirrors Converged
+// but consumes review_converge_on; audit convergence keeps using Converged.
+func ReviewConverged(specPath string, st *ReviewState, requiredCleanRounds int, currentHash, convergeOn string) bool {
+	rounds := reviewRoundsOf(st)
+	return reviewTrailConverged(specPath, rounds, requiredCleanRounds, currentHash, convergeOn) &&
+		len(ReviewCarriedBlocking(specPath, st, convergeOn)) == 0
+}
+
+// reviewTrailConverged is the trailing-rounds half of ReviewConverged: enough
+// trailing clean rounds over the spec as it stands.
+func reviewTrailConverged(specPath string, rounds []ReviewRound, requiredCleanRounds int, currentHash, convergeOn string) bool {
 	return ReviewConsecutiveClean(specPath, rounds, convergeOn) >= requiredCleanRounds && !StateStale(rounds, currentHash)
 }
