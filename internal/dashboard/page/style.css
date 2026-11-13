@@ -572,6 +572,6 @@ body.dopen:not([data-tab="epics"]) { padding: 0; }
 @media (max-width: 640px) {
   .gcanvas { height: 62vh; }
   .gcard #gc-q { min-width: 0; flex: 1 1 100%; }
-  .gcard .toolbar .seg { flex: 1 1 100%; }
-  .gcard .toolbar .seg button { flex: 1 1 0; min-width: 0; padding: 4px 6px; white-space: normal; line-height: 1.15; font-size: var(--text-xs); }
+  .gcard .toolbar .seg { flex: 1 1 100%; flex-wrap: wrap; }
+  .gcard .toolbar .seg button { flex: 1 1 40%; padding: 0 6px; white-space: nowrap; font-size: var(--text-xs); }
 }
