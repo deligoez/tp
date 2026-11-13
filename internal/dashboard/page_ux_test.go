@@ -807,6 +807,37 @@ out([
 	assert.JSONEq(t, `["threshold: graph text", "threshold: export", "threshold met", "no threshold", "export", ""]`, got)
 }
 
+// TestPure_TheDrawerMovesBetweenEpicAndMilestone: the drawer's state, the
+// milestone shown and the epic selected, moves by drawerNext: a card opens
+// its milestone, the same card again closes it, another card switches, an
+// epic takes the drawer over and a card takes it back, a milestone a push
+// no longer carries is dropped and stays dropped when it returns, and an
+// epic toggles or closes as before; a card reads expanded only while its
+// milestone is the one shown (1.15.1 review).
+func TestPure_TheDrawerMovesBetweenEpicAndMilestone(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `let s = { detail: null, selected: null };
+const steps = [];
+const go = (a) => { s = P.drawerNext(s, a); steps.push([s.detail, s.selected, P.cardExpanded(s, "A2")]); };
+go({ type: "milestone", id: "A2" });
+go({ type: "milestone", id: "B2" });
+go({ type: "milestone", id: "B2" });
+go({ type: "milestone", id: "A2" });
+go({ type: "present", milestones: ["A2", "B2"] });
+go({ type: "epic", id: "e1" });
+go({ type: "milestone", id: "A2" });
+go({ type: "present", milestones: ["B2"] });
+go({ type: "present", milestones: ["A2", "B2"] });
+go({ type: "epic", id: "e1" });
+go({ type: "epic", id: "e1" });
+go({ type: "epic", id: "e2" });
+go({ type: "epic", id: null });
+out(steps);`)
+	assert.JSONEq(t, `[["A2", null, true], ["B2", null, false], [null, null, false], ["A2", null, true], ["A2", null, true],
+		[null, "e1", false], ["A2", null, true], [null, null, false], [null, null, false],
+		[null, "e1", false], [null, null, false], [null, "e2", false], [null, null, false]]`, got)
+}
+
 // TestPure_AToggleKeepsItsKeyAcrossARedraw: a milestone card, a Waiting
 // section's header and a section's Show all each have a key read from
 // their data attribute, and the key gives that attribute and value back,
