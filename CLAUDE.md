@@ -79,8 +79,10 @@ A fix that turns out to need a design choice stops and becomes a decision. Repai
 its first round delete or narrow; they do not add requirements.
 
 Open work is `BUGS.md` (the fix track, and entries awaiting an operator decision); the decision
-candidates in `spec/backlog/` are worked through. A carried blocking review row holding convergence
-open shipped in v1.16.0 (`spec/backlog/carried-rows-block.md`, `spec/1.16.0-measurements.md`), the
+candidates in `spec/backlog/` are worked through. An audit FAIL no later round re-grades holding
+convergence open shipped in v1.18.0 (`spec/backlog/audit-carried-fail-blocks.md`,
+`spec/1.18.0-measurements.md`), a carried blocking review row holding convergence
+open in v1.16.0 (`spec/backlog/carried-rows-block.md`, `spec/1.16.0-measurements.md`), the
 audit's file list covering what changed in v1.15.0 (`spec/backlog/checklist-covers-what-changed.md`,
 `spec/1.15.0-measurements.md`), a
 rewritten spec starting an epoch in v1.14.0 (`spec/backlog/reconcile.md`,
@@ -128,7 +130,7 @@ layer's deferred pilot items are in `spec/1.3.0-measurements.md`.
    or any audit finding without a change (`accept-finding`), `--force` over an unrecorded
    emission or `tp epic review --discard` (`discard-emission`), granting a stale epic review slice one round past its cap
    (`tp epic review <slice> --grant-round`, `grant-round`), and an epoch whose cut holds an unresolved
-   blocking review finding (`tp review <spec> --rewritten`, `rewrite-past-blocking`). Under `tp run`
+   blocking review or audit finding (`tp review <spec> --rewritten`, `rewrite-past-blocking`). Under `tp run`
    each exits 2; the unit records it with `tp escalate --decision <name>` (the closed set is
    `engine.EscalationDecisions`) and the run stops for the operator. Policy: SKILL.md's "Gate, Budget
    & Escalation Policy".
