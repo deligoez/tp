@@ -59,6 +59,21 @@ func TestDone_InALinkedWorktreeWritesAPendingClose(t *testing.T) {
 	assert.NoFileExists(t, filepath.Join(root, "gate-ran"))
 }
 
+// TestBrief_InALinkedWorktreeGivesTheWorktreeClose: tp brief in a unit's
+// worktree tells it to ask for the close with --commit, not --auto-commit.
+func TestBrief_InALinkedWorktreeGivesTheWorktreeClose(t *testing.T) {
+	t.Parallel()
+	root, worktree, taskFile := pendingProject(t)
+	stdout, stderr, code := runTPEnv(t, worktree, []string{"TP_FILE=" + taskFile}, "brief", "t1")
+	require.Equal(t, 0, code, stderr)
+	assert.Contains(t, stdout, "only the tests your change needs")
+	assert.NotContains(t, stdout, "--auto-commit")
+
+	stdout, stderr, code = runTPEnv(t, root, nil, "brief", "t1")
+	require.Equal(t, 0, code, stderr)
+	assert.NotContains(t, stdout, "only the tests your change needs", "the main tree keeps the ordinary close")
+}
+
 // TestDone_InALinkedWorktreeRefusesATpOwnedPath: a unit's commit that changes
 // the task file is refused and no request is written.
 func TestDone_InALinkedWorktreeRefusesATpOwnedPath(t *testing.T) {
