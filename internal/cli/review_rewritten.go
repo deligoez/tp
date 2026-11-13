@@ -21,16 +21,19 @@ type rewrittenRefusal struct {
 func (r *rewrittenRefusal) Error() string { return r.msg }
 
 // runReviewRewritten implements `tp review <spec> --rewritten "<evidence>"`
-// (spec/backlog/reconcile.md §2.1): it appends an epoch placed after the last
-// recorded round of each phase, so the rounds recorded so far stop feeding the
-// lists of earlier findings an emission carries. It writes state.json only —
-// no round, no disposition — and changes no convergence rule or cap.
+// (spec/backlog/reconcile.md §2.1): it appends an epoch placed, per phase,
+// after the last recorded round that read an older text (EpochPosition), so
+// those rounds stop feeding the lists of earlier findings an emission carries
+// while the rounds over the current text keep feeding them. It writes
+// state.json only — no round, no disposition — and changes no convergence
+// rule or cap.
 //
-// Refused: blank evidence (exit 2); no recorded round in either phase, so
-// nothing to cut (exit 2); a round of either phase in flight, since it was
-// built from the lists the epoch cuts (exit 3, the emission guard's code); and
-// a spec whose hash equals a phase's last recorded round's, since nothing was
-// rewritten after it (exit 2).
+// Refused: blank evidence (exit 2); no recorded round in either phase (exit
+// 2); a round of either phase in flight, since it was built from the lists
+// the epoch cuts (exit 3, the emission guard's code) — once it is recorded
+// the epoch keeps it if it read the current text; and an epoch whose position
+// in both phases equals the newest epoch's, since no round over an older text
+// is left uncut (exit 2).
 func runReviewRewritten(specPath, evidence string, force, noState bool) error {
 	if force || noState {
 		output.Error(ExitUsage, "--rewritten cannot be combined with --force or --no-state",
@@ -75,7 +78,7 @@ func runReviewRewritten(specPath, evidence string, force, noState bool) error {
 			if err != nil {
 				return err
 			}
-			return appendEpoch(specPath, st, evidence, &epoch)
+			return appendEpoch(specPath, st, specHash, evidence, &epoch)
 		})
 	}
 	var refusal *rewrittenRefusal
@@ -93,10 +96,13 @@ func runReviewRewritten(specPath, evidence string, force, noState bool) error {
 
 // appendEpoch places the epoch after the last recorded round of each phase,
 // stores it into *epoch for the payload, and saves the state.
-func appendEpoch(specPath string, st *engine.ReviewState, evidence string, epoch *engine.Epoch) error {
+// appendEpoch places the epoch at each phase's EpochPosition — after its last
+// recorded round over an older text — stores it into *epoch for the payload,
+// and saves the state.
+func appendEpoch(specPath string, st *engine.ReviewState, specHash, evidence string, epoch *engine.Epoch) error {
 	*epoch = engine.Epoch{
-		AfterReviewRound: len(st.ReviewRounds),
-		AfterAuditRound:  len(st.AuditRounds),
+		AfterReviewRound: engine.EpochPosition(st, engine.PhaseReview, specHash),
+		AfterAuditRound:  engine.EpochPosition(st, engine.PhaseAudit, specHash),
 		Evidence:         evidence,
 		At:               time.Now().UTC().Format(time.RFC3339),
 	}
@@ -119,14 +125,14 @@ func refuseEpoch(specPath string, st *engine.ReviewState, specHash string) *rewr
 			return inFlightEpochRefusal(specPath, phase.name, r)
 		}
 	}
-	for _, rounds := range [][]engine.ReviewRound{st.ReviewRounds, st.AuditRounds} {
-		if n := len(rounds); n > 0 && rounds[n-1].SpecHash == specHash {
-			return &rewrittenRefusal{code: ExitUsage,
-				msg:  fmt.Sprintf("nothing was rewritten: the spec's hash equals recorded round %d's (%s)", rounds[n-1].Round, rounds[n-1].File),
-				hint: "an epoch starts after a rewrite and before any round reads the new text; rewrite the spec first, or keep the loop going"}
+	for _, phase := range []string{engine.PhaseReview, engine.PhaseAudit} {
+		if engine.EpochPosition(st, phase, specHash) != engine.EpochCut(st, phase) {
+			return nil
 		}
 	}
-	return nil
+	return &rewrittenRefusal{code: ExitUsage,
+		msg:  "--rewritten has nothing to cut: every recorded round already read the current text, or was cut by an earlier epoch",
+		hint: "an epoch cuts the rounds that read an older text; rewrite the spec first, or keep the loop going"}
 }
 
 // inFlightEpochRefusal names the round in flight and the ways past it: its
