@@ -2814,6 +2814,8 @@
   const conn = $("conn");
   let source = null;
   function openStream() {
+    conn.dataset.state = "connecting";
+    conn.textContent = "Connecting";
     source = new EventSource(STREAM);
     source.addEventListener("open", () => { conn.dataset.state = "live"; conn.textContent = "Live"; });
     source.addEventListener("error", () => { conn.dataset.state = "lost"; conn.textContent = "Reconnecting"; });
