@@ -39,6 +39,73 @@ func TestRoundsSinceEpoch_NoEpochKeepsEveryRound(t *testing.T) {
 	assert.Equal(t, 0, EpochCut(nil, PhaseAudit))
 }
 
+// snap is a round recorded from its own emission snapshot of the text hash.
+func snap(round int, hash string) ReviewRound {
+	return ReviewRound{Round: round, SpecHash: hash, HashScheme: HashSchemeSnapshot}
+}
+
+// TestEpochPosition_IsTheLastRoundOverAnOlderTextPerPhase: each phase is cut
+// after its own last round that read an older text, and rounds over the
+// current text stay uncut — a review round over the new text strands no
+// audit round over the old one.
+func TestEpochPosition_IsTheLastRoundOverAnOlderTextPerPhase(t *testing.T) {
+	t.Parallel()
+	st := &ReviewState{
+		ReviewRounds: []ReviewRound{snap(1, "H1"), snap(2, "H1"), snap(3, "H2")},
+		AuditRounds:  []ReviewRound{snap(1, "H1"), snap(2, "H1")},
+	}
+	assert.Equal(t, 2, EpochPosition(st, PhaseReview, "H2"))
+	assert.Equal(t, 2, EpochPosition(st, PhaseAudit, "H2"))
+	assert.Equal(t, 0, EpochPosition(nil, PhaseReview, "H2"))
+}
+
+// TestEpochPosition_ARoundWithNoSnapshotHashReadAnOlderText: a round whose
+// read text cannot be established — unmarked (recorded before the marker
+// existed) or marked no-emission — counts as having read an older text,
+// whatever its stored hash, so the cut lands after the last such round or
+// old-hash round.
+func TestEpochPosition_ARoundWithNoSnapshotHashReadAnOlderText(t *testing.T) {
+	t.Parallel()
+	st := &ReviewState{ReviewRounds: []ReviewRound{
+		snap(1, "H1"),
+		{Round: 2, SpecHash: "H2"},
+		snap(3, "H2"),
+		{Round: 4, SpecHash: "H2", HashScheme: HashSchemeNoEmission},
+		snap(5, "H2"),
+		snap(6, "H2"),
+	}}
+	assert.Equal(t, 4, EpochPosition(st, PhaseReview, "H2"))
+	st.ReviewRounds = st.ReviewRounds[:4]
+	st.ReviewRounds[3] = snap(4, "H2")
+	assert.Equal(t, 2, EpochPosition(st, PhaseReview, "H2"), "an unmarked round counts as older even when its hash is the current one")
+}
+
+// TestEpochPosition_ARevertedSpecCutsTheEarlyRoundsToo: text A with rounds,
+// rewritten to B with rounds, reverted to A — the position is the last B
+// round, so the early A rounds are cut with it although they read what is
+// current again. The position is one number, and the conservative result
+// errs toward more review.
+func TestEpochPosition_ARevertedSpecCutsTheEarlyRoundsToo(t *testing.T) {
+	t.Parallel()
+	st := &ReviewState{ReviewRounds: []ReviewRound{snap(1, "A"), snap(2, "A"), snap(3, "B"), snap(4, "B")}}
+	assert.Equal(t, 4, EpochPosition(st, PhaseReview, "A"))
+	st.ReviewRounds = append(st.ReviewRounds, snap(5, "A"))
+	assert.Equal(t, 4, EpochPosition(st, PhaseReview, "A"))
+}
+
+// TestEpochPosition_NeverMovesBackwards: an existing epoch's position is a
+// floor, so a phase whose rounds all read the current text keeps it.
+func TestEpochPosition_NeverMovesBackwards(t *testing.T) {
+	t.Parallel()
+	st := &ReviewState{
+		ReviewRounds: []ReviewRound{{Round: 1, SpecHash: "H1"}, snap(2, "H2"), snap(3, "H2")},
+		Epochs:       []Epoch{{AfterReviewRound: 2}},
+	}
+	assert.Equal(t, 2, EpochPosition(st, PhaseReview, "H2"))
+	st.Epochs[0].AfterReviewRound = 3
+	assert.Equal(t, 3, EpochPosition(st, PhaseReview, "H2"))
+}
+
 // TestEpochs_SurviveASaveAndAreAbsentWhenNone: the epochs are a typed field of
 // state.json, so a load-and-save keeps them; a state with none writes no key,
 // so every state.json recorded before epochs existed stays byte-identical.
