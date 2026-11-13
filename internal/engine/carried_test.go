@@ -156,3 +156,16 @@ func TestReviewCarried_TheCapEndingPastAnEpochCutSaysSo(t *testing.T) {
 	assert.True(t, d.EpochCutBlocking)
 	assert.NotContains(t, ReviewNextAction("spec.md", d, false, nil, "", CheckVerdict{}), "every finding dispositioned")
 }
+
+// TestCarryDisposition_OnlyWontfixOrDuplicateWithEvidenceIsAccepted: each
+// acceptance status with evidence is accepted, while a status tp does not
+// know stays unresolved whatever evidence it carries.
+func TestCarryDisposition_OnlyWontfixOrDuplicateWithEvidenceIsAccepted(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, CarryAccepted, CarryDisposition(true, "wontfix", "out of scope"))
+	assert.Equal(t, CarryAccepted, CarryDisposition(true, "duplicate", "same as row 2"))
+	assert.Equal(t, CarryUnresolved, CarryDisposition(true, "deferred", "later"))
+	assert.Equal(t, CarryUnresolved, CarryDisposition(true, "duplicate", "  "))
+	assert.Equal(t, CarryResolved, CarryDisposition(true, "fixed", ""))
+	assert.Equal(t, CarryUnresolved, CarryDisposition(false, "", ""))
+}
