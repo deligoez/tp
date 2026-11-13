@@ -435,7 +435,7 @@ func TestPage_TheGraphRecordsWhatItDrew(t *testing.T) {
 	page, script := pageText(t)
 	assert.Contains(t, page, `data-drawn-nodes="0" data-drawn-edges="0"`)
 	for _, s := range []string{"onAfterRender: recordDrawn", "card.dataset.drawnNodes = String(d.nodes);", "card.dataset.drawnEdges = String(d.edges);",
-		"G.drawing = { mode: P.L.view, nodes: P.nodes.length, edges: sets.drawn };", "pure.edgeLayers(P.links,", "card.dataset.firstDrawMs"} {
+		"G.drawing = { mode: P.L.view, nodes: P.nodes.length, edges: sets.drawn, layers: P.L.layers, cols: P.L.columns };", "pure.edgeLayers(P.links,", "card.dataset.firstDrawMs", "card.dataset.layers", "card.dataset.rendererMs"} {
 		assert.Contains(t, script, s)
 	}
 }

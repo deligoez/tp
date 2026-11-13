@@ -40,7 +40,7 @@ func TestPage_TheToolbarHasNoPackingControl(t *testing.T) {
 func TestPage_TheNeighbourhoodKeepsItsCentreAndTheSearchWorksUnprepared(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
-	for _, s := range []string{"const sel = app.selected() || G.centre;", "G.centre = id;", "function exportMatches(", "const cardShown = () => !card.hidden && !$(\"view-epics\").hidden;"} {
+	for _, s := range []string{"const sel = app.selected() || G.centre || firstReady(g);", "G.centre = id;", "function exportMatches(", "const cardShown = () => !card.hidden && !$(\"view-epics\").hidden;"} {
 		assert.Contains(t, script, s)
 	}
 	assert.NotContains(t, script, "!!G.prepared && !$(\"view-epics\").hidden")
@@ -58,12 +58,12 @@ func TestPage_AFailedLayoutClearsTheCanvasAndRecordsZero(t *testing.T) {
 }
 
 // TestPage_TheNeighbourhoodOpensWhereIdsRead is the review's M1: the
-// neighbourhood opens at zoom 0 or nearer, where an epic's id is drawn at
-// its full 11 pixels.
+// neighbourhood opens near enough that an epic's id is drawn whole, at 12
+// pixels since 1.17.1's levels of detail.
 func TestPage_TheNeighbourhoodOpensWhereIdsRead(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
-	assert.Contains(t, script, "const NEAR_ZOOM = 0;")
+	assert.Contains(t, script, "const NEAR_ZOOM = 0.13;")
 }
 
 // TestPage_TheCanvasIsNoTabStop is the review's M9: deck.gl's canvas takes
@@ -93,7 +93,8 @@ func TestPage_MilestonesDrawCrossEdgesLighterThanTheSpine(t *testing.T) {
 func TestPage_TheLegendCountsNodesAndTheNearChain(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
-	for _, s := range []string{`t("graph.legendNodes")`, `t("graph.near", { n: P.desc.size, near: pure.withinTwo(P.desc) })`, `data-lwhole`, "pure.chainAlpha(stepsOf(P, n.i), G.whole)"} {
+	assert.NotContains(t, script, "graph.legendNodes", "1.17.1: the marks carry their counts without a heading")
+	for _, s := range []string{`data-lmark="`, `t("graph.near", { n: P.desc.size, near: pure.withinTwo(P.desc) })`, `data-lwhole`, "pure.chainAlpha(stepsOf(P, n.i), G.whole)"} {
 		assert.Contains(t, script, s)
 	}
 }
