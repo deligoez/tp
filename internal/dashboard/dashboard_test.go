@@ -74,8 +74,8 @@ func TestHandler_ServesThePageScriptAndStylesFromTheEmbed(t *testing.T) {
 	page := serve(t, http.MethodGet, "127.0.0.1:7377", "/")
 	body, err := io.ReadAll(page.Body)
 	require.NoError(t, err)
-	assert.Contains(t, string(body), `src="app.js"`)
-	assert.Contains(t, string(body), `href="style.css"`)
+	assert.Contains(t, string(body), `src="app.js?v=`)
+	assert.Contains(t, string(body), `href="style.css?v=`)
 
 	for path, kind := range map[string]string{"/app.js": "javascript", "/style.css": "text/css"} {
 		resp := serve(t, http.MethodGet, "127.0.0.1:7377", path)

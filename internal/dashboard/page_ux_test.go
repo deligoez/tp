@@ -45,8 +45,8 @@ func runPure(t *testing.T, prog string) string {
 func TestPage_LoadsThePureFunctionsBeforeTheScript(t *testing.T) {
 	t.Parallel()
 	page, _ := pageText(t)
-	pure := strings.Index(page, `src="pure.js"`)
-	app := strings.Index(page, `src="app.js"`)
+	pure := strings.Index(page, `src="pure.js?v=`)
+	app := strings.Index(page, `src="app.js?v=`)
 	require.GreaterOrEqual(t, pure, 0, "the page loads pure.js")
 	assert.Less(t, pure, app, "pure.js loads before app.js")
 }
