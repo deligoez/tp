@@ -246,3 +246,13 @@ func TestForestLayout_RowPackingALoneColumn(t *testing.T) {
 		Places:  map[string]ForestPlace{"a": {0, 0}, "b": {1, 0}},
 	}, got)
 }
+
+// TestForestLayout_RowPackingRoundsAHalfColumnUp: a parent centred half-way
+// over two children two tree columns wide lands on the right child's
+// column, math.Round taking a half away from zero.
+func TestForestLayout_RowPackingRoundsAHalfColumnUp(t *testing.T) {
+	t.Parallel()
+	got := ForestLayout(&ForestInput{IDs: []string{"r", "a", "b"}, Edges: []LayoutEdge{{"r", "a"}, {"r", "b"}}, Pack: PackRows})
+	assert.InDelta(t, 2.0, got.Columns, 0)
+	assert.Equal(t, map[string]ForestPlace{"r": {0, 1}, "a": {1, 0}, "b": {1, 1}}, got.Places)
+}
