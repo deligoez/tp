@@ -120,3 +120,42 @@ func TestCarriedBlocking_TheCapRefusalNamesTheCarriedRow(t *testing.T) {
 	assert.Contains(t, env["hint"], "1 carried blocking finding")
 }
 
+// TestCarriedBlocking_ResumeNamesTheRow: under the cap, tp resume stops on the
+// carried row as an escalate blocker naming it, since another round cannot
+// clear what its roles are told not to re-report.
+func TestCarriedBlocking_ResumeNamesTheRow(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeSpec(t, dir, carriedSpec)
+	_, stderr, code := runTP(t, dir, "init", "spec.md")
+	require.Equal(t, 0, code, stderr)
+	_, stderr, code = runTP(t, dir, "set", "--workflow", "review_max_rounds=5")
+	require.Equal(t, 0, code, stderr)
+	for _, rows := range []string{carriedHighRow, "", ""} {
+		_, stderr, code = recordRound(t, dir, rows)
+		require.Equal(t, 0, code, stderr)
+	}
+
+	stdout, stderr, code := runTP(t, dir, "resume")
+	require.Equal(t, 0, code, stderr)
+	var out map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+	assert.Equal(t, "review", out["phase"])
+	var found map[string]any
+	bs, _ := out["blockers"].([]any)
+	for _, b := range bs {
+		if m, ok := b.(map[string]any); ok && m["code"] == "review-carried-blocking" {
+			found = m
+		}
+	}
+	require.NotNil(t, found, "the carried row is a blocker: %s", stdout)
+	assert.Equal(t, "escalate", found["class"])
+	assert.Contains(t, found["message"], "tp review "+carriedRoundFile+" --resolve 0")
+	data, _ := found["data"].(map[string]any)
+	assert.Equal(t, float64(1), data["count"])
+	assert.Empty(t, out["next_units"], "no round is offered while the blocker stands")
+}
+
+// carriedMarker pulls the MK-<letter> marker out of a finding's text.
+var carriedMarker = regexp.MustCompile(`MK-[A-Z]`)
+
