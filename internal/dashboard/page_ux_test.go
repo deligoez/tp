@@ -701,6 +701,19 @@ func TestPage_TheLifecycleRowsSpreadEvenlyToo(t *testing.T) {
 	assert.Equal(t, 3, strings.Count(script, "fitAllRows();"), "the KPI, band and milestone panels each fit their rows once drawn")
 }
 
+// TestPage_FittingRowsWritesOnlyWhatChanged: a fit that finds the same grid
+// and spans writes nothing, so the ResizeObserver it feeds settles instead
+// of flickering, and the root keeps its scrollbar's gutter, so a scrollbar
+// appearing does not narrow the grids and refit them (1.15.1 review).
+func TestPage_FittingRowsWritesOnlyWhatChanged(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	for _, s := range []string{"if (box.dataset.cols !== String(grid.columns)) {", "if (c.style.gridColumn !== span) c.style.gridColumn = span;"} {
+		assert.Contains(t, script, s)
+	}
+	assert.Contains(t, page, ":root { scrollbar-gutter: stable; }")
+}
+
 // TestPure_TheEpicTotalsNameTheConditions: the Epics tab counts every epic
 // while the share and the Lifecycle count work epics, so the totals read as
 // one sentence that names the condition epics between them (1.14.1).
