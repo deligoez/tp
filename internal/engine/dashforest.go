@@ -65,7 +65,9 @@ type Forest struct {
 // ForestInput is what ForestLayout lays out: IDs in file order, Edges
 // between them, Bands and BandOf as LayeredLayout takes them, GroupOf
 // naming each node's group (nil for one group), LaneOf naming each band's
-// lane (nil to stack every band after the last) and Pack.
+// lane (nil to stack every band after the last), OnPath marking, per edge
+// in Edges, the edges of the path the picture keeps straight (nil for
+// none) and Pack.
 type ForestInput struct {
 	IDs     []string
 	Edges   []LayoutEdge
@@ -73,6 +75,7 @@ type ForestInput struct {
 	BandOf  map[string]string
 	GroupOf map[string]string
 	LaneOf  map[string]string
+	OnPath  []bool
 	Pack    ForestPacking
 }
 
@@ -84,8 +87,9 @@ type ForestInput struct {
 // LayeredLayout stacks them; with lanes, a run starts right after the runs
 // it depends on and the run before it in its own lane, so runs of different
 // lanes share layers. Each node then picks one primary parent among the
-// edges into it from an earlier layer and its own group, the one from the
-// deepest layer, the earliest in file order on a tie; those edges form a
+// edges into it from an earlier layer and its own group, one on the path
+// OnPath marks, then the one from the deepest layer, then the earliest in
+// file order; those edges form a
 // forest (RoleTree), every other edge pointing down is RoleCross and one
 // that does not is RoleBack. The forest's roots are grouped by GroupOf,
 // groups in the order of their first node and roots inside a group by
@@ -106,7 +110,7 @@ func ForestLayout(in *ForestInput) Forest {
 		}
 		out.Layers = max(out.Layers, s.To+1)
 	}
-	parent := primaryParents(edges, file, layer, in.GroupOf)
+	parent := primaryParents(edges, in.OnPath, file, layer, in.GroupOf)
 	var children [][]int
 	out.Roles, children = forestRoles(edges, file, layer, parent)
 	col := packForest(ids, layer, parent, children, in.GroupOf)
@@ -244,16 +248,23 @@ func forestEdgeKept(file map[string]int, e LayoutEdge) bool {
 
 // primaryParents is, per node in file order, the index of its primary
 // parent's edge, or -1 for a root: of the edges into it from an earlier
-// layer and a node of its own group, the one from the deepest layer, then
-// the earliest dependency in file order, then the earliest edge.
-func primaryParents(edges []LayoutEdge, file, layer map[string]int, groupOf map[string]string) []int {
+// layer and a node of its own group, one onPath marks, then the one from
+// the deepest layer, then the earliest dependency in file order, then the
+// earliest edge.
+func primaryParents(edges []LayoutEdge, onPath []bool, file, layer map[string]int, groupOf map[string]string) []int {
 	parent := slices.Repeat([]int{-1}, len(file))
+	marked := func(i int) int {
+		if i < len(onPath) && onPath[i] {
+			return 1
+		}
+		return 0
+	}
 	for i, e := range edges {
 		if !forestEdgeKept(file, e) || layer[e.From] >= layer[e.To] || groupOf[e.From] != groupOf[e.To] {
 			continue
 		}
 		v := file[e.To]
-		if p := parent[v]; p < 0 || cmp.Or(cmp.Compare(layer[e.From], layer[edges[p].From]), cmp.Compare(file[edges[p].From], file[e.From])) > 0 {
+		if p := parent[v]; p < 0 || cmp.Or(cmp.Compare(marked(i), marked(p)), cmp.Compare(layer[e.From], layer[edges[p].From]), cmp.Compare(file[edges[p].From], file[e.From])) > 0 {
 			parent[v] = i
 		}
 	}
