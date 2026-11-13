@@ -237,7 +237,7 @@ tp dashboard                   # Serve the read-only dashboard on http://127.0.0
 ```bash
 tp lint spec.md                # Spec quality + structured element detection
 tp ground spec.md              # Check the spec's claims against the world (--units, --record, --status --check)
-tp review spec.md              # Review prompts, rounds, merge/resolve/record/status
+tp review spec.md              # Review prompts, rounds, merge/resolve/record/status/rewritten
 tp review spec.md --role NAME  # Emit one role's prompt only (also on tp audit)
 tp audit spec.md               # Post-implementation: verify the code matches the spec
 tp validate                    # Task file + coverage + atomicity (--strict, --project)
