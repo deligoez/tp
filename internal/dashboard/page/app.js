@@ -987,13 +987,18 @@
   // epic or null; centre asks the graph card to take its view to it, as a
   // selection made outside the card does.
   // opener is what held focus when a selection opens the drawer, read before
-  // the redraws below replace it; drawDrawer takes it.
+  // the redraws below replace it; drawDrawer takes it. keepFocus, set by the
+  // graph's search, leaves focus where it is when the drawer opens, so the
+  // next Enter there steps to the next match.
   let opener = null;
-  function selectEpic(id, centre) {
+  let keepFocusOnce = false;
+  function selectEpic(id, centre, keepFocus) {
     if ($("drawer").hidden) opener = { el: document.activeElement, key: focusKey(document.activeElement) };
     // An epic takes the drawer over from a milestone shown in it.
     moveDrawer({ type: "epic", id });
+    keepFocusOnce = !!keepFocus;
     drawSelected();
+    keepFocusOnce = false;
     syncURL();
     if (window.tpApp && window.tpApp.onSelect) window.tpApp.onSelect(mapView.selected, !!centre);
   }
@@ -1205,12 +1210,14 @@
     document.querySelectorAll("#msstate [data-ms]").forEach((b) => b.setAttribute("aria-expanded", String(open && tpPure.cardExpanded(drawerState(), b.dataset.ms))));
     $("drawer").hidden = !open;
     document.body.classList.toggle("dopen", open);
-    // Opening takes focus to the close button; closing gives it back.
+    // Opening takes focus to the close button, unless the graph's search
+    // opened it; closing gives it back.
+    const keepFocus = keepFocusOnce;
     if (open && !drawerReturn) {
       const from = opener || { el: document.activeElement, key: focusKey(document.activeElement) };
       drawerReturn = { el: from.el, keys: [from.key].filter(Boolean) };
       opener = null;
-      $("dclose").focus({ preventScroll: true });
+      if (!keepFocus) $("dclose").focus({ preventScroll: true });
     }
     if (!open && drawerReturn) returnFocus();
     if (!open) return;
