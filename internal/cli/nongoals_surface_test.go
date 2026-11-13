@@ -44,6 +44,9 @@ import (
 // discard of that emission, the reading review's and audit's `--force` also
 // take on their emission modes.
 //
+// spec/backlog/reconcile.md (v1.14.0) adds `--rewritten` to `tp review`, the
+// mode that starts an epoch after a rewrite; no other surface moves.
+//
 // spec/1.3.0.md adds the `tp epic` parent, whose subcommands are listed by
 // their own tasks; each subcommand has its own line, keyed by parent and name,
 // so a flag registered on the wrong subcommand fails here (`tp epic` itself
@@ -95,7 +98,7 @@ remove: force
 reopen:
 report:
 resume: epic
-review: affected-files check diff-from docs-path final-round findings force harness-note merge no-state output perspective record report resolve resolve-all role round spec-inline status test-path verify
+review: affected-files check diff-from docs-path final-round findings force harness-note merge no-state output perspective record report resolve resolve-all rewritten role round spec-inline status test-path verify
 run: dry-run status
 set: bulk epic local project workflow
 show:
