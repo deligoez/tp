@@ -171,6 +171,12 @@ button.pcell[aria-pressed="true"] { background: var(--color-accent-wash); border
 .bst[data-b="startable"] { --c: var(--ready); }
 .bst[data-b="claimed"], .bst[data-b="specced"], .bst[data-b="in_progress"] { --c: var(--active); }
 .bst[data-b="decision"] { --c: var(--held); }
+.wsec { border-top: 1px solid var(--color-rule-2); padding-top: var(--space-xs); margin-top: var(--space-xs); }
+.wsh { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2xs) var(--space-sm); width: 100%; padding: var(--space-3xs) 0; background: none; border: 0; font: inherit; font-size: var(--text-sm); text-align: left; color: var(--ink); cursor: pointer; }
+.wsh::before { content: "▾"; color: var(--muted); }
+.wsh[aria-expanded="false"]::before { content: "▸"; }
+.wsh:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.bcrit { font-size: var(--text-xs); border: 1px solid var(--crit); color: var(--crit); border-radius: 999px; padding: 0 var(--space-xs); }
 .wids { display: flex; flex-wrap: wrap; gap: var(--space-3xs) var(--space-sm); margin-top: var(--space-3xs); font: 400 var(--text-xs) var(--mono); }
 .wall { margin-top: var(--space-xs); }
 .wclosed .wh span { color: var(--ink-2); }

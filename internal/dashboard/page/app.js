@@ -302,7 +302,7 @@
     loops: "Epic review slices not done, less those a re-review alone settles. What each needs differs: an open or unreviewed slice a round, a stale one with a blocking finding open a round that reads it, one with a round in flight that round recorded, not a new one, one at its cap its findings dispositioned, and one stale at its cap the operator's grant, so it is in the operator queue too. After the plus, the slices a re-review alone settles: a graph edit changed their units since their last round, they would otherwise be done, and they are under their cap. From the summary's open_loops and stale_loops.",
     lint: "The error and warning counts tp epic lint prints for the graph, from the export's lint.",
     throughput: "Work epics done per ISO week across every milestone, from their done time. From the summary's plan.",
-    waiting: "What is blocked, and by what. The blocked work epics of open milestones, grouped under each dependency they wait on directly, an any-of group as one: an epic waiting on three blockers is in three groups, so the group sizes do not add up to the total. Each group names its blocker, what the blocker is doing (startable; claimed, specced or in progress, its status as the Lifecycle counts it; an operator decision; or waiting itself) and how many epics wait on it directly, largest first. The blocked epics of milestones not yet open are one counted row, and deferrable gate members are left out, so the parts add up to the blocked epics figure. From the summary's waiting list and the export's blocked_by and blocked_by_any_of.",
+    waiting: "What is blocked, and by what. The blocked work epics of open milestones, grouped under each dependency they wait on directly, an any-of group as one: an epic waiting on three blockers is in three groups, so the group sizes do not add up to the total. Each group names its blocker, what the blocker is doing (startable; claimed, specced or in progress, its status as the Lifecycle counts it; an operator decision; or waiting itself) and how many epics wait on it directly. The groups sit in one section per blocker's milestone, in the order the graph file lists the milestones, track by track, an any-of group under its earliest member's; inside a section the largest come first, a few show and the rest are behind the section's own Show all, and a section header folds it. A blocker on the critical path carries a mark; it does not change the order. The blocked epics of milestones not yet open are one counted row, and deferrable gate members are left out, so the parts add up to the blocked epics figure. From the summary's waiting list and the export's blocked_by and blocked_by_any_of.",
     most: "Not-done work epics other work epics depend on, transitively, most dependents first.",
     since: "What changed since this browser last saw the page: tasks closed and review, audit and plan review rounds recorded, and epics whose stage changed, counted and never named. This browser keeps the last state it saw and compares it on each load; tp stores nothing for it, and a private window or cleared storage shows no strip.",
     cfd: "Work epics per stage per day, from the times tp records: claimed at the claim, specced at the earliest binding time of the bound specs, in progress at the earliest start of their tasks, done at the done record or the audit that released the last bound spec. An epic that reached a stage at a time tp did not record (a spec bound before tp recorded binding times) is counted as time not recorded, never on a guessed day. An epic's planning time is not recorded, so an epic added to the graph later counts as planned from the chart's first day. Planned epics are left out of the bands. From the summary's series.",
@@ -425,12 +425,33 @@
 
   // Waiting epics (dashboard-ux.md §2) answers what is blocked and by what:
   // the waiting epics of open milestones grouped under each direct blocker
-  // (tpPure.waitingGroups), the largest groups first and the rest behind
-  // "show all"; those of milestones not yet open in one counted row. Its
-  // total is the KPI's blocked epics, the parts named.
-  const WAIT_SHOWN = 6;
+  // (tpPure.waitingGroups), the groups in one section per blocker's
+  // milestone in the graph file's order (tpPure.waitingSections), each
+  // section folding on its own, its largest groups first and the rest
+  // behind its own "show all"; those of milestones not yet open in one
+  // counted row. Its total is the KPI's blocked epics, the parts named.
+  const WAIT_SHOWN = 3;
   const BLOCKER_LABEL = { startable: "startable", claimed: "claimed", specced: "specced", in_progress: "in progress", decision: "operator decision", waiting: "waiting" };
-  const waitView = { all: false };
+  const waitView = { all: new Set(), folded: new Set() };
+  // waitGroupHTML draws one group; wg keys it for focus to come back to a
+  // link inside it after a redraw.
+  function waitGroupHTML(gr, wg) {
+    return '<div class="wgroup" data-wg="' + esc(wg) + '"><div class="wh">' + (gr.blocker ? epicLink(gr.blocker) : '<span class="muted">one of</span> ' + gr.any_of.map(epicLink).join(", ")) +
+      '<span class="bst" data-b="' + esc(gr.state) + '">' + esc(BLOCKER_LABEL[gr.state]) + "</span>" +
+      (gr.critical ? '<span class="bcrit">on the critical path</span>' : "") +
+      '<span class="wn num" title="epics of open milestones that wait on it directly">' + esc(plural(gr.epics.length, "waits", "wait")) + " on it here</span></div>" +
+      '<div class="wids">' + gr.epics.map(epicLink).join(" ") + "</div></div>";
+  }
+  function waitSectionHTML(s) {
+    const key = s.milestone;
+    const open = !waitView.folded.has(key);
+    const all = waitView.all.has(key);
+    const shown = all ? s.groups : s.groups.slice(0, WAIT_SHOWN);
+    return '<section class="wsec"><button type="button" class="wsh" data-wsec="' + esc(key) + '" aria-expanded="' + open + '"><b>Blockers in ' + esc(key || "no milestone") + "</b>" +
+      '<span class="muted num">' + esc(plural(s.groups.length, "blocker", "blockers") + ", " + plural(s.epics, "epic waits", "epics wait") + " on them") + "</span></button>" +
+      (open ? shown.map((gr, i) => waitGroupHTML(gr, key + ":" + i)).join("") + (s.groups.length > WAIT_SHOWN ? '<button type="button" class="chip wall" data-wall="' + esc(key) + '" aria-expanded="' + all + '">' +
+        (all ? "Show the largest " + WAIT_SHOWN : "Show all " + s.groups.length + " blockers in " + esc(key)) + "</button>" : "") : "") + "</section>";
+  }
   function waitingHTML(v) {
     const open = {};
     (v.g.milestones || []).forEach((m) => { open[m.milestone] = !!m.open; });
@@ -440,23 +461,24 @@
     const deferred = blocked - v.plan.waiting.length;
     const byMs = {};
     w.closed.forEach((id) => { const m = (v.epics[id] || {}).milestone; byMs[m] = (byMs[m] || 0) + 1; });
-    const parts = [plural(w.open, "in an open milestone", "in open milestones") + ", grouped below under what each waits on directly, so an epic waiting on two blockers is in two groups"];
+    const parts = [plural(w.open, "in an open milestone", "in open milestones") + ", grouped below under what each waits on directly, so an epic waiting on two blockers is in two groups, and the groups sorted by the blocker's milestone"];
     if (w.closed.length) parts.push(w.closed.length + " in milestones not yet open");
     if (deferred) parts.push(plural(deferred, "deferrable gate member", "deferrable gate members") + " left out");
-    const shown = waitView.all ? w.groups : w.groups.slice(0, WAIT_SHOWN);
-    const group = (gr, i) => '<div class="wgroup" data-wg="' + i + '"><div class="wh">' + (gr.blocker ? epicLink(gr.blocker) : '<span class="muted">one of</span> ' + gr.any_of.map(epicLink).join(", ")) +
-      '<span class="bst" data-b="' + esc(gr.state) + '">' + esc(BLOCKER_LABEL[gr.state]) + '</span><span class="wn num" title="epics of open milestones that wait on it directly">' + esc(plural(gr.epics.length, "waits", "wait")) + " on it here</span></div>" +
-      '<div class="wids">' + gr.epics.map(epicLink).join(" ") + "</div></div>";
+    const order = [].concat(...((v.g.graph && v.g.graph.milestones) || []));
+    const crit = (v.g.critical_path && v.g.critical_path.by_count) || [];
     return '<p class="wsum"><b class="num">' + esc(plural(blocked, "blocked epic", "blocked epics")) + "</b>: " + esc(parts.join("; ")) + ".</p>" +
-      shown.map(group).join("") +
-      (w.groups.length > WAIT_SHOWN ? '<button type="button" class="chip wall" data-wall aria-expanded="' + waitView.all + '">' +
-        (waitView.all ? "Show the largest " + WAIT_SHOWN : "Show all " + w.groups.length + " groups") + "</button>" : "") +
+      tpPure.waitingSections(w.groups, v.epics, order, crit).map(waitSectionHTML).join("") +
       (w.closed.length ? '<div class="wgroup wclosed"><div class="wh"><span>' + esc(plural(w.closed.length, "epic waits", "epics wait")) +
         ' in milestones not yet open</span></div><div class="wids muted">' + esc(Object.keys(byMs).map((m) => m + " " + byMs[m]).join(", ")) + "</div></div>" : "");
   }
+  // A section's header folds it and its button shows all of its groups,
+  // each section on its own.
   $("waitcard").addEventListener("click", (ev) => {
-    if (!ev.target.closest("[data-wall]")) return;
-    waitView.all = !waitView.all;
+    const b = ev.target.closest("[data-wall], [data-wsec]");
+    if (!b) return;
+    const [set, key] = b.dataset.wall !== undefined ? [waitView.all, b.dataset.wall] : [waitView.folded, b.dataset.wsec];
+    if (set.has(key)) set.delete(key);
+    else set.add(key);
     render();
   });
 

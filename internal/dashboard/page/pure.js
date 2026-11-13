@@ -184,6 +184,32 @@
     return { groups: list, closed, open: count };
   };
 
+  // waitingSections sorts waitingGroups' groups into one section per
+  // blocker's milestone (read from epics, the export's epics by id), in
+  // order, the graph file's milestones track by track, a section whose
+  // milestone order does not hold last; an any-of group sits under its
+  // member milestone first in order. Inside a section groups keep their
+  // rank by direct waiters. Each section counts the distinct epics waiting
+  // in it, and each group carries critical when its blocker, or a member of
+  // its any-of group, is on critical, the critical path's ids: a mark, never
+  // a sort key.
+  P.waitingSections = function (groups, epics, order, critical) {
+    const rank = (m) => { const i = order.indexOf(m); return i < 0 ? order.length : i; };
+    const msOf = (id) => (epics[id] || {}).milestone || "";
+    const crit = new Set(critical || []);
+    const sections = new Map();
+    groups.forEach((g) => {
+      const members = g.blocker ? [g.blocker] : g.any_of;
+      const m = members.map(msOf).sort((x, y) => rank(x) - rank(y))[0];
+      if (!sections.has(m)) sections.set(m, { milestone: m, groups: [], ids: new Set() });
+      const s = sections.get(m);
+      s.groups.push(Object.assign({}, g, { critical: members.some((id) => crit.has(id)) }));
+      g.epics.forEach((id) => s.ids.add(id));
+    });
+    return [...sections.values()].sort((x, y) => rank(x.milestone) - rank(y.milestone))
+      .map((s) => ({ milestone: s.milestone, groups: s.groups, epics: s.ids.size }));
+  };
+
   // describedCounts counts, per milestone, the graph's epics and those with
   // a description, one holding more than whitespace, as tp treats it.
   P.describedCounts = function (epics) {
