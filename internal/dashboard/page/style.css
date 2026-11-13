@@ -515,13 +515,17 @@ body.mapfs .card.fs .legend { max-height: 30vh; overflow: auto; }
 .matrix td.diag { font-size: 10px; }
 .mkey { display: flex; flex-wrap: wrap; gap: var(--space-2xs) var(--space-md); margin-top: var(--space-sm); font-size: var(--text-sm); color: var(--muted); }
 .mkey i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
-/* an open drawer narrows the page, and a full-screen card, instead of covering them */
+/* the drawer slides in over the page from the right, a dimmed backdrop
+   behind it, and the page keeps its width: the operator's 1.17.1 change to
+   dashboard-ux.md §2, which had the drawer narrow the page */
 :root { --drawer-w: min(440px, 100%); --drawer-h: 60vh; }
-body.dopen { padding-right: var(--drawer-w); }
-body.mapfs.dopen .card.fs { right: var(--drawer-w); }
 body.dopen:not([data-tab="epics"]) { padding: 0; }
-.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: var(--drawer-w); z-index: var(--z-modal); background: var(--surface); border-left: 1px solid var(--color-rule-2); display: flex; flex-direction: column; box-shadow: -8px 0 24px rgb(0 0 0 / .12); }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: var(--drawer-w); z-index: var(--z-modal); background: var(--surface); border-left: 1px solid var(--color-rule-2); display: flex; flex-direction: column; box-shadow: -8px 0 24px rgb(0 0 0 / .12); animation: drawer-in var(--dur-short) var(--ease-out); }
+@keyframes drawer-in { from { transform: translateX(32px); opacity: 0; } }
 .drawer[hidden], body:not([data-tab="epics"]) .drawer { display: none; }
+.scrim { position: fixed; inset: 0; z-index: calc(var(--z-modal) - 1); background: rgb(8 12 18 / .28); animation: scrim-in var(--dur-short) var(--ease-out); }
+@keyframes scrim-in { from { opacity: 0; } }
+.scrim[hidden], body:not([data-tab="epics"]) .scrim { display: none; }
 .dhead { display: flex; gap: var(--space-xs); align-items: center; padding: var(--space-xs) var(--space-md); border-bottom: 1px solid var(--line); min-height: 52px; }
 .dhead .k { font: 600 var(--text-sm) var(--font-display); color: var(--muted); }
 .dbody { overflow: auto; padding: var(--space-md) var(--space-md) var(--space-xl); display: grid; gap: var(--space-md); align-content: start; }
@@ -539,7 +543,10 @@ body.dopen:not([data-tab="epics"]) { padding: 0; }
 .ehr { list-style: none; margin: 0; padding: 0 0 0 var(--space-sm); border-left: 1px solid var(--line); display: grid; gap: var(--space-xs); font-size: var(--text-sm); }
 .ehr > li > b { display: block; font: 600 var(--text-xs) var(--font-display); color: var(--ink-2); }
 @media (max-width: 760px) {
-  .drawer { top: auto; height: var(--drawer-h); width: 100%; border-left: 0; border-top: 1px solid var(--color-rule-2); }
+  /* a phone keeps the bottom sheet, which takes its height from below */
+  .drawer { top: auto; height: var(--drawer-h); width: 100%; border-left: 0; border-top: 1px solid var(--color-rule-2); animation-name: sheet-in; }
+  @keyframes sheet-in { from { transform: translateY(32px); opacity: 0; } }
+  .scrim { display: none; }
   body.dopen { padding-right: 0; padding-bottom: var(--drawer-h); }
   body.mapfs.dopen .card.fs { right: 0; bottom: var(--drawer-h); }
   .stepper.e3 { grid-template-columns: minmax(0, 1fr); }

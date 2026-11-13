@@ -1302,6 +1302,8 @@
     const open = (!!e || !!msd) && state.tab === "epics";
     document.querySelectorAll("#msstate [data-ms]").forEach((b) => b.setAttribute("aria-expanded", String(open && tpPure.cardExpanded(drawerState(), b.dataset.ms))));
     $("drawer").hidden = !open;
+    // The drawer covers the page; its backdrop dims the rest and closes it.
+    $("scrim").hidden = !open;
     document.body.classList.toggle("dopen", open);
     // Opening takes focus to the close button, unless the graph's search
     // opened it; closing gives it back.
@@ -1379,6 +1381,7 @@
   panel(["epic-export", "summary"], drawSelected);
 
   $("dclose").addEventListener("click", () => selectEpic(null));
+  $("scrim").addEventListener("click", () => selectEpic(null));
   document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && !$("drawer").hidden && $("pop").hidden) selectEpic(null); });
   document.addEventListener("click", (ev) => {
     const a = ev.target.closest && ev.target.closest("[data-epic]");
