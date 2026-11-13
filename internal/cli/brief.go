@@ -77,8 +77,12 @@ func runBrief(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Resolve the effective commit strategy (auto → hc/builtin) and the resolved
-	// quality_gate command verbatim (§8.1, §8.2).
+	return printBrief(tf, task, taskFilePath, specPath, priorSet)
+}
+
+// printBrief builds and prints one task's brief under the task file's
+// effective commit strategy and quality gate (§8.1, §8.2).
+func printBrief(tf *model.TaskFile, task *model.Task, taskFilePath, specPath string, priorSet bool) error {
 	effective := resolveEffectiveStrategy(taskFilePath)
 	override := tf.Workflow
 	engine.ClampWorkflowRanges(&override)
