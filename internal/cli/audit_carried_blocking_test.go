@@ -59,6 +59,40 @@ func TestAuditCarriedBlocking_EmptyRoundsDoNotConvergePastAFail(t *testing.T) {
 	assert.Equal(t, ".tp-review/spec/audit-round-1.ndjson", rows[0]["file"])
 }
 
+// TestAuditCarriedBlocking_NextActionNamesTheReGradeAndTheExits: below the cap
+// next_action names the carried row and the round that re-grades it, beside the
+// operator's acceptance; at the cap, where no round is admitted, it names the
+// acceptance and the cap's raise, both the operator's decisions.
+func TestAuditCarriedBlocking_NextActionNamesTheReGradeAndTheExits(t *testing.T) {
+	t.Parallel()
+	below, _ := auditStatusCheck(t, auditCarriedRepro(t, auditCarriedFail, ""))
+	next, _ := below["next_action"].(string)
+	assert.Contains(t, next, "1 carried blocking audit row")
+	assert.Contains(t, next, "re-grade")
+	assert.Contains(t, next, "tp audit spec.md --record <file>")
+	assert.Contains(t, next, "--resolve spec-coverage:§2 wontfix|duplicate")
+
+	atCap, _ := auditStatusCheck(t, auditCarriedRepro(t, auditCarriedFail, "", ""))
+	next, _ = atCap["next_action"].(string)
+	assert.Contains(t, next, "--resolve spec-coverage:§2 wontfix|duplicate")
+	assert.Contains(t, next, "raise-audit-cap")
+	assert.NotContains(t, next, "proceed to release")
+}
+
+// TestAuditCarriedBlocking_TheCapRefusesAFourthRound: at the cap the empty
+// rounds no longer count as convergence, so a fourth emission is refused, and
+// its hint names the carried row and the operator's exits.
+func TestAuditCarriedBlocking_TheCapRefusesAFourthRound(t *testing.T) {
+	t.Parallel()
+	dir := auditCarriedRepro(t, auditCarriedFail, "", "")
+	_, stderr, code := runTP(t, dir, "audit", "spec.md")
+	assert.Equal(t, 4, code, "the cap refuses a fourth round: %s", stderr)
+	env := errorEnvelope(t, stderr)
+	assert.Contains(t, env["error"], "round budget exhausted")
+	assert.Contains(t, env["hint"], "--resolve spec-coverage:§2 wontfix|duplicate")
+	assert.Contains(t, env["hint"], "raise-audit-cap")
+}
+
 // TestAuditCarriedBlocking_EveryLaterPromptAsksForTheReGrade: a FAIL only a
 // re-grade clears must reach a role in every later round, not only the one
 // after it. Round 2 records nothing; round 3's security prompt still lists
