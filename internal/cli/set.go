@@ -327,6 +327,15 @@ func applyField(task *model.Task, field, value string) error {
 			return fmt.Errorf("invalid JSON array: %s", value)
 		}
 		task.SourceSections = v
+	case "touches":
+		var v []string
+		if err := json.Unmarshal([]byte(value), &v); err != nil {
+			return fmt.Errorf("invalid JSON array: %s", value)
+		}
+		if err := engine.ValidTouches(v); err != nil {
+			return err
+		}
+		task.Touches = v
 	case "source_lines":
 		task.SourceLines = value
 	default:
