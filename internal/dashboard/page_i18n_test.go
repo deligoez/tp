@@ -32,3 +32,11 @@ out([en.pct(0.4), tr.pct(0.4), en.dur(45), en.dur(90), tr.dur(45), tr.dur(90)]);
 	assert.JSONEq(t, `["40%", "%40", "45 min", "1.5 hr", "45 dk.", "1,5 sa."]`, got)
 }
 
+// TestPure_TheLanguageIsTheStoredChoiceElseTheBrowsers: a stored choice of
+// en or tr wins; without one, a browser language starting tr reads Turkish
+// and any other English (1.17.0).
+func TestPure_TheLanguageIsTheStoredChoiceElseTheBrowsers(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([P.pickLang("tr", "en-US"), P.pickLang("en", "tr-TR"), P.pickLang(null, "tr-TR"), P.pickLang(null, "tr"), P.pickLang("de", "TR"), P.pickLang(null, "en-GB"), P.pickLang(null, "trk"), P.pickLang(null, undefined)]);`)
+	assert.JSONEq(t, `["tr", "en", "tr", "tr", "tr", "en", "en", "en"]`, got)
+}
