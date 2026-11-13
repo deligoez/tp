@@ -312,7 +312,7 @@ Modes (mutually exclusive):
 --resolve/--resolve-all: mark findings as fixed/wontfix/duplicate (findings NDJSON is the positional; --resolve uses a 0-based index).
 --verify: lightweight verification prompt.
 --report: cross-round convergence report.
---rewritten "<evidence>": start an epoch after a rewrite; earlier rounds stop feeding the carried findings.`,
+--rewritten "<evidence>": start an epoch after a rewrite; rounds over an older text stop feeding the carried findings.`,
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			mode := detectReviewMode(mergeMode, resolveMode, resolveAllMode, verifyMode, reportMode, recordPath != "", statusMode, cmd.Flags().Changed("rewritten"))
@@ -469,7 +469,7 @@ Modes (mutually exclusive):
 	cmd.Flags().BoolVar(&checkFlag, "check", false, "With --status: run registered mechanical checks")
 	cmd.Flags().StringVar(&harnessNote, "harness-note", "", "With --record: store an optional free-text note on the recorded round")
 	cmd.Flags().BoolVar(&noState, "no-state", false, "Disable all review-state reads and writes (pre-0.23.0 manual behavior)")
-	cmd.Flags().StringVar(&rewrittenEvidence, "rewritten", "", "Start an epoch after rewriting the spec: rounds recorded so far stop feeding the carried findings of both phases (evidence required)")
+	cmd.Flags().StringVar(&rewrittenEvidence, "rewritten", "", "Start an epoch after rewriting the spec: rounds that read an older text stop feeding the carried findings of both phases (evidence required)")
 
 	return cmd
 }
