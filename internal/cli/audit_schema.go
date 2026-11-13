@@ -16,7 +16,7 @@ func renderAuditOutputSchema() string {
 	b.WriteString("Return one NDJSON line per checklist item:\n")
 	b.WriteString(`{"item_id": "list-2-3", "status": "PASS", "evidence_file": "internal/cli/importcmd.go", "evidence_lines": "127-131", "category": null, "severity": null, "notes": ""}` + "\n\n")
 	b.WriteString("Field requirements:\n")
-	b.WriteString("- item_id: always; must match a checklist item id from this prompt\n")
+	b.WriteString("- item_id: always; must match a checklist item id from this prompt, or an item_id its Prior Round section lists\n")
 	b.WriteString("- status: always; one of PASS, PARTIAL, FAIL\n")
 	b.WriteString(`- evidence_file: repo-relative path when status is PASS or PARTIAL; null for FAIL` + "\n")
 	b.WriteString(`- evidence_lines: "42-58" (range) or "42" (single line) when status is PASS or PARTIAL; null for FAIL — both forms are valid` + "\n")

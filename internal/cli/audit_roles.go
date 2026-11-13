@@ -251,17 +251,35 @@ func (p *auditPriorRound) add(r *priorAuditRow) {
 const (
 	priorAcceptedFraming = "A row with disposition wontfix or duplicate is accepted, for the reason in its disposition_evidence. Unless changed_since is true: if it still stands, record it as before; tp carries the acceptance. When changed_since is true, re-check it: the acceptance is not carried.\n"
 	priorFixedFraming    = "A row with disposition fixed was repaired as its disposition_evidence says: verify the repair held.\n"
-	// priorEarlierRoundFraming is written when some row carries a round: it
-	// was graded in that earlier round and no round since re-graded it, so
-	// it holds the audit open until one grades it PASS.
-	priorEarlierRoundFraming = "A row with a round field was graded in that earlier round and no round since has re-graded it: re-grade it now. Until a round grades it PASS, it holds the audit open.\n"
+	// priorEarlierRoundFraming is written when some row that is not accepted
+	// carries a round: it was graded in that earlier round and no round since
+	// re-graded it. It asks for a grade, never for a particular one.
+	priorEarlierRoundFraming = "A row with a round field was graded in that earlier round and no round since has re-graded it: grade it now as the code stands.\n"
+	// priorRecordEveryItem is written when a listed item has left this
+	// round's checklist: only a row recorded for it re-grades it.
+	priorRecordEveryItem = "Record a row for every item_id this section lists, even one this round's checklist no longer lists.\n"
 )
 
-// hasEarlierRound reports whether some row of the section was graded before
-// the previous round.
+// listsItemOutside reports whether some row of the section names an item the
+// round's checklist does not list.
+func (p *auditPriorRound) listsItemOutside(items []ChecklistItem) bool {
+	listed := make(map[string]bool, len(items))
+	for i := range items {
+		listed[items[i].ItemID] = true
+	}
+	for _, r := range slices.Concat(p.rows, p.earlier) {
+		if !listed[r.ItemID] {
+			return true
+		}
+	}
+	return false
+}
+
+// hasEarlierRound reports whether some row of the section that is not
+// accepted was graded before the previous round.
 func (p *auditPriorRound) hasEarlierRound() bool {
 	for _, r := range slices.Concat(p.rows, p.earlier) {
-		if r.Round > 0 {
+		if r.Round > 0 && r.Disposition != "wontfix" && r.Disposition != "duplicate" {
 			return true
 		}
 	}
@@ -298,16 +316,23 @@ func (p *auditPriorRound) dispositionFraming() string {
 // changed_since is true, and a fixed row's repair is verified. Returns ""
 // when the role has no prior non-PASS rows, so a round-1 prompt (or a role
 // that was all-PASS) carries no section at all.
-func renderPriorRoundSection(prior *auditPriorRound) string {
+func renderPriorRoundSection(prior *auditPriorRound, items []ChecklistItem) string {
 	if prior == nil || len(prior.rows)+len(prior.earlier) == 0 {
 		return ""
 	}
 	var b strings.Builder
 	b.WriteString("\n## Prior Round: context to re-check, not a verdict to repeat\n")
-	b.WriteString("These are your own non-PASS rows from the previous round. Re-check each item against the code and record your own status. Do NOT repeat the prior verdict without verifying.\n")
+	from := "the previous round"
+	if prior.hasEarlierRound() {
+		from = "earlier rounds"
+	}
+	b.WriteString("These are your own non-PASS rows from " + from + ". Re-check each item against the code and record your own status. Do NOT repeat the prior verdict without verifying.\n")
 	b.WriteString(prior.dispositionFraming())
 	if prior.hasEarlierRound() {
 		b.WriteString(priorEarlierRoundFraming)
+	}
+	if prior.listsItemOutside(items) {
+		b.WriteString(priorRecordEveryItem)
 	}
 	b.WriteString("\n")
 	if prior.legacy {
@@ -369,7 +394,7 @@ func buildRolePrompt(role string, rules []string, items []ChecklistItem, files [
 		b.WriteString(auditDispositionBlock + "\n")
 	}
 
-	b.WriteString(renderPriorRoundSection(prior))
+	b.WriteString(renderPriorRoundSection(prior, items))
 
 	// §2.6: the header states the role's own cap, or the applied count against
 	// the pre-cap total once the cap has bitten — never a fixed literal 20. A
