@@ -228,6 +228,17 @@ func TestPure_ALayoutBecomesPointsColumnByLayer(t *testing.T) {
 		"bands": [{"name": "M", "x": 10, "w": 200}], "W": 220, "H": 50}`, got)
 }
 
+// TestPure_AMergedBandIsNamedForEveryMilestoneItHolds: a band tp reports
+// with others sharing its span, a cycle between milestones, is drawn once
+// and labelled with each of its milestones.
+func TestPure_AMergedBandIsNamedForEveryMilestoneItHolds(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out(P.placeLayout({ layers: 2, bands: [{ milestone: "M1", with: ["M2"], from_layer: 0, to_layer: 1 }],
+  nodes: [{ id: "a", layer: 0, order: 0 }, { id: "b", layer: 1, order: 0 }] },
+  { colW: 100, rowH: 20, left: 10, top: 5, head: 0, inset: 10 }).bands);`)
+	assert.JSONEq(t, `[{"name": "M1 + M2", "x": 10, "w": 200}]`, got)
+}
+
 // TestPure_AScopedViewOpensWholeWhenItFits: a scoped view opens centred
 // and whole when it fits at a readable scale, never blown up past the
 // largest; one that does not fit opens at its top left.
