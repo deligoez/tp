@@ -1664,37 +1664,8 @@
   // tasks written from it picked out.
   INFO.reader = tk("info.reader");
 
-  // inline draws a paragraph's code spans and bold over its escaped text.
-  const inline = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
-
-  // tableHTML draws a paragraph of table rows, its first row the head and
-  // separator rows left out.
-  function tableHTML(lines) {
-    const rows = lines.filter((l) => !/^\|?\s*:?-{2,}/.test(l.trim())).map((l) => l.trim().replace(/^\||\|$/g, "").split("|").map((c) => c.trim()));
-    return '<div class="scroll"><table>' + rows.map((r, i) => "<tr>" + r.map((c) => (i ? "<td>" : "<th>") + inline(c) + (i ? "</td>" : "</th>")).join("") + "</tr>").join("") + "</table></div>";
-  }
-
-  // listHTML draws a paragraph of list items, a line with no marker
-  // continuing the item before it.
-  function listHTML(lines) {
-    const mark = /^\s*(?:[-*+]|\d+[.)])\s+/;
-    const items = [];
-    lines.forEach((l) => { if (mark.test(l) || !items.length) items.push(l.replace(mark, "")); else items[items.length - 1] += " " + l.trim(); });
-    const tag = /^\s*\d/.test(lines[0]) ? "ol" : "ul";
-    return "<" + tag + ">" + items.map((x) => "<li>" + inline(x) + "</li>").join("") + "</" + tag + ">";
-  }
-
-  // blockHTML draws one paragraph of the spec by what its first line is: a
-  // fence, a table, a list, a heading that opens no section, or prose.
-  function blockHTML(text) {
-    const lines = String(text).split("\n");
-    if (/^\s*(```|~~~)/.test(lines[0])) return "<pre>" + esc(lines.slice(1, /^\s*(```|~~~)/.test(lines[lines.length - 1]) && lines.length > 1 ? -1 : undefined).join("\n")) + "</pre>";
-    if (lines.every((l) => l.trim().startsWith("|"))) return tableHTML(lines);
-    if (/^\s*(?:[-*+]|\d+[.)])\s+/.test(lines[0])) return listHTML(lines);
-    if (/^#{1,6}\s/.test(lines[0])) return '<h3 class="sub">' + inline(lines[0].replace(/^#+\s*/, "")) + "</h3>" + (lines.length > 1 ? blockHTML(lines.slice(1).join("\n")) : "");
-    return "<p>" + inline(lines.join(" ")) + "</p>";
-  }
-
+  // A paragraph of the spec draws through tpPure.mdBlock: a fence, a table,
+  // a list, a heading that opens no section, or prose.
   // secKey is a section's anchor without its sign: the address's sec value.
   const secKey = (sec) => String(sec.anchor).replace(/^§/, "");
   const secTitle = (sec) => sec.heading.replace(/^\d+(?:\.\d+)*\.?\s+/, "");
@@ -1712,7 +1683,7 @@
     const numbered = secs.filter((s) => s !== pre);
     const by = tasksBySection(d);
     const reviews = ((d.loops.review && d.loops.review.rounds) || []).length;
-    const blk = (k, p) => '<div class="blk" id="p-' + esc(k) + "-" + esc(p.anchor.split("¶")[1] || "") + '"><span class="anc">' + esc(p.anchor) + "</span>" + blockHTML(p.text) + "</div>";
+    const blk = (k, p) => '<div class="blk" id="p-' + esc(k) + "-" + esc(p.anchor.split("¶")[1] || "") + '"><span class="anc">' + esc(p.anchor) + "</span>" + tpPure.mdBlock(p.text) + "</div>";
     const section = (s) => {
       const k = secKey(s);
       const n = (by[k] || []).length;

@@ -181,6 +181,58 @@
   // escText escapes text for HTML, as the page's esc does.
   const escText = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
+  // mdInline draws a line's code spans, bold, italic and http(s) links over
+  // its escaped text; a code span's text is left as it is.
+  P.mdInline = function (s) {
+    return escText(s).split(/(`[^`]+`)/).map((part, i) => {
+      if (i % 2) return "<code>" + part.slice(1, -1) + "</code>";
+      return part
+        .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+        .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+        .replace(/(^|[^\w*])\*([^*\s](?:[^*]*[^*\s])?)\*(?!\w)/g, "$1<i>$2</i>");
+    }).join("");
+  };
+
+  const MD_FENCE = /^\s*(```|~~~)/;
+  const MD_ITEM = /^\s*(?:[-*+]|\d+[.)])\s+/;
+  const mdTable = (lines) => {
+    const rows = lines.filter((l) => !/^\|?\s*:?-{2,}/.test(l.trim())).map((l) => l.trim().replace(/^\||\|$/g, "").split("|").map((c) => c.trim()));
+    return '<div class="scroll"><table>' + rows.map((r, i) => "<tr>" + r.map((c) => (i ? "<td>" : "<th>") + P.mdInline(c) + (i ? "</td>" : "</th>")).join("") + "</tr>").join("") + "</table></div>";
+  };
+  const mdList = (lines) => {
+    const items = [];
+    lines.forEach((l) => { if (MD_ITEM.test(l) || !items.length) items.push(l.replace(MD_ITEM, "")); else items[items.length - 1] += " " + l.trim(); });
+    const tag = /^\s*\d/.test(lines[0]) ? "ol" : "ul";
+    return "<" + tag + ">" + items.map((x) => "<li>" + P.mdInline(x) + "</li>").join("") + "</" + tag + ">";
+  };
+
+  // mdBlock draws one paragraph by what its first line is: a fence, a table,
+  // a list, a heading, or prose.
+  P.mdBlock = function (text) {
+    const lines = String(text).split("\n");
+    if (MD_FENCE.test(lines[0])) return "<pre>" + escText(lines.slice(1, MD_FENCE.test(lines[lines.length - 1]) && lines.length > 1 ? -1 : undefined).join("\n")) + "</pre>";
+    if (lines.every((l) => l.trim().startsWith("|"))) return mdTable(lines);
+    if (MD_ITEM.test(lines[0])) return mdList(lines);
+    if (/^#{1,6}\s/.test(lines[0])) return '<h3 class="sub">' + P.mdInline(lines[0].replace(/^#+\s*/, "")) + "</h3>" + (lines.length > 1 ? P.mdBlock(lines.slice(1).join("\n")) : "");
+    return "<p>" + P.mdInline(lines.join(" ")) + "</p>";
+  };
+
+  // markdown draws a text of paragraphs, each ended by a blank line outside
+  // a fence, through mdBlock.
+  P.markdown = function (text) {
+    const blocks = [];
+    let cur = [];
+    let fenced = false;
+    String(text).split("\n").forEach((l) => {
+      if (MD_FENCE.test(l)) fenced = !fenced;
+      if (!fenced && !l.trim()) {
+        if (cur.length) blocks.push(cur.join("\n"));
+        cur = [];
+      } else cur.push(l);
+    });
+    if (cur.length) blocks.push(cur.join("\n"));
+    return blocks.map(P.mdBlock).join("");
+  };
   // thresholdOf is a milestone's threshold text, the one place the card and
   // the drawer read it: the export's m.gate, else gate, the graph's gate.
   P.thresholdOf = function (m, gate) {
