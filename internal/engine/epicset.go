@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"sort"
 	"strings"
 
@@ -163,19 +164,19 @@ func gateFieldSetter(field, value string) (func(*model.EpicGate), error) {
 
 // parseGateIDList reads a gate list value: a JSON array of ids when it
 // starts with [, as tags= takes, else a comma-separated list (SplitEpicIDs).
-// Either way each id is trimmed and empty ones are dropped; nil when none is
-// left.
+// Either way each id is trimmed, empty ones are dropped and a repeated one is
+// kept at its first place; nil when none is left.
 func parseGateIDList(value string) ([]string, error) {
-	if !strings.HasPrefix(strings.TrimSpace(value), "[") {
-		return SplitEpicIDs(value), nil
-	}
-	var raw []string
-	if err := decodeStrict(value, &raw); err != nil {
-		return nil, err
+	raw := SplitEpicIDs(value)
+	if strings.HasPrefix(strings.TrimSpace(value), "[") {
+		raw = nil
+		if err := decodeStrict(value, &raw); err != nil {
+			return nil, err
+		}
 	}
 	var ids []string
 	for _, id := range raw {
-		if id = strings.TrimSpace(id); id != "" {
+		if id = strings.TrimSpace(id); id != "" && !slices.Contains(ids, id) {
 			ids = append(ids, id)
 		}
 	}
