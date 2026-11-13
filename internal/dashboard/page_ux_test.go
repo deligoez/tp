@@ -102,6 +102,19 @@ out([
 	assert.JSONEq(t, `[{"x": 66.67, "y": 33.33, "w": 266.67, "h": 133.33}, {"x": -50, "y": -50, "w": 400, "h": 200}]`, got)
 }
 
+// TestPure_APointerPansPinchesOrIsIgnored: a mouse's main button and one
+// finger pan, a second finger pinches, and any other mouse button or a
+// third finger is ignored.
+func TestPure_APointerPansPinchesOrIsIgnored(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([
+  P.pointerAction(0, { pointerType: "mouse", button: 0 }), P.pointerAction(0, { pointerType: "mouse", button: 2 }),
+  P.pointerAction(0, { pointerType: "pen", button: 0 }), P.pointerAction(1, { pointerType: "touch", button: 0 }),
+  P.pointerAction(2, { pointerType: "touch", button: -1 }), P.pointerAction(3, { pointerType: "touch", button: -1 }),
+]);`)
+	assert.JSONEq(t, `["pan", "none", "pan", "pan", "pinch", "none"]`, got)
+}
+
 // TestPage_TheMapTakesTouch: a touch pans the map with one finger and pinches
 // it with two, so the map no longer leaves touch to the page.
 func TestPage_TheMapTakesTouch(t *testing.T) {
