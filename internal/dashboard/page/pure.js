@@ -20,6 +20,35 @@
     return { x: -VIEW_PAD, y: -VIEW_PAD, w: bw / s, h: bh / s };
   };
 
+  // containView is the first view of a W by H scoped view in a box of bw by
+  // bh pixels: the whole drawing, centred, within SCALE; along an axis it
+  // does not fit on, it opens at its start.
+  P.containView = function (W, H, bw, bh) {
+    const fit = Math.min(bw / (W + 2 * VIEW_PAD), bh / (H + 2 * VIEW_PAD));
+    const s = Math.min(P.SCALE.max, Math.max(P.SCALE.min, fit));
+    const w = bw / s;
+    const h = bh / s;
+    return { x: w >= W ? W / 2 - w / 2 : -VIEW_PAD, y: h >= H ? H / 2 - h / 2 : -VIEW_PAD, w, h };
+  };
+
+  // placeLayout turns a /api/layout payload into drawing points: a column of
+  // dims.colW per layer from dims.left, a row of dims.rowH per order below
+  // dims.top and dims.head, a layer shorter than the longest centred against
+  // it, each node's point dims.inset into its column. It also returns each
+  // band's x span and the drawing's size.
+  P.placeLayout = function (layout, dims) {
+    const rows = [];
+    (layout.nodes || []).forEach((n) => { rows[n.layer] = (rows[n.layer] || 0) + 1; });
+    const most = Math.max(1, ...rows.filter(Boolean));
+    const pos = {};
+    (layout.nodes || []).forEach((n) => {
+      const shift = (most - rows[n.layer]) / 2;
+      pos[n.id] = { x: dims.left + n.layer * dims.colW + dims.inset, y: dims.top + dims.head + (n.order + shift) * dims.rowH + dims.rowH / 2 };
+    });
+    const bands = (layout.bands || []).map((b) => ({ name: b.milestone, x: dims.left + b.from_layer * dims.colW, w: (b.to_layer - b.from_layer + 1) * dims.colW }));
+    return { pos, bands, W: 2 * dims.left + (layout.layers || 0) * dims.colW, H: 2 * dims.top + dims.head + most * dims.rowH };
+  };
+
   // centreView is v moved to centre the drawing point p in a box rw pixels
   // wide: at v's zoom, or zoomed in to SCALE.min when v is further out.
   P.centreView = function (v, p, rw) {
