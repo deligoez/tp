@@ -989,10 +989,11 @@
     if (!geo.pos[mapView.focus]) mapView.focus = sel || (geo.placed[0] || {}).id || null;
     const hadFocus = $("mapsvg").contains(document.activeElement);
     const described = describedIds(g);
-    geo.placed.forEach((e) => {
+    const stops = tpPure.tabStops(geo.placed.map((e) => e.id), mapView.focus);
+    geo.placed.forEach((e, i) => {
       const p = geo.pos[e.id];
       const s = markState(e, geo.byMs[e.milestone]);
-      out.push('<g class="node' + (shown(e) ? "" : " dim") + '" data-id="' + esc(e.id) + '" role="button" tabindex="' + (e.id === mapView.focus ? "0" : "-1") +
+      out.push('<g class="node' + (shown(e) ? "" : " dim") + '" data-id="' + esc(e.id) + '" role="button" tabindex="' + stops[i] +
         '" aria-label="' + esc(e.id + ": " + e.title + ", " + MARK_LABEL[s]) + '"' + (e.id === sel ? ' aria-pressed="true"' : "") + ">" +
         (e.id === sel ? '<circle cx="' + p.x + '" cy="' + p.y + '" r="10" fill="none" stroke="var(--accent)" stroke-width="2.2"/>' : "") +
         mark(e.condition, s, p.x, p.y, 4.8) + '<text class="eid" x="' + (p.x + 12) + '" y="' + (p.y + 4) + '">' + esc(clip(e.id, 19)) + "</text>" +
@@ -1455,9 +1456,9 @@
 
   // gnodeHTML draws one node: a milestone as a box with its counts, an epic
   // as its mark and id.
-  function gnodeHTML(n, p, view, ctx) {
+  function gnodeHTML(n, p, view, ctx, stop) {
     const cls = "gnode" + (ctx.near && !ctx.near.has(n.id) ? " dim" : "") + (n.centre ? " centre" : "");
-    const tab = ' role="button" tabindex="' + (n.id === gview.focus ? "0" : "-1") + '"';
+    const tab = ' role="button" tabindex="' + stop + '"';
     if (view === "milestones") {
       const d = GDIMS.milestones;
       const y = p.y - (d.rowH - 16) / 2;
@@ -1536,7 +1537,8 @@
     $("gsvg").innerHTML = (L.bands || []).length ? geo.bands.map((b, i) => '<rect class="gband' + (i % 2 ? " odd" : "") + '" x="' + (b.x + 2) + '" y="' + top + '" width="' + (b.w - 8) + '" height="' + (geo.H - 2 * top) + '" rx="7"/>' +
       '<text class="msname" x="' + (b.x + 12) + '" y="' + (top + 20) + '">' + esc(b.name) + "</text>").join("") : "";
     const ctx = { epics, ms, near, described: describedIds(g) };
-    $("gsvg").innerHTML += "<g>" + gedgesHTML(L, geo, hl) + "</g>" + L.nodes.map((n) => gnodeHTML(n, geo.pos[n.id], view, ctx)).join("");
+    const stops = tpPure.tabStops(L.nodes.map((n) => n.id), gview.focus);
+    $("gsvg").innerHTML += "<g>" + gedgesHTML(L, geo, hl) + "</g>" + L.nodes.map((n, i) => gnodeHTML(n, geo.pos[n.id], view, ctx, stops[i])).join("");
     $("g-n").textContent = plural(L.nodes.length, view === "milestones" ? "milestone" : "epic", view === "milestones" ? "milestones" : "epics") +
       (L.view === "scope" ? " in " + L.milestone + "'s closure" : L.view === "neighbourhood" ? " within " + plural(L.depth, "step", "steps") + " of " + L.epic : "");
     if (hadFocus) gfocus(gview.focus);
