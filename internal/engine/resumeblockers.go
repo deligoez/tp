@@ -68,8 +68,9 @@ type BlockerInputs struct {
 
 // BuildBlockers derives the blockers array in the fixed code order of §4.6:
 // unexplained-changes, no-ready-task, epic-blocked, review-budget-exhausted,
-// audit-budget-exhausted, spec-stale. Multiple blockers may coexist. The result
-// is never nil (an empty slice when the agent may run next_action directly).
+// audit-budget-exhausted, review-carried-blocking, spec-stale. Multiple
+// blockers may coexist. The result is never nil (an empty slice when the agent
+// may run next_action directly).
 func BuildBlockers(in *BlockerInputs) []Blocker {
 	blockers := make([]Blocker, 0)
 
@@ -113,13 +114,6 @@ func BuildBlockers(in *BlockerInputs) []Blocker {
 		})
 	}
 
-	// review-carried-blocking — escalate: a blocking row of a round before the
-	// latest stands unresolved in the carried set, so its roles are told not
-	// to re-report it and no further round can clear it.
-	if b := carriedBlockingBlocker(in); b != nil {
-		blockers = append(blockers, *b)
-	}
-
 	// audit-budget-exhausted — escalate: the same at the audit cap (cap 0 never fires).
 	if in.Phase == PhaseAudit && in.AuditMaxRounds != 0 && in.AuditRounds >= in.AuditMaxRounds && !in.AuditConverged {
 		blockers = append(blockers, Blocker{
@@ -128,6 +122,13 @@ func BuildBlockers(in *BlockerInputs) []Blocker {
 			Message: budgetBlockerMessage("audit", in.AuditMaxRounds, in.AuditBlockingFixedAtCap),
 			Data:    map[string]any{"cap": in.AuditMaxRounds, "blocking_fixed_at_cap": in.AuditBlockingFixedAtCap},
 		})
+	}
+
+	// review-carried-blocking — escalate: a blocking row of a round before the
+	// latest stands unresolved in the carried set, so its roles are told not
+	// to re-report it and no further round can clear it.
+	if b := carriedBlockingBlocker(in); b != nil {
+		blockers = append(blockers, *b)
 	}
 
 	// spec-stale — escalate: the spec changed since the last review round while
