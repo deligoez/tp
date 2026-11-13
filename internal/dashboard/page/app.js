@@ -1107,11 +1107,19 @@
       if (z === "fit" || !v) fit();
       else zoomAt(z === "in" ? 1 / 1.5 : 1.5, v.x + v.w / 2, v.y + v.h / 2);
     }));
+    // A resize, as a drawer opening beside the page, keeps the scale: the
+    // view widens or narrows with the box instead of shrinking the drawing.
+    let boxW = 0;
     new ResizeObserver(() => {
       const r = el.getBoundingClientRect();
       if (!r.width || !r.height) return;
       if (!v) fit();
-      else { v.h = v.w * r.height / r.width; apply(); }
+      else {
+        const w = boxW ? v.w * r.width / boxW : v.w;
+        v = { ...v, w, h: w * r.height / r.width };
+        apply();
+      }
+      boxW = r.width;
     }).observe(el);
     return {
       // centre takes the view to the drawing point p (tpPure.centreView),
