@@ -90,3 +90,18 @@ func TestReviewRewritten_ARoundInFlightIsRefused(t *testing.T) {
 	assert.Equal(t, before, stateJSONBytes(t, dir), "a refusal writes nothing")
 }
 
+// TestReviewRewritten_AnAuditRoundInFlightIsRefused: the same holds for the
+// audit phase, whose prior-round section and acceptance carry the epoch cuts
+// too; the hint names tp audit's record.
+func TestReviewRewritten_AnAuditRoundInFlightIsRefused(t *testing.T) {
+	t.Parallel()
+	dir := rewrittenFixture(t)
+	markRoundEmitted(t, dir, "audit")
+
+	_, stderr, code := runTP(t, dir, "review", "spec.md", "--rewritten", "replaced the spec")
+	assert.Equal(t, 3, code, stderr)
+	env := errorEnvelope(t, stderr)
+	assert.Contains(t, env["error"], "audit round 1 is in flight")
+	assert.Contains(t, env["hint"], "tp audit spec.md --record <file>")
+}
+
