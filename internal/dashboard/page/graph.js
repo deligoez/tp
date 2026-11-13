@@ -591,7 +591,7 @@
     G.atFit = true;
   }
   function goTo(vs) {
-    G.vs = vs;
+    G.vs = pure.cameraOf(vs);
     G.atFit = false;
     render();
   }
@@ -701,7 +701,7 @@
       controller: { scrollZoom: false, dragRotate: false, doubleClickZoom: true, touchZoom: true, keyboard: false, inertia: 200 },
       viewState: G.vs,
       onViewStateChange: ({ viewState }) => {
-        G.vs = viewState;
+        G.vs = pure.cameraOf(viewState);
         G.atFit = false;
         render();
       },

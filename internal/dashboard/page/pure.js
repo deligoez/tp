@@ -471,6 +471,17 @@
     return Math.abs(prev.w * prev.dpr - next.w * next.dpr) > tol || Math.abs(prev.h * prev.dpr - next.h * next.dpr) > tol;
   };
 
+  // cameraOf keeps of a view state only the camera the page drives: target,
+  // one zoom and its bounds. deck.gl's controller hands back zoomX and zoomY
+  // too, and OrthographicView projects positions by those while it sizes
+  // text by zoom, so a later zoom that changed zoom alone grew the labels and
+  // left the drawing where it was.
+  P.cameraOf = function (vs) {
+    const z = Array.isArray(vs.zoom) ? vs.zoom[0] : vs.zoom;
+    const t = vs.target || [0, 0, 0];
+    return { target: [t[0], t[1], t[2] || 0], zoom: z, minZoom: -8, maxZoom: 3 };
+  };
+
   // pillTight says whether the full-screen toolbar, measured with its words
   // whole (scrollWidth against clientWidth), overflows the room it has; only
   // then do the mode switch and the cross-edge toggle shorten their words.
