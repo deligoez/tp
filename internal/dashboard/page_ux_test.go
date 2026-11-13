@@ -714,6 +714,15 @@ func TestPage_ListTitlesWrap(t *testing.T) {
 	assert.Contains(t, page, ".row .t { min-width: 0; overflow-wrap: anywhere; }")
 }
 
+// TestPure_AMilestoneCardReadsOneLine: a milestone card's one line is its
+// gate's purpose when it has one, since it says what the milestone is for,
+// else its threshold as the card words it (1.15.1).
+func TestPure_AMilestoneCardReadsOneLine(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([P.msLine("  A2 proves its slice  ", "threshold: p95"), P.msLine(" \n", "threshold: p95"), P.msLine(undefined, "no threshold")]);`)
+	assert.JSONEq(t, `[{"kind": "purpose", "text": "A2 proves its slice"}, {"kind": "threshold", "text": "threshold: p95"}, {"kind": "threshold", "text": "no threshold"}]`, got)
+}
+
 // TestPure_AToggleKeepsItsKeyAcrossARedraw: a milestone card, a Waiting
 // section's header and a section's Show all each have a key read from
 // their data attribute, and the key gives that attribute and value back,
