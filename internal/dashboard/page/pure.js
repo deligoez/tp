@@ -459,6 +459,119 @@
     return limitStep(Math.log2(scale / prev));
   };
 
+  // detailLevel is how much a graph node draws at a label size of px
+  // pixels on screen: "far", no text, below 9; "mid", its id on one line,
+  // below 12; "near", its whole id, from 12.
+  P.detailLevel = function (px) {
+    if (px < 9) return "far";
+    return px < 12 ? "mid" : "near";
+  };
+
+  // wrapId is an id as the lines its box draws, per characters to a line:
+  // one line when it fits, else a break after the last ".", "-" or ":" in
+  // the line's second half, else at the line's end, the second line ended
+  // by an ellipsis when it would not fit, so the text never leaves the box.
+  P.wrapId = function (id, per) {
+    if (id.length <= per) return [id];
+    let cut = per;
+    for (let i = per; i >= Math.ceil(per / 2); i--) {
+      if (".-:".includes(id[i - 1])) {
+        cut = i;
+        break;
+      }
+    }
+    const rest = id.slice(cut);
+    return [id.slice(0, cut), rest.length <= per ? rest : rest.slice(0, per - 1) + "…"];
+  };
+
+  // fitFloor is the furthest a fit zooms out, as a power of two: where a
+  // label of fs units (11 for an epic) is 9 pixels on screen for a gate
+  // closure, a neighbourhood or any layout under 200 nodes, so a small
+  // graph never fits to blocks; a larger plan fits whole however far out.
+  P.fitFloor = function (n, view, fs) {
+    if (view === "scope" || view === "neighbourhood" || n < 200) return Math.log2(9 / (fs || 11));
+    return -Infinity;
+  };
+
+  // luminance is a colour's relative luminance, [r, g, b] in 0..255, as
+  // WCAG computes it.
+  const luminance = (c) => {
+    const ch = c.map((v) => {
+      const s = v / 255;
+      return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+  };
+
+  // contrast is the WCAG contrast ratio of two colours, 1 to 21.
+  P.contrast = function (a, b) {
+    const x = luminance(a);
+    const y = luminance(b);
+    return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+  };
+
+  // mixColour is a + (b − a) × t, rounded.
+  const mixColour = (a, b, t) => a.map((x, i) => Math.round(x + (b[i] - x) * t));
+
+  // nudgeContrast moves c toward white on a dark bg, toward black on a
+  // light one, in steps of a twentieth, until it reads at min against bg;
+  // a colour that already reads is returned as it is.
+  P.nudgeContrast = function (c, bg, min) {
+    const to = luminance(bg) < 0.18 ? [255, 255, 255] : [0, 0, 0];
+    let out = c;
+    for (let step = 1; P.contrast(out, bg) < min && step <= 20; step++) out = mixColour(c, to, step / 20);
+    return out;
+  };
+
+  // GRAPH_MARKS are a graph node's marks in legend order, each with the
+  // colour token it is drawn in; FILL_SHARE is how much of its mark a
+  // node's fill takes over the card, more for a ready or held epic so they
+  // stand out, 0.32 for the rest.
+  P.GRAPH_MARKS = [
+    ["done", "--done"], ["in_progress", "--g-inprog"], ["specced", "--g-specced"], ["claimed", "--g-claimed"],
+    ["ready", "--ready"], ["blocked", "--g-blocked"], ["held", "--held"], ["waiting", "--waiting"], ["moot", "--moot"],
+  ];
+  const FILL_SHARE = { ready: 0.5, held: 0.5, waiting: 0.55, moot: 0.55 };
+  // GRAPH_TOKENS are every token graphPalette reads.
+  P.GRAPH_TOKENS = ["--sunk", "--surface", "--ink", "--muted", "--line", "--accent", "--crit", "--g-back", "--g-anc", "--g-desc", "--color-paper-3"]
+    .concat(P.GRAPH_MARKS.map((m) => m[1]));
+
+  // parseColour reads "#rrggbb" or "rgb(r, g, b)" as [r, g, b], grey for
+  // anything else.
+  const parseColour = (v) => {
+    const s = String(v || "").trim();
+    if (/^#[0-9a-f]{6}$/i.test(s)) return [1, 3, 5].map((i) => parseInt(s.slice(i, i + 2), 16));
+    const m = /rgba?\(([^)]+)\)/.exec(s);
+    return m ? m[1].split(",").slice(0, 3).map((x) => Math.round(Number(x))) : [128, 128, 128];
+  };
+
+  // graphPalette is the graph's colours from the page's tokens (name to
+  // value): every status hue and edge colour nudged until it reads at 3:1
+  // on the canvas, each node fill eased toward the card until the ink
+  // reads on it at 4.5:1, tree edges in the ink and the canvas's own
+  // colours as they are.
+  P.graphPalette = function (tok) {
+    const rgb = (name) => parseColour(tok[name]);
+    const page = rgb("--sunk");
+    const surface = rgb("--surface");
+    const ink = rgb("--ink");
+    const line = (name) => P.nudgeContrast(rgb(name), page, 3);
+    const mark = {};
+    const fill = {};
+    P.GRAPH_MARKS.forEach(([k, name]) => {
+      mark[k] = line(name);
+      const f = mixColour(surface, mark[k], FILL_SHARE[k] || 0.32);
+      let eased = f;
+      for (let step = 1; P.contrast(ink, eased) < 4.5 && step <= 20; step++) eased = mixColour(f, surface, step / 20);
+      fill[k] = eased;
+    });
+    return {
+      dark: luminance(page) < 0.18, page, surface, ink, tree: ink, band: rgb("--color-paper-3"), line: rgb("--line"),
+      muted: line("--muted"), accent: line("--accent"), crit: line("--crit"), back: line("--g-back"), anc: line("--g-anc"), desc: line("--g-desc"),
+      mark, fill,
+    };
+  };
+
   // legendOpen says whether the graph's legend and keys card is open, from
   // the choice stored for this place ("1" open, "0" collapsed): without
   // one it is open on the page and collapsed in full screen, where it would
