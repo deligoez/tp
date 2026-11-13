@@ -514,10 +514,12 @@ func runAuditStatus(specPath string, check bool) error {
 	// no round recorded there is nothing to be unclean about and nothing to
 	// count, which is the state the pre-release `len(rounds) > 0 &&` guarded.
 	latestClean, latestFindings := true, 0
+	var latestGraded []engine.RoleGraded
 	if n := len(rounds); n > 0 {
-		latestClean, latestFindings = rounds[n-1].Clean, rounds[n-1].Findings
+		latestClean, latestFindings, latestGraded = rounds[n-1].Clean, rounds[n-1].Findings, rounds[n-1].Graded
 	}
-	result["next_action"] = engine.AuditNextAction(engine.RepoRelative(specPath), done, latestClean, latestFindings, engine.LatestRoundFile(specPath, rounds))
+	result["next_action"] = engine.AuditNextAction(engine.RepoRelative(specPath), done, latestClean, latestFindings, engine.LatestRoundFile(specPath, rounds)) +
+		engine.GradedSuffix(latestGraded)
 
 	if jsonErr := output.JSON(result); jsonErr != nil {
 		// Exiting, not falling through: without this the process printed a
