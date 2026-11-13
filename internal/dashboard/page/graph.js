@@ -513,7 +513,7 @@
     const sel = P.sel >= 0 ? P.nodes[P.sel] : null;
     const layers = [
       new PolygonLayer({
-        id: "bands", data: P.bands, getPolygon: (b) => b.poly, stroked: true, filled: true,
+        id: "bands", data: P.bands, getPolygon: (b) => b.poly, stroked: true, filled: true, pickable: true,
         getFillColor: (b) => [...bandFill(c, b.k), 255],
         getLineColor: [...c.line, 255], getLineWidth: 1, lineWidthUnits: "pixels", updateTriggers: { getFillColor: v },
       }),
@@ -691,6 +691,9 @@
   }
 
   function tooltip({ object, layer }) {
+    // A band names itself on hover, so a label left out to spare a node is
+    // still one pointer away.
+    if (object && layer && layer.id === "bands") return { text: object.name + " · " + object.count };
     if (!object || !layer || layer.id !== "nodes") return null;
     const n = object;
     const lines = G.prepared.L.view === "milestones"
