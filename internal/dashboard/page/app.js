@@ -12,6 +12,56 @@
     return;
   }
 
+  // ---------- the page's language (1.17.0) ----------
+  // Every word the page writes is t(key, params), read from i18n/<lang>.json
+  // through tpPure.translator; the API serves state as values and the page
+  // words them, so no payload carries a translated word. tk marks a key a
+  // table holds, so the key check finds it. The choice is kept in this
+  // browser, else read from the browser's language, and set on <html lang>.
+  const LANG_KEY = "tp-dashboard-lang";
+  const tk = (key) => key;
+  let t = tpPure.translator({}, "en");
+  function storedLang() {
+    try { return localStorage.getItem(LANG_KEY); } catch (e) { return null; }
+  }
+  function storeLang(lang) {
+    try { localStorage.setItem(LANG_KEY, lang); } catch (e) { /* the choice lasts this load */ }
+  }
+  async function loadLang(lang) {
+    const res = await fetch("i18n/" + lang + ".json");
+    if (!res.ok) throw new Error("i18n/" + lang + ".json: " + res.status);
+    t = tpPure.translator(await res.json(), lang);
+    document.documentElement.lang = lang;
+    applyStatic();
+  }
+  // CONN_TEXT words the connection's state, which the stream sets.
+  const CONN_TEXT = { connecting: tk("conn.connecting"), live: tk("conn.live"), lost: tk("conn.lost"), paused: tk("conn.paused") };
+  // applyStatic words the page's own markup: an element's data-i18n is its
+  // text, data-i18n-html its markup from the dictionary, and data-i18n-<attr>
+  // that attribute.
+  function applyStatic() {
+    document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
+    document.querySelectorAll("[data-i18n-html]").forEach((el) => { el.innerHTML = t(el.dataset.i18nHtml); });
+    ["title", "placeholder", "aria-label", "aria-roledescription"].forEach((attr) => {
+      document.querySelectorAll("[data-i18n-" + attr + "]").forEach((el) => el.setAttribute(attr, t(el.getAttribute("data-i18n-" + attr))));
+    });
+    document.querySelectorAll("[data-lang]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lang === t.locale)));
+    $("conn").textContent = t(CONN_TEXT[$("conn").dataset.state]);
+    fullScreenLabels();
+  }
+  // The header's EN | TR switch loads the language picked, keeps the
+  // choice and draws the page again in it.
+  document.addEventListener("click", (ev) => {
+    const b = ev.target.closest && ev.target.closest("[data-lang]");
+    if (!b || b.dataset.lang === t.locale) return;
+    storeLang(b.dataset.lang);
+    loadLang(b.dataset.lang).then(() => {
+      closeInfo();
+      showPushed();
+      if (state.tab !== null) render();
+    }, () => { /* the page stays in the language it has */ });
+  });
+
   // The event stream and the payloads it pushes, by event name (§2).
   const STREAM = "/api/events";
   const EVENTS = ["epic-export", "export-list", "summary"];
@@ -877,10 +927,13 @@
     document.querySelectorAll(".card.fs").forEach((c) => { if (c !== card) c.classList.remove("fs"); });
     if (card) card.classList.add("fs");
     document.body.classList.toggle("mapfs", !!card);
+    document.querySelectorAll("[data-fs]").forEach((b) => b.setAttribute("aria-pressed", String(!!card && b.dataset.fs === card.id)));
+    fullScreenLabels();
+  }
+  // fullScreenLabels words each full-screen button by its pressed state.
+  function fullScreenLabels() {
     document.querySelectorAll("[data-fs]").forEach((b) => {
-      const on = !!card && b.dataset.fs === card.id;
-      b.setAttribute("aria-pressed", String(on));
-      b.textContent = on ? "Exit full screen" : "Full screen";
+      b.textContent = b.getAttribute("aria-pressed") === "true" ? t("graph.exitFullScreen") : t("graph.fullScreen");
     });
   }
   document.addEventListener("click", (ev) => {
@@ -2031,39 +2084,49 @@
     address.applying = false;
   });
 
-  // The stream: a page that reconnects gets the current state again (§2). A
+  // The stream: a page that reconnects gets the current state again (§2).
+  // It opens once the page's language is loaded, so the first draw is
+  // already in it; a language file that cannot load leaves English, and
+  // English failing too is said in English, the one text with no file. A
   // hidden tab closes it and a visible one opens a fresh one, which the
   // server answers with the current state first, so the page resyncs.
   const conn = $("conn");
+  const connState = (s) => { conn.dataset.state = s; conn.textContent = t(CONN_TEXT[s]); };
   let source = null;
+  let langReady = false;
   function openStream() {
-    conn.dataset.state = "connecting";
-    conn.textContent = "Connecting";
+    connState("connecting");
     source = new EventSource(STREAM);
-    source.addEventListener("open", () => { conn.dataset.state = "live"; conn.textContent = "Live"; });
-    source.addEventListener("error", () => { conn.dataset.state = "lost"; conn.textContent = "Reconnecting"; });
+    source.addEventListener("open", () => connState("live"));
+    source.addEventListener("error", () => connState("lost"));
     EVENTS.forEach((name) => {
       source.addEventListener(name, (ev) => {
         let payload;
         try {
           payload = JSON.parse(ev.data);
         } catch (err) {
-          payload = { error: "the " + name + " event is not JSON: " + err.message, hint: "report it: tp pushes JSON only" };
+          payload = { error: t("err.notJSON", { name, message: err.message }), hint: t("err.notJSONHint") };
         }
         receive(name, payload);
       });
     });
   }
   document.addEventListener("visibilitychange", () => {
+    if (!langReady) return;
     const step = tpPure.streamStep(document.hidden, source !== null);
     if (step === "close") {
       source.close();
       source = null;
-      conn.dataset.state = "paused";
-      conn.textContent = "Paused";
+      connState("paused");
     } else if (step === "open") {
       openStream();
     }
   });
-  if (!document.hidden) openStream();
+  const lang = tpPure.pickLang(storedLang(), navigator.language);
+  loadLang(lang).catch(() => loadLang("en")).catch(() => {
+    $("banners").innerHTML = '<div class="banner"><b>The page\'s language file did not load</b><span>Reload the page; if it stays, check that tp dashboard is still running.</span></div>';
+  }).then(() => {
+    langReady = true;
+    if (!document.hidden) openStream();
+  });
 })();

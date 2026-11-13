@@ -11,81 +11,82 @@
 <div class="wrap">
   <header class="top">
     <div class="brand"><span class="tp">tp</span><span>dashboard</span></div>
-    <div class="live"><span id="conn" class="conn" data-state="connecting">Connecting</span><span id="pushed"></span></div>
+    <div class="live"><span id="conn" class="conn" data-state="connecting">Connecting</span><span id="pushed"></span>
+      <span class="seg lang" id="lang" role="group" aria-label="Language" data-i18n-aria-label="lang.label"><button type="button" data-lang="en" aria-pressed="true" lang="en">EN</button><button type="button" data-lang="tr" aria-pressed="false" lang="tr">TR</button></span></div>
   </header>
   <div id="banners" class="banners" role="alert"></div>
-  <section id="since" class="since" aria-label="Since you last looked" hidden></section>
+  <section id="since" class="since" aria-label="Since you last looked" data-i18n-aria-label="since.title" hidden></section>
   <noscript><p class="note">The dashboard draws everything with JavaScript; turn it on to see it.</p></noscript>
-  <p id="loading" class="empty">Waiting for the first state from tp.</p>
+  <p id="loading" class="empty" data-i18n="app.loading">Waiting for the first state from tp.</p>
 
-  <nav class="tabs" role="tablist" aria-label="Views">
-    <button class="tab" role="tab" id="tab-epics" aria-controls="view-epics" aria-selected="false" type="button"><b>Epics</b><span>the plan</span><span class="c" id="c-epics"></span></button>
-    <button class="tab" role="tab" id="tab-specs" aria-controls="view-specs" aria-selected="false" type="button"><b>Specs</b><span>every task file</span><span class="c" id="c-specs"></span></button>
-    <button class="tab" role="tab" id="tab-work" aria-controls="view-work" aria-selected="false" type="button"><b>Spec</b><span>one at a time</span><span class="c" id="c-work"></span></button>
+  <nav class="tabs" role="tablist" aria-label="Views" data-i18n-aria-label="tabs.label">
+    <button class="tab" role="tab" id="tab-epics" aria-controls="view-epics" aria-selected="false" type="button"><b data-i18n="tabs.epics">Epics</b><span data-i18n="tabs.epicsSub">the plan</span><span class="c" id="c-epics"></span></button>
+    <button class="tab" role="tab" id="tab-specs" aria-controls="view-specs" aria-selected="false" type="button"><b data-i18n="tabs.specs">Specs</b><span data-i18n="tabs.specsSub">every task file</span><span class="c" id="c-specs"></span></button>
+    <button class="tab" role="tab" id="tab-work" aria-controls="view-work" aria-selected="false" type="button"><b data-i18n="tabs.work">Spec</b><span data-i18n="tabs.workSub">one at a time</span><span class="c" id="c-work"></span></button>
   </nav>
 
   <!-- Epics: the plan -->
   <section id="view-epics" class="view" role="tabpanel" aria-labelledby="tab-epics" hidden>
-    <section class="card nograph" id="epics-none" aria-label="No epic graph" hidden>
-      <h2>No epic graph</h2>
-      <p>This repository has no epic graph, so the plan is empty and the lifecycle below counts task files. Start one with <code>tp epic</code>: <code>tp epic set milestones='[["M1"]]'</code>, then <code>tp epic add</code> for each epic. The graph appears here as soon as tp writes <code>.tp/epics.json</code>, with no restart.</p>
+    <section class="card nograph" id="epics-none" aria-label="No epic graph" data-i18n-aria-label="epics.none.title" hidden>
+      <h2 data-i18n="epics.none.title">No epic graph</h2>
+      <p data-i18n-html="epics.none.body_html">This repository has no epic graph, so the plan is empty and the lifecycle below counts task files. Start one with <code>tp epic</code>: <code>tp epic set milestones='[["M1"]]'</code>, then <code>tp epic add</code> for each epic. The graph appears here as soon as tp writes <code>.tp/epics.json</code>, with no restart.</p>
     </section>
-    <section class="kpis" id="kpis" aria-label="Plan figures" data-src="summary epic-export" hidden></section>
-    <section class="card pipecard" aria-label="Lifecycle" data-src="summary"><h2>Lifecycle <button class="info" type="button" data-info="band" aria-label="About the lifecycle" aria-expanded="false">i</button></h2><div id="band"></div><p class="sm muted totals" id="totals" data-src="epic-export" hidden></p><div class="plane msstate" id="msstate" data-src="epic-export" hidden></div></section>
-    <section class="card cfdcard" id="cfdcard" aria-label="Lifecycle over time" data-src="summary" hidden><h2>Lifecycle over time <button class="info" type="button" data-info="cfd" aria-label="About lifecycle over time" aria-expanded="false">i</button></h2><div id="cfd"></div></section>
-    <section class="now" id="now" aria-label="What moves now in the plan" data-src="summary epic-export" hidden>
-      <div class="card"><h2>Ready epics <button class="info" type="button" data-info="ready" aria-label="About ready epics" aria-expanded="false">i</button></h2><div class="list" id="now-ready"></div></div>
-      <div class="card"><h2>Operator decisions <button class="info" type="button" data-info="operator" aria-label="About operator decisions" aria-expanded="false">i</button></h2><div class="list" id="now-operator"></div></div>
-      <div class="card"><h2>Most waited-on epics <button class="info" type="button" data-info="most" aria-label="About the most waited-on epics" aria-expanded="false">i</button></h2><div class="list" id="now-most"></div></div>
+    <section class="kpis" id="kpis" aria-label="Plan figures" data-i18n-aria-label="kpi.label" data-src="summary epic-export" hidden></section>
+    <section class="card pipecard" aria-label="Lifecycle" data-i18n-aria-label="band.title" data-src="summary"><h2><span data-i18n="band.title">Lifecycle</span> <button class="info" type="button" data-info="band" aria-label="About the lifecycle" data-i18n-aria-label="about.band" aria-expanded="false">i</button></h2><div id="band"></div><p class="sm muted totals" id="totals" data-src="epic-export" hidden></p><div class="plane msstate" id="msstate" data-src="epic-export" hidden></div></section>
+    <section class="card cfdcard" id="cfdcard" aria-label="Lifecycle over time" data-i18n-aria-label="cfd.title" data-src="summary" hidden><h2><span data-i18n="cfd.title">Lifecycle over time</span> <button class="info" type="button" data-info="cfd" aria-label="About lifecycle over time" data-i18n-aria-label="about.cfd" aria-expanded="false">i</button></h2><div id="cfd"></div></section>
+    <section class="now" id="now" aria-label="What moves now in the plan" data-i18n-aria-label="now.label" data-src="summary epic-export" hidden>
+      <div class="card"><h2><span data-i18n="now.ready">Ready epics</span> <button class="info" type="button" data-info="ready" aria-label="About ready epics" data-i18n-aria-label="about.ready" aria-expanded="false">i</button></h2><div class="list" id="now-ready"></div></div>
+      <div class="card"><h2><span data-i18n="now.operator">Operator decisions</span> <button class="info" type="button" data-info="operator" aria-label="About operator decisions" data-i18n-aria-label="about.operator" aria-expanded="false">i</button></h2><div class="list" id="now-operator"></div></div>
+      <div class="card"><h2><span data-i18n="now.most">Most waited-on epics</span> <button class="info" type="button" data-info="most" aria-label="About the most waited-on epics" data-i18n-aria-label="about.most" aria-expanded="false">i</button></h2><div class="list" id="now-most"></div></div>
     </section>
     <div id="epics-body" class="view" data-src="epic-export">
-      <section class="card mapcard gcard" id="graphcard" aria-label="Graph" data-drawn-nodes="0" data-drawn-edges="0" hidden>
+      <section class="card mapcard gcard" id="graphcard" aria-label="Graph" data-i18n-aria-label="graph.title" data-drawn-nodes="0" data-drawn-edges="0" hidden>
         <div class="toolbar">
-          <h2>Graph <button class="info" type="button" data-info="graph" aria-label="About the graph" aria-expanded="false">i</button></h2>
-          <span class="seg" role="group" aria-label="Graph mode">
-            <button type="button" data-gmode="plan" aria-pressed="true">Plan</button>
-            <button type="button" data-gmode="milestones" aria-pressed="false">Milestones</button>
-            <button type="button" data-gmode="scope" aria-pressed="false">Gate closure</button>
-            <button type="button" data-gmode="neighbourhood" aria-pressed="false">Neighbourhood</button>
+          <h2><span data-i18n="graph.title">Graph</span> <button class="info" type="button" data-info="graph" aria-label="About the graph" data-i18n-aria-label="about.graph" aria-expanded="false">i</button></h2>
+          <span class="seg" role="group" aria-label="Graph mode" data-i18n-aria-label="graph.mode">
+            <button type="button" data-gmode="plan" aria-pressed="true" data-i18n="graph.mode.plan">Plan</button>
+            <button type="button" data-gmode="milestones" aria-pressed="false" data-i18n="graph.mode.milestones">Milestones</button>
+            <button type="button" data-gmode="scope" aria-pressed="false" data-i18n="graph.mode.scope">Gate closure</button>
+            <button type="button" data-gmode="neighbourhood" aria-pressed="false" data-i18n="graph.mode.neighbourhood">Neighbourhood</button>
           </span>
-          <label class="gpick" id="gc-ms-pick" hidden>Milestone <select id="gc-ms"></select></label>
-          <label class="gpick" id="gc-depth-pick" hidden>Depth <select id="gc-depth"><option>1</option><option selected>2</option><option>3</option><option>4</option></select></label>
-          <input type="search" id="gc-q" placeholder="Find an epic by id or title  /" aria-label="Find epics in the graph; Enter selects the next match" autocomplete="off">
-          <button class="chip" type="button" id="gc-cross" aria-pressed="false" title="Show every edge that is not a tree edge (K)">Cross edges</button>
-          <button class="chip" type="button" id="gc-pack" title="Rows squeezes each layer; Tree gives every leaf its own column">Packing: rows</button>
+          <label class="gpick" id="gc-ms-pick" hidden><span data-i18n="graph.milestone">Milestone</span> <select id="gc-ms"></select></label>
+          <label class="gpick" id="gc-depth-pick" hidden><span data-i18n="graph.depth">Depth</span> <select id="gc-depth"><option>1</option><option selected>2</option><option>3</option><option>4</option></select></label>
+          <input type="search" id="gc-q" placeholder="Find an epic by id or title  /" data-i18n-placeholder="graph.search" aria-label="Find epics in the graph; Enter selects the next match" data-i18n-aria-label="graph.searchLabel" autocomplete="off">
+          <button class="chip" type="button" id="gc-cross" aria-pressed="false" title="Show every edge that is not a tree edge (K)" data-i18n-title="graph.crossTitle" data-i18n="graph.cross">Cross edges</button>
+          <button class="chip" type="button" id="gc-pack" title="Rows squeezes each layer; Tree gives every leaf its own column" data-i18n-title="graph.packTitle">Packing: rows</button>
           <span class="sm muted num" id="gc-n" aria-live="polite"></span>
           <span class="spacer"></span>
-          <button type="button" class="key" id="gc-fit" title="Fit the whole graph (F)">Fit</button>
-          <button type="button" class="key" id="gc-theme" title="Switch light and dark">Dark</button>
+          <button type="button" class="key" id="gc-fit" title="Fit the whole graph (F)" data-i18n-title="graph.fitTitle" data-i18n="graph.fit">Fit</button>
+          <button type="button" class="key" id="gc-theme" title="Switch light and dark" data-i18n-title="graph.themeTitle">Dark</button>
           <button type="button" class="key" id="gc-full" data-fs="graphcard" aria-pressed="false">Full screen</button>
         </div>
-        <div class="map gcanvas" id="gc-canvas" tabindex="0" role="application" aria-roledescription="graph canvas" aria-label="Graph canvas: the arrow keys pan, + and − zoom, F fits. Epics are reached through the search, the lists and the chain as text below."><p class="gmsg" id="gc-msg">The graph loads when it scrolls into view.</p></div>
+        <div class="map gcanvas" id="gc-canvas" tabindex="0" role="application" aria-roledescription="graph canvas" data-i18n-aria-roledescription="graph.canvasRole" aria-label="Graph canvas: the arrow keys pan, + and − zoom, F fits. Epics are reached through the search, the lists and the chain as text below." data-i18n-aria-label="graph.canvasLabel"><p class="gmsg" id="gc-msg">The graph loads when it scrolls into view.</p></div>
         <div class="legend" id="gc-legend"></div>
-        <details class="chaintext" id="chaintext"><summary>The selected epic's chain as text</summary><div id="chain"></div></details>
+        <details class="chaintext" id="chaintext"><summary data-i18n="chain.summary">The selected epic's chain as text</summary><div id="chain"></div></details>
       </section>
-      <section class="card" id="waitcard" aria-label="Waiting epics" data-src="summary epic-export" hidden>
-        <h2>Waiting epics <button class="info" type="button" data-info="waiting" aria-label="About waiting epics" aria-expanded="false">i</button></h2>
+      <section class="card" id="waitcard" aria-label="Waiting epics" data-i18n-aria-label="wait.title" data-src="summary epic-export" hidden>
+        <h2><span data-i18n="wait.title">Waiting epics</span> <button class="info" type="button" data-info="waiting" aria-label="About waiting epics" data-i18n-aria-label="about.waiting" aria-expanded="false">i</button></h2>
         <div id="now-waiting"></div>
       </section>
-      <section class="card" id="matrixcard" aria-label="Milestone matrix" data-src="summary" hidden>
-        <h2>Milestone matrix <button class="info" type="button" data-info="matrix" aria-label="About the milestone matrix" aria-expanded="false">i</button></h2>
+      <section class="card" id="matrixcard" aria-label="Milestone matrix" data-i18n-aria-label="matrix.title" data-src="summary" hidden>
+        <h2><span data-i18n="matrix.title">Milestone matrix</span> <button class="info" type="button" data-info="matrix" aria-label="About the milestone matrix" data-i18n-aria-label="about.matrix" aria-expanded="false">i</button></h2>
         <div class="scroll" id="matrix"></div>
       </section>
     </div>
-    <section class="card" id="plan-review" aria-label="Plan review" data-src="epic-export summary" hidden>
-      <h2>Plan review <button class="info" type="button" data-info="slices" aria-label="About plan review" aria-expanded="false">i</button></h2>
+    <section class="card" id="plan-review" aria-label="Plan review" data-i18n-aria-label="slices.title" data-src="epic-export summary" hidden>
+      <h2><span data-i18n="slices.title">Plan review</span> <button class="info" type="button" data-info="slices" aria-label="About plan review" data-i18n-aria-label="about.slices" aria-expanded="false">i</button></h2>
       <div class="scroll" id="slices"></div>
-      <section class="hist" id="slice-history" aria-label="Graph history of the picked slice" aria-live="polite" hidden></section>
+      <section class="hist" id="slice-history" aria-label="Graph history of the picked slice" data-i18n-aria-label="hist.label" aria-live="polite" hidden></section>
     </section>
   </section>
 
   <!-- Specs: every task file -->
   <section id="view-specs" class="view" role="tabpanel" aria-labelledby="tab-specs" hidden>
-    <section class="panel specs" aria-label="All specs" data-src="export-list">
+    <section class="panel specs" aria-label="All specs" data-i18n-aria-label="specs.label" data-src="export-list">
       <div class="specsbar">
-        <h2>Specs <span class="muted num" id="specs-n"></span> <button class="info" type="button" data-info="specs" aria-label="About the spec list" aria-expanded="false">i</button></h2>
-        <input type="search" id="specs-q" placeholder="Filter by title, path or epic" aria-label="Filter specs" autocomplete="off">
-        <div class="phasechips" id="phasechips" role="group" aria-label="Phase"></div>
+        <h2><span data-i18n="specs.title">Specs</span> <span class="muted num" id="specs-n"></span> <button class="info" type="button" data-info="specs" aria-label="About the spec list" data-i18n-aria-label="about.specs" aria-expanded="false">i</button></h2>
+        <input type="search" id="specs-q" placeholder="Filter by title, path or epic" data-i18n-placeholder="specs.filter" aria-label="Filter specs" data-i18n-aria-label="specs.filterLabel" autocomplete="off">
+        <div class="phasechips" id="phasechips" role="group" aria-label="Phase" data-i18n-aria-label="specs.phase"></div>
       </div>
       <div class="scroll" id="specs-body"></div>
     </section>
@@ -93,13 +94,13 @@
 
   <!-- Spec: one spec -->
   <section id="view-work" class="view" role="tabpanel" aria-labelledby="tab-work" hidden>
-    <p class="empty" id="work-none">Pick a spec on the Specs tab to read it and work its tasks.</p>
+    <p class="empty" id="work-none" data-i18n="spec.none">Pick a spec on the Specs tab to read it and work its tasks.</p>
     <div id="work-body" class="specmain" hidden>
-      <header class="panel spechead" id="spechead" aria-label="This spec"></header>
-      <nav class="subnav" id="subnav" role="tablist" aria-label="Spec view"></nav>
-      <article class="panel reader" id="sv-read" role="tabpanel" aria-label="The spec" hidden></article>
-      <section class="tasksview" id="sv-tasks" role="tabpanel" aria-label="Tasks" hidden></section>
-      <section class="panel" id="sv-history" role="tabpanel" aria-label="History" hidden></section>
+      <header class="panel spechead" id="spechead" aria-label="This spec" data-i18n-aria-label="spec.head"></header>
+      <nav class="subnav" id="subnav" role="tablist" aria-label="Spec view" data-i18n-aria-label="spec.views"></nav>
+      <article class="panel reader" id="sv-read" role="tabpanel" aria-label="The spec" data-i18n-aria-label="spec.read" hidden></article>
+      <section class="tasksview" id="sv-tasks" role="tabpanel" aria-label="Tasks" data-i18n-aria-label="spec.view.tasks" hidden></section>
+      <section class="panel" id="sv-history" role="tabpanel" aria-label="History" data-i18n-aria-label="spec.view.history" hidden></section>
     </div>
   </section>
 </div>
