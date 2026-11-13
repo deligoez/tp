@@ -786,6 +786,18 @@ func TestPage_AMilestonesDetailReadsItsGateInFull(t *testing.T) {
 	assert.NotContains(t, script, "function milestoneHTML(", "the detail is built in pure.js, where its escaping is tested")
 }
 
+// TestPage_TheDrawersLabelsNameWhatItShows: in milestone mode every label
+// the drawer's header carries names a milestone, the region, the close
+// button and the info button alike (1.15.1 review).
+func TestPage_TheDrawersLabelsNameWhatItShows(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	assert.Contains(t, page, `id="dinfo"`)
+	for _, s := range []string{`$("drawer").setAttribute("aria-label", msd ? "Milestone detail" : "Epic detail");`, `$("dclose").setAttribute("aria-label", msd ? "Close the milestone detail" : "Close the epic detail");`, `$("dinfo").setAttribute("aria-label", msd ? "About the milestone detail" : "About the epic detail");`} {
+		assert.Contains(t, script, s)
+	}
+}
+
 // TestPure_AMilestonesDetailEscapesAndReadsItsGateInFull: the drawer's
 // milestone detail is built in pure.js: the gate's state, the threshold
 // and the purpose in full, and the described count, every text escaped,
