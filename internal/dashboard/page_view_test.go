@@ -167,3 +167,15 @@ func TestPage_TheThemeControlFollowsTheSystemLiveOnAuto(t *testing.T) {
 		assert.Contains(t, script, s)
 	}
 }
+
+// TestPure_ATranslatorWordsAListAsBullets: a key whose text is an array of
+// strings is a list of bullets; t.list gives each as markup, the
+// dictionary's own tags kept and every value it fills escaped, a plain
+// string as a list of one and a missing key as itself; t joins the bullets
+// for a reader that wants one line.
+func TestPure_ATranslatorWordsAListAsBullets(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const t = P.translator({ l: ["a {x}", "<kbd>K</kbd> b"], s: "one" }, "en");
+out([t.list("l", { x: "<b>" }), t.list("s"), t.list("missing"), t("l", { x: "y" })]);`)
+	assert.JSONEq(t, `[["a &lt;b&gt;", "<kbd>K</kbd> b"], ["one"], ["missing"], "a y <kbd>K</kbd> b"]`, got)
+}
