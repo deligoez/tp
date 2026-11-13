@@ -37,7 +37,7 @@ func TestEveryModeHasASide(t *testing.T) {
 			walk(sub)
 		}
 	}
-	walk(NewRootCmd())
+	walk(newRootCmdForTest())
 
 	stale := make([]string, 0)
 	for mode := range commandSides {
