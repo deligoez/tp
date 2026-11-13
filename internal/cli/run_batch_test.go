@@ -13,6 +13,31 @@ import (
 	"github.com/deligoez/tp/internal/fakerunner"
 )
 
+// TestRunDryRun_SaysABatchRunsInFreshCheckouts: a dry run that would spawn an
+// implement batch says once that its worktrees lack ignored files (§3).
+func TestRunDryRun_SaysABatchRunsInFreshCheckouts(t *testing.T) {
+	t.Parallel()
+	dir := runProject(t)
+	_, stderr, code := runTP(t, dir, "add",
+		`{"id":"grow","title":"Grow","estimate_minutes":5,"acceptance":"Seeded.","source_sections":["### 1.1 Seed"],"depends_on":[]}`)
+	require.Equal(t, 0, code, "add: %s", stderr)
+	stdout, stderr, code := runTP(t, dir, "run", "--dry-run")
+	require.Equal(t, 0, code, stderr)
+	assert.NotContains(t, stderr, "fresh worktree", "no batch at run_max_parallel 1")
+
+	for _, set := range [][]string{
+		{"set", "seed", `touches=["seed.txt"]`}, {"set", "grow", `touches=["grow.txt"]`},
+		{"set", "--workflow", "run_max_parallel=2"},
+	} {
+		_, stderr, code = runTP(t, dir, set...)
+		require.Equal(t, 0, code, "%v: %s", set, stderr)
+	}
+	stdout, stderr, code = runTP(t, dir, "run", "--dry-run")
+	require.Equal(t, 0, code, stderr)
+	assert.Contains(t, stdout, `"brief_command": "tp brief grow"`)
+	assert.Contains(t, stderr, "fresh worktree of HEAD, without ignored files")
+}
+
 // TestRunCommand_DrivesAnImplementBatch: under run_max_parallel 2, tp run
 // runs two ready tasks with disjoint touches side by side in worktrees, then
 // closes each through tp done on the main branch with the picked sha
