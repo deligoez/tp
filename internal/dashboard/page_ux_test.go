@@ -271,3 +271,11 @@ func TestPage_TheLoopsFigureSplitsStaleFromNeedingARound(t *testing.T) {
 	assert.Contains(t, script, "f.open_loops - (f.stale_loops || 0)")
 	assert.Contains(t, script, "review loops needing a round")
 }
+
+// TestPage_ListTitlesWrap: a list row's title wraps instead of being cut to
+// a few letters and an ellipsis in a narrow card.
+func TestPage_ListTitlesWrap(t *testing.T) {
+	t.Parallel()
+	page, _ := pageText(t)
+	assert.Contains(t, page, ".row .t { min-width: 0; overflow-wrap: anywhere; }")
+}
