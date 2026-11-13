@@ -61,6 +61,8 @@
   const PAN_PX = 90;
   // In full screen the toolbar floats over the canvas's top this tall.
   const FS_BAR_PX = 64;
+  // A Safari pinch counts as over this long after its last step.
+  const GESTURE_IDLE_MS = 500;
   const ZOOM_STEP = 0.5;
   // The marks in legend order, each with the colour token it is drawn in
   // (tpPure.GRAPH_MARKS).
@@ -624,6 +626,7 @@
   // phase, ahead of deck.gl's canvas inside it.
   $("gc-canvas").addEventListener("wheel", (ev) => {
     if (!G.vs || !G.prepared) return;
+    if (!ev.ctrlKey && !ev.metaKey) G.gesture = false;
     const act = pure.wheelAction(ev, card.classList.contains("fs"));
     if (act === "page") return;
     ev.preventDefault();
@@ -647,6 +650,9 @@
     ev.preventDefault();
     zoomAt(pure.pinchZoom(G.pinch, ev.scale), ev.clientX, ev.clientY);
     G.pinch = ev.scale;
+    // A gestureend Safari never sends must not leave Ctrl-wheel zoom off.
+    clearTimeout(G.gestureTimer);
+    G.gestureTimer = setTimeout(() => { G.gesture = false; }, GESTURE_IDLE_MS);
   });
   $("gc-canvas").addEventListener("gestureend", (ev) => {
     ev.preventDefault();
