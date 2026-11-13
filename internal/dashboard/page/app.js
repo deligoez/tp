@@ -1435,6 +1435,7 @@
     drawMap();
     drawSelected();
     if (centre && mapView.selected && mapView.geo) mapPort.centre(mapView.geo.pos[mapView.selected]);
+    if (window.tpApp && window.tpApp.onSelect) window.tpApp.onSelect(mapView.selected);
   }
 
   // openMilestone shows milestone id in the drawer, or closes the drawer
@@ -2798,6 +2799,16 @@
     $("f-nb").setAttribute("aria-pressed", String(mapView.nb));
     $("trackchips").querySelectorAll("[data-track]").forEach((b) => b.setAttribute("aria-pressed", String(mapView.tracks.has(Number(b.dataset.track)))));
   }
+
+  // tpApp is what graph.js, the graph card, reads from the page: the last
+  // payloads, a panel hook, the selection, the marks and the search fold.
+  // onSelect, when graph.js sets it, hears every change of selection.
+  window.tpApp = {
+    data, panel, markOf, fold, selectEpic,
+    selected: () => mapView.selected,
+    markText: (m) => tpPure.markText(m, MARK_LABEL),
+    onSelect: null,
+  };
 
   readURL();
   window.addEventListener("popstate", () => {
