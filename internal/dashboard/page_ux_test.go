@@ -1045,3 +1045,13 @@ func TestPure_TheStreamClosesHiddenAndOpensVisible(t *testing.T) {
 	got := runPure(t, `out([[true, true], [true, false], [false, false], [false, true]].map(([hidden, open]) => P.streamStep(hidden, open)));`)
 	assert.JSONEq(t, `["close", null, "open", null]`, got)
 }
+
+// TestPage_SyncURLWritesTheRelativeAddress: syncURL builds its address with
+// tpPure.addressURL from the place alone, so the page cannot go back to
+// prefixing location.pathname.
+func TestPage_SyncURLWritesTheRelativeAddress(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Contains(t, script, "const url = tpPure.addressURL(next.toString());")
+	assert.NotContains(t, script, "location.pathname + location.search")
+}
