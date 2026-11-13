@@ -43,26 +43,79 @@ out([count({ showCross: true, hidden: [] }), count({ showCross: false, hidden: [
 }
 
 // TestPure_TheGraphsPlaceRoundTripsThroughTheAddress: the card's mode, gate
-// milestone, depth, packing, cross-edge toggle and search go into the
-// address as gv, gm, gd, pack, cross and q, each only when it is not the
-// default, and read back to the same place; a value outside its set reads
-// as the default.
+// milestone, depth, cross-edge toggle and search go into the address as gv,
+// gm, gd, cross and q, each only when it is not the default, and read back
+// to the same place; a value outside its set reads as the default. The
+// packing is the API's alone: the page neither writes nor reads pack.
 func TestPure_TheGraphsPlaceRoundTripsThroughTheAddress(t *testing.T) {
 	t.Parallel()
-	got := runPure(t, `const s = { mode: "scope", milestone: "A3", depth: 3, pack: "tree", showCross: true, q: "cache" };
+	got := runPure(t, `const s = { mode: "scope", milestone: "A3", depth: 3, showCross: true, q: "cache" };
 const p = new URLSearchParams(P.graphParams(s));
 out([
   p.toString(),
   P.graphPlace((k) => p.get(k)),
-  P.graphParams({ mode: "plan", milestone: "A3", depth: 2, pack: "rows", showCross: false, q: "" }),
-  P.graphPlace((k) => ({ gv: "map", gd: "9", pack: "wide", cross: "yes" })[k] || null),
+  P.graphParams({ mode: "plan", milestone: "A3", depth: 2, showCross: false, q: "" }),
+  P.graphPlace((k) => ({ gv: "map", gd: "9", pack: "tree", cross: "yes" })[k] || null),
 ]);`)
 	assert.JSONEq(t, `[
-		"gv=scope&gm=A3&gd=3&pack=tree&cross=1&q=cache",
-		{"mode": "scope", "milestone": "A3", "depth": 3, "pack": "tree", "showCross": true, "q": "cache"},
+		"gv=scope&gm=A3&gd=3&cross=1&q=cache",
+		{"mode": "scope", "milestone": "A3", "depth": 3, "showCross": true, "q": "cache"},
 		[],
-		{"mode": "plan", "milestone": null, "depth": 2, "pack": "rows", "showCross": false, "q": ""}
+		{"mode": "plan", "milestone": null, "depth": 2, "showCross": false, "q": ""}
 	]`, got)
+}
+
+// TestPure_MilestonesDrawTheirCrossEdgesByDefault: in Milestones a cross
+// edge is an opens-after edge from another track, which the overview
+// exists to show, so it is drawn until the toggle hides it; the epic modes
+// keep cross edges hidden until the toggle shows them.
+func TestPure_MilestonesDrawTheirCrossEdgesByDefault(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([
+  P.crossShown({ mode: "milestones", showCross: false, msCross: true }),
+  P.crossShown({ mode: "milestones", showCross: true, msCross: false }),
+  P.crossShown({ mode: "plan", showCross: false, msCross: true }),
+  P.crossShown({ mode: "scope", showCross: true, msCross: false }),
+]);`)
+	assert.JSONEq(t, `[true, false, false, true]`, got)
+}
+
+// TestPure_EnterStepsThroughTheMatches: Enter in the search moves to the
+// next match and wraps to the first after the last, Shift+Enter to the
+// previous, from no match yet (-1) to the first or the last.
+func TestPure_EnterStepsThroughTheMatches(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([P.stepMatch(3, -1, false), P.stepMatch(3, 0, false), P.stepMatch(3, 2, false), P.stepMatch(3, -1, true), P.stepMatch(3, 0, true), P.stepMatch(0, -1, false)]);`)
+	assert.JSONEq(t, `[0, 1, 0, 2, 2, -1]`, got)
+}
+
+// TestPure_TheChainFadesPastTwoStepsUnlessTheWholeChainIsAsked: the
+// selection's chain is full within two steps and fades after, unless the
+// legend's "show the whole chain" is on; withinTwo counts the near part.
+func TestPure_TheChainFadesPastTwoStepsUnlessTheWholeChainIsAsked(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([P.chainAlpha(3, true), P.chainAlpha(9, true), P.chainAlpha(9, false), P.withinTwo(new Map([[1, 1], [2, 2], [3, 3], [4, 5]]))]);`)
+	assert.JSONEq(t, `[255, 255, 70, 2]`, got)
+}
+
+// TestPure_TheThemeIsTheStoredChoiceElseTheSystems: a stored light or dark
+// wins; anything else leaves the page to the system's setting (null); the
+// toggle names the theme it switches to.
+func TestPure_TheThemeIsTheStoredChoiceElseTheSystems(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([P.pickTheme("dark"), P.pickTheme("light"), P.pickTheme("blue"), P.pickTheme(null), P.nextTheme(true), P.nextTheme(false)]);`)
+	assert.JSONEq(t, `["dark", "light", null, null, "light", "dark"]`, got)
+}
+
+// TestPure_BandLabelsNeverCollide: a band label that would overlap one
+// already placed is shortened to its name alone, and skipped when even
+// that overlaps; labels are placed in the order given, each box its left
+// edge x, its top y, its full width w and its short width sw.
+func TestPure_BandLabelsNeverCollide(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const box = (x, y, w, sw) => ({ x, y, w, h: 16, sw });
+out(P.placeLabels([box(100, 0, 100, 40), box(0, 0, 150, 60), box(40, 0, 100, 50), box(0, 40, 100, 40)]));`)
+	assert.JSONEq(t, `["full", "short", null, "full"]`, got)
 }
 
 // TestPure_HopsCountTheStepsFromTheSelection: the highlight of a
@@ -72,6 +125,6 @@ out([
 func TestPure_HopsCountTheStepsFromTheSelection(t *testing.T) {
 	t.Parallel()
 	got := runPure(t, `const next = [[1, 2], [3], [3], [4], []];
-out([[...P.hops(0, (v) => next[v])], P.chainAlpha(1), P.chainAlpha(2), P.chainAlpha(3), P.chainAlpha(9)]);`)
+out([[...P.hops(0, (v) => next[v])], P.chainAlpha(1, false), P.chainAlpha(2, false), P.chainAlpha(3, false), P.chainAlpha(9, false)]);`)
 	assert.JSONEq(t, `[[[1, 1], [2, 1], [3, 2], [4, 3]], 255, 255, 170, 70]`, got)
 }
