@@ -678,7 +678,8 @@ from a done record.
    `tp next` exits 4 naming it. Firing it is `tp epic done <trigger> --evidence "<text or URL>"`. To
    make lint refuse an epic that forgets the edge, tag the milestone's epics and add `tag_checks:
    {"<tag>": {"provided_by": "<trigger>"}}`. Do not put the trigger alone in a milestone the triggered
-   one opens after: a gate names no condition by default, so that gate is green with no members.
+   one opens after: a gate names no condition by default, so that gate is green with no members, and
+   `gate-empty` (warning) says so.
 7. **Long-lead epics.** Place an epic that takes long in the earliest milestone where it can start,
    its real dependencies as edges, not in the milestone it must finish by: `tp epic ready` offers it
    as soon as they are done, and `critical_path` shows the chain it lengthens.
