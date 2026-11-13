@@ -419,9 +419,9 @@
   // locale: the key's text with each {name} slot filled from params, a
   // number formatted for the locale; a text given as { one, other } takes
   // the form params.n asks for. A key dict lacks reads as the key. t.html
-  // escapes the values it fills, keeping the text's own markup; t.pct writes
-  // a share as a percent and t.dur minutes as minutes or hours, both as the
-  // locale writes them.
+  // escapes the values it fills, keeping the text's own markup; t.num writes
+  // a number, t.pct a share as a percent and t.dur minutes as minutes or
+  // hours, each as the locale writes it.
   P.translator = function (dict, locale) {
     const nf = new Intl.NumberFormat(locale);
     const plural = PLURAL[locale] || PLURAL.en;
@@ -439,6 +439,7 @@
     const t = (key, params) => fill(pick(key, params), params, String);
     t.html = (key, params) => fill(pick(key, params), params, escText);
     t.locale = locale;
+    t.num = (n) => nf.format(n);
     t.pct = (share) => new Intl.NumberFormat(locale, { style: "percent" }).format(share);
     t.dur = (minutes) => (minutes < 60
       ? new Intl.NumberFormat(locale, { style: "unit", unit: "minute", unitDisplay: "short" }).format(minutes)
