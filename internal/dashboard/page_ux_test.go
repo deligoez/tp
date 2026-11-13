@@ -1036,3 +1036,12 @@ func TestPage_AHiddenTabClosesItsStreamAndReopensItVisible(t *testing.T) {
 	assert.Contains(t, script, "source.close();")
 	assert.Contains(t, script, "source = new EventSource(STREAM);")
 }
+
+// TestPure_TheStreamClosesHiddenAndOpensVisible: a hidden tab with an open
+// stream closes it, a visible one without a stream opens one, and the other
+// two states leave it as it is.
+func TestPure_TheStreamClosesHiddenAndOpensVisible(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([[true, true], [true, false], [false, false], [false, true]].map(([hidden, open]) => P.streamStep(hidden, open)));`)
+	assert.JSONEq(t, `["close", null, "open", null]`, got)
+}
