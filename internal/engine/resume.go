@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"os"
 	"sort"
 
 	"github.com/deligoez/tp/internal/model"
@@ -128,6 +129,10 @@ type resumeLoops struct {
 	auditDone    LoopDone
 	reviewStale  bool
 	phase        string
+	// reviewInFlight is the review round emitted and not recorded (0 when
+	// none), and reviewInFlightOld whether its snapshot is not the spec.
+	reviewInFlight    int
+	reviewInFlightOld bool
 }
 
 // resumeBlockers derives tp resume's blockers from the loops read for a task
@@ -163,6 +168,9 @@ func resumeBlockers(taskFilePath, shownSpec string, changes []string, tf *model.
 		ReviewStale:     loops.reviewStale,
 		EpicBlock:       epicBlock,
 
+		ReviewInFlightRound:       loops.reviewInFlight,
+		ReviewInFlightOverOldText: loops.reviewInFlightOld,
+
 		ReviewBlockingFixedAtCap: loops.reviewDone.BlockingFixedAtCap,
 		AuditBlockingFixedAtCap:  loops.auditDone.BlockingFixedAtCap,
 	}), notice, nil
@@ -193,6 +201,7 @@ func readResumeLoops(taskFilePath, specPath string, tf *model.TaskFile) (resumeL
 	l.reviewDone = ReviewLoopDone(specPath, l.reviewRounds, l.wf.ReviewCleanRounds, l.wf.EffectiveReviewMaxRounds(), specHash, l.wf.ReviewConvergeOn)
 	l.auditDone = AuditLoopDone(specPath, l.auditRounds, l.wf.AuditCleanRounds, l.wf.EffectiveAuditMaxRounds(), specHash)
 	l.reviewStale = StateStale(l.reviewRounds, specHash)
+	l.reviewInFlight, l.reviewInFlightOld = reviewInFlight(specPath, len(l.reviewRounds))
 	numDone := 0
 	for i := range tf.Tasks {
 		if tf.Tasks[i].Status == model.StatusDone {
@@ -201,4 +210,22 @@ func readResumeLoops(taskFilePath, specPath string, tf *model.TaskFile) (resumeL
 	}
 	l.phase = DetectPhase(len(tf.Tasks), numDone, l.reviewDone.Done, l.auditDone.Done)
 	return l, nil
+}
+
+// reviewInFlight returns the review round emitted and not recorded (0 when
+// none) and whether its snapshot differs from the spec as it stands, the case
+// in which a new emission is refused until the round is recorded or discarded.
+// A spec or snapshot that cannot be read counts as differing: the emission
+// guard refuses an unreadable snapshot too.
+func reviewInFlight(specPath string, recorded int) (round int, overOldText bool) {
+	round = InFlightRound(specPath, PhaseReview, recorded)
+	if round == 0 {
+		return 0, false
+	}
+	data, err := os.ReadFile(specPath)
+	if err != nil {
+		return round, true
+	}
+	overwrites, err := EmissionOverwrites(specPath, PhaseReview, round, data)
+	return round, err != nil || len(overwrites) > 0
 }
