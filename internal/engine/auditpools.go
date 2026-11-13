@@ -13,6 +13,9 @@ import (
 type AuditRolePool struct {
 	Role string `json:"role"`
 	Pool int    `json:"pool"`
+	// Items are the file_check item ids the role's prompt listed; only a row
+	// naming one of them counts as graded.
+	Items []string `json:"items"`
 }
 
 // RoleGraded is "graded N of M" for one code role of a recorded audit round
@@ -89,23 +92,27 @@ func GradedSuffix(graded []RoleGraded) string {
 	return " (latest round graded " + strings.Join(parts, ", ") + ")"
 }
 
-// GradeAuditRoles returns, in pool order, how many distinct file_check items
-// each pooled role returned a row for. A row counts whatever its status, so a
-// file read and found clean is graded; a row of another role, or one whose
-// item id is not a file_check id, is not.
+// GradeAuditRoles returns, in pool order, how many distinct emitted
+// file_check items each pooled role returned a row for. A row counts whatever
+// its status, so a file read and found clean is graded; a row of another
+// role, or one naming an item the role's prompt never listed, is not, so
+// Graded never exceeds the prompt's file_count.
 func GradeAuditRoles(pools []AuditRolePool, rows []map[string]any) []RoleGraded {
+	emitted := make(map[string]map[string]bool, len(pools))
 	seen := make(map[string]map[string]bool, len(pools))
 	for _, p := range pools {
+		emitted[p.Role] = make(map[string]bool, len(p.Items))
+		for _, id := range p.Items {
+			emitted[p.Role][id] = true
+		}
 		seen[p.Role] = make(map[string]bool)
 	}
 	for _, row := range rows {
 		role, _ := row["role"].(string)
 		id, _ := row["item_id"].(string)
-		ids, pooled := seen[role]
-		if !pooled || !strings.HasPrefix(id, "file-"+role+"-") {
-			continue
+		if emitted[role][id] {
+			seen[role][id] = true
 		}
-		ids[id] = true
 	}
 	graded := make([]RoleGraded, 0, len(pools))
 	for _, p := range pools {
