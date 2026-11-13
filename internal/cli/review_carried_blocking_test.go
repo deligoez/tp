@@ -159,3 +159,80 @@ func TestCarriedBlocking_ResumeNamesTheRow(t *testing.T) {
 // carriedMarker pulls the MK-<letter> marker out of a finding's text.
 var carriedMarker = regexp.MustCompile(`MK-[A-Z]`)
 
+// TestCarriedBlocking_ThePromptAndTheCheckReadOneSet: over a history holding
+// every disposition kind, the rows an emission prints under "UNRESOLVED … DO
+// NOT re-report" with a blocking tag are exactly the rows --check names as
+// blocking, and the medium row it prints there blocks nothing.
+func TestCarriedBlocking_ThePromptAndTheCheckReadOneSet(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeSpec(t, dir, carriedSpec)
+	row := func(sev, marker string) string {
+		return `{"severity":"` + sev + `","category":"clarity","location":"§2","finding":"` + marker + ` rule text","evidence":"e","suggestion":"s"}` + "\n"
+	}
+	// Round 1: A open, B to be fixed, C to be accepted, D accepted with blank
+	// evidence (which accepts nothing), E a medium left open, F a critical
+	// marked duplicate, G open here and fixed in round 2, H an out-of-vocabulary
+	// severity left open.
+	_, stderr, code := recordRound(t, dir,
+		row("high", "MK-A")+row("high", "MK-B")+row("high", "MK-C")+row("high", "MK-D")+
+			row("medium", "MK-E")+row("critical", "MK-F")+row("high", "MK-G")+row("severe", "MK-H"))
+	require.Equal(t, 0, code, stderr)
+	round1 := filepath.Join(dir, carriedRoundFile)
+	for _, r := range [][]string{{"1", "fixed", "reworded"}, {"2", "wontfix", "operator accepted"}, {"5", "duplicate", "same as MK-A"}} {
+		_, stderr, code = runTP(t, dir, append([]string{"review", round1, "--resolve"}, r...)...)
+		require.Equal(t, 0, code, stderr)
+	}
+	data, err := os.ReadFile(round1)
+	require.NoError(t, err)
+	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
+	var d map[string]any
+	require.NoError(t, json.Unmarshal([]byte(lines[3]), &d))
+	d["resolved"] = map[string]any{"status": "wontfix", "evidence": "  "}
+	blank, err := json.Marshal(d)
+	require.NoError(t, err)
+	lines[3] = string(blank)
+	require.NoError(t, os.WriteFile(round1, []byte(strings.Join(lines, "\n")+"\n"), 0o600))
+
+	// Round 2: G again, then fixed; I a new open high.
+	_, stderr, code = recordRound(t, dir, row("high", "MK-G")+row("high", "MK-I"))
+	require.Equal(t, 0, code, stderr)
+	_, stderr, code = runTP(t, dir, "review", filepath.Join(dir, ".tp-review", "spec", "review-round-2.ndjson"), "--resolve", "0", "fixed", "reworded")
+	require.Equal(t, 0, code, stderr)
+
+	out, code := reviewStatusCheck(t, dir)
+	assert.Equal(t, 1, code)
+	blocking := []string{}
+	for _, r := range carriedRows(t, out) {
+		blocking = append(blocking, carriedMarker.FindString(r["finding"].(string)))
+	}
+	sort.Strings(blocking)
+	assert.Equal(t, float64(len(blocking)), out["carried_blocking"], "every blocking row is listed")
+
+	stdout, stderr, code := runTP(t, dir, "review", "spec.md")
+	require.Equal(t, 0, code, "emit round 3: %s", stderr)
+	var emission map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &emission))
+	prompts, _ := emission["prompts"].([]any)
+	require.NotEmpty(t, prompts)
+	unresolved := carrySection(prompts[0].(map[string]any)["prompt"].(string), "UNRESOLVED findings from previous rounds")
+	require.NotEmpty(t, unresolved, "round 3 carries the unresolved rows")
+	printedBlocking, printedOther := []string{}, []string{}
+	for _, line := range strings.Split(unresolved, "\n")[1:] {
+		marker := carriedMarker.FindString(line)
+		if marker == "" {
+			continue
+		}
+		if strings.Contains(line, "[MED]") || strings.Contains(line, "[LOW]") {
+			printedOther = append(printedOther, marker)
+			continue
+		}
+		printedBlocking = append(printedBlocking, marker)
+	}
+	sort.Strings(printedBlocking)
+
+	assert.Equal(t, []string{"MK-A", "MK-D", "MK-H", "MK-I"}, printedBlocking, "the prompt's blocking rows")
+	assert.Equal(t, printedBlocking, blocking, "the prompt and --check read one set")
+	assert.Equal(t, []string{"MK-E"}, printedOther, "a medium is carried and blocks nothing")
+}
+
