@@ -53,6 +53,9 @@ func TestDone_InALinkedWorktreeWritesAPendingClose(t *testing.T) {
 	require.Len(t, pending, 1)
 	assert.Equal(t, []string{sha}, pending[0].Commits)
 
+	resumeOut, _, _ := runTP(t, root, "resume")
+	assert.Contains(t, resumeOut, `"pending_closes"`, "tp resume names the waiting close")
+
 	status, _, _ := runTP(t, root, "show", "t1")
 	assert.Contains(t, status, `"status": "wip"`, "the driver closes the task, not the unit")
 	assert.NoFileExists(t, filepath.Join(worktree, "gate-ran"))

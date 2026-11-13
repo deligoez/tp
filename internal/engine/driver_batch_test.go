@@ -186,7 +186,11 @@ func TestAssembleResume_NamesPendingCloses(t *testing.T) {
 	dir, spec, tfp := setupResumeProject(t, twoBatchableTasks)
 	assert.Empty(t, assemble(t, dir, spec, tfp).PendingCloses)
 	require.NoError(t, WritePendingClose(CanonicalProjectRoot(dir), tfp, &PendingClose{ID: "beta", Commits: []string{"abc"}}))
-	assert.Equal(t, []string{"beta"}, assemble(t, dir, spec, tfp).PendingCloses)
+	res := assemble(t, dir, spec, tfp)
+	assert.Equal(t, []string{"beta"}, res.PendingCloses)
+	require.NotNil(t, res.NextAction.Command)
+	assert.Equal(t, "tp run", *res.NextAction.Command, "the next step integrates the waiting work rather than redoing it")
+	assert.Contains(t, res.NextAction.Summary, "beta")
 }
 
 // TestUnitAttemptPrompt_ABatchedUnitIsToldItsTask: a child spawned in a
