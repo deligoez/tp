@@ -8,9 +8,10 @@
 # nothing references, and re-emitting an unrecorded round is idempotent, so
 # removing them costs one command to restore.
 #
-# Inbox files — ground's scratch file `ground-inbox/round-N.ndjson` and the
-# review and audit role files `{review,audit}-inbox/round-N-<role>.ndjson` —
-# are judged against the round files one directory up, and differ in guard 1:
+# Inbox files — ground's scratch file `ground-inbox/round-N.ndjson`, the
+# review and audit role files `{review,audit}-inbox/round-N-<role>.ndjson`, and
+# the pools an audit emission keeps beside them, `audit-inbox/round-N.pools.json`
+# — are judged against the round files one directory up, and differ in guard 1:
 # `--record` removes them, so one whose round IS recorded is debris, not the
 # round's evidence, and is removable too.
 #
@@ -52,7 +53,7 @@ while [ $# -gt 0 ]; do
     --apply)          APPLY=1; shift ;;
     --min-age-hours)  MIN_AGE_HOURS="${2:?--min-age-hours needs a number}"; shift 2 ;;
     --root)           ROOT="${2:?--root needs a path}"; shift 2 ;;
-    -h|--help)        sed -n '2,41p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help)        sed -n '2,42p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *)                echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -127,7 +128,8 @@ if [ -d "$ROOT" ]; then
     fi
     removable+=("$f"); reasons+=("$reason")
   done < <(find "$ROOT" -type f \( -name 'floor-*round-*.txt' -o -name 'snapshot-*round-*.md' \
-    -o -path '*/ground-inbox/round-*.ndjson' -o -path '*/review-inbox/round-*.ndjson' -o -path '*/audit-inbox/round-*.ndjson' \) | sort)
+    -o -path '*/ground-inbox/round-*.ndjson' -o -path '*/review-inbox/round-*.ndjson' -o -path '*/audit-inbox/round-*.ndjson' \
+    -o -path '*/audit-inbox/round-*.pools.json' \) | sort)
 fi
 
 if [ -d "$ROUNDS" ]; then
