@@ -605,6 +605,9 @@ body.dopen:not([data-tab="epics"]) { padding: 0; }
 /* the canvas's own + − Fit, bottom right; a sideways swipe on the canvas
    never turns into the browser's back */
 .gcanvas { overscroll-behavior-x: none; }
+/* a touch screen's pinch never zooms the page while a card fills it; the
+   trackpad's is the script's (graph.js listenOffCanvas) */
+body.mapfs { touch-action: pan-x pan-y; }
 .gzoom { position: absolute; right: 12px; bottom: 12px; z-index: 2; display: flex; gap: 4px; }
 .gzoom .key { min-width: 34px; background: var(--surface); box-shadow: 0 2px 8px rgba(0, 0, 0, .12); }
 .gcountfs { display: none; white-space: nowrap; }
