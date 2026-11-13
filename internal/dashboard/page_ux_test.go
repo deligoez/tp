@@ -156,3 +156,15 @@ func TestPage_MapEpicsTakeFocusAndEnterSelects(t *testing.T) {
 		assert.Contains(t, script, s)
 	}
 }
+
+// TestPage_TheDrawerTakesFocusAndGivesItBack is the drawer's focus rule
+// (spec/backlog/dashboard-ux.md §2): opening it moves focus to its close
+// button, and closing it returns focus to what held it before, found again
+// by its epic when a redraw replaced that element.
+func TestPage_TheDrawerTakesFocusAndGivesItBack(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, s := range []string{`$("dclose").focus(`, "drawerReturn", "returnFocus("} {
+		assert.Contains(t, script, s)
+	}
+}
