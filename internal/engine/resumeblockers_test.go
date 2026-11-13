@@ -77,7 +77,13 @@ func TestBuildBlockers_TheAuditBudgetNamesItsCarriedRow(t *testing.T) {
 	assert.Equal(t, "audit-budget-exhausted", bs[0].Code)
 	assert.Contains(t, bs[0].Message, "tp audit .tp-review/spec/audit-round-1.ndjson --resolve spec-coverage:task-t1 wontfix|duplicate")
 	assert.Contains(t, bs[0].Message, EscalateRaiseAuditCap)
+	assert.NotContains(t, bs[0].Message, "audit reached its", "the clause already says the cap admits no round")
+	assert.NotContains(t, bs[0].Message, "the first,", "one row is named, not counted off")
 	assert.Equal(t, 1, bs[0].Data["carried_blocking"])
+	// --compact drops the message, so the data names the row and its exits.
+	assert.Len(t, bs[0].Data["rows"], 1)
+	assert.Equal(t, []string{"tp audit .tp-review/spec/audit-round-1.ndjson --resolve spec-coverage:task-t1 wontfix|duplicate \"<evidence>\""}, bs[0].Data["commands"])
+	assert.Equal(t, map[string]any{"decision": EscalateRaiseAuditCap, "commands": []string{"tp audit spec.md", "tp audit spec.md --record <file>"}}, bs[0].Data["operator"])
 }
 
 func TestBuildBlockers_SpecStaleEscalate(t *testing.T) {
