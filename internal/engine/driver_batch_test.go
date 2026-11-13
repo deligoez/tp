@@ -162,6 +162,16 @@ func TestRunDriver_ImplementBatchRunsSideBySideAndIntegrates(t *testing.T) {
 	assert.Empty(t, pending)
 }
 
+// TestUnitAttemptPrompt_ABatchedUnitIsToldItsTask: a child spawned in a
+// worktree is told to run the brief that names its task, not tp next.
+func TestUnitAttemptPrompt_ABatchedUnitIsToldItsTask(t *testing.T) {
+	t.Parallel()
+	solo := &unitAttempt{unit: NextUnit{Kind: UnitImplement, ID: "alpha"}}
+	assert.Contains(t, solo.prompt(), "`tp next --brief`")
+	batched := &unitAttempt{unit: NextUnit{Kind: UnitImplement, ID: "alpha"}, dir: "/tmp/wt"}
+	assert.Contains(t, batched.prompt(), "`tp brief alpha`")
+}
+
 // TestRunDriver_ImplementBatchConflictReopensSolo: two units that write the
 // same file conflict when the second is picked; the main branch keeps the
 // first, and the second reopens marked solo and then runs alone.
