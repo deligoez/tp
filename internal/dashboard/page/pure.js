@@ -547,6 +547,7 @@
       const v = dict[key];
       if (v === undefined) return key;
       if (typeof v === "string") return v;
+      if (Array.isArray(v)) return v.join(" ");
       return v[plural(params && params.n)] || v.other;
     };
     const fill = (text, params, wrap) => text.replace(/\{(\w+)\}/g, (slot, name) => {
@@ -556,6 +557,9 @@
     });
     const t = (key, params) => fill(pick(key, params), params, String);
     t.html = (key, params) => fill(pick(key, params), params, escText);
+    // t.list words a key given as an array of strings as its bullets, each
+    // markup as t.html makes it; any other key is a list of one.
+    t.list = (key, params) => (Array.isArray(dict[key]) ? dict[key] : [pick(key, params)]).map((s) => fill(s, params, escText));
     t.locale = locale;
     t.num = (n) => nf.format(n);
     t.pct = (share) => new Intl.NumberFormat(locale, { style: "percent" }).format(share);
