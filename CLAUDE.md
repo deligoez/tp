@@ -33,7 +33,7 @@ golangci-lint run
 # Round artifacts no recorded round owns (dry run; --apply removes)
 ./scripts/clean-emissions.sh
 
-# Stripped binary (production, <10MB)
+# Stripped binary (production, <14MB: 13.4 MB measured for v1.17.0 with the gzipped deck.gl, 12.9 MB without)
 go build -ldflags="-s -w" -o tp ./cmd/tp
 ```
 
@@ -51,7 +51,7 @@ internal/cli/         Cobra commands, one file per command or mode (review_*.go,
 internal/engine/      Core logic (toposort, closure, validate, lint, discover, lock, excerpt, config resolve, ...)
 internal/model/       Data types (TaskFile, Task, Workflow, Coverage)
 internal/output/      Formatting (JSON/TTY, compact, colors, hint errors)
-internal/dashboard/   The `tp dashboard` server, its read-only API, and the embedded page under page/
+internal/dashboard/   The `tp dashboard` server, its read-only API, and the embedded page under page/ (deck.gl vendored in page/vendor/)
 internal/fakerunner/  The scripted runner child `tp run`'s tests spawn
 spec/                 Specs, one file per version/feature; spec/backlog/ holds decision candidates
 skills/tp/            SKILL.md (workflows, command inventory) + REFERENCE.md (fields, exit codes, schemas)
