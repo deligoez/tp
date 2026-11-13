@@ -36,7 +36,7 @@ const (
 )
 
 // dashboardLayoutHint answers a /api/layout query the endpoint refuses.
-const dashboardLayoutHint = "name one view: ?view=milestones, ?view=scope&milestone=<m>, or ?view=neighbourhood&epic=<id>[&depth=<1-4>]"
+const dashboardLayoutHint = "name one view: ?view=milestones, ?view=scope&milestone=<m>, or ?view=neighbourhood&epic=<id>[&depth=<n>], depth clamped to 1-4"
 
 // dashboardLayoutAbsentHint answers a milestone or epic the graph does not
 // hold.
