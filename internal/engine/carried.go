@@ -83,13 +83,17 @@ func (r *CarriedRow) State() string {
 	return CarriedStateUnresolved
 }
 
-// CarriedRowJSON is the bounded shape a payload names a carried row in.
+// CarriedRowJSON is the bounded shape a payload names a carried row in. A
+// review row names its location and finding; an audit row its role, item and
+// notes, the notes standing as its finding.
 type CarriedRowJSON struct {
 	Round    int    `json:"round"`
 	File     string `json:"file"`
 	Index    int    `json:"index"`
 	Severity string `json:"severity"`
-	Location string `json:"location"`
+	Role     string `json:"role,omitempty"`
+	ItemID   string `json:"item_id,omitempty"`
+	Location string `json:"location,omitempty"`
 	Finding  string `json:"finding"`
 	State    string `json:"state"`
 }
@@ -106,12 +110,17 @@ func rowString(row map[string]any, key string) string {
 // JSON renders r for a payload, its finding cut to the identity's prefix.
 func (r *CarriedRow) JSON() CarriedRowJSON {
 	finding := rowString(r.Row, "finding")
+	if finding == "" {
+		finding = rowString(r.Row, "notes")
+	}
 	if len(finding) > findingPrefixLen {
 		finding = finding[:RuneBoundaryAtOrBefore(finding, findingPrefixLen)] + "..."
 	}
 	return CarriedRowJSON{
 		Round: r.Round, File: r.File, Index: r.Index,
 		Severity: r.Severity,
+		Role:     rowString(r.Row, "role"),
+		ItemID:   rowString(r.Row, "item_id"),
 		Location: rowString(r.Row, "location"),
 		Finding:  finding,
 		State:    r.State(),

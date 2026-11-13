@@ -135,7 +135,9 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 	// round's live verdict: a disposition written into a recorded round file
 	// after it was recorded counts, as it does for review.
 	liveRounds := engine.LiveAuditRounds(specPath, st.AuditRounds)
-	converged := engine.Converged(liveRounds, wf.AuditCleanRounds, specHash)
+	// A carried blocking row holds convergence open whatever the trailing
+	// rounds say (spec/backlog/audit-carried-fail-blocks.md).
+	converged := engine.Converged(liveRounds, wf.AuditCleanRounds, specHash) && len(engine.AuditCarriedBlocking(specPath, st)) == 0
 	stale := engine.StateStale(liveRounds, specHash)
 	result := map[string]any{
 		"round":                 round,
@@ -171,7 +173,7 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 	// arguments: the `clean` verdict picks the branch, while `findings` — the raw
 	// non-PASS count, positive on a clean round under `blocking` — is what the
 	// converged and clean-but-not-converged branches render.
-	done := engine.AuditLoopDone(specPath, st.AuditRounds, wf.AuditCleanRounds, wf.AuditMaxRounds, specHash)
+	done := engine.AuditLoopDone(specPath, st, wf.AuditCleanRounds, wf.AuditMaxRounds, specHash)
 	addLoopDone(result, done)
 	// Decision 4: the round says what it graded, here and in next_action;
 	// both survive --compact.
@@ -450,8 +452,8 @@ func runAuditStatus(specPath string, check bool) error {
 		// written into a recorded round file clears it as it does for review.
 		rounds = engine.LiveAuditRounds(specPath, st.AuditRounds)
 	}
-	converged := engine.Converged(rounds, wf.AuditCleanRounds, specHash)
-	done := engine.AuditLoopDone(specPath, rounds, wf.AuditCleanRounds, wf.AuditMaxRounds, specHash)
+	done := engine.AuditLoopDone(specPath, st, wf.AuditCleanRounds, wf.AuditMaxRounds, specHash)
+	converged := engine.Converged(rounds, wf.AuditCleanRounds, specHash) && len(done.CarriedBlocking) == 0
 	stale := engine.StateStale(rounds, specHash)
 	rolesHash := phaseRolesHash(specPath, engine.PhaseAuditors)
 

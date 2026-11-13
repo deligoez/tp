@@ -203,7 +203,7 @@ func readResumeLoops(taskFilePath, specPath string, tf *model.TaskFile) (resumeL
 	// reached with every finding of the latest round dispositioned. Reading the
 	// stored flags here kept the oracle escalating on a loop import accepted.
 	l.reviewDone = ReviewLoopDone(specPath, st, l.wf.ReviewCleanRounds, l.wf.EffectiveReviewMaxRounds(), specHash, l.wf.ReviewConvergeOn)
-	l.auditDone = AuditLoopDone(specPath, l.auditRounds, l.wf.AuditCleanRounds, l.wf.EffectiveAuditMaxRounds(), specHash)
+	l.auditDone = AuditLoopDone(specPath, st, l.wf.AuditCleanRounds, l.wf.EffectiveAuditMaxRounds(), specHash)
 	l.reviewStale = StateStale(l.reviewRounds, specHash)
 	l.reviewInFlight, l.reviewInFlightOld = reviewInFlight(specPath, len(l.reviewRounds))
 	numDone := 0

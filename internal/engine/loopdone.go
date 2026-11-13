@@ -130,16 +130,26 @@ func epochCutBlocking(specPath string, st *ReviewState, convergeOn string) bool 
 // are findings, so a PASS row needs no disposition. Each round is graded live
 // under its own recorded policy (AuditRoundClean), and a finding of the latest
 // round blocks when that round's policy would hold it open.
-func AuditLoopDone(specPath string, rounds []ReviewRound, requiredClean, maxRounds int, currentHash string) LoopDone {
-	converged := Converged(LiveAuditRounds(specPath, rounds), requiredClean, currentHash)
-	policy := AuditConvergeOnAll
-	if n := len(rounds); n > 0 && ValidAuditConvergeOn(rounds[n-1].ConvergeOn) {
-		policy = rounds[n-1].ConvergeOn
-	}
+// AuditLoopDone reports whether the audit loop has ended. Only non-PASS rows
+// are findings, so a PASS row needs no disposition. Each round is graded live
+// under its own recorded policy (AuditRoundClean), and a finding of the latest
+// round blocks when that round's policy would hold it open. A carried blocking
+// row keeps the loop open whatever the trailing rounds or the cap say
+// (AuditCarriedBlocking): an empty round re-grades nothing.
+func AuditLoopDone(specPath string, st *ReviewState, requiredClean, maxRounds int, currentHash string) LoopDone {
+	rounds := auditRoundsOf(st)
+	carried := AuditCarriedBlocking(specPath, st)
+	converged := len(carried) == 0 && Converged(LiveAuditRounds(specPath, rounds), requiredClean, currentHash)
+	policy := latestAuditPolicy(rounds)
 	blocking := func(row map[string]any) bool {
 		return policy != AuditConvergeOnBlocking || auditSeverityBlocking(row)
 	}
-	return loopDone(converged, specPath, rounds, maxRounds, currentHash, func(row map[string]any) bool { return !AuditRowIsPass(row) }, blocking)
+	d := loopDone(converged, specPath, rounds, maxRounds, currentHash, func(row map[string]any) bool { return !AuditRowIsPass(row) }, blocking)
+	if len(carried) > 0 {
+		d.Done, d.By, d.StaleWaived = false, "", false
+		d.CarriedBlocking = carried
+	}
+	return d
 }
 
 func loopDone(converged bool, specPath string, rounds []ReviewRound, maxRounds int, currentHash string, isFinding, isBlocking func(map[string]any) bool) LoopDone {
