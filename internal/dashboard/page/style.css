@@ -602,6 +602,10 @@ body.dopen:not([data-tab="epics"]) { padding: 0; }
 .gzoom .key { min-width: 34px; background: var(--surface); box-shadow: 0 2px 8px rgba(0, 0, 0, .12); }
 .gcountfs { display: none; white-space: nowrap; }
 body.mapfs .gcard.fs .gcountfs { display: inline; }
+/* the pill keeps every control on one line, whole; beside an open drawer
+   the count gives way first */
+body.mapfs .gcard.fs .toolbar > *, body.mapfs .gcard.fs .toolbar .seg button { flex: none; white-space: nowrap; }
+@container (max-width: 1240px) { body.mapfs .gcard.fs .gcountfs { display: none; } }
 .gkeys { font-weight: 600; }
 body.mapfs .gcard.fs .toolbar { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 3; flex-wrap: nowrap; width: max-content; max-width: calc(100% - 24px); overflow-x: auto; padding: 6px 8px; border: 1px solid var(--color-rule-2); border-radius: 999px; background: var(--surface); box-shadow: 0 6px 24px rgba(0, 0, 0, .18); }
 body.mapfs .gcard.fs .toolbar h2, body.mapfs .gcard.fs .toolbar .spacer, body.mapfs .gcard.fs .gcount, body.mapfs .gcard.fs .legend .help, body.mapfs .gcard.fs .chaintext { display: none; }
