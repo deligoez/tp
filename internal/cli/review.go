@@ -1406,10 +1406,14 @@ func findingFromRow(row map[string]any) reviewFinding {
 	return f
 }
 
+// dedupFindings keeps each finding's latest occurrence by identity, in the
+// order of those occurrences, as the carried set does: a finding re-reported
+// and resolved in a later round is that later row.
 func dedupFindings(findings []reviewFinding) []reviewFinding {
 	seen := make(map[string]bool)
 	result := make([]reviewFinding, 0, len(findings))
-	for _, f := range findings {
+	for i := len(findings) - 1; i >= 0; i-- {
+		f := findings[i]
 		key := findingIdentityKey(f.Category, f.Location, f.Finding)
 		if seen[key] {
 			continue
@@ -1417,6 +1421,7 @@ func dedupFindings(findings []reviewFinding) []reviewFinding {
 		seen[key] = true
 		result = append(result, f)
 	}
+	slices.Reverse(result)
 	return result
 }
 
