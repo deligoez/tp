@@ -118,6 +118,7 @@ func TestAcceptsGzip(t *testing.T) {
 	for header, want := range map[string]bool{
 		"gzip": true, "deflate, GZIP": true, "br;q=1, gzip;q=0.5": true, "gzip; q=0": false,
 		"gzip;q=0.0": false, "": false, "br": false, "x-gzip": false,
+		"gzip;Q=0": false, "gzip; xq=0": true, "gzip;level=9;q=0.5": true, "gzip;q=0;x=1": false,
 	} {
 		assert.Equal(t, want, acceptsGzip(header), header)
 	}
