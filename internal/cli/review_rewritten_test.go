@@ -65,3 +65,28 @@ func TestReviewRewritten_EmptyEvidenceIsAUsageError(t *testing.T) {
 	}
 }
 
+// TestReviewRewritten_ARoundInFlightIsRefused: a review round emitted and not
+// recorded was built from the lists the epoch cuts, so the epoch is refused
+// with exit 3 — the emission guard's code — and the hint names the round's
+// record and, since the round was emitted over the old text, its discard as
+// the operator's alternative.
+func TestReviewRewritten_ARoundInFlightIsRefused(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeSpec(t, dir, epochOldSpec)
+	_, stderr, code := recordRound(t, dir, epochHighRow)
+	require.Equal(t, 0, code, "record round 1: %s", stderr)
+	_, stderr, code = runTP(t, dir, "review", "spec.md")
+	require.Equal(t, 0, code, "emit round 2: %s", stderr)
+	writeSpec(t, dir, epochNewSpec)
+	before := stateJSONBytes(t, dir)
+
+	_, stderr, code = runTP(t, dir, "review", "spec.md", "--rewritten", "replaced the spec")
+	assert.Equal(t, 3, code, stderr)
+	env := errorEnvelope(t, stderr)
+	assert.Contains(t, env["error"], "review round 2 is in flight")
+	assert.Contains(t, env["hint"], "tp review spec.md --record <file>")
+	assert.Contains(t, env["hint"], "--force")
+	assert.Equal(t, before, stateJSONBytes(t, dir), "a refusal writes nothing")
+}
+
