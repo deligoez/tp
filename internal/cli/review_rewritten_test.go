@@ -201,6 +201,8 @@ func TestReviewRewritten_RefusesTheFlagsOfOtherModes(t *testing.T) {
 		{"--round", "2"},
 		{"--perspective", "testing"},
 		{"--role", "implementer"},
+		{"--test-path", "."},
+		{"--docs-path", "."},
 	} {
 		args := append([]string{"review", "spec.md", "--rewritten", "replaced the spec"}, extra...)
 		_, stderr, code := runTP(t, dir, args...)
