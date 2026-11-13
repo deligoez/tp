@@ -669,6 +669,16 @@ func TestPage_TheTotalsSentenceSitsWhereBothCountsAppear(t *testing.T) {
 		assert.Contains(t, script, s)
 	}
 	assert.Contains(t, script, `"share of work epics done", "", totals`)
+	assert.Equal(t, 1, strings.Count(script, "tpPure.epicTotals("), "the tab, the share and the Lifecycle read the sentence from one call")
+}
+
+// TestPage_ACardControlNamesItsMilestone: a milestone card's Show all or
+// Show less names, to a screen reader, the milestone it opens, escaped
+// (1.14.1 review).
+func TestPage_ACardControlNamesItsMilestone(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Contains(t, script, `aria-label="' + esc((full ? "Show less of " : "Show all of ") + m.milestone + "'s threshold and purpose") + '"`)
 }
 
 // TestPage_ListTitlesWrap: a list row's title wraps instead of being cut to
