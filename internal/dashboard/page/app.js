@@ -1064,18 +1064,19 @@
   const stamp = (iso) => (iso ? String(iso).replace("T", " ").replace(/\..*$|Z$/, "").slice(0, 16) + " UTC" : "");
 
   // chainEdges walks the selected epic's edges one way, breadth first: up,
-  // to what it depends on, or down, to what depends on it.
+  // to what it depends on, or down, to what depends on it, each edge with
+  // its level, 1 for the epic's own.
   function chainEdges(id, up) {
     const seen = new Set([id]);
     const out = [];
     let front = [id];
-    while (front.length) {
+    for (let level = 1; front.length; level++) {
       const next = [];
       front.forEach((x) => {
         const edges = up ? (mapView.deps[x] || []).map((d) => ({ from: x, to: d.id, why: d.why, group: d.group }))
           : [...new Set(mapView.dependents[x] || [])].flatMap((y) => (mapView.deps[y] || []).filter((d) => d.id === x).map((d) => ({ from: y, to: x, why: d.why, group: d.group })));
         edges.forEach((e) => {
-          out.push(e);
+          out.push({ ...e, level });
           const n = up ? e.to : e.from;
           if (!seen.has(n)) { seen.add(n); next.push(n); }
         });
@@ -1096,6 +1097,15 @@
       groupHTML(e.group) + whyHTML(e.why) + "</li>").join("") + "</ul>";
   }
 
+  // chainHTML lists one side of a chain: the epic's own edges, then the
+  // deeper ones folded into a details element, so a chain of thousands is
+  // a handful of tab stops until it is opened.
+  function chainHTML(edges, empty) {
+    const direct = edges.filter((e) => e.level === 1);
+    const deeper = edges.filter((e) => e.level > 1);
+    return edgeList(direct, empty) + (deeper.length ? '<details class="deeper"><summary>' + esc(t("chain.deeper", { n: deeper.length })) + "</summary>" + edgeList(deeper, "") + "</details>" : "");
+  }
+
   // drawChain draws the selected epic's chain as text, the collapsible view
   // under the graph card: every edge it waits on and every edge waiting on
   // it, transitively, each with its why, so a keyboard user has the
@@ -1105,8 +1115,8 @@
     if (!g) return;
     const id = mapView.selected;
     $("chain").innerHTML = id && mapView.deps ? '<p class="note">' + esc(id) + ": " + esc((graphEpic(g, id) || {}).title || "") + "</p>" +
-      '<div class="two-col"><div><h3 class="hsub">' + esc(t("chain.waitsOn")) + "</h3>" + edgeList(chainEdges(id, true), t("chain.noDeps")) + "</div>" +
-      '<div><h3 class="hsub">' + esc(t("chain.waitedOn")) + "</h3>" + edgeList(chainEdges(id, false), t("chain.noDependents")) + "</div></div>"
+      '<div class="two-col"><div><h3 class="hsub">' + esc(t("chain.waitsOn")) + "</h3>" + chainHTML(chainEdges(id, true), t("chain.noDeps")) + "</div>" +
+      '<div><h3 class="hsub">' + esc(t("chain.waitedOn")) + "</h3>" + chainHTML(chainEdges(id, false), t("chain.noDependents")) + "</div></div>"
       : none(t("chain.pick"));
   }
 
