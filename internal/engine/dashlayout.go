@@ -20,6 +20,7 @@ type LayoutBand struct {
 	From int      `json:"from_layer"`
 	To   int      `json:"to_layer"`
 }
+
 // bandList is bands with each named once, where it is first named, then
 // each band a node of ids names that bands leaves out, in ids order.
 func bandList(bands, ids []string, bandOf map[string]string) []string {
