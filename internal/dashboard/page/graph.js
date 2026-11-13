@@ -50,8 +50,8 @@
   // w by h, one column col wide, one layer row tall, its id in lines of at
   // most chars characters (tpPure.fitId) of the fs-unit monospace font.
   const GEO = {
-    epic: { w: 150, h: 28, col: 172, row: 40, fs: 11, chars: 20 },
-    milestone: { w: 200, h: 54, col: 240, row: 110, fs: 22, chars: 14 },
+    epic: { w: 150, h: 32, col: 172, row: 44, fs: 11, chars: 20 },
+    milestone: { w: 200, h: 60, col: 240, row: 110, fs: 22, chars: 14 },
   };
   // The neighbourhood opens no further out than this, where an epic's
   // 11-unit id reads at 12 pixels, its whole id drawn (tpPure.detailLevel).
@@ -525,7 +525,7 @@
       }),
       new TextLayer({
         id: "ids", data: P.nodes, visible: G.detail !== "far", getPosition: (n) => [n.x, n.y + n.h / 2], getText: nodeText,
-        getSize: (n) => P.geo.fs * n.fit, sizeUnits: "common", getTextAnchor: "middle", getAlignmentBaseline: "center", lineHeight: 1.05,
+        getSize: (n) => P.geo.fs * n.fit, sizeUnits: "common", getTextAnchor: "middle", getAlignmentBaseline: "center", lineHeight: 1.25,
         getColor: (n) => [...c.ink, nodeAlpha(P, hits, n) >= 170 ? 255 : 70],
         fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", characterSet: P.charSet, fontSettings,
         updateTriggers: { getColor: v, getText: v },
