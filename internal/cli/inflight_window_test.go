@@ -29,7 +29,13 @@ func emitAuditRound(t *testing.T) (dir, specPath string) {
 
 	entries, err := os.ReadDir(filepath.Join(dir, ".tp-review", "spec"))
 	require.NoError(t, err)
-	require.Len(t, entries, 1, "the emission leaves exactly the snapshot, no index")
+	names := make([]string, 0, len(entries))
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+	// The snapshot, and the inbox holding the round's file pools
+	// (engine.AuditPoolsPath): in-flight state, and no index.
+	require.Equal(t, []string{"audit-inbox", "snapshot-audit-round-1.md"}, names, "the emission leaves the snapshot and its inbox, no index")
 	return dir, specPath
 }
 
