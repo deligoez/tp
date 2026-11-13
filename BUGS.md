@@ -18,12 +18,6 @@ fix needs a design choice leaves this file for a decision note.
 
 ## Fix track
 
-- **The first push waits for all three derivations, one after another.** A cold `/api/events`
-  stream sends nothing until `Live()` has derived the epic export, the task file list and the
-  summary in turn. Repro (v1.16.0, the synthetic graph of the graph-card prototype): the
-  three take ~58, ~43 and ~54 ms, `Live()` 164–206 ms, and the first byte of a cold stream arrives
-  at 215 ms on an idle machine; under load the operator saw ~2 s of blank page. Failing test: the
-  live derivations run concurrently and keep their order.
 
 ## Decided elsewhere, not a fix
 
