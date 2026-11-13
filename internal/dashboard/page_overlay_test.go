@@ -52,3 +52,22 @@ func TestPage_AMissedGestureEndNeverSticks(t *testing.T) {
 	}
 }
 
+// TestPage_TheFullScreenPillShrinksItsSearchNotItsEnds is the review's H2:
+// Fit and Exit keep their place at the pill's end and never shrink; the
+// search gives way down to 8rem and the mode switch shortens its words
+// before them; beside the drawer the pill stays in the part of the screen
+// the drawer leaves.
+func TestPage_TheFullScreenPillShrinksItsSearchNotItsEnds(t *testing.T) {
+	t.Parallel()
+	page, _ := pageText(t)
+	for _, s := range []string{
+		"body.mapfs .gcard.fs #gc-fit, body.mapfs .gcard.fs #gc-full { order: 10; flex-shrink: 0; }",
+		"body.mapfs .gcard.fs #gc-q { flex: 1 1 12rem; min-width: 8rem; }",
+		"body.mapfs .gcard.fs .toolbar .seg { flex: 0 1 auto; min-width: 0; }",
+		"body.mapfs .gcard.fs .toolbar .seg button { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }",
+		"body.mapfs.dopen .gcard.fs .toolbar { left: calc((100% - var(--drawer-w)) / 2); max-width: calc(100% - var(--drawer-w) - 24px); }",
+	} {
+		assert.Contains(t, page, s)
+	}
+}
+
