@@ -349,3 +349,14 @@ func TestPage_TheAuditsPageItemsAreInPlace(t *testing.T) {
 		assert.Contains(t, script, s)
 	}
 }
+
+// TestPage_TheFullScreenPillKeepsItsControlsWhole: beside an open drawer
+// the full-screen toolbar keeps every control on one line and whole, and
+// its count gives way first, as the 1440 × 900 screenshot with an epic
+// selected showed it must.
+func TestPage_TheFullScreenPillKeepsItsControlsWhole(t *testing.T) {
+	t.Parallel()
+	page, _ := pageText(t)
+	assert.Contains(t, page, "body.mapfs .gcard.fs .toolbar > *, body.mapfs .gcard.fs .toolbar .seg button { flex: none; white-space: nowrap; }")
+	assert.Contains(t, page, "@container (max-width: 1240px) { body.mapfs .gcard.fs .gcountfs { display: none; } }")
+}
