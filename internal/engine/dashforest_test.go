@@ -49,3 +49,22 @@ func TestForestLayout_GoldenBandsAndBackEdges(t *testing.T) {
 	assert.Equal(t, ForestPlace{3, 3}, got.Places["y"])
 }
 
+// TestForestLayout_GoldenRowPacking pins the row packing: two groups of
+// one root and two children, seven tree columns wide with the group gap,
+// squeezed into the four columns of the fullest layer, each layer keeping
+// its left-to-right order.
+func TestForestLayout_GoldenRowPacking(t *testing.T) {
+	t.Parallel()
+	ids := []string{"a0", "a1", "a2", "b0", "b1", "b2"}
+	edges := []LayoutEdge{{"a0", "a1"}, {"a0", "a2"}, {"b0", "b1"}, {"b0", "b2"}}
+	groupOf := map[string]string{"a0": "a", "a1": "a", "a2": "a", "b0": "b", "b1": "b", "b2": "b"}
+	tree := ForestLayout(ids, edges, nil, nil, groupOf, PackTree)
+	assert.InDelta(t, 7.0, tree.Columns, 0)
+	got := ForestLayout(ids, edges, nil, nil, groupOf, PackRows)
+	assert.InDelta(t, 4.0, got.Columns, 0)
+	assert.Equal(t, map[string]ForestPlace{
+		"a0": {0, 0}, "b0": {0, 3},
+		"a1": {1, 0}, "a2": {1, 1}, "b1": {1, 2}, "b2": {1, 3},
+	}, got.Places)
+}
+
