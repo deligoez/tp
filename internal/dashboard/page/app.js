@@ -91,7 +91,6 @@
       $("tab-" + t).setAttribute("aria-selected", String(t === tab));
       $("view-" + t).hidden = t !== tab;
     });
-    if (tab === "epics") measureCards();
     syncURL();
   }
 
@@ -229,14 +228,20 @@
     }
   });
 
-  // Milestone state (§6): one entry per milestone in track order, read from
+  // Milestone state (§6): one card per milestone in track order, read from
   // the export's milestones: open or closed with what it waits on, its gate's
-  // members done of members (deferrable members in neither), and its
-  // threshold's state. A threshold and a purpose show three lines; a
-  // milestone msView.open holds shows them in full, and the control that
-  // opens one shows only when a text is cut.
+  // members done of members (deferrable members in neither), and one line
+  // (tpPure.msLine), the gate's purpose when it has one, else its threshold,
+  // cut to the card's width with the whole text in its title. A card is a
+  // button that opens its milestone in the drawer (milestoneHTML), where the
+  // threshold and the purpose read in full; msView.detail is the one shown.
   const THRESHOLD_LABEL = {"written": "threshold written", "absent": "no threshold", "placeholder": "placeholder threshold", "met": "threshold met"};
-  const msView = { open: new Set() };
+  const msView = { detail: null };
+  const gateOf = (g, id) => (((g.graph || {}).gates || {})[id]) || {};
+  const thresholdLine = (m) => {
+    const th = (m.state || {}).threshold || "absent";
+    return th === "written" && m.gate && m.gate.threshold ? "threshold: " + m.gate.threshold : THRESHOLD_LABEL[th] || th;
+  };
   panel(["epic-export"], () => {
     const g = data("epic-export");
     const box = $("msstate");
@@ -247,38 +252,18 @@
     box.innerHTML = '<span class="plab">Milestones</span><div class="mscells">' + ms.map((m) => {
       const s = m.state || {};
       const waits = m.waiting_on && m.waiting_on.length ? "waits on " + m.waiting_on.join(", ") : "";
-      const th = s.threshold || "absent";
-      const purpose = ((((g.graph || {}).gates || {})[m.milestone]) || {}).purpose;
+      const line = tpPure.msLine(gateOf(g, m.milestone).purpose, thresholdLine(m));
       const dc = described[m.milestone] || { described: 0, all: 0 };
-      const full = msView.open.has(m.milestone);
-      const clamp = full ? "" : " clamp";
-      return '<div class="ms" data-open="' + !!m.open + '"><b>' + esc(m.milestone) + '</b><span class="st" data-s="' + (m.open ? "done" : "stale") + '">' +
+      return '<button type="button" class="ms" data-ms="' + esc(m.milestone) + '" data-open="' + !!m.open + '" aria-expanded="false" aria-controls="drawer"><b>' + esc(m.milestone) + '</b><span class="st" data-s="' + (m.open ? "done" : "stale") + '">' +
         (m.open ? "open" : "closed") + "</span>" + (waits ? '<span class="sm muted">' + esc(waits) + "</span>" : "") +
-        '<span class="sm">gate ' + esc(s.members_done || 0) + " of " + esc(s.members || 0) + ' done</span><span class="sm th' + clamp + '" data-th="' + esc(th) + '">' +
-        esc(th === "written" && m.gate && m.gate.threshold ? "threshold: " + m.gate.threshold : THRESHOLD_LABEL[th] || th) + "</span>" +
-        (purpose && purpose.trim() ? '<span class="sm purpose' + clamp + '">purpose: ' + esc(purpose.trim()) + "</span>" : "") +
-        '<button type="button" class="more" data-msx="' + esc(m.milestone) + '" aria-expanded="' + full + '" aria-label="' + esc((full ? "Show less of " : "Show all of ") + m.milestone + "'s threshold and purpose") + '">' + (full ? "Show less" : "Show all") + "</button>" +
-        '<span class="sm muted">' + esc(dc.described + " of " + plural(dc.all, "epic", "epics") + " described") + "</span></div>";
+        '<span class="sm">gate ' + esc(s.members_done || 0) + " of " + esc(s.members || 0) + " done</span>" +
+        '<span class="sm line ' + (line.kind === "purpose" ? 'purpose"' : 'th" data-th="' + esc(s.threshold || "absent") + '"') + ' title="' + esc(line.text) + '">' + esc(line.text) + "</span>" +
+        '<span class="sm muted">' + esc(dc.described + " of " + plural(dc.all, "epic", "epics") + " described") + "</span></button>";
     }).join("") + "</div>";
-    measureCards();
   });
-  // measureCards hides a clamped card's control once its layout shows the
-  // clamp cut nothing (tpPure.cut); a card not laid out yet, in a hidden
-  // tab, keeps it until the cards change size and are measured again.
-  function measureCards() {
-    $("msstate").querySelectorAll('.more[aria-expanded="false"]').forEach((b) => {
-      b.hidden = tpPure.cut([...b.parentNode.querySelectorAll(".clamp")].map((el) => ({ scrollHeight: el.scrollHeight, clientHeight: el.clientHeight }))) === false;
-    });
-  }
-  new ResizeObserver(measureCards).observe($("msstate"));
   $("msstate").addEventListener("click", (ev) => {
-    const b = ev.target.closest("[data-msx]");
-    if (!b) return;
-    const key = focusKey(b);
-    if (msView.open.has(b.dataset.msx)) msView.open.delete(b.dataset.msx);
-    else msView.open.add(b.dataset.msx);
-    render();
-    refocus(key);
+    const b = ev.target.closest("[data-ms]");
+    if (b) openMilestone(b.dataset.ms);
   });
 
   // Lifecycle over time (§17): the summary's series, one band per stage after
@@ -329,7 +314,7 @@
 
   // What each panel and figure lists and where it comes from (§4).
   const INFO = {
-    band: "Work epics per stage, and per spec phase at the earliest phase of their bound specs; with no graph the phases count task files. From the summary's band. Click a stage to show only its epics on the map, again to clear; click a phase to open Specs at it. Milestones: each one open or closed by its opening order with what it waits on, its gate's members done out of members (deferrable members in neither count), and its threshold as written, absent, a placeholder or met, from the export's milestones.",
+    band: "Work epics per stage, and per spec phase at the earliest phase of their bound specs; with no graph the phases count task files. From the summary's band. Click a stage to show only its epics on the map, again to clear; click a phase to open Specs at it. Milestones: each one open or closed by its opening order with what it waits on, its gate's members done out of members (deferrable members in neither count), and one line: its gate's purpose when it has one, else its threshold as written, absent, a placeholder or met, from the export's milestones. A card opens its milestone in the drawer, with the threshold and the purpose in full.",
     share: "Work epics done over all work epics; condition epics are in no figure. From the summary's plan, the share tp epic status reports.",
     ready: "Work epics that can start now: open milestone, every dependency done, no bound spec, no claim. In tp epic ready's order, most downstream first.",
     critical: "Not-done epics on the longest dependency chain of the whole graph: tp epic status's top-level critical_path.",
@@ -1419,7 +1404,7 @@
   // /api/epic-history when it opens and again on every push.
   const epicHist = { id: null, data: null, error: null, seq: 0 };
   INFO.matrix = "Row depends on column: each number counts the dependency edges from the row milestone's epics to the column's, each member of an any-of group one, and its colour says how many of those dependencies are done. The diagonal is the milestone's own share of work epics done. From the summary's matrix and the export's milestones.";
-  INFO.drawer = "One epic from tp epic export and the graph: its fields, what it depends on and what depends on it with the whys, downstream (the not-done work epics that wait on it), the specs bound to it with their phase and loops, its stepper (claimed, with who claimed it, or skipped when it was bound unclaimed; bound; done), and its graph history from tp epic review --history --of-epic.";
+  INFO.drawer = "One epic from tp epic export and the graph: its fields, what it depends on and what depends on it with the whys, downstream (the not-done work epics that wait on it), the specs bound to it with their phase and loops, its stepper (claimed, with who claimed it, or skipped when it was bound unclaimed; bound; done), and its graph history from tp epic review --history --of-epic. A milestone card opens its milestone here instead: its gate's state, its threshold and purpose in full, and how many of its epics are described.";
   const ESTEPS = [["claimed", "Claimed"], ["bound", "Bound"], ["done", "Done"]];
   const PHASE_NAME = Object.fromEntries(PHASES);
 
@@ -1431,12 +1416,26 @@
   let opener = null;
   function selectEpic(id, centre) {
     if ($("drawer").hidden) opener = { el: document.activeElement, key: focusKey(document.activeElement) };
+    // An epic takes the drawer over from a milestone shown in it.
+    msView.detail = null;
     mapView.selected = id && id !== mapView.selected ? id : null;
     // A selection shows its neighbourhood unless a gate's closure is shown.
     if (mapView.selected && gview.view === "milestones") gview.view = null;
     drawMap();
     drawSelected();
     if (centre && mapView.selected && mapView.geo) mapPort.centre(mapView.geo.pos[mapView.selected]);
+  }
+
+  // openMilestone shows milestone id in the drawer, or closes the drawer
+  // when id is the milestone it shows; a selected epic gives way to it.
+  function openMilestone(id) {
+    if ($("drawer").hidden) opener = { el: document.activeElement, key: focusKey(document.activeElement) };
+    const shown = msView.detail === id && !mapView.selected;
+    const had = mapView.selected;
+    mapView.selected = null;
+    msView.detail = shown ? null : id;
+    if (had) drawMap();
+    drawSelected();
   }
 
   const graphEpic = (g, id) => ((g.graph && g.graph.epics) || []).find((e) => e.id === id) || null;
@@ -1840,7 +1839,7 @@
   // again: a map epic, a dependency-view node, a toggle by its data key
   // (tpPure.toggleKey), a waiting group's link by its group, or a list link
   // by its box; null for anything else.
-  const FOCUSABLE = "#mapsvg .node, #gsvg .gnode, [data-epic], [data-msx], [data-wsec], [data-wall]";
+  const FOCUSABLE = "#mapsvg .node, #gsvg .gnode, [data-epic], [data-ms], [data-wsec], [data-wall]";
   function focusKey(el) {
     if (!el || !el.closest) return null;
     const toggle = el.dataset ? tpPure.toggleKey(el.dataset) : null;
@@ -1879,7 +1878,9 @@
     const g = data("epic-export");
     const id = mapView.selected;
     const e = g && id ? (g.epics || []).find((x) => x.id === id) : null;
-    const open = !!e && state.tab === "epics";
+    const msd = !e && msView.detail && g ? (g.milestones || []).find((m) => m.milestone === msView.detail) : null;
+    const open = (!!e || !!msd) && state.tab === "epics";
+    document.querySelectorAll("#msstate [data-ms]").forEach((b) => b.setAttribute("aria-expanded", String(open && !!msd && b.dataset.ms === msd.milestone)));
     $("drawer").hidden = !open;
     document.body.classList.toggle("dopen", open);
     // Opening takes focus to the close button; closing gives it back.
@@ -1891,6 +1892,13 @@
     }
     if (!open && drawerReturn) returnFocus();
     if (!open) return;
+    $("dkind").textContent = msd ? "Milestone" : "Epic";
+    $("drawer").setAttribute("aria-label", msd ? "Milestone detail" : "Epic detail");
+    $("dclose").setAttribute("aria-label", msd ? "Close the milestone detail" : "Close the epic detail");
+    if (msd) {
+      $("dbody").innerHTML = milestoneHTML(g, msd);
+      return;
+    }
     const ge = graphEpic(g, id) || {};
     const ms = (g.milestones || []).find((m) => m.milestone === e.milestone) || {};
     const crit = ((g.critical_path && g.critical_path.by_count) || []).includes(id);
@@ -1924,6 +1932,24 @@
       "<div><h4>Depends on</h4>" + (deps ? '<ul class="elist">' + deps + "</ul>" : none("Nothing.")) + "</div>" +
       "<div><h4>Depended on by</h4>" + (needs ? '<ul class="elist">' + needs + "</ul>" : none("Nothing.")) + "</div>" +
       "<div><h4>Graph history " + info("ehistory", "its graph history") + "</h4>" + epicHistoryHTML(id) + "</div>";
+  }
+  // milestoneHTML is a milestone's detail in the drawer: its gate's state,
+  // its threshold and purpose in full, which its card cuts to one line, and
+  // how many of its epics are described.
+  function milestoneHTML(g, m) {
+    const s = m.state || {};
+    const gate = gateOf(g, m.milestone);
+    const th = s.threshold || "absent";
+    const text = String((m.gate && m.gate.threshold) || gate.threshold || "").trim();
+    const dc = tpPure.describedCounts((g.graph && g.graph.epics) || [])[m.milestone] || { described: 0, all: 0 };
+    const waits = m.waiting_on && m.waiting_on.length ? ", waits on " + m.waiting_on.join(", ") : "";
+    const fields = [
+      ["Gate", (m.open ? "open" : "closed") + waits + "; " + (s.members_done || 0) + " of " + plural(s.members || 0, "member", "members") + " done"],
+      ["Threshold", (THRESHOLD_LABEL[th] || th) + (text ? ": " + text : "")],
+      ["Purpose", String(gate.purpose || "").trim() || "none written"],
+      ["Described", dc.described + " of " + plural(dc.all, "epic", "epics") + " described"],
+    ];
+    return "<h3>" + esc(m.milestone) + "</h3><dl>" + fields.map(([k, v]) => "<dt>" + esc(k) + "</dt><dd>" + esc(v) + "</dd>").join("") + "</dl>";
   }
   INFO.ehistory = "How this epic's edges and whys read in each recorded round of every epic review slice whose snapshot holds it, from tp epic review --history --of-epic. A round recorded before snapshots kept their text holds hashes only, so it shows no edge or why.";
 

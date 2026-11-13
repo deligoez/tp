@@ -275,13 +275,12 @@
       "; the Lifecycle and the share count the work epics";
   };
 
-  // cut says whether a clamp cut a card's text, from metrics, the
-  // scrollHeight and clientHeight of each of its clamped boxes: true when
-  // one holds more than it shows, false when none does, and null while a
-  // box has no height (a hidden tab), when nothing can be told yet.
-  P.cut = function (metrics) {
-    if (metrics.some((m) => !m.clientHeight)) return null;
-    return metrics.some((m) => m.scrollHeight > m.clientHeight + 1);
+  // msLine is a milestone card's one line: its gate's purpose when it has
+  // one, since that says what the milestone is for, else threshold, the
+  // threshold as the card words it.
+  P.msLine = function (purpose, threshold) {
+    const p = String(purpose || "").trim();
+    return p ? { kind: "purpose", text: p } : { kind: "threshold", text: threshold };
   };
 
   // balancedColumns is the column count for n cards of at least minCard px
@@ -367,10 +366,10 @@
     return (saved.keys || []).find((k) => candidates.includes(k)) || null;
   };
 
-  // TOGGLES are the data attributes of the buttons that fold or open part
-  // of a card: a milestone card's Show all, a Waiting section's header and a
-  // Waiting section's Show all.
-  const TOGGLES = ["msx", "wsec", "wall"];
+  // TOGGLES are the data attributes of the buttons a redraw replaces and
+  // focus must find again: a milestone card, which opens the milestone in
+  // the drawer, a Waiting section's header and a Waiting section's Show all.
+  const TOGGLES = ["ms", "wsec", "wall"];
 
   // toggleKey is the key of a toggle button from its dataset, so focus finds
   // the button a redraw put in its place; null for any other element.
