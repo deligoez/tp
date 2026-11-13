@@ -114,6 +114,14 @@ func (d *driver) integratePending() error {
 // the task there, and on a refused pick or a failed gate restores the main
 // branch and reopens the task to run alone.
 func (d *driver) integrateOne(tf *model.TaskFile, p *PendingClose) error {
+	// A driver that died after the close but before removing the request
+	// leaves both; the task is done, so the request is only dropped.
+	if task, _, err := model.FindTask(tf, p.ID); err == nil && task.Status == model.StatusDone {
+		if rmErr := RemovePendingClose(d.opts.Root, d.opts.TaskFile, p.ID); rmErr != nil {
+			return driverErrorf(rmErr, "remove the pending close of %q", p.ID)
+		}
+		return nil
+	}
 	pre, err := gitOut(d.opts.Root, "rev-parse", "HEAD")
 	if err != nil {
 		return driverErrorf(err, "read the main branch's HEAD")
