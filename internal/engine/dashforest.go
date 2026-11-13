@@ -92,7 +92,7 @@ type ForestInput struct {
 // layer then file order, and packed left to right as Pack says. An edge
 // naming an id not in IDs, or a node to itself, is laid out as no edge and
 // its role is RoleBack. One input always lays out alike.
-func ForestLayout(in ForestInput) Forest {
+func ForestLayout(in *ForestInput) Forest {
 	ids, edges, bands, bandOf := in.IDs, in.Edges, in.Bands, in.BandOf
 	file := make(map[string]int, len(ids))
 	for i, id := range ids {
@@ -217,7 +217,7 @@ func forestEdgeKept(file map[string]int, e LayoutEdge) bool {
 // parent's edge, or -1 for a root: of the edges into it from an earlier
 // layer and a node of its own group, the one from the deepest layer, then
 // the earliest dependency in file order, then the earliest edge.
-func primaryParents(edges []LayoutEdge, file map[string]int, layer map[string]int, groupOf map[string]string) []int {
+func primaryParents(edges []LayoutEdge, file, layer map[string]int, groupOf map[string]string) []int {
 	parent := slices.Repeat([]int{-1}, len(file))
 	for i, e := range edges {
 		if !forestEdgeKept(file, e) || layer[e.From] >= layer[e.To] || groupOf[e.From] != groupOf[e.To] {

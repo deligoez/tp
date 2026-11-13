@@ -346,7 +346,7 @@ func layoutOf(view string, ids []string, edges []layoutEdge, bands []string, ban
 		in[i] = engine.LayoutEdge{From: e.From, To: e.To}
 	}
 	l := engine.LayeredLayout(ids, in, bands, bandOf)
-	f := engine.ForestLayout(engine.ForestInput{IDs: ids, Edges: in, Bands: bands, BandOf: bandOf, GroupOf: groupOf, LaneOf: laneOf, Pack: pack})
+	f := engine.ForestLayout(&engine.ForestInput{IDs: ids, Edges: in, Bands: bands, BandOf: bandOf, GroupOf: groupOf, LaneOf: laneOf, Pack: pack})
 	out := dashboardLayout{View: view, Layers: f.Layers, Packing: string(pack), Columns: f.Columns, Bands: f.Bands, Nodes: make([]layoutNode, 0, len(ids)), Edges: edges}
 	if out.Edges == nil {
 		out.Edges = []layoutEdge{}
