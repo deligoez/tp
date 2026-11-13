@@ -85,3 +85,14 @@ out(pairs);`)
 	assert.Contains(t, css, `.gcard .legend button[aria-pressed="false"] { color: var(--muted); text-decoration: line-through; }`)
 }
 
+// TestPure_AHueIsNudgedUntilItReadsAgainstThePage: a status hue below the
+// contrast asked of it against the page is moved toward white on a dark
+// page and toward black on a light one, step by step, until it reaches it;
+// a hue that already reads is left as it is.
+func TestPure_AHueIsNudgedUntilItReadsAgainstThePage(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const light = [238, 241, 245], dark = [16, 22, 28];
+const a = P.nudgeContrast([184, 193, 203], light, 3), b = P.nudgeContrast([58, 69, 82], dark, 3), c = P.nudgeContrast([20, 20, 20], light, 3);
+out([P.contrast(a, light) >= 3, a[0] < 184, P.contrast(b, dark) >= 3, b[0] > 58, c, Math.round(P.contrast([0, 0, 0], [255, 255, 255]))]);`)
+	assert.JSONEq(t, `[true, true, true, true, [20, 20, 20], 21]`, got)
+}
