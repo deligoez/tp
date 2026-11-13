@@ -1347,21 +1347,18 @@
     const ms = (g.milestones || []).find((m) => m.milestone === e.milestone) || {};
     const crit = ((g.critical_path && g.critical_path.by_count) || []).includes(id);
     const down = e.downstream;
-    // A dependency row is the epic's mark as a dot, its id and its why on one
-    // or two lines; the full why is its tooltip.
-    const dot = (x) => {
-      const xe = (g.epics || []).find((y) => y.id === x);
-      if (!xe) return "";
-      const mk = markOf(xe, (g.milestones || []).find((m) => m.milestone === xe.milestone)).mark;
-      const name = esc(word(MARK_LABEL, mk));
-      return '<i class="ddot" role="img" aria-label="' + name + '" title="' + name + '" style="background:var(' + tpPure.markToken(mk) + ')"></i>';
-    };
+    // A dependency row is its id and its why on one or two lines, the full
+    // why its tooltip. A done dependency is muted and carries a tick named
+    // done; an open one carries nothing, so what still blocks reads first.
+    const doneMark = CHECK.replace('aria-hidden="true"', 'role="img" aria-label="' + esc(t("mark.done")) + '"');
+    const isDone = (x) => ((g.epics || []).find((y) => y.id === x) || {}).status === "done";
     const why = (w) => (w ? '<span class="dwhy" title="' + esc(w) + '">' + esc(w) + "</span>" : "");
-    const deps = (ge.depends_on || []).map((d) => "<li>" + (d.any_of ? '<span class="muted">' + esc(t("wait.oneOf")) + "</span> " : "") +
-      (d.any_of || [d.id]).map((x) => dot(x) + epicLink(x)).join(", ") + why(d.why) + "</li>");
+    const row = (ids, inner) => "<li" + (ids.every(isDone) ? ' class="dn"' : "") + ">" + inner + "</li>";
+    const deps = (ge.depends_on || []).map((d) => row(d.any_of || [d.id], (d.any_of ? '<span class="muted">' + esc(t("wait.oneOf")) + "</span> " : "") +
+      (d.any_of || [d.id]).map((x) => epicLink(x) + (isDone(x) ? " " + doneMark : "")).join(", ") + why(d.why)));
     const needs = [...new Set(mapView.dependents[id] || [])].map((y) => {
       const d = (mapView.deps[y] || []).find((x) => x.id === id) || {};
-      return "<li>" + dot(y) + epicLink(y) + groupHTML(d.group) + why(d.why) + "</li>";
+      return row([y], epicLink(y) + (isDone(y) ? " " + doneMark : "") + groupHTML(d.group) + why(d.why));
     });
     // A list past five rows folds the rest; what is open stays open across
     // the redraws a push or the history's fetch brings.
@@ -1382,14 +1379,14 @@
       ge.acceptance ? [t("drawer.f.acceptance"), ge.acceptance] : null,
       ge.done ? [t("drawer.f.done"), stamp(ge.done.at) + (ge.done.evidence ? ": " + ge.done.evidence : "")] : null,
     ].filter(Boolean);
-    $("dbody").innerHTML = '<div><div class="dmeta"><code>' + esc(id) + "</code><span>" + esc(e.condition ? t("drawer.condition") : t("drawer.workEpic")) + "</span>" + (crit ? '<span class="critpill">' + esc(t("wait.critical")) + "</span>" : "") + "</div><h3>" + esc(e.title) + "</h3></div>" +
+    $("dbody").innerHTML = '<div><div class="dmeta"><code>' + esc(id) + "</code>" + (e.condition ? "<span>" + esc(t("drawer.condition")) + "</span>" : "") + (crit ? '<span class="critpill">' + esc(t("wait.critical")) + "</span>" : "") + "</div><h3>" + esc(e.title) + "</h3></div>" +
       (e.condition ? '<p class="impact">' + t.html("drawer.conditionNote_html", { id }) + "</p>" : epicStepper(e, ge.claimed !== undefined ? ge : null)) +
       "<dl>" + fields.map(([k, v, html]) => "<dt>" + esc(k) + "</dt><dd>" + (html ? v : esc(v)) + "</dd>").join("") + "</dl>" +
       (String(ge.description || "").trim() ? descHTML(ge.description) : "") +
       ((e.files || []).length ? "<div><h4>" + esc(t("drawer.specs")) + '</h4><ul class="elist">' + e.files.map(fileLine).join("") + "</ul></div>" : "") +
       "<div><h4>" + esc(t("drawer.dependsOn")) + "</h4>" + rows("deps", deps) + "</div>" +
       "<div><h4>" + esc(t("drawer.dependedOnBy")) + "</h4>" + rows("needs", needs) + "</div>" +
-      "<div><h4>" + esc(t("drawer.history")) + " " + info("ehistory", t("drawer.history")) + "</h4>" + fold("history", "<summary>" + esc(t("drawer.historyShow")) + "</summary>" + epicHistoryHTML(id)) + "</div>";
+      fold("history", "<summary><h4>" + esc(t("drawer.history")) + "</h4></summary>" + info("ehistory", t("drawer.history")) + epicHistoryHTML(id));
   }
   INFO.ehistory = tk("info.ehistory");
 
