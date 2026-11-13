@@ -90,3 +90,19 @@ func TestPure_ALongEdgeSpansThreeLayersOrEightColumns(t *testing.T) {
 	got := runPure(t, `out([P.edgeLong(1, 0), P.edgeLong(2, 7), P.edgeLong(3, 0), P.edgeLong(0, 8), P.edgeLong(1, -9), P.edgeLong(-3, 0)]);`)
 	assert.JSONEq(t, `[false, false, true, true, true, true]`, got)
 }
+
+// TestPure_TheEdgeLayersRunCrossLongTreeTreeCritical: the card's edge
+// layers run bottom to top as plain cross edges, any-of edges, long tree
+// edges, short tree edges, the critical path; every drawn edge sits in one.
+// With cross edges hidden, the cross edges of the selection's own chain
+// still draw.
+func TestPure_TheEdgeLayersRunCrossLongTreeTreeCritical(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const links = [
+  { role: "tree" }, { role: "tree", long: true }, { role: "back", long: true }, { role: "cross" }, { role: "cross", long: true, mine: true },
+  { role: "tree", critical: true, long: true }, { role: "tree", any: true, long: true },
+];
+const count = (v) => { const s = P.edgeLayers(links, v); return [s.cross.length, s.any.length, s.long.length, s.tree.length, s.crit.length, s.drawn]; };
+out([count({ showCross: true, hidden: [] }), count({ showCross: false, hidden: [] }), count({ showCross: false, hidden: [], own: (l) => !!l.mine })]);`)
+	assert.JSONEq(t, `[[2, 1, 2, 1, 1, 7], [0, 1, 2, 1, 1, 5], [1, 1, 2, 1, 1, 6]]`, got)
+}
