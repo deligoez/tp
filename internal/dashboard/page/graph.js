@@ -46,8 +46,8 @@
   // Below this on-screen glyph height ids are not drawn: boxes are blocks.
   const MIN_TEXT_PX = 7;
   // The neighbourhood opens no further out than this, where an epic's
-  // 11-unit id still reads above MIN_TEXT_PX.
-  const NEAR_ZOOM = -0.6;
+  // 11-unit id reads at its full 11 pixels.
+  const NEAR_ZOOM = 0;
   const CURVE = 10;
   // One arrow key pans this many screen pixels; + and − zoom by ZOOM_STEP.
   const PAN_PX = 90;
