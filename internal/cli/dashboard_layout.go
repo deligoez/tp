@@ -220,7 +220,9 @@ func layoutDepth(q url.Values) (int, bool) {
 }
 
 // milestonesLayout is the overview: every tracked milestone, an edge from
-// each milestone it opens after, and its counts.
+// each milestone it opens after, and its counts, each milestone grouped by
+// its track as the plan groups its epics, so a track keeps its columns and
+// an edge from another track is a cross edge.
 func milestonesLayout(g *model.EpicGraph, states map[string]engine.EpicState, pack engine.ForestPacking) dashboardLayout {
 	ids := trackedMilestones(g)
 	after := engine.EffectiveOpensAfter(g)
@@ -232,7 +234,7 @@ func milestonesLayout(g *model.EpicGraph, states map[string]engine.EpicState, pa
 	}
 	inbound := milestoneInbound(g)
 	gates := engine.MilestoneGates(g, states)
-	out := layoutOf(layoutViewMilestones, ids, edges, nil, nil, nil, nil, pack)
+	out := layoutOf(layoutViewMilestones, ids, edges, nil, nil, milestoneTracks(g), nil, pack)
 	for i := range out.Nodes {
 		m := out.Nodes[i].ID
 		f := engine.WorkFigures(g, states, nil, m)
