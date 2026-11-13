@@ -119,6 +119,11 @@ func (v *CheckVerdict) failure(class string) (CheckFailure, bool) {
 //  2. the cap is reached and a finding still carries no disposition → the only
 //     way out: disposition it in the recorded round file, then import. No
 //     further round is named, because the cap admits none.
+//     Next (2a), a carried blocking row (LoopDone.CarriedBlocking) stands while the
+//     latest round holds no blocking or undisposed finding of its own → name
+//     it and its two ways out: its disposition in its own round file, or an
+//     epoch if the spec was rewritten (CarriedBlockingClause). Another round
+//     cannot clear it, since its roles are told not to re-report it.
 //  3. a convergence-blocking finding survives in the latest recorded round →
 //     revise the spec, or disposition the finding in the recorded round file,
 //     then re-review. Both exits are named: a directive naming only the edit is
@@ -157,6 +162,12 @@ func ReviewNextAction(specPath string, done LoopDone, blockingUnresolved bool, m
 		return forward
 	case done.CapReached && done.BlockingFixedAtCap > 0:
 		return blockingFixedAtCap(done.BlockingFixedAtCap) + " — tp review " + roundFile + " --resolve <index> wontfix \"<evidence>\" --force — then " + importStep
+	case len(done.CarriedBlocking) > 0 && !blockingUnresolved && done.Undisposed == 0:
+		then := "then " + CheckGateCommand(specPath)
+		if done.CapReached {
+			then = "then " + importStep
+		}
+		return CarriedBlockingClause(done.CarriedBlocking, specPath) + " — " + then
 	case done.CapReached:
 		return "the review round cap is reached: disposition each remaining finding in " + roundFile +
 			" — tp review " + roundFile + " --resolve <index> fixed|wontfix|duplicate \"<evidence>\"; accepting a critical or high finding is the operator's decision — then " + importStep
