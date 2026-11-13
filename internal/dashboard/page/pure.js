@@ -375,6 +375,90 @@
     return nodes.filter((n) => described.has(n.id)).length + " of " + nodes.length + " in the closure described";
   };
 
+  // edgeDrawn says whether the graph card draws an edge l ({ role, critical,
+  // any }) under view ({ showCross, hidden: the legend's hidden classes }).
+  // An edge of the critical path is drawn whatever its class, so a view
+  // with cross edges hidden never shows the path with holes; only hiding
+  // the critical path itself hides it. Any other edge is hidden with its
+  // class or its any-of group, and a cross edge waits for showCross.
+  P.edgeDrawn = function (l, view) {
+    if (l.critical) return !view.hidden.includes("critical");
+    if (view.hidden.includes(l.role) || (l.any && view.hidden.includes("any"))) return false;
+    return l.role !== "cross" || view.showCross;
+  };
+
+  // edgeLayers splits the edges edgeDrawn keeps into the card's four
+  // layers, bottom to top: plain cross edges, any-of edges, tree and back
+  // edges, and the critical path; drawn is how many it kept, each in one
+  // layer, the count the card records.
+  P.edgeLayers = function (links, view) {
+    const out = { cross: [], any: [], tree: [], crit: [], drawn: 0 };
+    links.forEach((l) => {
+      if (!P.edgeDrawn(l, view)) return;
+      out.drawn++;
+      if (l.critical) out.crit.push(l);
+      else if (l.any) out.any.push(l);
+      else if (l.role === "cross") out.cross.push(l);
+      else out.tree.push(l);
+    });
+    return out;
+  };
+
+  // GRAPH_MODES are the graph card's modes, the first its default.
+  P.GRAPH_MODES = ["plan", "milestones", "scope", "neighbourhood"];
+
+  // graphParams is the graph card's place s ({ mode, milestone, depth, pack,
+  // showCross, q }) as address pairs, each only when it is not the default:
+  // gv the mode, gm the gate's milestone in Gate closure, gd the
+  // neighbourhood's depth, pack, cross and q the search.
+  P.graphParams = function (s) {
+    const out = [];
+    if (s.mode !== "plan") out.push(["gv", s.mode]);
+    if (s.mode === "scope" && s.milestone) out.push(["gm", s.milestone]);
+    if (s.depth !== 2) out.push(["gd", String(s.depth)]);
+    if (s.pack === "tree") out.push(["pack", "tree"]);
+    if (s.showCross) out.push(["cross", "1"]);
+    if (s.q) out.push(["q", s.q]);
+    return out;
+  };
+
+  // graphPlace reads the graph card's place back through get (an address
+  // key to its value or null), a value outside its set as the default.
+  P.graphPlace = function (get) {
+    const mode = get("gv");
+    const depth = get("gd") || "";
+    return {
+      mode: P.GRAPH_MODES.includes(mode) ? mode : "plan",
+      milestone: get("gm") || null,
+      depth: /^[1-4]$/.test(depth) ? Number(depth) : 2,
+      pack: get("pack") === "tree" ? "tree" : "rows",
+      showCross: get("cross") === "1",
+      q: get("q") || "",
+    };
+  };
+
+  // hops is every node next reaches from start, breadth first, mapped to
+  // its number of steps; start itself is not in it.
+  P.hops = function (start, next) {
+    const seen = new Map();
+    let front = [start];
+    for (let d = 1; front.length; d++) {
+      const reached = [];
+      front.forEach((v) => next(v).forEach((w) => {
+        if (w !== start && !seen.has(w)) { seen.set(w, d); reached.push(w); }
+      }));
+      front = reached;
+    }
+    return seen;
+  };
+
+  // chainAlpha is the opacity a node or edge of a selection's chain is drawn
+  // at, d steps from the selection: full within two, fading after, so a
+  // selection with hundreds of descendants keeps its near chain legible.
+  P.chainAlpha = function (d) {
+    return d <= 2 ? 255 : d === 3 ? 170 : 70;
+  };
+
   // relTime says how long ago ms milliseconds is, in its largest whole
   // unit; under ten seconds, or a clock gone backwards, is just now.
   P.relTime = function (ms) {
