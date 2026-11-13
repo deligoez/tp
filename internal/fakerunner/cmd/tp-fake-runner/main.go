@@ -13,11 +13,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/deligoez/tp/internal/engine"
 	"github.com/deligoez/tp/internal/fakerunner"
 )
 
@@ -153,11 +155,41 @@ func writeSpendLine() error {
 func durableWrite() error {
 	switch os.Getenv("TP_UNIT_KIND") {
 	case "implement":
-		return markTaskDone(os.Getenv("TP_FILE"), os.Getenv("TP_UNIT_ID"))
+		taskFile := os.Getenv("TP_FILE")
+		if root := engine.CanonicalProjectRoot(filepath.Dir(taskFile)); engine.LinkedWorktreeOf(".", root) {
+			return closePending(root, taskFile, os.Getenv("TP_UNIT_ID"))
+		}
+		return markTaskDone(taskFile, os.Getenv("TP_UNIT_ID"))
 	case "review-role", "audit-role":
 		return writeRoleFindings(os.Getenv("TP_ROUND_DIR"), os.Getenv("TP_UNIT_ID"))
 	}
 	return nil
+}
+
+// closePending is a batched implement unit's durable write: it commits one
+// file in its worktree (fakerunner.EnvFile names it, <id>.txt by default) and
+// writes the pending close tp done would.
+func closePending(root, taskFile, id string) error {
+	name := os.Getenv(fakerunner.EnvFile)
+	if name == "" {
+		name = id + ".txt"
+	}
+	if err := os.WriteFile(name, []byte(id+"\n"), 0o600); err != nil {
+		return err
+	}
+	for _, args := range [][]string{{"add", name}, {"commit", "-q", "-m", "unit " + id}} {
+		if out, err := exec.Command("git", args...).CombinedOutput(); err != nil {
+			return fmt.Errorf("git %v: %w: %s", args, err, out)
+		}
+	}
+	sha, err := exec.Command("git", "rev-parse", "HEAD").Output()
+	if err != nil {
+		return err
+	}
+	wd, _ := os.Getwd()
+	return engine.WritePendingClose(root, taskFile, &engine.PendingClose{
+		ID: id, Reason: "implemented by the fake runner", Commits: []string{strings.TrimSpace(string(sha))}, Worktree: wd,
+	})
 }
 
 // markTaskDone flips one task's status to done in the task file, the implement

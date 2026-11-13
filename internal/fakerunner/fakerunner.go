@@ -62,6 +62,10 @@ const (
 	// "bad" writes one that fails schema validation, and any other entry
 	// writes none.
 	EnvEscalate = "TP_FAKE_RUNNER_ESCALATE"
+	// EnvFile names the file a batched implement unit commits in its
+	// worktree, <id>.txt by default; two units naming one file conflict
+	// when the driver integrates the second.
+	EnvFile = "TP_FAKE_RUNNER_FILE"
 )
 
 // Invocation is one spawn of the fake runner, as it recorded itself.
