@@ -517,5 +517,8 @@
   "graph.edge.any": "seçenek grubu üyesi",
   "graph.waitsOn": "bekledikleri",
   "graph.waitedOn": "onu bekleyenler",
+  "graph.legendNodes": "Çizilen düğümler, her biri tek işaretle, koşul epic'leri dahil:",
+  "graph.near": "{n} ({near} tanesi iki adım içinde)",
+  "graph.whole": "Bütün zinciri göster",
   "graph.help": "Zincirini görmek için bir epic'e tıklayın; temizlemek için yeniden tıklayın ya da Esc'ye basın. / arar, Enter sonraki eşleşmeye gider · F sığdırır · K çapraz kenarları açıp kapar · odaklanmış tuvalde ok tuşları kaydırır, + − yakınlaştırır. Sürükleyince kayar; Ctrl ya da ⌘ ile tekerlek ya da iki parmak hareketi yakınlaştırır; tam ekranda tekerlek tek başına yakınlaştırır, Esc çıkar."
 }

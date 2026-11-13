@@ -517,5 +517,8 @@
   "graph.edge.any": "one of an any-of group",
   "graph.waitsOn": "what it waits on",
   "graph.waitedOn": "what waits on it",
+  "graph.legendNodes": "Nodes drawn, one mark each, conditions included:",
+  "graph.near": "{n} ({near} within two steps)",
+  "graph.whole": "Show the whole chain",
   "graph.help": "Click an epic for its chain, again or Esc to clear. / search, Enter the next match · F fit · K cross edges · on the focused canvas the arrows pan and + − zoom. Drag pans; Ctrl or ⌘ with the wheel, or a pinch, zooms; in full screen the wheel alone zooms and Esc leaves."
 }

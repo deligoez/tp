@@ -121,6 +121,7 @@
     if (G.deckState !== "idle") return;
     if (!hasWebGL2() || new URLSearchParams(location.search).has("nogl")) {
       G.deckState = "nogl";
+      card.classList.add("nogl");
       sayKey(tk("graph.noGL"));
       return;
     }
@@ -325,6 +326,9 @@
     P.ver++;
   }
   const inChain = (P, i) => P.sel < 0 || i === P.sel || P.anc.has(i) || P.desc.has(i);
+  // fade is a chain member's opacity, d steps out, faded past two steps
+  // unless the legend asks for the whole chain.
+  const fade = (d) => pure.chainAlpha(d, G.whole);
   const stepsOf = (P, i) => (i === P.sel ? 0 : Math.min(P.anc.get(i) || Infinity, P.desc.get(i) || Infinity));
   function matches(P) {
     const q = app.fold(G.q.trim());
@@ -340,7 +344,7 @@
   const staged = (n) => !n.status || app.inStage(n);
   function nodeAlpha(P, hits, n) {
     if (G.hiddenMarks.has(n.mark)) return 28;
-    if (P.sel >= 0) return inChain(P, n.i) ? pure.chainAlpha(stepsOf(P, n.i)) : 40;
+    if (P.sel >= 0) return inChain(P, n.i) ? pure.chainAlpha(stepsOf(P, n.i), G.whole) : 40;
     if (hits && !hits.has(n.i)) return 50;
     return staged(n) ? 255 : 50;
   }
@@ -357,7 +361,7 @@
     return (n) => {
       if (n.i === P.sel) return [...c.ink, 255];
       if (P.sel >= 0) {
-        const a = inChain(P, n.i) ? pure.chainAlpha(stepsOf(P, n.i)) : 60;
+        const a = inChain(P, n.i) ? fade(stepsOf(P, n.i)) : 60;
         if (P.anc.has(n.i)) return [...c.anc, a];
         if (P.desc.has(n.i)) return [...c.desc, a];
         return [...c.line, 60];
@@ -392,7 +396,7 @@
       if (P.sel >= 0) {
         if (!onChain(P, l)) return [...base, 14];
         const hue = l.critical ? c.crit : l.role === "back" ? c.back : P.anc.has(l.s) ? c.anc : c.desc;
-        return [...hue, pure.chainAlpha(Math.max(stepsOf(P, l.s), stepsOf(P, l.d)))];
+        return [...hue, fade(Math.max(stepsOf(P, l.s), stepsOf(P, l.d)))];
       }
       if (l.critical) return [...base, 235];
       if (l.role === "cross") return [...base, G.far ? 40 : 70];
@@ -649,7 +653,11 @@
     if (!P) { $("gc-legend").innerHTML = ""; return; }
     const c = G.colors;
     const rgb = (a) => "rgb(" + a.join(",") + ")";
-    const marks = MARKS.filter(([k]) => P.counts.marks[k]).map(([k]) =>
+    // The marks count the nodes drawn, one mark each and conditions
+    // included, so they differ from the plan figures above, which count
+    // work epics and let a held epic count as blocked too.
+    const head = '<span class="lh">' + escape(t("graph.legendNodes")) + "</span>";
+    const marks = head + MARKS.filter(([k]) => P.counts.marks[k]).map(([k]) =>
       '<button type="button" data-lmark="' + k + '" aria-pressed="' + !G.hiddenMarks.has(k) + '"><i style="background:' + rgb(c.mark[k]) + '"></i>' + escape(app.markWord(k)) + " <b>" + escape(app.tr().num(P.counts.marks[k])) + "</b></button>").join("");
     const ecol = { tree: c.muted, cross: c.muted, back: c.back, critical: c.crit, any: c.accent };
     const edges = EDGE_CLASSES.filter((k) => P.counts.edges[k]).map((k) =>
