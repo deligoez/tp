@@ -57,3 +57,11 @@ func TestLintEpicGraph_GateEmptySkipsAMilestoneNothingOpensAfter(t *testing.T) {
 	assert.Empty(t, findingsOf(t, LintEpicGraph(g, nil), EpicRuleGateEmpty))
 }
 
+// TestLintEpicGraph_GateEmptySkipsAMilestoneWithNoEpics: TG holds no epic
+// yet, so nothing in it looks like it holds T1.
+func TestLintEpicGraph_GateEmptySkipsAMilestoneWithNoEpics(t *testing.T) {
+	g := triggerGateGraph()
+	g.Epics = []model.Epic{dependsOn("a", "A"), dependsOn("t1", "T1")}
+	assert.Empty(t, findingsOf(t, LintEpicGraph(g, nil), EpicRuleGateEmpty))
+}
+
