@@ -28,3 +28,14 @@ func TestRoundsSinceEpoch_CutsEachPhaseAtTheNewestEpoch(t *testing.T) {
 	assert.Equal(t, []ReviewRound{{Round: 2}}, RoundsSinceEpoch(st, PhaseAudit))
 }
 
+// TestRoundsSinceEpoch_NoEpochKeepsEveryRound: without an epoch nothing is cut,
+// and a nil state has no rounds.
+func TestRoundsSinceEpoch_NoEpochKeepsEveryRound(t *testing.T) {
+	t.Parallel()
+	st := &ReviewState{ReviewRounds: []ReviewRound{{Round: 1}, {Round: 2}}}
+	assert.Equal(t, 0, EpochCut(st, PhaseReview))
+	assert.Equal(t, st.ReviewRounds, RoundsSinceEpoch(st, PhaseReview))
+	assert.Empty(t, RoundsSinceEpoch(nil, PhaseReview))
+	assert.Equal(t, 0, EpochCut(nil, PhaseAudit))
+}
+
