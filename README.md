@@ -616,7 +616,7 @@ tp is designed for AI agents first (AX), not humans (DX):
 | **Accepted rows are visible** | `tp audit --merge` breaks the round's non-`PASS` rows down as `by_severity`, and `next_action` names the accepted count |
 | **Honest merges** | `--merge` reports `inputs` per file and exits 1 when a role's whole file failed to parse |
 | **One prompt per unit** | `tp review`/`tp audit --role <name>` emit a single role's prompt, so a lost sub-agent costs one role, not the round |
-| **Honest audits** | `file_summary.truncated`/`total_changed` put the 50-file cap in the payload, where `--quiet` cannot erase it, and `spec_truncated` names a spec cut at 10,000 bytes |
+| **Honest audits** | `file_summary.truncated` is true whenever a cap cut what a role reads — the 50-file auto-detect cap or a role's own list cap — and `notices` names each cut (it survives `--compact` and `--quiet`); a recorded round says what each code role graded of its pool, and `spec_truncated` names a spec cut at 10,000 bytes |
 | **Evidence at record** | every finding row needs `severity`, `finding`, `location` and `evidence`, each non-empty after `strings.TrimSpace`; `--record` refuses the whole file and names every offending line, `--merge` drops the row and counts it under `inputs[].skipped` |
 | **A refused merge writes nothing** | `tp review --merge` and `tp audit --merge` decline the `-o` write when an input parsed nothing, so a refused merge leaves no file there and an existing one byte-identical, and `--record` then exits 3 on the missing input |
 
