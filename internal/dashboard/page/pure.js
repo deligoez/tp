@@ -283,6 +283,25 @@
     return p ? { kind: "purpose", text: p } : { kind: "threshold", text: threshold };
   };
 
+  // drawerNext is the drawer's next state from st, { detail, selected }, the
+  // milestone shown and the epic selected, after act: "milestone" opens
+  // act.id, or closes it when it is the one shown, an epic giving way;
+  // "epic" selects act.id, or clears the selection when it is the selected
+  // epic or null, a milestone giving way; "present" drops a milestone not in
+  // act.milestones, the ids a push carries, so it cannot come back by itself.
+  P.drawerNext = function (st, act) {
+    if (act.type === "milestone") return { detail: st.detail === act.id && !st.selected ? null : act.id, selected: null };
+    if (act.type === "epic") return { detail: null, selected: act.id && act.id !== st.selected ? act.id : null };
+    if (act.type === "present") return { detail: st.detail && act.milestones.includes(st.detail) ? st.detail : null, selected: st.selected };
+    return st;
+  };
+
+  // cardExpanded says whether milestone id's card reads expanded: while its
+  // milestone is the one the drawer shows.
+  P.cardExpanded = function (st, id) {
+    return !st.selected && st.detail === id;
+  };
+
   // escText escapes text for HTML, as the page's esc does.
   const escText = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 

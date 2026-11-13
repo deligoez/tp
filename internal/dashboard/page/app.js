@@ -1423,8 +1423,7 @@
   function selectEpic(id, centre) {
     if ($("drawer").hidden) opener = { el: document.activeElement, key: focusKey(document.activeElement) };
     // An epic takes the drawer over from a milestone shown in it.
-    msView.detail = null;
-    mapView.selected = id && id !== mapView.selected ? id : null;
+    moveDrawer({ type: "epic", id });
     // A selection shows its neighbourhood unless a gate's closure is shown.
     if (mapView.selected && gview.view === "milestones") gview.view = null;
     drawMap();
@@ -1436,12 +1435,21 @@
   // when id is the milestone it shows; a selected epic gives way to it.
   function openMilestone(id) {
     if ($("drawer").hidden) opener = { el: document.activeElement, key: focusKey(document.activeElement) };
-    const shown = msView.detail === id && !mapView.selected;
     const had = mapView.selected;
-    mapView.selected = null;
-    msView.detail = shown ? null : id;
+    moveDrawer({ type: "milestone", id });
     if (had) drawMap();
     drawSelected();
+  }
+
+  // The drawer's state is the milestone shown and the epic selected; it
+  // moves only by tpPure.drawerNext.
+  function drawerState() {
+    return { detail: msView.detail, selected: mapView.selected };
+  }
+  function moveDrawer(act) {
+    const next = tpPure.drawerNext(drawerState(), act);
+    msView.detail = next.detail;
+    mapView.selected = next.selected;
   }
 
   const graphEpic = (g, id) => ((g.graph && g.graph.epics) || []).find((e) => e.id === id) || null;
@@ -1884,9 +1892,12 @@
     const g = data("epic-export");
     const id = mapView.selected;
     const e = g && id ? (g.epics || []).find((x) => x.id === id) : null;
+    // A milestone a push dropped closes for good, so a later push that
+    // brings it back does not reopen the drawer and take focus.
+    if (g) moveDrawer({ type: "present", milestones: (g.milestones || []).map((m) => m.milestone) });
     const msd = !e && msView.detail && g ? (g.milestones || []).find((m) => m.milestone === msView.detail) : null;
     const open = (!!e || !!msd) && state.tab === "epics";
-    document.querySelectorAll("#msstate [data-ms]").forEach((b) => b.setAttribute("aria-expanded", String(open && !!msd && b.dataset.ms === msd.milestone)));
+    document.querySelectorAll("#msstate [data-ms]").forEach((b) => b.setAttribute("aria-expanded", String(open && tpPure.cardExpanded(drawerState(), b.dataset.ms))));
     $("drawer").hidden = !open;
     document.body.classList.toggle("dopen", open);
     // Opening takes focus to the close button; closing gives it back.
