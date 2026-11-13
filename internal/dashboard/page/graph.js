@@ -62,7 +62,7 @@
   const EDGE_CLASSES = ["tree", "cross", "back", "critical", "any"];
 
   const G = {
-    mode: "plan", milestone: null, depth: 2, showCross: false, q: "",
+    mode: "plan", milestone: null, depth: 2, showCross: false, msCross: true, whole: false, centre: null, q: "",
     hiddenMarks: new Set(), hiddenEdges: new Set(),
     data: null, key: null, dataKey: null, error: null, seq: 0, seen: null,
     deck: null, deckState: "idle", visible: false, built: null, builtFor: null, prepared: null,
@@ -407,9 +407,10 @@
   // edgeSets is the four edge layers' data (tpPure.edgeLayers), kept while
   // the drawing and the toggles that choose them stay the same.
   function edgeSets(P) {
-    const key = P.ver + "|" + G.showCross + "|" + [...G.hiddenEdges].join();
+    const shown = pure.crossShown(G);
+    const key = P.ver + "|" + shown + "|" + [...G.hiddenEdges].join();
     if (G.setsKey !== key || G.sets === null || G.sets.of !== P) {
-      G.sets = { ...pure.edgeLayers(P.links, { showCross: G.showCross, hidden: [...G.hiddenEdges] }), of: P };
+      G.sets = { ...pure.edgeLayers(P.links, { showCross: shown, hidden: [...G.hiddenEdges] }), of: P };
       G.setsKey = key;
     }
     return G.sets;
@@ -423,7 +424,7 @@
     const scale = Math.pow(2, G.vs.zoom);
     G.far = P.geo.fs * scale < MIN_TEXT_PX;
     const hits = matches(P);
-    const v = [P.ver, G.q, G.far, G.showCross, [...G.hiddenMarks].join(), [...G.hiddenEdges].join(), c.dark, app.stage()];
+    const v = [P.ver, G.q, G.far, pure.crossShown(G), G.whole, [...G.hiddenMarks].join(), [...G.hiddenEdges].join(), c.dark, app.stage()];
     const fontSettings = { sdf: true, fontSize: 64, buffer: 6, radius: 12, cutoff: 0.22 };
     const dash = window.deck.PathStyleExtension ? [new window.deck.PathStyleExtension({ dash: true })] : [];
     const sets = edgeSets(P);
@@ -611,7 +612,7 @@
     }
     $("gc-ms").value = gateMilestone(g) || "";
     $("gc-depth").value = String(G.depth);
-    $("gc-cross").setAttribute("aria-pressed", String(G.showCross));
+    $("gc-cross").setAttribute("aria-pressed", String(pure.crossShown(G)));
     $("gc-theme").textContent = G.colors && G.colors.dark ? t("graph.light") : t("graph.dark");
     if ($("gc-q").value !== G.q && document.activeElement !== $("gc-q")) $("gc-q").value = G.q;
   }
@@ -624,8 +625,12 @@
       '<button type="button" data-lmark="' + k + '" aria-pressed="' + !G.hiddenMarks.has(k) + '"><i style="background:' + rgb(c.mark[k]) + '"></i>' + escape(app.markWord(k)) + " <b>" + escape(app.tr().num(P.counts.marks[k])) + "</b></button>").join("");
     const ecol = { tree: c.muted, cross: c.muted, back: c.back, critical: c.crit, any: c.accent };
     const edges = EDGE_CLASSES.filter((k) => P.counts.edges[k]).map((k) =>
-      '<button type="button" data-ledge="' + k + '" aria-pressed="' + (k === "cross" ? G.showCross : !G.hiddenEdges.has(k)) + '"><i class="ln" style="background:' + rgb(ecol[k]) + (k === "cross" ? ";opacity:.45" : "") + '"></i>' + escape(t(EDGE_TEXT[k])) + " <b>" + escape(app.tr().num(P.counts.edges[k])) + "</b></button>").join("");
-    const sel = P.sel >= 0 ? '<span><i class="ln" style="background:' + rgb(c.anc) + '"></i>' + escape(t("graph.waitsOn")) + " <b>" + P.anc.size + '</b></span><span><i class="ln" style="background:' + rgb(c.desc) + '"></i>' + escape(t("graph.waitedOn")) + " <b>" + P.desc.size + "</b></span>" : "";
+      '<button type="button" data-ledge="' + k + '" aria-pressed="' + (k === "cross" ? pure.crossShown(G) : !G.hiddenEdges.has(k)) + '"><i class="ln" style="background:' + rgb(ecol[k]) + (k === "cross" ? ";opacity:.45" : "") + '"></i>' + escape(t(EDGE_TEXT[k])) + " <b>" + escape(app.tr().num(P.counts.edges[k])) + "</b></button>").join("");
+    // The chain's counts say how many lie within two steps, the part drawn
+    // full, and a toggle draws the whole chain full.
+    const sel = P.sel >= 0 ? '<span><i class="ln" style="background:' + rgb(c.anc) + '"></i>' + escape(t("graph.waitsOn")) + " <b>" + escape(t("graph.near", { n: P.anc.size, near: pure.withinTwo(P.anc) })) +
+      '</b></span><span><i class="ln" style="background:' + rgb(c.desc) + '"></i>' + escape(t("graph.waitedOn")) + " <b>" + escape(t("graph.near", { n: P.desc.size, near: pure.withinTwo(P.desc) })) + "</b></span>" +
+      '<button type="button" data-lwhole aria-pressed="' + G.whole + '">' + escape(t("graph.whole")) + "</button>" : "";
     $("gc-legend").innerHTML = marks + '<span class="lhead"></span>' + edges + sel +
       '<span class="help">' + escape(t("graph.help")) + (G.loadMs !== null ? " " + escape(t("graph.loadedIn", { ms: G.loadMs })) : "") + "</span>";
   }
@@ -638,9 +643,12 @@
     } else if (e) {
       const k = e.dataset.ledge;
       if (k === "cross") {
-        G.showCross = !G.showCross;
-        app.syncURL();
-      } else if (G.hiddenEdges.has(k)) G.hiddenEdges.delete(k); else G.hiddenEdges.add(k);
+        toggleCross();
+        return;
+      }
+      if (G.hiddenEdges.has(k)) G.hiddenEdges.delete(k); else G.hiddenEdges.add(k);
+    } else if (ev.target.closest("[data-lwhole]")) {
+      G.whole = !G.whole;
     } else return;
     drawLegend();
     drawToolbar(app.data("epic-export") || {});
@@ -652,13 +660,18 @@
   });
   $("gc-ms").addEventListener("change", (ev) => setPlace({ mode: "scope", milestone: ev.target.value }));
   $("gc-depth").addEventListener("change", (ev) => setPlace({ depth: Number(ev.target.value) }));
-  $("gc-cross").addEventListener("click", () => {
-    G.showCross = !G.showCross;
+  // toggleCross shows or hides the plain cross edges: Milestones' own
+  // flag, drawn until hidden, or the epic modes', hidden until shown and
+  // kept in the address.
+  function toggleCross() {
+    if (G.mode === "milestones") G.msCross = !G.msCross;
+    else G.showCross = !G.showCross;
     app.syncURL();
     drawToolbar(app.data("epic-export") || {});
     drawLegend();
     render();
-  });
+  }
+  $("gc-cross").addEventListener("click", toggleCross);
   $("gc-fit").addEventListener("click", () => { if (G.prepared) goTo(fitView()); });
   $("gc-theme").addEventListener("click", () => {
     document.documentElement.dataset.theme = G.colors && G.colors.dark ? "light" : "dark";
@@ -738,7 +751,7 @@
       ev.preventDefault();
       zoomBy(-ZOOM_STEP);
     } else if (ev.key === "f" || ev.key === "F") goTo(fitView());
-    else if (ev.key === "k" || ev.key === "K") $("gc-cross").click();
+    else if (ev.key === "k" || ev.key === "K") toggleCross();
     else if (ev.key === "Escape" && app.selected() && $("drawer").hidden) app.selectEpic(null);
   });
   function countText() {
