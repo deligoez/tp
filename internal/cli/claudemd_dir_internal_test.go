@@ -27,7 +27,11 @@ func TestClaudeMDExcerptComesFromTheSpecsRepository(t *testing.T) {
 	out, err := cmd.CombinedOutput()
 	require.NoError(t, err, "%s", out)
 
+	// claudeMDExcerptFor reads the package-level flagFile, which NewRootCmd
+	// binds (and so writes) in parallel tests; hold their construction lock.
+	rootCmdMu.Lock()
 	excerpt := claudeMDExcerptFor(filepath.Join(audited, "spec.md"))
+	rootCmdMu.Unlock()
 	assert.Contains(t, excerpt, "AUDITED REPO CONVENTION", "the excerpt comes from the repository holding the spec")
 	assert.NotContains(t, excerpt, "Task Plan", "tp's own CLAUDE.md, the process cwd's, never answers")
 }
