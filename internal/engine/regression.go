@@ -27,7 +27,7 @@ func RegressionCarried(round int, noState bool, dr *DiffResult, fixed int) bool 
 // RegressionDue is RegressionCarried over the inputs a counted review round
 // reads when no --diff-from is passed, which is how every review-role unit's
 // brief emits it: the diff against the newest snapshot earlier than the round,
-// and the fixed findings of every recorded review round.
+// and the fixed findings of every review round recorded after the newest epoch.
 func RegressionDue(specPath string, round int, st *ReviewState) bool {
 	if round < 2 {
 		return false
@@ -37,8 +37,9 @@ func RegressionDue(specPath string, round int, st *ReviewState) bool {
 		dr = DiffSections(sectionDiffLines(snap), sectionDiffLines(specPath))
 	}
 	fixed := 0
-	for i := range reviewRoundsOf(st) {
-		rows, _ := LoadRoundRows(specPath, &st.ReviewRounds[i])
+	rounds := RoundsSinceEpoch(st, PhaseReview)
+	for i := range rounds {
+		rows, _ := LoadRoundRows(specPath, &rounds[i])
 		for _, row := range rows {
 			if ReviewRowFixed(row) {
 				fixed++
