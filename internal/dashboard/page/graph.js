@@ -165,7 +165,9 @@
       if (!m) return null;
       p.set("milestone", m);
     } else if (G.mode === "neighbourhood") {
-      const sel = app.selected();
+      // The centre is the selection, else the last epic selected, so
+      // closing the drawer keeps the neighbourhood it showed.
+      const sel = app.selected() || G.centre;
       if (!sel) return null;
       p.set("epic", sel);
       p.set("depth", String(G.depth));
@@ -587,7 +589,10 @@
   }
   // A selection made anywhere, the graph, a list, the drawer, the chain as
   // text or the search, shows on the graph; one made outside it is centred.
+  // The last epic selected stays the neighbourhood's centre after the
+  // selection clears.
   app.onSelect = (id, centre) => {
+    if (id) G.centre = id;
     if (G.mode === "neighbourhood") {
       draw();
       return;
@@ -686,9 +691,22 @@
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", retheme);
 
   // ---------- the search and the keys ----------
+  // exportMatches is the search over the export's epics, by id or title,
+  // for when nothing is laid out: Neighbourhood before an epic is picked,
+  // or before the renderer loads.
+  function exportMatches() {
+    const q = app.fold(G.q.trim());
+    if (!q) return [];
+    const g = app.data("epic-export") || {};
+    return ((g.graph && g.graph.epics) || []).filter((e) => app.fold(e.id).includes(q) || app.fold(e.title || "").includes(q)).map((e) => e.id);
+  }
   function showMatches() {
     const P = G.prepared;
-    const hits = P && matches(P);
+    if (!P) {
+      $("gc-n").textContent = G.q.trim() ? t("graph.matches", { n: exportMatches().length }) : "";
+      return;
+    }
+    const hits = matches(P);
     $("gc-n").textContent = hits ? t("graph.matches", { n: hits.size }) : countText();
   }
   $("gc-q").addEventListener("input", (ev) => {
@@ -713,7 +731,15 @@
       render();
       return;
     }
-    if (ev.key !== "Enter" || !P) return;
+    if (ev.key !== "Enter") return;
+    if (!P) {
+      const ids = exportMatches();
+      if (!ids.length) return;
+      ev.preventDefault();
+      G.matchIdx = pure.stepMatch(ids.length, G.matchIdx, ev.shiftKey);
+      app.selectEpic(ids[G.matchIdx], true, true);
+      return;
+    }
     const hits = [...(matches(P) || [])];
     if (!hits.length) return;
     ev.preventDefault();
@@ -722,13 +748,13 @@
     flyTo(n);
     if (P.L.view !== "milestones" && n.id !== app.selected()) app.selectEpic(n.id, false, true);
   });
-  // "/" reaches the graph's search while the card is on screen, ahead of
-  // the page's own "/" for the Specs filter, so it listens in the capture
-  // phase.
+  // "/" reaches the graph's search whenever the Epics tab shows the card,
+  // laid out or not, ahead of the page's own "/" for the Specs filter, so
+  // it listens in the capture phase; a hidden tab's input is never focused.
   const typing = (t) => t && (t.tagName === "INPUT" || t.tagName === "SELECT" || t.tagName === "TEXTAREA" || t.isContentEditable);
-  const cardShown = () => G.visible && !card.hidden && !!G.prepared && !$("view-epics").hidden;
+  const cardShown = () => !card.hidden && !$("view-epics").hidden;
   document.addEventListener("keydown", (ev) => {
-    if (ev.key !== "/" || ev.metaKey || ev.ctrlKey || ev.altKey || typing(ev.target) || !cardShown()) return;
+    if (ev.key !== "/" || ev.metaKey || ev.ctrlKey || ev.altKey || typing(ev.target) || !cardShown() || card.classList.contains("nogl")) return;
     ev.preventDefault();
     ev.stopImmediatePropagation();
     $("gc-q").focus();
@@ -739,7 +765,7 @@
   // Esc clears a selection the drawer does not hold.
   const KEY_PAN = { ArrowLeft: [-PAN_PX, 0], ArrowRight: [PAN_PX, 0], ArrowUp: [0, -PAN_PX], ArrowDown: [0, PAN_PX] };
   document.addEventListener("keydown", (ev) => {
-    if (!cardShown() || typing(ev.target) || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+    if (!cardShown() || !G.prepared || !G.vs || typing(ev.target) || ev.metaKey || ev.ctrlKey || ev.altKey) return;
     const onCanvas = ev.target === $("gc-canvas") || card.classList.contains("fs");
     if (onCanvas && KEY_PAN[ev.key]) {
       ev.preventDefault();
