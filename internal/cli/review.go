@@ -2129,23 +2129,20 @@ func loadReviewRoundState(cmd *cobra.Command, specPath string, round int, findin
 		rs.required, rs.consecutive, rs.converged, rs.stale = &req, &cc, &conv, &stale
 	}
 
-	// Previous findings from rounds 1..R-1 unless --findings overrides; a
-	// round recorded before the newest epoch read a text the spec no longer
-	// holds, so its rows are not carried (tp review --rewritten).
+	// Previous findings from rounds 1..R-1 unless --findings overrides: the
+	// carried set convergence reads too (engine.ReviewCarriedSet), so a row
+	// listed under "DO NOT re-report" is a row convergence waits on. A round
+	// recorded before the newest epoch read a text the spec no longer holds,
+	// so its rows are not carried (tp review --rewritten).
 	if findingsPath == "" && st != nil {
-		carried := engine.RoundsSinceEpoch(st, engine.PhaseReview)
-		for i := range carried {
-			r := carried[i]
-			rows, found := engine.LoadRoundRows(specPath, &r)
-			if !found {
-				output.Notice(fmt.Sprintf("round %d file %s is missing; skipping its rows", r.Round, r.File))
-				continue
-			}
-			for _, row := range rows {
-				statePrevFindings = append(statePrevFindings, findingFromRow(row))
-			}
+		carried, missing := engine.ReviewCarriedSet(specPath, st)
+		for i := range missing {
+			output.Notice(fmt.Sprintf("round %d file %s is missing; skipping its rows", missing[i].Round, missing[i].File))
 		}
-		rs.prevFindings = dedupFindings(statePrevFindings)
+		for i := range carried {
+			statePrevFindings = append(statePrevFindings, findingFromRow(carried[i].Row))
+		}
+		rs.prevFindings = statePrevFindings
 	}
 	return rs
 }
