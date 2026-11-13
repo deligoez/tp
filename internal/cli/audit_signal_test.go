@@ -240,7 +240,10 @@ func TestAuditSignal_DivergenceKeyIsOmittedNotNull(t *testing.T) {
 // and 5 all hold: at a task-file audit_clean_rounds of 0 reaching the resolver,
 // engine.Converged reduces to "not stale", so the gate is already open while the
 // latest round holds a non-spec-coverage open finding. divergence is absent and
-// tp audit --status --check exits 0.
+// tp audit --status --check exits 0. The finding is a warning under
+// audit_converge_on: blocking: a FAIL the policy blocks on is carried and holds
+// the gate shut (spec/backlog/audit-carried-fail-blocks.md), while a warning
+// stays open in its role's streak without blocking.
 func TestAuditSignal_ConvergedGateWithholdsDivergence(t *testing.T) {
 	t.Parallel()
 	dir := auditSignalProject(t)
@@ -252,13 +255,13 @@ func TestAuditSignal_ConvergedGateWithholdsDivergence(t *testing.T) {
 	require.NoError(t, err)
 	var tf map[string]any
 	require.NoError(t, json.Unmarshal(data, &tf))
-	tf["workflow"] = map[string]any{"audit_clean_rounds": 0}
+	tf["workflow"] = map[string]any{"audit_clean_rounds": 0, "audit_converge_on": "blocking"}
 	patched, err := json.Marshal(tf)
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(taskFile, patched, 0o600))
 
-	stdout, _ := recordSignalRound(t, dir, nil,
-		signalRow("spec-coverage", "PASS"), signalRow("go-safety", "FAIL"))
+	warning := `{"item_id":"go-safety-item","role":"go-safety","status":"FAIL","severity":"warning","category":"correctness"}`
+	stdout, _ := recordSignalRound(t, dir, nil, signalRow("spec-coverage", "PASS"), warning)
 	out := decodeSignal(t, stdout)
 	require.Equal(t, float64(0), out["required_clean_rounds"], "the 0 must reach the resolver")
 	assert.Equal(t, true, out["converged"])
