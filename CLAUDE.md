@@ -78,8 +78,10 @@ Triage every piece of work before touching it; the operator confirms the track.
 A fix that turns out to need a design choice stops and becomes a decision. Repairs to a spec after
 its first round delete or narrow; they do not add requirements.
 
-Open work is `BUGS.md` (the fix track), then the decision candidates in `spec/backlog/` —
-`checklist-covers-what-changed.md`, then `reconcile.md`; the regression unit under `tp run`,
+Open work is `BUGS.md` (the fix track, and one entry awaiting an operator decision), then the
+decision candidates in `spec/backlog/` — `reconcile.md`, then `checklist-covers-what-changed.md`;
+the dashboard at a real plan's size shipped in v1.13.0 (`spec/backlog/dashboard-ux.md`,
+`spec/1.13.0-measurements.md`); the regression unit under `tp run`,
 staleness only through a round's own emission, the ground scratch file and the review and audit
 role files in the spec's state directory, and the project layer from the task file shipped in
 v1.12.0 (`spec/backlog/run-regression-unit.md`, `hand-recorded-staleness.md`,
