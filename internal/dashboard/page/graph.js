@@ -699,6 +699,12 @@
     app.syncURL();
     draw();
   }
+  // showClosure is the milestone drawer's way to its gate's closure: the
+  // card in Gate closure on ms, scrolled into view.
+  app.showClosure = (ms) => {
+    setPlace({ mode: "scope", milestone: ms });
+    card.scrollIntoView({ block: "start", behavior: "smooth" });
+  };
 
   // pick answers a click on a node: a milestone opens its gate's closure, an
   // epic is selected (or cleared when it is the selected one), and in the

@@ -1320,7 +1320,11 @@
     $("dinfo").setAttribute("aria-label", msd ? t("drawer.msAbout") : t("drawer.epicAbout"));
     if (msd) {
       const dc = tpPure.describedCounts((g.graph && g.graph.epics) || [])[msd.milestone] || { described: 0, all: 0 };
-      $("dbody").innerHTML = tpPure.milestoneHTML(msd, gateOf(g, msd.milestone), dc, words(THRESHOLD_LABEL), t);
+      // Its epics as links and the way to its gate's closure on the graph.
+      const members = (g.epics || []).filter((x) => x.milestone === msd.milestone).map((x) => x.id);
+      $("dbody").innerHTML = tpPure.milestoneHTML(msd, gateOf(g, msd.milestone), dc, words(THRESHOLD_LABEL), t) +
+        '<p><button type="button" class="key" data-closure="' + esc(msd.milestone) + '">' + esc(t("drawer.showClosure")) + "</button></p>" +
+        "<div><h4>" + esc(t("drawer.members", { n: members.length })) + '</h4><div class="wids">' + members.map(epicLink).join(" ") + "</div></div>";
       return;
     }
     const ge = graphEpic(g, id) || {};
@@ -1383,6 +1387,8 @@
       selectEpic(a.dataset.epic, true);
       return;
     }
+    const gm = ev.target.closest && ev.target.closest("[data-closure]");
+    if (gm && window.tpApp && window.tpApp.showClosure) window.tpApp.showClosure(gm.dataset.closure);
     const s = ev.target.closest && ev.target.closest("#dbody [data-spec]");
     if (s) openSpec(s.dataset.spec);
   });
