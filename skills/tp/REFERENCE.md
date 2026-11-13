@@ -2416,7 +2416,8 @@ one when it is visible again, reading the current state afresh (v1.16.1), so hid
 of the browser's connections to the dashboard.
 
 The epic drawer shows a selected epic's `description` (v1.11.0), read from the export's raw graph,
-as preformatted text: escaped, never rendered as markup.
+as markdown (v1.17.1): headings, lists, tables, fenced code, bold, italic, code spans and http(s)
+links are drawn, and everything else, raw HTML and other link schemes included, is escaped text.
 
 **Language** (v1.17.0). The page reads in English or Turkish: an EN | TR switch in its header
 picks one, the browser keeps the choice, and without one a browser language starting `tr` reads
