@@ -617,7 +617,6 @@ func loadAuditPriorRound(specPath string) map[string]*auditPriorRound {
 	if len(since) == 0 {
 		return nil
 	}
-	prior := &since[len(since)-1]
 	carried, missing := engine.AuditCarriedSet(specPath, st)
 	for i := range missing {
 		// Dropping a round's rows silently makes a later prompt look as if
@@ -625,6 +624,16 @@ func loadAuditPriorRound(specPath string) map[string]*auditPriorRound {
 		// review_regression.go all say so on the same condition.
 		output.Notice(fmt.Sprintf("round %d file %s is missing; skipping its rows", missing[i].Round, missing[i].File))
 	}
+	return auditPriorRowsByRole(specPath, carried, since)
+}
+
+// auditPriorRowsByRole files the carried rows under their role for the
+// prior-round section: each with its round when it is older than the last
+// round since the epoch, its disposition, and its changed-since flag measured
+// from its own round. A role's section is legacy when the last round or the
+// round of any of its rows was recorded before stable item ids.
+func auditPriorRowsByRole(specPath string, carried []engine.CarriedRow, since []engine.ReviewRound) map[string]*auditPriorRound {
+	prior := &since[len(since)-1]
 	byNumber := make(map[int]*engine.ReviewRound, len(since))
 	for i := range since {
 		byNumber[since[i].Round] = &since[i]
