@@ -20,21 +20,20 @@ fix needs a design choice leaves this file for a decision note.
   that sequence must not converge. The fix changes a convergence rule (an open blocking row in any
   round of the current text blocks, or the carry list stops telling roles not to re-raise unresolved
   rows), so it is the operator's choice, not a fix-track change.
-- **A milestone that waits on an external trigger counts as open.** `opens_after: []` is how a plan
-  says a milestone opens on something outside the graph (a vendor go-ahead, a date, a contract), and
-  tp reads an empty list as "opens after nothing", so the milestone is open today: `tp epic ready`
-  offers its epics as startable and `tp epic status` counts its blocked epics as blocked in an open
-  milestone, while nothing in the plan has happened yet. Repro (v1.14.0, scratch git repo): tracks
-  `[["A1","A2"],["T1"]]`, `opens_after` `{"T1": []}`, one A1 epic, one T1 epic with no dependencies
-  and two A2 epics depending on it; `tp epic status` reports T1 open and `tp epic ready` lists the
-  T1 epic beside the A1 one. On a plan where open-milestone epics wait on such an epic, the
-  dashboard's Waiting epics shows it as a blocker of open work. The open question is the model, not
-  the page: should such a milestone count as open, should the plan express the trigger with a
-  condition epic (an operator decision the milestone's epics depend on, which `ready` and `status`
-  already honour), or does tp need a state of its own for a milestone that waits on something
-  outside the graph? Any answer changes `ready` and `status`, not only the dashboard, so it is the
-  operator's choice. Recorded from the 1.14.1 field run; the dashboard keeps reading tp's own notion
-  of open.
+
+## Fix track
+
+- **A gate with no effective members and no threshold is green, and nothing says so.** A milestone
+  that holds only a condition epic, with no `gates` entry, has an empty gate; `tp epic gate <m>`
+  reports `{"green": true, "members": []}` and every milestone opening after it is open at once, so
+  `tp epic ready` offers their epics before the condition is done. Repro (v1.15.0, scratch git repo):
+  milestones `[["A"],["TG","T1"]]`, `opens_after` `{"TG": [], "T1": ["TG"]}`, TG holding only
+  `{"id":"trigger","condition":true,…}`, T1 one epic; `tp epic lint` reports 0 errors and 0 warnings,
+  `tp epic ready` offers the T1 epic. Failing test: lint warns when a gate has no effective members and
+  no threshold while a milestone opens after it.
+- **`tp epic set gates.<m>.members=` takes a comma-separated list, not JSON.** `members=["x"]` is
+  refused as a dangling reference to the literal `["x"]`, while `tags=` and `tag_checks=` take JSON.
+  Failing test: the JSON array form is accepted, or the refusal names the expected form.
 
 ## Decided elsewhere, not a fix
 
