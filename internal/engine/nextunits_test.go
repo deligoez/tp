@@ -368,6 +368,24 @@ func TestBuildNextUnits_ReviewResolveWhileAFindingLacksDisposition(t *testing.T)
 	assert.Equal(t, 2, *round)
 }
 
+// TestBuildNextUnits_ABlankEvidenceWontfixStillOwesAResolve: a wontfix with
+// blank evidence accepts nothing (CarryDisposition), so the round's
+// review-resolve unit stays owed rather than closing over it.
+func TestBuildNextUnits_ABlankEvidenceWontfixStillOwesAResolve(t *testing.T) {
+	root, taskFile, spec := nextUnitsRepo(t)
+	tf := &model.TaskFile{Spec: spec, Tasks: []model.Task{}}
+	st := &ReviewState{ReviewRounds: []ReviewRound{{Round: 1}}}
+	writeRoundFile(t, root, taskFile, PhaseReview, 1, "merged.ndjson", ndjson(
+		`{"id":"f1","resolved":{"status":"wontfix","evidence":"  "}}`,
+	))
+
+	units, _ := BuildNextUnits(root, taskFile, spec, PhaseReview, tf, st, nil)
+	require.Len(t, units, 1)
+	assert.Equal(t, UnitReviewResolve, units[0].Kind)
+	assert.False(t, UnitReviewResolve.DurableWrite(UnitTarget{RoundDir: RoundDir(root, taskFile, PhaseReview, 1)}),
+		"the kind's own predicate agrees")
+}
+
 // TestBuildNextUnits_AuditFixOneRowAtATime: §4.1 — a single audit-fix unit for
 // the first row in the recorded round's merged file that is neither PASS nor
 // already disposed, keyed role:item_id so the unit can name its own row, and
