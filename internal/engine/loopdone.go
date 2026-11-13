@@ -129,10 +129,6 @@ func epochCutBlocking(specPath string, st *ReviewState, convergeOn string) bool 
 // AuditLoopDone reports whether the audit loop has ended. Only non-PASS rows
 // are findings, so a PASS row needs no disposition. Each round is graded live
 // under its own recorded policy (AuditRoundClean), and a finding of the latest
-// round blocks when that round's policy would hold it open.
-// AuditLoopDone reports whether the audit loop has ended. Only non-PASS rows
-// are findings, so a PASS row needs no disposition. Each round is graded live
-// under its own recorded policy (AuditRoundClean), and a finding of the latest
 // round blocks when that round's policy would hold it open. A carried blocking
 // row keeps the loop open whatever the trailing rounds or the cap say
 // (AuditCarriedBlocking): an empty round re-grades nothing.
