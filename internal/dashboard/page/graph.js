@@ -1,9 +1,10 @@
 // The graph card (spec/backlog/dashboard-graph.md): the plan, the
 // milestones, a gate's closure and an epic's neighbourhood, laid out by tp at
 // /api/layout as a forest packed into columns (layers top to bottom, tree
-// edges solid, cross edges hidden until asked for, back edges violet, the
-// critical path always drawn) and drawn with deck.gl. The page computes no
-// place: every row and column comes from tp. deck.gl is vendored under
+// edges solid, cross edges light beneath them until K hides them, back
+// edges violet, the critical path always drawn) and drawn with deck.gl.
+// The page computes no place: every row and column comes from tp. deck.gl
+// is vendored under
 // vendor/ and loaded only when the card first scrolls into view; a browser
 // without WebGL2 gets a plain message instead. A canvas has no focusable
 // node, so keyboard use runs through the search, the lists, the drawer and
@@ -68,7 +69,7 @@
   const EDGE_CLASSES = ["tree", "cross", "back", "critical", "any"];
 
   const G = {
-    mode: "plan", milestone: null, depth: 2, showCross: false, msCross: true, whole: false, centre: null, q: "",
+    mode: "plan", milestone: null, depth: 2, showCross: true, whole: false, centre: null, q: "",
     hiddenMarks: new Set(), hiddenEdges: new Set(),
     data: null, key: null, dataKey: null, error: null, seq: 0, seen: null,
     deck: null, deckState: "idle", visible: false, built: null, builtFor: null, prepared: null,
@@ -204,7 +205,7 @@
     const x = n.col * geo.col;
     const y = n.layer * geo.row;
     const out = { i, id: n.id, x, y, w: geo.w, h: geo.h, mark: null, hold: null, label: n.id, ms: n.milestone || null, title: "", cond: false,
-      centre: !!n.centre, deferrable: !!n.deferrable, layer: n.layer, status: null };
+      centre: !!n.centre, deferrable: !!n.deferrable, layer: n.layer, col: n.col, status: null };
     if (L.view === "milestones") {
       out.mark = n.open ? (n.epics && n.done === n.epics ? "done" : "ready") : "waiting";
       out.label = milestoneLabel(n);
@@ -271,7 +272,8 @@
       const s = index[e.from];
       const d = index[e.to];
       if (s === undefined || d === undefined) return;
-      links.push({ s, d, role: e.role || "cross", critical: !!e.critical, any: !!e.any_of });
+      links.push({ s, d, role: e.role || "cross", critical: !!e.critical, any: !!e.any_of,
+        long: pure.edgeLong(nodes[d].layer - nodes[s].layer, nodes[d].col - nodes[s].col) });
     });
     const preds = nodes.map(() => []);
     const succs = nodes.map(() => []);
@@ -395,34 +397,43 @@
     const down = (s === P.sel || P.desc.has(s)) && P.desc.has(d);
     return up || down;
   }
+  // EDGE_ALPHA is each edge's opacity with nothing selected: a cross edge
+  // light enough to sit under the tree on both themes, a long edge (three
+  // layers or eight columns, tpPure.edgeLong) fainter still. With an epic
+  // selected, the edges of its chain draw full and the rest at OFF_CHAIN.
+  const EDGE_ALPHA = { cross: 60, crossLong: 32, tree: 190, treeFar: 130, long: 70, critical: 235 };
+  const OFF_CHAIN = 12;
   function edgeColor(P) {
     const c = G.colors;
     return (l) => {
       const base = l.role === "back" ? c.back : l.critical ? c.crit : c.muted;
       if (P.sel >= 0) {
-        if (!onChain(P, l)) return [...base, 14];
+        if (!onChain(P, l)) return [...base, OFF_CHAIN];
         const hue = l.critical ? c.crit : l.role === "back" ? c.back : P.anc.has(l.s) ? c.anc : c.desc;
         return [...hue, fade(Math.max(stepsOf(P, l.s), stepsOf(P, l.d)))];
       }
-      if (l.critical) return [...base, 235];
-      if (l.role === "cross") return [...base, G.far ? 40 : 70];
-      return [...base, G.far ? 130 : 190];
+      if (l.critical) return [...base, EDGE_ALPHA.critical];
+      if (l.role === "cross") return [...base, l.long ? EDGE_ALPHA.crossLong : EDGE_ALPHA.cross];
+      if (l.long) return [...base, EDGE_ALPHA.long];
+      return [...base, G.far ? EDGE_ALPHA.treeFar : EDGE_ALPHA.tree];
     };
   }
   function edgeWidth(P) {
     return (l) => {
-      if (P.sel >= 0 && onChain(P, l)) return l.s === P.sel || l.d === P.sel ? 2.6 : 1.8;
+      if (P.sel >= 0 && onChain(P, l)) return 2.5;
       if (l.critical) return 2.4;
-      return l.role === "cross" ? 0.8 : 1.3;
+      return l.role === "cross" || l.long ? 1 : 1.3;
     };
   }
-  // edgeSets is the four edge layers' data (tpPure.edgeLayers), kept while
-  // the drawing and the toggles that choose them stay the same.
+  // edgeSets is the edge layers' data (tpPure.edgeLayers), kept while the
+  // drawing, the selection and the toggles that choose them stay the same;
+  // the selection's own chain draws its cross edges whatever the toggle.
   function edgeSets(P) {
     const shown = pure.crossShown(G);
     const key = P.ver + "|" + shown + "|" + [...G.hiddenEdges].join();
     if (G.setsKey !== key || G.sets === null || G.sets.of !== P) {
-      G.sets = { ...pure.edgeLayers(P.links, { showCross: shown, hidden: [...G.hiddenEdges] }), of: P };
+      const own = P.sel >= 0 ? (l) => onChain(P, l) : null;
+      G.sets = { ...pure.edgeLayers(P.links, { showCross: shown, hidden: [...G.hiddenEdges], own }), of: P };
       G.setsKey = key;
     }
     return G.sets;
@@ -470,6 +481,7 @@
       }),
       edgeLayer("cross", sets.cross),
       edgeLayer("any", sets.any),
+      edgeLayer("long", sets.long),
       edgeLayer("tree", sets.tree),
       edgeLayer("crit", sets.crit),
       new PolygonLayer({
@@ -734,12 +746,10 @@
   });
   $("gc-ms").addEventListener("change", (ev) => setPlace({ mode: "scope", milestone: ev.target.value }));
   $("gc-depth").addEventListener("change", (ev) => setPlace({ depth: Number(ev.target.value) }));
-  // toggleCross shows or hides the plain cross edges: Milestones' own
-  // flag, drawn until hidden, or the epic modes', hidden until shown and
-  // kept in the address.
+  // toggleCross shows or hides the plain cross edges in every mode, drawn
+  // until hidden, the hidden state kept in the address (cross=0).
   function toggleCross() {
-    if (G.mode === "milestones") G.msCross = !G.msCross;
-    else G.showCross = !G.showCross;
+    G.showCross = !G.showCross;
     app.syncURL();
     drawToolbar(app.data("epic-export") || {});
     drawLegend();

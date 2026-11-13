@@ -253,29 +253,40 @@
   };
 
   // edgeDrawn says whether the graph card draws an edge l ({ role, critical,
-  // any }) under view ({ showCross, hidden: the legend's hidden classes }).
-  // An edge of the critical path is drawn whatever its class, so a view
-  // with cross edges hidden never shows the path with holes; only hiding
-  // the critical path itself hides it. Any other edge is hidden with its
-  // class or its any-of group, and a cross edge waits for showCross.
+  // any }) under view ({ showCross, hidden: the legend's hidden classes,
+  // own: whether an edge is on the selection's chain, if any }). An edge of
+  // the critical path is drawn whatever its class, so a view with cross
+  // edges hidden never shows the path with holes; only hiding the critical
+  // path itself hides it. Any other edge is hidden with its class or its
+  // any-of group, and a cross edge waits for showCross unless it is on the
+  // selection's own chain.
   P.edgeDrawn = function (l, view) {
     if (l.critical) return !view.hidden.includes("critical");
     if (view.hidden.includes(l.role) || (l.any && view.hidden.includes("any"))) return false;
-    return l.role !== "cross" || view.showCross;
+    return l.role !== "cross" || view.showCross || (!!view.own && view.own(l));
   };
 
-  // edgeLayers splits the edges edgeDrawn keeps into the card's four
-  // layers, bottom to top: plain cross edges, any-of edges, tree and back
-  // edges, and the critical path; drawn is how many it kept, each in one
-  // layer, the count the card records.
+  // edgeLong says whether an edge whose ends lie rows layers and cols
+  // columns apart, either way, is long: three layers or eight columns. The
+  // card draws a long edge faded and under the short ones, since a few long
+  // curves across the plan are what makes it hardest to read.
+  P.edgeLong = function (rows, cols) {
+    return Math.abs(rows) >= 3 || Math.abs(cols) >= 8;
+  };
+
+  // edgeLayers splits the edges edgeDrawn keeps into the card's layers,
+  // bottom to top: plain cross edges, any-of edges, long tree and back
+  // edges, short ones, and the critical path; drawn is how many it kept,
+  // each in one layer, the count the card records.
   P.edgeLayers = function (links, view) {
-    const out = { cross: [], any: [], tree: [], crit: [], drawn: 0 };
+    const out = { cross: [], any: [], long: [], tree: [], crit: [], drawn: 0 };
     links.forEach((l) => {
       if (!P.edgeDrawn(l, view)) return;
       out.drawn++;
       if (l.critical) out.crit.push(l);
       else if (l.any) out.any.push(l);
       else if (l.role === "cross") out.cross.push(l);
+      else if (l.long) out.long.push(l);
       else out.tree.push(l);
     });
     return out;
@@ -285,11 +296,10 @@
   P.GRAPH_MODES = ["plan", "milestones", "scope", "neighbourhood"];
 
   // crossShown says whether the graph card draws plain cross edges in s
-  // ({ mode, showCross, msCross }): in Milestones, where a cross edge is an
-  // opens-after edge from another track, by msCross, on until hidden; in
-  // the epic modes by showCross, off until shown.
+  // ({ showCross }): in every mode, until K hides them (1.17.1; they were
+  // hidden by default in the epic modes before).
   P.crossShown = function (s) {
-    return s.mode === "milestones" ? !!s.msCross : !!s.showCross;
+    return s.showCross !== false;
   };
 
   // stepMatch is the match Enter moves to among n, from idx (-1 for none
@@ -341,14 +351,14 @@
   // graphParams is the graph card's place s ({ mode, milestone, depth,
   // showCross, q }) as address pairs, each only when it is not the default:
   // gv the mode, gm the gate's milestone in Gate closure, gd the
-  // neighbourhood's depth, cross and q the search. The packing is the
-  // API's alone; the page draws rows.
+  // neighbourhood's depth, cross=0 the cross edges hidden and q the search.
+  // The packing is the API's alone; the page draws rows.
   P.graphParams = function (s) {
     const out = [];
     if (s.mode !== "plan") out.push(["gv", s.mode]);
     if (s.mode === "scope" && s.milestone) out.push(["gm", s.milestone]);
     if (s.depth !== 2) out.push(["gd", String(s.depth)]);
-    if (s.showCross) out.push(["cross", "1"]);
+    if (!P.crossShown(s)) out.push(["cross", "0"]);
     if (s.q) out.push(["q", s.q]);
     return out;
   };
@@ -362,7 +372,7 @@
       mode: P.GRAPH_MODES.includes(mode) ? mode : "plan",
       milestone: get("gm") || null,
       depth: /^[1-4]$/.test(depth) ? Number(depth) : 2,
-      showCross: get("cross") === "1",
+      showCross: get("cross") !== "0",
       q: get("q") || "",
     };
   };
