@@ -31,3 +31,21 @@ func TestForestLayout_GoldenTreeColumns(t *testing.T) {
 	}, got)
 }
 
+// TestForestLayout_GoldenBandsAndBackEdges pins bands and edge classes: the
+// primary parent is the dependency on the deepest layer (q over p for r),
+// the other edge into r is a cross edge, a two-node cycle inside one band
+// lays out with both its edges back, and an edge naming an unknown id is
+// back too.
+func TestForestLayout_GoldenBandsAndBackEdges(t *testing.T) {
+	t.Parallel()
+	ids := []string{"p", "q", "r", "x", "y"}
+	edges := []LayoutEdge{{"p", "q"}, {"q", "r"}, {"p", "r"}, {"x", "y"}, {"y", "x"}, {"p", "zz"}}
+	bandOf := map[string]string{"p": "M1", "q": "M1", "r": "M2", "x": "M3", "y": "M3"}
+	got := ForestLayout(ids, edges, []string{"M1", "M2", "M3"}, bandOf, nil, PackTree)
+	assert.Equal(t, []EdgeRole{RoleTree, RoleTree, RoleCross, RoleBack, RoleBack, RoleBack}, got.Roles)
+	assert.Equal(t, []LayoutBand{{Name: "M1", From: 0, To: 1}, {Name: "M2", From: 2, To: 2}, {Name: "M3", From: 3, To: 3}}, got.Bands)
+	assert.Equal(t, ForestPlace{2, 0}, got.Places["r"])
+	assert.Equal(t, ForestPlace{3, 1.5}, got.Places["x"])
+	assert.Equal(t, ForestPlace{3, 3}, got.Places["y"])
+}
+
