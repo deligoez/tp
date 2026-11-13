@@ -1245,8 +1245,9 @@
       fitAt(p) {
         requestAnimationFrame(() => {
           const r = el.getBoundingClientRect();
-          if (!p || !r.width || !r.height) return;
-          v = tpPure.containAt(size.W, size.H, r.width, r.height, p);
+          const next = tpPure.fitAtView(size, r, p);
+          if (!next) return;
+          v = next;
           boxW = r.width;
           apply();
         });

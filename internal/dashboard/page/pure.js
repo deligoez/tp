@@ -46,6 +46,14 @@
     return { x: p.x - w / 2, y: p.y - h / 2, w, h };
   };
 
+  // fitAtView is the view re-centring takes for a drawing of size {W, H}
+  // in a box of rect {width, height} on the point p (containAt), or null
+  // while the box has no size or there is no point.
+  P.fitAtView = function (size, rect, p) {
+    if (!p || !rect.width || !rect.height) return null;
+    return P.containAt(size.W, size.H, rect.width, rect.height, p);
+  };
+
   // LABEL_CH is the width, in drawing units, of one character of an 11-unit
   // monospaced epic id.
   const LABEL_CH = 6.7;
