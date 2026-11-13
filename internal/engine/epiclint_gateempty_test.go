@@ -33,6 +33,7 @@ func TestLintEpicGraph_GateEmptyWarnsWhenAMilestoneOpensAfterIt(t *testing.T) {
 	assert.Equal(t, []string{"trigger"}, found[0].Epics)
 	assert.Equal(t, []string{"TG"}, found[0].Names)
 	assert.Contains(t, found[0].Message, `"T1" opens after it`)
+	assert.Contains(t, found[0].Message, `move a trigger condition into the milestone that opens after it ("T1")`)
 }
 
 // TestLintEpicGraph_GateEmptySkipsAThresholdOrMembers: a threshold holds
@@ -75,6 +76,7 @@ func TestLintEpicGraph_GateEmptyNamesEveryFollower(t *testing.T) {
 	found := findingsOf(t, LintEpicGraph(g, nil), EpicRuleGateEmpty)
 	require.Len(t, found, 1, "%v", found)
 	assert.Contains(t, found[0].Message, `"T1", "T2" open after it`)
+	assert.Contains(t, found[0].Message, `into a milestone that opens after it ("T1", "T2")`)
 }
 
 // TestLintEpicGraph_GateEmptySkipsAFiredTrigger: once TG's only epic, the
