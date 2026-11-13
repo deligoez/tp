@@ -149,6 +149,48 @@ func TestFilterFiles_PreCapTotals(t *testing.T) {
 	assert.Equal(t, 3, fallback.SpecCoverageTotal, "filtered-universe size in the no-task fallback branch")
 }
 
+// TestFilterFiles_CodeFilesRankByChurn pins decision 1 of
+// spec/backlog/checklist-covers-what-changed.md: within each priority group the
+// code roles' list runs by lines added plus deleted, descending, ties by path,
+// and a file with no measured diff comes last in path order. The fixture's
+// path order disagrees with its churn order at every position, so the shipped
+// alphabetical order cannot pass it.
+func TestFilterFiles_CodeFilesRankByChurn(t *testing.T) {
+	in := &AuditFileInputs{
+		Universe: []string{"a.go", "b.go", "c.go", "d.go", "e.go", "y_lock.go", "z_auth.go"},
+		DiffStats: map[string][2]int{
+			"a.go":      {1, 0},
+			"b.go":      {3, 3},
+			"d.go":      {40, 2},
+			"e.go":      {3, 3},
+			"y_lock.go": {1, 1},
+			"z_auth.go": {9, 0},
+		},
+	}
+	sel := SelectAuditFiles(in)
+	got := make([]string, 0, len(sel.CodeFiles))
+	for _, e := range sel.CodeFiles {
+		got = append(got, e.Path)
+	}
+	assert.Equal(t, []string{"z_auth.go", "y_lock.go", "d.go", "b.go", "e.go", "a.go", "c.go"}, got,
+		"priority group by churn, then the rest by churn with ties by path, unmeasured c.go last")
+}
+
+// TestFilterFiles_CodeFilesChurnDecidesTheCut: the cap keeps the most-changed
+// files, not the first ones in path order.
+func TestFilterFiles_CodeFilesChurnDecidesTheCut(t *testing.T) {
+	in := &AuditFileInputs{DiffStats: map[string][2]int{}}
+	for i := range 15 {
+		p := fmt.Sprintf("m%02d.go", i)
+		in.Universe = append(in.Universe, p)
+		in.DiffStats[p] = [2]int{i, 0}
+	}
+	sel := SelectAuditFiles(in)
+	require.Len(t, sel.CodeFiles, CodeFileCap)
+	assert.Equal(t, "m14.go", sel.CodeFiles[0].Path, "the largest churn leads")
+	assert.Equal(t, "m05.go", sel.CodeFiles[9].Path, "the five smallest fall outside the cap")
+}
+
 func TestPriorityPathSubstrings_ExactValues(t *testing.T) {
 	assert.Equal(t, []string{"lock", "validate", "auth", "secret", "perm"}, priorityPathSubstrings)
 }
