@@ -188,7 +188,7 @@ func closePending(root, taskFile, id string) error {
 	}
 	wd, _ := os.Getwd()
 	return engine.WritePendingClose(root, taskFile, &engine.PendingClose{
-		ID: id, Reason: "implemented by the fake runner", Commits: []string{strings.TrimSpace(string(sha))}, Worktree: wd,
+		ID: id, Reason: "- implemented by the fake runner, a bulleted reason as the brief invites", Commits: []string{strings.TrimSpace(string(sha))}, Worktree: wd,
 	})
 }
 
