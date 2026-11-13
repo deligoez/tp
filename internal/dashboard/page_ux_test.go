@@ -688,6 +688,19 @@ func TestPage_TheKPIRowFitsItsColumnsOnRenderAndResize(t *testing.T) {
 	assert.NotContains(t, page, ".lone")
 }
 
+// TestPage_TheLifecycleRowsSpreadEvenlyToo: the Lifecycle's stage and
+// phase cells and its milestone cards take the same balanced, full-width
+// rows as the KPI row, fitted when each is drawn and when it changes size
+// (1.15.1).
+func TestPage_TheLifecycleRowsSpreadEvenlyToo(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, s := range []string{`["#band .pcells", 120]`, `["#msstate .mscells", 170]`, `["kpis", "band", "msstate"].forEach((id) => rowsSeen.observe($(id)));`} {
+		assert.Contains(t, script, s)
+	}
+	assert.Equal(t, 3, strings.Count(script, "fitAllRows();"), "the KPI, band and milestone panels each fit their rows once drawn")
+}
+
 // TestPure_TheEpicTotalsNameTheConditions: the Epics tab counts every epic
 // while the share and the Lifecycle count work epics, so the totals read as
 // one sentence that names the condition epics between them (1.14.1).
