@@ -1041,7 +1041,9 @@
     const root = document.documentElement;
     if (root.requestFullscreen && !document.fullscreenElement) root.requestFullscreen().catch(() => { /* the card fills the window alone */ });
   });
-  document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement) setFullScreen(null); });
+  // The browser takes Esc in full screen, so a change of full screen closes
+  // an open note, which would sit where the old layout put it.
+  document.addEventListener("fullscreenchange", () => { closeInfo(); if (!document.fullscreenElement) setFullScreen(null); });
   document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && !document.fullscreenElement && document.body.classList.contains("mapfs") && $("drawer").hidden) setFullScreen(null); });
 
   // ---------- the selected epic: its chain, its drawer (§4, §11) ----------
