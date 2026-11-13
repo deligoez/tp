@@ -180,6 +180,39 @@
     return { x: px - (m1.x / rw) * w, y: py - (m1.y / rh) * h, w, h };
   };
 
+  // pointerAction is what a pointer coming down on a map does, pointers the
+  // touch pointers down with it counted: a mouse's main button, a pen or one
+  // finger pans, a second finger pinches, and any other button or a third
+  // finger does nothing.
+  P.pointerAction = function (pointers, ev) {
+    if (ev.pointerType !== "touch") return ev.button === 0 ? "pan" : "none";
+    if (pointers <= 1) return "pan";
+    return pointers === 2 ? "pinch" : "none";
+  };
+
+  // wheelZooms says whether a wheel event zooms the map: with Ctrl or ⌘
+  // held, or with the plain wheel while the map fills the screen.
+  P.wheelZooms = function (ev, fullscreen) {
+    return !!(ev.ctrlKey || ev.metaKey || fullscreen);
+  };
+
+  // tabStops gives each of ids its tabindex: 0 for focus, or for the first
+  // when focus is none of them, -1 for the rest, so one is in the tab order.
+  P.tabStops = function (ids, focus) {
+    const at = Math.max(0, ids.indexOf(focus));
+    return ids.map((_, i) => (i === at ? 0 : -1));
+  };
+
+  // focusAfterClose picks where focus goes back when the drawer closes:
+  // "same" while the element that opened it is still on the page, else the
+  // first key saved at opening that one of candidates, the keys of the
+  // focusable elements on the page now, holds, else null.
+  P.focusAfterClose = function (saved, candidates) {
+    if (!saved) return null;
+    if (saved.connected) return "same";
+    return (saved.keys || []).find((k) => candidates.includes(k)) || null;
+  };
+
   if (typeof module === "object" && module.exports) module.exports = P;
   else root.tpPure = P;
 })(this);
