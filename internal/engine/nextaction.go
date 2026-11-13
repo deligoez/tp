@@ -156,6 +156,8 @@ func ReviewNextAction(specPath string, done LoopDone, blockingUnresolved bool, m
 		forward = gate + forward
 	}
 	switch {
+	case done.Done && done.By == DoneByCap && done.EpochCutBlocking:
+		return forward + " — the round cap ended review after an epoch cut its unresolved blocking findings (" + EscalateRewritePastBlocking + "), not over their dispositions"
 	case done.Done && done.By == DoneByCap:
 		return forward + " — the round cap ended review with every finding dispositioned"
 	case done.Done:

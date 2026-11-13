@@ -23,9 +23,13 @@ type LoopDone struct {
 	Done        bool
 	CapReached  bool
 	StaleWaived bool // the spec changed after the latest round, which ended the loop anyway
-	By          string
-	Undisposed  int // latest round's findings with no disposition that counts
-	FixedAtCap  int // latest round's non-blocking findings dispositioned fixed, which no round re-read
+	// EpochCutBlocking is, on a review loop the cap ended, whether an epoch
+	// cut an unresolved blocking row on the way: the loop ended past it, not
+	// over its disposition.
+	EpochCutBlocking bool
+	By               string
+	Undisposed       int // latest round's findings with no disposition that counts
+	FixedAtCap       int // latest round's non-blocking findings dispositioned fixed, which no round re-read
 	// BlockingFixedAtCap counts the latest round's blocking findings marked
 	// fixed at the cap. fixed says the text or code changed, and at the cap no
 	// round will re-read it, so for a blocking finding it would be an
@@ -44,6 +48,7 @@ type LoopDone struct {
 func (d *LoopDone) Same(o *LoopDone) bool {
 	if d.Done != o.Done || d.By != o.By || d.CapReached != o.CapReached || d.Undisposed != o.Undisposed ||
 		d.FixedAtCap != o.FixedAtCap || d.BlockingFixedAtCap != o.BlockingFixedAtCap || d.StaleWaived != o.StaleWaived ||
+		d.EpochCutBlocking != o.EpochCutBlocking ||
 		len(d.CarriedBlocking) != len(o.CarriedBlocking) {
 		return false
 	}
@@ -97,7 +102,28 @@ func ReviewLoopDone(specPath string, st *ReviewState, requiredClean, maxRounds i
 		d.Done, d.By, d.StaleWaived = false, "", false
 		d.CarriedBlocking = carried
 	}
+	if d.By == DoneByCap {
+		d.EpochCutBlocking = epochCutBlocking(specPath, st, convergeOn)
+	}
 	return d
+}
+
+// epochCutBlocking reports whether the newest epoch cut a row that would be
+// carried and blocking without it.
+func epochCutBlocking(specPath string, st *ReviewState, convergeOn string) bool {
+	cut := EpochCut(st, PhaseReview)
+	if cut == 0 {
+		return false
+	}
+	uncut := *st
+	uncut.Epochs = nil
+	rows := ReviewCarriedBlocking(specPath, &uncut, convergeOn)
+	for i := range rows {
+		if rows[i].Round <= cut && rows[i].State() == CarriedStateUnresolved {
+			return true
+		}
+	}
+	return false
 }
 
 // AuditLoopDone reports whether the audit loop has ended. Only non-PASS rows
