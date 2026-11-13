@@ -213,3 +213,23 @@ func TestForestLayout_IsStable(t *testing.T) {
 		assert.Equal(t, first, ForestLayout(&in))
 	}
 }
+
+// TestForestLayout_GoldenDeepRowPacking pins the row packing of a deep,
+// narrow graph: a ten-layer chain with four side leaves is five tree
+// columns wide and at most two nodes per layer, so it packs into
+// forestColumnsPerLayer's four columns rather than its fullest layer's two.
+func TestForestLayout_GoldenDeepRowPacking(t *testing.T) {
+	t.Parallel()
+	ids := []string{"c0", "c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "s1", "s3", "s5", "s7"}
+	var edges []LayoutEdge
+	for i := 1; i < 10; i++ {
+		edges = append(edges, LayoutEdge{ids[i-1], ids[i]})
+	}
+	edges = append(edges, LayoutEdge{"c0", "s1"}, LayoutEdge{"c2", "s3"}, LayoutEdge{"c4", "s5"}, LayoutEdge{"c6", "s7"})
+	got := ForestLayout(&ForestInput{IDs: ids, Edges: edges, Pack: PackRows})
+	assert.InDelta(t, 4.0, got.Columns, 0)
+	assert.Equal(t, map[string]ForestPlace{
+		"c0": {0, 2}, "c1": {1, 2}, "s1": {1, 3}, "c2": {2, 2}, "c3": {3, 1}, "s3": {3, 2}, "c4": {4, 1},
+		"c5": {5, 0}, "s5": {5, 2}, "c6": {6, 0}, "c7": {7, 0}, "s7": {7, 1}, "c8": {8, 0}, "c9": {9, 0},
+	}, got.Places)
+}
