@@ -214,3 +214,24 @@ func TestBuildBlockers_TheCarriedBlockerStandsInReviewAndNamesItsWayOut(t *testi
 
 	assert.Nil(t, blockerByCode(BuildBlockers(in(PhaseImplement, earlierHigh(), 0)), "review-carried-blocking"))
 }
+
+// TestBuildBlockers_AtTheCapTheCarriedBlockerLeadsOnlyWhenTheLatestRoundIsDone:
+// at the review cap the budget blocker points at the carried blocker only
+// when the latest round is fully dispositioned with no blocking fix; a
+// latest-round finding left open or marked fixed keeps its own message, and
+// so does a cap with nothing carried.
+func TestBuildBlockers_AtTheCapTheCarriedBlockerLeadsOnlyWhenTheLatestRoundIsDone(t *testing.T) {
+	budget := func(carried []CarriedRow, undisposed, fixedAtCap int) string {
+		b := blockerByCode(BuildBlockers(&BlockerInputs{Phase: PhaseReview, SpecPath: "spec.md", TaskFile: &model.TaskFile{},
+			ReviewRounds: 3, ReviewMaxRounds: 3, ReviewLatestRound: 3, ReviewCarriedBlocking: carried,
+			ReviewUndisposedAtCap: undisposed, ReviewBlockingFixedAtCap: fixedAtCap}), "review-budget-exhausted")
+		require.NotNil(t, b)
+		return b.Message
+	}
+	carried := []CarriedRow{earlierHigh()}
+	assert.Equal(t, "review reached its 3-round cap with the latest round dispositioned; what holds it open is the carried blocking findings of review-carried-blocking",
+		budget(carried, 0, 0))
+	assert.Equal(t, budgetBlockerMessage("review", 3, 0), budget(carried, 1, 0))
+	assert.Equal(t, budgetBlockerMessage("review", 3, 1), budget(carried, 0, 1))
+	assert.Equal(t, budgetBlockerMessage("review", 3, 0), budget(nil, 0, 0))
+}
