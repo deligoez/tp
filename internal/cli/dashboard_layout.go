@@ -42,6 +42,18 @@ const dashboardLayoutHint = "name one view: ?view=milestones, ?view=scope&milest
 // hold.
 const dashboardLayoutAbsentHint = "pass a milestone a track lists, or an epic id, exactly as tp epic export prints it"
 
+// layoutEchoMax is how many characters of a query's value an error echoes.
+const layoutEchoMax = 80
+
+// layoutEcho is s cut to its first layoutEchoMax characters, an ellipsis
+// marking the cut, so an error never echoes a long value whole.
+func layoutEcho(s string) string {
+	if r := []rune(s); len(r) > layoutEchoMax {
+		return string(r[:layoutEchoMax]) + "…"
+	}
+	return s
+}
+
 // layoutQuery is a /api/layout query the endpoint accepts.
 type layoutQuery struct {
 	view      string
@@ -108,12 +120,12 @@ func (dashboardAPI) Layout(q url.Values) (any, *dashboard.Error) {
 	switch lq.view {
 	case layoutViewScope:
 		if _, tracked := engine.MilestoneGates(g, states)[lq.milestone]; !tracked {
-			return nil, dashboard.NewError(ExitState, fmt.Sprintf("milestone %q is not one a track lists", lq.milestone), dashboardLayoutAbsentHint)
+			return nil, dashboard.NewError(ExitState, fmt.Sprintf("milestone %q is not one a track lists", layoutEcho(lq.milestone)), dashboardLayoutAbsentHint)
 		}
 		return scopeLayout(g, states, lq.milestone), nil
 	case layoutViewNeighbourhood:
 		if !slices.ContainsFunc(g.Epics, func(e model.Epic) bool { return e.ID == lq.epic }) {
-			return nil, dashboard.NewError(ExitState, fmt.Sprintf("epic %q is not in the graph", lq.epic), dashboardLayoutAbsentHint)
+			return nil, dashboard.NewError(ExitState, fmt.Sprintf("epic %q is not in the graph", layoutEcho(lq.epic)), dashboardLayoutAbsentHint)
 		}
 		return neighbourhoodLayout(g, states, lq.epic, lq.depth), nil
 	default:
@@ -135,10 +147,10 @@ func dashboardLayoutQuery(q url.Values) (layoutQuery, *dashboard.Error) {
 	}
 	for key, values := range q {
 		if key != "view" && !slices.Contains(params, key) {
-			return bad(fmt.Sprintf("view %s takes no %s", view, key))
+			return bad(fmt.Sprintf("view %s takes no %s", view, layoutEcho(key)))
 		}
 		if len(values) != 1 {
-			return bad(key + " is given more than once")
+			return bad(layoutEcho(key) + " is given more than once")
 		}
 	}
 	if len(params) > 0 && q.Get(params[0]) == "" {
