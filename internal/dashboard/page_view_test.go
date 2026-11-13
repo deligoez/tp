@@ -440,27 +440,31 @@ func TestPage_TheAuditsPageItemsAreInPlace(t *testing.T) {
 
 // TestPage_TheEpicDrawerIsQuiet: the epic drawer's stepper is one line with
 // each step's detail in its tooltip; its status names no dependency the
-// list below already shows; a dependency row is a dot, an id and its why;
-// a list past five rows folds the rest, and the graph history folds too,
-// both staying open across redraws; an empty spec list is left out, and the
-// description reads as prose.
+// list below already shows; a dependency row is an id and its why, a done
+// dependency muted with a labelled tick rather than a colour dot (Hallmark
+// 63), its link underlined only on hover or focus; a list past five rows
+// folds the rest, and the graph history is one fold headed by its own name,
+// each staying open across redraws; an empty spec list is left out, a work
+// epic is not labelled as one, and the description reads as prose.
 func TestPage_TheEpicDrawerIsQuiet(t *testing.T) {
 	t.Parallel()
 	page, script := pageText(t)
 	for _, s := range []string{".stepper.e3 .sd { display: none; }", ".stepper.e3 li + li::before {", ".drows .dwhy { font-size: var(--text-xs); line-height: 1.4; max-height: 2.8em; overflow: hidden; }",
-		".ddesc { font: 400 var(--text-sm)/1.6 var(--font-body); color: var(--ink-2); background: none; border: 0;"} {
+		".ddesc { font: 400 var(--text-sm)/1.6 var(--font-body); color: var(--ink-2); background: none; border: 0;",
+		".drows .link { text-decoration: none; }", ".drows .link:hover, .drows .link:focus-visible { text-decoration: underline; }", ".drows li.dn, .drows li.dn .link { color: var(--muted); }"} {
 		assert.Contains(t, page, s)
 	}
 	for _, s := range []string{
 		`'<li class="' + st + '" title="' + esc(sub[k]) + '"'`, `[t("drawer.f.status"), word(STAGE_LABEL, e.status)],`,
 		"const [shown, rest] = tpPure.foldAt(list, 5);", `(dfolds.has(key) ? " open" : "")`, `document.addEventListener("toggle", (ev) => {`,
-		`fold("history", "<summary>" + esc(t("drawer.historyShow")) + "</summary>" + epicHistoryHTML(id))`,
-		`((e.files || []).length ? "<div><h4>" + esc(t("drawer.specs"))`, "style=\"background:var(' + tpPure.markToken(mk) + ')\"",
+		`fold("history", "<summary><h4>" + esc(t("drawer.history")) + "</h4></summary>" + info("ehistory", t("drawer.history")) + epicHistoryHTML(id))`,
+		`((e.files || []).length ? "<div><h4>" + esc(t("drawer.specs"))`, `const doneMark = CHECK.replace('aria-hidden="true"', 'role="img" aria-label="' + esc(t("mark.done")) + '"');`,
+		`(e.condition ? "<span>" + esc(t("drawer.condition")) + "</span>" : "")`,
 	} {
 		assert.Contains(t, script, s)
 	}
-	for _, s := range []string{"drawer.noSpecs", `t("ms.waitsOn", { on: waits.join`} {
-		assert.NotContains(t, script, s)
+	for _, s := range []string{"drawer.noSpecs", `t("ms.waitsOn", { on: waits.join`, "markToken", "ddot", "drawer.historyShow", "drawer.workEpic"} {
+		assert.NotContains(t, page+script, s)
 	}
 }
 
