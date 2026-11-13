@@ -239,3 +239,15 @@ func TestEpicSet_GateMembersEmptyJSONArrayIsTheImplicitList(t *testing.T) {
 	require.NotNil(t, gate.Members)
 	assert.Empty(t, *gate.Members)
 }
+
+// TestEpicSet_GateMembersMalformedJSONIsRefused: a value that opens a JSON
+// array and does not close it is refused before the write, not read as ids.
+func TestEpicSet_GateMembersMalformedJSONIsRefused(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicGateFieldGraph(""))
+	before := readEpicGraphFile(t, dir)
+	_, stderr, code := runTP(t, dir, "epic", "set", `gates.A.members=["a1"`)
+	require.Equal(t, 2, code, "stderr: %s", stderr)
+	assert.NotContains(t, stderr, "dangling-reference")
+	assert.Equal(t, before, readEpicGraphFile(t, dir))
+}
