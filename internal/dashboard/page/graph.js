@@ -61,6 +61,9 @@
   };
   // Below this on-screen glyph height ids are not drawn: boxes are blocks.
   const MIN_TEXT_PX = 7;
+  // The neighbourhood opens no further out than this, where an epic's
+  // 11-unit id still reads above MIN_TEXT_PX.
+  const NEAR_ZOOM = -0.6;
   const CURVE = 10;
   // One arrow key pans this many screen pixels; + and − zoom by ZOOM_STEP.
   const PAN_PX = 90;
@@ -242,6 +245,14 @@
         if (on.length) rows.push({ y0: layer * geo.row - pad, y1: layer * geo.row + geo.h + pad, x0: Math.min(...on.map((n) => n.x - n.w / 2)) - pad, x1: Math.max(...on.map((n) => n.x + n.w / 2)) + pad });
       }
       rows[0].y0 -= 16;
+      // Two rows meet half-way between them, so the outline steps across
+      // horizontally even where the band skips a layer.
+      rows.forEach((r, i) => {
+        if (i === 0) return;
+        const mid = (rows[i - 1].y1 + r.y0) / 2;
+        rows[i - 1].y1 = mid;
+        r.y0 = mid;
+      });
       const right = rows.flatMap((r) => [[r.x1, r.y0], [r.x1, r.y1]]);
       const left = rows.slice().reverse().flatMap((r) => [[r.x0, r.y1], [r.x0, r.y0]]);
       return { k, name: names.join(" + "), poly: right.concat(left), x0: rows[0].x0, y0: rows[0].y0, count: inBand.length };
@@ -786,7 +797,7 @@
         G.fitted = key;
         if (G.data.view === "neighbourhood") {
           const c = G.prepared.nodes.find((n) => n.centre);
-          if (c) G.vs = { ...G.vs, target: [c.x, c.y + c.h / 2, 0], zoom: Math.max(G.vs.zoom, -1) };
+          if (c) G.vs = { ...G.vs, target: [c.x, c.y + c.h / 2, 0], zoom: Math.max(G.vs.zoom, NEAR_ZOOM) };
         }
       }
     } else applySelection(G.prepared);
