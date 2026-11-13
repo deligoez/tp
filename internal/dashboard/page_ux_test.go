@@ -564,6 +564,28 @@ func TestPage_TheKPIRowReadsEvenlyAtDesktopWidth(t *testing.T) {
 	assert.NotContains(t, page, "minmax(160px, 1fr)")
 }
 
+// TestPure_TheEpicTotalsNameTheConditions: the Epics tab counts every epic
+// while the share and the Lifecycle count work epics, so the totals read as
+// one sentence that names the condition epics between them (1.14.1).
+func TestPure_TheEpicTotalsNameTheConditions(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([P.epicTotals([{ id: "a" }, { id: "b" }, { id: "k", condition: true }]), P.epicTotals([{ id: "a" }]), P.epicTotals([{ id: "k", condition: true }])]);`)
+	const tail = "; the Lifecycle and the share count the work epics"
+	assert.JSONEq(t, `["3 epics: 2 work epics and 1 condition epic`+tail+`", "1 epic: 1 work epic and 0 condition epics`+tail+`", "1 epic: 0 work epics and 1 condition epic`+tail+`"]`, got)
+}
+
+// TestPage_TheTotalsSentenceSitsWhereBothCountsAppear: the sentence titles
+// the Epics tab's count and the share KPI, and reads under the Lifecycle.
+func TestPage_TheTotalsSentenceSitsWhereBothCountsAppear(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	assert.Contains(t, page, `id="totals"`)
+	for _, s := range []string{"tpPure.epicTotals(", `$("tab-epics").title = `, `$("totals").textContent = `, "kpi(\"share\""} {
+		assert.Contains(t, script, s)
+	}
+	assert.Contains(t, script, `"share of work epics done", "", totals`)
+}
+
 // TestPage_ListTitlesWrap: a list row's title wraps instead of being cut to
 // a few letters and an ellipsis in a narrow card.
 func TestPage_ListTitlesWrap(t *testing.T) {
