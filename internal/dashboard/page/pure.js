@@ -438,10 +438,12 @@
   };
 
   // ZOOM_PER_PX is how far one pixel of wheel moves the zoom, a power of
-  // two: a pinch's deltas of 1 to 10 move it a little each, a mouse's 100 a
-  // doubling. MAX_ZOOM_STEP keeps any one event within 2× either way.
-  const ZOOM_PER_PX = 0.01;
-  const MAX_ZOOM_STEP = 1;
+  // two: 1/(100 ln 2), so Chrome's pinch, whose deltas undercount the
+  // fingers' spread, tracks them one to one and a mouse's notch of 100
+  // zooms by 1.41×, as the 1.17.1 audit measured. MAX_ZOOM_STEP keeps any
+  // one event within that, well inside 2×.
+  const ZOOM_PER_PX = 1 / (100 * Math.LN2);
+  const MAX_ZOOM_STEP = 0.5;
   const limitStep = (dz) => Math.max(-MAX_ZOOM_STEP, Math.min(MAX_ZOOM_STEP, dz));
 
   // wheelZoom is the zoom step for a wheel's dy pixels, up zooming in.
