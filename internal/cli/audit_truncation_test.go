@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -78,6 +79,22 @@ func TestAuditTruncated_SurvivesQuiet(t *testing.T) {
 	assert.Equal(t, true, fs["truncated"], "--quiet cannot erase the truncation flag")
 	assert.Equal(t, float64(63), fs["total_changed"])
 	assert.Equal(t, float64(50), fs["total_files"])
+}
+
+// --compact drops file_summary, and with it the flag; the auto-detect cut
+// stays visible as a notice that carries the pre-cap count, printed once on
+// stderr as before.
+func TestAuditTruncated_AutoDetectCapIsANotice(t *testing.T) {
+	t.Parallel()
+	dir, specPath := auditRepoWithChangedFiles(t, 63)
+
+	stdout, stderr, code := runTP(t, dir, "audit", specPath, "--compact")
+	require.Equal(t, 0, code)
+	n := noticeOfKind(auditNotices(t, stdout), "auto-detect-cap")
+	require.NotNil(t, n, "the 50-file cut survives --compact as a notice")
+	assert.Equal(t, float64(63), n["total_changed"])
+	assert.Contains(t, n["message"], "63 files changed, auditing first 50")
+	assert.Equal(t, 1, strings.Count(stderr, "auditing first 50"), "stderr says it once")
 }
 
 // An uncapped set reports truncated false with total_changed equal to
