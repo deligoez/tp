@@ -785,6 +785,17 @@
   }
 
   // ---------- the panel ----------
+  // clearCanvas empties the card: no layout prepared, no legend or count,
+  // no layer drawn, and 0 recorded as drawn for the mode.
+  function clearCanvas() {
+    G.prepared = null;
+    G.built = null;
+    drawLegend();
+    $("gc-n").textContent = "";
+    G.drawing = { mode: G.mode, nodes: 0, edges: 0 };
+    recordDrawn();
+    if (G.deck) G.deck.setProps({ layers: [] });
+  }
   function draw() {
     const g = app.data("epic-export");
     card.hidden = !g;
@@ -795,12 +806,7 @@
     if (!G.visible || G.deckState !== "ready") return;
     const key = query(g);
     if (!key) {
-      G.prepared = null;
-      drawLegend();
-      $("gc-n").textContent = "";
-      G.drawing = { mode: G.mode, nodes: 0, edges: 0 };
-      recordDrawn();
-      if (G.deck) G.deck.setProps({ layers: [] });
+      clearCanvas();
       sayKey(tk("graph.pickEpic"));
       return;
     }
@@ -808,7 +814,11 @@
       G.seen = g;
       fetchLayout(key);
     }
-    if (G.error) { say(G.error.error); return; }
+    if (G.error) {
+      clearCanvas();
+      say(G.error.error);
+      return;
+    }
     if (!G.data || G.dataKey !== key) return;
     if (G.built !== G.data || G.builtFor !== g) {
       const keep = G.prepared && G.prepared.L.view === G.data.view && G.fitted === key;
