@@ -173,3 +173,18 @@ func TestReviewRewritten_AppendsAnEpochAfterEachPhasesLastRound(t *testing.T) {
 	}
 }
 
+// TestReviewRewritten_StatusOmitsEpochsWhenThereAreNone: a status payload with
+// no epoch carries no key, as with every permanently empty advisory.
+func TestReviewRewritten_StatusOmitsEpochsWhenThereAreNone(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeSpec(t, dir, epochOldSpec)
+	_, stderr, code := recordRound(t, dir, "")
+	require.Equal(t, 0, code, stderr)
+	for _, phase := range []string{"review", "audit"} {
+		stdout, stderr, code := runTP(t, dir, phase, "spec.md", "--status")
+		require.Equal(t, 0, code, "%s --status: %s", phase, stderr)
+		assert.NotContains(t, stdout, `"epochs"`, phase)
+	}
+}
+
