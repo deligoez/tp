@@ -325,3 +325,27 @@ func TestPure_AnISOWeekReadsAsItsDates(t *testing.T) {
 	assert.Equal(t, "soon", weeks[3])
 }
 
+// TestPage_TheAuditsPageItemsAreInPlace is the 1.17.1 audit's page items:
+// the theme buttons carry an icon beside their word; the KPI's small text
+// never wraps and leaves room for its (i); a milestone's drawer lists its
+// epics and shows its gate's closure on the graph; every selection made
+// outside the drawer is where Esc gives focus back; Review without a round
+// is skipped, not ticked; an epic named on the Specs tab or a spec's header
+// opens its drawer; and each operator command carries a Copy button. The
+// audit's frozen grid columns under an open drawer were tried and left out
+// (spec/1.17.1-measurements.md).
+func TestPage_TheAuditsPageItemsAreInPlace(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	for _, s := range []string{`<svg class="ti" aria-hidden="true"`, ".kpi .v small { white-space: nowrap; }", ".kpi .v { padding-right: 24px; }"} {
+		assert.Contains(t, page, s)
+	}
+	for _, s := range []string{
+		`data-closure="`, `t("drawer.members", { n: members.length })`,
+		"app.showClosure = (ms) =>", "function noteOpener() {", `(p === "ground" || p === "review") && st === "done"`,
+		"? epicLink(f.epic) + (f.epic_state", `esc(t("spec.epicLabel")) + " " + epicLink(d.epic)`, `if (state.tab !== "epics") {`,
+		"const done = (id) => copyCmd(", "tpPure.weekRange(last.week, t.locale)",
+	} {
+		assert.Contains(t, script, s)
+	}
+}
