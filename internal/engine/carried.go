@@ -192,6 +192,6 @@ func CarriedBlockingClause(rows []CarriedRow, specPath string) string {
 	if len(rows) > 1 {
 		clause += fmt.Sprintf(", and %d more listed by tp review %s --status", len(rows)-1, specPath)
 	}
-	return clause + "; accepting a critical or high finding is the operator's decision. If the spec was rewritten, an epoch cuts them instead: tp review " +
+	return clause + "; accepting a critical or high finding is the operator's decision. If the spec was rewritten, an epoch cuts " + pronoun + " instead: tp review " +
 		specPath + " --rewritten \"<evidence>\", the operator's decision " + EscalateRewritePastBlocking
 }
