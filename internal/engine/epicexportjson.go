@@ -156,6 +156,11 @@ type EpicSliceState struct {
 	StaleUnits        []string       `json:"stale_units"`
 	PurposeStaleUnits []string       `json:"purpose_stale_units"`
 	OpenByRole        map[string]int `json:"open_by_role"`
+	// StaleOnly says the slice is stale and would otherwise be done, its
+	// rounds clean enough with no blocking finding open, and is not at its
+	// cap: a re-review alone settles it. The dashboard's stale_loops counts
+	// these; the export does not print it.
+	StaleOnly bool `json:"-"`
 }
 
 // epicSliceState is the export entry of the slice d, graded as st.
@@ -170,6 +175,7 @@ func epicSliceState(d EpicSliceDir, st *EpicReviewStatus, known bool) EpicSliceS
 		out.StaleUnits = st.StaleUnits
 		out.PurposeStaleUnits = st.PurposeStale
 	}
+	out.StaleOnly = out.State == LoopStateStale && st.CleanEnough && !st.CapReached
 	return out
 }
 
