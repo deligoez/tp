@@ -35,6 +35,12 @@ func (r *rewrittenRefusal) Error() string { return r.msg }
 // in both phases equals the newest epoch's, since no round over an older text
 // is left uncut (exit 2).
 //
+// An epoch whose cut holds an unresolved blocking review row is the operator's
+// decision rewrite-past-blocking (spec/backlog/carried-rows-block.md §2.5):
+// under TP_UNATTENDED it exits 2 naming tp escalate; by hand it runs, as an
+// acceptance by hand does, says so on stderr, and names the rows it cut as
+// cut_blocking and cut_blocking_rows.
+//
 // dirFlags is whether --docs-path or --test-path was given: they feed a
 // perspective prompt, which --rewritten does not emit.
 func runReviewRewritten(specPath, evidence string, force, noState, dirFlags bool) error {
@@ -74,6 +80,7 @@ func runReviewRewritten(specPath, evidence string, force, noState, dirFlags bool
 		return st, nil
 	}
 	var epoch engine.Epoch
+	var cut []engine.CarriedRow
 	_, lockErr := decide()
 	if lockErr == nil {
 		lockErr = engine.WithReviewStateLock(specPath, func() error {
@@ -81,6 +88,7 @@ func runReviewRewritten(specPath, evidence string, force, noState, dirFlags bool
 			if err != nil {
 				return err
 			}
+			cut = epochCutBlocking(specPath, st, specHash)
 			return appendEpoch(specPath, st, specHash, evidence, &epoch)
 		})
 	}
@@ -94,7 +102,39 @@ func runReviewRewritten(specPath, evidence string, force, noState, dirFlags bool
 		exitStateError(lockErr)
 		return nil
 	}
-	return output.JSON(map[string]any{"spec": specPath, "epoch": epoch})
+	return output.JSON(rewrittenPayload(specPath, &epoch, cut))
+}
+
+// rewrittenPayload is --rewritten's payload: the spec and the epoch, and the
+// carried blocking rows the epoch cut. By hand the operator is the one running
+// it, so rewrite-past-blocking is taken here: said on stderr, and named in the
+// payload.
+func rewrittenPayload(specPath string, epoch *engine.Epoch, cut []engine.CarriedRow) map[string]any {
+	result := map[string]any{"spec": specPath, "epoch": *epoch}
+	if len(cut) > 0 {
+		output.Notice(fmt.Sprintf("--rewritten: the epoch cuts %d unresolved blocking review finding(s), which stop blocking unless a role raises them again (%s)",
+			len(cut), engine.EscalateRewritePastBlocking))
+		result["cut_blocking"] = len(cut)
+		result["cut_blocking_rows"] = engine.CarriedRowsJSON(cut)
+	}
+	return result
+}
+
+// epochCutBlocking returns the carried blocking review rows an epoch started
+// over st now would cut: those of rounds at or below its review position.
+// An epoch past them is the operator's decision rewrite-past-blocking
+// (spec/backlog/carried-rows-block.md §2.5); one past none is ordinary.
+func epochCutBlocking(specPath string, st *engine.ReviewState, specHash string) []engine.CarriedRow {
+	wf, _ := engine.ResolveWorkflow(specPath, flagFile)
+	pos := engine.EpochPosition(st, engine.PhaseReview, specHash)
+	carried := engine.ReviewCarriedBlocking(specPath, st, wf.ReviewConvergeOn)
+	cut := make([]engine.CarriedRow, 0, len(carried))
+	for i := range carried {
+		if carried[i].Round <= pos {
+			cut = append(cut, carried[i])
+		}
+	}
+	return cut
 }
 
 // appendEpoch places the epoch after the last recorded round of each phase,
@@ -130,12 +170,32 @@ func refuseEpoch(specPath string, st *engine.ReviewState, specHash string) *rewr
 	}
 	for _, phase := range []string{engine.PhaseReview, engine.PhaseAudit} {
 		if engine.EpochPosition(st, phase, specHash) != engine.EpochCut(st, phase) {
-			return nil
+			return refusePastBlocking(specPath, st, specHash)
 		}
 	}
 	return &rewrittenRefusal{code: ExitUsage,
 		msg:  "--rewritten has nothing to cut: every recorded round already read the current text, or was cut by an earlier epoch",
 		hint: "an epoch cuts the rounds that read an older text; rewrite the spec first, or keep the loop going"}
+}
+
+// refusePastBlocking refuses, under TP_UNATTENDED, an epoch whose cut holds
+// an unresolved blocking review row: it would stop the row blocking with
+// neither a fix nor an acceptance, the operator's decision
+// rewrite-past-blocking. Exit 2, as every unattended refusal; by hand it is
+// nil, and runReviewRewritten names the rows it cut.
+func refusePastBlocking(specPath string, st *engine.ReviewState, specHash string) *rewrittenRefusal {
+	if !engine.Unattended() {
+		return nil
+	}
+	cut := epochCutBlocking(specPath, st, specHash)
+	if len(cut) == 0 {
+		return nil
+	}
+	return &rewrittenRefusal{code: ExitUsage,
+		msg: fmt.Sprintf("--rewritten would cut %d unresolved blocking review finding(s), which then stop blocking with neither a fix nor an acceptance; that is a user-approved decision and is refused under TP_UNATTENDED",
+			len(cut)),
+		hint: fmt.Sprintf("resolve the finding first (tp review %s --resolve %d fixed \"<evidence>\" if the rewrite fixed it), or escalate: tp escalate --decision %s --evidence <what you found>",
+			cut[0].File, cut[0].Index, engine.EscalateRewritePastBlocking)}
 }
 
 // inFlightEpochRefusal names the round in flight and the ways past it: its
