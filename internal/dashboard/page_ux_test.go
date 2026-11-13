@@ -1022,3 +1022,17 @@ func TestPure_TheAddressStaysOnThePagesOriginUnderADoubledSlash(t *testing.T) {
 }));`)
 	assert.JSONEq(t, `[["http://127.0.0.1:7377", "//?x=1#tab=epics"], ["http://127.0.0.1:7377", "/#tab=epics"]]`, got)
 }
+
+// TestPage_AHiddenTabClosesItsStreamAndReopensItVisible: the page closes its
+// EventSource when the tab is hidden and opens a fresh one when it is
+// visible again, so hidden tabs hold none of the browser's six connections
+// per host and a returning tab gets the current state the server sends a
+// new stream first.
+func TestPage_AHiddenTabClosesItsStreamAndReopensItVisible(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Contains(t, script, `document.addEventListener("visibilitychange"`)
+	assert.Contains(t, script, "tpPure.streamStep(document.hidden, source !== null)")
+	assert.Contains(t, script, "source.close();")
+	assert.Contains(t, script, "source = new EventSource(STREAM);")
+}
