@@ -212,3 +212,26 @@ func TestPage_WaitingEpicsSitBelowThePlanMapInGroups(t *testing.T) {
 		assert.Contains(t, script, s)
 	}
 }
+
+// TestPure_ALayoutBecomesPointsColumnByLayer: a layout from /api/layout
+// becomes drawing points, one column per layer and one row per order, a
+// short layer centred against the longest, each band spanning its layers'
+// columns, and the drawing's size.
+func TestPure_ALayoutBecomesPointsColumnByLayer(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out(P.placeLayout({ layers: 2, bands: [{ milestone: "M", from_layer: 0, to_layer: 1 }],
+  nodes: [{ id: "a", layer: 0, order: 0 }, { id: "b", layer: 0, order: 1 }, { id: "c", layer: 1, order: 0 }] },
+  { colW: 100, rowH: 20, left: 10, top: 5, head: 0, inset: 10 }));`)
+	assert.JSONEq(t, `{"pos": {"a": {"x": 20, "y": 15}, "b": {"x": 20, "y": 35}, "c": {"x": 120, "y": 25}},
+		"bands": [{"name": "M", "x": 10, "w": 200}], "W": 220, "H": 50}`, got)
+}
+
+// TestPure_AScopedViewOpensWholeWhenItFits: a scoped view opens centred
+// and whole when it fits at a readable scale, never blown up past the
+// largest; one that does not fit opens at its top left.
+func TestPure_AScopedViewOpensWholeWhenItFits(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const r = (v) => Object.fromEntries(Object.entries(v).map(([k, x]) => [k, Math.round(x * 100) / 100]));
+out([r(P.containView(200, 100, 400, 400)), r(P.containView(2000, 500, 400, 400))]);`)
+	assert.JSONEq(t, `[{"x": -33.33, "y": -83.33, "w": 266.67, "h": 266.67}, {"x": -8, "y": -8, "w": 400, "h": 400}]`, got)
+}
