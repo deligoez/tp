@@ -77,3 +77,17 @@ func TestCarriedBlockingClause_CountsAndWordsEachKind(t *testing.T) {
 	assert.True(t, strings.HasPrefix(twoFixed, "2 carried blocking findings marked fixed await a review round that reads the fix"), twoFixed)
 	assert.NotContains(t, twoFixed, "unresolved")
 }
+
+// TestReviewNextAction_AnUnresolvedCarriedRowNamesTheStepAfterIt: with no row
+// marked fixed, the carried clause goes on to the step that follows its
+// disposition — the check gate below the cap, the import at it.
+func TestReviewNextAction_AnUnresolvedCarriedRowNamesTheStepAfterIt(t *testing.T) {
+	t.Parallel()
+	carried := []CarriedRow{earlierHigh()}
+	assert.Zero(t, CarriedFixedUnverified(carried))
+
+	below := ReviewNextAction("spec.md", LoopDone{CarriedBlocking: carried}, false, nil, "r3.ndjson", CheckVerdict{})
+	assert.True(t, strings.HasSuffix(below, " — then "+CheckGateCommand("spec.md")), below)
+	atCap := ReviewNextAction("spec.md", LoopDone{CapReached: true, CarriedBlocking: carried}, false, nil, "r3.ndjson", CheckVerdict{})
+	assert.True(t, strings.HasSuffix(atCap, " — then tp import "+specTaskBase("spec.md")), atCap)
+}
