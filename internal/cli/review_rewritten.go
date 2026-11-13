@@ -130,7 +130,9 @@ func epochCutBlocking(specPath string, st *engine.ReviewState, specHash string) 
 	carried := engine.ReviewCarriedBlocking(specPath, st, wf.ReviewConvergeOn)
 	cut := make([]engine.CarriedRow, 0, len(carried))
 	for i := range carried {
-		if carried[i].Round <= pos {
+		// A row marked fixed is not cut past: the rewrite is the change, and
+		// the next round reads the new text whole.
+		if carried[i].Round <= pos && carried[i].State() == engine.CarriedStateUnresolved {
 			cut = append(cut, carried[i])
 		}
 	}
