@@ -91,3 +91,18 @@ func TestReviewNextAction_AnUnresolvedCarriedRowNamesTheStepAfterIt(t *testing.T
 	atCap := ReviewNextAction("spec.md", LoopDone{CapReached: true, CarriedBlocking: carried}, false, nil, "r3.ndjson", CheckVerdict{})
 	assert.True(t, strings.HasSuffix(atCap, " — then tp import "+specTaskBase("spec.md")), atCap)
 }
+
+// TestCarriedEarlierNote_CountsOnlyEarlierRowsInTheRightNumber: no earlier
+// row adds nothing, a row of the latest round is not counted, and the count
+// is worded in the singular for one and the plural above it.
+func TestCarriedEarlierNote_CountsOnlyEarlierRowsInTheRightNumber(t *testing.T) {
+	t.Parallel()
+	latest := earlierHigh()
+	latest.Earlier = false
+	assert.Empty(t, carriedEarlierNote(nil, "spec.md"))
+	assert.Empty(t, carriedEarlierNote([]CarriedRow{latest}, "spec.md"))
+	assert.Equal(t, "; 1 carried blocking finding from earlier rounds also hold the loop (tp review spec.md --status lists them)",
+		carriedEarlierNote([]CarriedRow{earlierHigh(), latest}, "spec.md"))
+	assert.Equal(t, "; 2 carried blocking findings from earlier rounds also hold the loop (tp review spec.md --status lists them)",
+		carriedEarlierNote([]CarriedRow{earlierHigh(), earlierHigh()}, "spec.md"))
+}
