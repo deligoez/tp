@@ -181,6 +181,7 @@ button.pcell[aria-pressed="true"] { background: var(--color-accent-wash); border
 .loops td { padding: var(--space-xs); border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; vertical-align: middle; }
 .loops td.k { font-family: var(--mono); font-size: var(--text-xs); overflow-wrap: anywhere; }
 .loops td.n { color: var(--muted); }
+.loops .scmd { display: block; margin-top: var(--space-3xs); color: var(--muted); overflow-wrap: anywhere; }
 .st { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .st::before { content: ""; width: 8px; height: 8px; border-radius: 50%; border: 2px solid var(--c, var(--muted)); }
 .st[data-s="done"] { --c: var(--done); }

@@ -464,6 +464,14 @@
     return "--" + k.kind + " " + k.value;
   }
 
+  // sliceTitle names a slice for reading: a set by its name, or as unnamed,
+  // and its size; any other slice as tp epic review takes it.
+  function sliceTitle(s) {
+    const k = s.key;
+    if (!k || k.kind !== "epics") return sliceLabel(s);
+    return (k.name ? "set " + k.name : "unnamed set") + ", " + plural((k.ids || []).length, "epic", "epics");
+  }
+
   // roundText says the round against the cap and the grants spent.
   function roundText(s) {
     let t = "round " + s.round;
@@ -508,7 +516,8 @@
         const open = Object.keys(s.open_by_role || {}).sort().map((r) => esc(r) + " " + esc(s.open_by_role[r])).join(", ") || "none";
         const on = s.dir === hist.dir;
         return '<tr class="' + (on ? "on" : "") + '"><td class="k"><button type="button" class="slink" data-slice="' + esc(s.dir) + '" aria-pressed="' + on +
-          '" title="Show this slice\'s graph history">' + esc(sliceLabel(s)) + "</button></td><td>" + esc(roundText(s)) + '</td><td><span class="st" data-s="' + esc(s.state) + '"' + stale + ">" +
+          '" title="Show this slice\'s graph history">' + esc(sliceTitle(s)) + "</button>" +
+          (s.key && s.key.kind === "epics" ? '<small class="scmd">' + esc(sliceLabel(s)) + "</small>" : "") + "</td><td>" + esc(roundText(s)) + '</td><td><span class="st" data-s="' + esc(s.state) + '"' + stale + ">" +
           esc(s.state.replace("_", " ")) + '</span></td><td class="n">' + open + "</td><td>" + curve(sum ? sum.rounds[s.dir] : null) + "</td></tr>";
       }).join("") + "</tbody></table>";
   });
