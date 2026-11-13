@@ -49,6 +49,31 @@ func TestForestLayout_GoldenBandsAndBackEdges(t *testing.T) {
 	assert.Equal(t, ForestPlace{3, 3}, got.Places["y"])
 }
 
+// TestForestLayout_GoldenLanes pins bands in lanes: Y1 depends only on X1,
+// so with lanes it starts right after X1, beside X2, where stacked bands
+// would put it after X2. A tree edge never joins two groups: y1b's parent
+// is y1a in its own group, and its edge from x1a is a cross edge.
+func TestForestLayout_GoldenLanes(t *testing.T) {
+	t.Parallel()
+	ids := []string{"x1a", "x1b", "x2a", "y1a", "y1b"}
+	edges := []LayoutEdge{{"x1a", "x1b"}, {"x1b", "x2a"}, {"y1a", "y1b"}, {"x1a", "y1b"}}
+	bandOf := map[string]string{"x1a": "X1", "x1b": "X1", "x2a": "X2", "y1a": "Y1", "y1b": "Y1"}
+	groupOf := map[string]string{"x1a": "X", "x1b": "X", "x2a": "X", "y1a": "Y", "y1b": "Y"}
+	in := ForestInput{IDs: ids, Edges: edges, Bands: []string{"X1", "X2", "Y1"}, BandOf: bandOf, GroupOf: groupOf, Pack: PackTree}
+	stacked := ForestLayout(in)
+	assert.Equal(t, LayoutBand{Name: "Y1", From: 3, To: 4}, stacked.Bands[2])
+	in.LaneOf = map[string]string{"X1": "X", "X2": "X", "Y1": "Y"}
+	assert.Equal(t, Forest{
+		Layers:  4,
+		Columns: 5,
+		Bands:   []LayoutBand{{Name: "X1", From: 0, To: 1}, {Name: "X2", From: 2, To: 2}, {Name: "Y1", From: 2, To: 3}},
+		Roles:   []EdgeRole{RoleTree, RoleTree, RoleTree, RoleCross},
+		Places: map[string]ForestPlace{
+			"x1a": {0, 0}, "x1b": {1, 0}, "x2a": {2, 0}, "y1a": {2, 4}, "y1b": {3, 4},
+		},
+	}, ForestLayout(in))
+}
+
 // TestForestLayout_GoldenRowPacking pins the row packing: two groups of
 // one root and two children, seven tree columns wide with the group gap,
 // squeezed into the four columns of the fullest layer, each layer keeping
