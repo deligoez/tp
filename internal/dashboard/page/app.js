@@ -1584,8 +1584,9 @@
       const e = ((data("epic-export") || {}).epics || []).find((x) => x.id === node.id);
       tip.innerHTML = L.view === "milestones" ? '<span class="tid">' + esc(node.id) + "</span><br>" + esc((node.open ? "open" : "closed") + ", " + node.done + " of " + node.epics + " work epics done") +
         "<br>" + esc(plural(node.inbound, "dependency edge", "dependency edges") + " from other milestones' epics") :
-        '<span class="tid">' + esc(node.id) + ", milestone " + esc(node.milestone || "") + "</span><br>" + esc(e ? e.title : "") +
-        (node.any_of ? "<br>one of {" + esc(node.any_of.join(", ")) + "}" : "") + (node.deferrable ? "<br>deferrable" : "");
+        '<span class="tid">' + esc(node.id) + ", milestone " + esc(e ? e.milestone : node.milestone || "") + "</span><br>" + esc(e ? e.title : "") +
+        [...new Set(L.edges.filter((x) => x.from === node.id && x.any_of).map((x) => x.any_of.join(", ")))].map((g) => "<br>one of {" + esc(g) + "}").join("") +
+        (node.deferrable ? "<br>deferrable" : "");
       tip.hidden = false;
       tip.style.left = Math.min(ev.clientX + 14, window.innerWidth - 310) + "px";
       tip.style.top = (ev.clientY + 14) + "px";
