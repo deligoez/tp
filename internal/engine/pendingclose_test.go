@@ -88,18 +88,61 @@ func TestCheckUnitCommits(t *testing.T) {
 	taskFile := filepath.Join(root, "spec.tasks.json")
 	spec := filepath.Join(root, "spec.md")
 	good := commitIn(t, worktree, "a.go", "package a\n\nvar X = 1\n")
-	require.NoError(t, CheckUnitCommits(root, worktree, taskFile, spec, []string{good}))
+	got, err := CheckUnitCommits(root, worktree, taskFile, spec, []string{good})
+	require.NoError(t, err)
+	assert.Equal(t, []string{good}, got)
 
 	base := gitIn(t, root, "rev-parse", "HEAD")
-	err := CheckUnitCommits(root, worktree, taskFile, spec, []string{base})
+	_, err = CheckUnitCommits(root, worktree, taskFile, spec, []string{base})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "already on the main branch")
 
 	owned := commitIn(t, worktree, "spec.tasks.json", `{"spec":"spec.md","tasks":[{"id":"x"}]}`)
-	err = CheckUnitCommits(root, worktree, taskFile, spec, []string{owned})
+	_, err = CheckUnitCommits(root, worktree, taskFile, spec, []string{owned})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "spec.tasks.json")
 
-	err = CheckUnitCommits(root, worktree, taskFile, spec, []string{"deadbeef"})
+	_, err = CheckUnitCommits(root, worktree, taskFile, spec, []string{"deadbeef"})
 	require.Error(t, err)
+}
+
+// TestCheckUnitCommits_NamesEveryCommitOfTheBranch: the request must name the
+// branch's every commit since it left the main branch, and they come back in
+// branch order whatever order they were named in.
+func TestCheckUnitCommits_NamesEveryCommitOfTheBranch(t *testing.T) {
+	t.Parallel()
+	root, worktree := unitRepo(t)
+	taskFile := filepath.Join(root, "spec.tasks.json")
+	spec := filepath.Join(root, "spec.md")
+	first := commitIn(t, worktree, "a.go", "package a\n\nvar X = 1\n")
+	second := commitIn(t, worktree, "b.go", "package a\n")
+
+	_, err := CheckUnitCommits(root, worktree, taskFile, spec, []string{second})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "names 1 of the branch's 2 commits")
+
+	got, err := CheckUnitCommits(root, worktree, taskFile, spec, []string{second, first[:12]})
+	require.NoError(t, err)
+	assert.Equal(t, []string{first, second}, got)
+}
+
+// TestCheckUnitCommits_AProjectBelowTheGitTopLevel: in a project whose .tp/ sits
+// in a subdirectory of the repository, a commit changing its task file is
+// still refused.
+func TestCheckUnitCommits_AProjectBelowTheGitTopLevel(t *testing.T) {
+	t.Parallel()
+	root, worktree := unitRepo(t)
+	sub := filepath.Join(root, "sub")
+	require.NoError(t, os.MkdirAll(filepath.Join(sub, ".tp"), 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(sub, ".tp", "config.json"), []byte("{}\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(sub, "spec.md"), []byte("# S\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(sub, "spec.tasks.json"), []byte("{}\n"), 0o600))
+	gitIn(t, root, "add", ".")
+	gitIn(t, root, "commit", "-q", "-m", "sub project")
+	gitIn(t, worktree, "merge", "-q", "--ff-only", "main")
+	owned := commitIn(t, worktree, "sub/spec.tasks.json", `{"tasks":[]}`)
+
+	_, err := CheckUnitCommits(sub, worktree, filepath.Join(sub, "spec.tasks.json"), filepath.Join(sub, "spec.md"), []string{owned})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "only tp writes")
 }
