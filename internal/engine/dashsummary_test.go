@@ -96,9 +96,9 @@ func TestDashboardSummary_ShapeIsPinned(t *testing.T) {
 		Figures json.RawMessage `json:"figures"`
 	}
 	require.NoError(t, json.Unmarshal(raw["plan"], &plan))
-	assert.Equal(t, []string{"blocked", "critical_path", "done", "held", "open_loops", "operator_queue", "ready", "share_done", "throughput", "work"},
+	assert.Equal(t, []string{"blocked", "critical_path", "done", "held", "open_loops", "operator_queue", "ready", "share_done", "stale_loops", "throughput", "work"},
 		jsonKeys(t, plan.Figures))
-	assert.JSONEq(t, `{"figures":{"blocked":0,"critical_path":0,"done":0,"held":0,"open_loops":0,"operator_queue":0,"ready":0,"share_done":0,"throughput":[],"work":0},"most_waited_on":[],"operator_conditions":[],"operator_groups":[],"ready":[],"waiting":[]}`,
+	assert.JSONEq(t, `{"figures":{"blocked":0,"critical_path":0,"done":0,"held":0,"open_loops":0,"operator_queue":0,"ready":0,"share_done":0,"stale_loops":0,"throughput":[],"work":0},"most_waited_on":[],"operator_conditions":[],"operator_groups":[],"ready":[],"waiting":[]}`,
 		string(raw["plan"]), "with no graph the plan is empty")
 }
 

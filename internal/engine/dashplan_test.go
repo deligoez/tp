@@ -26,7 +26,7 @@ func defaultMatcher(t *testing.T) *PlaceholderMatcher {
 // condition k. Conditions are in no figure and in no ready, waiting or
 // most-waited-on list; free is the one operator decision; w is waited on by h
 // through c, which is passed through and not counted. Two of three slices
-// are open loops.
+// are open loops, one of them only stale after a graph edit.
 func TestDashboardPlan_FiguresAndNowListsCountNoCondition(t *testing.T) {
 	t.Parallel()
 	g := figuresGraph()
@@ -42,7 +42,7 @@ func TestDashboardPlan_FiguresAndNowListsCountNoCondition(t *testing.T) {
 	require.NotEmpty(t, critical)
 	assert.Equal(t, DashboardFigures{
 		Work: 2, Ready: 1, Blocked: 1, Held: 1, Done: 0, ShareDone: 0,
-		CriticalPath: len(critical), OperatorQueue: 1, OpenLoops: 2, Throughput: []DashboardWeek{},
+		CriticalPath: len(critical), OperatorQueue: 1, OpenLoops: 2, StaleLoops: 1, Throughput: []DashboardWeek{},
 	}, plan.Figures)
 	assert.Equal(t, []string{"w"}, plan.Ready)
 	assert.Equal(t, []string{"free"}, plan.OperatorConditions)
