@@ -283,6 +283,41 @@
     return p ? { kind: "purpose", text: p } : { kind: "threshold", text: threshold };
   };
 
+  // escText escapes text for HTML, as the page's esc does.
+  const escText = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+  // thresholdOf is a milestone's threshold text, the one place the card and
+  // the drawer read it: the export's m.gate, else gate, the graph's gate.
+  P.thresholdOf = function (m, gate) {
+    return String((m.gate && m.gate.threshold) || (gate && gate.threshold) || "").trim();
+  };
+
+  // thresholdLine is the threshold as a milestone card words it: the text
+  // of a written threshold, else its state's label from labels.
+  P.thresholdLine = function (m, gate, labels) {
+    const th = (m.state || {}).threshold || "absent";
+    const text = P.thresholdOf(m, gate);
+    return th === "written" && text ? "threshold: " + text : labels[th] || th;
+  };
+
+  // milestoneHTML is a milestone's detail in the drawer: its gate's state,
+  // its threshold and purpose in full, which its card cuts to one line, and
+  // dc, how many of its epics are described, every text escaped.
+  P.milestoneHTML = function (m, gate, dc, labels) {
+    const s = m.state || {};
+    const th = s.threshold || "absent";
+    const text = P.thresholdOf(m, gate);
+    const n = (k, one, many) => k + " " + (k === 1 ? one : many);
+    const waits = (m.waiting_on || []).length ? ", waits on " + m.waiting_on.join(", ") : "";
+    const fields = [
+      ["Gate", (m.open ? "open" : "closed") + waits + "; " + (s.members_done || 0) + " of " + n(s.members || 0, "member", "members") + " done"],
+      ["Threshold", (labels[th] || th) + (text ? ": " + text : "")],
+      ["Purpose", String((gate || {}).purpose || "").trim() || "none written"],
+      ["Described", dc.described + " of " + n(dc.all, "epic", "epics") + " described"],
+    ];
+    return "<h3>" + escText(m.milestone) + "</h3><dl>" + fields.map(([k, v]) => "<dt>" + k + "</dt><dd>" + escText(v) + "</dd>").join("") + "</dl>";
+  };
+
   // balancedColumns is the column count for n cards of at least minCard px
   // in a row width px wide, gap px apart: the fewest rows the width allows,
   // then the fewest columns that keep that many rows, so the rows come out

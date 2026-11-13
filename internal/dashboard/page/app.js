@@ -239,10 +239,6 @@
   const THRESHOLD_LABEL = {"written": "threshold written", "absent": "no threshold", "placeholder": "placeholder threshold", "met": "threshold met"};
   const msView = { detail: null };
   const gateOf = (g, id) => (((g.graph || {}).gates || {})[id]) || {};
-  const thresholdLine = (m) => {
-    const th = (m.state || {}).threshold || "absent";
-    return th === "written" && m.gate && m.gate.threshold ? "threshold: " + m.gate.threshold : THRESHOLD_LABEL[th] || th;
-  };
   panel(["epic-export"], () => {
     const g = data("epic-export");
     const box = $("msstate");
@@ -253,7 +249,7 @@
     box.innerHTML = '<span class="plab">Milestones</span><div class="mscells">' + ms.map((m) => {
       const s = m.state || {};
       const waits = m.waiting_on && m.waiting_on.length ? "waits on " + m.waiting_on.join(", ") : "";
-      const line = tpPure.msLine(gateOf(g, m.milestone).purpose, thresholdLine(m));
+      const line = tpPure.msLine(gateOf(g, m.milestone).purpose, tpPure.thresholdLine(m, gateOf(g, m.milestone), THRESHOLD_LABEL));
       const dc = described[m.milestone] || { described: 0, all: 0 };
       return '<button type="button" class="ms" data-ms="' + esc(m.milestone) + '" data-open="' + !!m.open + '" aria-expanded="false" aria-controls="drawer"><b>' + esc(m.milestone) + '</b><span class="st" data-s="' + (m.open ? "done" : "stale") + '">' +
         (m.open ? "open" : "closed") + "</span>" + (waits ? '<span class="sm muted">' + esc(waits) + "</span>" : "") +
@@ -1906,7 +1902,8 @@
     $("drawer").setAttribute("aria-label", msd ? "Milestone detail" : "Epic detail");
     $("dclose").setAttribute("aria-label", msd ? "Close the milestone detail" : "Close the epic detail");
     if (msd) {
-      $("dbody").innerHTML = milestoneHTML(g, msd);
+      const dc = tpPure.describedCounts((g.graph && g.graph.epics) || [])[msd.milestone] || { described: 0, all: 0 };
+      $("dbody").innerHTML = tpPure.milestoneHTML(msd, gateOf(g, msd.milestone), dc, THRESHOLD_LABEL);
       return;
     }
     const ge = graphEpic(g, id) || {};
@@ -1942,24 +1939,6 @@
       "<div><h4>Depends on</h4>" + (deps ? '<ul class="elist">' + deps + "</ul>" : none("Nothing.")) + "</div>" +
       "<div><h4>Depended on by</h4>" + (needs ? '<ul class="elist">' + needs + "</ul>" : none("Nothing.")) + "</div>" +
       "<div><h4>Graph history " + info("ehistory", "its graph history") + "</h4>" + epicHistoryHTML(id) + "</div>";
-  }
-  // milestoneHTML is a milestone's detail in the drawer: its gate's state,
-  // its threshold and purpose in full, which its card cuts to one line, and
-  // how many of its epics are described.
-  function milestoneHTML(g, m) {
-    const s = m.state || {};
-    const gate = gateOf(g, m.milestone);
-    const th = s.threshold || "absent";
-    const text = String((m.gate && m.gate.threshold) || gate.threshold || "").trim();
-    const dc = tpPure.describedCounts((g.graph && g.graph.epics) || [])[m.milestone] || { described: 0, all: 0 };
-    const waits = m.waiting_on && m.waiting_on.length ? ", waits on " + m.waiting_on.join(", ") : "";
-    const fields = [
-      ["Gate", (m.open ? "open" : "closed") + waits + "; " + (s.members_done || 0) + " of " + plural(s.members || 0, "member", "members") + " done"],
-      ["Threshold", (THRESHOLD_LABEL[th] || th) + (text ? ": " + text : "")],
-      ["Purpose", String(gate.purpose || "").trim() || "none written"],
-      ["Described", dc.described + " of " + plural(dc.all, "epic", "epics") + " described"],
-    ];
-    return "<h3>" + esc(m.milestone) + "</h3><dl>" + fields.map(([k, v]) => "<dt>" + esc(k) + "</dt><dd>" + esc(v) + "</dd>").join("") + "</dl>";
   }
   INFO.ehistory = "How this epic's edges and whys read in each recorded round of every epic review slice whose snapshot holds it, from tp epic review --history --of-epic. A round recorded before snapshots kept their text holds hashes only, so it shows no edge or why.";
 
