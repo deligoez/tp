@@ -553,6 +553,17 @@ func TestPage_TheLoopsFigureSplitsStaleFromNeedingARound(t *testing.T) {
 	assert.Contains(t, script, "review loops needing a round")
 }
 
+// TestPage_TheKPIRowReadsEvenlyAtDesktopWidth: the nine KPI cards are an
+// auto-fit grid whose cards may narrow to 140 px, so at 1440 px (a 1408 px
+// row, 8 px gaps: 149 px each) all nine share one row instead of eight and
+// a ninth wrapping alone, as they did at a 160 px minimum (1.14.1).
+func TestPage_TheKPIRowReadsEvenlyAtDesktopWidth(t *testing.T) {
+	t.Parallel()
+	page, _ := pageText(t)
+	assert.Contains(t, page, ".kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));")
+	assert.NotContains(t, page, "minmax(160px, 1fr)")
+}
+
 // TestPage_ListTitlesWrap: a list row's title wraps instead of being cut to
 // a few letters and an ellipsis in a narrow card.
 func TestPage_ListTitlesWrap(t *testing.T) {
