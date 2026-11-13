@@ -213,11 +213,12 @@
       const s = m.state || {};
       const waits = m.waiting_on && m.waiting_on.length ? "waits on " + m.waiting_on.join(", ") : "";
       const th = s.threshold || "absent";
-      const gateTitle = m.gate && m.gate.threshold ? ' title="' + esc(m.gate.threshold) + '"' : "";
+      const purpose = ((((g.graph || {}).gates || {})[m.milestone]) || {}).purpose;
       return '<div class="ms" data-open="' + !!m.open + '"><b>' + esc(m.milestone) + '</b><span class="st" data-s="' + (m.open ? "done" : "stale") + '">' +
         (m.open ? "open" : "closed") + "</span>" + (waits ? '<span class="sm muted">' + esc(waits) + "</span>" : "") +
-        '<span class="sm">gate ' + esc(s.members_done || 0) + " of " + esc(s.members || 0) + ' done</span><span class="sm th" data-th="' + esc(th) + '"' + gateTitle + ">" +
-        esc(th === "written" && m.gate && m.gate.threshold ? "threshold: " + m.gate.threshold : THRESHOLD_LABEL[th] || th) + "</span></div>";
+        '<span class="sm">gate ' + esc(s.members_done || 0) + " of " + esc(s.members || 0) + ' done</span><span class="sm th" data-th="' + esc(th) + '">' +
+        esc(th === "written" && m.gate && m.gate.threshold ? "threshold: " + m.gate.threshold : THRESHOLD_LABEL[th] || th) + "</span>" +
+        (purpose && purpose.trim() ? '<span class="sm purpose">purpose: ' + esc(purpose.trim()) + "</span>" : "") + "</div>";
     }).join("") + "</div>";
   });
 

@@ -121,7 +121,8 @@ button.pcell[aria-pressed="true"] { background: var(--color-accent-wash); border
 .ms { display: grid; gap: var(--space-3xs); align-content: start; padding: var(--space-xs) var(--space-sm); border: 1px solid var(--line); border-radius: var(--radius-input); background: var(--surface); font-size: var(--text-sm); }
 .ms[data-open="false"] { background: var(--sunk); }
 .ms b { font: 600 var(--text-sm)/1.3 var(--font-display); }
-.ms .th { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ms .th, .ms .purpose { overflow-wrap: anywhere; }
+.ms .purpose { color: var(--ink-2); }
 .ms .th[data-th="placeholder"], .ms .th[data-th="absent"] { color: var(--active); }
 .ms .th[data-th="met"] { color: var(--done); }
 @media (max-width: 760px) {
