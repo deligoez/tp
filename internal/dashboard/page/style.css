@@ -169,7 +169,7 @@ button.pcell[aria-pressed="true"] { background: var(--color-accent-wash); border
 .wn { margin-left: auto; color: var(--muted); }
 .bst { font-size: var(--text-xs); border: 1px solid var(--c, var(--line)); color: var(--c, var(--muted)); border-radius: 999px; padding: 0 var(--space-xs); }
 .bst[data-b="startable"] { --c: var(--ready); }
-.bst[data-b="claimed"] { --c: var(--active); }
+.bst[data-b="claimed"], .bst[data-b="specced"], .bst[data-b="in_progress"] { --c: var(--active); }
 .bst[data-b="decision"] { --c: var(--held); }
 .wids { display: flex; flex-wrap: wrap; gap: var(--space-3xs) var(--space-sm); margin-top: var(--space-3xs); font: 400 var(--text-xs) var(--mono); }
 .wall { margin-top: var(--space-xs); }

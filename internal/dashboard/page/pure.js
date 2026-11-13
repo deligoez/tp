@@ -122,16 +122,17 @@
 
   // BLOCKER_RANK orders a blocker's states from the readiest; an any-of
   // group takes its readiest member's.
-  const BLOCKER_RANK = ["startable", "claimed", "decision", "waiting"];
+  const BLOCKER_RANK = ["startable", "in_progress", "specced", "claimed", "decision", "waiting"];
 
   // blockerState is what an epic others wait on is doing: startable when tp
-  // epic ready lists it, a decision when it is a condition, claimed when it
-  // is under way, else waiting itself.
+  // epic ready lists it, a decision when it is a condition, its status when
+  // it is past planned (claimed, specced or in_progress, the status field
+  // as the export serves it), else waiting itself.
   const blockerState = (e, ready) => {
     if (!e) return "waiting";
     if (ready.includes(e.id)) return "startable";
     if (e.condition) return "decision";
-    return e.status && e.status !== "planned" && e.status !== "done" ? "claimed" : "waiting";
+    return e.status && e.status !== "planned" && e.status !== "done" ? e.status : "waiting";
   };
 
   // waitingGroups groups waiting, the summary's waiting epic ids, by what
