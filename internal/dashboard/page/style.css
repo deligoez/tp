@@ -273,6 +273,7 @@ body.mapfs .card.fs .legend { max-height: 30vh; overflow: auto; }
 .map .eid { font: 400 11px var(--mono); fill: var(--ink-2); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
 .map .node { cursor: pointer; }
 .map .node.dim { opacity: .15; }
+.map .dmark, .legend .dmark { font: 600 11px var(--font-display); fill: var(--accent); color: var(--accent); }
 .map .node:focus { outline: none; }
 .map .node:focus-visible .rowhit { stroke: var(--color-focus); stroke-width: 2; rx: 4px; }
 .map .edge { fill: none; stroke: var(--faint); stroke-width: .8; opacity: .45; }

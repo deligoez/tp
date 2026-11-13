@@ -209,16 +209,19 @@
     const ms = (state.graph && g && g.milestones) || [];
     box.hidden = !ms.length;
     if (box.hidden) return;
+    const described = tpPure.describedCounts((g.graph && g.graph.epics) || []);
     box.innerHTML = '<span class="plab">Milestones</span><div class="mscells">' + ms.map((m) => {
       const s = m.state || {};
       const waits = m.waiting_on && m.waiting_on.length ? "waits on " + m.waiting_on.join(", ") : "";
       const th = s.threshold || "absent";
       const purpose = ((((g.graph || {}).gates || {})[m.milestone]) || {}).purpose;
+      const dc = described[m.milestone] || { described: 0, all: 0 };
       return '<div class="ms" data-open="' + !!m.open + '"><b>' + esc(m.milestone) + '</b><span class="st" data-s="' + (m.open ? "done" : "stale") + '">' +
         (m.open ? "open" : "closed") + "</span>" + (waits ? '<span class="sm muted">' + esc(waits) + "</span>" : "") +
         '<span class="sm">gate ' + esc(s.members_done || 0) + " of " + esc(s.members || 0) + ' done</span><span class="sm th" data-th="' + esc(th) + '">' +
         esc(th === "written" && m.gate && m.gate.threshold ? "threshold: " + m.gate.threshold : THRESHOLD_LABEL[th] || th) + "</span>" +
-        (purpose && purpose.trim() ? '<span class="sm purpose">purpose: ' + esc(purpose.trim()) + "</span>" : "") + "</div>";
+        (purpose && purpose.trim() ? '<span class="sm purpose">purpose: ' + esc(purpose.trim()) + "</span>" : "") +
+        '<span class="sm muted">' + esc(dc.described + " of " + plural(dc.all, "epic", "epics") + " described") + "</span></div>";
     }).join("") + "</div>";
   });
 
@@ -965,6 +968,7 @@
     // else the selected one, else the first.
     if (!geo.pos[mapView.focus]) mapView.focus = sel || (geo.placed[0] || {}).id || null;
     const hadFocus = $("mapsvg").contains(document.activeElement);
+    const described = describedIds(g);
     geo.placed.forEach((e) => {
       const p = geo.pos[e.id];
       const s = markState(e, geo.byMs[e.milestone]);
@@ -972,6 +976,7 @@
         '" aria-label="' + esc(e.id + ": " + e.title + ", " + MARK_LABEL[s]) + '"' + (e.id === sel ? ' aria-pressed="true"' : "") + ">" +
         (e.id === sel ? '<circle cx="' + p.x + '" cy="' + p.y + '" r="10" fill="none" stroke="var(--accent)" stroke-width="2.2"/>' : "") +
         mark(e.condition, s, p.x, p.y, 4.8) + '<text class="eid" x="' + (p.x + 12) + '" y="' + (p.y + 4) + '">' + esc(clip(e.id, 19)) + "</text>" +
+        descMark(described.has(e.id), p.x + 12, p.y + 4, clip(e.id, 19).length) +
         '<rect class="rowhit" x="' + (p.x - 9) + '" y="' + (p.y - MAP.rowH / 2) + '" width="' + (MAP.boxW - 24) + '" height="' + MAP.rowH + '" fill="transparent"/></g>');
     });
     // The neighbour edges sit above the epics so their labels read; the hit
@@ -984,6 +989,11 @@
   }
   const clip = (s, n) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
   panel(["epic-export"], drawMap);
+  // describedIds is the set of the graph's epics with a description.
+  const describedIds = (g) => new Set(((g.graph && g.graph.epics) || []).filter((e) => String(e.description || "").trim()).map((e) => e.id));
+  // descMark draws the mark of a described epic after its id label of n
+  // characters at x, y; nothing for an epic with no description.
+  const descMark = (on, x, y, n) => (on ? '<text class="dmark" x="' + (x + n * 6.7 + 4) + '" y="' + y + '"><title>has a description</title>¶</text>' : "");
 
   // focusNode puts the map's tab stop on id and focuses it.
   function focusNode(id) {
@@ -1262,6 +1272,7 @@
     '<span><svg viewBox="0 0 15 15" aria-hidden="true">' + mark(true, "ready", 7.5, 7.5, 4.4) + "</svg>condition</span>" +
     '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path d="M1 7.5H14" stroke="var(--crit)" stroke-width="2.6"/></svg>critical path</span>' +
     '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path d="M1 7.5H14" stroke="var(--accent)" stroke-dasharray="3 2"/></svg>one of a group</span>' +
+    '<span><b class="dmark" aria-hidden="true">¶</b>has a description</span>' +
     '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path class="edge in" d="M1 7.5H14"/></svg>in: what it depends on</span>' +
     '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path class="edge out" d="M1 7.5H14"/></svg>out: what depends on it</span>' +
     '<span class="help">Click an epic for its chain, again to clear; Neighbours narrows it to one step each way. Drag to pan; Ctrl or ⌘ with the wheel, or a pinch, zooms; in full screen the wheel alone zooms and Esc leaves.</span>';
@@ -1439,6 +1450,7 @@
     return '<g class="' + cls + '" data-id="' + esc(n.id) + '"' + tab + ' aria-label="' + esc(n.id + ": " + (e.title || "") + ", " + MARK_LABEL[s]) + '">' +
       (n.id === mapView.selected ? '<circle cx="' + p.x + '" cy="' + p.y + '" r="10" fill="none" stroke="var(--accent)" stroke-width="2.2"/>' : "") +
       mark(e.condition, s, p.x, p.y, 4.8) + '<text class="eid" x="' + (p.x + 12) + '" y="' + (p.y + 4) + '">' + esc(clip(n.id, 22)) + "</text>" +
+      descMark(ctx.described.has(n.id), p.x + 12, p.y + 4, clip(n.id, 22).length) +
       '<rect class="rowhit" x="' + (p.x - 9) + '" y="' + (p.y - 11) + '" width="' + (GDIMS[view].colW - 40) + '" height="22" fill="transparent"/></g>';
   }
 
@@ -1500,7 +1512,8 @@
     const top = GDIMS[view].top;
     $("gsvg").innerHTML = (L.bands || []).length ? geo.bands.map((b, i) => '<rect class="gband' + (i % 2 ? " odd" : "") + '" x="' + (b.x + 2) + '" y="' + top + '" width="' + (b.w - 8) + '" height="' + (geo.H - 2 * top) + '" rx="7"/>' +
       '<text class="msname" x="' + (b.x + 12) + '" y="' + (top + 20) + '">' + esc(b.name) + "</text>").join("") : "";
-    $("gsvg").innerHTML += "<g>" + gedgesHTML(L, geo, hl) + "</g>" + L.nodes.map((n) => gnodeHTML(n, geo.pos[n.id], view, { epics, ms, near })).join("");
+    const ctx = { epics, ms, near, described: describedIds(g) };
+    $("gsvg").innerHTML += "<g>" + gedgesHTML(L, geo, hl) + "</g>" + L.nodes.map((n) => gnodeHTML(n, geo.pos[n.id], view, ctx)).join("");
     $("g-n").textContent = plural(L.nodes.length, view === "milestones" ? "milestone" : "epic", view === "milestones" ? "milestones" : "epics") +
       (L.view === "scope" ? " in " + L.milestone + "'s closure" : L.view === "neighbourhood" ? " within " + plural(L.depth, "step", "steps") + " of " + L.epic : "");
     if (hadFocus) gfocus(gview.focus);

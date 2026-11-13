@@ -130,6 +130,18 @@
     return { groups: list, closed, open: count };
   };
 
+  // describedCounts counts, per milestone, the graph's epics and those with
+  // a description, one holding more than whitespace, as tp treats it.
+  P.describedCounts = function (epics) {
+    const out = {};
+    (epics || []).forEach((e) => {
+      const c = out[e.milestone] || (out[e.milestone] = { described: 0, all: 0 });
+      c.all++;
+      if (String(e.description || "").trim()) c.described++;
+    });
+    return out;
+  };
+
   // pinchView is the view after two fingers moved from a0 and b0 to a1 and
   // b1 (pixels from the box's top left, the box rw by rh) over the view v0
   // they started on: zoomed by the ratio of their spans, with the drawing
