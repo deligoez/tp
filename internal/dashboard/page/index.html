@@ -39,9 +39,9 @@
       <div class="card"><h2>Most waited-on epics <button class="info" type="button" data-info="most" aria-label="About the most waited-on epics" aria-expanded="false">i</button></h2><div class="list" id="now-most"></div></div>
     </section>
     <div id="epics-body" class="view" data-src="epic-export">
-      <section class="card mapcard gcard" id="graphcard" aria-label="Graph" hidden>
+      <section class="card mapcard gcard" id="graphcard" aria-label="Graph" data-drawn-nodes="0" data-drawn-edges="0" hidden>
         <div class="toolbar">
-          <h2>Graph</h2>
+          <h2>Graph <button class="info" type="button" data-info="graph" aria-label="About the graph" aria-expanded="false">i</button></h2>
           <span class="seg" role="group" aria-label="Graph mode">
             <button type="button" data-gmode="plan" aria-pressed="true">Plan</button>
             <button type="button" data-gmode="milestones" aria-pressed="false">Milestones</button>
@@ -50,59 +50,22 @@
           </span>
           <label class="gpick" id="gc-ms-pick" hidden>Milestone <select id="gc-ms"></select></label>
           <label class="gpick" id="gc-depth-pick" hidden>Depth <select id="gc-depth"><option>1</option><option selected>2</option><option>3</option><option>4</option></select></label>
-          <input type="search" id="gc-q" placeholder="Find an epic by id or title  /" aria-label="Find epics in the graph" autocomplete="off">
+          <input type="search" id="gc-q" placeholder="Find an epic by id or title  /" aria-label="Find epics in the graph; Enter selects the next match" autocomplete="off">
           <button class="chip" type="button" id="gc-cross" aria-pressed="false" title="Show every edge that is not a tree edge (K)">Cross edges</button>
           <button class="chip" type="button" id="gc-pack" title="Rows squeezes each layer; Tree gives every leaf its own column">Packing: rows</button>
           <span class="sm muted num" id="gc-n" aria-live="polite"></span>
           <span class="spacer"></span>
           <button type="button" class="key" id="gc-fit" title="Fit the whole graph (F)">Fit</button>
           <button type="button" class="key" id="gc-theme" title="Switch light and dark">Dark</button>
-          <button type="button" class="key" data-fs="graphcard" aria-pressed="false">Full screen</button>
+          <button type="button" class="key" id="gc-full" data-fs="graphcard" aria-pressed="false">Full screen</button>
         </div>
-        <div class="map gcanvas" id="gc-canvas"><p class="gmsg" id="gc-msg">The graph loads when it scrolls into view.</p></div>
+        <div class="map gcanvas" id="gc-canvas" tabindex="0" role="application" aria-roledescription="graph canvas" aria-label="Graph canvas: the arrow keys pan, + and − zoom, F fits. Epics are reached through the search, the lists and the chain as text below."><p class="gmsg" id="gc-msg">The graph loads when it scrolls into view.</p></div>
         <div class="legend" id="gc-legend"></div>
-      </section>
-      <section class="card mapcard retired" id="mapcard" aria-label="Plan map" hidden>
-        <div class="toolbar">
-          <h2>Plan map <button class="info" type="button" data-info="map" aria-label="About the plan map" aria-expanded="false">i</button></h2>
-          <span id="trackchips" class="chips" role="group" aria-label="Show only these tracks"></span>
-          <button class="chip" type="button" id="f-edges" aria-pressed="false">All edges</button>
-          <button class="chip" type="button" id="f-nb" aria-pressed="false" title="With an epic selected, show only it, what it depends on and what depends on it">Direct only</button>
-          <input type="search" id="map-q" placeholder="Find an epic by id or title" aria-label="Find epics" autocomplete="off">
-          <span class="sm muted num" id="map-n" aria-live="polite"></span>
-          <span class="spacer"></span>
-          <button type="button" class="key" data-z="out" aria-label="Zoom out">−</button>
-          <button type="button" class="key" data-z="in" aria-label="Zoom in">+</button>
-          <button type="button" class="key" data-z="fit">Fit</button>
-          <button type="button" class="key" id="f-full" data-fs="mapcard" aria-pressed="false">Full screen</button>
-        </div>
-        <div class="map" id="map"><svg id="mapsvg" role="group" aria-label="Plan map: lanes of milestones as boxes, epics as marks; the arrows move between epics and Enter selects one"></svg></div>
-        <div class="legend" id="maplegend"></div>
+        <details class="chaintext" id="chaintext"><summary>The selected epic's chain as text</summary><div id="chain"></div></details>
       </section>
       <section class="card" id="waitcard" aria-label="Waiting epics" data-src="summary epic-export" hidden>
         <h2>Waiting epics <button class="info" type="button" data-info="waiting" aria-label="About waiting epics" aria-expanded="false">i</button></h2>
         <div id="now-waiting"></div>
-      </section>
-      <section class="card mapcard retired" id="chaincard" aria-label="Dependencies" hidden>
-        <div class="toolbar">
-          <h2>Dependencies <button class="info" type="button" data-info="chain" aria-label="About the dependency views" aria-expanded="false">i</button></h2>
-          <span class="seg" role="group" aria-label="Dependency view">
-            <button type="button" data-gv="milestones" aria-pressed="false">Milestones</button>
-            <button type="button" data-gv="scope" aria-pressed="false">Gate closure</button>
-            <button type="button" data-gv="neighbourhood" aria-pressed="false">Neighbourhood</button>
-          </span>
-          <label class="gpick" id="gm-pick" hidden>Milestone <select id="gm"></select></label>
-          <label class="gpick" id="gd-pick" hidden>Depth <select id="gd"><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
-          <span class="sm muted num" id="g-n" aria-live="polite"></span>
-          <span class="spacer"></span>
-          <button type="button" class="key" data-z="out" aria-label="Zoom out">−</button>
-          <button type="button" class="key" data-z="in" aria-label="Zoom in">+</button>
-          <button type="button" class="key" data-z="fit">Fit</button>
-          <button type="button" class="key" data-fs="chaincard" aria-pressed="false">Full screen</button>
-        </div>
-        <div class="map gmap" id="gmap"><svg id="gsvg" role="group" aria-label="Dependency view: what each node depends on sits to its left; the arrows move between nodes and Enter picks one"></svg></div>
-        <div class="legend" id="glegend"></div>
-        <details class="chaintext" id="chaintext"><summary>The selected epic's chain as text</summary><div id="chain"></div></details>
       </section>
       <section class="card" id="matrixcard" aria-label="Milestone matrix" data-src="summary" hidden>
         <h2>Milestone matrix <button class="info" type="button" data-info="matrix" aria-label="About the milestone matrix" aria-expanded="false">i</button></h2>

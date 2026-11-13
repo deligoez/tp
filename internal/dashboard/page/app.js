@@ -195,8 +195,8 @@
 
   // The lifecycle band (§6): epic stages when the phases count epics, and the
   // spec phases, which count task files when the repository has no graph. A
-  // stage filters the map to the epics tp epic export reports in it; a phase
-  // opens Specs at that phase.
+  // stage dims the graph card's epics outside it, as tp epic export reports
+  // them; a phase opens Specs at that phase.
   panel(["summary"], () => {
     const sum = data("summary");
     if (!sum || !sum.band) {
@@ -221,7 +221,7 @@
       mapView.stage = mapView.stage === st.dataset.stage ? null : st.dataset.stage;
       render();
       syncURL();
-      if (mapView.stage) $("mapcard").scrollIntoView({ block: "nearest" });
+      if (mapView.stage) $("graphcard").scrollIntoView({ block: "nearest" });
     } else if (ph) {
       specsView.phase = ph.dataset.phase;
       setTab("specs");
@@ -312,7 +312,7 @@
 
   // What each panel and figure lists and where it comes from (§4).
   const INFO = {
-    band: "Work epics per stage, and per spec phase at the earliest phase of their bound specs; with no graph the phases count task files. From the summary's band. Click a stage to show only its epics on the map, again to clear; click a phase to open Specs at it. Milestones: each one open or closed by its opening order with what it waits on, its gate's members done out of members (deferrable members in neither count), and one line: its gate's purpose when it has one, else its threshold as written, absent, a placeholder or met, from the export's milestones. A card opens its milestone in the drawer, with the threshold and the purpose in full.",
+    band: "Work epics per stage, and per spec phase at the earliest phase of their bound specs; with no graph the phases count task files. From the summary's band. Click a stage to dim every other epic on the graph, again to clear; click a phase to open Specs at it. Milestones: each one open or closed by its opening order with what it waits on, its gate's members done out of members (deferrable members in neither count), and one line: its gate's purpose when it has one, else its threshold as written, absent, a placeholder or met, from the export's milestones. A card opens its milestone in the drawer, with the threshold and the purpose in full.",
     share: "Work epics done over all work epics; condition epics are in no figure. From the summary's plan, the share tp epic status reports.",
     ready: "Work epics that can start now: open milestone, every dependency done, no bound spec, no claim. In tp epic ready's order, most downstream first.",
     critical: "Not-done epics on the longest dependency chain of the whole graph: tp epic status's top-level critical_path.",
@@ -830,22 +830,13 @@
     fetchHistory();
   });
 
-  // ---------- the plan map (§9) ----------
-  // tp lays the map out: every epic's layout names its lane, the lane's kind,
-  // its milestone's column and its row inside the milestone. The page turns
-  // those into coordinates and places nothing by any rule of its own.
-  const MAP = { boxW: 178, rowH: 18, head: 34, padB: 12, colGap: 40, slotGap: 14, laneGap: 22, left: 92, top: 14 };
-  const LANE_LABEL = { main: "Main", parallel: "Parallel", triggered: "Triggered" };
+  // ---------- the plan's epics: marks, search, edges ----------
+  // The graph card (graph.js) draws the plan; the page keeps what the
+  // drawer, the lists and the text chain read: each mark's words, the
+  // selection, the lifecycle's stage filter, and the graph's edges both ways.
   const MARK_LABEL = { done: "done", ready: "can start", claimed: "claimed", specced: "specced", in_progress: "in progress", blocked: "blocked", held: "held by a condition", waiting: "milestone closed", moot: "moot" };
-  const MARKS = ["done", "in_progress", "specced", "claimed", "ready", "blocked", "held", "waiting", "moot"];
-  // UNDER_WAY are the stages after planned, each with its own shape in the
-  // colour of work under way.
-  const UNDER_WAY = ["claimed", "specced", "in_progress"];
-  const mapView = { selected: null, focus: null, edges: false, nb: false, tracks: new Set(), geo: null, deps: {}, dependents: {}, byId: {}, q: "", stage: null };
-  // NB_DIR names the two directions the neighbours filter marks an edge with:
-  // in, from an epic the selected one depends on; out, to an epic depending
-  // on it.
-  const NB_DIR = {"in": "Incoming", "out": "Outgoing"};
+  const mapView = { selected: null, deps: {}, dependents: {}, stage: null };
+  INFO.graph = "The plan as tp lays it out at /api/layout, drawn on one canvas. Plan: every epic, layers top to bottom by what they wait on, each milestone a band, tracks side by side, each epic under one primary parent, its deepest earlier dependency in its track; those tree edges are drawn, the other edges into an epic (cross edges) only with Cross edges or K, a back edge (a cycle) in violet, and the critical path in orange whatever its class. Milestones: each milestone with its work epics done and its epic edges in, joined by its opens-after edges; click one for its gate's closure. Gate closure: what the milestone's gate pulls in (tp epic scope), banded by milestone. Neighbourhood: the selected epic and its dependencies and dependents to the depth picked. Selecting an epic highlights what it waits on in blue and what waits on it in green, fading after two steps. Packing rows squeezes each layer into the width of the fullest; tree gives every leaf its own column. The canvas has no focusable epic: the search, the lists, the drawer and the chain as text below carry the keyboard, and on the focused canvas the arrows pan.";
 
   // FOLD maps the letters the epic search folds before Unicode decomposition:
   // the Turkish dotless and dotted i, which decomposition and lower-casing do
@@ -856,96 +847,9 @@
   // fold reduces s to what the epic search compares: case and diacritics
   // gone, so isik matches IŞIK and ışık alike.
   const fold = (s) => String(s).replace(FOLD_RE, (c) => FOLD[c]).normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
-  // searchHit reports whether the epic's id or title holds the folded query.
-  const searchHit = (e, q) => !q || fold(e.id).includes(q) || fold(e.title || "").includes(q);
-  INFO.map = "Lanes from the opening order: the main lane is the longest chain of milestone openings, parallel lanes the other chains, the triggered lane the milestones that open on a trigger. A milestone's column is its opening depth. tp computes every place (the export's layout); the page only draws it. Colour and shape both carry an epic's state; a diamond is a condition. The orange line is the critical path. The bar on a box's right edge is its gate's members done. Click an epic for its chain; All edges draws every edge. Direct only keeps the selected epic, the epics it depends on and the epics that depend on it, marks each edge in or out, and shows an edge's why on hover. The search matches ids and titles ignoring case and accents, Turkish ı and İ included.";
-
-  // mapGeometry turns the export's layout into boxes and points. Milestones
-  // sharing a lane and a column (the triggered lane's) sit side by side in
-  // graph-file order.
-  function mapGeometry(g) {
-    const placed = (g.epics || []).filter((e) => e.layout);
-    const order = [].concat(...((g.graph && g.graph.milestones) || []));
-    const open = {};
-    (g.milestones || []).forEach((m) => { open[m.milestone] = m; });
-    const byMs = {};
-    placed.forEach((e) => {
-      const l = e.layout;
-      const m = byMs[e.milestone] || (byMs[e.milestone] = { id: e.milestone, lane: l.lane, kind: l.lane_kind, column: l.column, rows: 0, report: open[e.milestone] || null });
-      m.rows = Math.max(m.rows, l.row + 1);
-    });
-    const ms = Object.values(byMs).sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
-    const taken = {};
-    const lanes = [];
-    let cols = 0;
-    ms.forEach((m) => {
-      const k = m.lane + "/" + m.column;
-      m.slot = taken[k] = taken[k] === undefined ? 0 : taken[k] + 1;
-      cols = Math.max(cols, m.column + 1);
-      const lane = lanes[m.lane] || (lanes[m.lane] = { kind: m.kind, rows: 0 });
-      lane.rows = Math.max(lane.rows, m.rows);
-    });
-    const colX = [];
-    for (let c = 0; c < cols; c++) colX[c] = MAP.left + c * (MAP.boxW + MAP.colGap);
-    let x = MAP.left + cols * (MAP.boxW + MAP.colGap);
-    let y = MAP.top;
-    lanes.forEach((lane) => {
-      lane.y = y;
-      lane.h = MAP.head + lane.rows * MAP.rowH + MAP.padB;
-      y += lane.h + MAP.laneGap;
-    });
-    // Only the triggered lane holds milestones of one column; they run on to
-    // the right inside their own lane, so they widen no other lane's column.
-    ms.forEach((m) => {
-      m.x = colX[m.column] + m.slot * (MAP.boxW + MAP.slotGap);
-      m.y = lanes[m.lane].y;
-      m.h = lanes[m.lane].h;
-      x = Math.max(x, m.x + MAP.boxW + MAP.colGap);
-    });
-    const pos = {};
-    placed.forEach((e) => {
-      const m = byMs[e.milestone];
-      pos[e.id] = { x: m.x + 16, y: m.y + MAP.head + e.layout.row * MAP.rowH + MAP.rowH / 2 };
-    });
-    return { ms, byMs, lanes, pos, placed, W: x, H: y };
-  }
-
   // markOf reads an epic's mark (tpPure.markState) given its milestone's
   // report from the export.
   const markOf = (e, report) => tpPure.markState(e, !!report && !report.open);
-
-  // mark draws one state: a circle for a work epic, a diamond for a
-  // condition, and a shape inside for every state, so colour is never alone.
-  function mark(cond, s, x, y, r) {
-    const c = "var(--" + (UNDER_WAY.includes(s) ? "active" : s) + ")";
-    const shape = (fill, stroke, dash) => (cond
-      ? '<path d="M' + x + " " + (y - r - 1) + "L" + (x + r + 1) + " " + y + "L" + x + " " + (y + r + 1) + "L" + (x - r - 1) + " " + y + 'Z"'
-      : '<circle cx="' + x + '" cy="' + y + '" r="' + r + '"') +
-      ' fill="' + fill + '" stroke="' + stroke + '" stroke-width="1.5"' + (dash ? ' stroke-dasharray="' + dash + '"' : "") + "/>";
-    switch (s) {
-      case "done": return shape(c, c);
-      case "ready": return '<circle cx="' + x + '" cy="' + y + '" r="' + (r + 2.8) + '" fill="none" stroke="' + c + '" stroke-width="1" opacity=".55"/>' + shape(c, c);
-      case "claimed": return shape("var(--surface)", c) + '<circle cx="' + x + '" cy="' + y + '" r="' + (r - 2.3) + '" fill="' + c + '"/>';
-      case "specced": return shape("var(--surface)", c) + '<rect x="' + (x - 2) + '" y="' + (y - 2) + '" width="4" height="4" fill="' + c + '"/>';
-      case "in_progress": return shape("var(--surface)", c) + '<path d="M' + x + " " + (y - r) + "A" + r + " " + r + " 0 0 1 " + x + " " + (y + r) + 'Z" fill="' + c + '"/>';
-      case "blocked": return shape(c, c) + '<path d="M' + (x - r + 1.6) + " " + (y + r - 1.6) + "L" + (x + r - 1.6) + " " + (y - r + 1.6) + '" stroke="var(--surface)" stroke-width="1.6"/>';
-      case "held": return shape(c, c) + '<rect x="' + (x - 2.3) + '" y="' + (y - 2.5) + '" width="1.5" height="5" fill="var(--surface)"/><rect x="' + (x + 0.8) + '" y="' + (y - 2.5) + '" width="1.5" height="5" fill="var(--surface)"/>';
-      case "moot": return shape("none", "var(--moot)", "1.2 1.6");
-      default: return shape("var(--surface)", "var(--waiting)", "2 1.5");
-    }
-  }
-
-  // holdHTML draws the hold of an epic past planned over its mark: a ring
-  // in the hold's colour, crossed by a slash when it is blocked, so the
-  // stage and the hold both show and colour is never alone.
-  function holdHTML(hold, x, y, r) {
-    if (!hold) return "";
-    const c = "var(--" + hold + ")";
-    return '<circle class="hold" cx="' + x + '" cy="' + y + '" r="' + (r + 2.6) + '" fill="none" stroke="' + c + '" stroke-width="1.4"/>' +
-      (hold === "blocked" ? '<path d="M' + (x - r - 2) + " " + (y + r + 2) + "L" + (x + r + 2) + " " + (y - r - 2) + '" stroke="' + c + '" stroke-width="1.4"/>' : "");
-  }
-  // markHTML draws a markState result: its mark and its hold.
-  const markHTML = (cond, m, x, y, r) => mark(cond, m.mark, x, y, r) + holdHTML(m.hold, x, y, r);
 
   // The graph's edges, both ways, as stored: an any-of group names each member.
   function mapEdges(g) {
@@ -963,330 +867,6 @@
     mapView.deps = deps;
     mapView.dependents = dependents;
   }
-
-  // chainOf is every epic the selected one depends on, and every epic that
-  // depends on it, transitively.
-  function chainOf(id) {
-    const seen = new Set([id]);
-    const walk = (x, next) => (next[x] || []).forEach((y) => {
-      const yid = y.id || y;
-      if (!seen.has(yid)) { seen.add(yid); walk(yid, next); }
-    });
-    walk(id, mapView.deps);
-    walk(id, mapView.dependents);
-    return seen;
-  }
-
-  // neighboursOf is the selected epic, the epics it depends on and the epics
-  // that depend on it, one step each way.
-  function neighboursOf(id) {
-    const seen = new Set([id]);
-    (mapView.deps[id] || []).forEach((d) => seen.add(d.id));
-    (mapView.dependents[id] || []).forEach((y) => seen.add(y));
-    return seen;
-  }
-
-  // nbLabel writes an edge's direction at its middle; an edge inside one
-  // milestone's column bulges right over the ids, so its label goes left.
-  function nbLabel(p, q, dir) {
-    const same = Math.abs(q.x - p.x) < 1;
-    return '<text class="nbdir ' + dir + '" x="' + (same ? p.x - 9 : (p.x + q.x) / 2) + '" y="' + ((p.y + q.y) / 2 + (same ? 3 : -3)) + '" text-anchor="' + (same ? "end" : "middle") + '">' + dir + "</text>";
-  }
-
-  // neighbourEdges draws the selected epic's edges, each marked in or out and
-  // carrying its why, its two ends and its any-of group for the hover tip.
-  function neighbourEdges(id, pos) {
-    const out = [];
-    const draw = (from, to, d, dir) => {
-      const p = pos[from];
-      const q = pos[to];
-      if (!p || !q) return;
-      const path = edgePath(p, q);
-      out.push('<g class="nbedge" data-dir="' + dir + '" data-from="' + esc(from) + '" data-to="' + esc(to) + '" data-why="' + esc(d.why || "") + '"' +
-        (d.group ? ' data-group="' + esc(d.group.join(", ")) + '"' : "") + '><path class="hit" d="' + path + '"/>' +
-        '<path class="edge ' + dir + '" d="' + path + '"' + (d.group ? ' stroke-dasharray="3 2"' : "") + "/>" +
-        nbLabel(p, q, dir) + "</g>");
-    };
-    (mapView.deps[id] || []).forEach((d) => draw(d.id, id, d, "in"));
-    new Set(mapView.dependents[id] || []).forEach((y) => (mapView.deps[y] || []).filter((d) => d.id === id).forEach((d) => draw(id, y, d, "out")));
-    return out;
-  }
-
-  function edgePath(p, q) {
-    const dx = Math.max(18, (q.x - p.x) / 2);
-    return "M" + p.x + " " + p.y + "C" + (p.x + dx) + " " + p.y + " " + (q.x - dx) + " " + q.y + " " + q.x + " " + q.y;
-  }
-
-  // The track chips filter the map; each track is one list of the graph's
-  // milestones, named by its first and last.
-  function drawTrackChips(g) {
-    const tracks = (g.graph && g.graph.milestones) || [];
-    const key = JSON.stringify(tracks);
-    const box = $("trackchips");
-    if (box.dataset.key === key) return;
-    box.dataset.key = key;
-    mapView.tracks = new Set([...mapView.tracks].filter((i) => i < tracks.length));
-    box.innerHTML = tracks.length > 1 ? tracks.map((t, i) => '<button class="chip" type="button" data-track="' + i + '" aria-pressed="' + mapView.tracks.has(i) + '" title="' +
-      esc(t.join(", ")) + '">' + esc(t.length > 1 ? t[0] + "–" + t[t.length - 1] : t[0] || "track " + (i + 1)) + "</button>").join("") : "";
-  }
-
-  function drawMap() {
-    const g = data("epic-export");
-    const card = $("mapcard");
-    card.hidden = !state.graph || !g;
-    if (card.hidden) return;
-    drawTrackChips(g);
-    mapEdges(g);
-    const geo = mapView.geo = mapGeometry(g);
-    mapView.byId = {};
-    geo.placed.forEach((e) => { mapView.byId[e.id] = e; });
-    if (mapView.selected && !geo.pos[mapView.selected]) mapView.selected = null;
-    const sel = mapView.selected;
-    const nb = sel && mapView.nb;
-    const chain = sel ? (nb ? neighboursOf(sel) : chainOf(sel)) : null;
-    const trackOf = {};
-    ((g.graph && g.graph.milestones) || []).forEach((t, i) => t.forEach((m) => { trackOf[m] = i; }));
-    const q = fold(mapView.q.trim());
-    const inStage = (e) => !mapView.stage || e.status === mapView.stage;
-    const shown = (e) => (!mapView.tracks.size || mapView.tracks.has(trackOf[e.milestone])) && (!chain || chain.has(e.id)) && searchHit(e, q) && inStage(e);
-    const stageNote = mapView.stage ? plural(geo.placed.filter(inStage).length, "epic", "epics") + " " + (STAGES.find(([k]) => k === mapView.stage) || ["", mapView.stage])[1].toLowerCase() : "";
-    $("map-n").textContent = [q ? plural(geo.placed.filter((e) => searchHit(e, q) && inStage(e)).length, "match", "matches") : "", stageNote].filter(Boolean).join(", ");
-    const out = [];
-    geo.lanes.forEach((lane) => out.push('<text class="lanelab" x="12" y="' + (lane.y + 22) + '">' + esc(LANE_LABEL[lane.kind] || lane.kind) + "</text>"));
-    geo.ms.forEach((m) => {
-      const r = m.report || {};
-      const st = r.state || {};
-      const share = st.members ? st.members_done / st.members : 0;
-      const ih = m.h - MAP.head - MAP.padB;
-      const label = r.open === false ? "closed" : Math.round((r.share_done || 0) * 100) + "%";
-      out.push('<g><rect class="msbox' + (r.open === false ? " closed" : "") + '" x="' + m.x + '" y="' + m.y + '" width="' + MAP.boxW + '" height="' + m.h + '" rx="7"/>' +
-        '<text class="msname" x="' + (m.x + 12) + '" y="' + (m.y + 21) + '">' + esc(m.id) + "</text>" +
-        '<text class="msshare" x="' + (m.x + MAP.boxW - 15) + '" y="' + (m.y + 21) + '" text-anchor="end">' + esc(label) + "</text>" +
-        '<rect x="' + (m.x + MAP.boxW - 7.5) + '" y="' + (m.y + MAP.head) + '" width="4" height="' + ih + '" rx="2" fill="var(--line)"/>' +
-        '<rect x="' + (m.x + MAP.boxW - 7.5) + '" y="' + (m.y + MAP.head + ih * (1 - share)) + '" width="4" height="' + ih * share + '" rx="2" fill="var(--' +
-        (st.members && st.members_done === st.members ? "done" : r.open ? "active" : "waiting") + ')"><title>' +
-        esc(m.id + " gate: " + (st.members_done || 0) + " of " + (st.members || 0) + " members done") + "</title></rect></g>");
-    });
-    const edges = [];
-    if (!nb && (mapView.edges || sel)) {
-      Object.keys(mapView.deps).forEach((id) => mapView.deps[id].forEach((d) => {
-        const p = geo.pos[d.id];
-        const q = geo.pos[id];
-        if (!p || !q || (chain && !(chain.has(id) && chain.has(d.id)))) return;
-        edges.push('<path class="edge' + (sel ? " sel" : "") + '" d="' + edgePath(p, q) + '"' + (d.group ? ' stroke-dasharray="3 2"' : "") + "/>");
-      }));
-    }
-    out.push("<g>" + edges.join("") + "</g>");
-    const crit = ((g.critical_path && g.critical_path.by_count) || []).filter((id) => geo.pos[id]);
-    if (crit.length > 1) out.push('<polyline class="crit" points="' + crit.map((id) => geo.pos[id].x + "," + geo.pos[id].y).join(" ") + '"/>');
-    // One epic is in the tab order at a time: the one focus last moved to,
-    // else the selected one, else the first.
-    if (!geo.pos[mapView.focus]) mapView.focus = sel || (geo.placed[0] || {}).id || null;
-    const hadFocus = $("mapsvg").contains(document.activeElement);
-    const described = describedIds(g);
-    const stops = tpPure.tabStops(geo.placed.map((e) => e.id), mapView.focus);
-    geo.placed.forEach((e, i) => {
-      const p = geo.pos[e.id];
-      const m = markOf(e, geo.byMs[e.milestone].report);
-      out.push('<g class="node' + (shown(e) ? "" : " dim") + '" data-id="' + esc(e.id) + '" data-status="' + esc(e.status) + '" role="button" tabindex="' + stops[i] +
-        '" aria-label="' + esc(e.id + ": " + e.title + ", " + tpPure.markText(m, MARK_LABEL)) + '"' + (e.id === sel ? ' aria-pressed="true"' : "") + ">" +
-        (e.id === sel ? '<circle cx="' + p.x + '" cy="' + p.y + '" r="10" fill="none" stroke="var(--accent)" stroke-width="2.2"/>' : "") +
-        markHTML(e.condition, m, p.x, p.y, 4.8) + '<text class="eid" x="' + (p.x + 12) + '" y="' + (p.y + 4) + '">' + esc(clip(e.id, 19)) + "</text>" +
-        descMark(described.has(e.id), p.x + 12, p.y + 4, clip(e.id, 19).length) +
-        '<rect class="rowhit" x="' + (p.x - 9) + '" y="' + (p.y - MAP.rowH / 2) + '" width="' + (MAP.boxW - 24) + '" height="' + MAP.rowH + '" fill="transparent"/></g>');
-    });
-    // The neighbour edges sit above the epics so their labels read; the hit
-    // test below still gives an epic's mark and id to the epic.
-    if (nb) out.push("<g>" + neighbourEdges(sel, geo.pos).join("") + "</g>");
-    $("mapsvg").innerHTML = out.join("");
-    if (hadFocus) focusNode(mapView.focus);
-    mapPort.bounds(geo.W, geo.H);
-    syncURL();
-  }
-  const clip = (s, n) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
-  panel(["epic-export"], drawMap);
-  // describedIds is the set of the graph's epics with a description.
-  const describedIds = (g) => new Set(((g.graph && g.graph.epics) || []).filter((e) => String(e.description || "").trim()).map((e) => e.id));
-  // descMark draws the mark of a described epic after its id label of n
-  // characters at x, y; nothing for an epic with no description.
-  const descMark = (on, x, y, n) => (on ? '<text class="dmark" x="' + (x + n * 6.7 + 4) + '" y="' + y + '"><title>has a description</title>¶</text>' : "");
-
-  // focusNode puts the map's tab stop on id and focuses it.
-  function focusNode(id) {
-    const svg = $("mapsvg");
-    const node = id && [...svg.querySelectorAll(".node")].find((n) => n.dataset.id === id);
-    if (!node) return;
-    svg.querySelectorAll('.node[tabindex="0"]').forEach((n) => n.setAttribute("tabindex", "-1"));
-    node.setAttribute("tabindex", "0");
-    mapView.focus = id;
-    node.focus({ preventScroll: true });
-  }
-  // The arrows move the map's focus to the nearest epic that way
-  // (tpPure.roveNext), taking the view along; Enter or Space selects it.
-  $("mapsvg").addEventListener("keydown", (ev) => {
-    const node = ev.target.closest && ev.target.closest(".node");
-    if (!node) return;
-    if (ev.key === "Enter" || ev.key === " ") {
-      ev.preventDefault();
-      selectEpic(node.dataset.id);
-      return;
-    }
-    const next = tpPure.roveNext(mapView.geo.pos, node.dataset.id, ev.key);
-    if (next === node.dataset.id) return;
-    ev.preventDefault();
-    focusNode(next);
-    mapPort.reveal(mapView.geo.pos[next]);
-  });
-
-  // makePort pans and zooms the drawing svg in the box el: drag or one
-  // finger to pan, Ctrl or ⌘ with the wheel, a pinch, or the plain wheel
-  // while hooks.card fills the screen, to zoom; otherwise a plain wheel
-  // scrolls the page. hooks.first gives a drawing's first view, hooks.hover
-  // and hooks.click answer the pointer, and hooks.card holds the zoom keys.
-  function makePort(el, svg, hooks) {
-    let v = null;
-    let size = { W: 1, H: 1 };
-    let drag = null;
-    let moved = false;
-    const apply = () => { if (v) svg.setAttribute("viewBox", v.x + " " + v.y + " " + v.w + " " + v.h); };
-    // fit shows the drawing's first view (hooks.first).
-    function fit() {
-      const r = el.getBoundingClientRect();
-      if (!r.width || !r.height) return;
-      v = hooks.first(size.W, size.H, r.width, r.height);
-      apply();
-    }
-    function zoomAt(f, px, py) {
-      if (!v) return;
-      const nw = Math.min(Math.max(size.W, size.H) * 3, Math.max(120, v.w * f));
-      f = nw / v.w;
-      v = { x: px - (px - v.x) * f, y: py - (py - v.y) * f, w: v.w * f, h: v.h * f };
-      apply();
-    }
-    const toSvg = (cx, cy) => {
-      const r = el.getBoundingClientRect();
-      return { x: v.x + (cx - r.left) / r.width * v.w, y: v.y + (cy - r.top) / r.height * v.h };
-    };
-    el.addEventListener("wheel", (ev) => {
-      if (!tpPure.wheelZooms(ev, hooks.card.classList.contains("fs")) || !v) return;
-      ev.preventDefault();
-      const p = toSvg(ev.clientX, ev.clientY);
-      zoomAt(Math.exp(Math.max(-80, Math.min(80, ev.deltaY)) * 0.01), p.x, p.y);
-    }, { passive: false });
-    // Touch: one finger pans like a drag, two pinch (tpPure.pinchView); the
-    // fingers down are kept by pointer id, in the order they came down.
-    const fingers = new Map();
-    let pinch = null;
-    const inBox = (ev) => {
-      const r = el.getBoundingClientRect();
-      return { x: ev.clientX - r.left, y: ev.clientY - r.top };
-    };
-    el.addEventListener("pointerdown", (ev) => {
-      if (!v) return;
-      if (ev.pointerType === "touch") fingers.set(ev.pointerId, inBox(ev));
-      const act = tpPure.pointerAction(ev.pointerType === "touch" ? fingers.size : 0, ev);
-      if (act === "none") return;
-      if (act === "pinch") {
-        const [a, b] = [...fingers.values()];
-        pinch = { a, b, v: { ...v } };
-        drag = null;
-        moved = true;
-        return;
-      }
-      drag = { x: ev.clientX, y: ev.clientY, v: { ...v } };
-      moved = false;
-    });
-    el.addEventListener("pointermove", (ev) => {
-      if (fingers.has(ev.pointerId)) fingers.set(ev.pointerId, inBox(ev));
-      if (pinch && fingers.size >= 2) {
-        const r = el.getBoundingClientRect();
-        const [a, b] = [...fingers.values()];
-        v = tpPure.pinchView(pinch.v, pinch.a, pinch.b, a, b, r.width, r.height);
-        apply();
-        return;
-      }
-      if (drag && (moved || Math.abs(ev.clientX - drag.x) + Math.abs(ev.clientY - drag.y) > 3)) {
-        if (!moved) { moved = true; el.classList.add("drag"); el.setPointerCapture(ev.pointerId); }
-        const r = el.getBoundingClientRect();
-        v = { ...drag.v, x: drag.v.x - (ev.clientX - drag.x) / r.width * drag.v.w, y: drag.v.y - (ev.clientY - drag.y) / r.height * drag.v.h };
-        apply();
-        $("tip").hidden = true;
-        return;
-      }
-      if (ev.pointerType !== "touch") hooks.hover(ev);
-    });
-    const lift = (ev) => {
-      fingers.delete(ev.pointerId);
-      if (fingers.size < 2) pinch = null;
-      el.classList.remove("drag");
-      const wasDrag = !drag || moved;
-      drag = null;
-      return wasDrag;
-    };
-    el.addEventListener("pointerup", (ev) => {
-      const pinched = !!pinch;
-      if (!lift(ev) && !pinched) hooks.click(ev);
-    });
-    el.addEventListener("pointercancel", lift);
-    el.addEventListener("pointerleave", () => { $("tip").hidden = true; });
-    hooks.card.querySelectorAll("[data-z]").forEach((b) => b.addEventListener("click", () => {
-      const z = b.dataset.z;
-      if (z === "fit" || !v) fit();
-      else zoomAt(z === "in" ? 1 / 1.5 : 1.5, v.x + v.w / 2, v.y + v.h / 2);
-    }));
-    // A resize, as a drawer opening beside the page, keeps the scale: the
-    // view widens or narrows with the box instead of shrinking the drawing.
-    let boxW = 0;
-    new ResizeObserver(() => {
-      const r = el.getBoundingClientRect();
-      if (!r.width || !r.height) return;
-      if (!v) fit();
-      else {
-        const w = boxW ? v.w * r.width / boxW : v.w;
-        v = { ...v, w, h: w * r.height / r.width };
-        apply();
-      }
-      boxW = r.width;
-    }).observe(el);
-    return {
-      // centre takes the view to the drawing point p (tpPure.centreView),
-      // once the layout settles, as an opening drawer narrows the map.
-      centre(p) {
-        requestAnimationFrame(() => {
-          const r = el.getBoundingClientRect();
-          if (!v || !p || !r.width) return;
-          v = tpPure.centreView({ ...v, h: v.w * r.height / r.width }, p, r.width);
-          apply();
-        });
-      },
-      // fitAt shows the whole drawing centred on p (tpPure.containAt), once
-      // the layout settles; the box width it read is the one a later resize
-      // scales from.
-      fitAt(p) {
-        requestAnimationFrame(() => {
-          const r = el.getBoundingClientRect();
-          const next = tpPure.fitAtView(size, r, p);
-          if (!next) return;
-          v = next;
-          boxW = r.width;
-          apply();
-        });
-      },
-      // reveal centres p only when it lies outside the view.
-      reveal(p) {
-        if (v && p && (p.x < v.x || p.x > v.x + v.w || p.y < v.y || p.y > v.y + v.h)) this.centre(p);
-      },
-      // bounds takes the drawing's size; the first drawing, and any when
-      // refit is set, is fitted, later ones keep the reader's view.
-      bounds(W, H, refit) {
-        const first = size.W === 1 && size.H === 1;
-        size = { W, H };
-        if (first || refit || !v) fit();
-        else apply();
-      },
-    };
-  }
-  const mapPort = makePort($("map"), $("mapsvg"), { card: $("mapcard"), first: tpPure.initialView, hover: (ev) => mapHover(ev), click: (ev) => mapClick(ev) });
 
   // Full screen (dashboard-ux.md §2): a card's button asks the Fullscreen
   // API for the page and marks the card to fill it, so the drawer still opens
@@ -1319,97 +899,8 @@
   document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement) setFullScreen(null); });
   document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && !document.fullscreenElement && document.body.classList.contains("mapfs") && $("drawer").hidden) setFullScreen(null); });
 
-  // mapHit reads everything under the pointer: an epic's mark or id wins,
-  // then a neighbour edge, then the rest of an epic's row, so an edge drawn
-  // across a row is still found and an epic under an edge still answers.
-  function mapHit(ev) {
-    const els = document.elementsFromPoint(ev.clientX, ev.clientY).filter((el) => el.closest && el.closest("#mapsvg"));
-    const nodeOf = (el) => el.closest("#mapsvg .node");
-    const mark = els.find((el) => nodeOf(el) && !el.classList.contains("rowhit"));
-    if (mark) return { node: nodeOf(mark) };
-    const edge = els.map((el) => el.closest("#mapsvg .nbedge")).find(Boolean);
-    if (edge) return { edge };
-    const row = els.find(nodeOf);
-    return { node: row ? nodeOf(row) : null };
-  }
-  // edgeTip is a neighbour edge's hover text: its direction, its two ends and
-  // the why the graph gives for it.
-  function edgeTip(d) {
-    return '<span class="tid">' + esc(NB_DIR[d.dir]) + ": " + esc(d.to) + " depends on " + esc(d.from) + "</span><br>" +
-      (d.why ? esc(d.why) : '<span class="tid">no why recorded</span>') + (d.group ? "<br>one of {" + esc(d.group) + "}" : "");
-  }
-  function mapHover(ev) {
-    const { node: n, edge } = mapHit(ev);
-    const tip = $("tip");
-    const e = n && mapView.byId[n.dataset.id];
-    if (!e && !edge) { tip.hidden = true; return; }
-    if (edge) tip.innerHTML = edgeTip(edge.dataset);
-    else {
-      const m = markOf(e, mapView.geo.byMs[e.milestone].report);
-      tip.innerHTML = '<span class="tid">' + esc(e.id) + ", milestone " + esc(e.milestone) + (e.condition ? ", condition" : "") + "</span><br>" + esc(e.title) +
-        "<br>" + esc(tpPure.markText(m, MARK_LABEL)) + (m.mark === e.status ? "" : ", " + esc(e.status.replace("_", " ")));
-    }
-    tip.hidden = false;
-    tip.style.left = Math.min(ev.clientX + 14, window.innerWidth - 310) + "px";
-    tip.style.top = (ev.clientY + 14) + "px";
-  }
-  function mapClick(ev) {
-    const { node: n, edge } = mapHit(ev);
-    if (edge) return;
-    selectEpic(n ? n.dataset.id : null);
-  }
-  $("trackchips").addEventListener("click", (ev) => {
-    const b = ev.target.closest("[data-track]");
-    if (!b) return;
-    const i = Number(b.dataset.track);
-    if (mapView.tracks.has(i)) mapView.tracks.delete(i);
-    else mapView.tracks.add(i);
-    b.setAttribute("aria-pressed", String(mapView.tracks.has(i)));
-    drawMap();
-  });
-  // The search dims what does not match and centres its first match; Enter
-  // selects that match and brings the map into view.
-  const firstMatch = () => {
-    const q = fold(mapView.q.trim());
-    return q && mapView.geo ? mapView.geo.placed.find((e) => searchHit(e, q)) || null : null;
-  };
-  $("map-q").addEventListener("input", (ev) => {
-    mapView.q = ev.target.value;
-    drawMap();
-    const hit = firstMatch();
-    if (hit) mapPort.centre(mapView.geo.pos[hit.id]);
-  });
-  $("map-q").addEventListener("keydown", (ev) => {
-    const hit = ev.key === "Enter" && firstMatch();
-    if (!hit) return;
-    ev.preventDefault();
-    mapView.selected = null;
-    selectEpic(hit.id, true);
-    $("mapcard").scrollIntoView({ block: "nearest" });
-  });
-  $("f-edges").addEventListener("click", () => {
-    mapView.edges = !mapView.edges;
-    $("f-edges").setAttribute("aria-pressed", String(mapView.edges));
-    drawMap();
-  });
-  $("f-nb").addEventListener("click", () => {
-    mapView.nb = !mapView.nb;
-    $("f-nb").setAttribute("aria-pressed", String(mapView.nb));
-    drawMap();
-  });
-  $("maplegend").innerHTML = MARKS.map((s) => '<span><svg viewBox="0 0 15 15" aria-hidden="true">' + mark(false, s, 7.5, 7.5, 4.6) + "</svg>" + esc(MARK_LABEL[s]) + "</span>").join("") +
-    ["blocked", "held"].map((h) => '<span><svg viewBox="0 0 15 15" aria-hidden="true">' + markHTML(false, { mark: "claimed", hold: h }, 7.5, 7.5, 3.6) + "</svg>" +
-      esc("claimed, specced or in progress, and " + MARK_LABEL[h]) + "</span>").join("") +
-    '<span><svg viewBox="0 0 15 15" aria-hidden="true">' + mark(true, "ready", 7.5, 7.5, 4.4) + "</svg>condition</span>" +
-    '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path d="M1 7.5H14" stroke="var(--crit)" stroke-width="2.6"/></svg>critical path</span>' +
-    '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path d="M1 7.5H14" stroke="var(--accent)" stroke-dasharray="3 2"/></svg>one of a group</span>' +
-    '<span><b class="dmark" aria-hidden="true">¶</b>has a description</span>' +
-    '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path class="edge in" d="M1 7.5H14"/></svg>in: what it depends on</span>' +
-    '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path class="edge out" d="M1 7.5H14"/></svg>out: what depends on it</span>' +
-    '<span class="help">Click an epic for its chain, again to clear; Direct only narrows it to one step each way. Drag to pan; Ctrl or ⌘ with the wheel, or a pinch, zooms; in full screen the wheel alone zooms and Esc leaves.</span>';
-
   // ---------- the selected epic: its chain, its drawer (§4, §11) ----------
-  // Selecting an epic on the map, in a now list or in the drawer draws its
+  // Selecting an epic on the graph, in a now list or in the drawer draws its
   // chain with every edge's why and opens its drawer: its fields, what it
   // depends on and what depends on it with the whys, downstream, its bound
   // specs, its own stepper and its graph history, fetched from
@@ -1421,8 +912,8 @@
   const PHASE_NAME = Object.fromEntries(PHASES);
 
   // selectEpic selects id, or clears the selection when id is the selected
-  // epic or null; centre takes the map to it, as a selection made outside
-  // the map does.
+  // epic or null; centre asks the graph card to take its view to it, as a
+  // selection made outside the card does.
   // opener is what held focus when a selection opens the drawer, read before
   // the redraws below replace it; drawDrawer takes it.
   let opener = null;
@@ -1430,12 +921,9 @@
     if ($("drawer").hidden) opener = { el: document.activeElement, key: focusKey(document.activeElement) };
     // An epic takes the drawer over from a milestone shown in it.
     moveDrawer({ type: "epic", id });
-    // A selection shows its neighbourhood unless a gate's closure is shown.
-    if (mapView.selected && gview.view === "milestones") gview.view = null;
-    drawMap();
     drawSelected();
-    if (centre && mapView.selected && mapView.geo) mapPort.centre(mapView.geo.pos[mapView.selected]);
-    if (window.tpApp && window.tpApp.onSelect) window.tpApp.onSelect(mapView.selected);
+    syncURL();
+    if (window.tpApp && window.tpApp.onSelect) window.tpApp.onSelect(mapView.selected, !!centre);
   }
 
   // openMilestone shows milestone id in the drawer, or closes the drawer
@@ -1444,9 +932,9 @@
     if ($("drawer").hidden) opener = { el: document.activeElement, key: focusKey(document.activeElement) };
     const had = mapView.selected;
     moveDrawer({ type: "milestone", id });
-    if (had) drawMap();
     drawSelected();
     syncURL();
+    if (had && window.tpApp && window.tpApp.onSelect) window.tpApp.onSelect(mapView.selected, false);
   }
 
   // The drawer's state is the milestone shown and the epic selected; it
@@ -1494,284 +982,18 @@
   }
 
   // drawChain draws the selected epic's chain as text, the collapsible view
-  // under the dependency views.
+  // under the graph card: every edge it waits on and every edge waiting on
+  // it, transitively, each with its why, so a keyboard user has the
+  // dependency picture the canvas cannot give them.
   function drawChain(g) {
-    $("chaincard").hidden = !g;
+    $("chaintext").hidden = !g;
     if (!g) return;
     const id = mapView.selected;
-    $("chain").innerHTML = id && mapView.deps ? '<p class="note">' + esc(id) + ": " + esc((mapView.byId[id] || {}).title || "") + "</p>" +
+    $("chain").innerHTML = id && mapView.deps ? '<p class="note">' + esc(id) + ": " + esc((graphEpic(g, id) || {}).title || "") + "</p>" +
       '<div class="two-col"><div><h3 class="hsub">What it waits on</h3>' + edgeList(chainEdges(id, true), "It depends on no epic.") + "</div>" +
       '<div><h3 class="hsub">What waits on it</h3>' + edgeList(chainEdges(id, false), "No epic depends on it.") + "</div></div>"
-      : none("Select an epic on the map, or in a list above, to see its chain.");
+      : none("Select an epic on the graph, or in a list above, to see its chain.");
   }
-
-  // ---------- the dependency views (dashboard-ux.md §2) ----------
-  // tp lays each view out at /api/layout: the milestones and how they open,
-  // a gate's closure banded by milestone, or the selected epic's
-  // neighbourhood. The page turns layers and orders into points
-  // (tpPure.placeLayout) and draws them; it computes nothing about the graph.
-  const GVIEWS = ["milestones", "scope", "neighbourhood"];
-  const GVIEW_LABEL = { milestones: "the milestones", scope: "a gate's closure", neighbourhood: "an epic's neighbourhood" };
-  const GDIMS = {
-    milestones: { colW: 240, rowH: 84, left: 16, top: 12, head: 0, inset: 0, box: 196 },
-    scope: { colW: 200, rowH: 26, left: 16, top: 12, head: 30, inset: 12 },
-    neighbourhood: { colW: 210, rowH: 28, left: 16, top: 12, head: 0, inset: 12 },
-  };
-  const gview = { view: null, milestone: null, depth: 2, data: null, dataKey: null, error: null, key: null, drawn: null, seen: null, seq: 0, pos: {}, focus: null };
-  INFO.chain = "The plan's dependencies in three views tp lays out, each read left to right, what a node depends on to its left. Milestones: each milestone with its work epics done of all and its epic edges in, the dependency edges into its epics from other milestones' epics, which are counted and not drawn; the lines drawn are its opens-after edges, one from each milestone it opens after; click one for its gate's closure. Gate closure: what the milestone's gate pulls in (tp epic scope), banded by milestone, its critical path in orange, the alternatives of an any-of group drawn as one dashed fork. Neighbourhood: the selected epic highlighted, its dependencies left, its dependents right, to the depth picked; clicking an epic re-centres on it. Selecting an epic highlights its edges and dims the rest. An edge that skips layers is a plain curve. The chain as text lists every edge with its why.";
-
-  // gviewNow is the view shown: the one picked, else the selected epic's
-  // neighbourhood, else the milestones.
-  const gviewNow = () => gview.view || (mapView.selected ? "neighbourhood" : "milestones");
-
-  // gviewMilestone is the closure's milestone: the one picked, else the
-  // first open milestone whose work is not all done, else the first.
-  function gviewMilestone(g) {
-    const ms = g.milestones || [];
-    const pick = ms.find((m) => m.milestone === gview.milestone) || ms.find((m) => m.open && m.share_done < 1) || ms[0];
-    return pick ? pick.milestone : null;
-  }
-
-  // layoutQuery is the view's /api/layout query, or null while the view
-  // needs a selection it does not have.
-  function layoutQuery(g) {
-    const view = gviewNow();
-    const p = new URLSearchParams({ view });
-    if (view === "scope") {
-      const m = gviewMilestone(g);
-      if (!m) return null;
-      p.set("milestone", m);
-    } else if (view === "neighbourhood") {
-      if (!mapView.selected) return null;
-      p.set("epic", mapView.selected);
-      p.set("depth", String(gview.depth));
-    }
-    return p;
-  }
-
-  // fetchLayout fetches key's layout, clearing the error of the key before;
-  // what it holds is drawn only once dataKey says it came for key.
-  async function fetchLayout(key) {
-    const seq = ++gview.seq;
-    Object.assign(gview, { key, error: null });
-    let body;
-    try {
-      const res = await fetch("/api/layout?" + key, { cache: "no-store" });
-      body = await res.json();
-    } catch (err) {
-      body = { error: "the layout could not be fetched: " + err.message, hint: "check that tp dashboard is still running" };
-    }
-    if (seq !== gview.seq) return;
-    Object.assign(gview, isError(body) ? { data: null, dataKey: null, error: body } : { data: body, dataKey: key, error: null });
-    drawGraph();
-  }
-
-  // graphPanel fetches the view when its query or the graph changed, then
-  // draws what it holds.
-  function graphPanel() {
-    const g = data("epic-export");
-    if (!state.graph || !g) return drawGraph();
-    const q = layoutQuery(g);
-    const key = q ? q.toString() : null;
-    if (key && (key !== gview.key || gview.seen !== g)) {
-      gview.seen = g;
-      fetchLayout(key);
-    }
-    if (!key) Object.assign(gview, { key: null, data: null, dataKey: null, error: null });
-    drawGraph();
-  }
-  panel(["epic-export"], graphPanel);
-
-  // gedgePath draws one edge from the right of its dependency, past the end
-  // of the dependency's label box, to the left of its dependent; an any-of
-  // member's edge ends at its group's fork.
-  function gedgePath(p, q, view, fork, from) {
-    const d = GDIMS[view];
-    const lb = gLabelBox(p, from);
-    const a = view === "milestones" ? { x: p.x + d.box, y: p.y } : { x: lb.x + lb.w + 2, y: p.y };
-    const b = view === "milestones" ? { x: q.x, y: q.y } : { x: q.x - (fork ? 26 : 8), y: q.y };
-    return edgePath(a, b);
-  }
-
-  // gLabelBox is the box behind the id label of the epic id drawn at p;
-  // lbgHTML draws it.
-  const gLabelBox = (p, id) => tpPure.labelBox(p.x + 12, p.y + 4, clip(id, 22).length);
-  const lbgHTML = (b) => '<rect class="lbg" x="' + b.x + '" y="' + b.y + '" width="' + b.w + '" height="' + b.h + '" rx="3"/>';
-
-  // gnodeHTML draws one node: a milestone as a box with its counts, an epic
-  // as its mark and id.
-  function gnodeHTML(n, p, view, ctx, stop) {
-    const cls = "gnode" + (ctx.near && !ctx.near.has(n.id) ? " dim" : "") + (n.centre ? " centre" : "");
-    const tab = ' role="button" tabindex="' + stop + '"';
-    if (view === "milestones") {
-      const d = GDIMS.milestones;
-      const y = p.y - (d.rowH - 16) / 2;
-      return '<g class="' + cls + '" data-id="' + esc(n.id) + '"' + tab + ' aria-label="' + esc(n.id + ": " + (n.open ? "open" : "closed") + ", " + n.done + " of " + n.epics + " work epics done, " + n.inbound + " epic edges in") + '">' +
-        '<rect class="msbox' + (n.open ? "" : " closed") + '" x="' + p.x + '" y="' + y + '" width="' + d.box + '" height="' + (d.rowH - 16) + '" rx="7"/>' +
-        '<text class="msname" x="' + (p.x + 12) + '" y="' + (y + 21) + '">' + esc(n.id) + '</text><text class="msshare" x="' + (p.x + d.box - 12) + '" y="' + (y + 21) + '" text-anchor="end">' + (n.open ? "open" : "closed") + "</text>" +
-        '<text class="gsub" x="' + (p.x + 12) + '" y="' + (y + 40) + '">' + esc(n.done + " of " + plural(n.epics, "epic", "epics") + " done") + "</text>" +
-        '<text class="gsub" x="' + (p.x + 12) + '" y="' + (y + 56) + '">' + esc(plural(n.inbound, "epic edge", "epic edges") + " in") + "</text></g>";
-    }
-    const e = ctx.epics[n.id] || { id: n.id, status: "planned" };
-    const m = markOf(e, ctx.ms[e.milestone]);
-    return '<g class="' + cls + '" data-id="' + esc(n.id) + '"' + tab + ' aria-label="' + esc(n.id + ": " + (e.title || "") + ", " + tpPure.markText(m, MARK_LABEL)) + '">' +
-      (n.id === mapView.selected ? '<circle cx="' + p.x + '" cy="' + p.y + '" r="10" fill="none" stroke="var(--accent)" stroke-width="2.2"/>' : "") +
-      markHTML(e.condition, m, p.x, p.y, 4.8) + lbgHTML(gLabelBox(p, n.id)) + '<text class="eid" x="' + (p.x + 12) + '" y="' + (p.y + 4) + '">' + esc(clip(n.id, 22)) + "</text>" +
-      descMark(ctx.described.has(n.id), p.x + 12, p.y + 4, clip(n.id, 22).length) +
-      '<rect class="rowhit" x="' + (p.x - 9) + '" y="' + (p.y - 11) + '" width="' + (GDIMS[view].colW - 40) + '" height="22" fill="transparent"/></g>';
-  }
-
-  // gedgesHTML draws the edges: the critical path's in orange, an any-of
-  // group's members dashed into one fork before their dependent, and with an
-  // epic selected its edges highlighted and the rest dimmed.
-  function gedgesHTML(L, geo, hl) {
-    const out = [];
-    const forks = new Set();
-    L.edges.forEach((e) => {
-      const p = geo.pos[e.from];
-      const q = geo.pos[e.to];
-      if (!p || !q) return;
-      const mine = hl && (e.from === hl || e.to === hl);
-      const cls = "gedge" + (e.critical ? " crit" : "") + (e.any_of ? " any" : "") + (hl ? (mine ? " hl" : " dimmed") : "");
-      out.push('<path class="' + cls + '" d="' + gedgePath(p, q, L.view, !!e.any_of, e.from) + '"/>');
-      const fork = e.any_of && e.to + "\u0000" + e.any_of.join("\u0000");
-      if (fork && !forks.has(fork)) {
-        forks.add(fork);
-        out.push('<path class="gedge any fork' + (hl ? (mine ? " hl" : " dimmed") : "") + '" d="M' + (q.x - 26) + " " + q.y + "H" + (q.x - 8) + '"/><circle class="gfork" cx="' + (q.x - 26) + '" cy="' + q.y + '" r="2.5"/>');
-      }
-    });
-    return out.join("");
-  }
-
-  // drawGraph draws the view gview holds, refitting it when it is another
-  // view than the one drawn last.
-  function drawGraph() {
-    const g = data("epic-export");
-    const card = $("chaincard");
-    card.hidden = !state.graph || !g;
-    if (card.hidden) return;
-    const view = gviewNow();
-    card.querySelectorAll("[data-gv]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.gv === view)));
-    $("gm-pick").hidden = view !== "scope";
-    $("gd-pick").hidden = view !== "neighbourhood";
-    const order = [].concat(...((g.graph && g.graph.milestones) || []));
-    if ($("gm").dataset.key !== order.join("\u0000")) {
-      $("gm").dataset.key = order.join("\u0000");
-      $("gm").innerHTML = order.map((m) => "<option>" + esc(m) + "</option>").join("");
-    }
-    $("gm").value = gviewMilestone(g) || "";
-    $("gd").value = String(gview.depth);
-    const L = gview.data;
-    const say = (text) => { $("gsvg").innerHTML = ""; $("g-n").textContent = text; };
-    if (!layoutQuery(g)) return say("Select an epic on the map or in a list to see its neighbourhood.");
-    const ready = tpPure.layoutReady(gview);
-    if (ready === "error") return say(gview.error.error);
-    if (ready !== "draw") return say("Reading " + GVIEW_LABEL[view] + " from tp.");
-    const geo = tpPure.placeLayout(L, GDIMS[view]);
-    gview.pos = geo.pos;
-    if (!geo.pos[gview.focus]) gview.focus = (L.nodes.find((n) => n.centre) || L.nodes[0] || {}).id || null;
-    const epics = {};
-    (g.epics || []).forEach((e) => { epics[e.id] = e; });
-    const ms = {};
-    (g.milestones || []).forEach((m) => { ms[m.milestone] = m; });
-    const hl = view !== "milestones" && geo.pos[mapView.selected] ? mapView.selected : null;
-    const near = hl ? new Set([hl].concat(L.edges.filter((e) => e.from === hl || e.to === hl).flatMap((e) => [e.from, e.to]))) : null;
-    const hadFocus = $("gsvg").contains(document.activeElement);
-    const top = GDIMS[view].top;
-    $("gsvg").innerHTML = (L.bands || []).length ? geo.bands.map((b, i) => '<rect class="gband' + (i % 2 ? " odd" : "") + '" x="' + (b.x + 2) + '" y="' + top + '" width="' + (b.w - 8) + '" height="' + (geo.H - 2 * top) + '" rx="7"/>' +
-      '<text class="msname" x="' + (b.x + 12) + '" y="' + (top + 20) + '">' + esc(b.name) + "</text>").join("") : "";
-    const ctx = { epics, ms, near, described: describedIds(g) };
-    const stops = tpPure.tabStops(L.nodes.map((n) => n.id), gview.focus);
-    $("gsvg").innerHTML += "<g>" + gedgesHTML(L, geo, hl) + "</g>" + L.nodes.map((n, i) => gnodeHTML(n, geo.pos[n.id], view, ctx, stops[i])).join("");
-    $("g-n").textContent = plural(L.nodes.length, view === "milestones" ? "milestone" : "epic", view === "milestones" ? "milestones" : "epics") +
-      (L.view === "scope" ? " in " + L.milestone + "'s closure; " + tpPure.closureDescribed(L.nodes, ctx.described) : L.view === "neighbourhood" ? " within " + plural(L.depth, "step", "steps") + " of " + L.epic : "");
-    if (hadFocus) gfocus(gview.focus);
-    const key = gview.key;
-    gport.bounds(geo.W, geo.H, gview.drawn !== key);
-    if (gview.drawn !== key && view === "neighbourhood") gport.fitAt(geo.pos[L.epic]);
-    else if (hl && (gview.drawn !== key || gview.hl !== hl)) gport.reveal(geo.pos[hl]);
-    gview.drawn = key;
-    gview.hl = hl;
-  }
-
-  // gnodeAt is the dependency view's node under the pointer.
-  const gnodeAt = (ev) => {
-    const el = document.elementFromPoint(ev.clientX, ev.clientY);
-    return el && el.closest ? el.closest("#gsvg .gnode") : null;
-  };
-  // gpick answers a node picked by click or key: a milestone opens its
-  // gate's closure; an epic is selected, its neighbourhood re-centred on it.
-  function gpick(id) {
-    if (gviewNow() === "milestones") {
-      Object.assign(gview, { view: "scope", milestone: id });
-      syncURL();
-      graphPanel();
-      return;
-    }
-    if (mapView.selected !== id) {
-      mapView.selected = null;
-      selectEpic(id, true);
-    }
-  }
-  function gfocus(id) {
-    const node = id && [...$("gsvg").querySelectorAll(".gnode")].find((n) => n.dataset.id === id);
-    if (!node) return;
-    $("gsvg").querySelectorAll('.gnode[tabindex="0"]').forEach((n) => n.setAttribute("tabindex", "-1"));
-    node.setAttribute("tabindex", "0");
-    gview.focus = id;
-    node.focus({ preventScroll: true });
-  }
-  const gport = makePort($("gmap"), $("gsvg"), {
-    card: $("chaincard"),
-    first: tpPure.containView,
-    hover(ev) {
-      const n = gnodeAt(ev);
-      const tip = $("tip");
-      const L = gview.data;
-      const node = n && L ? L.nodes.find((x) => x.id === n.dataset.id) : null;
-      if (!node) { tip.hidden = true; return; }
-      const e = ((data("epic-export") || {}).epics || []).find((x) => x.id === node.id);
-      tip.innerHTML = L.view === "milestones" ? '<span class="tid">' + esc(node.id) + "</span><br>" + esc((node.open ? "open" : "closed") + ", " + node.done + " of " + node.epics + " work epics done") +
-        "<br>" + esc(plural(node.inbound, "dependency edge", "dependency edges") + " from other milestones' epics") :
-        '<span class="tid">' + esc(node.id) + ", milestone " + esc(e ? e.milestone : node.milestone || "") + "</span><br>" + esc(e ? e.title : "") +
-        [...new Set(L.edges.filter((x) => x.from === node.id && x.any_of).map((x) => x.any_of.join(", ")))].map((g) => "<br>one of {" + esc(g) + "}").join("") +
-        (node.deferrable ? "<br>deferrable" : "");
-      tip.hidden = false;
-      tip.style.left = Math.min(ev.clientX + 14, window.innerWidth - 310) + "px";
-      tip.style.top = (ev.clientY + 14) + "px";
-    },
-    click(ev) {
-      const n = gnodeAt(ev);
-      if (n) gpick(n.dataset.id);
-    },
-  });
-  $("gsvg").addEventListener("keydown", (ev) => {
-    const node = ev.target.closest && ev.target.closest(".gnode");
-    if (!node) return;
-    if (ev.key === "Enter" || ev.key === " ") {
-      ev.preventDefault();
-      gpick(node.dataset.id);
-      return;
-    }
-    const next = tpPure.roveNext(gview.pos, node.dataset.id, ev.key);
-    if (next === node.dataset.id) return;
-    ev.preventDefault();
-    gfocus(next);
-    gport.reveal(gview.pos[next]);
-  });
-  $("chaincard").addEventListener("click", (ev) => {
-    const b = ev.target.closest("[data-gv]");
-    if (!b) return;
-    gview.view = b.dataset.gv;
-    syncURL();
-    graphPanel();
-  });
-  $("gm").addEventListener("change", (ev) => { Object.assign(gview, { view: "scope", milestone: ev.target.value }); syncURL(); graphPanel(); });
-  $("gd").addEventListener("change", (ev) => { gview.depth = Number(ev.target.value); syncURL(); graphPanel(); });
-  $("glegend").innerHTML = '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path d="M1 7.5H14" stroke="var(--crit)" stroke-width="2.6"/></svg>critical path</span>' +
-    '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path d="M1 3L9 7.5M1 12L9 7.5M9 7.5H14" stroke="var(--accent)" stroke-dasharray="2 1.5" fill="none"/></svg>one of an any-of group</span>' +
-    '<span><svg viewBox="0 0 15 15" aria-hidden="true"><path d="M1 7.5H14" stroke="var(--accent)" stroke-width="2"/></svg>the selected epic\'s edges</span>' +
-    '<span class="help">Milestones: click one for its gate closure. Gate closure: banded by milestone; click an epic to select it. Neighbourhood: what it depends on to the left, what depends on it to the right; click an epic to re-centre on it. Drag or one finger pans; Ctrl or ⌘ with the wheel, or a pinch, zooms; in full screen the wheel alone zooms and Esc leaves.</span>';
 
   // drawMatrix draws the summary's milestone matrix in track order.
   function drawMatrix(g, sum) {
@@ -1858,16 +1080,14 @@
   }
 
   // focusKey names a focusable element so a redraw's replacement is found
-  // again: a map epic, a dependency-view node, a toggle by its data key
-  // (tpPure.toggleKey), a waiting group's link by its group, or a list link
-  // by its box; null for anything else.
-  const FOCUSABLE = "#mapsvg .node, #gsvg .gnode, [data-epic], [data-ms], [data-wsec], [data-wall]";
+  // again: a toggle by its data key (tpPure.toggleKey), a waiting group's
+  // link by its group, or a list link by its box; null for anything else.
+  // The graph card draws on a canvas and has no focusable node.
+  const FOCUSABLE = "[data-epic], [data-ms], [data-wsec], [data-wall]";
   function focusKey(el) {
     if (!el || !el.closest) return null;
     const toggle = el.dataset ? tpPure.toggleKey(el.dataset) : null;
     if (toggle) return "toggle:" + toggle;
-    const node = el.closest("#mapsvg .node, #gsvg .gnode");
-    if (node) return (node.closest("#mapsvg") ? "map:" : "graph:") + node.dataset.id;
     if (!el.dataset || !el.dataset.epic) return null;
     const wg = el.closest("[data-wg]");
     if (wg) return "wait:" + wg.dataset.wg + ":" + el.dataset.epic;
@@ -1891,8 +1111,6 @@
     const els = [...document.querySelectorAll(FOCUSABLE)];
     const key = tpPure.focusAfterClose({ connected: !!r.el && r.el.isConnected && r.el !== document.body, keys: r.keys }, els.map(focusKey));
     if (key === "same") r.el.focus({ preventScroll: true });
-    else if (key && key.startsWith("map:")) focusNode(key.slice(4));
-    else if (key && key.startsWith("graph:")) gfocus(key.slice(6));
     else if (key) els.find((x) => focusKey(x) === key).focus({ preventScroll: true });
   }
 
@@ -1966,8 +1184,9 @@
   // its history, fetched again on every push while the drawer is open.
   function drawSelected() {
     const g = data("epic-export");
+    if (g) mapEdges(g);
+    if (mapView.selected && g && !graphEpic(g, mapView.selected)) mapView.selected = null;
     drawChain(state.graph && g ? g : null);
-    graphPanel();
     drawMatrix(state.graph ? g : null, data("summary"));
     if (mapView.selected && epicHist.id !== mapView.selected) Object.assign(epicHist, { id: mapView.selected, data: null, error: null });
     drawDrawer();
@@ -2702,14 +1921,16 @@
   // The page's place lives in the address's fragment, so back and forward and
   // a copied link land where the operator was. URL_KEYS names every key: the
   // tab, the spec, its view, the picked task, the selected epic, the
-  // milestone the drawer shows (ms), the slice
-  // whose graph history is shown and its two compared rounds, and the active
-  // filters (the map's tracks, all edges, neighbours and search; the Specs
-  // tab's phase and filter; the Tasks view's Steps or Board and the section
-  // whose tasks it picks out, sec, a section anchor without its sign). A change of
-  // place (tab, spec, view, task, epic, slice, rounds) adds a history entry;
-  // a filter replaces the current one.
-  const URL_KEYS = ["tab", "spec", "view", "task", "epic", "tracks", "edges", "nb", "q", "phase", "sq", "tview", "slice", "hr", "stage", "sec", "gv", "gm", "gd", "ms"];
+  // milestone the drawer shows (ms), the slice whose graph history is shown
+  // and its two compared rounds, the lifecycle's stage filter, the graph
+  // card's mode (gv), gate milestone (gm), depth (gd), packing (pack),
+  // cross-edge toggle (cross) and search (q), which graph.js writes through
+  // tpApp.graphParams (tpPure.graphParams), the Specs tab's phase and
+  // filter, and the Tasks view's Steps or Board and the section whose tasks
+  // it picks out, sec, a section anchor without its sign. A change of place
+  // (tab, spec, view, task, epic, slice, rounds, the graph's mode and gate
+  // milestone) adds a history entry; a filter replaces the current one.
+  const URL_KEYS = ["tab", "spec", "view", "task", "epic", "q", "phase", "sq", "tview", "slice", "hr", "stage", "sec", "gv", "gm", "gd", "ms", "pack", "cross"];
   const PLACE_KEYS = ["tab", "spec", "view", "task", "epic", "ms", "slice", "hr", "gv", "gm"];
   const address = { landed: false, quiet: false, applying: false };
 
@@ -2726,18 +1947,12 @@
     }
     put("epic", mapView.selected);
     put("ms", msView.detail);
-    put("tracks", [...mapView.tracks].sort((a, b) => a - b).join(","));
-    if (mapView.edges) put("edges", "1");
-    if (mapView.nb) put("nb", "1");
-    put("q", mapView.q);
     put("stage", mapView.stage);
     if (specsView.phase !== "all") put("phase", specsView.phase);
     put("sq", specsView.q);
     put("slice", hist.dir);
     if (hist.dir && hist.pair) put("hr", hist.pair.join("-"));
-    put("gv", gview.view);
-    if (gview.view === "scope") put("gm", gview.milestone);
-    if (gview.depth !== 2) put("gd", String(gview.depth));
+    if (window.tpApp && window.tpApp.graphParams) window.tpApp.graphParams().forEach(([k, v]) => put(k, v));
     return p;
   }
 
@@ -2775,10 +1990,6 @@
     work.tview = p.get("tview") === "board" ? "board" : "steps";
     mapView.selected = p.get("epic");
     msView.detail = p.get("ms") || null;
-    mapView.tracks = new Set((p.get("tracks") || "").split(",").filter((x) => /^\d+$/.test(x)).map(Number));
-    mapView.edges = p.get("edges") === "1";
-    mapView.nb = p.get("nb") === "1";
-    mapView.q = p.get("q") || "";
     const stage = p.get("stage");
     mapView.stage = STAGES.some(([k]) => k === stage) ? stage : null;
     const phase = p.get("phase");
@@ -2790,24 +2001,25 @@
     if (slice !== hist.dir || String(pair) !== String(hist.pair)) {
       Object.assign(hist, { dir: slice, pair, data: slice === hist.dir ? hist.data : null, pairData: null, error: null, seen: null });
     }
-    gview.view = GVIEWS.includes(p.get("gv")) ? p.get("gv") : null;
-    gview.milestone = p.get("gm") || null;
-    gview.depth = /^[1-4]$/.test(p.get("gd") || "") ? Number(p.get("gd")) : 2;
-    $("map-q").value = mapView.q;
+    if (window.tpApp && window.tpApp.readGraphPlace) window.tpApp.readGraphPlace(p);
     $("specs-q").value = specsView.q;
-    $("f-edges").setAttribute("aria-pressed", String(mapView.edges));
-    $("f-nb").setAttribute("aria-pressed", String(mapView.nb));
-    $("trackchips").querySelectorAll("[data-track]").forEach((b) => b.setAttribute("aria-pressed", String(mapView.tracks.has(Number(b.dataset.track)))));
   }
 
   // tpApp is what graph.js, the graph card, reads from the page: the last
-  // payloads, a panel hook, the selection, the marks and the search fold.
-  // onSelect, when graph.js sets it, hears every change of selection.
+  // payloads, a panel hook, the selection, the marks, the search fold, the
+  // lifecycle's stage filter and the address. onSelect, when graph.js sets
+  // it, hears every change of selection and whether to centre it;
+  // graphParams and readGraphPlace, when it sets them, write and read the
+  // card's own address keys.
   window.tpApp = {
-    data, panel, markOf, fold, selectEpic,
+    data, panel, markOf, fold, selectEpic, syncURL,
     selected: () => mapView.selected,
+    inStage: (e) => !mapView.stage || e.status === mapView.stage,
+    stage: () => mapView.stage,
     markText: (m) => tpPure.markText(m, MARK_LABEL),
     onSelect: null,
+    graphParams: null,
+    readGraphPlace: null,
   };
 
   readURL();

@@ -287,45 +287,6 @@ body.mapfs { overflow: hidden; }
 body.mapfs .card.fs { position: fixed; inset: 0; z-index: var(--z-dropdown); border-radius: 0; border: 0; display: flex; flex-direction: column; }
 body.mapfs .card.fs .map { flex: 1; height: auto; }
 body.mapfs .card.fs .legend { max-height: 30vh; overflow: auto; }
-.map svg { display: block; width: 100%; height: 100%; user-select: none; }
-.map .lanelab { font: 600 13px var(--font-display); fill: var(--muted); }
-.map .msbox { fill: var(--surface); stroke: var(--line); }
-.map .msbox.closed { opacity: .72; }
-.map .msname { font: 500 13px var(--mono); fill: var(--ink); }
-.map .msshare { font-size: 11px; fill: var(--faint); }
-.map .eid { font: 400 11px var(--mono); fill: var(--ink-2); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
-.map .node { cursor: pointer; }
-.map .node.dim { opacity: .15; }
-.map .dmark, .legend .dmark { font: 600 11px var(--font-display); fill: var(--accent); color: var(--accent); }
-.map .node:focus { outline: none; }
-.map .node:focus-visible .rowhit { stroke: var(--color-focus); stroke-width: 2; rx: 4px; }
-.map .edge { fill: none; stroke: var(--faint); stroke-width: .8; opacity: .45; }
-.map .edge.sel { stroke: var(--accent); stroke-width: 1.3; opacity: .85; }
-.edge.in, .edge.out { fill: none; stroke-width: 1.6; opacity: .9; }
-.edge.in { stroke: var(--ready); }
-.edge.out { stroke: var(--held); }
-.map .nbedge .hit { fill: none; stroke: transparent; stroke-width: 9; pointer-events: stroke; }
-.map .nbdir { font: 600 9px/1 var(--mono); paint-order: stroke; stroke: var(--surface); stroke-width: 3; pointer-events: none; }
-.map .nbdir.in { fill: var(--ready); }
-.map .nbdir.out { fill: var(--held); }
-.map .crit { fill: none; stroke: var(--crit); stroke-width: 2.6; stroke-linejoin: round; stroke-linecap: round; opacity: .85; }
-/* the dependency views (dashboard-ux.md §2): tp lays them out, the page draws them */
-.gmap { height: min(64vh, 600px); }
-.map .gnode { cursor: pointer; }
-.map .gnode:focus { outline: none; }
-.map .gnode:focus-visible .rowhit, .map .gnode:focus-visible .msbox { stroke: var(--color-focus); stroke-width: 2; }
-.map .gnode.dim { opacity: .2; }
-.map .lbg { fill: var(--surface); }
-.map .gnode.centre .eid { font-weight: 600; fill: var(--ink); }
-.map .gsub { font: 400 12px var(--font-display); fill: var(--muted); }
-.map .gband { fill: var(--surface); stroke: var(--line); opacity: .7; }
-.map .gband.odd { fill: var(--color-paper-3); }
-.map .gedge { fill: none; stroke: var(--faint); stroke-width: 1; opacity: .6; }
-.map .gedge.any { stroke: var(--accent); stroke-dasharray: 3 2; }
-.map .gedge.crit { stroke: var(--crit); stroke-width: 2.2; opacity: .9; }
-.map .gedge.hl { stroke: var(--accent); stroke-width: 2; opacity: 1; }
-.map .gedge.dimmed { opacity: .1; }
-.map .gfork { fill: var(--accent); }
 .gpick { display: inline-flex; align-items: center; gap: var(--space-2xs); font-size: var(--text-sm); color: var(--muted); }
 .gpick select { font: inherit; min-height: 32px; padding: 0 var(--space-xs); border: 1px solid var(--color-rule-2); border-radius: var(--radius-input); background: var(--surface); color: var(--ink); }
 .chaintext { padding: var(--space-sm) var(--space-md); border-top: 1px solid var(--line); }

@@ -5,129 +5,6 @@
   "use strict";
   const P = {};
 
-  // VIEW_PAD is the margin, in drawing units, a first view leaves around the
-  // drawing; SCALE bounds the first view's screen pixels per drawing unit:
-  // below min the 11-unit labels read under 11 pixels, above max a small
-  // drawing is blown up.
-  const VIEW_PAD = 8;
-  P.SCALE = { min: 1, max: 1.5 };
-
-  // initialView is the first view of a W by H drawing in a box of bw by bh
-  // pixels: the drawing's width fitted to the box, within SCALE, from its
-  // top left; what does not fit is panned to.
-  P.initialView = function (W, H, bw, bh) {
-    const s = Math.min(P.SCALE.max, Math.max(P.SCALE.min, bw / (W + 2 * VIEW_PAD)));
-    return { x: -VIEW_PAD, y: -VIEW_PAD, w: bw / s, h: bh / s };
-  };
-
-  // containView is the first view of a W by H scoped view in a box of bw by
-  // bh pixels, and what Fit shows: the whole drawing, centred, never above
-  // SCALE.max; a drawing too large for SCALE.min is zoomed out until it fits,
-  // since a view that cuts bands or milestones off hides that they exist.
-  P.containView = function (W, H, bw, bh) {
-    const fit = Math.min(bw / (W + 2 * VIEW_PAD), bh / (H + 2 * VIEW_PAD));
-    const s = Math.min(P.SCALE.max, fit);
-    const w = bw / s;
-    const h = bh / s;
-    return { x: W / 2 - w / 2, y: H / 2 - h / 2, w, h };
-  };
-
-  // containAt is the view of a W by H drawing in a box of bw by bh pixels
-  // centred on the drawing point p and holding the whole drawing: as wide
-  // as p's farther side needs each way, never above SCALE.max. Re-centring
-  // the neighbourhood view takes it, so a new layout is never drawn at the
-  // old zoom with its outer nodes outside the box.
-  P.containAt = function (W, H, bw, bh, p) {
-    const hx = Math.max(p.x + VIEW_PAD, W + VIEW_PAD - p.x);
-    const hy = Math.max(p.y + VIEW_PAD, H + VIEW_PAD - p.y);
-    const s = Math.min(P.SCALE.max, bw / (2 * hx), bh / (2 * hy));
-    const w = bw / s;
-    const h = bh / s;
-    return { x: p.x - w / 2, y: p.y - h / 2, w, h };
-  };
-
-  // fitAtView is the view re-centring takes for a drawing of size {W, H}
-  // in a box of rect {width, height} on the point p (containAt), or null
-  // while the box has no size or there is no point.
-  P.fitAtView = function (size, rect, p) {
-    if (!p || !rect.width || !rect.height) return null;
-    return P.containAt(size.W, size.H, rect.width, rect.height, p);
-  };
-
-  // LABEL_CH is the width, in drawing units, of one character of an 11-unit
-  // monospaced epic id.
-  const LABEL_CH = 6.7;
-
-  // labelBox is the box behind an id label of n characters whose baseline
-  // starts at x, y: opaque in the dependency views, so an edge passing
-  // behind the label never runs through its text.
-  P.labelBox = function (x, y, n) {
-    return { x: x - 2, y: y - 10, w: n * LABEL_CH + 4, h: 14 };
-  };
-
-  // placeLayout turns a /api/layout payload into drawing points: a column of
-  // dims.colW per layer from dims.left, a row of dims.rowH per order below
-  // dims.top and dims.head, a layer shorter than the longest centred against
-  // it, each node's point dims.inset into its column. It also returns each
-  // band's x span, named for its milestone and those sharing its span, and
-  // the drawing's size.
-  P.placeLayout = function (layout, dims) {
-    const rows = [];
-    (layout.nodes || []).forEach((n) => { rows[n.layer] = (rows[n.layer] || 0) + 1; });
-    const most = Math.max(1, ...rows.filter(Boolean));
-    const pos = {};
-    (layout.nodes || []).forEach((n) => {
-      const shift = (most - rows[n.layer]) / 2;
-      pos[n.id] = { x: dims.left + n.layer * dims.colW + dims.inset, y: dims.top + dims.head + (n.order + shift) * dims.rowH + dims.rowH / 2 };
-    });
-    const bands = (layout.bands || []).map((b) => ({ name: [b.milestone].concat(b.with || []).join(" + "), x: dims.left + b.from_layer * dims.colW, w: (b.to_layer - b.from_layer + 1) * dims.colW }));
-    return { pos, bands, W: 2 * dims.left + (layout.layers || 0) * dims.colW, H: 2 * dims.top + dims.head + most * dims.rowH };
-  };
-
-  // layoutReady is what the dependency view shows for s, its key (the query
-  // it shows, null when it needs a selection it lacks), dataKey (the query
-  // its data was fetched for), data and error: none without a key, the
-  // error the current key's fetch gave, the data only when it was fetched
-  // for the current key, and else loading, so stale data is never drawn.
-  P.layoutReady = function (s) {
-    if (!s.key) return "none";
-    if (s.error) return "error";
-    return s.data && s.dataKey === s.key ? "draw" : "loading";
-  };
-
-  // centreView is v moved to centre the drawing point p in a box rw pixels
-  // wide: at v's zoom, or zoomed in to SCALE.min when v is further out.
-  P.centreView = function (v, p, rw) {
-    const f = rw / v.w < P.SCALE.min ? rw / P.SCALE.min / v.w : 1;
-    const w = v.w * f;
-    const h = v.h * f;
-    return { x: p.x - w / 2, y: p.y - h / 2, w, h };
-  };
-
-  // ROVE names each arrow's direction as [dx, dy].
-  const ROVE = { ArrowRight: [1, 0], ArrowLeft: [-1, 0], ArrowDown: [0, 1], ArrowUp: [0, -1] };
-
-  // roveNext is the id an arrow key moves the focus to from cur, over pos
-  // (ids to drawing points): the nearest point that way, a step across the
-  // arrow counting thrice a step along it; cur itself when none lies that way
-  // or the key is no arrow.
-  P.roveNext = function (pos, cur, key) {
-    const dir = ROVE[key];
-    const p = pos[cur];
-    if (!dir || !p) return cur;
-    let best = cur;
-    let score = Infinity;
-    Object.keys(pos).forEach((id) => {
-      const dx = pos[id].x - p.x;
-      const dy = pos[id].y - p.y;
-      const along = dx * dir[0] + dy * dir[1];
-      if (along <= 0) return;
-      const s = along + 3 * Math.abs(dx * dir[1] - dy * dir[0]);
-      if (s < score) { score = s; best = id; }
-    });
-    return best;
-  };
-
   // markState is what an epic of the export shows, closed saying its
   // milestone is not open, as { mark, hold }. The mark is done or its stage
   // after planned (claimed, specced, in_progress) straight from the status
@@ -469,43 +346,10 @@
     return Math.floor(s / 3600) + " h ago";
   };
 
-  // pinchView is the view after two fingers moved from a0 and b0 to a1 and
-  // b1 (pixels from the box's top left, the box rw by rh) over the view v0
-  // they started on: zoomed by the ratio of their spans, with the drawing
-  // point under their first midpoint kept under their current one.
-  P.pinchView = function (v0, a0, b0, a1, b1, rw, rh) {
-    const span = (a, b) => Math.hypot(b.x - a.x, b.y - a.y) || 1;
-    const f = span(a0, b0) / span(a1, b1);
-    const m0 = { x: (a0.x + b0.x) / 2, y: (a0.y + b0.y) / 2 };
-    const m1 = { x: (a1.x + b1.x) / 2, y: (a1.y + b1.y) / 2 };
-    const w = v0.w * f;
-    const h = v0.h * f;
-    const px = v0.x + (m0.x / rw) * v0.w;
-    const py = v0.y + (m0.y / rh) * v0.h;
-    return { x: px - (m1.x / rw) * w, y: py - (m1.y / rh) * h, w, h };
-  };
-
-  // pointerAction is what a pointer coming down on a map does, pointers the
-  // touch pointers down with it counted: a mouse's main button, a pen or one
-  // finger pans, a second finger pinches, and any other button or a third
-  // finger does nothing.
-  P.pointerAction = function (pointers, ev) {
-    if (ev.pointerType !== "touch") return ev.button === 0 ? "pan" : "none";
-    if (pointers <= 1) return "pan";
-    return pointers === 2 ? "pinch" : "none";
-  };
-
-  // wheelZooms says whether a wheel event zooms the map: with Ctrl or ⌘
-  // held, or with the plain wheel while the map fills the screen.
+  // wheelZooms says whether a wheel event zooms the graph: with Ctrl or ⌘
+  // held, or with the plain wheel while the graph fills the screen.
   P.wheelZooms = function (ev, fullscreen) {
     return !!(ev.ctrlKey || ev.metaKey || fullscreen);
-  };
-
-  // tabStops gives each of ids its tabindex: 0 for focus, or for the first
-  // when focus is none of them, -1 for the rest, so one is in the tab order.
-  P.tabStops = function (ids, focus) {
-    const at = Math.max(0, ids.indexOf(focus));
-    return ids.map((_, i) => (i === at ? 0 : -1));
   };
 
   // focusAfterClose picks where focus goes back when the drawer closes:
