@@ -279,3 +279,14 @@ func TestPage_ListTitlesWrap(t *testing.T) {
 	page, _ := pageText(t)
 	assert.Contains(t, page, ".row .t { min-width: 0; overflow-wrap: anywhere; }")
 }
+
+// TestPage_AGatesThresholdAndPurposeReadInFull: a milestone's entry shows
+// its gate's threshold wrapped, never cut to an ellipsis, and the gate's
+// purpose from the graph when it has one.
+func TestPage_AGatesThresholdAndPurposeReadInFull(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	assert.Contains(t, page, ".ms .th, .ms .purpose { overflow-wrap: anywhere; }")
+	assert.NotContains(t, page, ".ms .th { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }")
+	assert.Contains(t, script, ".purpose")
+}
