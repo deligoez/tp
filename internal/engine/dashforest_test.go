@@ -287,3 +287,14 @@ func TestForestLayout_APathFromTheFirstNodeTakesItsParentsColumn(t *testing.T) {
 	assert.Equal(t, ForestPlace{1, 1}, got.Places["a"])
 	assert.Equal(t, ForestPlace{2, 1}, got.Places["d"])
 }
+
+// TestForestLayout_ASpineChildFirstInFileOrderHoldsItsParent: both of a's
+// edges are on the path, so a sits over the earlier child in file order,
+// d, which is also the first node of all.
+func TestForestLayout_ASpineChildFirstInFileOrderHoldsItsParent(t *testing.T) {
+	t.Parallel()
+	ids := []string{"d", "a", "b"}
+	edges := []LayoutEdge{{"a", "b"}, {"a", "d"}}
+	got := ForestLayout(&ForestInput{IDs: ids, Edges: edges, OnPath: []bool{true, true}, Pack: PackTree})
+	assert.Equal(t, map[string]ForestPlace{"a": {0, 0}, "d": {1, 0}, "b": {1, 1}}, got.Places)
+}
