@@ -138,7 +138,7 @@ button.pcell[aria-pressed="true"] { background: var(--color-accent-wash); border
 .pop code { color: inherit; }
 
 /* KPI strip */
-.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--space-xs); }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); gap: var(--space-xs); }
 .kpi { position: relative; display: grid; gap: var(--space-3xs); align-content: start; padding: var(--space-sm) var(--space-md); }
 .kpi .info { position: absolute; top: 8px; right: 8px; }
 .kpi .v { font: 500 1.875rem/1.2 var(--font-display); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
