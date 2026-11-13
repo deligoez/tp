@@ -1213,10 +1213,12 @@
       bound: reached.bound ? t("count.specs", { n: e.files.length }) + at(bound) : t("estep.noSpec"),
       done: reached.done ? (e.done_at ? stamp(e.done_at) : t("mark.done")) : reached.bound ? t("estep.whenReleased") : t("estep.notYet"),
     };
-    const cur = ESTEPS.findIndex(([k]) => !reached[k]);
+    // A done epic has no current step: a step it never reached was skipped.
+    const cur = reached.done ? -1 : ESTEPS.findIndex(([k]) => !reached[k]);
     return '<ol class="stepper e3" aria-label="' + esc(t("estep.label")) + '">' + ESTEPS.map(([k, label], i) => {
       let st = reached[k] ? "done" : i === cur ? "cur" : "todo";
       if (k === "claimed" && st === "done" && !claim) st = "skip";
+      if (st === "todo" && reached.done) st = "skip";
       const mk = st === "done" ? CHECK : st === "skip" ? "–" : String(i + 1);
       return '<li class="' + st + '" title="' + esc(sub[k]) + '"' + (st === "cur" ? ' aria-current="step"' : "") + '><span class="sn">' + mk + '</span><span class="sl">' + esc(t(label)) + '</span><span class="sd">' + esc(sub[k]) + "</span></li>";
     }).join("") + "</ol>";
