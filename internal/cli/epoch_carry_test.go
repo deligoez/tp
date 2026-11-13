@@ -101,3 +101,17 @@ func TestEpoch_TheRegressionPassListsNoFixedRowFromBeforeTheEpoch(t *testing.T) 
 	require.NotEmpty(t, prompt, "the rewrite still changed every section, so the pass is still appended")
 	assert.NotContains(t, prompt, "MARKER-FIXED-OLD")
 }
+
+// TestEpoch_StandaloneRegressionListsNoFixedRowFromBeforeTheEpoch: the same
+// cut in `--perspective regression`, which reads the same list.
+func TestEpoch_StandaloneRegressionListsNoFixedRowFromBeforeTheEpoch(t *testing.T) {
+	t.Parallel()
+	dir := fixedRewrittenFixture(t)
+	startEpoch(t, dir)
+	stdout, stderr, code := runTP(t, dir, "review", "spec.md", "--perspective", "regression")
+	require.Equal(t, 0, code, stderr)
+	assert.NotContains(t, stdout, "MARKER-FIXED-OLD")
+	var out map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+	assert.Equal(t, float64(0), out["review_loop"].(map[string]any)["previous_findings"])
+}
