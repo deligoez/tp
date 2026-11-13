@@ -47,7 +47,7 @@
     count: (P, described) => {
       const L = P.L;
       const what = L.view === "milestones" ? "milestones" : "epics";
-      const extra = L.view === "scope" ? " in " + L.milestone + "'s closure; " + pure.closureDescribed(L.nodes, described)
+      const extra = L.view === "scope" ? " in " + L.milestone + "'s closure; " + pure.closureDescribed(L.nodes, described, app.tr())
         : L.view === "neighbourhood" ? " within " + L.depth + " steps of " + L.epic : "";
       return P.nodes.length + " " + what + ", " + P.links.length + " edges, " + L.layers + " layers × " + L.columns + " columns" + extra;
     },

@@ -20,6 +20,8 @@
   // browser, else read from the browser's language, and set on <html lang>.
   const LANG_KEY = "tp-dashboard-lang";
   const tk = (key) => key;
+  // words is a table of keys, each worded in the page's language.
+  const words = (table) => Object.fromEntries(Object.entries(table).map(([k, key]) => [k, t(key)]));
   let t = tpPure.translator({}, "en");
   function storedLang() {
     try { return localStorage.getItem(LANG_KEY); } catch (e) { return null; }
@@ -128,7 +130,7 @@
   let pushedAt = null;
   function showPushed() {
     if (!pushedAt) return;
-    $("pushed").textContent = "Updated " + tpPure.relTime(Date.now() - pushedAt.getTime());
+    $("pushed").textContent = "Updated " + tpPure.relTime(Date.now() - pushedAt.getTime(), t);
     $("pushed").title = pushedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   }
   setInterval(showPushed, 5000);
@@ -224,7 +226,7 @@
   // totalsOf is the one totals sentence (tpPure.epicTotals) of the export
   // g, which the tab, the share card and the Lifecycle all show; empty
   // without a graph.
-  const totalsOf = (g) => (g && Array.isArray(g.epics) ? tpPure.epicTotals(g.epics) : "");
+  const totalsOf = (g) => (g && Array.isArray(g.epics) ? tpPure.epicTotals(g.epics, t) : "");
 
   // The tab labels name what each tab holds, with its unit.
   panel(["epic-export", "export-list"], () => {
@@ -286,7 +288,7 @@
   // cut to the card's width with the whole text in its title. A card is a
   // button that opens its milestone in the drawer (milestoneHTML), where the
   // threshold and the purpose read in full; msView.detail is the one shown.
-  const THRESHOLD_LABEL = {"written": "threshold written", "absent": "no threshold", "placeholder": "placeholder threshold", "met": "threshold met"};
+  const THRESHOLD_LABEL = {"written": tk("threshold.written"), "absent": tk("threshold.absent"), "placeholder": tk("threshold.placeholder"), "met": tk("threshold.met")};
   const msView = { detail: null };
   const gateOf = (g, id) => (((g.graph || {}).gates || {})[id]) || {};
   panel(["epic-export"], () => {
@@ -299,7 +301,7 @@
     box.innerHTML = '<span class="plab">Milestones</span><div class="mscells">' + ms.map((m) => {
       const s = m.state || {};
       const waits = m.waiting_on && m.waiting_on.length ? "waits on " + m.waiting_on.join(", ") : "";
-      const line = tpPure.msLine(gateOf(g, m.milestone).purpose, tpPure.thresholdLine(m, gateOf(g, m.milestone), THRESHOLD_LABEL));
+      const line = tpPure.msLine(gateOf(g, m.milestone).purpose, tpPure.thresholdLine(m, gateOf(g, m.milestone), words(THRESHOLD_LABEL), t));
       const dc = described[m.milestone] || { described: 0, all: 0 };
       return '<button type="button" class="ms" data-ms="' + esc(m.milestone) + '" data-open="' + !!m.open + '" aria-expanded="false" aria-controls="drawer"><b>' + esc(m.milestone) + '</b><span class="st" data-s="' + (m.open ? "done" : "stale") + '">' +
         (m.open ? "open" : "closed") + "</span>" + (waits ? '<span class="sm muted">' + esc(waits) + "</span>" : "") +
@@ -551,7 +553,7 @@
   // waitSectionHTML draws a section as tpPure.waitSection decides it under
   // waitView.
   function waitSectionHTML(s) {
-    const w = tpPure.waitSection(s, waitView, WAIT_SHOWN);
+    const w = tpPure.waitSection(s, waitView, WAIT_SHOWN, t);
     return '<section class="wsec"><button type="button" class="wsh" data-wsec="' + esc(w.key) + '" aria-expanded="' + w.expanded + '"><b>' + esc(w.title) + "</b>" +
       '<span class="muted num">' + esc(plural(s.groups.length, "blocker", "blockers") + ", " + plural(s.epics, "epic waits", "epics wait") + " on them") + "</span></button>" +
       w.groups.map((gr, i) => waitGroupHTML(gr, w.key + ":" + i)).join("") +
@@ -1194,7 +1196,7 @@
     $("dinfo").setAttribute("aria-label", msd ? "About the milestone detail" : "About the epic detail");
     if (msd) {
       const dc = tpPure.describedCounts((g.graph && g.graph.epics) || [])[msd.milestone] || { described: 0, all: 0 };
-      $("dbody").innerHTML = tpPure.milestoneHTML(msd, gateOf(g, msd.milestone), dc, THRESHOLD_LABEL);
+      $("dbody").innerHTML = tpPure.milestoneHTML(msd, gateOf(g, msd.milestone), dc, words(THRESHOLD_LABEL), t);
       return;
     }
     const ge = graphEpic(g, id) || {};
@@ -2066,6 +2068,7 @@
   // card's own address keys.
   window.tpApp = {
     data, panel, markOf, fold, selectEpic, syncURL,
+    tr: () => t,
     selected: () => mapView.selected,
     inStage: (e) => !mapView.stage || e.status === mapView.stage,
     stage: () => mapView.stage,

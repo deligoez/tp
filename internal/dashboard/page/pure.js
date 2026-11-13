@@ -117,16 +117,17 @@
   };
 
   // waitSection is what a waitingSections section s shows under the view
-  // v, n groups before its Show all: its key, its title ("no milestone"
-  // when it has none), whether it is expanded, the groups shown (none when
-  // folded) and its Show all, null when folded or when n groups hold it.
-  P.waitSection = function (s, v, n) {
+  // v, n groups before its Show all, worded by t: its key, its title ("no
+  // milestone" when it has none), whether it is expanded, the groups shown
+  // (none when folded) and its Show all, null when folded or when n groups
+  // hold it.
+  P.waitSection = function (s, v, n, t) {
     const key = s.milestone;
-    const name = key || "no milestone";
+    const name = key || t("wait.noMilestone");
     const expanded = !v.folded.has(key);
     const all = v.all.has(key);
-    const more = expanded && s.groups.length > n ? { expanded: all, text: all ? "Show the largest " + n : "Show all " + s.groups.length + " blockers in " + name } : null;
-    return { key, title: "Blockers in " + name, expanded, groups: !expanded ? [] : all ? s.groups : s.groups.slice(0, n), more };
+    const more = expanded && s.groups.length > n ? { expanded: all, text: all ? t("wait.showLargest", { n }) : t("wait.showAll", { n: s.groups.length, name }) } : null;
+    return { key, title: t("wait.blockersIn", { name }), expanded, groups: !expanded ? [] : all ? s.groups : s.groups.slice(0, n), more };
   };
 
   // describedCounts counts, per milestone, the graph's epics and those with
@@ -143,13 +144,11 @@
 
   // epicTotals is the one sentence that puts the count of every epic, which
   // the Epics tab shows, beside the work epics the share and the Lifecycle
-  // count, naming the condition epics between them.
-  P.epicTotals = function (epics) {
-    const n = (k, one, many) => k + " " + (k === 1 ? one : many);
+  // count, naming the condition epics between them, worded by t.
+  P.epicTotals = function (epics, t) {
     const conds = (epics || []).filter((e) => e.condition).length;
     const all = (epics || []).length;
-    return n(all, "epic", "epics") + ": " + n(all - conds, "work epic", "work epics") + " and " + n(conds, "condition epic", "condition epics") +
-      "; the Lifecycle and the share count the work epics";
+    return t("totals.sentence", { epics: t("count.epics", { n: all }), work: t("count.workEpics", { n: all - conds }), conds: t("count.conditionEpics", { n: conds }) });
   };
 
   // msLine is a milestone card's one line: its gate's purpose when it has
@@ -188,30 +187,31 @@
     return String((m.gate && m.gate.threshold) || (gate && gate.threshold) || "").trim();
   };
 
-  // thresholdLine is the threshold as a milestone card words it: the text
-  // of a written threshold, else its state's label from labels.
-  P.thresholdLine = function (m, gate, labels) {
+  // thresholdLine is the threshold as a milestone card words it, by t: the
+  // text of a written threshold, else its state's label from labels.
+  P.thresholdLine = function (m, gate, labels, t) {
     const th = (m.state || {}).threshold || "absent";
     const text = P.thresholdOf(m, gate);
-    return th === "written" && text ? "threshold: " + text : labels[th] || th;
+    return th === "written" && text ? t("threshold.line", { text }) : labels[th] || th;
   };
 
-  // milestoneHTML is a milestone's detail in the drawer: its gate's state,
-  // its threshold and purpose in full, which its card cuts to one line, and
-  // dc, how many of its epics are described, every text escaped.
-  P.milestoneHTML = function (m, gate, dc, labels) {
+  // milestoneHTML is a milestone's detail in the drawer, worded by t: its
+  // gate's state, its threshold and purpose in full, which its card cuts to
+  // one line, and dc, how many of its epics are described, every text
+  // escaped.
+  P.milestoneHTML = function (m, gate, dc, labels, t) {
     const s = m.state || {};
     const th = s.threshold || "absent";
     const text = P.thresholdOf(m, gate);
-    const n = (k, one, many) => k + " " + (k === 1 ? one : many);
-    const waits = (m.waiting_on || []).length ? ", waits on " + m.waiting_on.join(", ") : "";
+    const state = m.open ? t("ms.open") : t("ms.closed");
+    const waits = (m.waiting_on || []).length ? t("ms.gateWaits", { state, on: m.waiting_on.join(", ") }) : state;
     const fields = [
-      ["Gate", (m.open ? "open" : "closed") + waits + "; " + (s.members_done || 0) + " of " + n(s.members || 0, "member", "members") + " done"],
-      ["Threshold", (labels[th] || th) + (text ? ": " + text : "")],
-      ["Purpose", String((gate || {}).purpose || "").trim() || "none written"],
-      ["Described", dc.described + " of " + n(dc.all, "epic", "epics") + " described"],
+      [t("ms.field.gate"), t("ms.gateLine", { state: waits, done: s.members_done || 0, n: s.members || 0 })],
+      [t("ms.field.threshold"), (labels[th] || th) + (text ? ": " + text : "")],
+      [t("ms.field.purpose"), String((gate || {}).purpose || "").trim() || t("ms.noPurpose")],
+      [t("ms.field.described"), t("ms.described", { done: dc.described, n: dc.all })],
     ];
-    return "<h3>" + escText(m.milestone) + "</h3><dl>" + fields.map(([k, v]) => "<dt>" + k + "</dt><dd>" + escText(v) + "</dd>").join("") + "</dl>";
+    return "<h3>" + escText(m.milestone) + "</h3><dl>" + fields.map(([k, v]) => "<dt>" + escText(k) + "</dt><dd>" + escText(v) + "</dd>").join("") + "</dl>";
   };
 
   // balancedColumns is the column count for n cards of at least minCard px
@@ -247,9 +247,9 @@
 
   // closureDescribed says how many of a gate closure's nodes are in
   // described, the set of described epic ids, as the closure view's header
-  // reads it.
-  P.closureDescribed = function (nodes, described) {
-    return nodes.filter((n) => described.has(n.id)).length + " of " + nodes.length + " in the closure described";
+  // reads it, worded by t.
+  P.closureDescribed = function (nodes, described, t) {
+    return t("graph.closureDescribed", { done: nodes.filter((n) => described.has(n.id)).length, n: nodes.length });
   };
 
   // edgeDrawn says whether the graph card draws an edge l ({ role, critical,
@@ -336,14 +336,17 @@
     return d <= 2 ? 255 : d === 3 ? 170 : 70;
   };
 
-  // relTime says how long ago ms milliseconds is, in its largest whole
-  // unit; under ten seconds, or a clock gone backwards, is just now.
-  P.relTime = function (ms) {
+  // relTime says how long ago ms milliseconds is, in its largest whole unit
+  // up to hours, days past two of them, as t's locale writes it; under ten
+  // seconds, or a clock gone backwards, is just now.
+  P.relTime = function (ms, t) {
     const s = Math.floor(ms / 1000);
-    if (!(s >= 10)) return "just now";
-    if (s < 60) return s + " s ago";
-    if (s < 3600) return Math.floor(s / 60) + " min ago";
-    return Math.floor(s / 3600) + " h ago";
+    if (!(s >= 10)) return t("time.justNow");
+    const rel = new Intl.RelativeTimeFormat(t.locale, { numeric: "always", style: "short" });
+    if (s < 60) return rel.format(-s, "second");
+    if (s < 3600) return rel.format(-Math.floor(s / 60), "minute");
+    if (s < 172800) return rel.format(-Math.floor(s / 3600), "hour");
+    return rel.format(-Math.floor(s / 86400), "day");
   };
 
   // wheelZooms says whether a wheel event zooms the graph: with Ctrl or ⌘
