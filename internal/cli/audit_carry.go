@@ -34,7 +34,10 @@ func auditCarryKeyOf(row map[string]any) auditCarryKey {
 // Prior Round block shows the auditor — and a row with no evidence_file has no
 // file to change, so its acceptance carries until the operator re-decides it.
 // The lookup is the immediately prior round alone, as ground's carry is, so
-// the chain runs round by round and one edit ends it.
+// the chain runs round by round and one edit ends it. An epoch ends it too:
+// a prior round numbered at or below epochCut was recorded before the newest
+// epoch, about a text the spec no longer holds, so nothing carries from it
+// and the operator is asked again (tp review --rewritten).
 //
 // The carried disposition is the prior `resolved` block copied verbatim, with
 // `carried_from` added when it has none: like ground's, it names the round the
@@ -45,9 +48,9 @@ func auditCarryKeyOf(row map[string]any) auditCarryKey {
 // rows are the parsed non-blank lines of data, in order; a carried row is
 // updated in place, so the clean verdict computed from rows reads it, and its
 // line of data is re-encoded. It returns data unchanged when nothing carries.
-func carryAuditAcceptances(specPath string, recorded []engine.ReviewRound, data []byte, rows []map[string]any) (out []byte, carried int) {
+func carryAuditAcceptances(specPath string, recorded []engine.ReviewRound, epochCut int, data []byte, rows []map[string]any) (out []byte, carried int) {
 	round, _ := engine.RecordRound(len(recorded))
-	if round < 2 || round-2 >= len(recorded) {
+	if round < 2 || round-2 >= len(recorded) || round-1 <= epochCut {
 		return data, 0
 	}
 	prev := &recorded[round-2]

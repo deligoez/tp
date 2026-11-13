@@ -89,7 +89,7 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 	// The carry runs before the stamp, so a re-recorded finding the operator
 	// accepted in the round before is graded with that acceptance, and the
 	// round file written below holds it.
-	data, carried := carryAuditAcceptances(specPath, preRounds, data, rows)
+	data, carried := carryAuditAcceptances(specPath, preRounds, engine.EpochCut(stPre, engine.PhaseAudit), data, rows)
 	// §2: `clean` is stamped here, once, under the policy in force at record
 	// time, and nothing downstream recomputes it. The policy comes from wfPre
 	// and not from the wf resolved after recordAuditRoundEntry, for the reason
