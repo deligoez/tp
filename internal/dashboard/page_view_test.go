@@ -41,10 +41,12 @@ func TestPure_AWheelsDeltaIsReadInPixels(t *testing.T) {
 }
 
 // TestPure_AZoomStepIsExponentialAndClampedPerEvent: the zoom is a power of
-// two, so a step adds to it: a pinch's small deltas of 1 to 10 move it a
-// little each, a mouse's 100 a full doubling, and no one event zooms by
-// more than 2× either way. Safari's pinch reports a running scale, and the
-// step is the log of its change since the last event, clamped the same way.
+// two, so a step adds to it. One pixel of wheel is 1/(100 ln 2), which
+// makes Chrome's pinch, whose deltas undercount the fingers' spread, track
+// them one to one and a mouse's notch of 100 zoom by 1.41×; no one event
+// zooms by more than that, either way. Safari's pinch reports a running
+// scale, and the step is the log of its change since the last event,
+// limited the same way (measured by the 1.17.1 audit).
 func TestPure_AZoomStepIsExponentialAndClampedPerEvent(t *testing.T) {
 	t.Parallel()
 	got := runPure(t, `const r = (x) => Math.round(x * 1000) / 1000;
@@ -52,7 +54,7 @@ out([
   r(P.wheelZoom(-4)), r(P.wheelZoom(4)), P.wheelZoom(-100), P.wheelZoom(-2000), P.wheelZoom(2000),
   P.pinchZoom(1, 2), P.pinchZoom(1, 16), P.pinchZoom(2, 1), r(P.pinchZoom(1, 1.1)), P.pinchZoom(0, 1), P.pinchZoom(1, 0),
 ]);`)
-	assert.JSONEq(t, `[0.04, -0.04, 1, 1, -1, 1, 1, -1, 0.138, 0, 0]`, got)
+	assert.JSONEq(t, `[0.058, -0.058, 0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.138, 0, 0]`, got)
 }
 
 // TestPage_TheCanvasTakesTheWheelAndSafarisPinchBeforeDeckGL: the canvas
