@@ -227,7 +227,8 @@ func roleFindingsParse(path string) bool {
 
 // allRowsDisposed reports whether every finding in the round's merged file
 // carries a disposition — the review-resolve kind's predicate. A finding is
-// disposed when it carries the `resolved` object tp review --resolve writes.
+// disposed when the `resolved` object tp review --resolve writes takes it off
+// the carry's unresolved list (reviewRowDisposed).
 // A merged file that is absent or holds an unparseable line fails: the round's
 // findings cannot be shown to be disposed if they cannot be read.
 func allRowsDisposed(path string) bool {
@@ -236,11 +237,19 @@ func allRowsDisposed(path string) bool {
 		return false
 	}
 	for _, row := range rows {
-		if !rowDisposed(row) {
+		if !reviewRowDisposed(row) {
 			return false
 		}
 	}
 	return true
+}
+
+// reviewRowDisposed reports whether a review row carries a disposition that
+// takes it off the carry's unresolved list (CarryDisposition): a wontfix or
+// duplicate with blank evidence accepts nothing, so it still owes a resolve.
+func reviewRowDisposed(row map[string]any) bool {
+	resolved, has := row["resolved"].(map[string]any)
+	return CarryDisposition(has, rowString(resolved, "status"), rowString(resolved, "evidence")) != CarryUnresolved
 }
 
 // rowDisposed reports whether one merged row carries a disposition — the

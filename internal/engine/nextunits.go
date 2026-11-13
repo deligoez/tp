@@ -198,7 +198,7 @@ func dispositionUnit(phase, roundDir string, target UnitTarget) (NextUnit, bool)
 			}
 			return newNextUnit(UnitAuditFix, auditRowKey(row), target), true
 		}
-		if !rowDisposed(row) {
+		if !reviewRowDisposed(row) {
 			return newNextUnit(UnitReviewResolve, SpecBaseName(target.Spec), target), true
 		}
 	}
