@@ -84,10 +84,11 @@ func TestDashboard_LayoutClampsTheNeighbourhoodDepth(t *testing.T) {
 // it from other milestones' epics (M2's s1 -> r2 and s2's group members r1
 // and t1) and whether it is open, an edge from each milestone it opens
 // after. M2's closure: tp epic scope's epics banded by milestone in
-// dependency order (T1 before M2, whose s2 waits on t1), the optional t1
-// carrying its group, the scope's critical path marked and the group's
-// edges marked. r2's neighbourhood at depth 1: one step each way, r2 the
-// centre, the graph's critical path marked.
+// dependency order (T1 before M2, whose s2 waits on t1), each node its
+// place alone (its milestone in the export, its group on its edges), the
+// scope's critical path marked and the group's edges marked. r2's
+// neighbourhood at depth 1: one step each way, r2 the centre, the graph's
+// critical path marked.
 func TestDashboard_LayoutGoldenViews(t *testing.T) {
 	t.Parallel()
 	srv := startDashboard(t, epicGraphDir(t, layoutGraph), freePort(t))
@@ -99,9 +100,9 @@ func TestDashboard_LayoutGoldenViews(t *testing.T) {
 			"edges": [{"from": "M1", "to": "M2"}]}`,
 		"view=scope&milestone=M2": `{"view": "scope", "milestone": "M2", "layers": 5,
 			"bands": [{"milestone": "M1", "from_layer": 0, "to_layer": 1}, {"milestone": "T1", "from_layer": 2, "to_layer": 2}, {"milestone": "M2", "from_layer": 3, "to_layer": 4}],
-			"nodes": [{"id": "r1", "layer": 0, "order": 0, "milestone": "M1"}, {"id": "r2", "layer": 1, "order": 0, "milestone": "M1"},
-				{"id": "t1", "layer": 2, "order": 0, "milestone": "T1", "any_of": ["r1", "t1"]},
-				{"id": "s1", "layer": 3, "order": 0, "milestone": "M2"}, {"id": "s2", "layer": 4, "order": 0, "milestone": "M2"}],
+			"nodes": [{"id": "r1", "layer": 0, "order": 0}, {"id": "r2", "layer": 1, "order": 0},
+				{"id": "t1", "layer": 2, "order": 0},
+				{"id": "s1", "layer": 3, "order": 0}, {"id": "s2", "layer": 4, "order": 0}],
 			"edges": [{"from": "r1", "to": "r2", "critical": true}, {"from": "r2", "to": "s1", "critical": true}, {"from": "s1", "to": "s2", "critical": true},
 				{"from": "r1", "to": "s2", "any_of": ["r1", "t1"]}, {"from": "t1", "to": "s2", "any_of": ["r1", "t1"]}, {"from": "r1", "to": "t1"}]}`,
 		"view=neighbourhood&epic=r2&depth=1": `{"view": "neighbourhood", "epic": "r2", "depth": 1, "layers": 3,
