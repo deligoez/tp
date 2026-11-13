@@ -131,7 +131,9 @@ func BuildBlockers(in *BlockerInputs) []Blocker {
 // a new emission is refused while its snapshot differs from the spec, so the
 // first command is that round's record; over the old text a round over the new
 // one follows, and the round's discard is the operator's decision, named under
-// operator and never as a command to run.
+// operator and never as a command to run. An emission the review cap refuses
+// is never a command either: with no round in flight it moves under operator
+// as raise-review-cap, and after a record that reaches the cap it is dropped.
 func specStaleBlocker(in *BlockerInputs) Blocker {
 	emit := "tp review " + in.SpecPath
 	record := emit + " --record <file>"
@@ -144,6 +146,9 @@ func specStaleBlocker(in *BlockerInputs) Blocker {
 	}
 	round := in.ReviewInFlightRound
 	if round == 0 {
+		if in.reviewCapReached(in.ReviewRounds) {
+			atReviewCap(in, &b, emit, record)
+		}
 		return b
 	}
 	b.Data["in_flight_round"] = round
@@ -156,11 +161,37 @@ func specStaleBlocker(in *BlockerInputs) Blocker {
 	b.Message = fmt.Sprintf("the spec changed after the last recorded review round, and review round %d is in flight over the old text, so a new emission is refused; record it first: %s, then run a round over the new text: %s, then %s. Discarding it instead is the operator's decision (%s): %s --force",
 		round, record, emit, record, EscalateDiscardEmission, emit)
 	b.Data["commands"] = []string{record, emit, record}
+	if in.reviewCapReached(in.ReviewRounds + 1) {
+		b.Message = fmt.Sprintf("the spec changed after the last recorded review round, and review round %d is in flight over the old text, so a new emission is refused; record it: %s. Its record reaches review's %d-round cap, so no round over the new text follows it; discarding it instead is the operator's decision (%s): %s --force",
+			round, record, in.ReviewMaxRounds, EscalateDiscardEmission, emit)
+		b.Data["commands"] = []string{record}
+	}
 	b.Data["operator"] = map[string]any{
 		"decision": EscalateDiscardEmission,
 		"commands": []string{emit + " --force", record},
 	}
 	return b
+}
+
+// reviewCapReached reports whether recorded review rounds reach the review
+// cap, which refuses the next emission (exit 4) while the spec is stale: a
+// stale spec is never converged. A cap of 0 is uncapped.
+func (in *BlockerInputs) reviewCapReached(recorded int) bool {
+	return in.ReviewMaxRounds > 0 && recorded >= in.ReviewMaxRounds
+}
+
+// atReviewCap rewords a spec-stale blocker with no round in flight once the
+// review budget is spent: the emission exits 4, so it is no command for the
+// agent, and raising the cap is the operator's decision (SKILL.md, "Gate,
+// Budget & Escalation Policy").
+func atReviewCap(in *BlockerInputs, b *Blocker, emit, record string) {
+	b.Message = fmt.Sprintf("the spec changed after the last recorded review round, and review reached its %d-round cap, so a round over the new text is refused; raising the cap is the operator's decision (%s): then %s, then %s",
+		in.ReviewMaxRounds, EscalateRaiseReviewCap, emit, record)
+	b.Data["commands"] = []string{}
+	b.Data["operator"] = map[string]any{
+		"decision": EscalateRaiseReviewCap,
+		"commands": []string{emit, record},
+	}
 }
 
 // epicBlockedBlocker is the epic-blocked blocker, or nil: it stands in the
