@@ -486,7 +486,7 @@ func (d *driver) prepare(res *ResumeResult, units []NextUnit, attempt int) ([]*u
 		a.logPath = unitLogPath(RunDir(d.opts.Root, d.runID), d.seq, u.Kind, u.ID)
 
 		runner, err := ResolveUnitRunner(d.opts.Workflow.Runner, TemplateValues{
-			Prompt:       UnitPrompt(u.Kind, a.target),
+			Prompt:       a.prompt(),
 			Kind:         u.Kind,
 			ID:           u.ID,
 			LogPath:      a.logPath,

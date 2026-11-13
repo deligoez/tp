@@ -322,7 +322,11 @@ func ResolveUnitRunner(raw json.RawMessage, v TemplateValues) (*Runner, error) {
 // A kind outside the eight has no brief command and so has no prompt, the same
 // defensive direction BriefCommand and DurableWrite take.
 func UnitPrompt(kind UnitKind, t UnitTarget) string {
-	brief := kind.BriefCommand(t)
+	return briefPrompt(kind, kind.BriefCommand(t))
+}
+
+// briefPrompt words the prompt around one brief command.
+func briefPrompt(kind UnitKind, brief string) string {
 	if brief == "" {
 		return ""
 	}

@@ -57,6 +57,15 @@ func (d *driver) startBatch(units []NextUnit) (map[string]batchUnit, error) {
 	return out, nil
 }
 
+// prompt is the instruction this attempt's child is spawned with: a unit in a
+// worktree runs the brief that names its task, any other its kind's brief.
+func (a *unitAttempt) prompt() string {
+	if a.dir != "" {
+		return briefPrompt(a.unit.Kind, BatchBriefCommand(a.unit.ID))
+	}
+	return UnitPrompt(a.unit.Kind, a.target)
+}
+
 // WorktreeBase is where a project's unit worktrees live: under the system's
 // temporary directory, keyed by the project root, so no tool run in the
 // repository ever walks into one.
