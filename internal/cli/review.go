@@ -1457,12 +1457,14 @@ func classifyCarried(findings []reviewFinding) carriedFindings {
 	var c carriedFindings
 	for i := range findings {
 		f := &findings[i]
-		switch {
-		case f.Resolved == nil:
-			c.unresolved = append(c.unresolved, *f)
-		case f.Resolved.Status == "fixed":
+		status, evidence := "", ""
+		if f.Resolved != nil {
+			status, evidence = f.Resolved.Status, f.Resolved.Evidence
+		}
+		switch engine.CarryDisposition(f.Resolved != nil, status, evidence) {
+		case engine.CarryResolved:
 			c.resolved = append(c.resolved, *f)
-		case acceptanceStatus(f.Resolved.Status) && strings.TrimSpace(f.Resolved.Evidence) != "":
+		case engine.CarryAccepted:
 			c.accepted = append(c.accepted, *f)
 		default:
 			c.unresolved = append(c.unresolved, *f)
