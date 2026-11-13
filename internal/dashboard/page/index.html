@@ -39,7 +39,30 @@
       <div class="card"><h2>Most waited-on epics <button class="info" type="button" data-info="most" aria-label="About the most waited-on epics" aria-expanded="false">i</button></h2><div class="list" id="now-most"></div></div>
     </section>
     <div id="epics-body" class="view" data-src="epic-export">
-      <section class="card mapcard" id="mapcard" aria-label="Plan map" hidden>
+      <section class="card mapcard gcard" id="graphcard" aria-label="Graph" hidden>
+        <div class="toolbar">
+          <h2>Graph</h2>
+          <span class="seg" role="group" aria-label="Graph mode">
+            <button type="button" data-gmode="plan" aria-pressed="true">Plan</button>
+            <button type="button" data-gmode="milestones" aria-pressed="false">Milestones</button>
+            <button type="button" data-gmode="scope" aria-pressed="false">Gate closure</button>
+            <button type="button" data-gmode="neighbourhood" aria-pressed="false">Neighbourhood</button>
+          </span>
+          <label class="gpick" id="gc-ms-pick" hidden>Milestone <select id="gc-ms"></select></label>
+          <label class="gpick" id="gc-depth-pick" hidden>Depth <select id="gc-depth"><option>1</option><option selected>2</option><option>3</option><option>4</option></select></label>
+          <input type="search" id="gc-q" placeholder="Find an epic by id or title  /" aria-label="Find epics in the graph" autocomplete="off">
+          <button class="chip" type="button" id="gc-cross" aria-pressed="false" title="Show every edge that is not a tree edge (K)">Cross edges</button>
+          <button class="chip" type="button" id="gc-pack" title="Rows squeezes each layer; Tree gives every leaf its own column">Packing: rows</button>
+          <span class="sm muted num" id="gc-n" aria-live="polite"></span>
+          <span class="spacer"></span>
+          <button type="button" class="key" id="gc-fit" title="Fit the whole graph (F)">Fit</button>
+          <button type="button" class="key" id="gc-theme" title="Switch light and dark">Dark</button>
+          <button type="button" class="key" data-fs="graphcard" aria-pressed="false">Full screen</button>
+        </div>
+        <div class="map gcanvas" id="gc-canvas"><p class="gmsg" id="gc-msg">The graph loads when it scrolls into view.</p></div>
+        <div class="legend" id="gc-legend"></div>
+      </section>
+      <section class="card mapcard retired" id="mapcard" aria-label="Plan map" hidden>
         <div class="toolbar">
           <h2>Plan map <button class="info" type="button" data-info="map" aria-label="About the plan map" aria-expanded="false">i</button></h2>
           <span id="trackchips" class="chips" role="group" aria-label="Show only these tracks"></span>
@@ -60,7 +83,7 @@
         <h2>Waiting epics <button class="info" type="button" data-info="waiting" aria-label="About waiting epics" aria-expanded="false">i</button></h2>
         <div id="now-waiting"></div>
       </section>
-      <section class="card mapcard" id="chaincard" aria-label="Dependencies" hidden>
+      <section class="card mapcard retired" id="chaincard" aria-label="Dependencies" hidden>
         <div class="toolbar">
           <h2>Dependencies <button class="info" type="button" data-info="chain" aria-label="About the dependency views" aria-expanded="false">i</button></h2>
           <span class="seg" role="group" aria-label="Dependency view">
@@ -125,5 +148,6 @@
 <div id="tip" class="tip" role="tooltip" hidden></div>
 <script src="pure.js"></script>
 <script src="app.js"></script>
+<script src="graph.js"></script>
 </body>
 </html>
