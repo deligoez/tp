@@ -18,14 +18,6 @@ fix needs a design choice leaves this file for a decision note.
 
 ## Fix track
 
-- **A gate with no effective members and no threshold is green, and nothing says so.** A milestone
-  that holds only a condition epic, with no `gates` entry, has an empty gate; `tp epic gate <m>`
-  reports `{"green": true, "members": []}` and every milestone opening after it is open at once, so
-  `tp epic ready` offers their epics before the condition is done. Repro (v1.15.0, scratch git repo):
-  milestones `[["A"],["TG","T1"]]`, `opens_after` `{"TG": [], "T1": ["TG"]}`, TG holding only
-  `{"id":"trigger","condition":true,…}`, T1 one epic; `tp epic lint` reports 0 errors and 0 warnings,
-  `tp epic ready` offers the T1 epic. Failing test: lint warns when a gate has no effective members and
-  no threshold while a milestone opens after it.
 - **`tp epic set gates.<m>.members=` takes a comma-separated list, not JSON.** `members=["x"]` is
   refused as a dangling reference to the literal `["x"]`, while `tags=` and `tag_checks=` take JSON.
   Failing test: the JSON array form is accepted, or the refusal names the expected form.
