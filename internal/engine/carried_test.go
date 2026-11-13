@@ -46,3 +46,16 @@ func TestReviewCarried_TheLatestDispositionWins(t *testing.T) {
 	assert.Equal(t, DoneByConverged, d.By)
 }
 
+// TestReviewCarried_TwoFindingsAtOneLocationStayTwo: resolving one finding
+// at a location never hides another one there.
+func TestReviewCarried_TwoFindingsAtOneLocationStayTwo(t *testing.T) {
+	t.Parallel()
+	spec := filepath.Join(t.TempDir(), "spec.md")
+	st := &ReviewState{ReviewRounds: loopRounds(t, spec, []string{carriedOtherAt, carriedFixed}, []string{}, []string{})}
+
+	d := ReviewLoopDone(spec, st, 2, 0, "h", ReviewConvergeOnBlocking)
+	assert.False(t, d.Done)
+	require.Len(t, d.CarriedBlocking, 1)
+	assert.Equal(t, "Rule 2 contradicts rule 1", d.CarriedBlocking[0].Row["finding"])
+}
+
