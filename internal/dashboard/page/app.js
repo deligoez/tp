@@ -1011,22 +1011,22 @@
     mapPort.reveal(mapView.geo.pos[next]);
   });
 
-  // mapPort pans and zooms the map: drag to pan, Ctrl or ⌘ with the wheel (a
-  // pinch) to zoom; a plain wheel scrolls the page.
-  const mapPort = (function () {
-    const el = $("map");
-    const svg = $("mapsvg");
+  // makePort pans and zooms the drawing svg in the box el: drag or one
+  // finger to pan, Ctrl or ⌘ with the wheel, a pinch, or the plain wheel
+  // while hooks.card fills the screen, to zoom; otherwise a plain wheel
+  // scrolls the page. hooks.first gives a drawing's first view, hooks.hover
+  // and hooks.click answer the pointer, and hooks.card holds the zoom keys.
+  function makePort(el, svg, hooks) {
     let v = null;
     let size = { W: 1, H: 1 };
     let drag = null;
     let moved = false;
     const apply = () => { if (v) svg.setAttribute("viewBox", v.x + " " + v.y + " " + v.w + " " + v.h); };
-    // fit shows the drawing's width at a readable scale (tpPure.initialView);
-    // what does not fit is panned to.
+    // fit shows the drawing's first view (hooks.first).
     function fit() {
       const r = el.getBoundingClientRect();
       if (!r.width || !r.height) return;
-      v = tpPure.initialView(size.W, size.H, r.width, r.height);
+      v = hooks.first(size.W, size.H, r.width, r.height);
       apply();
     }
     function zoomAt(f, px, py) {
@@ -1041,7 +1041,7 @@
       return { x: v.x + (cx - r.left) / r.width * v.w, y: v.y + (cy - r.top) / r.height * v.h };
     };
     el.addEventListener("wheel", (ev) => {
-      if (!(ev.ctrlKey || ev.metaKey || document.body.classList.contains("mapfs")) || !v) return;
+      if (!(ev.ctrlKey || ev.metaKey || hooks.card.classList.contains("fs")) || !v) return;
       ev.preventDefault();
       const p = toSvg(ev.clientX, ev.clientY);
       zoomAt(Math.exp(Math.max(-80, Math.min(80, ev.deltaY)) * 0.01), p.x, p.y);
@@ -1086,7 +1086,7 @@
         $("tip").hidden = true;
         return;
       }
-      if (ev.pointerType !== "touch") mapHover(ev);
+      if (ev.pointerType !== "touch") hooks.hover(ev);
     });
     const lift = (ev) => {
       fingers.delete(ev.pointerId);
@@ -1098,11 +1098,11 @@
     };
     el.addEventListener("pointerup", (ev) => {
       const pinched = !!pinch;
-      if (!lift(ev) && !pinched) mapClick(ev);
+      if (!lift(ev) && !pinched) hooks.click(ev);
     });
     el.addEventListener("pointercancel", lift);
     el.addEventListener("pointerleave", () => { $("tip").hidden = true; });
-    $("mapcard").querySelectorAll("[data-z]").forEach((b) => b.addEventListener("click", () => {
+    hooks.card.querySelectorAll("[data-z]").forEach((b) => b.addEventListener("click", () => {
       const z = b.dataset.z;
       if (z === "fit" || !v) fit();
       else zoomAt(z === "in" ? 1 / 1.5 : 1.5, v.x + v.w / 2, v.y + v.h / 2);
@@ -1128,16 +1128,17 @@
       reveal(p) {
         if (v && p && (p.x < v.x || p.x > v.x + v.w || p.y < v.y || p.y > v.y + v.h)) this.centre(p);
       },
-      // bounds takes the drawing's size; the first drawing is fitted, later
-      // ones keep the reader's view.
-      bounds(W, H) {
+      // bounds takes the drawing's size; the first drawing, and any when
+      // refit is set, is fitted, later ones keep the reader's view.
+      bounds(W, H, refit) {
         const first = size.W === 1 && size.H === 1;
         size = { W, H };
-        if (first || !v) fit();
+        if (first || refit || !v) fit();
         else apply();
       },
     };
-  })();
+  }
+  const mapPort = makePort($("map"), $("mapsvg"), { card: $("mapcard"), first: tpPure.initialView, hover: (ev) => mapHover(ev), click: (ev) => mapClick(ev) });
 
   // Full screen (dashboard-ux.md §2): a card's button asks the Fullscreen
   // API for the page and marks the card to fill it, so the drawer still opens
