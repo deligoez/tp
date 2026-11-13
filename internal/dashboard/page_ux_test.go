@@ -83,7 +83,6 @@ func TestPure_ThePlainWheelZoomsOnlyInFullScreen(t *testing.T) {
 	assert.JSONEq(t, `[true, true, false, true]`, got)
 }
 
-
 // TestPage_TheDrawerNarrowsThePageInsteadOfCoveringIt is the drawer rule
 // (spec/backlog/dashboard-ux.md §2): an open drawer takes its width from the
 // page, beside it, and on a phone its height from below, so the map and a
