@@ -52,3 +52,17 @@ out([
 	assert.JSONEq(t, `[0.04, -0.04, 1, 1, -1, 1, 1, -1, 0.138, 0, 0]`, got)
 }
 
+// TestPage_TheCanvasTakesTheWheelAndSafarisPinchBeforeDeckGL: the canvas
+// box listens in the capture phase, ahead of deck.gl's own canvas, with a
+// listener that may cancel the page's scroll; Safari's gesture events zoom
+// by the pinch's scale and are cancelled only on the canvas, where they are
+// heard; the help says the rule in one sentence.
+func TestPage_TheCanvasTakesTheWheelAndSafarisPinchBeforeDeckGL(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, s := range []string{"pure.wheelAction(ev, card.classList.contains(\"fs\"))", "pure.wheelDelta(ev, ", "pure.wheelZoom(", "{ passive: false, capture: true }",
+		`"gesturestart"`, `"gesturechange"`, "pure.pinchZoom(G.pinch, ev.scale)", `"graph.help.input": "A pinch, or Ctrl or ⌘ with the wheel, zooms; in full screen the wheel pans, outside it the page scrolls."`} {
+		assert.Contains(t, script, s)
+	}
+	assert.NotContains(t, script, "wheelZooms")
+}
