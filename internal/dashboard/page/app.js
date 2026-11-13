@@ -92,20 +92,19 @@
   const descHTML = (s) => '<div><h4>' + esc(t("drawer.description")) + '</h4><pre class="ddesc">' + esc(s) + "</pre></div>";
 
   // ---------- the theme ----------
-  // The header's Light/Dark toggle sets <html data-theme>, keeps the choice
-  // in this browser and tells the graph card (tp-theme); without a stored
-  // choice the system's setting rules. The toggle names the theme it
-  // switches to.
+  // The header's Auto, Light and Dark set <html data-theme>, keep an
+  // explicit Light or Dark in this browser (Auto clears it) and tell the
+  // graph card (tp-theme). On Auto the page follows the system's setting
+  // live: a change there restyles the page and the graph without a reload.
   const THEME_KEY = "tp-dashboard-theme";
   function storedTheme() {
     try { return localStorage.getItem(THEME_KEY); } catch (e) { return null; }
   }
   const SYSTEM_DARK = window.matchMedia("(prefers-color-scheme: dark)");
-  const darkNow = () => {
-    const set = document.documentElement.dataset.theme;
-    return set ? set === "dark" : SYSTEM_DARK.matches;
+  const themeLabel = () => {
+    const chosen = tpPure.themeChoice(storedTheme());
+    document.querySelectorAll("[data-theme-pick]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.themePick === chosen)));
   };
-  const themeLabel = () => { $("theme").textContent = t(darkNow() ? tk("theme.light") : tk("theme.dark")); };
   function applyTheme(theme) {
     if (theme) document.documentElement.dataset.theme = theme;
     else delete document.documentElement.dataset.theme;
@@ -113,11 +112,17 @@
     document.dispatchEvent(new Event("tp-theme"));
   }
   applyTheme(tpPure.pickTheme(storedTheme()));
-  SYSTEM_DARK.addEventListener("change", themeLabel);
-  $("theme").addEventListener("click", () => {
-    const next = tpPure.nextTheme(darkNow());
-    try { localStorage.setItem(THEME_KEY, next); } catch (e) { /* the choice lasts this load */ }
-    applyTheme(next);
+  SYSTEM_DARK.addEventListener("change", () => applyTheme(tpPure.pickTheme(storedTheme())));
+  $("theme").addEventListener("click", (ev) => {
+    const b = ev.target.closest("[data-theme-pick]");
+    if (!b) return;
+    const store = tpPure.themeStore(b.dataset.themePick);
+    if (store) {
+      try { localStorage.setItem(THEME_KEY, store); } catch (e) { /* the choice lasts this load */ }
+    } else {
+      try { localStorage.removeItem(THEME_KEY); } catch (e) { /* the stored choice stays */ }
+    }
+    applyTheme(store);
   });
 
   // live holds, per event, the last good payload and the error pushed after

@@ -76,7 +76,7 @@
     data: null, key: null, dataKey: null, error: null, seq: 0, seen: null,
     deck: null, deckState: "idle", visible: false, built: null, builtFor: null, prepared: null,
     vs: null, far: null, fitted: null, matchIdx: -1, colors: null, loadMs: null, firstDrawMs: null,
-    sets: null, setsKey: null, drawing: null, msgKey: tk("graph.notYet"), pinch: 1, gesture: false,
+    sets: null, setsKey: null, drawing: null, msgKey: tk("graph.notYet"), pinch: 1, gesture: false, themeVer: 0,
   };
   window.tpGraph = G;
 
@@ -465,7 +465,7 @@
     const scale = Math.pow(2, G.vs.zoom);
     G.far = P.geo.fs * scale < MIN_TEXT_PX;
     const hits = matches(P);
-    const v = [P.ver, G.q, G.far, pure.crossShown(G), G.whole, [...G.hiddenMarks].join(), [...G.hiddenEdges].join(), c.dark, app.stage()];
+    const v = [P.ver, G.q, G.far, pure.crossShown(G), G.whole, [...G.hiddenMarks].join(), [...G.hiddenEdges].join(), G.themeVer, app.stage()];
     const fontSettings = { sdf: true, fontSize: 64, buffer: 6, radius: 12, cutoff: 0.22 };
     const dash = window.deck.PathStyleExtension ? [new window.deck.PathStyleExtension({ dash: true })] : [];
     const sets = edgeSets(P);
@@ -788,15 +788,17 @@
   });
   showLegend(pure.legendOpen(storedLegend(), isFull()));
   $("gc-fit").addEventListener("click", () => { if (G.prepared) goTo(fitView()); });
-  // The page's header switches the theme (tp-theme); the card reads its
-  // colours again.
+  // The page's header switches the theme, or the system's setting changes
+  // under Auto (tp-theme); the card reads its colours again and bumps its
+  // theme version, which every layer's update triggers hold, so deck.gl
+  // draws each colour anew.
   function retheme() {
+    G.themeVer++;
     readColors();
     drawToolbar(app.data("epic-export") || {});
     drawLegend();
     render();
   }
-  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", retheme);
   document.addEventListener("tp-theme", retheme);
 
   // ---------- the search and the keys ----------

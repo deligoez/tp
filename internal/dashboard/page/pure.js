@@ -317,9 +317,16 @@
     return stored === "light" || stored === "dark" ? stored : null;
   };
 
-  // nextTheme is the theme the toggle switches to from dark or light.
-  P.nextTheme = function (dark) {
-    return dark ? "light" : "dark";
+  // themeChoice is which of the header's Auto, Light and Dark reads as
+  // chosen for the stored value: light or dark as stored, else auto.
+  P.themeChoice = function (stored) {
+    return P.pickTheme(stored) || "auto";
+  };
+
+  // themeStore is what choosing c stores: light or dark, and null for
+  // auto, which clears the stored value so the system's setting rules.
+  P.themeStore = function (c) {
+    return P.pickTheme(c);
   };
 
   // placeLabels places band labels in the order given, each box { x, y, w,
