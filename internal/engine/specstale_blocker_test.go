@@ -29,3 +29,22 @@ func TestSpecStaleBlocker_DataCarriesTheClearingCommands(t *testing.T) {
 	assert.NotContains(t, b.Data, "operator")
 }
 
+// TestSpecStaleBlocker_InFlightOverTheOldTextNamesTheRecord: a round in flight
+// whose snapshot is the old text refuses a new emission (exit 3), so the
+// clearing commands start with that round's record, and its discard is named
+// as the operator's decision rather than as a command to run.
+func TestSpecStaleBlocker_InFlightOverTheOldTextNamesTheRecord(t *testing.T) {
+	t.Parallel()
+	b := builtSpecStale(t, &BlockerInputs{ReviewInFlightRound: 3, ReviewInFlightOverOldText: true})
+	assert.Equal(t, 3, b.Data["in_flight_round"])
+	assert.Equal(t, []string{"tp review spec.md --record <file>", "tp review spec.md", "tp review spec.md --record <file>"},
+		b.Data["commands"])
+	assert.Equal(t, map[string]any{
+		"decision": EscalateDiscardEmission,
+		"commands": []string{"tp review spec.md --force", "tp review spec.md --record <file>"},
+	}, b.Data["operator"])
+	assert.Contains(t, b.Message, "review round 3 is in flight over the old text")
+	assert.Contains(t, b.Message, "record it first: tp review spec.md --record <file>")
+	assert.Contains(t, b.Message, "operator's decision")
+}
+
