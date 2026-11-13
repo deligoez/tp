@@ -176,6 +176,24 @@ func TestFilterFiles_CodeFilesRankByChurn(t *testing.T) {
 		"priority group by churn, then the rest by churn with ties by path, unmeasured c.go last")
 }
 
+// TestFilterFiles_DeletionsCountAsChurn: churn is lines added plus deleted on
+// both sides of every comparison, so a file that only lost lines outranks one
+// that gained fewer, whichever order the universe lists them in.
+func TestFilterFiles_DeletionsCountAsChurn(t *testing.T) {
+	t.Parallel()
+	for _, universe := range [][]string{{"a.go", "b.go", "c.go"}, {"c.go", "b.go", "a.go"}} {
+		in := &AuditFileInputs{
+			Universe:  universe,
+			DiffStats: map[string][2]int{"a.go": {12, 0}, "b.go": {0, 30}, "c.go": {2, 9}},
+		}
+		got := make([]string, 0, 3)
+		for _, e := range SelectAuditFiles(in).CodeFiles {
+			got = append(got, e.Path)
+		}
+		assert.Equal(t, []string{"b.go", "a.go", "c.go"}, got, "universe %v", universe)
+	}
+}
+
 // TestFilterFiles_CodeFilesChurnDecidesTheCut: the cap keeps the most-changed
 // files, not the first ones in path order.
 func TestFilterFiles_CodeFilesChurnDecidesTheCut(t *testing.T) {
