@@ -306,6 +306,45 @@ out(P.waitingGroups(["c", "x1", "x2", "x3", "y1"], epics, ["a"], { M: true, N: f
 	}`, got)
 }
 
+// TestPure_EveryStateWordReadsTheOneStatusField: the map's marks and the
+// Waiting pills read an epic's stage from the status field the export
+// serves and from nothing else, so a specced epic (a bound spec, no claim)
+// is specced everywhere, never "claimed" in a pill or "claimed or under way"
+// on the map, and the Lifecycle count of each stage, the work epics with
+// that status, equals the marks of that stage; a planned epic's mark says
+// what holds it (1.14.1).
+func TestPure_EveryStateWordReadsTheOneStatusField(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const ep = (id, status, x) => Object.assign({ id, milestone: "M", status, blocked_by: [], blocked_by_any_of: [] }, x || {});
+const work = [ep("a", "planned"), ep("b", "planned", { blocked: true }), ep("g", "planned", { held: true, blocked: true }), ep("c", "claimed", { blocked: true }),
+  ep("d", "specced"), ep("h", "specced", { milestone: "N" }), ep("e", "in_progress", { blocked: true }), ep("f", "done")];
+const closed = { N: true };
+const marks = {};
+work.forEach((e) => { const m = P.markState(e, !!closed[e.milestone]); marks[m] = (marks[m] || 0) + 1; });
+const band = {};
+work.forEach((e) => { band[e.status] = (band[e.status] || 0) + 1; });
+const epics = {};
+work.concat([ep("x", "planned", { blocked: true, blocked_by: ["d", "e", "c"] }), ep("y", "planned", { blocked: true, blocked_by_any_of: [["d", "c"]] })]).forEach((e) => { epics[e.id] = e; });
+const w = P.waitingGroups(["x", "y"], epics, [], { M: true });
+out({ marks, band, pills: w.groups.map((g) => (g.blocker || g.any_of.join("|")) + ":" + g.state) });`)
+	assert.JSONEq(t, `{
+		"marks": {"ready": 1, "blocked": 1, "held": 1, "claimed": 1, "specced": 2, "in_progress": 1, "done": 1},
+		"band": {"planned": 3, "claimed": 1, "specced": 2, "in_progress": 1, "done": 1},
+		"pills": ["d:specced", "e:in_progress", "c:claimed", "d|c:specced"]
+	}`, got)
+}
+
+// TestPage_MapNodesCarryTheirStatus: each map node carries the status the
+// export serves, and the legend names the three stages after planned.
+func TestPage_MapNodesCarryTheirStatus(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Contains(t, script, `data-status="' + esc(e.status)`)
+	assert.Contains(t, script, "tpPure.markState(")
+	assert.NotContains(t, script, "claimed or under way")
+	assert.NotContains(t, script, "function markState(")
+}
+
 // TestPage_WaitingEpicsSitBelowThePlanMapInGroups: the Waiting epics card
 // follows the Plan map, draws the groups waitingGroups returns with the rest
 // behind "show all", and names the deferrable members its total leaves out.
