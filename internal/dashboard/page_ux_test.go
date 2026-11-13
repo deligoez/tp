@@ -614,7 +614,35 @@ func TestPage_AMilestoneCardClampsLongTextAndExpands(t *testing.T) {
 	page, script := pageText(t)
 	assert.Contains(t, page, ".mscells { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: var(--space-xs); align-items: start; }")
 	assert.Contains(t, page, ".ms .clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }")
-	for _, s := range []string{"data-msx=", "msView.open", "scrollHeight > ", `"Show less"`, `"Show all"`} {
+	for _, s := range []string{"data-msx=", "msView.open", "measureCards()", `"Show less"`, `"Show all"`} {
+		assert.Contains(t, script, s)
+	}
+}
+
+// TestPure_ACardKnowsItIsCutOnlyOnceLaidOut: whether a clamp cut a
+// card's text is read from its clamped boxes' heights: cut when one holds
+// more than it shows, whole when none does, and unknown while any box has
+// no height, as in a hidden tab, so the page measures again once the card
+// is laid out instead of hiding the control for good (1.14.1 review).
+func TestPure_ACardKnowsItIsCutOnlyOnceLaidOut(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([
+  P.cut([{ scrollHeight: 80, clientHeight: 60 }, { scrollHeight: 20, clientHeight: 20 }]),
+  P.cut([{ scrollHeight: 20, clientHeight: 20 }, { scrollHeight: 41, clientHeight: 40 }]),
+  P.cut([{ scrollHeight: 0, clientHeight: 0 }]),
+  P.cut([{ scrollHeight: 80, clientHeight: 60 }, { scrollHeight: 0, clientHeight: 0 }]),
+  P.cut([]),
+]);`)
+	assert.JSONEq(t, `[true, false, null, null, false]`, got)
+}
+
+// TestPage_TheCardControlIsMeasuredAgainOnceLaidOut: the page re-measures
+// the card controls when the milestone cards change size, as when the
+// Epics tab opens, and on switching to it.
+func TestPage_TheCardControlIsMeasuredAgainOnceLaidOut(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, s := range []string{"tpPure.cut(", `new ResizeObserver(measureCards).observe($("msstate"))`, `if (tab === "epics") measureCards();`} {
 		assert.Contains(t, script, s)
 	}
 }
