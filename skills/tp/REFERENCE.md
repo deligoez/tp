@@ -2335,8 +2335,11 @@ contract:
   open_loops, stale_loops, throughput}` over work epics, `operator_queue` counting actionable
   conditions, those groups, gates awaiting `--met`, threshold rewrites and the slices whose
   `grantable` is true, `open_loops` the epic review slices not `done`, `stale_loops` (v1.13.0) those of
-  them only `stale` (a graph edit changed their units since their last round), so the loops needing a
-  round are `open_loops - stale_loops`, `throughput` `[{week, done}]` over every
+  them a re-review alone settles: `stale` (a graph edit changed their units since their last round),
+  otherwise done (enough clean rounds, no blocking finding open) and not at their cap. Every other
+  slice of `open_loops` needs something else: a round; or, `in_flight`, its emitted round recorded,
+  not a new one; or, stale at its cap, the grant `operator_queue` counts it for.
+  `throughput` is `[{week, done}]` over every
   milestone. `waiting` leaves `deferrable` gate members out, as `tp epic status`'s and `export`'s
   `blocked` do, and `operator_conditions` is `tp epic ready`'s actionable conditions (v1.8.0: none
   deferrable, none only deferrable work waits on). Empty with no graph.
