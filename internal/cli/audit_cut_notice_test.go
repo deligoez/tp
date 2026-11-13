@@ -73,3 +73,18 @@ func TestAuditCut_NothingCutNothingSaid(t *testing.T) {
 	assert.Empty(t, auditNotices(t, stdout))
 	assert.Equal(t, false, auditFileSummary(t, stdout)["truncated"])
 }
+
+// TestAuditCut_SiblingUnitsAgreeOnTruncated: every role unit of a round emits
+// with --role, and truncated is a fact of the round, not of the one prompt a
+// unit kept: a spec-coverage unit whose own list is whole still reads the
+// code roles' cut, as the security unit does.
+func TestAuditCut_SiblingUnitsAgreeOnTruncated(t *testing.T) {
+	t.Parallel()
+	dir, specPath := auditRepoWithChangedFiles(t, 14)
+	for _, role := range []string{"spec-coverage", "security"} {
+		stdout, stderr, code := runTP(t, dir, "audit", specPath, "--role", role)
+		require.Equal(t, 0, code, "stderr: %s", stderr)
+		assert.Equal(t, true, auditFileSummary(t, stdout)["truncated"], "--role %s reads the round's cut", role)
+		assert.NotNil(t, noticeOfKind(auditNotices(t, stdout), "code-files-cut"), "--role %s names it", role)
+	}
+}
