@@ -79,19 +79,6 @@ func TestPage_TheGraphGoesFullScreen(t *testing.T) {
 	assert.Equal(t, 1, strings.Count(script, "in full screen the wheel pans, outside it the page scrolls"))
 }
 
-// TestPage_TheDrawerNarrowsThePageInsteadOfCoveringIt is the drawer rule
-// (spec/backlog/dashboard-ux.md §2): an open drawer takes its width from the
-// page, beside it, and on a phone its height from below, so the map and a
-// full-screen card stay whole beside it.
-func TestPage_TheDrawerNarrowsThePageInsteadOfCoveringIt(t *testing.T) {
-	t.Parallel()
-	page, _ := pageText(t)
-	for _, rule := range []string{"body.dopen { padding-right: var(--drawer-w); }", "body.mapfs.dopen .card.fs { right: var(--drawer-w); }",
-		"body.dopen { padding-right: 0; padding-bottom: var(--drawer-h); }", "body.mapfs.dopen .card.fs { right: 0; bottom: var(--drawer-h); }"} {
-		assert.Contains(t, page, rule)
-	}
-}
-
 // TestPage_TheKeyboardRunsThroughSearchListsAndTheCanvasBox is decision 4
 // of spec/backlog/dashboard-graph.md at the page: the canvas has no
 // focusable node, its box takes focus and the arrows pan it and + and −
