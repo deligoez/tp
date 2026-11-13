@@ -128,6 +128,24 @@ func TestPure_TheGlyphAtlasHoldsEveryCharacterANodeDraws(t *testing.T) {
 	assert.Equal(t, "true", got)
 }
 
+// TestPure_ALongListFoldsPastItsFirstFew: the drawer shows a list's first
+// n rows and folds the rest, but never folds a single row, which would take
+// a "+1 more" line to hide one line.
+func TestPure_ALongListFoldsPastItsFirstFew(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const l = (n) => Array.from({ length: n }, (_, i) => i);
+out([P.foldAt(l(3), 5), P.foldAt(l(6), 5), P.foldAt(l(8), 5)]);`)
+	assert.JSONEq(t, `[[[0,1,2],[]], [[0,1,2,3,4,5],[]], [[0,1,2,3,4],[5,6,7]]]`, got)
+}
+
+// TestPure_AMarkNamesTheTokenItIsDrawnIn: a dependency row's dot takes the
+// colour its epic has on the graph, and an unknown mark the muted ink.
+func TestPure_AMarkNamesTheTokenItIsDrawnIn(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([P.markToken("done"), P.markToken("blocked"), P.markToken("nope")]);`)
+	assert.JSONEq(t, `["--done", "--g-blocked", "--muted"]`, got)
+}
+
 // TestPure_HopsCountTheStepsFromTheSelection: the highlight of a
 // selection's chain fades with distance, so the page counts each reachable
 // node's steps from the selected one, breadth first, the selection itself
