@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestPure_TheWheelZoomsWithAModifierPansInFullScreenAndElseScrollsThePage
@@ -306,3 +307,21 @@ func TestPage_TheGraphDrawsByLabelSizeWithItsOwnZoomAndKeys(t *testing.T) {
 		assert.NotContains(t, script, s)
 	}
 }
+
+// TestPure_AnISOWeekReadsAsItsDates: the throughput figure names its week
+// as the Monday-to-Sunday dates the locale writes, not as 2026-W48; a value
+// that is no ISO week reads as itself.
+func TestPure_AnISOWeekReadsAsItsDates(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([P.weekRange("2026-W48", "tr"), P.weekRange("2026-W48", "en"), P.weekRange("2026-W01", "en"), P.weekRange("soon", "en")]);`)
+	var weeks []string
+	require.NoError(t, json.Unmarshal([]byte(got), &weeks))
+	assert.Contains(t, weeks[0], "23")
+	assert.Contains(t, weeks[0], "29")
+	assert.Contains(t, weeks[0], "Kas")
+	assert.Contains(t, weeks[1], "Nov")
+	assert.Contains(t, weeks[2], "Dec")
+	assert.Contains(t, weeks[2], "Jan")
+	assert.Equal(t, "soon", weeks[3])
+}
+
