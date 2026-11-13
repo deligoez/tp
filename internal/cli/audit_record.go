@@ -304,10 +304,14 @@ func recordAuditRoundEntry(specPath string, data []byte, rows []map[string]any, 
 			IDScheme:    engine.IDSchemeSlug,
 			ConvergeOn:  convergeOn,
 			HarnessNote: harnessNote,
-			// Decision 4: what each code role graded of its pool, from the
-			// pools this round's emission kept in its inbox.
-			Graded: gradedAtRecord(specPath, round, rows),
 		}
+		// Decision 4: what each code role graded of its pool, from the pools
+		// this round's emission kept in its inbox.
+		var previous []engine.RoleGraded
+		if rewrite {
+			previous = st.AuditRounds[round-1].Graded
+		}
+		entry.Graded = gradedAtRecord(specPath, round, rows, hashScheme, previous)
 		if rewrite {
 			st.AuditRounds[round-1] = entry
 		} else {

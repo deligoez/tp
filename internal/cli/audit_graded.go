@@ -41,16 +41,23 @@ func writeAuditRolePools(specPath string, round int, pools []engine.AuditRolePoo
 	}
 }
 
-// gradedAtRecord grades the round's rows against the pools its emission kept;
-// nil when no emission kept any.
-func gradedAtRecord(specPath string, round int, rows []map[string]any) []engine.RoleGraded {
+// gradedAtRecord grades the round's rows against the pools its emission kept.
+// Only a round recorded over its own emission's snapshot is graded: a
+// no-emission record answers for no reading, whatever pools file sits at its
+// number. A re-record of a round (TP_ROUND) finds no pools, since the first
+// record removed them, and keeps previous, what that record stored; a first
+// record with no pools has nothing to grade against and stores nil.
+func gradedAtRecord(specPath string, round int, rows []map[string]any, hashScheme string, previous []engine.RoleGraded) []engine.RoleGraded {
+	if hashScheme != engine.HashSchemeSnapshot {
+		return nil
+	}
 	pools, found, err := engine.ReadAuditPools(specPath, round)
 	if err != nil {
 		output.Notice(fmt.Sprintf("warning: cannot read audit round %d's file pools, so its record says nothing of what each role graded: %v", round, err))
 		return nil
 	}
 	if !found {
-		return nil
+		return previous
 	}
 	return engine.GradeAuditRoles(pools, rows)
 }
