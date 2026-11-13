@@ -142,6 +142,9 @@ type UnitTarget struct {
 	RoundDir string
 	Round    int
 	ID       string
+	// Batch marks an implement unit that runs beside others in a batch
+	// (spec/backlog/parallel-implement.md §2.2).
+	Batch bool
 }
 
 // DurableWrite reports whether the unit's §3.3 durable write is present.

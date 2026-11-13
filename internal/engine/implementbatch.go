@@ -1,6 +1,10 @@
 package engine
 
-import "github.com/deligoez/tp/internal/model"
+import (
+	"path/filepath"
+
+	"github.com/deligoez/tp/internal/model"
+)
 
 // ImplementBatch returns the task ids one implement batch runs
 // (spec/backlog/parallel-implement.md §2.2): a wip task alone, since an
@@ -36,6 +40,32 @@ func ImplementBatch(tf *model.TaskFile, maxParallel int) []string {
 		ids[i] = t.ID
 	}
 	return ids
+}
+
+// implementMaxParallel is the task file's effective run_max_parallel: its own
+// override over the project layer over the default.
+func implementMaxParallel(taskFilePath string, tf *model.TaskFile) int {
+	if tf == nil {
+		return RunMaxParallelDefault
+	}
+	override := tf.Workflow
+	ClampWorkflowRanges(&override)
+	project := ProjectWorkflowOverride(filepath.Dir(taskFilePath))
+	return ResolveWorkflowLayers(&override, &project).RunMaxParallel
+}
+
+// implementBatch reports whether units are an implement batch: more than one
+// unit, all of the implement kind.
+func implementBatch(units []NextUnit) bool {
+	if len(units) < 2 {
+		return false
+	}
+	for i := range units {
+		if units[i].Kind != UnitImplement {
+			return false
+		}
+	}
+	return true
 }
 
 // batchable reports whether a task may run beside another: it names what it

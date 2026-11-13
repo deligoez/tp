@@ -17,6 +17,11 @@ import "fmt"
 func (k UnitKind) BriefCommand(t UnitTarget) string {
 	switch k {
 	case UnitImplement:
+		// A batched unit's task is claimed by the driver, so its brief
+		// names the task rather than asking tp next for one.
+		if t.Batch && t.ID != "" {
+			return "tp brief " + t.ID
+		}
 		return "tp next --brief"
 	case UnitReviewRole:
 		return "tp review " + t.Spec + roleArg(t.ID)

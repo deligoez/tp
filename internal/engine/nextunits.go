@@ -61,8 +61,12 @@ func BuildNextUnits(root, taskFilePath, specPath, phase string, tf *model.TaskFi
 		// when one exists, so a crashed unit is resumed rather than skipped.
 		// No ready task is the no-ready-task blocker's condition and returns
 		// nothing.
-		id, _, has := ImplementPreview(tf)
-		if has {
+		// Under run_max_parallel above 1 that task leads a batch of ready
+		// tasks with disjoint touches, each brief naming its own task
+		// (spec/backlog/parallel-implement.md §2.2).
+		ids := ImplementBatch(tf, implementMaxParallel(taskFilePath, tf))
+		target.Batch = len(ids) > 1
+		for _, id := range ids {
 			units = append(units, newNextUnit(UnitImplement, id, target))
 		}
 	case PhaseDecompose:
@@ -277,7 +281,13 @@ func newNextUnit(kind UnitKind, id string, target UnitTarget) NextUnit {
 // each branch above: the invariant protects the shared files every non-role kind
 // writes, and one place that can be read and tested is worth more than five
 // branches that each happen to be right today.
+//
+// An implement batch is the one exception: its units each run in a worktree of
+// their own, so no two of them write the same file.
 func soloIfNotConcurrent(units []NextUnit) []NextUnit {
+	if implementBatch(units) {
+		return units
+	}
 	for i := range units {
 		if !units[i].Kind.Concurrent() {
 			return units[:1]
