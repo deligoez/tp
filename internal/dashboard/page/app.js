@@ -1439,6 +1439,7 @@
     moveDrawer({ type: "milestone", id });
     if (had) drawMap();
     drawSelected();
+    syncURL();
   }
 
   // The drawer's state is the milestone shown and the epic selected; it
@@ -2690,15 +2691,16 @@
   // ---------- the address (§14) ----------
   // The page's place lives in the address's fragment, so back and forward and
   // a copied link land where the operator was. URL_KEYS names every key: the
-  // tab, the spec, its view, the picked task, the selected epic, the slice
+  // tab, the spec, its view, the picked task, the selected epic, the
+  // milestone the drawer shows (ms), the slice
   // whose graph history is shown and its two compared rounds, and the active
   // filters (the map's tracks, all edges, neighbours and search; the Specs
   // tab's phase and filter; the Tasks view's Steps or Board and the section
   // whose tasks it picks out, sec, a section anchor without its sign). A change of
   // place (tab, spec, view, task, epic, slice, rounds) adds a history entry;
   // a filter replaces the current one.
-  const URL_KEYS = ["tab", "spec", "view", "task", "epic", "tracks", "edges", "nb", "q", "phase", "sq", "tview", "slice", "hr", "stage", "sec", "gv", "gm", "gd"];
-  const PLACE_KEYS = ["tab", "spec", "view", "task", "epic", "slice", "hr", "gv", "gm"];
+  const URL_KEYS = ["tab", "spec", "view", "task", "epic", "tracks", "edges", "nb", "q", "phase", "sq", "tview", "slice", "hr", "stage", "sec", "gv", "gm", "gd", "ms"];
+  const PLACE_KEYS = ["tab", "spec", "view", "task", "epic", "ms", "slice", "hr", "gv", "gm"];
   const address = { landed: false, quiet: false, applying: false };
 
   function placeParams() {
@@ -2713,6 +2715,7 @@
       if (work.tview !== "steps") put("tview", work.tview);
     }
     put("epic", mapView.selected);
+    put("ms", msView.detail);
     put("tracks", [...mapView.tracks].sort((a, b) => a - b).join(","));
     if (mapView.edges) put("edges", "1");
     if (mapView.nb) put("nb", "1");
@@ -2761,6 +2764,7 @@
     work.sec = /^\d+(?:\.\d+)*$/.test(p.get("sec") || "") ? p.get("sec") : null;
     work.tview = p.get("tview") === "board" ? "board" : "steps";
     mapView.selected = p.get("epic");
+    msView.detail = p.get("ms") || null;
     mapView.tracks = new Set((p.get("tracks") || "").split(",").filter((x) => /^\d+$/.test(x)).map(Number));
     mapView.edges = p.get("edges") === "1";
     mapView.nb = p.get("nb") === "1";
