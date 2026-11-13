@@ -740,6 +740,20 @@ func TestPage_AMilestoneCardIsOneLineThatOpensItsDetail(t *testing.T) {
 	}
 }
 
+// TestPage_AMilestonesDetailReadsItsGateInFull: the drawer shows a
+// milestone's gate state, its threshold and purpose in full, wrapped, and
+// how many of its epics are described, under a header that names a
+// milestone; an epic selected after it takes the drawer over (1.15.1).
+func TestPage_AMilestonesDetailReadsItsGateInFull(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	assert.Contains(t, page, `id="dkind"`)
+	assert.Contains(t, page, ".dbody dd { margin: 0; min-width: 0; overflow-wrap: anywhere; white-space: pre-line; }")
+	for _, s := range []string{"function milestoneHTML(", `["Gate", `, `["Threshold", `, `["Purpose", `, `["Described", `, `$("dkind").textContent = msd ? "Milestone" : "Epic";`, "msView.detail = null;"} {
+		assert.Contains(t, script, s)
+	}
+}
+
 // TestPure_AToggleKeepsItsKeyAcrossARedraw: a milestone card, a Waiting
 // section's header and a section's Show all each have a key read from
 // their data attribute, and the key gives that attribute and value back,
