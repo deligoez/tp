@@ -85,3 +85,22 @@ func TestCarriedBlocking_EmptyRoundsDoNotConvergePastAnUnresolvedHigh(t *testing
 	assert.NotContains(t, next, "decompose")
 }
 
+// TestCarriedBlocking_ResolvingTheRowConverges: the row clears by its own
+// disposition, fixed or accepted with evidence, and nothing else changes.
+func TestCarriedBlocking_ResolvingTheRowConverges(t *testing.T) {
+	t.Parallel()
+	for _, disposition := range [][]string{
+		{"fixed", "reworded rule 1"},
+		{"wontfix", "rule 1 is meant to read this way; operator accepted"},
+	} {
+		dir := carriedRepro(t)
+		_, stderr, code := runTP(t, dir, append([]string{"review", carriedRoundFile, "--resolve", "0"}, disposition...)...)
+		require.Equal(t, 0, code, "%s: %s", disposition[0], stderr)
+
+		out, code := reviewStatusCheck(t, dir)
+		assert.Equal(t, 0, code, "%s: --check exits 0 once the row is resolved", disposition[0])
+		assert.Equal(t, true, out["done"], disposition[0])
+		assert.NotContains(t, out, "carried_blocking", disposition[0])
+	}
+}
+
