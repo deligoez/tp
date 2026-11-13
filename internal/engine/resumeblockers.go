@@ -40,6 +40,13 @@ type BlockerInputs struct {
 	AuditConverged  bool
 	ReviewStale     bool
 
+	// ReviewInFlightRound is the review round emitted and not recorded, 0
+	// when none; ReviewInFlightOverOldText is whether its snapshot differs
+	// from the spec, which refuses a new emission until it is recorded or
+	// discarded. Both shape the spec-stale blocker's way out.
+	ReviewInFlightRound       int
+	ReviewInFlightOverOldText bool
+
 	// ReviewBlockingFixedAtCap and AuditBlockingFixedAtCap count the latest
 	// round's blocking findings marked fixed at the cap (LoopDone): the state
 	// only the operator can end, named in the budget blocker's message.
@@ -109,20 +116,51 @@ func BuildBlockers(in *BlockerInputs) []Blocker {
 	}
 
 	// spec-stale — escalate: the spec changed since the last review round while
-	// implementing/auditing. The message names the step that re-reads the new
-	// text — emit a review round, then record it — with <file> left literal, as
-	// in the review loop's own next_action.
+	// implementing/auditing.
 	if in.ReviewStale && (in.Phase == PhaseImplement || in.Phase == PhaseAudit) {
-		blockers = append(blockers, Blocker{
-			Code:  "spec-stale",
-			Class: ClassEscalate,
-			Message: fmt.Sprintf("the spec changed after the last recorded review round; run a review round over the new text: tp review %s, then tp review %s --record <file>",
-				in.SpecPath, in.SpecPath),
-			Data: map[string]any{"spec": in.SpecPath},
-		})
+		blockers = append(blockers, specStaleBlocker(in))
 	}
 
 	return blockers
+}
+
+// specStaleBlocker names the way out as data (spec/backlog/reconcile.md §2.2):
+// commands, in order, is what clears the blocker, with <file> left literal as
+// in the review loop's own next_action. With no round in flight that is a
+// review round over the new text, emitted then recorded. With one in flight
+// a new emission is refused while its snapshot differs from the spec, so the
+// first command is that round's record; over the old text a round over the new
+// one follows, and the round's discard is the operator's decision, named under
+// operator and never as a command to run.
+func specStaleBlocker(in *BlockerInputs) Blocker {
+	emit := "tp review " + in.SpecPath
+	record := emit + " --record <file>"
+	b := Blocker{
+		Code:  "spec-stale",
+		Class: ClassEscalate,
+		Message: fmt.Sprintf("the spec changed after the last recorded review round; run a review round over the new text: %s, then %s",
+			emit, record),
+		Data: map[string]any{"spec": in.SpecPath, "commands": []string{emit, record}},
+	}
+	round := in.ReviewInFlightRound
+	if round == 0 {
+		return b
+	}
+	b.Data["in_flight_round"] = round
+	if !in.ReviewInFlightOverOldText {
+		b.Message = fmt.Sprintf("the spec changed after the last recorded review round, and review round %d is in flight over the current text; record it: %s",
+			round, record)
+		b.Data["commands"] = []string{record}
+		return b
+	}
+	b.Message = fmt.Sprintf("the spec changed after the last recorded review round, and review round %d is in flight over the old text, so a new emission is refused; record it first: %s, then run a round over the new text: %s, then %s. Discarding it instead is the operator's decision (%s): %s --force",
+		round, record, emit, record, EscalateDiscardEmission, emit)
+	b.Data["commands"] = []string{record, emit, record}
+	b.Data["operator"] = map[string]any{
+		"decision": EscalateDiscardEmission,
+		"commands": []string{emit + " --force", record},
+	}
+	return b
 }
 
 // epicBlockedBlocker is the epic-blocked blocker, or nil: it stands in the
