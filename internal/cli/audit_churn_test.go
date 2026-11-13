@@ -49,8 +49,8 @@ func TestAuditCodeFiles_RankByChurnOverTheRealDiff(t *testing.T) {
 	git(t, dir, "commit", "-m", "base")
 	git(t, dir, "tag", "v0")
 	for i := range 12 {
-		// f00 churns most, f11 least.
-		writeLines(t, dir, fmt.Sprintf("f%02d.go", i), 2*(12-i), "next")
+		// f00 churns least, f11 most: path order is the reverse of churn order.
+		writeLines(t, dir, fmt.Sprintf("f%02d.go", i), 2*(i+1), "next")
 	}
 	git(t, dir, "add", "-A")
 	git(t, dir, "commit", "-m", "change")
@@ -58,7 +58,7 @@ func TestAuditCodeFiles_RankByChurnOverTheRealDiff(t *testing.T) {
 	stdout, stderr, code := runTP(t, dir, "audit", specPath)
 	require.Equal(t, 0, code, "stderr: %s", stderr)
 	got := affectedPaths(t, auditPromptsByRole(t, stdout)["security"])
-	want := []string{"f00.go", "f01.go", "f02.go", "f03.go", "f04.go", "f05.go", "f06.go", "f07.go", "f08.go", "f09.go"}
+	want := []string{"f11.go", "f10.go", "f09.go", "f08.go", "f07.go", "f06.go", "f05.go", "f04.go", "f03.go", "f02.go"}
 	assert.Equal(t, want, got, "the ten most-changed files, most first")
 }
 
