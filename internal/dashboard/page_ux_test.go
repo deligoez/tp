@@ -271,7 +271,7 @@ func TestPage_WaitingEpicsSitBelowThePlanMapInGroups(t *testing.T) {
 func TestPage_AWaitingGroupSaysItCountsOnlyThisList(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
-	assert.Contains(t, script, `" on it here</span>"`)
+	assert.Contains(t, script, `" on it here</span></div>"`)
 	assert.Contains(t, script, `title="epics of open milestones that wait on it directly"`)
 }
 
