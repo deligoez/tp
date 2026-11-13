@@ -269,9 +269,11 @@
   $("msstate").addEventListener("click", (ev) => {
     const b = ev.target.closest("[data-msx]");
     if (!b) return;
+    const key = focusKey(b);
     if (msView.open.has(b.dataset.msx)) msView.open.delete(b.dataset.msx);
     else msView.open.add(b.dataset.msx);
     render();
+    refocus(key);
   });
 
   // Lifecycle over time (§17): the summary's series, one band per stage after
@@ -507,10 +509,12 @@
   $("waitcard").addEventListener("click", (ev) => {
     const b = ev.target.closest("[data-wall], [data-wsec]");
     if (!b) return;
-    const [set, key] = b.dataset.wall !== undefined ? [waitView.all, b.dataset.wall] : [waitView.folded, b.dataset.wsec];
-    if (set.has(key)) set.delete(key);
-    else set.add(key);
+    const [set, ms] = b.dataset.wall !== undefined ? [waitView.all, b.dataset.wall] : [waitView.folded, b.dataset.wsec];
+    const key = focusKey(b);
+    if (set.has(ms)) set.delete(ms);
+    else set.add(ms);
     render();
+    refocus(key);
   });
 
   // The now lists (§4): what can start, what waits on the operator, what
@@ -1809,11 +1813,14 @@
   }
 
   // focusKey names a focusable element so a redraw's replacement is found
-  // again: a map epic, a dependency-view node, a waiting group's link by its
-  // group, or a list link by its box; null for anything else.
-  const FOCUSABLE = "#mapsvg .node, #gsvg .gnode, [data-epic]";
+  // again: a map epic, a dependency-view node, a toggle by its data key
+  // (tpPure.toggleKey), a waiting group's link by its group, or a list link
+  // by its box; null for anything else.
+  const FOCUSABLE = "#mapsvg .node, #gsvg .gnode, [data-epic], [data-msx], [data-wsec], [data-wall]";
   function focusKey(el) {
     if (!el || !el.closest) return null;
+    const toggle = el.dataset ? tpPure.toggleKey(el.dataset) : null;
+    if (toggle) return "toggle:" + toggle;
     const node = el.closest("#mapsvg .node, #gsvg .gnode");
     if (node) return (node.closest("#mapsvg") ? "map:" : "graph:") + node.dataset.id;
     if (!el.dataset || !el.dataset.epic) return null;
@@ -1827,6 +1834,12 @@
   // its key, to find it again when a redraw replaced it. Null while the
   // drawer is closed.
   let drawerReturn = null;
+  // refocus puts focus on the element focusKey names key, as after a
+  // toggle's redraw replaced the button that held it.
+  function refocus(key) {
+    const el = key && [...document.querySelectorAll(FOCUSABLE)].find((x) => focusKey(x) === key);
+    if (el) el.focus({ preventScroll: true });
+  }
   function returnFocus() {
     const r = drawerReturn;
     drawerReturn = null;

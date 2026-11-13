@@ -319,6 +319,24 @@
     return (saved.keys || []).find((k) => candidates.includes(k)) || null;
   };
 
+  // TOGGLES are the data attributes of the buttons that fold or open part
+  // of a card: a milestone card's Show all, a Waiting section's header and a
+  // Waiting section's Show all.
+  const TOGGLES = ["msx", "wsec", "wall"];
+
+  // toggleKey is the key of a toggle button from its dataset, so focus finds
+  // the button a redraw put in its place; null for any other element.
+  P.toggleKey = function (dataset) {
+    const k = TOGGLES.find((t) => typeof dataset[t] === "string");
+    return k ? k + ":" + dataset[k] : null;
+  };
+
+  // toggleOf is the attribute and value a toggleKey names.
+  P.toggleOf = function (key) {
+    const at = key.indexOf(":");
+    return { attr: "data-" + key.slice(0, at), value: key.slice(at + 1) };
+  };
+
   if (typeof module === "object" && module.exports) module.exports = P;
   else root.tpPure = P;
 })(this);
