@@ -912,35 +912,16 @@ func resolveAuditFiles(specPath string, affectedFiles []string, base string) (fi
 // the cap (§8a.3). The caller reports both, so a truncated set is legible in
 // the payload and not on stderr alone.
 func detectChangedFiles(dir, base string) (files []string, totalChanged int, err error) {
-	var allFiles []string
-
 	// A base that git would read as an option must never be concatenated into
 	// a revision range; runAudit rejects one up front, and this is the sink.
 	if base != "" && !engine.SafeGitRev(base) {
 		return nil, 0, fmt.Errorf("invalid --base %q: must not start with %q", base, "-")
 	}
 
-	// auditDiffRanges is the single definition of "the comparison this audit
-	// is about". The per-file diff stats handed to every role are derived from
-	// the same list, so selection and stats can never describe different
-	// ranges — the failure that let a committed change be reported as +0/-0.
-	for i, rng := range auditDiffRanges(dir, base) {
-		changed := execGitDiffProbe(dir, "diff --name-only", append([]string{"diff", "--name-only"}, rng...)...)
-		if i == 0 && len(changed) == 0 && !gitExists(dir) {
-			return nil, 0, fmt.Errorf("not in a git repo — provide --affected-files or run inside a git repo")
-		}
-		allFiles = append(allFiles, changed...)
+	filtered, allFiles, notRepo := autoDetectedFiles(dir, base)
+	if notRepo {
+		return nil, 0, fmt.Errorf("not in a git repo — provide --affected-files or run inside a git repo")
 	}
-
-	allFiles = engine.DedupPaths(allFiles)
-	filtered := make([]string, 0, len(allFiles))
-	for _, f := range allFiles {
-		if !isAuditableType(f) {
-			continue
-		}
-		filtered = append(filtered, f)
-	}
-	sort.Strings(filtered)
 
 	// The pre-cap count is taken over the audit-able set, which is what the
 	// cap acts on: reporting the raw diff would count files no audit would
@@ -976,6 +957,35 @@ func detectChangedFiles(dir, base string) (files []string, totalChanged int, err
 	}
 
 	return filtered, totalChanged, nil
+}
+
+// autoDetectedFiles is auto-detection without its cap: the audit-able changed
+// files in path order, every changed file, and whether dir is outside any git
+// repository. --affected-from-tasks compares its task files against it
+// (decision 5 of spec/backlog/checklist-covers-what-changed.md).
+func autoDetectedFiles(dir, base string) (filtered, allFiles []string, notRepo bool) {
+	// auditDiffRanges is the single definition of "the comparison this audit
+	// is about". The per-file diff stats handed to every role are derived from
+	// the same list, so selection and stats can never describe different
+	// ranges — the failure that let a committed change be reported as +0/-0.
+	for i, rng := range auditDiffRanges(dir, base) {
+		changed := execGitDiffProbe(dir, "diff --name-only", append([]string{"diff", "--name-only"}, rng...)...)
+		if i == 0 && len(changed) == 0 && !gitExists(dir) {
+			return nil, nil, true
+		}
+		allFiles = append(allFiles, changed...)
+	}
+
+	allFiles = engine.DedupPaths(allFiles)
+	filtered = make([]string, 0, len(allFiles))
+	for _, f := range allFiles {
+		if !isAuditableType(f) {
+			continue
+		}
+		filtered = append(filtered, f)
+	}
+	sort.Strings(filtered)
+	return filtered, allFiles, false
 }
 
 func gitExists(dir string) bool {
