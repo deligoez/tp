@@ -306,6 +306,43 @@ out(P.waitingGroups(["c", "x1", "x2", "x3", "y1"], epics, ["a"], { M: true, N: f
 	}`, got)
 }
 
+// TestPure_WaitingGroupsSitInSectionsByTheBlockersMilestone: the blocker
+// groups fall into one section per blocker's milestone, in the milestone
+// order the graph file gives, a group keeping its rank by direct waiters
+// inside its section; an any-of group sits under its earliest member's
+// milestone; each section counts its groups and the distinct epics waiting
+// in it; a blocker on the critical path is marked, an any-of group when a
+// member is, and the mark does not reorder anything (1.14.1).
+func TestPure_WaitingGroupsSitInSectionsByTheBlockersMilestone(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const epics = { t1: { milestone: "T" }, a1: { milestone: "A" }, a2: { milestone: "A" }, b1: { milestone: "B" } };
+const groups = [
+  { blocker: "t1", any_of: null, epics: ["x1", "x2", "x3"] },
+  { blocker: "a1", any_of: null, epics: ["x1", "x4"] },
+  { blocker: null, any_of: ["b1", "a2"], epics: ["x5"] },
+  { blocker: "b1", any_of: null, epics: ["x6"] },
+  { blocker: "a2", any_of: null, epics: ["x4"] },
+];
+out(P.waitingSections(groups, epics, ["A", "B", "T"], ["a2", "t1"]).map((s) => ({ m: s.milestone, n: s.epics, g: s.groups.map((g) => (g.blocker || g.any_of.join("|")) + (g.critical ? "*" : "")) })));`)
+	assert.JSONEq(t, `[
+		{"m": "A", "n": 3, "g": ["a1", "b1|a2*", "a2*"]},
+		{"m": "B", "n": 1, "g": ["b1"]},
+		{"m": "T", "n": 3, "g": ["t1*"]}
+	]`, got)
+}
+
+// TestPage_WaitingEpicsReadInSectionsThatFoldAndShowAll: Waiting epics
+// draws a section per blocker milestone, its header naming the milestone
+// and its counts, each folding on its own and with its own "show all", and
+// a critical-path badge on a blocker on the critical path.
+func TestPage_WaitingEpicsReadInSectionsThatFoldAndShowAll(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, s := range []string{"tpPure.waitingSections(", "data-wsec=", "data-wall=", "waitView.folded", "on the critical path"} {
+		assert.Contains(t, script, s)
+	}
+}
+
 // TestPure_EveryStateWordReadsTheOneStatusField: the map's marks and the
 // Waiting pills read an epic's stage from the status field the export
 // serves and from nothing else, so a specced epic (a bound spec, no claim)
