@@ -159,8 +159,11 @@ func appendEpoch(specPath string, st *engine.ReviewState, specHash, evidence str
 	*epoch = engine.Epoch{
 		AfterReviewRound: engine.EpochPosition(st, engine.PhaseReview, specHash),
 		AfterAuditRound:  engine.EpochPosition(st, engine.PhaseAudit, specHash),
-		Evidence:         evidence,
-		At:               time.Now().UTC().Format(time.RFC3339),
+		// Task audits read code, not the spec's text, so none decides whether
+		// an epoch is due; the epoch still cuts every one recorded before it.
+		AfterTaskAudit: len(st.TaskAudits),
+		Evidence:       evidence,
+		At:             time.Now().UTC().Format(time.RFC3339),
 	}
 	st.Epochs = append(st.Epochs, *epoch)
 	return engine.SaveReviewState(specPath, st)
