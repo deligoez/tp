@@ -78,15 +78,20 @@ func TouchesWarnings(tf *model.TaskFile, maxParallel int) []Finding {
 	if maxParallel <= 1 {
 		return nil
 	}
-	var out []Finding
+	var ids []string
 	for i := range tf.Tasks {
 		t := &tf.Tasks[i]
 		if t.Status != model.StatusDone && len(t.Touches) == 0 {
-			out = append(out, Finding{Severity: "warning", Rule: "touches", Message: fmt.Sprintf(
-				"task %s: no touches, so it never runs beside another task (run_max_parallel %d)", t.ID, maxParallel)})
+			ids = append(ids, t.ID)
 		}
 	}
-	return out
+	if len(ids) == 0 {
+		return nil
+	}
+	// One finding for all of them: the fix is the same command per task.
+	return []Finding{{Severity: "warning", Rule: "touches", Message: fmt.Sprintf(
+		`%d open tasks have no touches, so they never run beside another task (run_max_parallel %d): %s; set each with tp set <id> 'touches=["path/to/file.go","dir/**"]'`,
+		len(ids), maxParallel, strings.Join(ids, ", "))}}
 }
 
 // batchBriefs gives each unit of an implement batch the brief that names its
