@@ -65,12 +65,20 @@ func runDonePending(root, taskFilePath string, taskIDs []string, reason string) 
 		os.Exit(ExitValidation)
 	}
 
+	// The tree is read before the gate runs: a clean checkout is what makes
+	// the gate's pass a fact about the committed tree, which the main-branch
+	// close may then reuse (engine.ReusableGate).
+	gatedTree := engine.CleanTree(worktree)
 	// The unit gates its own checkout, so a red change is caught before the
 	// driver spends a pick and a main-branch gate on it; a red gate exits here
 	// and leaves its failure under the main tree's root for the retry's brief.
-	runQualityGateIn(taskFilePath, engine.WorktreeDirFor(gateDir(taskFilePath), worktree), root,
+	gated := runQualityGateIn(taskFilePath, engine.WorktreeDirFor(gateDir(taskFilePath), worktree), root,
 		"fix the failure in this worktree, commit the fix, and ask for the close again naming every commit")
 	record := &engine.PendingClose{ID: id, Reason: reason, Commits: ordered, Worktree: worktree}
+	if gated && gatedTree != "" {
+		record.GatedTree = gatedTree
+		record.GateCmd = engine.EffectiveWorkflowForTaskFile(taskFilePath).QualityGate
+	}
 	if writeErr := engine.WritePendingClose(root, taskFilePath, record); writeErr != nil {
 		output.Error(ExitFile, writeErr.Error(), runtimeFailureHint)
 		os.Exit(ExitFile)
