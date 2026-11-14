@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// v100Surface is the command-and-flag surface tp ships at v1.0.0, grown from
-// the v0.34.2 baseline this guard was written against:
+// pinnedSurface is the command-and-flag surface tp ships, grown from the
+// v0.34.2 baseline this guard was written against:
 // one line per command — its name, a colon, then its long flags in byte order.
 // The first line, whose name is empty, carries the root's persistent (global)
 // flags. Shorthands are not listed, since a shorthand only exists alongside its
@@ -23,7 +23,8 @@ import (
 // added it.
 //
 // A release that does add a command or a flag updates this baseline in the same
-// task that adds it, and renames the constant to the tag it then pins.
+// task that adds it; the constant's name stays version-free, so it never names
+// a release it no longer pins.
 // spec/0.35.0.md §3.1 adds `tp run` and §5.2 adds `tp escalate`, both listed below
 // with the flags it ships — including §3.5's two read-only run sub-modes,
 // `--status` and `--dry-run` — and §3.3 adds the three audit-side resolve flags
@@ -51,7 +52,7 @@ import (
 // their own tasks; each subcommand has its own line, keyed by parent and name,
 // so a flag registered on the wrong subcommand fails here (`tp epic` itself
 // and `tp epic lint` register no flag of their own).
-const v100Surface = `
+const pinnedSurface = `
 : color compact file json no-color no-compact no-quiet quiet
 add: bulk spec stdin
 audit: affected-files affected-from-tasks base check findings force harness-note merge output record resolve resolve-all role status
@@ -109,13 +110,13 @@ use: clear
 validate: project strict
 `
 
-// parseSurface reads v100Surface into per-command long-flag sets, keyed by
+// parseSurface reads pinnedSurface into per-command long-flag sets, keyed by
 // command name with "" holding the globals.
 func parseSurface(t *testing.T) map[string]map[string]bool {
 	t.Helper()
 
 	surface := map[string]map[string]bool{}
-	for line := range strings.SplitSeq(strings.TrimSpace(v100Surface), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(pinnedSurface), "\n") {
 		name, flags, ok := strings.Cut(line, ":")
 		require.True(t, ok, "every baseline line names a command before a colon: %q", line)
 		set := map[string]bool{}
@@ -152,12 +153,12 @@ func TestNonGoals_NoCommandOrFlagIsAdded(t *testing.T) {
 	for _, command := range sortedKeys(baseline) {
 		flags, known := registered[command]
 		if !assert.True(t, known,
-			"v0.34.2 shipped `tp %s` and the CLI no longer registers it: dropping a command is a behaviour change outside the sections §11 Non-Goal 1 enumerates", command) {
+			"the pinned surface lists `tp %s` and the CLI no longer registers it: dropping a command is a behaviour change outside the sections §11 Non-Goal 1 enumerates", command) {
 			continue
 		}
 		for _, name := range sortedKeys(baseline[command]) {
 			assert.True(t, flags[name],
-				"v0.34.2 shipped `tp %s --%s` and the CLI no longer registers it: dropping a flag is a behaviour change outside the sections §11 Non-Goal 1 enumerates", command, name)
+				"the pinned surface lists `tp %s --%s` and the CLI no longer registers it: dropping a flag is a behaviour change outside the sections §11 Non-Goal 1 enumerates", command, name)
 		}
 	}
 }
