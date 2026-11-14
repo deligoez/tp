@@ -125,9 +125,13 @@ func TestCloseRecipeText_AutoResolvesToMatchingRecipe(t *testing.T) {
 // runs only the tests its change needs, and asks for the close with --commit;
 // the driver gates (spec/backlog/parallel-implement.md §2.4, §2.5).
 func TestWorktreeCloseRecipeText(t *testing.T) {
-	got := WorktreeCloseRecipeText("go test ./...")
+	got := WorktreeCloseRecipeText(CommitStrategyBuiltin, "go test ./...", "t1", []string{"internal/x.go"})
+	hc := WorktreeCloseRecipeText(CommitStrategyHC, "go test ./...", "t1", nil)
+	assert.Contains(t, hc, "Commit with hc", "an hc project's unit commits with hc")
+	assert.NotContains(t, got, "Commit with hc")
 	for _, want := range []string{
-		"tp done <id> --commit <sha> -- \"<evidence>\"",
+		"tp done t1 --commit <sha> -- \"<evidence>\"",
+		"touches: internal/x.go",
 		"only the tests your change needs",
 		"quality_gate (the driver runs it): go test ./...",
 		"the task file",
