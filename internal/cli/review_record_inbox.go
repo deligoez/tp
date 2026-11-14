@@ -49,7 +49,9 @@ func refuseHandRecordOverEmission(specPath string) {
 	if err != nil || !inbox.Emitted || !inbox.Stored {
 		return
 	}
-	if r := os.Getenv(engine.EnvRound); r != "" && r != fmt.Sprint(inbox.Round) {
+	// Only a TP_ROUND naming a recorded round re-records; any other value
+	// records the next round, the one this rule protects.
+	if _, rewrite := engine.RecordTargetRound(os.Getenv(engine.EnvRound), inbox.Round-1); rewrite {
 		return
 	}
 	if dir := os.Getenv(engine.EnvRoundDir); dir != "" && everyRoleFilePresent(dir, inbox.Roles) {
