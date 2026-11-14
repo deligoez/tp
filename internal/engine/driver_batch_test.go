@@ -268,6 +268,52 @@ func TestRunDriver_AnUnfinishedUnitKeepsItsBranch(t *testing.T) {
 	assert.ElementsMatch(t, branches, resumed.UnitBranches)
 }
 
+// TestIntegrate_AMainBranchResetBehindThePickIsNotMovedForward: an operator
+// who reset the main branch behind an interrupted pick's starting point is not
+// overruled: recovery refuses rather than resetting forward.
+func TestIntegrate_AMainBranchResetBehindThePickIsNotMovedForward(t *testing.T) {
+	root, spec, taskFile, _ := batchProject(t, wipAlpha)
+	base := gitIn(t, root, "rev-parse", "HEAD")
+	gitIn(t, root, "switch", "-q", "-c", "unit")
+	unit := commitIn(t, root, "a1.txt", "1\n")
+	gitIn(t, root, "switch", "-q", "main")
+	pickedOnto := commitIn(t, root, "later.txt", "later\n")
+	gitIn(t, root, "reset", "-q", "--hard", base)
+	require.NoError(t, WritePendingClose(root, taskFile, &PendingClose{ID: "alpha", Commits: []string{unit}, PickedOnto: pickedOnto}))
+
+	err := recoveryDriver(root, spec, taskFile, &fakeCloser{closed: map[string][]string{}}).integratePending()
+	require.Error(t, err)
+	assert.Equal(t, base, gitIn(t, root, "rev-parse", "HEAD"), "the operator's reset stands")
+}
+
+// TestIntegrate_ColoredOutputDoesNotFakeAMatchingPick: a repository that forces
+// colour on git's output must not make every patch id empty, and so equal.
+func TestIntegrate_ColoredOutputDoesNotFakeAMatchingPick(t *testing.T) {
+	root, spec, taskFile, _ := batchProject(t, wipAlpha)
+	gitIn(t, root, "config", "color.ui", "always")
+	pre := gitIn(t, root, "rev-parse", "HEAD")
+	gitIn(t, root, "switch", "-q", "-c", "unit")
+	unit := commitIn(t, root, "a1.txt", "1\n")
+	gitIn(t, root, "switch", "-q", "main")
+	commitIn(t, root, "other.txt", "someone else\n")
+	require.NoError(t, WritePendingClose(root, taskFile, &PendingClose{ID: "alpha", Commits: []string{unit}, PickedOnto: pre}))
+	closer := &fakeCloser{closed: map[string][]string{}}
+
+	require.Error(t, recoveryDriver(root, spec, taskFile, closer).integratePending())
+	assert.Empty(t, closer.closed)
+}
+
+// TestCycleUnitBranches_NamesOnlyKeptBranches: a branch whose task is done is
+// not reported as unfinished work, though no run has deleted it yet.
+func TestCycleUnitBranches_NamesOnlyKeptBranches(t *testing.T) {
+	const tasks = `{"spec":"s.md","tasks":[{"id":"alpha","title":"A","status":"done","depends_on":[],"estimate_minutes":5,"acceptance":"a","source_sections":["x"]},{"id":"beta","title":"B","status":"wip","depends_on":[],"estimate_minutes":5,"acceptance":"a","source_sections":["x"]}]}`
+	root, _, taskFile, _ := batchProject(t, tasks)
+	done, open := unitBranch(root, taskFile, "r1", "alpha"), unitBranch(root, taskFile, "r1", "beta")
+	gitIn(t, root, "branch", done)
+	gitIn(t, root, "branch", open)
+	assert.Equal(t, []string{open}, CycleUnitBranches(root, taskFile))
+}
+
 // TestRunDriver_ReconcileLeavesAnotherCyclesUnits: a run removes the unit
 // branches its own task file's batches left, never another task file's, which
 // a second tp run may be driving in the same repository.
