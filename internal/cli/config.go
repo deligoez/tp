@@ -48,8 +48,6 @@ func sourceLabel(fromOverride, fromProject bool) string {
 }
 
 // resolvedConfig annotates each workflow field with its value and source layer.
-// Workflow fields resolve across override/project/default only.
-// resolvedConfig annotates each workflow field with its value and source layer.
 // Workflow fields resolve across override/project/default only — except
 // notify_cmd, which is per-operator and can only come from .tp/local.json, so
 // it reports local or default and never override or project (§7).
@@ -189,7 +187,8 @@ func resolveConfigWorkflow() (model.Workflow, model.WorkflowOverride) {
 		os.Exit(ExitFile)
 	}
 	for _, w := range warnings {
-		fmt.Fprintf(os.Stderr, "warning: %s\n", w)
+		// output.Notice, not a raw stderr write: the channel that honours --quiet.
+		output.Notice(fmt.Sprintf("warning: %s", w))
 	}
 	// Clamp the override so a present but out-of-range field is attributed to the
 	// layer that supplied the resolved value, not "override" (§3.4).
