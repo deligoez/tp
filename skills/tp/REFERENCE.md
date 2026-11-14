@@ -1154,7 +1154,8 @@ task audit at or below it; task audits read code, not the spec, so they never ma
 
 **Presence.** The audit is not converged, and `--status --check` exits 1, while a closed task owes
 a task audit. `--status` then carries `task_audits_owed` (the task ids) and `next_action` names
-`tp audit <spec> --task-audit`; `task_audits` is the count recorded. Presence, the emission and
+`tp audit <spec> --task-audit`; `task_audits` is the count recorded. A task file that cannot be
+read holds the audit too, shown as `task_audits_unknown` with its path. Presence, the emission and
 `tp run`'s oracle compute the debt with one function, so a debt always has a unit or a blocker.
 
 **Re-grade.** Once every task is done, a file a task audit graded is asked again for a role whose
