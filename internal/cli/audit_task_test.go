@@ -44,6 +44,9 @@ func commitFiles(t *testing.T, dir string, paths ...string) string {
 	t.Helper()
 	for _, p := range paths {
 		full := filepath.Join(dir, p)
+		if _, err := os.Stat(full); err == nil {
+			continue // an edit the caller made stands
+		}
 		require.NoError(t, os.MkdirAll(filepath.Dir(full), 0o755))
 		require.NoError(t, os.WriteFile(full, []byte("package x\n\n// "+p+"\n"), 0o600))
 	}
@@ -237,6 +240,94 @@ func TestTaskAudit_StatusNamesTheOwedTasksAndTheStep(t *testing.T) {
 	assert.Contains(t, st["next_action"], "--task-audit")
 	_, _, code = runTP(t, dir, "audit", "spec.md", "--status", "--check")
 	assert.Equal(t, 1, code)
+}
+
+// failedTaskAudit closes t1 over a.go and records task audit 1 with a.go
+// graded FAIL, returning the project and the failing row's item id.
+func failedTaskAudit(t *testing.T) (dir, item string) {
+	t.Helper()
+	dir = taskAuditProject(t, "t1")
+	closeWith(t, dir, "t1", commitFiles(t, dir, "a.go"))
+	res := emitTaskAudit(t, dir)
+	answerTaskAudit(t, dir, res, func(id string) string { item = id; return "FAIL" })
+	_, stderr, code := runTP(t, dir, "audit", "spec.md", "--task-audit", "--record-inbox")
+	require.Equal(t, 0, code, "record: %s", stderr)
+	return dir, item
+}
+
+// recordTaskAuditWith answers the emitted task audit with status for every
+// item and records it.
+func recordTaskAuditWith(t *testing.T, dir string, res map[string]any, status string) {
+	t.Helper()
+	answerTaskAudit(t, dir, res, func(string) string { return status })
+	_, stderr, code := runTP(t, dir, "audit", "spec.md", "--task-audit", "--record-inbox")
+	require.Equal(t, 0, code, "record: %s", stderr)
+}
+
+// claimFixed marks the task-audit row fixed in its round file.
+func claimFixed(t *testing.T, dir string, seq int, item string) {
+	t.Helper()
+	file := filepath.Join(".tp-review", "spec", fmt.Sprintf("task-audit-%d.ndjson", seq))
+	_, stderr, code := runTP(t, dir, "audit", file, "--resolve", "go-safety:"+item, "fixed", "changed the exit into a returned error")
+	require.Equal(t, 0, code, "resolve: %s", stderr)
+}
+
+// TestTaskAuditRegrade_NothingIsAskedAgainWithoutAFixOrAChange: an open row
+// on an unchanged file with no fix claim is not re-graded; it holds the audit.
+func TestTaskAuditRegrade_NothingIsAskedAgainWithoutAFixOrAChange(t *testing.T) {
+	t.Parallel()
+	dir, _ := failedTaskAudit(t)
+	commitFiles(t, dir, "unrelated.go")
+	res := emitTaskAudit(t, dir)
+	assert.Nil(t, res["task_audit"], "an unrelated commit re-grades nothing")
+}
+
+// TestTaskAuditRegrade_AFixClaimIsAskedOnce: a fix claim makes one re-grade
+// due, marked as a fix pass; a PASS there clears the carried row.
+func TestTaskAuditRegrade_AFixClaimIsAskedOnce(t *testing.T) {
+	t.Parallel()
+	dir, item := failedTaskAudit(t)
+	claimFixed(t, dir, 1, item)
+	res := emitTaskAudit(t, dir)
+	ta := res["task_audit"].(map[string]any)
+	assert.Equal(t, true, ta["regrade"])
+	assert.Equal(t, []any{"a.go"}, ta["files"])
+	recordTaskAuditWith(t, dir, res, "PASS")
+
+	audits := readReviewState(t, dir)["task_audits"].([]any)
+	require.Len(t, audits, 2)
+	assert.Equal(t, true, audits[1].(map[string]any)["fix_pass"])
+	assert.Nil(t, emitTaskAudit(t, dir)["task_audit"])
+	out, _, _ := runTP(t, dir, "audit", "spec.md", "--status")
+	assert.NotContains(t, out, "carried_blocking", "the PASS cleared the row")
+}
+
+// TestTaskAuditRegrade_ASecondFixClaimWaitsForAnAuditRound: a row a fix pass
+// re-graded FAIL is not asked again before the next audit round, so a fix
+// and a re-grade cannot cycle outside the round cap.
+func TestTaskAuditRegrade_ASecondFixClaimWaitsForAnAuditRound(t *testing.T) {
+	t.Parallel()
+	dir, item := failedTaskAudit(t)
+	claimFixed(t, dir, 1, item)
+	recordTaskAuditWith(t, dir, emitTaskAudit(t, dir), "FAIL")
+	claimFixed(t, dir, 2, item)
+	assert.Nil(t, emitTaskAudit(t, dir)["task_audit"])
+}
+
+// TestTaskAuditRegrade_AChangeToTheFileIsAskedAgain: a commit that changes
+// the graded file makes a re-grade due without a fix claim, and it is no fix
+// pass.
+func TestTaskAuditRegrade_AChangeToTheFileIsAskedAgain(t *testing.T) {
+	t.Parallel()
+	dir, _ := failedTaskAudit(t)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.go"), []byte("package x\n\n// changed\n"), 0o600))
+	commitFiles(t, dir, "a.go")
+	res := emitTaskAudit(t, dir)
+	ta := res["task_audit"].(map[string]any)
+	assert.Equal(t, true, ta["regrade"])
+	recordTaskAuditWith(t, dir, res, "FAIL")
+	audits := readReviewState(t, dir)["task_audits"].([]any)
+	assert.Nil(t, audits[1].(map[string]any)["fix_pass"])
 }
 
 // readReviewState reads spec.md's state.json.
