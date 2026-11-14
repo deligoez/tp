@@ -195,6 +195,9 @@ func resumeJSON(r *engine.ResumeResult, compact bool) map[string]any {
 	if len(r.PendingCloses) > 0 {
 		out["pending_closes"] = r.PendingCloses
 	}
+	if len(r.UnitBranches) > 0 {
+		out["unit_branches"] = r.UnitBranches
+	}
 	return out
 }
 

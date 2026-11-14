@@ -2,6 +2,7 @@ package engine
 
 import (
 	"os"
+	"path/filepath"
 	"sort"
 
 	"github.com/deligoez/tp/internal/model"
@@ -43,6 +44,9 @@ type ResumeResult struct {
 	// no run has integrated yet: a crash leaves them, and the next tp run
 	// integrates them first (spec/backlog/parallel-implement.md §2.6).
 	PendingCloses []string `json:"pending_closes,omitempty"`
+	// UnitBranches names the branches an unfinished batched unit left: its
+	// work, kept until its task is done (spec/backlog/parallel-implement.md).
+	UnitBranches []string `json:"unit_branches,omitempty"`
 	// EpicNotice is the epic block's notice (EpicBlock.Notice) of an implement
 	// phase: the file is bound to an epic the graph does not hold, or there is
 	// no graph file, so it behaves as unbound. It is not part of the payload;
@@ -120,6 +124,7 @@ func AssembleResume(start, taskFilePath, specPath string, tf *model.TaskFile) (R
 		NextAction:    renderNextAction(BuildNextAction(phase, specPath, shown, tf, loops.st, len(wf.Checks) > 0), nextUnits, blockers),
 		Blockers:      blockers,
 		PendingCloses: pendingCloseIDs(taskFilePath),
+		UnitBranches:  CycleUnitBranches(CanonicalProjectRoot(filepath.Dir(taskFilePath)), taskFilePath),
 		EpicNotice:    epicNotice,
 	}
 	if len(res.PendingCloses) > 0 {

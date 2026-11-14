@@ -97,11 +97,32 @@ func unitBranch(root, taskFile, runID, id string) string {
 	return unitBranchPrefix + cycleTag(root, taskFile) + "/" + runID + "/" + id
 }
 
-// keptUnitBranch reports whether a unit branch belongs to a request still
-// pending, deferred for the next run: its branch keeps its commits referenced.
+// keptUnitBranch reports whether a unit branch must outlive its worktree: its
+// request is still pending, or its task is not done (a unit that escalated or
+// ran out of attempts), so its commits stay referenced and the operator can
+// read them. A branch is deleted only once its task is done or gone.
 func keptUnitBranch(root, taskFile, branch string) bool {
 	id := branch[strings.LastIndex(branch, "/")+1:]
-	return HasPendingClose(root, taskFile, id)
+	if HasPendingClose(root, taskFile, id) {
+		return true
+	}
+	tf, err := model.ReadTaskFile(taskFile)
+	if err != nil {
+		return true
+	}
+	task, _, err := model.FindTask(tf, id)
+	return err == nil && task.Status != model.StatusDone
+}
+
+// CycleUnitBranches lists the unit branches the task file's batches left: a
+// unit's unfinished work, kept until its task is done (tp resume's
+// unit_branches).
+func CycleUnitBranches(root, taskFile string) []string {
+	refs, err := gitOut(root, "for-each-ref", "--format=%(refname:short)", "refs/heads/"+unitBranchPrefix+cycleTag(root, taskFile)+"/")
+	if err != nil {
+		return nil
+	}
+	return strings.Fields(refs)
 }
 
 // WorktreeBase is where a project's unit worktrees live: under the system's
@@ -121,10 +142,13 @@ func (d *driver) integrateBatch(units map[string]batchUnit) error {
 		return err
 	}
 	for _, u := range sortedBatch(units) {
-		// A request left for the next run keeps its branch, so its commits
-		// stay referenced until reconcile integrates them.
-		if HasPendingClose(d.opts.Root, d.opts.TaskFile, u.id) {
+		// A request left for the next run, or a unit that never finished,
+		// keeps its branch, so its commits stay referenced.
+		if keptUnitBranch(d.opts.Root, d.opts.TaskFile, u.branch) {
 			_, _ = gitOut(d.opts.Root, "worktree", "remove", "--force", u.worktree)
+			if !HasPendingClose(d.opts.Root, d.opts.TaskFile, u.id) {
+				output.Notice(fmt.Sprintf("task %s did not finish; its unit's work stays on branch %s until the task is done", u.id, u.branch))
+			}
 			continue
 		}
 		removeUnitWorktree(d.opts.Root, u.worktree, u.branch)
