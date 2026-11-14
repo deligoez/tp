@@ -73,6 +73,7 @@ func taskAuditFiles(specPath, root string, t *model.Task) []string {
 // phase has ended, a re-grade of the files whose open task-audit rows a fix
 // claim or a change made due. The re-grade reads st, the state on disk.
 func DueTaskAudit(specPath string, st *ReviewState, recorded []TaskAuditRecord, seq int, ended bool, cands []TaskAuditCandidate) *TaskAuditRecord {
+	cands = dropGradedFiles(specPath, st, recorded, cands)
 	if due := DueTaskAudits(cands, recorded, ended); len(due) > 0 {
 		return &TaskAuditRecord{Seq: seq, Members: due[0].Members, Files: due[0].Files(), Roles: due[0].Roles()}
 	}
@@ -84,6 +85,79 @@ func DueTaskAudit(specPath string, st *ReviewState, recorded []TaskAuditRecord, 
 		return nil
 	}
 	return &TaskAuditRecord{Seq: seq, Files: files[:min(len(files), TaskAuditBatchFiles)], Roles: roles, Regrade: true, FixPass: fixPass}
+}
+
+// dropGradedFiles drops from each candidate the files every role it owes
+// already has a recorded row on, read by a task audit at a commit the file
+// has not changed since: those rows stand, so reading the file again buys
+// only a second opinion that could clear a real row
+// (spec/1.22.0-measurements.md). A candidate keeps its membership with no
+// file left, so presence is unaffected, and ten is counted after the drop.
+// A task with a slice already recorded keeps its files, so its slices keep
+// their numbering. The answer is deterministic only because one audit
+// emission is in flight per spec: batch n+1 is packed after batch n is
+// recorded, never beside it. An audit round records no commit, so only task
+// audits cover a file.
+func dropGradedFiles(specPath string, st *ReviewState, recorded []TaskAuditRecord, cands []TaskAuditCandidate) []TaskAuditCandidate {
+	cover := taskAuditCoverage(specPath, st)
+	if len(cover) == 0 {
+		return cands
+	}
+	sliced := make(map[[2]string]bool)
+	for i := range recorded {
+		for _, m := range recorded[i].Members {
+			sliced[[2]string{m.ID, m.ClosedAt}] = true
+		}
+	}
+	dir := filepath.Dir(specPath)
+	out := make([]TaskAuditCandidate, 0, len(cands))
+	for _, c := range cands {
+		if len(c.Roles) > 0 && !sliced[[2]string{c.ID, c.ClosedAt}] {
+			kept := make([]string, 0, len(c.Files))
+			for _, f := range c.Files {
+				if !coveredForEveryRole(cover, dir, c.Roles, f) {
+					kept = append(kept, f)
+				}
+			}
+			c.Files = kept
+		}
+		out = append(out, c)
+	}
+	return out
+}
+
+// taskAuditCoverage maps each (role, item) a task audit since the newest
+// epoch recorded a row on to the commits those task audits read.
+func taskAuditCoverage(specPath string, st *ReviewState) map[string][]string {
+	cover := make(map[string][]string)
+	recs := TaskAuditsSinceEpoch(st)
+	for i := range recs {
+		if recs[i].Head == "" || recs[i].File == "" {
+			continue
+		}
+		rows, ok := LoadRoundRows(specPath, &ReviewRound{File: recs[i].File})
+		if !ok {
+			continue
+		}
+		for _, row := range rows {
+			key := AuditRowRole(row) + "\x00" + rowString(row, "item_id")
+			cover[key] = append(cover[key], recs[i].Head)
+		}
+	}
+	return cover
+}
+
+// coveredForEveryRole reports whether every role has a recorded row on file
+// read at a commit the file has not changed since.
+func coveredForEveryRole(cover map[string][]string, dir string, roles []string, file string) bool {
+	for _, role := range roles {
+		if !slices.ContainsFunc(cover[role+"\x00"+FileCheckItemID(role, file)], func(head string) bool {
+			return !FileChangedSince(dir, head, file)
+		}) {
+			return false
+		}
+	}
+	return true
 }
 
 // NextTaskAuditPlan is the task audit an emission would freeze now when none
