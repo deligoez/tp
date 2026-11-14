@@ -1115,15 +1115,19 @@ with the most churn.
 the task with `task_audit_owed`, the roles the field listed then; a task closed before the field
 was set carries none and owes nothing. The debt is the stamp met with the roles the field lists
 now, so a role removed from the field stops being owed. `tp reopen` clears the stamp; the re-close
-stamps again, and its new `closed_at` owes a new task audit.
+stamps again, and its new `closed_at` owes a new task audit. Only roles the spec's audit panel holds
+are owed; a configured role the panel lacks is listed by `--status` as
+`task_audit_roles_outside_panel` and asked by no task audit of that spec.
 
 **Batches.** The owed tasks' auditable files (each commit's changed files under the release
 audit's type filter, no tp state, still on disk) are packed in close order, the task id breaking a
 tie, into batches of at most ten files; a task over ten files is cut into sorted slices of ten,
 each its own batch member. Packing is prefix-stable. A batch is due when it is full (ten files, or
 the next task would overflow it), and the last partial batch when every task of the task file is
-done. A task whose close left no auditable file still joins a batch, and a batch with no file
-records itself at once with no rows. Before packing, a file every owed role already has a row on,
+done. A close owes its files, not its slices: a file a recorded member of the same close read is
+settled, so a file deleted or covered later never leaves a slice owed that no batch can fill. A close
+with no auditable file left in the tree owes nothing; `--status` counts such closes as
+`task_audits_nothing_to_read`. Before packing, a file every owed role already has a row on,
 from a task audit that read it at a commit the file has not changed since, drops from its task, and
 ten is counted after the drop; a changed file is read again.
 
@@ -1132,7 +1136,7 @@ ten is counted after the drop; a changed file is read again.
 | Command | What it does |
 |---------|--------------|
 | `tp audit <spec> --task-audit [--role r]` | Emits the task audit due now, or re-emits the one in flight. The payload is `{spec, task_audit, owed, prompts}`: `task_audit` is `{seq, tasks, files, roles, head, regrade}` or null when none is due, and `owed` says whether a closed task still owes one. The batch is frozen before any prompt, in `.tp-review/<base>/task-audit-inbox/batch-<seq>.json`; each role writes `task-audit-inbox/round-<seq>-<role>.ndjson` (`$TP_ROUND_DIR/role-<role>.ndjson.part` in a run). The prompt is the release audit's file check over the batch's files as a named list, with one added line: follow every call out of these files one hop into its callee to learn its error and exit contract; a row anchors in the batch's own files. Its Prior Round section lists every open carried row on the batch's files, with its reason and lines, so a PASS that clears a row was shown it; an audit round's Prior Round lists open task-audit rows the same way. |
-| `tp audit <spec> --task-audit --record-inbox` | Records the task audit in flight as `task-audit-<seq>.ndjson` and appends its entry to `state.json`'s `task_audits`. Exit 1 when a role's file is missing, or when a row grades an item its prompt did not ask; exit 3 when no task audit is emitted. |
+| `tp audit <spec> --task-audit --record-inbox` | Records the task audit in flight as `task-audit-<seq>.ndjson` and appends its entry to `state.json`'s `task_audits`. Exit 1 when a role's file is missing, when a row grades an item its prompt did not ask, or when an asked item has no row (a file counts as read only when every role graded it); exit 3 when no task audit is emitted. |
 
 One audit emission of either kind is in flight per spec: `--task-audit` exits 1 while a release
 audit round is emitted and unrecorded, and `tp audit <spec>` exits 1 while a task audit is.
@@ -1150,7 +1154,8 @@ task audit at or below it; task audits read code, not the spec, so they never ma
 
 **Presence.** The audit is not converged, and `--status --check` exits 1, while a closed task owes
 a task audit. `--status` then carries `task_audits_owed` (the task ids) and `next_action` names
-`tp audit <spec> --task-audit`; `task_audits` is the count recorded.
+`tp audit <spec> --task-audit`; `task_audits` is the count recorded. Presence, the emission and
+`tp run`'s oracle compute the debt with one function, so a debt always has a unit or a blocker.
 
 **Re-grade.** Once every task is done, a file a task audit graded is asked again for a role whose
 row on it is open in the carried set when that row's latest grading claims a fix
