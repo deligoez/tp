@@ -245,7 +245,9 @@ by `tp validate` and `tp set`.
   `tp brief <id>` gives the worktree close: the task's `touches`, commit on the branch (with hc
   under `commit_strategy: hc`), run only the tests the change needs while the units beside it run
   theirs, and ask for the close. `tp done <id> --commit <sha>... -- "<evidence>"` there checks the
-  evidence and the commits, runs no gate and closes nothing: it writes a pending close to
+  evidence and the commits, runs the quality gate in the worktree (from the project's directory in
+  it) and closes nothing: on a red gate it exits 4 like any close, leaves `last_failure` under the
+  main tree's root and writes no request (v1.20.0); on a green one it writes a pending close to
   `.tp/runs/pending/<key>/<id>.json`. `--commit` is required, must name every commit the branch made
   since it left the main branch (recorded in branch order), and the close names one task;
   `--auto-commit`, `--covered-by` and `--skip-gate` are usage errors (exit 2). A sha that is not on
@@ -274,14 +276,15 @@ by `tp validate` and `tp set`.
   `unit_branches` while its task is not done, and the first `tp run` after the task is done deletes
   it (v1.19.1).
 - **Limits.** A worktree is a fresh checkout of `HEAD`, without ignored files (dependencies, `.env`,
-  build output); `tp run --dry-run` says so on stderr before a batch, and a project whose units need
-  them keeps `run_max_parallel` at 1. `tp validate` names every open task without `touches` in one
-  warning while `run_max_parallel` is above 1. The caps are checked between iterations, so a batch
-  can overshoot `run_max_units` by up to its size less one.
-- **Test load.** Only the gate is serialized: the driver runs one integration gate at a time. The
-  units' own test runs are not limited by tp; the worktree brief asks each unit to run only the
-  tests its change needs, never the whole suite, and nothing enforces it. On a machine where several
-  full suites at once are too heavy, keep `run_max_parallel` low.
+  build output), and the unit's gate runs there; `tp run --dry-run` says so on stderr before a batch,
+  and a project whose units or gate need them keeps `run_max_parallel` at 1. `tp validate` names every
+  open task without `touches` in one warning while `run_max_parallel` is above 1. The caps are checked
+  between iterations, so a batch can overshoot `run_max_units` by up to its size less one.
+- **Test load.** Each unit runs the quality gate in its own worktree when it asks for the close, so
+  up to `run_max_parallel` gates can run at once; the driver's integration gates on the main branch
+  run one at a time. Between those, the worktree brief asks each unit to run only the tests its change
+  needs, never the whole suite, and nothing enforces it. On a machine where several full gates at
+  once are too heavy, keep `run_max_parallel` low.
 
 ### Stop reasons
 
