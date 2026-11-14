@@ -89,6 +89,9 @@ func ValidTouches(globs []string) error {
 		if sub, ok := touchesSubtree(g); ok {
 			base = sub
 		}
+		if strings.Contains(base, "**") {
+			return fmt.Errorf("touches glob %q has ** inside it, which path.Match reads as one *; ** belongs only at the end, as dir/** for a whole subtree", g)
+		}
 		if _, err := path.Match(base, ""); err != nil {
 			return fmt.Errorf("touches glob %q is malformed: %w", g, err)
 		}
