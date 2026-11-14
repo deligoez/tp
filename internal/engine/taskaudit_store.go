@@ -58,7 +58,9 @@ func FileChangedSince(dir, rev, path string) bool {
 	if rev == "" || !SafeGitRev(rev) {
 		return true
 	}
-	cmd := exec.Command("git", "diff", "--quiet", "--no-ext-diff", rev, "HEAD", "--", path)
+	// :(top) reads path from the repository root, as every caller hands it,
+	// whatever directory under the root dir is.
+	cmd := exec.Command("git", "diff", "--quiet", "--no-ext-diff", rev, "HEAD", "--", ":(top)"+path)
 	cmd.Dir = dir
 	return cmd.Run() != nil
 }
