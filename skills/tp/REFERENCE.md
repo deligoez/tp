@@ -1218,7 +1218,7 @@ A row carrying no `kind` on a claim verdict is rejected naming `kind`, before th
 | 0 | the invocation completed |
 | 1 | a row failed validation, **or** the round would record no row at all — the payload's rows plus the carried rows both zero. An empty payload whose every unit carries is not this case and exits 0 |
 | 2 | usage: `--check` without `--status`, two of `--units`/`--status`/`--record` together, `--record` with no path argument, `--force` on a mode other than the emission, or a discarding `--force` under `TP_UNATTENDED` |
-| 3 | file or corrupt state: an emission over an unrecorded round whose spec changed (without `--force`), a `--record` path that does not exist, a `--record` path that is the pre-1.12.0 scratch name `ground-<base>-r<N>.ndjson` in the working directory (never read; the hint names `.tp-review/<base>/ground-inbox/round-<N>.ndjson` to move it to), and for `tp review` and `tp audit` too: a tree mode whose task file (or spec) belongs to another project (the cross-tree refusal, naming the directory to run from), a `.tp/config.json` of that project that cannot be read or parsed, and `--merge` of an input named in the pre-1.12.0 role-file shape `<phase>-<base>-r<N>-<role>.ndjson` whose `<role>` is a role tp knows (the hint names the inbox file to move it to; any other name in that shape merges as before), no prior emission for the round, an unreadable preceding round, or a state directory holding an unparseable `state.json`. An unreadable preceding round is a **notice at emit** (exit 0) and a refusal at `--record` — the round is decided at the record |
+| 3 | file or corrupt state: an emission over an unrecorded round whose spec changed (without `--force`), a `--record` path that does not exist, a `--record` path that is the pre-1.12.0 scratch name `ground-<base>-r<N>.ndjson` in the working directory (never read; the hint names `.tp-review/<base>/ground-inbox/round-<N>.ndjson` to move it to), and for `tp review` and `tp audit` too: a tree mode whose task file (or spec) belongs to another project (the cross-tree refusal, naming the directory to run from), a `.tp/config.json` of that project that cannot be read or parsed, and `--merge` of an input named in the pre-1.12.0 role-file shape `<phase>-<base>-r<N>-<role>.ndjson` whose `<role>` is a role tp knows (the hint names the inbox file to move it to; any other name in that shape merges as before), no prior emission for the round, an unreadable preceding round, or a state directory holding an unparseable `state.json`; `tp review --record-inbox` with no emitted round or with a role of the round that has no file in the inbox (v1.20.0; a line the reader skips or a row naming another role than its file's exits 1). An unreadable preceding round is a **notice at emit** (exit 0) and a refusal at `--record` — the round is decided at the record |
 | 4 | the write lock could not be taken within `lock_timeout_seconds` |
 
 The lock's target is the **spec path**, not the state file: `.tp/locks/<spec-file>-<hash>.lock`,
@@ -1492,6 +1492,16 @@ returned, or the merge dropped its file); no round is recorded at all; the audit
 carrying no role. tp adds no refusal for any of them and does not judge which occurred. "Contributes"
 is §2.1's sense, so a round whose rows are readable but whose stored `roles_hash` is empty yields
 `null` even though the file holds `spec-coverage` rows.
+
+**Spec-coverage must answer what it was asked (v1.20.0).** An emission keeps spec-coverage's asked
+checklist item ids beside the code roles' pools (carried `finding` items excluded: they stay under the
+carried-row rule), and `--record` reports them in `graded` as `spec-coverage N of M`. A round in which
+spec-coverage returned no row for some asked id — extra or repeated rows make up for none — is not
+clean, and its spec-coverage `consecutive_clean` is 0; a spec-coverage that wrote no rows is `0 of M`,
+not clean, while this field still reads `null` for it. A round asked nothing (`no-checklist-items`)
+is clean as before. An audit round recorded since v1.20.0 without an emission of its own is stamped
+`unasked: true` and is not clean either: nothing shows what spec-coverage was asked. Rounds recorded
+before v1.20.0 carry neither and are not re-judged.
 
 ### `divergence` (audit, §2.4)
 
