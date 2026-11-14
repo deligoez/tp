@@ -27,8 +27,8 @@ import (
 // complete.
 var orchestratorDirectives = []string{
 	"spawn a sub-agent via the Agent tool",
-	"tp review --merge",
-	"--record <findings.ndjson>",
+	"output_path",
+	"--record-inbox",
 	"--status --check exits 0",
 }
 
