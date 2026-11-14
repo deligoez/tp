@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 
+	"github.com/deligoez/tp/internal/engine"
 	"github.com/deligoez/tp/internal/output"
 )
 
@@ -12,6 +13,7 @@ const (
 	noticeAutoDetectCap        = "auto-detect-cap"
 	noticeCodeFilesCut         = "code-files-cut"
 	noticeSpecCoverageFilesCut = "spec-coverage-files-cut"
+	noticeNamedListOnePrompt   = "named-list-one-prompt"
 )
 
 // auditNotice is one notice an emission printed on stderr, kept in the payload
@@ -59,31 +61,52 @@ func (n *auditNotice) emit() auditNotice {
 // cutNotices names every cut of an emitted prompt's file list below the
 // auto-detect cap: the code roles' shared list once, and spec-coverage's own.
 // A prompt's file_pool above its file_count is the cut; a named list has the
-// two equal, so it is never reported.
+// two equal, so it is never cut, and is named instead when it is longer than
+// the code roles' cap (namedListNotice).
 func cutNotices(prompts []auditPrompt) []auditNotice {
 	var notices []auditNotice
 	codeSeen := false
 	for i := range prompts {
 		p := &prompts[i]
-		if p.FilePool <= p.FileCount {
-			continue
-		}
 		if p.Role == roleSpecCoverage {
-			notices = append(notices, (&auditNotice{
-				Kind:    noticeSpecCoverageFilesCut,
-				Message: fmt.Sprintf("spec-coverage lists %d of %d files", p.FileCount, p.FilePool),
-			}).emit())
+			if p.FilePool > p.FileCount {
+				notices = append(notices, (&auditNotice{
+					Kind:    noticeSpecCoverageFilesCut,
+					Message: fmt.Sprintf("spec-coverage lists %d of %d files", p.FileCount, p.FilePool),
+				}).emit())
+			}
 			continue
 		}
 		if codeSeen {
 			continue
 		}
-		codeSeen = true
-		notices = append(notices, (&auditNotice{
-			Kind: noticeCodeFilesCut,
-			Message: fmt.Sprintf("code roles audit %d of %d files, the most-changed first; name the rest with --affected-files, which no cap cuts",
-				p.FileCount, p.FilePool),
-		}).emit())
+		switch {
+		case p.FilePool > p.FileCount:
+			codeSeen = true
+			notices = append(notices, (&auditNotice{
+				Kind: noticeCodeFilesCut,
+				Message: fmt.Sprintf("code roles audit %d of %d files, the most-changed first; name the rest with --affected-files, which no cap cuts but one prompt reads shallowly when long",
+					p.FileCount, p.FilePool),
+			}).emit())
+		case p.FileCount > engine.CodeFileCap:
+			codeSeen = true
+			notices = append(notices, namedListNotice(p.FileCount).emit())
+		}
 	}
 	return notices
+}
+
+// namedListNotice names a named list longer than the code roles' cap, which
+// goes whole into each code role's one prompt. In a measured trial a role given
+// 121 files in one prompt graded all of them by pattern-scanning, and found a
+// fraction of what ten-file prompts found on the same files, while its `graded
+// N of M` read complete (spec/1.21.1-measurements.md). Where between ten and
+// 121 the depth falls is not measured, so the notice states the fact rather
+// than a threshold.
+func namedListNotice(files int) *auditNotice {
+	return &auditNotice{
+		Kind: noticeNamedListOnePrompt,
+		Message: fmt.Sprintf("code roles grade the named list's %d files in one prompt each; above %d files a role was measured skimming rather than reading (spec/1.21.1-measurements.md)",
+			files, engine.CodeFileCap),
+	}
 }
