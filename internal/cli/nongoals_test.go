@@ -100,7 +100,9 @@ func TestNonGoals_NoNewConfigWorkflowField(t *testing.T) {
 
 	stdout, _, code := runTP(t, dir, "config")
 	require.Equal(t, 0, code)
+	// Matched as quoted JSON keys: v1.22.0's task_audit_roles is a later,
+	// separate field and must not read as the forbidden audit_roles.
 	for _, forbidden := range []string{"review_roles", "audit_roles", "roles_hash", "eject"} {
-		assert.NotContains(t, stdout, forbidden, "no new config workflow field %q was introduced", forbidden)
+		assert.NotContains(t, stdout, `"`+forbidden+`"`, "no new config workflow field %q was introduced", forbidden)
 	}
 }
