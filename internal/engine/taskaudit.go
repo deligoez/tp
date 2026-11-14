@@ -157,8 +157,8 @@ type taskAuditMemberKey struct {
 // no recorded task audit holds for the same close.
 func owedTaskAuditPieces(cands []TaskAuditCandidate, recorded []TaskAuditRecord) []TaskAuditMember {
 	done := make(map[taskAuditMemberKey]bool)
-	for _, r := range recorded {
-		for _, m := range r.Members {
+	for i := range recorded {
+		for _, m := range recorded[i].Members {
 			done[taskAuditMemberKey{m.ID, m.ClosedAt, m.Piece}] = true
 		}
 	}

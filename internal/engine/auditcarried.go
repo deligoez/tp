@@ -80,7 +80,9 @@ type auditOpen struct {
 func AuditCarriedSet(specPath string, st *ReviewState) (rows []CarriedRow, missing []ReviewRound) {
 	open := make(map[auditKey]*auditOpen)
 	texts := &snapshotItemTexts{specPath: specPath, byRound: make(map[int]map[string]string)}
-	for _, g := range auditGradings(st) {
+	gradings := auditGradings(st)
+	for gi := range gradings {
+		g := &gradings[gi]
 		r := &g.round
 		recorded, found := LoadRoundRows(specPath, r)
 		if !found {
