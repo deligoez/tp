@@ -35,12 +35,12 @@ func TestTouchesWarnings(t *testing.T) {
 	t.Parallel()
 	done := batchTask("d")
 	done.Status = model.StatusDone
-	tf := &model.TaskFile{Tasks: []model.Task{batchTask("a"), batchTask("b", "x/"), done}}
+	tf := &model.TaskFile{Tasks: []model.Task{batchTask("a"), batchTask("b", "x/"), batchTask("c"), done}}
 	assert.Empty(t, TouchesWarnings(tf, 1))
 	got := TouchesWarnings(tf, 3)
-	require.Len(t, got, 1)
+	require.Len(t, got, 1, "one finding names every such task")
 	assert.Equal(t, Finding{Severity: "warning", Rule: "touches",
-		Message: "task a: no touches, so it never runs beside another task (run_max_parallel 3)"}, got[0])
+		Message: `2 open tasks have no touches, so they never run beside another task (run_max_parallel 3): a, c; set each with tp set <id> 'touches=["path/to/file.go","dir/**"]'`}, got[0])
 }
 
 // TestImplementBatch_ATaskWithoutTouchesOrMarkedSoloRunsAlone: a lead without
