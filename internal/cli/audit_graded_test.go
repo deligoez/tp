@@ -157,6 +157,36 @@ func TestAuditGraded_ReRecordKeepsWhatWasGraded(t *testing.T) {
 		st.AuditRounds[0].Graded, "the re-record keeps what the first record graded")
 }
 
+// TestAuditGraded_ReRecordRegradesSpecCoverage: a re-record of a round
+// (TP_ROUND) grades its new rows against the asked items its emission kept,
+// so a round first recorded short of spec-coverage's items turns clean once
+// re-recorded with every one of them, rather than keeping the first verdict.
+func TestAuditGraded_ReRecordRegradesSpecCoverage(t *testing.T) {
+	t.Parallel()
+	dir, specPath := auditRepoWithChangedFiles(t, 2)
+	stdout, stderr, code := runTP(t, dir, "audit", specPath)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var b strings.Builder
+	for _, it := range auditPromptsByRole(t, stdout)["spec-coverage"]["checklist_items"].([]any) {
+		fmt.Fprintf(&b, `{"role":"spec-coverage","item_id":%q,"status":"PASS","category":null,"severity":null,"notes":""}`+"\n", it.(map[string]any)["item_id"])
+	}
+	results := filepath.Join(dir, "results.ndjson")
+
+	require.NoError(t, os.WriteFile(results, nil, 0o600))
+	stdout, stderr, code = runTPEnv(t, dir, []string{"TP_ROUND=1"}, "audit", specPath, "--record", results)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var rec map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &rec))
+	assert.Equal(t, false, rec["clean"])
+	assert.Contains(t, rec["next_action"], "spec-coverage answered 0 of the", "next_action says why the round is not clean")
+
+	require.NoError(t, os.WriteFile(results, []byte(b.String()), 0o600))
+	stdout, stderr, code = runTPEnv(t, dir, []string{"TP_ROUND=1"}, "audit", specPath, "--record", results)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	require.NoError(t, json.Unmarshal([]byte(stdout), &rec))
+	assert.Equal(t, true, rec["clean"], "the re-record graded its own rows")
+}
+
 // TestAuditGraded_StrayPoolsGradeNoNoEmissionRecord: a round recorded with no
 // emission of its own (hash_scheme no-emission) answers for no reading, so a
 // pools file left at its number does not give it a graded.
