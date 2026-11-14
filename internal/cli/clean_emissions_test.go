@@ -82,6 +82,23 @@ func TestCleanEmissionsKnowsTheAuditPools(t *testing.T) {
 	assert.Contains(t, out, filepath.Join("audit-inbox", "round-2.pools.json")+"  unrecorded inbox file")
 }
 
+// TestCleanEmissionsKnowsTheReviewOwedRoles: the roles a review emission owes
+// (engine.ReviewOwedRolesPath) and the rows --record-inbox merged from them are
+// inbox files too, judged like the role files beside them.
+func TestCleanEmissionsKnowsTheReviewOwedRoles(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	initGitRepo(t, dir)
+	state := filepath.Join(dir, "spec", ".tp-review", "a")
+	writeOld(t, filepath.Join(state, "review-inbox", "round-1.roles.json"))
+	writeOld(t, filepath.Join(state, "review-inbox", "round-1.merged.ndjson"))
+	writeOld(t, filepath.Join(state, "review-round-1.ndjson"))
+
+	out := runCleanEmissions(t, dir)
+	assert.Contains(t, out, filepath.Join("review-inbox", "round-1.roles.json")+"  recorded inbox file")
+	assert.Contains(t, out, filepath.Join("review-inbox", "round-1.merged.ndjson")+"  recorded inbox file")
+}
+
 // TestCleanEmissionsReportsOldLayoutRoundDirectories: a round directory under
 // the pre-1.12.0 layout, .tp/rounds/<base>/<phase>-r<N>, for a task file that
 // is not at the root is no longer read by the driver
