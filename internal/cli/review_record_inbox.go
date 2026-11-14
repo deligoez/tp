@@ -24,10 +24,13 @@ func owedReviewRoles(prompts []reviewPrompt) []string {
 }
 
 // keepOwedReviewRoles stores the owed roles in the round's inbox. A failed
-// write costs the round --record-inbox and nothing else, so it is a notice.
+// write fails the emission (exit 3): without the list the round would read as
+// emitted before v1.20.0, and --record <file> would record it with no proof
+// any role ran.
 func keepOwedReviewRoles(specPath string, round int, owed []string) {
 	if err := engine.WriteReviewOwedRoles(specPath, round, owed); err != nil {
-		output.Notice(fmt.Sprintf("warning: cannot keep review round %d's roles, so --record-inbox will refuse it: %v", round, err))
+		output.Error(ExitFile, fmt.Sprintf("cannot keep review round %d's owed roles: %v", round, err), runtimeFailureHint)
+		os.Exit(ExitFile)
 	}
 }
 
