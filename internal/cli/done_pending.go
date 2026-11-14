@@ -25,8 +25,8 @@ func donePendingRoot(taskFilePath string) string {
 
 // runDonePending is tp done in a unit's linked worktree
 // (spec/backlog/parallel-implement.md §2.4): it checks the evidence and the
-// commits, runs no gate, closes nothing, and writes a pending close the driver
-// integrates on the main branch.
+// commits, runs the gate in the worktree, closes nothing, and writes a pending
+// close the driver integrates and gates again on the main branch.
 func runDonePending(root, taskFilePath string, taskIDs []string, reason string) error {
 	switch {
 	case len(taskIDs) != 1:
@@ -65,6 +65,11 @@ func runDonePending(root, taskFilePath string, taskIDs []string, reason string) 
 		os.Exit(ExitValidation)
 	}
 
+	// The unit gates its own checkout, so a red change is caught before the
+	// driver spends a pick and a main-branch gate on it; a red gate exits here
+	// and leaves its failure under the main tree's root for the retry's brief.
+	runQualityGateIn(taskFilePath, engine.WorktreeDirFor(gateDir(taskFilePath), worktree), root,
+		"fix the failure in this worktree, commit the fix, and ask for the close again naming every commit")
 	record := &engine.PendingClose{ID: id, Reason: reason, Commits: ordered, Worktree: worktree}
 	if writeErr := engine.WritePendingClose(root, taskFilePath, record); writeErr != nil {
 		output.Error(ExitFile, writeErr.Error(), runtimeFailureHint)
