@@ -35,6 +35,23 @@ func TestGradeAuditRoles_CountsDistinctFileChecksOfAnyVerdict(t *testing.T) {
 		GradeAuditRoles(pools, rows), "pool order, never-emitted ids ignored, and a role that returned nothing graded 0")
 }
 
+// TestGradeAuditRoles_ARolelessRowCountsForTheOnePoolAskingItsID: a row that
+// names no role is graded for the one pool whose items hold its id, so an
+// all-PASS spec-coverage file written without role keys is not read as
+// unanswered; an id two pools asked stays unattributed.
+func TestGradeAuditRoles_ARolelessRowCountsForTheOnePoolAskingItsID(t *testing.T) {
+	pools := []AuditRolePool{
+		{Role: RoleSpecCoverage, Pool: 2, Items: []string{"item-1", "shared"}},
+		{Role: "security", Pool: 1, Items: []string{"shared"}},
+	}
+	rows := []map[string]any{
+		{"item_id": "item-1", "status": "PASS"},
+		{"item_id": "shared", "status": "PASS"},
+	}
+	assert.Equal(t, []RoleGraded{{Role: RoleSpecCoverage, Graded: 1, Pool: 2}, {Role: "security", Graded: 0, Pool: 1}},
+		GradeAuditRoles(pools, rows))
+}
+
 // TestAuditPools_RoundTripAndRemovedWithTheInbox: the pools an emission
 // writes are read back at record, live in the audit inbox, and leave with
 // the round's role files.
