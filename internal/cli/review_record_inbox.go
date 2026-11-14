@@ -107,7 +107,7 @@ func runReviewRecordInbox(specPath, harnessNote string) error {
 			"emit the round first with "+emit)
 		os.Exit(ExitFile)
 	case !inbox.Stored:
-		output.Error(ExitFile, fmt.Sprintf("review round %d of %s was emitted without the list of roles it owes (before v1.20.0, or under --no-state)", inbox.Round, specPath),
+		output.Error(ExitFile, fmt.Sprintf("review round %d of %s was emitted without the list of roles it owes (before v1.20.0)", inbox.Round, specPath),
 			fmt.Sprintf("emit the round again with %s, which stores the list, or record a merged file with --record <file>", emit))
 		os.Exit(ExitFile)
 	}
