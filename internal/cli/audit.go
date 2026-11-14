@@ -1124,7 +1124,10 @@ func isAuditableType(path string) bool {
 // attention.
 func isTPStatePath(path string) bool {
 	for _, part := range strings.Split(filepath.ToSlash(path), "/") {
-		if part == ".tp" {
+		// .tp-review/ beside a spec holds its round files, snapshots and
+		// state.json: tp's record of the review and audit loops, as .tp/ is
+		// of the cycle.
+		if part == ".tp" || part == ".tp-review" {
 			return true
 		}
 	}
