@@ -101,7 +101,7 @@ func TestResume_SpecStaleBlockerNamesTheClearingSequence(t *testing.T) {
 	msg, ok := b["message"].(string)
 	require.True(t, ok, "the blocker carries a message")
 	assert.Contains(t, msg, "tp review "+spec+",", "the message names the emission for this spec")
-	assert.Contains(t, msg, "tp review "+spec+" --record <file>", "the message names the recording for this spec")
+	assert.Contains(t, msg, "tp review "+spec+" --record-inbox", "the message names the recording for this spec")
 }
 
 func TestResume_ReviewPayloadFirstRound(t *testing.T) {

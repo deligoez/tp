@@ -115,7 +115,7 @@ func TestResume_SpecStaleNamesTheSpecRelativeToTheRepositoryRoot(t *testing.T) {
 		b := blockerByCode(res, "spec-stale")
 		require.NotNil(t, b, "the edited spec raises spec-stale")
 		assert.Equal(t, res["spec"], b["data"].(map[string]any)["spec"], "data.spec is the top-level spec")
-		assert.Contains(t, b["message"], "tp review spec/s.md --record <file>")
+		assert.Contains(t, b["message"], "tp review spec/s.md --record-inbox")
 		assertNoAbsolutePath(t, dir, resumePathStrings(res))
 	}
 
@@ -175,7 +175,7 @@ func TestLoopStatus_NextActionNamesTheSpecRepoRelativeFromASubdirectory(t *testi
 	sub := filepath.Join(dir, "sub")
 	for cmd, want := range map[string]string{
 		"audit":  "run the next audit round: tp audit spec/s.md --record <file>",
-		"review": "run the next review round: tp review spec/s.md --record <file>",
+		"review": "run the next review round: tp review spec/s.md, then tp review spec/s.md --record-inbox",
 	} {
 		out, stderr, code := runTP(t, sub, cmd, "spec/s.md", "--status")
 		require.Equal(t, 0, code, "tp %s --status from a subdirectory: %s", cmd, stderr)

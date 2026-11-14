@@ -24,7 +24,7 @@ func builtSpecStale(t *testing.T, in *BlockerInputs) Blocker {
 func TestSpecStaleBlocker_DataCarriesTheClearingCommands(t *testing.T) {
 	t.Parallel()
 	b := builtSpecStale(t, &BlockerInputs{})
-	assert.Equal(t, []string{"tp review spec.md", "tp review spec.md --record <file>"}, b.Data["commands"])
+	assert.Equal(t, []string{"tp review spec.md", "tp review spec.md --record-inbox"}, b.Data["commands"])
 	assert.NotContains(t, b.Data, "in_flight_round")
 	assert.NotContains(t, b.Data, "operator")
 }
@@ -37,14 +37,14 @@ func TestSpecStaleBlocker_InFlightOverTheOldTextNamesTheRecord(t *testing.T) {
 	t.Parallel()
 	b := builtSpecStale(t, &BlockerInputs{ReviewInFlightRound: 3, ReviewInFlightOverOldText: true})
 	assert.Equal(t, 3, b.Data["in_flight_round"])
-	assert.Equal(t, []string{"tp review spec.md --record <file>", "tp review spec.md", "tp review spec.md --record <file>"},
+	assert.Equal(t, []string{"tp review spec.md --record-inbox", "tp review spec.md", "tp review spec.md --record-inbox"},
 		b.Data["commands"])
 	assert.Equal(t, map[string]any{
 		"decision": EscalateDiscardEmission,
-		"commands": []string{"tp review spec.md --force", "tp review spec.md --record <file>"},
+		"commands": []string{"tp review spec.md --force", "tp review spec.md --record-inbox"},
 	}, b.Data["operator"])
 	assert.Contains(t, b.Message, "review round 3 is in flight over the old text")
-	assert.Contains(t, b.Message, "record it first: tp review spec.md --record <file>")
+	assert.Contains(t, b.Message, "record it first: tp review spec.md --record-inbox")
 	assert.Contains(t, b.Message, "operator's decision")
 }
 
@@ -55,7 +55,7 @@ func TestSpecStaleBlocker_InFlightOverTheCurrentTextNamesTheRecordAlone(t *testi
 	t.Parallel()
 	b := builtSpecStale(t, &BlockerInputs{ReviewInFlightRound: 3})
 	assert.Equal(t, 3, b.Data["in_flight_round"])
-	assert.Equal(t, []string{"tp review spec.md --record <file>"}, b.Data["commands"])
+	assert.Equal(t, []string{"tp review spec.md --record-inbox"}, b.Data["commands"])
 	assert.NotContains(t, b.Data, "operator")
 	assert.Contains(t, b.Message, "review round 3 is in flight over the current text")
 }
@@ -70,13 +70,13 @@ func TestSpecStaleBlocker_AtTheReviewCapNamesTheRaiseAsTheOperators(t *testing.T
 	assert.Equal(t, []string{}, b.Data["commands"])
 	assert.Equal(t, map[string]any{
 		"decision": EscalateRaiseReviewCap,
-		"commands": []string{"tp review spec.md", "tp review spec.md --record <file>"},
+		"commands": []string{"tp review spec.md", "tp review spec.md --record-inbox"},
 	}, b.Data["operator"])
 	assert.Contains(t, b.Message, "3-round cap")
 	assert.Contains(t, b.Message, "operator's decision (raise-review-cap)")
 
 	under := builtSpecStale(t, &BlockerInputs{ReviewRounds: 2, ReviewMaxRounds: 3})
-	assert.Equal(t, []string{"tp review spec.md", "tp review spec.md --record <file>"}, under.Data["commands"])
+	assert.Equal(t, []string{"tp review spec.md", "tp review spec.md --record-inbox"}, under.Data["commands"])
 	assert.NotContains(t, under.Data, "operator")
 }
 
@@ -87,7 +87,7 @@ func TestSpecStaleBlocker_AtTheReviewCapNamesTheRaiseAsTheOperators(t *testing.T
 func TestSpecStaleBlocker_AtTheCapAfterTheRecordNamesTheRecordAlone(t *testing.T) {
 	t.Parallel()
 	b := builtSpecStale(t, &BlockerInputs{ReviewRounds: 2, ReviewMaxRounds: 3, ReviewInFlightRound: 3, ReviewInFlightOverOldText: true})
-	assert.Equal(t, []string{"tp review spec.md --record <file>"}, b.Data["commands"])
+	assert.Equal(t, []string{"tp review spec.md --record-inbox"}, b.Data["commands"])
 	assert.Equal(t, EscalateDiscardEmission, b.Data["operator"].(map[string]any)["decision"])
 	assert.Contains(t, b.Message, "3-round cap")
 }
@@ -98,7 +98,7 @@ func TestSpecStaleBlocker_AtTheCapAfterTheRecordNamesTheRecordAlone(t *testing.T
 func TestSpecStaleBlocker_TheCapIsCountedAtItsEdge(t *testing.T) {
 	t.Parallel()
 	under := builtSpecStale(t, &BlockerInputs{ReviewRounds: 1, ReviewMaxRounds: 3, ReviewInFlightRound: 2, ReviewInFlightOverOldText: true})
-	assert.Equal(t, []string{"tp review spec.md --record <file>", "tp review spec.md", "tp review spec.md --record <file>"},
+	assert.Equal(t, []string{"tp review spec.md --record-inbox", "tp review spec.md", "tp review spec.md --record-inbox"},
 		under.Data["commands"])
 	one := builtSpecStale(t, &BlockerInputs{ReviewRounds: 1, ReviewMaxRounds: 1})
 	assert.Equal(t, []string{}, one.Data["commands"])

@@ -34,7 +34,7 @@ func TestResume_SpecStaleWithARoundInFlightNamesItsRecord(t *testing.T) {
 	assert.Equal(t, float64(3), data["in_flight_round"])
 	commands := jsonStrings(data["commands"])
 	require.NotEmpty(t, commands)
-	assert.Equal(t, "tp review "+spec+" --record <file>", commands[0], "the first command is the record of the round in flight")
+	assert.Equal(t, "tp review "+spec+" --record-inbox", commands[0], "the first command is the record of the round in flight")
 	operator, ok := data["operator"].(map[string]any)
 	require.True(t, ok, "the discard is named as the operator's decision: %v", data)
 	assert.Equal(t, "discard-emission", operator["decision"])

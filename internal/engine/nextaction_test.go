@@ -120,10 +120,10 @@ func TestReviewNextAction_MechanizePhaseQualifier(t *testing.T) {
 func TestReviewNextAction_CleanNotConverged(t *testing.T) {
 	got := ReviewNextAction("spec.md", notDone, false, nil, roundFile, CheckVerdict{})
 	assert.Contains(t, got, "run the next review round", "branch 4 is the lowest-precedence default")
-	assert.Contains(t, got, "tp review spec.md --record <file>")
+	assert.Contains(t, got, "tp review spec.md --record-inbox")
 	assert.NotContains(t, got, "tp set --workflow", "no mechanize class present")
-	// <file> stays a literal placeholder; <spec> is resolved.
-	assert.Contains(t, got, "<file>")
+	// The round is recorded from its inbox, so no file placeholder is named.
+	assert.NotContains(t, got, "<file>")
 }
 
 // TestReviewNextAction_BaseResolution: <base> resolves to the spec's base name
@@ -291,7 +291,7 @@ func TestReviewNextAction_ACandidateWhoseCheckDidNotRun(t *testing.T) {
 	assert.Contains(t, got, `fix the registered "naming" check — it exited 2`)
 	assert.NotContains(t, got, "tp set --workflow", "a check already exists")
 	assert.NotContains(t, got, MechanizePhaseQualifier)
-	assert.Contains(t, got, "tp review spec.md --record <file>", "then the next round")
+	assert.Contains(t, got, "tp review spec.md --record-inbox", "then the next round")
 
 	other := ReviewNextAction("spec.md", notDone, false, []string{"other"}, roundFile, failingCheck)
 	assert.Contains(t, other, "tp set --workflow checks", "a class with no registered check is still to be registered")

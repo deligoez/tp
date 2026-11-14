@@ -85,7 +85,7 @@ func TestReviewRewritten_ARoundInFlightIsRefused(t *testing.T) {
 	assert.Equal(t, 3, code, stderr)
 	env := errorEnvelope(t, stderr)
 	assert.Contains(t, env["error"], "review round 2 is in flight")
-	assert.Contains(t, env["hint"], "tp review spec.md --record <file>")
+	assert.Contains(t, env["hint"], "tp review spec.md --record-inbox")
 	assert.Contains(t, env["hint"], "--force")
 	assert.Equal(t, before, stateJSONBytes(t, dir), "a refusal writes nothing")
 }

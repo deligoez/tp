@@ -113,7 +113,7 @@ func TestBuildBlockers_SpecStaleNamesTheClearingSequence(t *testing.T) {
 		assert.Equal(t, "spec-stale", bs[0].Code, tc.phase)
 		assert.Equal(t, spec, bs[0].Data["spec"], tc.phase)
 		assert.Contains(t, bs[0].Message, "tp review "+spec+",", "%s: names the emission", tc.phase)
-		assert.Contains(t, bs[0].Message, "tp review "+spec+" --record <file>", "%s: names the recording", tc.phase)
+		assert.Contains(t, bs[0].Message, "tp review "+spec+" --record-inbox", "%s: names the recording", tc.phase)
 	}
 }
 

@@ -14,7 +14,7 @@ import (
 
 // nextRoundAction is next_action's run-the-next-round branch for these fixtures.
 // It is what the state falls through to once every candidate is mechanized.
-const nextRoundAction = "run the next review round: tp review spec.md --record <file>"
+const nextRoundAction = "run the next review round: tp review spec.md, then tp review spec.md --record-inbox"
 
 // suppressionFixture creates a spec plus a resolved task file in a fresh temp
 // dir and registers checksJSON as the workflow's `checks` when non-empty.

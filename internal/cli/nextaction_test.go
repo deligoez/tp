@@ -151,7 +151,7 @@ func TestNextAction_ReviewCleanNotConverged(t *testing.T) {
 	require.Equal(t, false, out["converged"])
 	na := naStr(t, out)
 	assert.Contains(t, na, "run the next review round")
-	assert.Contains(t, na, "tp review spec.md --record <file>")
+	assert.Contains(t, na, "tp review spec.md --record-inbox")
 	assert.NotContains(t, na, "tp set --workflow")
 }
 
