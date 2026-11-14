@@ -71,7 +71,7 @@ func runDonePending(root, taskFilePath string, taskIDs []string, reason string) 
 		os.Exit(ExitFile)
 	}
 	output.Success(fmt.Sprintf("pending close for %s: the driver integrates it", id))
-	printResultOrExit(map[string]any{"pending": true, "id": id, "commits": doneCommits})
+	printResultOrExit(map[string]any{"pending": true, "id": id, "commits": ordered})
 	return nil
 }
 
