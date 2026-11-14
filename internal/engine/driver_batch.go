@@ -57,13 +57,13 @@ func (d *driver) startBatch(units []NextUnit) (map[string]batchUnit, error) {
 	if err := d.opts.ClaimTasks(ids); err != nil {
 		return nil, driverErrorf(err, "claim the implement batch")
 	}
-	base := WorktreeBase(d.opts.Root)
+	base := filepath.Join(WorktreeBase(d.opts.Root), cycleTag(d.opts.Root, d.opts.TaskFile))
 	out := make(map[string]batchUnit, len(ids))
 	for _, id := range ids {
 		u := batchUnit{
 			id:       id,
 			worktree: filepath.Join(base, d.runID, id),
-			branch:   unitBranchPrefix + d.runID + "/" + id,
+			branch:   unitBranch(d.opts.Root, d.opts.TaskFile, d.runID, id),
 		}
 		if _, err := gitOut(d.opts.Root, "worktree", "add", "-q", "-b", u.branch, u.worktree, "HEAD"); err != nil {
 			return nil, driverErrorf(err, "add the worktree for task %q", id)
@@ -80,6 +80,19 @@ func (a *unitAttempt) prompt() string {
 		return briefPrompt(a.unit.Kind, BatchBriefCommand(a.unit.ID))
 	}
 	return UnitPrompt(a.unit.Kind, a.target)
+}
+
+// cycleTag is a short, ref-safe name for the task file's cycle. Unit branches
+// and worktrees carry it, so a run reconciles only what its own cycle left:
+// a second tp run over another task file of the repository may be in flight.
+func cycleTag(root, taskFile string) string {
+	sum := sha256.Sum256([]byte(CycleKey(root, taskFile)))
+	return hex.EncodeToString(sum[:])[:12]
+}
+
+// unitBranch names one unit's branch: tp-unit/<cycle>/<run>/<task id>.
+func unitBranch(root, taskFile, runID, id string) string {
+	return unitBranchPrefix + cycleTag(root, taskFile) + "/" + runID + "/" + id
 }
 
 // WorktreeBase is where a project's unit worktrees live: under the system's
@@ -287,15 +300,22 @@ func (d *driver) reconcileBatches() error {
 	if err != nil {
 		return nil //nolint:nilerr // not a git tree: nothing a batch could have left
 	}
+	own := unitBranchPrefix + cycleTag(d.opts.Root, d.opts.TaskFile) + "/"
 	var worktree string
 	for _, line := range strings.Split(list, "\n") {
 		switch {
 		case strings.HasPrefix(line, "worktree "):
 			worktree = strings.TrimPrefix(line, "worktree ")
-		case strings.HasPrefix(line, "branch refs/heads/"+unitBranchPrefix):
+		case strings.HasPrefix(line, "branch refs/heads/"+own):
 			removeUnitWorktree(d.opts.Root, worktree, strings.TrimPrefix(line, "branch refs/heads/"))
 		}
 	}
 	_, _ = gitOut(d.opts.Root, "worktree", "prune")
+	// A branch whose worktree is already gone is not in the list above.
+	if refs, refErr := gitOut(d.opts.Root, "for-each-ref", "--format=%(refname:short)", "refs/heads/"+own); refErr == nil {
+		for _, branch := range strings.Fields(refs) {
+			_, _ = gitOut(d.opts.Root, "branch", "-D", branch)
+		}
+	}
 	return nil
 }
