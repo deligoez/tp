@@ -35,7 +35,7 @@ measurements): worth having, and bounded by how well a task names what it touche
    the main branch, runs the quality gate there, and on a pass closes the task with the picked shas.
    A conflict or a failing gate restores the main branch to before the pick and reopens the task with
    a durable `solo` mark the oracle reads, so it runs alone next. A diff that leaves its `touches` is
-   recorded and warned, not reopened: the pick and the gate are the safety, `touches` the schedule.
+   warned on stderr, not reopened: the pick and the gate are the safety, `touches` the schedule.
 5. **Gates are one at a time.** The driver gates one pick at a time, and a unit's brief tells it to
    run only the tests its change needs, never the whole suite, since parallel test load once
    exhausted the machine.
