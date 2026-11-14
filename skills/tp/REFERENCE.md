@@ -287,7 +287,14 @@ by `tp validate` and `tp set`.
   run one at a time. Between those, the worktree brief asks each unit to run only the tests its change
   needs, never the whole suite, and nothing enforces it. On a machine where several full gates at
   once are too heavy, keep `run_max_parallel` low.
-
+- **A gate on the same tree runs once (v1.21.0).** When the unit's worktree was clean as its gate
+  ran, the pending close records the tree it gated (`gated_tree`) and the gate command. The close on
+  the main branch then reuses that result instead of running the gate again when the main branch's
+  `HEAD` holds that same tree, its working tree differs from `HEAD` only in paths tp writes, and the
+  resolved gate command is the same. It says so on stderr (the integrate log keeps it), and the task's
+  `gate_passed_at` is the unit's gate time. Anything unequal, a `tp keep` file on the main branch
+  included, runs the gate. This is not `--skip-gate`: a gate ran on that exact tree. The first unit a
+  group integrates onto an unmoved main branch is the usual case.
 ### Stop reasons
 
 A run stops for exactly one reason, recorded verbatim in the run state. Caps bound a run; they never
