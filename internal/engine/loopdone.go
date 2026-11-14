@@ -189,6 +189,11 @@ func loopDone(converged bool, specPath string, rounds []ReviewRound, maxRounds i
 // round recorded before the policy was stored is graded under the stricter
 // `all`; a round whose file is missing keeps its stored flag.
 func AuditRoundClean(specPath string, entry *ReviewRound) bool {
+	// A round that cannot show spec-coverage answered what it was asked is
+	// never clean, whatever its rows say (spec/backlog/role-presence.md).
+	if SpecCoverageUnproven(entry) {
+		return false
+	}
 	if entry.Clean {
 		return true
 	}
