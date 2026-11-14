@@ -78,6 +78,9 @@ type WorkflowOverride struct {
 	ReviewConvergeOn   *string  `json:"review_converge_on,omitempty"`
 	AuditConvergeOn    *string  `json:"audit_converge_on,omitempty"`
 	Checks             *[]Check `json:"checks,omitempty"`
+	// TaskAuditRoles tracks presence like Checks: an explicit empty list
+	// replaces the lower layers with no roles.
+	TaskAuditRoles *[]string `json:"task_audit_roles,omitempty"`
 
 	// The unattended run's caps and runner (§7). Runner is raw JSON because the
 	// field takes three shapes — a built-in template name, a runner object, or a
@@ -106,6 +109,7 @@ func (o *WorkflowOverride) IsEmpty() bool {
 		o.ReviewMaxRounds == nil &&
 		o.AuditMaxRounds == nil &&
 		o.Checks == nil &&
+		o.TaskAuditRoles == nil &&
 		o.CommitStrategy == nil &&
 		o.ReviewConvergeOn == nil &&
 		o.AuditConvergeOn == nil &&
