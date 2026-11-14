@@ -261,18 +261,25 @@ by `tp validate` and `tp set`.
   after the operator's signal is not the unit's failure: the pick is taken back and the pending
   close kept for the next run. A usage refusal from that `tp done` stops the run as a driver error.
   A picked diff that leaves the task's `touches` is reported on stderr and not reopened. The
-  worktrees and branches are then removed, except the branch of a close kept for the next run.
+  worktrees are then removed, and each unit's branch once its task is done.
 - **A crash** leaves pending closes, worktrees or `tp-unit/` branches. `tp resume` names the pending
   closes under `pending_closes`, and its `next_action` is `tp run`, which integrates them before its
-  first batch: commits a crash left picked on the main branch are closed rather than picked again,
-  and a close for a task already done is dropped. It then removes its own cycle's worktrees and
-  branches. A task whose unit never asked to close stays wip and is resumed alone; its unit's
-  unfinished commits are not kept.
+  first batch. It reads what an interrupted pick left by patch id: the unit's whole pick is closed
+  rather than picked again, a prefix of it (a crash between two picks) is taken back and picked
+  again, and any other history since the pick is a driver error for the operator to judge; a close
+  for a task already done is dropped. It then removes its own cycle's worktrees. A task whose unit
+  never asked to close (it escalated or ran out of attempts) stays wip and is resumed alone, and its
+  unit's branch, with whatever it committed, is kept until the task is done: the driver says so on
+  stderr and `tp resume` names it under `unit_branches` (v1.19.1).
 - **Limits.** A worktree is a fresh checkout of `HEAD`, without ignored files (dependencies, `.env`,
   build output); `tp run --dry-run` says so on stderr before a batch, and a project whose units need
   them keeps `run_max_parallel` at 1. `tp validate` names every open task without `touches` in one
   warning while `run_max_parallel` is above 1. The caps are checked between iterations, so a batch
   can overshoot `run_max_units` by up to its size less one.
+- **Test load.** Only the gate is serialized: the driver runs one integration gate at a time. The
+  units' own test runs are not limited by tp; the worktree brief asks each unit to run only the
+  tests its change needs, never the whole suite, and nothing enforces it. On a machine where several
+  full suites at once are too heavy, keep `run_max_parallel` low.
 
 ### Stop reasons
 
