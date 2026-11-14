@@ -7,6 +7,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/deligoez/tp/internal/model"
 	"github.com/deligoez/tp/internal/output"
@@ -328,6 +329,10 @@ func commitChangedFiles(dir, sha, taskID string) []string {
 	// spec-coverage silently takes its fallback file list at exit 0.
 	// -z: a path git would C-quote arrives as written, so it matches the
 	// universe, which is read NUL-separated too.
+	key := dir + "\x00" + sha
+	if files, ok := commitFilesCache.get(key); ok {
+		return files
+	}
 	cmd := exec.Command("git", "show", "--name-only", "--pretty=format:", "-z", sha)
 	cmd.Dir = dir
 	out, err := cmd.Output()
@@ -345,5 +350,29 @@ func commitChangedFiles(dir, sha, taskID string) []string {
 			files = append(files, f)
 		}
 	}
+	commitFilesCache.put(key, files)
 	return files
+}
+
+// commitFilesCache keeps each commit's changed files for the process: a
+// commit never changes, and the task audit's presence, emission and oracle
+// all ask for the same commits in one invocation.
+var commitFilesCache = &shaFiles{m: make(map[string][]string)}
+
+type shaFiles struct {
+	mu sync.Mutex
+	m  map[string][]string
+}
+
+func (c *shaFiles) get(key string) ([]string, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	f, ok := c.m[key]
+	return slices.Clone(f), ok
+}
+
+func (c *shaFiles) put(key string, files []string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.m[key] = slices.Clone(files)
 }
