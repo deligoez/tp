@@ -398,5 +398,10 @@ func validateConvergence(tf *model.TaskFile) []Finding {
 			})
 		}
 	}
+	if tf.Workflow.TaskAuditRoles != nil {
+		if err := ValidateTaskAuditRoles(*tf.Workflow.TaskAuditRoles); err != nil {
+			findings = append(findings, Finding{Severity: "warning", Rule: "schema", Message: "workflow." + err.Error()})
+		}
+	}
 	return findings
 }
