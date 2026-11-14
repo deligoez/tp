@@ -83,9 +83,11 @@ candidates in `spec/backlog/` are worked through. A shipped decision note leaves
 `spec/backlog/ARCHIVE.md`, one row each naming the release and the sha to read it at; what the release
 measured stays in `spec/<version>-measurements.md`. v1.20.0 shipped the unit gate in a parallel unit's
 worktree, `touches` as a hint, spec-coverage answering every asked item and `tp review --record-inbox`
-(`spec/1.20.0-measurements.md`); its note `spec/backlog/role-presence.md` stays while the hand
-`--record` gap in `BUGS.md` waits for the operator. The epic layer's deferred pilot items are in
-`spec/1.3.0-measurements.md`.
+(`spec/1.20.0-measurements.md`); v1.20.1 hands every registered check its spec in `TP_SPEC`
+(`spec/1.20.1-measurements.md`). Two notes remain: `role-presence.md` stays while the hand `--record`
+gap in `BUGS.md` waits for the operator, and `converged-payload-open.md` is parked until a project
+sets `audit_converge_on: blocking`. Other parked and closed decisions are in `spec/undecided.md`. The
+epic layer's deferred pilot items are in `spec/1.3.0-measurements.md`.
 
 ## Rules
 
