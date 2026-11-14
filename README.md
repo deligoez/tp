@@ -239,6 +239,7 @@ tp lint spec.md                # Spec quality + structured element detection
 tp ground spec.md              # Check the spec's claims against the world (--units, --record, --status --check)
 tp review spec.md              # Review prompts, rounds, merge/resolve/record/status/rewritten
 tp review spec.md --role NAME  # Emit one role's prompt only (also on tp audit)
+tp review spec.md --record-inbox  # Record the round from its inbox; refuses while a role has no file
 tp audit spec.md               # Post-implementation: verify the code matches the spec
 tp validate                    # Task file + coverage + atomicity (--strict, --project)
 tp epic lint                   # Lint the epic graph in .tp/epics.json (exit 1 on an error, 3 with no file)
