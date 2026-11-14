@@ -102,7 +102,12 @@ func unitBranch(root, taskFile, runID, id string) string {
 // ran out of attempts), so its commits stay referenced and the operator can
 // read them. A branch is deleted only once its task is done or gone.
 func keptUnitBranch(root, taskFile, branch string) bool {
-	id := branch[strings.LastIndex(branch, "/")+1:]
+	// tp-unit/<cycle>/<run>/<id>: everything after the third slash.
+	parts := strings.SplitN(branch, "/", 4)
+	if len(parts) < 4 {
+		return true
+	}
+	id := parts[3]
 	if HasPendingClose(root, taskFile, id) {
 		return true
 	}
@@ -114,15 +119,22 @@ func keptUnitBranch(root, taskFile, branch string) bool {
 	return err == nil && task.Status != model.StatusDone
 }
 
-// CycleUnitBranches lists the unit branches the task file's batches left: a
-// unit's unfinished work, kept until its task is done (tp resume's
-// unit_branches).
+// CycleUnitBranches lists the unit branches the task file's batches left that
+// still hold unfinished work: a pending request, or a task not yet done
+// (tp resume's unit_branches). A branch whose task is done is deleted by the
+// next tp run and not listed.
 func CycleUnitBranches(root, taskFile string) []string {
 	refs, err := gitOut(root, "for-each-ref", "--format=%(refname:short)", "refs/heads/"+unitBranchPrefix+cycleTag(root, taskFile)+"/")
 	if err != nil {
 		return nil
 	}
-	return strings.Fields(refs)
+	var kept []string
+	for _, branch := range strings.Fields(refs) {
+		if keptUnitBranch(root, taskFile, branch) {
+			kept = append(kept, branch)
+		}
+	}
+	return kept
 }
 
 // WorktreeBase is where a project's unit worktrees live: under the system's
@@ -228,6 +240,10 @@ func (d *driver) integrateOne(tf *model.TaskFile, p *PendingClose) error {
 // for the next run to close those same commits instead of picking them again.
 // An empty pre means a driver error, returned as the error.
 func (d *driver) pickUnit(p *PendingClose) (pre string, picked []string, err error) {
+	if p.PickedOnto != "" {
+		// A crash inside a conflicting pick leaves it in progress.
+		_, _ = gitOut(d.opts.Root, "cherry-pick", "--abort")
+	}
 	head, err := gitOut(d.opts.Root, "rev-parse", "HEAD")
 	if err != nil {
 		return "", nil, driverErrorf(err, "read the main branch's HEAD")
@@ -252,21 +268,32 @@ func (d *driver) pickUnit(p *PendingClose) (pre string, picked []string, err err
 
 // recoverPick reads what an interrupted pick left on the main branch after
 // p.PickedOnto, comparing patches rather than counting commits: the unit's
-// whole pick means done; a prefix of it (a crash between two picks) is taken
-// back so the pick starts again; anything else is history the operator has to
-// judge, a driver error.
+// whole pick means done; a non-empty prefix of it (a crash between two picks)
+// is taken back so the pick starts again. A main branch moved behind the
+// pick's start, or holding anything else since it, is the operator's to
+// judge: a driver error, and the branch is left as it is.
 func (d *driver) recoverPick(p *PendingClose) (landed []string, done bool, err error) {
-	_, _ = gitOut(d.opts.Root, "cherry-pick", "--abort")
+	if _, behind := gitOut(d.opts.Root, "merge-base", "--is-ancestor", p.PickedOnto, "HEAD"); behind != nil {
+		return nil, false, driverErrorf(fmt.Errorf("the main branch no longer contains %s, where task %s's interrupted pick began", p.PickedOnto, p.ID),
+			"integrate task %q", p.ID)
+	}
 	list, err := gitOut(d.opts.Root, "rev-list", "--reverse", p.PickedOnto+"..HEAD")
 	if err != nil {
 		return nil, false, driverErrorf(err, "read the main branch since task %q's pick", p.ID)
 	}
 	landed = strings.Fields(list)
-	landedIDs, unitIDs := patchIDs(d.opts.Root, landed), patchIDs(d.opts.Root, p.Commits)
+	landedIDs, err := patchIDs(d.opts.Root, landed)
+	if err != nil {
+		return nil, false, driverErrorf(err, "read the main branch since task %q's pick", p.ID)
+	}
+	unitIDs, err := patchIDs(d.opts.Root, p.Commits)
+	if err != nil {
+		return nil, false, driverErrorf(err, "read task %q's commits", p.ID)
+	}
 	switch {
 	case slices.Equal(landedIDs, unitIDs):
 		return landed, true, nil
-	case len(landedIDs) < len(unitIDs) && slices.Equal(landedIDs, unitIDs[:len(landedIDs)]):
+	case len(landedIDs) > 0 && len(landedIDs) < len(unitIDs) && slices.Equal(landedIDs, unitIDs[:len(landedIDs)]):
 		if _, resetErr := gitOut(d.opts.Root, "reset", "-q", "--keep", p.PickedOnto); resetErr != nil {
 			return nil, false, driverErrorf(resetErr, "take back task %q's partial pick", p.ID)
 		}
@@ -276,15 +303,24 @@ func (d *driver) recoverPick(p *PendingClose) (landed []string, done bool, err e
 		"integrate task %q", p.ID)
 }
 
+// emptyPatchID stands for a commit that changes nothing, so it can never be
+// mistaken for one git failed to read.
+const emptyPatchID = "empty"
+
 // patchIDs returns each commit's stable patch id, the identity of its change
-// whatever commit carries it; a commit git cannot read gives "".
-func patchIDs(root string, shas []string) []string {
+// whatever commit carries it. Colour and external diff drivers are switched
+// off, so the user's git configuration cannot blank every id into a match.
+func patchIDs(root string, shas []string) ([]string, error) {
 	out := make([]string, len(shas))
 	for i, sha := range shas {
-		show := exec.Command("git", "show", "--format=", "--no-ext-diff", sha)
+		show := exec.Command("git", "-c", "color.ui=never", "show", "--no-color", "--no-ext-diff", "--format=", sha)
 		show.Dir = root
 		diff, err := show.Output()
 		if err != nil {
+			return nil, fmt.Errorf("git show %s: %w", sha, err)
+		}
+		if len(bytes.TrimSpace(diff)) == 0 {
+			out[i] = emptyPatchID
 			continue
 		}
 		pid := exec.Command("git", "patch-id", "--stable")
@@ -292,13 +328,15 @@ func patchIDs(root string, shas []string) []string {
 		pid.Stdin = bytes.NewReader(diff)
 		line, err := pid.Output()
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("git patch-id %s: %w", sha, err)
 		}
-		if fields := strings.Fields(string(line)); len(fields) > 0 {
-			out[i] = fields[0]
+		fields := strings.Fields(string(line))
+		if len(fields) == 0 {
+			return nil, fmt.Errorf("git patch-id gave no id for %s", sha)
 		}
+		out[i] = fields[0]
 	}
-	return out
+	return out, nil
 }
 
 // deferUnit takes a pick back and leaves its request for the next run: the
