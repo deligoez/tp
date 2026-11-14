@@ -4,7 +4,8 @@ On 2026-09-11 the backlog was cut to the decision candidates still in this direc
 (`checklist-covers-what-changed`, `reconcile`; `gate-sequence` followed after v1.2.0). Reproduced defects live in
 `BUGS.md` and are fixed test-first; everything else was removed. Each row names the files and the
 last commit that touched them: read one with `git show <sha>:spec/backlog/<file>`. The ground and
-review rounds under `.tp-review/` stay, as rows of the corpus derivations.
+review rounds under `.tp-review/` stay, as rows of the corpus derivations. On 2026-11-14 the decision
+notes shipped from v1.3.0 to v1.18.0 followed; code comments that cite them resolve through these rows.
 
 | slug | files | sha | outcome |
 |---|---|---|---|
@@ -42,3 +43,23 @@ review rounds under `.tp-review/` stay, as rows of the corpus derivations.
 | `ground-command-friction` | `ground-command-friction-measurements.md`, `ground-command-friction.md` | `b73ce3f3` | forwarding stub, split on 2026-09-08 into the ground specs |
 | `README` | `README.md` | `7b9f6444` | the roadmap; replaced by `BUGS.md` and the decision candidates in this directory |
 | `gate-sequence` | `gate-sequence-measurements.md`, `gate-sequence.md` | `7b9f6444` | archived after v1.2.0: its field half shipped there (the unrunnable-gate warning at init/import, the per-spec `quality_gate` setter); what remains, a `tp gate` convenience verb and an internal executor merge, has no measured cost |
+| `epics` | `epics-measurements.md`, `epics.md` | `0af63ab6` | archived on 2026-11-14: shipped as the epic layer in v1.3.0 (`spec/1.3.0.md`, `spec/1.3.0-measurements.md`) |
+| `epics-progress-field` | `epics-progress-field.md` | `ed0390d6` | archived on 2026-11-14: answered in v1.6.0 (`spec/1.6.0.md`) |
+| `epic-review-at-scale` | `epic-review-at-scale.md` | `c04556f2` | archived on 2026-11-14: shipped in v1.7.0 (`spec/1.7.0.md`) |
+| `dashboard` | `dashboard.md` | `48d79e6d` | archived on 2026-11-14: shipped as `tp dashboard` in v1.8.0 (`spec/1.8.0.md`) |
+| `lifecycle-timestamps` | `lifecycle-timestamps.md` | `25efcf79` | archived on 2026-11-14: shipped in v1.8.0 (`spec/1.8.0.md`) |
+| `epic-scope` | `epic-scope.md` | `5cff39ff` | archived on 2026-11-14: `tp epic scope` and the `gate-scope` role shipped in v1.9.0 (`spec/1.9.0-measurements.md`) |
+| `deferrable-required` | `deferrable-required.md` | `e93bf55b` | archived on 2026-11-14: shipped in v1.10.0 (`spec/1.10.0-measurements.md`) |
+| `epic-reemit-guard` | `epic-reemit-guard.md` | `f461f7cd` | archived on 2026-11-14: shipped in v1.10.0 (`spec/1.10.0-measurements.md`) |
+| `epic-role-attribution` | `epic-role-attribution.md` | `44a79bd5` | archived on 2026-11-14: `--record-inbox` shipped in v1.10.0 (`spec/1.10.0-measurements.md`) |
+| `epic-description` | `epic-description.md` | `b76c0979` | archived on 2026-11-14: shipped in v1.11.0 (`spec/1.11.0-measurements.md`) |
+| `run-regression-unit` | `run-regression-unit.md` | `f5c7ba0a` | archived on 2026-11-14: shipped in v1.12.0 (`spec/1.12.0-measurements.md`) |
+| `hand-recorded-staleness` | `hand-recorded-staleness.md` | `c0942f84` | archived on 2026-11-14: shipped in v1.12.0 (`spec/1.12.0-measurements.md`) |
+| `ground-scratch-in-state-dir` | `ground-scratch-in-state-dir.md` | `8d90c0e1` | archived on 2026-11-14: shipped in v1.12.0 (`spec/1.12.0-measurements.md`) |
+| `role-files-in-state-dir` | `role-files-in-state-dir.md` | `eaba1a58` | archived on 2026-11-14: shipped in v1.12.0 (`spec/1.12.0-measurements.md`) |
+| `project-layer-from-task-file` | `project-layer-from-task-file.md` | `4e008d58` | archived on 2026-11-14: shipped in v1.12.0 (`spec/1.12.0-measurements.md`) |
+| `dashboard-ux` | `dashboard-ux.md` | `0cbef316` | archived on 2026-11-14: shipped in v1.13.0, field fixes in v1.14.2 and v1.17.1 (`spec/1.13.0-measurements.md`, `spec/1.14.1-measurements.md`, `spec/1.17.1-measurements.md`) |
+| `reconcile` | `reconcile-measurements.md`, `reconcile.md` | `4d31e859` | archived on 2026-11-14: a rewritten spec starting an epoch shipped in v1.14.0 (`spec/1.14.0-measurements.md`); `reconcile-measurements.md` last changed at `b7977073` |
+| `carried-rows-block` | `carried-rows-block.md` | `26e2d985` | archived on 2026-11-14: shipped in v1.16.0 (`spec/1.16.0-measurements.md`) |
+| `dashboard-graph` | `dashboard-graph.md` | `1786ff7f` | archived on 2026-11-14: shipped in v1.17.0 (`spec/1.17.0-measurements.md`) |
+| `audit-carried-fail-blocks` | `audit-carried-fail-blocks.md` | `a60ccdd3` | archived on 2026-11-14: shipped in v1.18.0 (`spec/1.18.0-measurements.md`) |
