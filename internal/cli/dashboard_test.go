@@ -167,7 +167,7 @@ func TestDashboard_ServesThePageOnTheLoopbackURL(t *testing.T) {
 
 	status, body := getPage(t, srv.url)
 	require.Equal(t, http.StatusOK, status)
-	assert.Contains(t, body, "<title>tp dashboard</title>")
+	assert.Contains(t, body, "<title>tp "+filepath.Base(dir)+" dashboard</title>", "the page names the repository it serves")
 
 	stderr, code := runDashboardOnce(t, dir, false, "--port", strconv.Itoa(port))
 	require.Equal(t, 1, code, "stderr: %s", stderr)
