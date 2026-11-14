@@ -129,6 +129,7 @@ func TestWorktreeCloseRecipeText(t *testing.T) {
 	hc := WorktreeCloseRecipeText(CommitStrategyHC, "go test ./...", "t1", nil)
 	assert.Contains(t, hc, "Commit with hc", "an hc project's unit commits with hc")
 	assert.NotContains(t, got, "Commit with hc")
+	assert.NotContains(t, hc, "touches:", "no touches line for a task without them")
 	for _, want := range []string{
 		"tp done t1 --commit <sha> -- \"<evidence>\"",
 		"touches: internal/x.go",

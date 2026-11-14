@@ -280,6 +280,21 @@ func TestIntegrate_AFailedCloseThatClosedTheTaskKeepsThePick(t *testing.T) {
 	assert.Empty(t, pending)
 }
 
+// TestTouchesEscapes: the picked files outside a task's touches are named;
+// files inside them, and a task without touches, name none.
+func TestTouchesEscapes(t *testing.T) {
+	root, _, _, _ := batchProject(t, oneDoneTask)
+	pre := gitIn(t, root, "rev-parse", "HEAD")
+	commitIn(t, root, "alpha.txt", "a\n")
+	commitIn(t, root, "docs/x.md", "x\n")
+	tf := &model.TaskFile{Tasks: []model.Task{
+		{ID: "a", Touches: []string{"alpha.txt"}}, {ID: "b"}, {ID: "c", Touches: []string{"alpha.txt", "docs/"}},
+	}}
+	assert.Equal(t, []string{"docs/x.md"}, touchesEscapes(root, tf, "a", pre))
+	assert.Empty(t, touchesEscapes(root, tf, "b", pre))
+	assert.Empty(t, touchesEscapes(root, tf, "c", pre))
+}
+
 // TestKeptUnitBranch: reconcile keeps the branch of a unit whose request is
 // still pending, so its commits stay referenced.
 func TestKeptUnitBranch(t *testing.T) {
@@ -354,4 +369,33 @@ func TestRunDriver_ImplementBatchGateFailureReopensSolo(t *testing.T) {
 	assert.NoFileExists(t, filepath.Join(root, "alpha.txt"), "the failed pick is taken back")
 	assert.FileExists(t, filepath.Join(root, "beta.txt"))
 	assert.Equal(t, model.StatusDone, taskByID(t, taskFile, "beta").Status)
+	pending, err := ReadPendingCloses(root, taskFile)
+	require.NoError(t, err)
+	assert.Empty(t, pending, "a discarded unit's request is removed")
+}
+
+// TestIntegrate_ADiscardedUnitLeavesItsLastFailure: the unit that redoes a
+// discarded task reads why the first attempt did not integrate.
+func TestIntegrate_ADiscardedUnitLeavesItsLastFailure(t *testing.T) {
+	const wipTask = `{"spec":"s.md","tasks":[{"id":"alpha","title":"A","status":"wip","depends_on":[],"estimate_minutes":5,"acceptance":"a","source_sections":["x"],"touches":["alpha.txt"]}]}`
+	root, spec, taskFile, _ := batchProject(t, wipTask)
+	gitIn(t, root, "switch", "-q", "-c", "unit")
+	unitSHA := commitIn(t, root, "alpha.txt", "alpha\n")
+	gitIn(t, root, "switch", "-q", "main")
+	require.NoError(t, WritePendingClose(root, taskFile, &PendingClose{ID: "alpha", Commits: []string{unitSHA}}))
+	d := &driver{
+		opts: &DriverOptions{Root: root, TaskFile: taskFile, Spec: spec,
+			CloseTask:  func(string, string, []string, string) error { return errors.New("quality gate failed") },
+			ReopenSolo: func(string) error { return nil },
+		},
+		runID: "r1",
+		sig:   &interrupts{ch: make(chan os.Signal, 1)},
+	}
+
+	require.NoError(t, d.integratePending())
+	f := ReadLastFailure(root, taskFile)
+	require.NotNil(t, f)
+	assert.Equal(t, "alpha", f.UnitID)
+	assert.Equal(t, 1, f.ExitCode)
+	assert.Contains(t, f.Summary, "quality gate failed")
 }
