@@ -240,7 +240,7 @@ growth --stats
 check_eq "unknown flag exit code" 2 "$code"
 growth ""
 check_eq "empty spec path exit code" 2 "$code"
-check_has "empty spec path names the command upstream" "printed nothing" "$tmp/err.txt"
+check_has "empty spec path names TP_SPEC" "TP_SPEC" "$tmp/err.txt"
 growth spec/missing.md
 check_eq "missing spec exit code" 2 "$code"
 check_has "missing spec is named" "no such spec: spec/missing.md" "$tmp/err.txt"
