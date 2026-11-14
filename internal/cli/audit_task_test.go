@@ -435,6 +435,144 @@ func TestTaskAuditDedupe_AChangedGradedFileIsReadAgain(t *testing.T) {
 	assert.Equal(t, []any{"a.go", "c.go"}, second["files"])
 }
 
+// TestTaskAudit_RecordRefusesAnUngradedItem: a role that skipped a file does
+// not settle it.
+func TestTaskAudit_RecordRefusesAnUngradedItem(t *testing.T) {
+	t.Parallel()
+	dir := taskAuditProject(t, "t1")
+	closeWith(t, dir, "t1", commitFiles(t, dir, "a.go", "b.go"))
+	res := emitTaskAudit(t, dir)
+	answerTaskAudit(t, dir, res, pass)
+	path := res["prompts"].([]any)[0].(map[string]any)["output_path"].(string)
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(dir, path)
+	}
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	first, _, _ := strings.Cut(string(data), "\n")
+	require.NoError(t, os.WriteFile(path, []byte(first+"\n"), 0o600))
+	_, stderr, code := runTP(t, dir, "audit", "spec.md", "--task-audit", "--record-inbox")
+	assert.Equal(t, 1, code, stderr)
+	assert.Contains(t, stderr, "ungraded")
+}
+
+// TestTaskAudit_StatusCountsClosesWithNothingToRead: a stamped close with no
+// auditable file owes nothing and is counted, not silent.
+func TestTaskAudit_StatusCountsClosesWithNothingToRead(t *testing.T) {
+	t.Parallel()
+	dir := taskAuditProject(t, "t1")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "notes.md"), []byte("# notes\n"), 0o600))
+	closeWith(t, dir, "t1", commitFiles(t, dir, "notes.md"))
+	out, stderr, code := runTP(t, dir, "audit", "spec.md", "--status")
+	require.Equal(t, 0, code, stderr)
+	var st map[string]any
+	require.NoError(t, json.Unmarshal([]byte(out), &st), out)
+	assert.EqualValues(t, 1, st["task_audits_nothing_to_read"])
+	assert.Nil(t, st["task_audits_owed"])
+}
+
+// commitAll commits every change in dir, tp state included, so tp resume
+// reports no unexplained change.
+func commitAll(t *testing.T, dir string) {
+	t.Helper()
+	for _, args := range [][]string{{"add", "-A"}, {"commit", "-q", "--allow-empty", "-m", "state"}} {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		out, err := cmd.CombinedOutput()
+		require.NoError(t, err, "git %v: %s", args, out)
+	}
+}
+
+// assertNoStall is the no-stall property: while a closed task owes a task
+// audit, the oracle hands tp run a unit that moves it, or names a blocker,
+// never neither.
+func assertNoStall(t *testing.T, dir, fixture string) {
+	t.Helper()
+	commitAll(t, dir)
+	out, stderr, code := runTP(t, dir, "audit", "spec.md", "--status")
+	require.Equal(t, 0, code, "%s status: %s", fixture, stderr)
+	var st map[string]any
+	require.NoError(t, json.Unmarshal([]byte(out), &st), out)
+	owed, _ := st["task_audits_owed"].([]any)
+	if len(owed) == 0 {
+		return
+	}
+	out, stderr, code = runTP(t, dir, "resume")
+	require.Equal(t, 0, code, "%s resume: %s", fixture, stderr)
+	var res map[string]any
+	require.NoError(t, json.Unmarshal([]byte(out), &res), out)
+	blockers, _ := res["blockers"].([]any)
+	for _, u := range nextUnitsOf(t, res) {
+		if kind := u["kind"].(string); strings.HasPrefix(kind, "task-audit") || kind == "audit-fix" {
+			return
+		}
+	}
+	assert.NotEmpty(t, blockers, "%s: %v owed, no task-audit unit and no blocker: %v", fixture, owed, res["next_units"])
+}
+
+// TestTaskAudit_NoStall: in every state the review found a stall in, a debt
+// either has a unit to move it or a named blocker.
+func TestTaskAudit_NoStall(t *testing.T) {
+	t.Parallel()
+	t.Run("zero-file close", func(t *testing.T) {
+		t.Parallel()
+		dir := taskAuditProject(t, "t1")
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "notes.md"), []byte("# n\n"), 0o600))
+		closeWith(t, dir, "t1", commitFiles(t, dir, "notes.md"))
+		assertNoStall(t, dir, "zero-file close")
+	})
+	t.Run("fully deduped close", func(t *testing.T) {
+		t.Parallel()
+		dir := dedupeProject(t)
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.go"), []byte("package x\n\n// t3\n"), 0o600))
+		closeWith(t, dir, "t3", commitFiles(t, dir, "a.go"))
+		recordTaskAuditWith(t, dir, emitTaskAudit(t, dir), "PASS")
+		assertNoStall(t, dir, "fully deduped close")
+	})
+	t.Run("sliced task with a deleted slice", func(t *testing.T) {
+		t.Parallel()
+		dir := taskAuditProject(t, "t1")
+		var twelve []string
+		for i := range 12 {
+			twelve = append(twelve, fmt.Sprintf("f%02d.go", i))
+		}
+		closeWith(t, dir, "t1", commitFiles(t, dir, twelve...))
+		recordTaskAuditWith(t, dir, emitTaskAudit(t, dir), "PASS")
+		for _, f := range twelve[10:] {
+			require.NoError(t, os.Remove(filepath.Join(dir, f)))
+		}
+		assertNoStall(t, dir, "sliced task with a deleted slice")
+	})
+	t.Run("role outside the panel", func(t *testing.T) {
+		t.Parallel()
+		dir := taskAuditProject(t, "t1")
+		_, stderr, code := runTP(t, dir, "set", "--workflow", "--project", `task_audit_roles=["ghost-role"]`)
+		require.Equal(t, 0, code, stderr)
+		closeWith(t, dir, "t1", commitFiles(t, dir, "a.go"))
+		assertNoStall(t, dir, "role outside the panel")
+	})
+	t.Run("reopen between emission and record", func(t *testing.T) {
+		t.Parallel()
+		dir := taskAuditProject(t, "t1")
+		closeWith(t, dir, "t1", commitFiles(t, dir, "a.go"))
+		res := emitTaskAudit(t, dir)
+		_, stderr, code := runTP(t, dir, "reopen", "t1")
+		require.Equal(t, 0, code, stderr)
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.go"), []byte("package x\n\n// reworked\n"), 0o600))
+		closeWith(t, dir, "t1", commitFiles(t, dir, "a.go"))
+		recordTaskAuditWith(t, dir, res, "PASS")
+		assertNoStall(t, dir, "reopen between emission and record")
+	})
+	t.Run("unparseable emission", func(t *testing.T) {
+		t.Parallel()
+		dir := taskAuditProject(t, "t1")
+		closeWith(t, dir, "t1", commitFiles(t, dir, "a.go"))
+		emitTaskAudit(t, dir)
+		require.NoError(t, os.WriteFile(filepath.Join(dir, ".tp-review", "spec", "task-audit-inbox", "batch-1.json"), []byte("{"), 0o600))
+		assertNoStall(t, dir, "unparseable emission")
+	})
+}
+
 // readReviewState reads spec.md's state.json.
 func readReviewState(t *testing.T, dir string) map[string]any {
 	t.Helper()
