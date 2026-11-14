@@ -97,7 +97,8 @@ func printBrief(tf *model.TaskFile, task *model.Task, taskFilePath, specPath str
 	}
 
 	// A unit in a worktree beside others commits on its branch and asks for
-	// the close; the driver gates (spec/backlog/parallel-implement.md §2.4).
+	// the close, which gates the worktree; the driver gates again on the main
+	// branch (spec/backlog/parallel-implement.md §2.4).
 	// The cycle's last failure lives under the main tree's root, which in a
 	// worktree is not the working directory.
 	failureRoot := "."

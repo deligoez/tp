@@ -103,7 +103,7 @@ func writeEvidenceContract(b *strings.Builder) {
 func WorktreeCloseRecipeText(effectiveStrategy, qualityGate, id string, touches []string) string {
 	var b strings.Builder
 	b.WriteString("How to close this unit.\n\n")
-	b.WriteString("You work in a worktree of your own while other units run beside you. The driver picks your commits onto the main branch, runs the gate there and closes the task.\n")
+	b.WriteString("You work in a worktree of your own while other units run beside you. tp done runs the gate here; the driver then picks your commits onto the main branch, runs the gate there again and closes the task.\n")
 	if len(touches) > 0 {
 		fmt.Fprintf(&b, "Your task's touches: %s. Keep your change inside them: they are what lets the units beside you run.\n", strings.Join(touches, ", "))
 	}
@@ -114,11 +114,11 @@ func WorktreeCloseRecipeText(effectiveStrategy, qualityGate, id string, touches 
 		b.WriteString("Commit your change on this worktree's branch.")
 	}
 	b.WriteString(" Change no path only tp writes: the task file, the spec's .tp-review/ or .tp/.\n")
-	b.WriteString("2. Run only the tests your change needs, never the whole suite: the units beside you are running theirs.\n")
+	b.WriteString("2. While you work, run only the tests your change needs, never the whole suite: the units beside you are running theirs, and tp done runs the gate once at the end.\n")
 	if qualityGate != "" {
-		fmt.Fprintf(&b, "   quality_gate (the driver runs it): %s\n", qualityGate)
+		fmt.Fprintf(&b, "   quality_gate (tp done runs it in this worktree): %s\n", qualityGate)
 	}
-	b.WriteString("\n3. Ask for the close, naming every commit you made; it runs no gate and closes nothing until the driver integrates:\n")
+	b.WriteString("\n3. Ask for the close, naming every commit you made; it gates this worktree and closes nothing until the driver integrates:\n")
 	fmt.Fprintf(&b, "   tp done %s --commit <sha> -- \"<evidence>\"   (repeat --commit per sha)\n\n", id)
 	b.WriteString("4. Write the closure reason as an evidence contract:\n")
 	writeEvidenceContract(&b)
