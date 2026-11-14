@@ -36,8 +36,10 @@ a field run before the tag. The measurements are in `spec/1.21.0-measurements.md
    emission and stored with it. The units have their own sequence, `task-audit-<n>`; they count toward
    neither `audit_max_rounds` nor the clean rounds, and an epoch cuts them like any round. The prompt
    adds one line: follow each call out of these files one hop into its callee to learn the callee's
-   error and exit contract; a row still anchors at a line in the batch's own files. Its trial run found
-   the cross-file FAIL every earlier run missed, for about a tenth more tokens (§5).
+   error and exit contract; a row still anchors at a line in the batch's own files. It found the
+   trial's cross-file FAIL once in three runs, for about a tenth more tokens (§5). Packing drops,
+   per role, the files a recorded grading of either kind already graded at a commit they have not
+   changed since, and counts ten after the drop.
 5. **Findings do not block the close, and no fix unit runs mid-phase.** A task-audit row joins the
    release audit's carried set and is repaired by the existing audit fix path.
 6. **Re-asking.** At the start of the audit phase, the files holding an unresolved task-audit row are
@@ -53,10 +55,12 @@ a field run before the tag. The measurements are in `spec/1.21.0-measurements.md
 
 ## 3. Cost
 
-Batches of ten put the fixed cost at one agent per ten files. For a release like 1.8.0, which closed 57
-tasks over about 170 auditable files, that is some 17 units: about 2M tokens for go-safety, against
-about 4.5M for one unit per task and about 130k for today's capped role. The field run measures the real
-figure before the tag.
+Batches of ten put the fixed cost at one agent per ten files, about 130k tokens a unit in the field
+run. 1.8.0's 61 tasks touched 206 auditable files, 91 of them distinct: some 26 task audits, about
+3.4M tokens, when each is read as its tasks close and a later change is read again; about ten, some
+1.3M, when the files a recorded grading already read at an unchanged commit are dropped, which is
+the floor for a phase audited at its end. Today's capped release role costs about 130k
+(`spec/1.22.0-measurements.md`).
 
 ## 4. Alternatives and cuts
 
@@ -77,7 +81,8 @@ figure before the tag.
 - The trial's historical FAIL was cross-file: a call in one task's file into another file's function
   that exits the process. Neither the whole-pool runs nor the three-file run found it; the same three-file
   run with the callee line did, at the right line and for the right reason, though graded PARTIAL where
-  the history says FAIL. One run is not a rate; the field run counts how often the hop pays.
+  the history says FAIL; two field-run task audits holding the same file did not. Depth on a
+  batch's own files reaches a callee's contract sometimes, not reliably.
 
 ## 6. Field run
 
