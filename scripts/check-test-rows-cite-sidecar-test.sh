@@ -38,9 +38,12 @@ expect 1 heading-suffix.md "'## 5. Tests and fixtures' opens no section"
 expect 1 unclosed-fence.md "an unclosed fence above the section swallows it"
 expect 1 cites.md "a scanned cell citing the sidecar is the defect itself"
 expect 0 clean.md "a scanned table carrying its own fixture and mutant"
+expect 1 no-tests-section.md "a release spec with no Tests section certifies nothing"
+expect 0 spec/backlog/decision-note.md "a backlog note with no test heading is not applicable"
+expect 1 spec/backlog/near-miss-heading.md "a backlog note whose test heading misses the pattern still fails"
 
 if [ "$failures" != 0 ]; then
 	printf '%s fixture(s) failed\n' "$failures"
 	exit 1
 fi
-echo "5 fixtures passed"
+echo "8 fixtures passed"
