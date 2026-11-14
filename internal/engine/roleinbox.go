@@ -64,6 +64,10 @@ func RemoveRoundInbox(specPath, phase string, round int) error {
 	if phase == PhaseAudit {
 		files = append(files, AuditPoolsPath(specPath, round))
 	}
+	// A review round's owed roles and the rows --record-inbox merged from them.
+	if phase == PhaseReview {
+		files = append(files, ReviewOwedRolesPath(specPath, round), ReviewInboxMergedPath(specPath, round))
+	}
 	for _, f := range files {
 		if rmErr := os.Remove(f); rmErr != nil && !os.IsNotExist(rmErr) {
 			return rmErr

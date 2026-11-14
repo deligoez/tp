@@ -710,9 +710,11 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 	if regressionIncluded {
 		builtinUnits = append(builtinUnits, engine.RegressionRoleID)
 	}
+	owed := owedReviewRoles(prompts)
 	prompts, skippedRoles = filterReviewPrompts(prompts, roleQueryFor(specPath, roleFilter, roleGiven).withSiblingUnits(&panel, builtinUnits...), skippedRoles)
 	if !noState {
 		writeReviewRoundSnapshot(cmd, specPath, round)
+		keepOwedReviewRoles(specPath, round, owed)
 	}
 
 	// Mechanical checks: workflow-derived (not state-derived), run even under
