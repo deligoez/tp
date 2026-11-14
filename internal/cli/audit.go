@@ -613,8 +613,9 @@ func loadAuditPriorRound(specPath string) map[string]*auditPriorRound {
 	}
 	// Only a round recorded after the newest epoch is a prior round: one
 	// before it graded a text the spec no longer holds (tp review --rewritten).
+	// A task audit after it is one too, before any audit round is recorded.
 	since := engine.RoundsSinceEpoch(st, engine.PhaseAudit)
-	if len(since) == 0 {
+	if len(since) == 0 && len(engine.TaskAuditsSinceEpoch(st)) == 0 {
 		return nil
 	}
 	carried, missing := engine.AuditCarriedSet(specPath, st)
@@ -624,54 +625,97 @@ func loadAuditPriorRound(specPath string) map[string]*auditPriorRound {
 		// review_regression.go all say so on the same condition.
 		output.Notice(fmt.Sprintf("round %d file %s is missing; skipping its rows", missing[i].Round, missing[i].File))
 	}
-	return auditPriorRowsByRole(specPath, carried, since)
+	return auditPriorRowsByRole(specPath, st, carried, since)
 }
 
 // auditPriorRowsByRole files the carried rows under their role for the
 // prior-round section: each with its round when it is older than the last
-// round since the epoch, its disposition, and its changed-since flag measured
-// from its own round. A role's section is legacy when the last round or the
-// round of any of its rows was recorded before stable item ids.
-func auditPriorRowsByRole(specPath string, carried []engine.CarriedRow, since []engine.ReviewRound) map[string]*auditPriorRound {
-	prior := &since[len(since)-1]
-	byNumber := make(map[int]*engine.ReviewRound, len(since))
-	for i := range since {
-		byNumber[since[i].Round] = &since[i]
+// round since the epoch, or the task audit that graded it, its disposition,
+// its reason and lines, and its changed-since flag measured from its own
+// grading. A role's section is legacy when the last round or the round of
+// any of its rows was recorded before stable item ids.
+func auditPriorRowsByRole(specPath string, st *engine.ReviewState, carried []engine.CarriedRow, since []engine.ReviewRound) map[string]*auditPriorRound {
+	var prior *engine.ReviewRound
+	if len(since) > 0 {
+		prior = &since[len(since)-1]
 	}
-	changedByRound := make(map[int]map[string]bool)
+	ch := newPriorChanged(specPath, st, since)
 	byRole := make(map[string]*auditPriorRound)
 	for i := range carried {
 		c := &carried[i]
-		role, _ := c.Row["role"].(string)
-		status, _ := c.Row["status"].(string)
-		itemID, _ := c.Row["item_id"].(string)
-		ef, _ := c.Row["evidence_file"].(string)
-		pr := priorAuditRow{Role: role, ItemID: itemID, Status: status}
-		if c.Round < prior.Round {
-			pr.Round = c.Round
-		}
-		pr.Disposition, pr.DispositionEvidence = priorRowDisposition(c.Row)
-		if ef != "" {
-			changedFiles, ok := changedByRound[c.Round]
-			if !ok {
-				changedFiles = filesChangedSinceRound(specPath, byNumber[c.Round])
-				changedByRound[c.Round] = changedFiles
-			}
-			pr.EvidenceFile = ef
-			changed := changedFiles[ef]
-			pr.ChangedSince = &changed
-		}
-		entry := byRole[role]
+		pr := priorRowOf(c, prior, ch)
+		entry := byRole[pr.Role]
 		if entry == nil {
-			entry = &auditPriorRound{legacy: engine.IsLegacyRound(prior)}
-			byRole[role] = entry
+			entry = &auditPriorRound{legacy: prior != nil && engine.IsLegacyRound(prior)}
+			byRole[pr.Role] = entry
 		}
-		if engine.IsLegacyRound(byNumber[c.Round]) {
+		if r := ch.byNumber[c.Round]; c.TaskAudit == 0 && r != nil && engine.IsLegacyRound(r) {
 			entry.legacy = true
 		}
 		entry.add(&pr)
 	}
 	return byRole
+}
+
+// priorRowOf is one carried row as the prior-round section lists it.
+func priorRowOf(c *engine.CarriedRow, prior *engine.ReviewRound, ch *priorChanged) priorAuditRow {
+	role, _ := c.Row["role"].(string)
+	status, _ := c.Row["status"].(string)
+	itemID, _ := c.Row["item_id"].(string)
+	ef, _ := c.Row["evidence_file"].(string)
+	pr := priorAuditRow{Role: role, ItemID: itemID, Status: status, TaskAudit: c.TaskAudit}
+	pr.Notes, _ = c.Row["notes"].(string)
+	pr.EvidenceLines, _ = c.Row["evidence_lines"].(string)
+	if c.TaskAudit == 0 && prior != nil && c.Round < prior.Round {
+		pr.Round = c.Round
+	}
+	pr.Disposition, pr.DispositionEvidence = priorRowDisposition(c.Row)
+	if ef != "" {
+		pr.EvidenceFile = ef
+		changed := ch.changed(c, ef)
+		pr.ChangedSince = &changed
+	}
+	return pr
+}
+
+// priorChanged answers whether a carried row's evidence file changed since
+// its grading: since its audit round was recorded, or since the commit its
+// task audit read.
+type priorChanged struct {
+	specPath string
+	byNumber map[int]*engine.ReviewRound
+	byRound  map[int]map[string]bool
+	heads    map[int]string
+}
+
+func newPriorChanged(specPath string, st *engine.ReviewState, since []engine.ReviewRound) *priorChanged {
+	ch := &priorChanged{specPath: specPath, byNumber: make(map[int]*engine.ReviewRound, len(since)),
+		byRound: make(map[int]map[string]bool), heads: make(map[int]string)}
+	for i := range since {
+		ch.byNumber[since[i].Round] = &since[i]
+	}
+	if st != nil {
+		for i := range st.TaskAudits {
+			ch.heads[st.TaskAudits[i].Seq] = st.TaskAudits[i].Head
+		}
+	}
+	return ch
+}
+
+func (ch *priorChanged) changed(c *engine.CarriedRow, file string) bool {
+	if c.TaskAudit > 0 {
+		return engine.FileChangedSince(filepath.Dir(ch.specPath), ch.heads[c.TaskAudit], file)
+	}
+	round := ch.byNumber[c.Round]
+	if round == nil {
+		return true
+	}
+	files, ok := ch.byRound[c.Round]
+	if !ok {
+		files = filesChangedSinceRound(ch.specPath, round)
+		ch.byRound[c.Round] = files
+	}
+	return files[file]
 }
 
 // filesChangedSinceRound returns the set of repo-relative paths that changed

@@ -150,7 +150,10 @@ type priorAuditRow struct {
 	ItemID              string `json:"item_id"`
 	Status              string `json:"status"`
 	Round               int    `json:"round,omitempty"`
+	TaskAudit           int    `json:"task_audit,omitempty"`
 	EvidenceFile        string `json:"evidence_file,omitempty"`
+	EvidenceLines       string `json:"evidence_lines,omitempty"`
+	Notes               string `json:"notes,omitempty"`
 	ChangedSince        *bool  `json:"changed_since,omitempty"`
 	Disposition         string `json:"disposition,omitempty"`
 	DispositionEvidence string `json:"disposition_evidence,omitempty"`
@@ -215,8 +218,9 @@ func (p *auditPriorRound) listsItemOutside(items []ChecklistItem) bool {
 	for i := range items {
 		listed[items[i].ItemID] = true
 	}
-	for _, r := range slices.Concat(p.rows, p.earlier) {
-		if !listed[r.ItemID] {
+	all := slices.Concat(p.rows, p.earlier)
+	for i := range all {
+		if !listed[all[i].ItemID] {
 			return true
 		}
 	}
@@ -226,8 +230,9 @@ func (p *auditPriorRound) listsItemOutside(items []ChecklistItem) bool {
 // hasEarlierRound reports whether some row of the section that is not
 // accepted was graded before the previous round.
 func (p *auditPriorRound) hasEarlierRound() bool {
-	for _, r := range slices.Concat(p.rows, p.earlier) {
-		if r.Round > 0 && r.Disposition != "wontfix" && r.Disposition != "duplicate" {
+	all := slices.Concat(p.rows, p.earlier)
+	for i := range all {
+		if r := &all[i]; r.Round > 0 && r.Disposition != "wontfix" && r.Disposition != "duplicate" {
 			return true
 		}
 	}
@@ -238,8 +243,9 @@ func (p *auditPriorRound) hasEarlierRound() bool {
 // section's rows carry: accepted (wontfix, duplicate) and fixed.
 func (p *auditPriorRound) dispositionFraming() string {
 	var accepted, fixed bool
-	for _, r := range slices.Concat(p.rows, p.earlier) {
-		switch r.Disposition {
+	all := slices.Concat(p.rows, p.earlier)
+	for i := range all {
+		switch all[i].Disposition {
 		case "wontfix", "duplicate":
 			accepted = true
 		case "fixed":
@@ -297,8 +303,8 @@ func renderPriorRoundSection(prior *auditPriorRound, items []ChecklistItem) stri
 
 // writePriorRows writes one JSON line per prior row.
 func writePriorRows(b *strings.Builder, rows []priorAuditRow) {
-	for _, r := range rows {
-		data, _ := json.Marshal(r)
+	for i := range rows {
+		data, _ := json.Marshal(&rows[i])
 		b.Write(data)
 		b.WriteString("\n")
 	}
