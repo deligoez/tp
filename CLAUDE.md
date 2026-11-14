@@ -79,30 +79,12 @@ A fix that turns out to need a design choice stops and becomes a decision. Repai
 its first round delete or narrow; they do not add requirements.
 
 Open work is `BUGS.md` (the fix track, and entries awaiting an operator decision); the decision
-candidates in `spec/backlog/` are worked through. Implement units running side by side in worktrees
-under `tp run` shipped in v1.19.0 (`spec/backlog/parallel-implement.md`, `spec/1.19.0-measurements.md`),
-an audit FAIL no later round re-grades holding
-convergence open shipped in v1.18.0 (`spec/backlog/audit-carried-fail-blocks.md`,
-`spec/1.18.0-measurements.md`), a carried blocking review row holding convergence
-open in v1.16.0 (`spec/backlog/carried-rows-block.md`, `spec/1.16.0-measurements.md`), the
-audit's file list covering what changed in v1.15.0 (`spec/backlog/checklist-covers-what-changed.md`,
-`spec/1.15.0-measurements.md`), a
-rewritten spec starting an epoch in v1.14.0 (`spec/backlog/reconcile.md`,
-`spec/1.14.0-measurements.md`), the dashboard at a real plan's size in v1.13.0 and its field fixes in
-v1.14.2 (`spec/backlog/dashboard-ux.md`,
-`spec/1.13.0-measurements.md`, `spec/1.14.1-measurements.md`); the regression unit under `tp run`,
-staleness only through a round's own emission, the ground scratch file and the review and audit
-role files in the spec's state directory, and the project layer from the task file shipped in
-v1.12.0 (`spec/backlog/run-regression-unit.md`, `hand-recorded-staleness.md`,
-`ground-scratch-in-state-dir.md`, `role-files-in-state-dir.md`, `project-layer-from-task-file.md`,
-`spec/1.12.0-measurements.md`), the epic `description` shipped in v1.11.0
-(`spec/backlog/epic-description.md`, `spec/1.11.0-measurements.md`), `deferrable-required`, the
-epic review re-emit guard and `--record-inbox` in v1.10.0
-(`spec/backlog/deferrable-required.md`, `epic-reemit-guard.md`, `epic-role-attribution.md`,
-`spec/1.10.0-measurements.md`), `tp epic scope` and the `gate-scope` graph role in v1.9.0
-(`spec/backlog/epic-scope.md`, `spec/1.9.0-measurements.md`), `tp dashboard` and the lifecycle
-timestamps in v1.8.0 (`spec/1.8.0.md`), and `spec/backlog/ARCHIVE.md` holds the rest. The epic
-layer's deferred pilot items are in `spec/1.3.0-measurements.md`.
+candidates in `spec/backlog/` are worked through. A shipped decision note leaves for
+`spec/backlog/ARCHIVE.md`, one row each naming the release and the sha to read it at; what the release
+measured stays in `spec/<version>-measurements.md`. Implement units running side by side in worktrees
+under `tp run` shipped in v1.19.0 (`spec/backlog/parallel-implement.md`, `spec/1.19.0-measurements.md`)
+and stays in the backlog until its follow-ups land. The epic layer's deferred pilot items are in
+`spec/1.3.0-measurements.md`.
 
 ## Rules
 
