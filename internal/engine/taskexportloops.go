@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -174,11 +175,11 @@ func exportGroundLoop(specPath string) (ExportLoop, error) {
 func exportGroundRound(specPath string, round int) (ExportRound, error) {
 	floor, err := readGroundFloor(specPath, round)
 	if err != nil {
-		return ExportRound{}, err
+		return ExportRound{}, fmt.Errorf("ground round %d: %s: %w", round, GroundFloorPath(specPath, round), err)
 	}
 	rows, err := readGroundRoundRows(specPath, round)
 	if err != nil {
-		return ExportRound{}, err
+		return ExportRound{}, fmt.Errorf("ground round %d: %s: %w", round, GroundRoundPath(specPath, round), err)
 	}
 	fails := groundVerdictCounts(rows)[VerdictFail]
 	cov := GroundCoverageOf(floor, rows)
