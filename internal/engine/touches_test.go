@@ -70,4 +70,6 @@ func TestTouches_AMalformedGlobIsNamed(t *testing.T) {
 	assert.Error(t, ValidTouches([]string{"/etc/passwd"}))
 	assert.Error(t, ValidTouches([]string{"../other/x.go"}))
 	assert.Error(t, ValidTouches([]string{""}))
+	assert.NoError(t, ValidTouches([]string{"internal/engine/**"}), "a trailing /** is a subtree")
+	assert.Error(t, ValidTouches([]string{"internal/**/x.go"}), "a ** inside a path would read as one *")
 }
