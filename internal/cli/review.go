@@ -714,8 +714,10 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 	owed := owedReviewRoles(prompts)
 	prompts, skippedRoles = filterReviewPrompts(prompts, roleQueryFor(specPath, roleFilter, roleGiven).withSiblingUnits(&panel, builtinUnits...), skippedRoles)
 	if !noState {
-		writeReviewRoundSnapshot(cmd, specPath, round)
+		// The owed roles go first: a snapshot without them would read as a
+		// round emitted before v1.20.0, which --record <file> records.
 		keepOwedReviewRoles(specPath, round, owed)
+		writeReviewRoundSnapshot(cmd, specPath, round)
 	}
 
 	// Mechanical checks: workflow-derived (not state-derived), run even under
