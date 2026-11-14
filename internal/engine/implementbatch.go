@@ -3,6 +3,8 @@ package engine
 import (
 	"fmt"
 	"path/filepath"
+	"regexp"
+	"strings"
 
 	"github.com/deligoez/tp/internal/model"
 )
@@ -101,7 +103,17 @@ func batchBriefs(units []NextUnit) {
 // batchable reports whether a task may run beside another: it names what it
 // touches and no failed integration marked it to run alone.
 func batchable(t *model.Task) bool {
-	return len(t.Touches) > 0 && !t.Solo
+	return len(t.Touches) > 0 && !t.Solo && batchSafeID(t.ID)
+}
+
+// batchSafeIDRe is the id a batch can carry into a branch name, a worktree
+// path and a pending close's file name unescaped.
+var batchSafeIDRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
+
+// batchSafeID reports whether a task id is safe in all three: no path
+// separator, no "..", and no ".lock" suffix git refuses in a ref.
+func batchSafeID(id string) bool {
+	return batchSafeIDRe.MatchString(id) && !strings.Contains(id, "..") && !strings.HasSuffix(id, ".lock")
 }
 
 func disjointFromAll(t *model.Task, batch []*model.Task) bool {
