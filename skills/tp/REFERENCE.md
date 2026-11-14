@@ -2516,7 +2516,9 @@ whole. `--list` ignores `--file` and `--compact`.
 
 Serves the embedded page and its data on `127.0.0.1:<port>` (7377 unless `--port`), prints the URL —
 the bare URL in a TTY, `{url}` when piped or under `--json` — and serves until `SIGINT` or `SIGTERM`.
-It writes nothing to the repository and loads nothing remote.
+It writes nothing to the repository and loads nothing remote. The page's brand and tab title read
+`tp <project> dashboard` (v1.21.2), `<project>` being the name of the repository root's directory, or
+of the working directory outside git, so two dashboards open side by side tell apart.
 
 | Request | Answer |
 |---------|--------|
