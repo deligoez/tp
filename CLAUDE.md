@@ -81,14 +81,14 @@ its first round delete or narrow; they do not add requirements.
 Open work is `BUGS.md` (the fix track, and entries awaiting an operator decision); the decision
 candidates in `spec/backlog/` are worked through. A shipped decision note leaves for
 `spec/backlog/ARCHIVE.md`, one row each naming the release and the sha to read it at; what the release
-measured stays in `spec/<version>-measurements.md`. v1.21.0 records an emitted review round only from
-its inbox and reuses a parallel unit's gate when the main branch holds the tree it gated
-(`spec/1.21.0-measurements.md`); v1.20.1 hands every registered check its spec in `TP_SPEC`. The
-audit trial in `spec/1.21.1-measurements.md` showed one prompt over a long file list skims, which led
-to `per-task-code-audit.md`, the next decision, awaiting the operator's read. `converged-payload-open.md`
-is parked until a project sets `audit_converge_on: blocking`. Other parked and closed decisions are in
-`spec/undecided.md`. The
-epic layer's deferred pilot items are in `spec/1.3.0-measurements.md`.
+measured stays in `spec/<version>-measurements.md`. v1.22.0 audits each closed task's own files in
+batches of ten through `task_audit_roles` (`tp audit --task-audit`; `spec/1.22.0-measurements.md`), after
+the audit trial in `spec/1.21.1-measurements.md` showed one prompt over a long file list skims. v1.21.0
+records an emitted review round only from its inbox and reuses a parallel unit's gate when the main
+branch holds the tree it gated (`spec/1.21.0-measurements.md`); v1.20.1 hands every registered check its
+spec in `TP_SPEC`. `converged-payload-open.md` is parked until a project sets `audit_converge_on:
+blocking`. Other parked and closed decisions are in `spec/undecided.md`. The epic layer's deferred pilot
+items are in `spec/1.3.0-measurements.md`.
 
 ## Rules
 
