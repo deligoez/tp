@@ -89,9 +89,13 @@ func TouchesWarnings(tf *model.TaskFile, maxParallel int) []Finding {
 		return nil
 	}
 	// One finding for all of them: the fix is the same command per task.
+	subject := fmt.Sprintf("%d open tasks have no touches, so they never run", len(ids))
+	if len(ids) == 1 {
+		subject = "1 open task has no touches, so it never runs"
+	}
 	return []Finding{{Severity: "warning", Rule: "touches", Message: fmt.Sprintf(
-		`%d open tasks have no touches, so they never run beside another task (run_max_parallel %d): %s; set each with tp set <id> 'touches=["path/to/file.go","dir/**"]'`,
-		len(ids), maxParallel, strings.Join(ids, ", "))}}
+		`%s beside another task (run_max_parallel %d): %s; set each with tp set <id> 'touches=["path/to/file.go","dir/**"]'`,
+		subject, maxParallel, strings.Join(ids, ", "))}}
 }
 
 // batchBriefs gives each unit of an implement batch the brief that names its
@@ -118,7 +122,8 @@ var batchSafeIDRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 // batchSafeID reports whether a task id is safe in all three: no path
 // separator, no "..", and no ".lock" suffix git refuses in a ref.
 func batchSafeID(id string) bool {
-	return batchSafeIDRe.MatchString(id) && !strings.Contains(id, "..") && !strings.HasSuffix(id, ".lock")
+	return batchSafeIDRe.MatchString(id) && !strings.Contains(id, "..") &&
+		!strings.HasSuffix(id, ".lock") && !strings.HasSuffix(id, ".")
 }
 
 func disjointFromAll(t *model.Task, batch []*model.Task) bool {
