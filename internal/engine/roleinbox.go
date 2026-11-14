@@ -68,6 +68,10 @@ func RemoveRoundInbox(specPath, phase string, round int) error {
 	if phase == PhaseReview {
 		files = append(files, ReviewOwedRolesPath(specPath, round), ReviewInboxMergedPath(specPath, round))
 	}
+	// A task audit's frozen emission.
+	if phase == PhaseTaskAudit {
+		files = append(files, TaskAuditEmissionPath(specPath, round))
+	}
 	for _, f := range files {
 		if rmErr := os.Remove(f); rmErr != nil && !os.IsNotExist(rmErr) {
 			return rmErr
