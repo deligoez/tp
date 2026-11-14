@@ -145,12 +145,12 @@ func gateExitCode(res engine.RunResult) int {
 // record back with, so the writer and the readers of one cycle always name the
 // same file. The write is best-effort for the reason the driver's is: the
 // record is advisory (§4.2), and a close must not fail over a hint file.
-func recordGateFailure(taskFilePath string, wf *model.Workflow, res engine.RunResult) {
+func recordGateFailure(failureRoot, taskFilePath string, wf *model.Workflow, res engine.RunResult) {
 	kind := os.Getenv(engine.EnvUnitKind)
 	if kind == "" {
 		return
 	}
-	_ = engine.WriteLastFailure(".", taskFilePath, &engine.LastFailure{
+	_ = engine.WriteLastFailure(failureRoot, taskFilePath, &engine.LastFailure{
 		UnitKind: engine.UnitKind(kind),
 		UnitID:   os.Getenv(engine.EnvUnitID),
 		Phase:    os.Getenv(engine.EnvPhase),
@@ -172,19 +172,34 @@ func recordGateFailure(taskFilePath string, wf *model.Workflow, res engine.RunRe
 // passes false, so the record stays what the spec describes rather than
 // whatever ran a gate.
 func runQualityGatePreFlock(taskFilePath string, recordFailure bool) bool {
+	failureRoot := ""
+	if recordFailure {
+		failureRoot = "."
+	}
+	return runQualityGateIn(taskFilePath, gateDir(taskFilePath), failureRoot, "")
+}
+
+// runQualityGateIn is runQualityGatePreFlock with the directory the gate runs
+// in and the root its failure record goes under named by the caller: a unit's
+// worktree gates its own checkout and leaves the record under the main tree's
+// root, where the retry's brief reads it. An empty failureRoot writes no record;
+// a non-empty hint replaces the default one.
+func runQualityGateIn(taskFilePath, dir, failureRoot, hint string) bool {
 	wf := engine.EffectiveWorkflowForTaskFile(taskFilePath)
 	if wf.QualityGate == "" {
 		return false
 	}
-	dir := gateDir(taskFilePath)
 	res := engine.RunCommand(wf.QualityGate, dir, time.Duration(wf.EffectiveGateTimeoutSeconds())*time.Second, gateOutputTailLines)
 	if res.Passed {
 		return true
 	}
-	if recordFailure {
-		recordGateFailure(taskFilePath, &wf, res)
+	if failureRoot != "" {
+		recordGateFailure(failureRoot, taskFilePath, &wf, res)
 	}
-	msg, hint := gateFailureText(&wf, res, dir)
+	msg, defaultHint := gateFailureText(&wf, res, dir)
+	if hint == "" {
+		hint = defaultHint
+	}
 	errOut := map[string]any{
 		"error":       msg,
 		"code":        ExitState,

@@ -810,7 +810,7 @@ func runDoneBatch() error {
 			// §4.2: the batch path runs the same gate for the same reason,
 			// and does not exit through runQualityGatePreFlock, so it
 			// records the failure itself.
-			recordGateFailure(taskFilePath, &gateWf, gateRes)
+			recordGateFailure(".", taskFilePath, &gateWf, gateRes)
 		}
 	}
 
