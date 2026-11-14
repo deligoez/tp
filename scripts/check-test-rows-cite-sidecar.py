@@ -36,7 +36,9 @@ cell cites it, and 1 when nothing was scanned at all. That last case is the
 point: the three ways this scan empties itself — a plural header, a Tests
 heading carrying a suffix, an unclosed fence anywhere above the section — each
 returned success over an input whose fixture cell did cite the sidecar, so a
-zero-row run certifies nothing and must not pass.
+zero-row run certifies nothing and must not pass. The one exception is a spec
+under `spec/backlog/` with no heading containing `test`: a decision note has no
+Tests table by design, so it is reported not applicable and passes.
 `scripts/check-test-rows-cite-sidecar-test.sh` holds one fixture per way.
 `--stats` adds the scanned-row and scanned-file counts to stdout, which is what
 makes a corpus run reportable.
@@ -140,6 +142,34 @@ def check_spec(spec: pathlib.Path) -> tuple[list[str], int]:
     return problems, scanned_rows
 
 
+TEST_WORD_HEADING = re.compile(r"^#{1,6}\s+.*test", re.I)
+
+
+def not_applicable(spec: pathlib.Path) -> bool:
+    """A backlog decision note with no test-like heading has no Tests table to scan.
+
+    A Decision-track note (decision, alternatives, non-goals) carries no Tests
+    table by design, and since tp hands a check the spec under review (TP_SPEC,
+    v1.20.1) such a note reaches this check. Applicability is read from where
+    the spec lives, which a typo cannot change, and from the absence of any
+    heading containing `test`: a note that does carry a test heading the scan
+    does not recognise (`## 2. Testing`) still fails below, as every release
+    spec without a Tests section does.
+    """
+    parts = spec.resolve().parts
+    in_backlog = any(a == "spec" and b == "backlog" for a, b in zip(parts, parts[1:]))
+    if not in_backlog:
+        return False
+    fenced = False
+    for raw in spec.read_text(encoding="utf-8").splitlines():
+        if raw.lstrip().startswith("```"):
+            fenced = not fenced
+            continue
+        if not fenced and TEST_WORD_HEADING.match(raw):
+            return False
+    return True
+
+
 def main(argv: list[str]) -> int:
     args = [a for a in argv[1:] if a != "--stats"]
     stats = "--stats" in argv[1:]
@@ -149,11 +179,16 @@ def main(argv: list[str]) -> int:
 
     problems: list[str] = []
     rows = files = 0
+    graded = 0
     for arg in args:
         spec = pathlib.Path(arg)
         if not spec.is_file():
             print(f"no such spec: {arg}", file=sys.stderr)
             return 2
+        if not_applicable(spec):
+            print(f"{arg}: not applicable, a backlog note with no test heading")
+            continue
+        graded += 1
         found, n = check_spec(spec)
         problems.extend(found)
         rows += n
@@ -166,9 +201,9 @@ def main(argv: list[str]) -> int:
     if problems:
         print(f"{len(problems)} Tests row cell(s) citing the measurements sidecar")
         return 1
-    if rows == 0:
+    if graded and rows == 0:
         print(
-            f"scanned 0 Tests-table rows across {len(args)} file(s) — a clean exit here "
+            f"scanned 0 Tests-table rows across {graded} file(s) — a clean exit here "
             "would certify nothing. Check the Tests heading (its text must end at `Tests`), "
             "the column headers (`fixture`/`mutant` as whole words, not `fixtures`/`mutants`), "
             "and every code fence above the section for one that is never closed."
