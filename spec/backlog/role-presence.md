@@ -38,7 +38,9 @@ in `spec/1.20.0-measurements.md`.
    merges every role file there and refuses, exit 3, naming each required role with no file. The
    required roles are every role the round would have asked without a `--role` filter: the emitted
    ones plus those `skipped_roles` lists with reason `role-filter`; the other skip reasons stay
-   exempt. An empty file is a role that ran and found nothing. A line the reader skips or a row
+   exempt. The emission stores that list in the inbox, so a `--diff-from` round or a regression
+   prompt is owed exactly as emitted, and a round emitted without it is refused with the way to
+   re-emit. An empty file is a role that ran and found nothing. A line the reader skips or a row
    naming another role than its file's is refused, exit 1, as epic review refuses them. The
    review-record unit under `tp run` keeps its merge-then-record chain: there the oracle already
    schedules it only once every role's file parses.

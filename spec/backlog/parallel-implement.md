@@ -23,7 +23,8 @@ measurements): worth having, and bounded by how well a task names what it touche
    `touches` when `run_max_parallel` is above 1.
 2. **`run_max_parallel` caps a batch.** A workflow field, default 1, so nothing changes until the
    operator raises it, an operator decision as every `run_max_*` is. In the implement phase the oracle
-   returns up to that many ready tasks whose `touches` are pairwise disjoint, the first ready task
+   returns up to that many ready tasks whose named `touches` overlap none already in the batch (a task
+   without them joins unscreened), the first ready task
    leading; two globs overlap unless their literal prefixes diverge, case-insensitively, and an empty
    literal prefix overlaps everything. Each unit's brief names its task id.
 3. **A worktree per unit, outside the tree.** For a batch of more than one, the driver adds a git
