@@ -62,6 +62,12 @@ func (b *tailBuffer) tail(n int) []string {
 // OutputTail keeps its last tailLines lines. A run exceeding timeout is
 // killed and counts as a failure with a timed-out message.
 func RunCommand(command, dir string, timeout time.Duration, tailLines int) RunResult {
+	return RunCommandEnv(command, dir, nil, timeout, tailLines)
+}
+
+// RunCommandEnv is RunCommand with the child's environment given: env nil
+// inherits the tp process's environment, anything else replaces it.
+func RunCommandEnv(command, dir string, env []string, timeout time.Duration, tailLines int) RunResult {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
@@ -72,6 +78,7 @@ func RunCommand(command, dir string, timeout time.Duration, tailLines int) RunRe
 		cmd = exec.CommandContext(ctx, "sh", "-c", command)
 	}
 	cmd.Dir = dir
+	cmd.Env = env
 	buf := &tailBuffer{max: runBufferSize}
 	cmd.Stdout = buf
 	cmd.Stderr = buf
