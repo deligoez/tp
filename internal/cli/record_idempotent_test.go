@@ -28,6 +28,11 @@ func recordUnitRound(t *testing.T, dir, verb, content string, extra []string) (o
 	t.Helper()
 	f := filepath.Join(dir, "merged.ndjson")
 	require.NoError(t, os.WriteFile(f, []byte(content), 0o600))
+	if verb == "audit" {
+		// Since v1.20.0 an audit round recorded without an emission is no
+		// clean spec-coverage round (spec/backlog/role-presence.md).
+		markRoundEmitted(t, dir, verb)
+	}
 	var stdout string
 	stdout, stderr, code = runTPEnv(t, dir, extra, verb, "spec.md", "--record", f)
 	if code == 0 {

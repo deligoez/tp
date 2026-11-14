@@ -519,6 +519,7 @@ func TestAuditGate_AnAcceptedFindingLeavesTheRound(t *testing.T) {
 	// With evidence it lands, and re-recording the file records it accepted.
 	_, stderr, code = runTPFence(t, dir, false, "audit", results, "--resolve", "go-safety:go-safety-item", "wontfix", "measured: unreachable from any caller")
 	require.Equal(t, 0, code, "stderr: %s", stderr)
+	markRoundEmitted(t, dir, "audit")
 	reRecord, stderr, code := runTPFence(t, dir, false, "audit", "spec.md", "--record", results)
 	require.Equal(t, 0, code, "stderr: %s", stderr)
 	assert.Contains(t, decodeSignal(t, reRecord)["role_streaks"],

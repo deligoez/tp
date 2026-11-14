@@ -151,6 +151,7 @@ func TestAuditCarry_TheCarryIsNotFencedUnattended(t *testing.T) {
 	dir := carryRepo(t, "2021-01-01T00:00:00Z", carryFailRow, carryWontfix)
 	f := filepath.Join(dir, "results.ndjson")
 	require.NoError(t, os.WriteFile(f, []byte(carryFailRow), 0o600))
+	markRoundEmitted(t, dir, "audit")
 
 	stdout, stderr, code := runTPFence(t, dir, true, "audit", "spec.md", "--record", f)
 	require.Equal(t, 0, code, "the carry is not fenced under TP_UNATTENDED: %s", stderr)
