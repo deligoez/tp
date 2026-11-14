@@ -228,7 +228,7 @@ that many. Two globs overlap unless their literal prefixes diverge, compared cas
 an empty literal prefix overlaps everything. A wip task is resumed alone first; a task without
 `touches`, one carrying `solo: true` (managed: set by a failed integration, never by hand), or one
 whose id is unsafe in a branch name or a path (anything but letters, digits, `.`, `_` and `-`, a
-`..`, or a `.lock` suffix) never joins a batch and, leading, runs alone. A batch of one is the
+`..`, a trailing `.` or a `.lock` suffix) never joins a batch and, leading, runs alone. A batch of one is the
 ordinary implement unit. Batches are `tp run`'s alone: nothing else integrates a pending close.
 
 `touches` is a JSON array of globs relative to the project root, read as Go's `path.Match` (`*`
