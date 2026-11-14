@@ -185,7 +185,7 @@ func selectCodeFiles(in *AuditFileInputs, universe []string) []AuditFileEntry {
 	priority := make([]string, 0, len(universe))
 	rest := make([]string, 0, len(universe))
 	for _, p := range universe {
-		if matchesPriorityPath(strings.ToLower(p)) {
+		if matchesPriorityPath(strings.ToLower(p)) && !isTestSourcePath(p) {
 			priority = append(priority, p)
 			continue
 		}
@@ -227,6 +227,24 @@ func (in *AuditFileInputs) rankByChurn(paths []string) {
 		}
 		return paths[i] < paths[j]
 	})
+}
+
+// isTestSourcePath reports whether p names a test source file by the common
+// conventions: a _test or .test/.spec stem, a test_ name prefix, or a test,
+// tests or __tests__ directory. Such a file is ranked by churn, never promoted
+// by a priority keyword in its name (selectCodeFiles).
+func isTestSourcePath(p string) bool {
+	clean := strings.ToLower(filepath.ToSlash(p))
+	parts := strings.Split(clean, "/")
+	for _, dir := range parts[:len(parts)-1] {
+		if dir == "test" || dir == "tests" || dir == "__tests__" {
+			return true
+		}
+	}
+	base := parts[len(parts)-1]
+	stem := strings.TrimSuffix(base, filepath.Ext(base))
+	return strings.HasPrefix(base, "test_") || strings.HasSuffix(stem, "_test") ||
+		strings.HasSuffix(stem, ".test") || strings.HasSuffix(stem, ".spec")
 }
 
 func matchesPriorityPath(s string) bool {
