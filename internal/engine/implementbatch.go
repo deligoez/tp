@@ -74,7 +74,8 @@ func implementBatch(units []NextUnit) bool {
 
 // TouchesWarnings names each open task without touches when maxParallel is
 // above 1: such a task joins a batch unscreened, so a clash with a sibling
-// discards its unit and reruns it alone (tp validate's touches rule).
+// discards the later unit to integrate and reruns it alone (tp validate's
+// touches rule).
 func TouchesWarnings(tf *model.TaskFile, maxParallel int) []Finding {
 	if maxParallel <= 1 {
 		return nil
@@ -95,7 +96,7 @@ func TouchesWarnings(tf *model.TaskFile, maxParallel int) []Finding {
 		subject = "1 open task has no touches, so it runs"
 	}
 	return []Finding{{Severity: "warning", Rule: "touches", Message: fmt.Sprintf(
-		`%s beside other tasks unscreened and one that shares a file with a batch sibling is discarded and rerun alone (run_max_parallel %d): %s; set each with tp set <id> 'touches=["path/to/file.go","dir/**"]'`,
+		`%s beside other tasks unscreened, and on a clash the later unit to integrate is discarded and rerun alone (run_max_parallel %d): %s; set each with tp set <id> 'touches=["path/to/file.go","dir/**"]'`,
 		subject, maxParallel, strings.Join(ids, ", "))}}
 }
 
@@ -110,8 +111,6 @@ func batchBriefs(units []NextUnit) {
 	}
 }
 
-// batchable reports whether a task may run beside another: it names what it
-// touches and no failed integration marked it to run alone.
 // batchable reports whether a task may run beside another: no failed
 // integration marked it to run alone, and its id is safe in a branch name.
 func batchable(t *model.Task) bool {

@@ -29,8 +29,9 @@ func globsOverlap(a, b string) bool {
 	return strings.HasPrefix(pa, pb) || strings.HasPrefix(pb, pa)
 }
 
-// TouchesOverlap reports whether two tasks' touches may name a common path. A
-// task with no touches overlaps every other, so it runs alone.
+// TouchesOverlap reports whether two tasks' touches may name a common path. An
+// empty side overlaps everything; an implement batch, which treats touches as a
+// hint, skips empty sides before asking (disjointFromAll).
 func TouchesOverlap(a, b []string) bool {
 	if len(a) == 0 || len(b) == 0 {
 		return true
