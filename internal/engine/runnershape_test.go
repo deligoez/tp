@@ -68,7 +68,7 @@ func TestResolveRunner_PerKindMap(t *testing.T) {
 	require.NotNil(t, implement.Runner, "a map value may itself be a runner object")
 	assert.Equal(t, "my-agent", implement.Runner.Cmd)
 
-	for _, kind := range []UnitKind{UnitReviewRole, UnitReviewRecord, UnitReviewResolve, UnitDecompose, UnitAuditRecord, UnitAuditFix} {
+	for _, kind := range []UnitKind{UnitReviewRole, UnitReviewRecord, UnitReviewResolve, UnitDecompose, UnitAuditRecord, UnitAuditFix, UnitTaskAuditRole, UnitTaskAuditRecord} {
 		assert.Equal(t, "claude", resolve(t, raw, kind).Template,
 			"%s is unlisted, so it dispatches to default", kind)
 	}

@@ -35,8 +35,9 @@ func TestUnitKinds_EightKindsInTableOrder(t *testing.T) {
 	want := []UnitKind{
 		"implement", "review-role", "review-record", "review-resolve",
 		"decompose", "audit-role", "audit-record", "audit-fix",
+		"task-audit-role", "task-audit-record",
 	}
-	assert.Equal(t, want, UnitKinds(), "the eight §3.3 kinds, in table order")
+	assert.Equal(t, want, UnitKinds(), "the §3.3 kinds in table order, then the task audit's two")
 
 	// The accessor hands out a copy: a caller cannot reorder the shared set.
 	got := UnitKinds()
@@ -68,6 +69,8 @@ func TestUnitKind_ConcurrencyFromTable(t *testing.T) {
 		{UnitAuditRole, ConcurrencySiblingRoles, true},
 		{UnitAuditRecord, ConcurrencyAlone, false},
 		{UnitAuditFix, ConcurrencyAlone, false},
+		{UnitTaskAuditRole, ConcurrencySiblingRoles, true},
+		{UnitTaskAuditRecord, ConcurrencyAlone, false},
 		// An unrecognized kind is alone — the safe direction.
 		{UnitKind("mystery"), ConcurrencyAlone, false},
 	}
@@ -201,6 +204,33 @@ func TestUnitKind_DurableWrite_DecidableWithNoBaseline(t *testing.T) {
 					"{\"role\":\"go-safety\",\"item_id\":\"item-4\",\"status\":\"FAIL\"}\n")
 			},
 		},
+		{
+			name:   "task-audit-role",
+			kind:   UnitTaskAuditRole,
+			target: func(dir string) UnitTarget { return UnitTarget{RoundDir: unitRoundDir(dir), ID: "go-safety"} },
+			present: func(t *testing.T, dir string) {
+				writeUnitFile(t, RoleFindingsPath(unitRoundDir(dir), "go-safety"), "{\"item_id\":\"i1\",\"status\":\"PASS\"}\n")
+			},
+			absent: func(t *testing.T, dir string) {
+				// The .part a role writes is not the renamed file.
+				writeUnitFile(t, RoleFindingsPartPath(unitRoundDir(dir), "go-safety"), "{\"item_id\":\"i1\",\"status\":\"PASS\"}\n")
+			},
+		},
+		{
+			name: "task-audit-record",
+			kind: UnitTaskAuditRecord,
+			target: func(dir string) UnitTarget {
+				return UnitTarget{Spec: unitSpec(dir), RoundDir: unitRoundDir(dir), Round: 2, ID: "2"}
+			},
+			present: func(t *testing.T, dir string) {
+				writeUnitFile(t, filepath.Join(ReviewStateDir(unitSpec(dir)), "task-audit-2.ndjson"), "")
+			},
+			absent: func(t *testing.T, dir string) {
+				// Another task audit's file, and an audit round of the same number.
+				writeUnitFile(t, filepath.Join(ReviewStateDir(unitSpec(dir)), "task-audit-1.ndjson"), "")
+				writeUnitFile(t, filepath.Join(ReviewStateDir(unitSpec(dir)), "audit-round-2.ndjson"), "{}\n")
+			},
+		},
 	}
 
 	for _, c := range cases {
@@ -255,7 +285,7 @@ func TestUnitKind_RolePredicate_ContentLinesOnly(t *testing.T) {
 		{name: "missing file", write: false, want: false},
 	}
 
-	for _, kind := range []UnitKind{UnitReviewRole, UnitAuditRole} {
+	for _, kind := range []UnitKind{UnitReviewRole, UnitAuditRole, UnitTaskAuditRole} {
 		for _, c := range cases {
 			t.Run(string(kind)+"/"+c.name, func(t *testing.T) {
 				dir := t.TempDir()

@@ -34,14 +34,16 @@ func TestUnitKind_BriefCommand_DocumentedPerKind(t *testing.T) {
 		"tp audit spec/0.35.0.md --record $TP_ROUND_DIR/merged.ndjson"
 
 	want := map[UnitKind]string{
-		UnitImplement:     "tp next --brief",
-		UnitReviewRole:    "tp review spec/0.35.0.md --role implementer",
-		UnitReviewRecord:  reviewRecord,
-		UnitReviewResolve: "tp review spec/0.35.0.md --status",
-		UnitDecompose:     "tp resume",
-		UnitAuditRole:     "tp audit spec/0.35.0.md --role implementer",
-		UnitAuditRecord:   auditRecord,
-		UnitAuditFix:      "tp audit spec/0.35.0.md --status",
+		UnitImplement:       "tp next --brief",
+		UnitReviewRole:      "tp review spec/0.35.0.md --role implementer",
+		UnitReviewRecord:    reviewRecord,
+		UnitReviewResolve:   "tp review spec/0.35.0.md --status",
+		UnitDecompose:       "tp resume",
+		UnitAuditRole:       "tp audit spec/0.35.0.md --role implementer",
+		UnitAuditRecord:     auditRecord,
+		UnitAuditFix:        "tp audit spec/0.35.0.md --status",
+		UnitTaskAuditRole:   "tp audit spec/0.35.0.md --task-audit --role implementer",
+		UnitTaskAuditRecord: "tp audit spec/0.35.0.md --task-audit --record-inbox",
 	}
 	// Every one of the eight is covered, and nothing else is asserted about.
 	require.Len(t, want, len(UnitKinds()))

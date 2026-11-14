@@ -192,7 +192,8 @@ func TestUnmeteredKinds(t *testing.T) {
 			"a per-kind map whose default is unmetered",
 			`{"implement":"claude","default":"opencode"}`,
 			[]UnitKind{UnitReviewRole, UnitReviewRecord, UnitReviewResolve,
-				UnitDecompose, UnitAuditRole, UnitAuditRecord, UnitAuditFix},
+				UnitDecompose, UnitAuditRole, UnitAuditRecord, UnitAuditFix,
+				UnitTaskAuditRole, UnitTaskAuditRecord},
 		},
 		{"a runner value no shape accepts reports nothing", `{"nope":1}`, nil},
 	}

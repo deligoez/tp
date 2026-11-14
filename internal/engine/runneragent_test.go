@@ -15,14 +15,16 @@ import (
 // which is five of the eight — and it is the half of test 44 a three-case test
 // would pass without ever exercising.
 var agentForKind = map[engine.UnitKind]string{
-	engine.UnitImplement:     "tp-implementer",
-	engine.UnitReviewRole:    "tp-reviewer",
-	engine.UnitAuditRole:     "tp-auditor",
-	engine.UnitReviewRecord:  "",
-	engine.UnitReviewResolve: "",
-	engine.UnitDecompose:     "",
-	engine.UnitAuditRecord:   "",
-	engine.UnitAuditFix:      "",
+	engine.UnitImplement:       "tp-implementer",
+	engine.UnitReviewRole:      "tp-reviewer",
+	engine.UnitAuditRole:       "tp-auditor",
+	engine.UnitReviewRecord:    "",
+	engine.UnitReviewResolve:   "",
+	engine.UnitDecompose:       "",
+	engine.UnitAuditRecord:     "",
+	engine.UnitAuditFix:        "",
+	engine.UnitTaskAuditRole:   "tp-auditor",
+	engine.UnitTaskAuditRecord: "",
 }
 
 // agentlessKind is one of the five kinds §6.3 leaves with the ordinary tool
