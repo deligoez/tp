@@ -34,7 +34,7 @@ func TestSelectCodeFiles_ATestFileIsNotPromotedByItsName(t *testing.T) {
 
 func TestIsTestSourcePath(t *testing.T) {
 	t.Parallel()
-	for _, p := range []string{"a/lock_test.go", "tests/test_validate.py", "src/auth.test.ts", "src/auth.spec.js", "__tests__/perm.js", "test/secret_helper.rb"} {
+	for _, p := range []string{"a/lock_test.go", "tests/test_validate.py", "src/auth.test.ts", "src/auth.spec.js", "__tests__/perm.js", "test/secret_helper.rb", "spec/auth_spec.rb"} {
 		assert.True(t, isTestSourcePath(p), p)
 	}
 	for _, p := range []string{"a/lock.go", "internal/validate/v.go", "src/auth.ts", "latest/x.go", "contest.go"} {
