@@ -173,6 +173,7 @@ func runClose(cmd *cobra.Command, args []string) error {
 		case gateRan:
 			task.GatePassedAt = &now
 		}
+		task.SetTaskAuditOwed(owedTaskAudit(taskFilePath))
 		tf.UpdatedAt = now
 
 		if err := model.WriteTaskFile(taskFilePath, tf); err != nil {

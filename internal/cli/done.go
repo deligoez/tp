@@ -316,6 +316,7 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 			task.SetCommitSHAs(doneCommits)
 			task.SetCommitFiles(resolveCommitFiles(doneCommits))
 		}
+		task.SetTaskAuditOwed(owedTaskAudit(taskFilePath))
 		tf.UpdatedAt = now
 
 		if writeErr := model.WriteTaskFile(taskFilePath, tf); writeErr != nil {
@@ -453,6 +454,7 @@ func runDoneMulti(taskFilePath string, taskIDs []string, reason string) error {
 			}
 		}
 
+		owed := owedTaskAudit(taskFilePath)
 		// Build done set for dep checking (updated as tasks close)
 		doneSet := make(map[string]bool)
 		for i := range tf.Tasks {
@@ -494,6 +496,7 @@ func runDoneMulti(taskFilePath string, taskIDs []string, reason string) error {
 				task.SetCommitSHAs(doneCommits)
 				task.SetCommitFiles(resolveCommitFiles(doneCommits))
 			}
+			task.SetTaskAuditOwed(owed)
 			closedIDs = append(closedIDs, id)
 			doneSet[id] = true
 		}
@@ -609,6 +612,14 @@ func checkMultiTarget(tf *model.TaskFile, task *model.Task, reason string, doneS
 		}
 	}
 	return nil
+}
+
+// owedTaskAudit returns the code roles a task closing now owes an audit: the
+// resolved task_audit_roles of its task file, read under the write lock so
+// the stamp is the policy in force at the close. Every close path stamps the
+// task with it through model.Task.SetTaskAuditOwed.
+func owedTaskAudit(taskFilePath string) []string {
+	return engine.EffectiveWorkflowForTaskFile(taskFilePath).TaskAuditRoles
 }
 
 // implicitClaim moves an open task that is about to close to wip: started_at is
@@ -833,6 +844,7 @@ func runDoneBatch() error {
 		skippedCount := 0
 		var failures []batchFailure
 		now := time.Now().UTC()
+		owed := owedTaskAudit(taskFilePath)
 
 		// Build done set for dep checking
 		doneSet := make(map[string]bool)
@@ -921,6 +933,7 @@ func runDoneBatch() error {
 				task.SetCommitSHAs(shas)
 				task.SetCommitFiles(resolveCommitFiles(shas))
 			}
+			task.SetTaskAuditOwed(owed)
 			closedCount++
 			doneSet[task.ID] = true // update for subsequent dep checks
 		}
