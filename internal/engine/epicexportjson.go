@@ -51,8 +51,8 @@ type EpicFileState struct {
 }
 
 // EpicFileStates reports every file of bound, EpicBoundFiles(start)'s result,
-// keyed by epic in bound's order. A file or review state that cannot be read
-// is an error.
+// keyed by epic, each epic's files in its list's order. A file or review state
+// that cannot be read is an error naming the file.
 func EpicFileStates(start string, bound map[string][]string) (map[string][]EpicFileState, error) {
 	root := gitToplevel(start)
 	out := make(map[string][]EpicFileState, len(bound))
@@ -81,11 +81,11 @@ func epicFileState(path string) (EpicFileState, error) {
 	specPath, _ := ResolveSpecPath(path, tf.Spec)
 	loops, err := readResumeLoops(path, specPath, tf)
 	if err != nil {
-		return EpicFileState{}, err
+		return EpicFileState{}, fmt.Errorf("bound task file %s: %w", path, err)
 	}
 	ground, err := epicGroundLoop(specPath)
 	if err != nil {
-		return EpicFileState{}, err
+		return EpicFileState{}, fmt.Errorf("bound task file %s: ground state of %s: %w", path, specPath, err)
 	}
 	tasks := map[string]int{model.StatusOpen: 0, model.StatusWIP: 0, model.StatusDone: 0}
 	for i := range tf.Tasks {
