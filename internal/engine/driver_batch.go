@@ -1,11 +1,13 @@
 package engine
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -207,12 +209,14 @@ func (d *driver) pickUnit(p *PendingClose) (pre string, picked []string, err err
 		return "", nil, driverErrorf(err, "read the main branch's HEAD")
 	}
 	if p.PickedOnto != "" && head != p.PickedOnto {
-		landed, listErr := gitOut(d.opts.Root, "rev-list", "--reverse", p.PickedOnto+"..HEAD")
-		if listErr == nil && len(strings.Fields(landed)) == len(p.Commits) {
-			return p.PickedOnto, strings.Fields(landed), nil
+		landed, done, recErr := d.recoverPick(p)
+		if recErr != nil {
+			return "", nil, recErr
 		}
-		return "", nil, driverErrorf(fmt.Errorf("the main branch moved past %s since task %s's interrupted pick", p.PickedOnto, p.ID),
-			"integrate task %q", p.ID)
+		if done {
+			return p.PickedOnto, landed, nil
+		}
+		head = p.PickedOnto
 	}
 	p.PickedOnto = head
 	if err := WritePendingClose(d.opts.Root, d.opts.TaskFile, p); err != nil {
@@ -220,6 +224,57 @@ func (d *driver) pickUnit(p *PendingClose) (pre string, picked []string, err err
 	}
 	picked, err = cherryPick(d.opts.Root, p.Commits)
 	return head, picked, err
+}
+
+// recoverPick reads what an interrupted pick left on the main branch after
+// p.PickedOnto, comparing patches rather than counting commits: the unit's
+// whole pick means done; a prefix of it (a crash between two picks) is taken
+// back so the pick starts again; anything else is history the operator has to
+// judge, a driver error.
+func (d *driver) recoverPick(p *PendingClose) (landed []string, done bool, err error) {
+	_, _ = gitOut(d.opts.Root, "cherry-pick", "--abort")
+	list, err := gitOut(d.opts.Root, "rev-list", "--reverse", p.PickedOnto+"..HEAD")
+	if err != nil {
+		return nil, false, driverErrorf(err, "read the main branch since task %q's pick", p.ID)
+	}
+	landed = strings.Fields(list)
+	landedIDs, unitIDs := patchIDs(d.opts.Root, landed), patchIDs(d.opts.Root, p.Commits)
+	switch {
+	case slices.Equal(landedIDs, unitIDs):
+		return landed, true, nil
+	case len(landedIDs) < len(unitIDs) && slices.Equal(landedIDs, unitIDs[:len(landedIDs)]):
+		if _, resetErr := gitOut(d.opts.Root, "reset", "-q", "--keep", p.PickedOnto); resetErr != nil {
+			return nil, false, driverErrorf(resetErr, "take back task %q's partial pick", p.ID)
+		}
+		return nil, false, nil
+	}
+	return nil, false, driverErrorf(fmt.Errorf("the main branch holds commits since %s that are not task %s's interrupted pick", p.PickedOnto, p.ID),
+		"integrate task %q", p.ID)
+}
+
+// patchIDs returns each commit's stable patch id, the identity of its change
+// whatever commit carries it; a commit git cannot read gives "".
+func patchIDs(root string, shas []string) []string {
+	out := make([]string, len(shas))
+	for i, sha := range shas {
+		show := exec.Command("git", "show", "--format=", "--no-ext-diff", sha)
+		show.Dir = root
+		diff, err := show.Output()
+		if err != nil {
+			continue
+		}
+		pid := exec.Command("git", "patch-id", "--stable")
+		pid.Dir = root
+		pid.Stdin = bytes.NewReader(diff)
+		line, err := pid.Output()
+		if err != nil {
+			continue
+		}
+		if fields := strings.Fields(string(line)); len(fields) > 0 {
+			out[i] = fields[0]
+		}
+	}
+	return out
 }
 
 // deferUnit takes a pick back and leaves its request for the next run: the
