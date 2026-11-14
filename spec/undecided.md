@@ -7,24 +7,21 @@
 
 - **Refuted** — a candidate that was prototyped and did not survive. It is recorded so it is not
   re-proposed, with the measurement that killed it. **A refuted predicate is not a backlog item.**
-- **Decided — routed to a pending spec** — a decision was taken, and a backlog spec's sidecar now
-  carries it. That section is an **index**: one table row per decision, naming the carrier and the
-  measurement pointer, because the decision itself is read beside the spec that implements it. An
-  entry no sidecar carries stays there in full, and the section says which ones those are.
+- **Parked** — a decision was taken and the work waits for a named trigger. Each row names the
+  trigger, and the decision note in `spec/backlog/` when one carries it.
 - **Decided — closed** — a decision was taken and nothing carries it forward, because the answer is
-  *no* or *not yet worth it*. Each names why, and the condition that would reopen it.
+  *no*, *not yet worth it*, or *superseded*. Each names why, and the condition that would reopen it.
 
 **The 2026-09-08 decision pass.** Every entry that stood under *Undecided* and *Survived, unscheduled*
-was decided that day, the last of them (*Cross-repo specs*) by the operator. The decision text was appended to each named backlog sidecar under *Decided at
-the 2026-09-08 decision pass*, and the decisions with no pending spec are listed in
-`spec/backlog/README.md` under *Decided, awaiting a spec*. The spec that takes a decision is where it
-is read and implemented; this file indexes it.
+was decided that day, the last of them (*Cross-repo specs*) by the operator. On 2026-11-14 the
+backlog notes that carried those decisions were archived, and each decision was either parked or
+closed here.
 
 Writing a release spec for something whose design has no answer is the failure this file exists to
 prevent. An entry here is not a draft of a spec and must not be read as one.
 
 **No item carries a version number.** A number that moves leaves stale references and this repository
-has paid for that repeatedly; the roadmap in `spec/backlog/README.md` is where ordering belongs.
+has paid for that repeatedly; ordering belongs to `BUGS.md` and the notes in `spec/backlog/`.
 
 **This file is a register, not a forensics document.** Every entry is three things and nothing else:
 the decision or the refutation, the reopen condition or the settling bar, and a pointer to where the
@@ -367,117 +364,15 @@ rule — the counts at each narrowing and how the sample was judged.
 
 ---
 
-## Decided — routed to a pending spec
+## Parked — decided, waiting for a trigger
 
-**A decision pass was taken on 2026-09-08.** The table below is an **index**, not a second home. Each
-decision was appended to the named backlog spec's sidecar under *Decided at the 2026-09-08 decision
-pass*, and that sidecar is where it is read — beside the spec that implements it, so the release does
-not have to come back here. The register keeps one sentence, the carrier and the measurement pointer;
-the counting rules, derivation commands and readings that earned each verdict are in
-`spec/undecided-measurements.md` under the entry's own title, or in the sidecar the row names.
+**Parked means the decision is taken and the work waits for a named trigger.** Each row names the
+trigger, the measurement pointer and, when there is one, the note that carries the decision.
 
-The two entries **after** the table keep their long form here. The first gained its spec file on
-2026-09-11 and is now also a table row; its long form stays because the re-derivation of the hook's
-reach is recorded nowhere else. The second is recorded in `spec/backlog/README.md` under *Decided,
-awaiting a spec*, and this file is its only long-form home until the spec that takes it has a file.
-
-| entry | decision | carried by | measurements |
+| entry | decision | trigger | measurements |
 |---|---|---|---|
-| The divisible round | the split key is spec location — the section | `spec/backlog/checklist-covers-what-changed.md`, sidecar *Decided at the 2026-09-08 decision pass*; the follow-on `round-divides-by-section` in `spec/backlog/README.md` | `spec/undecided-measurements.md` §The divisible round |
-| A registered check that outlives its release | `checks[].cmd` gains `{spec}` and `{round}` substitution and nothing else, and a check's exit code is a contract tp defines for its own registrations | `spec/backlog/next-action-and-check-tell-the-truth.md`, sidecar *Decided at the 2026-09-08 decision pass* | `spec/undecided-measurements.md` §A registered check that outlives its release |
-| Cross-site key agreement in the review prompt | the review prompt renders one set at all three sites, from one Go constant | **no release since 2026-09-11** — kept out of `spec/backlog/a-findings-exits-agree.md`'s body so its hotfix part stays small; the decision stays in that spec's sidecar, *Decided at the 2026-09-08 decision pass* | `spec/undecided-measurements.md` §Cross-site key agreement in the review prompt |
-| `NewRootCmd` writes package globals | the fence, not the rewrite | a chore under `spec/backlog/gate-sequence.md`'s Non-Goals since 2026-09-11 — a plain commit, no cycle; the decision stays in that spec's sidecar, *Decided at the 2026-09-08 decision pass* | `spec/undecided-measurements.md` §`NewRootCmd` writes package globals |
-| `t.Parallel()` in the engine package | `internal/engine` stays serial | `spec/backlog/mutation-run-check.md`, sidecar *Decided at the 2026-09-08 decision pass* | `spec/undecided-measurements.md` §`t.Parallel()` in the engine package |
-| A sentence rewritten in answer to a finding is exempt from the cut for one round | no exemption — `tp ground --status` reports a `cut` delta per round instead | `spec/backlog/a-round-can-be-driven-from-the-envelope.md` since 2026-09-11; the decision text stays in `spec/backlog/the-floor-names-what-it-cut-measurements.md`, *Decided at the 2026-09-08 decision pass* | `spec/backlog/what-the-record-does-not-say-measurements.md` under "§11.1"; `spec/undecided-measurements.md` §A sentence rewritten in answer to a finding is exempt from the cut for one round |
-| Claim enumeration in the grounding floor | the floor's own arms define a claim | `spec/backlog/the-floor-names-what-it-cut.md`, sidecar *Decided at the 2026-09-08 decision pass* | `spec/backlog/the-floor-names-what-it-cut-measurements.md` §5 |
-| A durable home for an accepted finding | a repository-level `.tp/accepted.ndjson`, surfaced as `accepted_open` until a task file's `covered_by` names the finding id | `spec/backlog/a-finding-can-leave-an-audit-round.md`, sidecar *Decided at the 2026-09-08 decision pass* | `spec/undecided-measurements.md` §From the rows spec |
-| An audit-side `nonblocking_open` | emit it, and invert the guards that pin the key's absence — under `audit_converge_on: blocking` only | `spec/backlog/a-finding-can-leave-an-audit-round.md`, sidecar *Decided at the 2026-09-08 decision pass* | `spec/undecided-measurements.md` §From the rows spec |
-| A review-side `accepted_blocking` | one counter, on the payload `spec/backlog/a-findings-exits-agree.md` §2 already rewrites | **no release since 2026-09-11** — kept out of that spec's body for the same reason; the decision stays in its sidecar, *Decided at the 2026-09-08 decision pass* | `spec/undecided-measurements.md` §From the rows spec |
-| Making `severity` checkable | severity stays self-declared; the vocabulary is validated at the record sink as a warning that names the row | `spec/backlog/refusals-that-name-nothing.md`, sidecar *Decided at the 2026-09-08 decision pass* | `spec/undecided-measurements.md` §From the rows spec |
-| Which channel a degraded scan reports on | a payload field always, because it survives `--quiet` and a driver reads payloads; the notice is additional | `spec/backlog/an-unreadable-file-is-named.md` since 2026-09-11 (`two-advisories.md` folded); the decision text stays in `spec/backlog/two-advisories-measurements.md`, sidecar *Decided at the 2026-09-08 decision pass* | `spec/backlog/two-advisories-measurements.md`, same section |
-| The test-file fence and the write-deny fence's reach | the fence matches the write target; the test-file permission is precomputed at spawn; `test_globs` follows `pickChecks` | `spec/backlog/hooks-fence-the-target.md`, written 2026-09-11 | the long form below, and that spec's sidecar |
-
-### The test-file fence and the write-deny fence's reach
-
-**Decided together, as one small tool spec — `spec/backlog/hooks-fence-the-target.md`, written on
-2026-09-11 after a field report (WB-3155) hit the read-only half of the reach.** Three parts, one
-subject: the write-deny hook matches on the tool's write **target** (the file path argument
-of a write-capable tool), not on any argument string, so reads and batched multi-file calls stop being
-refused; the test-file fence resolves its permission **precomputed into the child environment at
-spawn**, never a `tp` call per write inside the hook; and `test_globs` follows `pickChecks` — a present
-list replaces the layer beneath it rather than merging with it.
-
-**Who carries it.** `spec/backlog/hooks-fence-the-target.md`.
-
-**v1.6.1 settled part of it on the fix track.** A BUGS entry from the v1.5.0 cycle (a read of a round
-file refused as a hand-edit; an auditor's `*.tasks.json` fixture under `mktemp -d` refused) was fixed
-in `hooks/pre-tool-use-write-deny.sh`: a read-only tool passes, and a denied path is refused only
-inside the session's repository (the git top level of `$CLAUDE_PROJECT_DIR`, else of the hook's
-working directory), compared as written and symlink-resolved. Still open here: matching on the write
-target rather than on the payload as a whole for write tools, the test-file fence's spawn-time
-permission, `test_globs`, and the role allow-list hook, which still refuses reviewers' and auditors'
-fixture writes outside the repository.
-
-**The reach, re-derived by running the hook rather than by reading it.** `denied()` in
-`hooks/pre-tool-use-write-deny.sh` matches `*/.tp-review/?* | .tp-review/?*`, an unanchored glob. Fed
-a `Write` payload naming `/private/tmp/throwaway-copy/spec/.tp-review/1.0.0/state.json` — a path in no
-repository at all — the hook prints its scope-fence message and exits **2**. During the 2026-09-08
-pass the installed hook also refused two **read-only** MCP calls whose payloads merely *named*
-`.tp/config.json` and `spec/0.25.0.tasks.json`, one of them a batch whose other five operations touched
-neither. So the fence matches on any argument string in the payload: it reaches reads, and one fenced
-path in a batched multi-file call refuses the whole call. Matching on the write target closes both
-halves at once, and leaves the anchor question answerable against a target rather than against a
-payload — which is why the anchor (`CLAUDE_PROJECT_DIR`, a git-root walk, or nothing) is not decided
-here.
-
-**The list-layer precedent, for `test_globs`.** `pickChecks` in `internal/engine/configresolve.go`
-returns the first present layer and stops, so a present slice — an explicit empty array included —
-replaces the layer beneath it. Its own doc comment says so, and the pointer-to-slice type exists for
-that reason: `Checks *[]Check` in `model.WorkflowOverride` is the **only** list-typed override field in
-the struct, every other field there being a scalar pointer or raw JSON. `test_globs` becomes the
-second, and follows it.
-
-**The reach is not a defect, which is why the anchor is deferred rather than answered.** The fence is
-fail-closed and correct where it is meant to apply, and the reach costs a workaround rather than a
-wrong result. A wrong anchor is the other direction: a fence that silently stops fencing, a worse
-failure than the one it removes.
-
-### Inferring a spec's class
-
-**The doc table understates the matcher, found at v1.1.0's audit round 3 (2026-09-08).** The reach
-measured above has a second, purely documentary half: `skills/tp/REFERENCE.md:461` gives the
-`PreToolUse` matcher as `Write\|Edit\|MultiEdit\|NotebookEdit` — four tools — while
-`hooks/hooks.json:18` registers **nine**, the four above plus `mcp__codedbpro__create`,
-`mcp__codedbpro__edit`, `mcp__codedbpro__patch`, `mcp__codedbpro__replace` and
-`mcp__codedbpro__batch` (both read at `e8477464`). The five MCP entries are the ones that matter for
-the reach: `mcp__codedbpro__batch` is matched, and because `denied()` tests any `file`/`path` string
-in the payload with no notion of which operation it belongs to, a **read-only** batch is refused —
-which is the mechanism behind the two read-only refusals recorded above, stated here as a property of
-the registration rather than as an observation. A reader consulting the table would conclude no MCP
-tool is matched at all and that a refused read must have some other cause.
-
-**The table is corrected when `hooks-fence-the-target` ships, not now.** The row will be wrong in a
-different way once the fence matches on the write target, so editing it today buys one release of
-accuracy and then needs editing again; and the row is a symptom of the decision above rather than an
-independent defect. Recorded here so the correction is not rediscovered as a fresh finding in the
-meantime.
-
-**Decided: `tp lint` reports a derived `class`** beside `floor_size` and `review_panel` — no gate, and
-no frontmatter override until one is argued for. It is scheduled with the next release that touches
-lint's report, rather than given a release of its own.
-
-**Who carries it.** `spec/backlog/README.md` under *Decided, awaiting a spec*, as a one-line row.
-
-**The claim it settles.** A draft release proposed a `class: loop | tool` frontmatter field, declared
-by the author, on the stated ground that *tp cannot infer it*. A unit told to construct a
-counter-example built three predicates against 23 hand-labelled specs and **refuted the "cannot"**: a
-density predicate — loop-lexicon occurrences per thousand words — scores 87% leave-one-out with zero
-false positives, and it reproduces `CLAUDE.md`'s published loop/tool round medians exactly where two
-independent hand-labellings do not. The lexicon is a new surface that will drift, which is why the
-decision reports the class and gates nothing on it.
-
-**Where the measurements are.** `spec/undecided-measurements.md` §Inferring a spec's class — the
-correlations, why the frontmatter field was cut, and the three honest limits.
+| The divisible round | the split key is spec location — the section; the one full-track candidate left | an audit field round whose auto-detected file list exceeds 10 (`M > 10`), the same trigger as `BUGS.md`'s entry on the 10-file / 10 KB cut | `spec/undecided-measurements.md` §The divisible round |
+| A converged payload says what it left open | an audit-side `nonblocking_open`, a count of accepted blocking rows, and audit rows written with review severity words; `spec/backlog/converged-payload-open.md` | the first project that sets `audit_converge_on: blocking` (`review_converge_on` already defaults to `blocking`) | `spec/undecided-measurements.md` §From the rows spec |
 
 ---
 
@@ -685,6 +580,116 @@ ships reads a text its successor did not.
 **Where the measurements are.** `spec/undecided-measurements.md` §Resetting the clean streak when
 consecutive rounds read different text.
 
+### A registered check that outlives its release
+
+**Closed as superseded.** The 2026-09-08 decision was `{spec}` and `{round}` text substitution in
+`checks[].cmd`. v1.20.1 gives every registered check `TP_SPEC`, the reviewed spec's path, in its
+environment instead. An inherited `TP_SPEC` or `TP_ROUND` is dropped, and `TP_ROUND` is not set,
+because no check reads a round. Registered checks run in the review phase only: emission,
+`--status --check`, `--record` and import. On 2026-11-14 tp's own three checks were found reading the
+spec from `tp resume`, which always named `spec/1.8.0.md`, so they graded the wrong spec on every
+review.
+
+**It reopens** when a registered check needs the round or runs outside the review phase.
+
+**Where the measurements are.** `spec/undecided-measurements.md` §A registered check that outlives
+its release.
+
+### Cross-site key agreement in the review prompt
+
+**Closed.** On 2026-11-14 all four review role prompts carried `class` as both optional and mandatory,
+and 13 of 469 evidence-era review rows lacked `class`. v1.20.1 deletes the "Optional class" sentence.
+The 2026-09-08 decision, rendering the key set at all three sites from one Go constant, is not taken.
+
+**It reopens** on a recorded round where more than one in ten rows lacks a contract key.
+
+**Where the measurements are.** `spec/undecided-measurements.md` §Cross-site key agreement in the
+review prompt.
+
+### `NewRootCmd` writes package globals
+
+**Closed.** The 2026-09-08 decision was the fence, not the rewrite; its carrier, `gate-sequence`, was
+archived after v1.2.0 (`spec/backlog/ARCHIVE.md`).
+
+**It reopens** when an in-process test observes another test's flag value.
+
+**Where the measurements are.** `spec/undecided-measurements.md` §`NewRootCmd` writes package globals.
+
+### `t.Parallel()` in the engine package
+
+**Closed: `internal/engine` stays serial.** Its carrier, `mutation-run-check`, was dropped
+(`spec/backlog/ARCHIVE.md`); the decision needs no carrier.
+
+**It reopens** if the serial engine tests become a measured cost on the gate.
+
+**Where the measurements are.** `spec/undecided-measurements.md` §`t.Parallel()` in the engine
+package.
+
+### The grounding floor: a rewritten sentence's exemption, and claim enumeration
+
+**Closed.** Two 2026-09-08 decisions: a sentence rewritten in answer to a finding gets no exemption
+from the cut (`tp ground --status` would report a `cut` delta per round instead), and the floor's own
+arms define a claim. Their carriers were dropped or not taken (`a-round-can-be-driven-from-the-envelope`,
+`the-floor-names-what-it-cut` in `spec/backlog/ARCHIVE.md`).
+
+**It reopens** on a field report that reproduces either case.
+
+**Where the measurements are.** `spec/undecided-measurements.md` §A sentence rewritten in answer to a
+finding is exempt from the cut for one round; `the-floor-names-what-it-cut-measurements.md` §5 at the
+sha its ARCHIVE row names.
+
+### A durable home for an accepted finding
+
+**Closed as superseded.** The 2026-09-08 decision was a repository-level `.tp/accepted.ndjson`. An
+evidenced acceptance now clears the row where it is recorded (`7c4befca`, v1.16.0, v1.18.0), and
+`accept-finding` is an operator decision with its own record.
+
+**It reopens** on an operator request for a cross-spec list of accepted findings, served as a read over
+existing state, not a new file.
+
+**Where the measurements are.** `spec/undecided-measurements.md` §From the rows spec.
+
+### Which channel a degraded scan reports on
+
+**Closed.** The 2026-09-08 decision was a payload field always, with the notice in addition. Its
+carrier, `an-unreadable-file-is-named`, was archived with its reproduced items moved to `BUGS.md`.
+
+**It reopens** when a driver misses a notice because of `--quiet`.
+
+**Where the measurements are.** `two-advisories-measurements.md` at the sha its row in
+`spec/backlog/ARCHIVE.md` names.
+
+### The test-file fence and the write-deny fence's reach
+
+**Closed.** The write-deny hook judges the write target since v1.6.1, and a batch op by op since
+`fcec0da0`, so reads and batched calls are no longer refused for a path they only name. The
+spawn-time test-file permission and `test_globs` were not taken: no reproduction. If `test_globs` is
+ever taken, it follows `pickChecks`: a present list replaces the layer beneath it. The role write-allow
+hook refusing a fixture write outside the repository was run on 2026-11-14 and refuses (exit 2). That
+matches the role prompt's isolation clause, which forbids any write but the output file, so it is not
+a defect.
+
+**It reopens** on a reproduced wrong refusal.
+
+**Where the measurements are.** `hooks-fence-the-target` in `spec/backlog/ARCHIVE.md`.
+
+### Inferring a spec's class
+
+**Closed.** The 2026-09-08 decision was that `tp lint` reports a derived `class` beside `floor_size`
+and `review_panel`, with no gate and no frontmatter override. No release took it, and no decision has
+needed the class since.
+
+**The claim it settled.** A draft release proposed a `class: loop | tool` frontmatter field, declared
+by the author, on the stated ground that *tp cannot infer it*. A unit told to construct a
+counter-example built three predicates against 23 hand-labelled specs and **refuted the "cannot"**: a
+density predicate — loop-lexicon occurrences per thousand words — scores 87% leave-one-out with zero
+false positives. The lexicon is a new surface that will drift, which is why the decision gated nothing
+on it.
+
+**It reopens** when a decision needs a spec's class as input.
+
+**Where the measurements are.** `spec/undecided-measurements.md` §Inferring a spec's class.
+
 ---
 
 ## Fog — in scope, not yet sharp enough to state as a question
@@ -697,12 +702,6 @@ into confident-looking entries it does not yet deserve.
 - **Whether the emission's prohibitions are worth sweeping.** 14% of the review prompt and 12% of
   `CLAUDE.md` steer by ban. A few of those are hard guardrails that earn it. No measurement separates
   the two, and a rewrite without one is prose churn.
-- **No instrument exists for a duplicated Go doc comment.** tp's own `duplicate-paragraph` lint
-  reports exactly this shape in a spec and cannot see it in the language tp is written in: `dupl`
-  reads tokens rather than comments, and no other enabled linter looks at comment text. Routed from
-  `spec/0.35.0-candidates.md` item 12, which found a live instance in `internal/model/io.go` that had
-  shipped since v0.29.0. What is not yet statable is whether the subject is comments, doc comments, or
-  any duplicated span a token-based linter cannot see.
 - **No sentence-level "two homes" instrument exists.** The count that scores how much one statement is
   duplicated across two documents reads **headings**, while the duplications it is meant to find live
   in bullets inside sections both documents legitimately keep — so cutting twelve duplicated statements
