@@ -159,7 +159,9 @@ func TestSpecScopedRoleFilesRecordEndToEnd(t *testing.T) {
 		_, stderr, code := runTPEnv(t, dir, noRoundDir(), append(args, "-o", merged)...)
 		require.Equal(t, 0, code, "merge %s: %s", base, stderr)
 
-		_, stderr, code = runTPEnv(t, dir, noRoundDir(), "review", spec, "--record", merged)
+		// The round was emitted with its owed roles, so it records from the
+		// inbox the roles wrote, which is what the merge read.
+		_, stderr, code = runTPEnv(t, dir, noRoundDir(), "review", spec, "--record-inbox")
 		require.Equal(t, 0, code, "record %s: %s", base, stderr)
 
 		body, err := os.ReadFile(filepath.Join(dir, ".tp-review", base, "review-round-1.ndjson"))

@@ -129,11 +129,9 @@ func TestSelfLoop_ReviewToImport(t *testing.T) {
 	_, _, code = runTP(t, dir, "review", "spec.md")
 	require.Equal(t, 0, code)
 
-	// record a dirty round
-	dirtyFile := filepath.Join(dir, "r1.ndjson")
-	require.NoError(t, os.WriteFile(dirtyFile,
-		[]byte(`{"evidence":"read the cited section","severity":"high","category":"consistency","location":"L1","finding":"issue","suggestion":"fix"}`+"\n"), 0o600))
-	_, _, code = runTP(t, dir, "review", "spec.md", "--record", dirtyFile)
+	// record a dirty round, from the inbox of the round just emitted
+	_, _, code = recordViaInbox(t, dir,
+		`{"evidence":"read the cited section","severity":"high","category":"consistency","location":"L1","finding":"issue","suggestion":"fix"}`+"\n")
 	require.Equal(t, 0, code)
 
 	// bare-array import fails: unconverged

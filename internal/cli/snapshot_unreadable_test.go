@@ -62,13 +62,13 @@ func breakSnapshot(t *testing.T, dir, name string) string {
 func TestReviewRecord_UnreadableSnapshotNamesItAndTheWayOut(t *testing.T) {
 	t.Parallel()
 	dir, _ := specProject(t)
-	empty := emptyRecordFile(t, dir)
 
 	_, stderr, code := runTP(t, dir, "review", "spec.md")
 	require.Equal(t, 0, code, "emission: %s", stderr)
 	snapshot := breakSnapshot(t, dir, "snapshot-round-1.md")
 
-	_, stderr, code = runTP(t, dir, "review", "spec.md", "--record", empty)
+	// The round was emitted with its owed roles, so it records from its inbox.
+	_, stderr, code = recordViaInbox(t, dir, "")
 	require.Equal(t, 3, code, "an unreadable snapshot is a state error, not a guess at the spec")
 
 	e := lastJSONError(t, stderr)

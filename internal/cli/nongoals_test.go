@@ -53,7 +53,7 @@ func TestNonGoals_NoAutoTaper(t *testing.T) {
 	}
 
 	before := diversityRoles()
-	_, _, code := runTP(t, dir, "review", "spec.md", "--record", rec)
+	_, _, code := recordViaInbox(t, dir, "")
 	require.Equal(t, 0, code)
 	_, _, code = runTP(t, dir, "review", "spec.md", "--record", rec)
 	require.Equal(t, 0, code)

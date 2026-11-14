@@ -81,7 +81,8 @@ func TestRecordRemovesTheRoundsRoleFiles(t *testing.T) {
 	merged := filepath.Join(dir, "merged.ndjson")
 	_, stderr, code := runTP(t, dir, append(append([]string{"review", "--merge"}, files...), "-o", merged)...)
 	require.Equal(t, 0, code, "merge: %s", stderr)
-	_, stderr, code = runTP(t, dir, "review", "spec.md", "--record", merged)
+	// The round was emitted with its owed roles, so it records from its inbox.
+	_, stderr, code = runTP(t, dir, "review", "spec.md", "--record-inbox")
 	require.Equal(t, 0, code, "record: %s", stderr)
 
 	for _, f := range files {

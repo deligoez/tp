@@ -89,7 +89,7 @@ func TestReviewRecord_NoEmissionCannotClearStaleness(t *testing.T) {
 	for i := 1; i <= 2; i++ {
 		_, stderr, code := runTP(t, dir, "review", "spec.md")
 		require.Equal(t, 0, code, "round %d emission: %s", i, stderr)
-		_, stderr, code = runTP(t, dir, "review", "spec.md", "--record", empty)
+		_, stderr, code = recordViaInbox(t, dir, "")
 		require.Equal(t, 0, code, "round %d record: %s", i, stderr)
 	}
 	pre := loopStatus(t, dir, "review")
@@ -127,7 +127,6 @@ func TestReviewRecord_NoEmissionCannotClearStaleness(t *testing.T) {
 func TestReviewRecord_EmittedBeforeTheEditRecordsTheTextItRead(t *testing.T) {
 	t.Parallel()
 	dir, specPath := specProject(t)
-	empty := emptyRecordFile(t, dir)
 
 	_, stderr, code := runTP(t, dir, "review", "spec.md")
 	require.Equal(t, 0, code, "emission: %s", stderr)
@@ -135,7 +134,7 @@ func TestReviewRecord_EmittedBeforeTheEditRecordsTheTextItRead(t *testing.T) {
 	require.FileExists(t, snapshot)
 
 	require.NoError(t, os.WriteFile(specPath, []byte(specV2), 0o600))
-	_, stderr, code = runTP(t, dir, "review", "spec.md", "--record", empty)
+	_, stderr, code = recordViaInbox(t, dir, "")
 	require.Equal(t, 0, code, "record: %s", stderr)
 
 	review, _ := readHashSchemeRounds(t, dir)
@@ -183,12 +182,11 @@ func TestAuditRecord_EmittedBeforeTheEditRecordsTheTextItRead(t *testing.T) {
 func TestReviewRecord_EmitThenRecordUnchangedStillConverges(t *testing.T) {
 	t.Parallel()
 	dir, specPath := specProject(t)
-	empty := emptyRecordFile(t, dir)
 
 	for i := 1; i <= 2; i++ {
 		_, stderr, code := runTP(t, dir, "review", "spec.md")
 		require.Equal(t, 0, code, "round %d emission: %s", i, stderr)
-		_, stderr, code = runTP(t, dir, "review", "spec.md", "--record", empty)
+		_, stderr, code = recordViaInbox(t, dir, "")
 		require.Equal(t, 0, code, "round %d record: %s", i, stderr)
 	}
 
@@ -242,11 +240,10 @@ func TestRecord_AHistoryNeverEmittedStaysStale(t *testing.T) {
 func TestStalenessClearsThroughTheRoundsOwnEmission(t *testing.T) {
 	t.Parallel()
 	dir, specPath := specProject(t)
-	empty := emptyRecordFile(t, dir)
 	emitAndRecord := func() map[string]any {
 		_, stderr, code := runTP(t, dir, "review", "spec.md")
 		require.Equal(t, 0, code, "emission: %s", stderr)
-		stdout, stderr, code := runTP(t, dir, "review", "spec.md", "--record", empty)
+		stdout, stderr, code := recordViaInbox(t, dir, "")
 		require.Equal(t, 0, code, "record: %s", stderr)
 		assert.NotContains(t, stderr, "no emission", "an emitted round says nothing about emitting")
 		var out map[string]any
@@ -270,7 +267,7 @@ func TestStalenessStaysThroughARecordWithNoEmission(t *testing.T) {
 	empty := emptyRecordFile(t, dir)
 	_, stderr, code := runTP(t, dir, "review", "spec.md")
 	require.Equal(t, 0, code, "emission: %s", stderr)
-	_, stderr, code = runTP(t, dir, "review", "spec.md", "--record", empty)
+	_, stderr, code = recordViaInbox(t, dir, "")
 	require.Equal(t, 0, code, "record: %s", stderr)
 
 	require.NoError(t, os.WriteFile(specPath, []byte(specV2), 0o600))

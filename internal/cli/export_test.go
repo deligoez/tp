@@ -23,13 +23,11 @@ func exportRepo(t *testing.T) string {
 	require.Equal(t, 0, code, stderr)
 	_, stderr, code = runTP(t, dir, "add", `{"id":"t1","title":"X","description":"the one task","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"x done","source_sections":["## 1. X"]}`)
 	require.Equal(t, 0, code, stderr)
-	empty := filepath.Join(dir, "empty.ndjson")
-	require.NoError(t, os.WriteFile(empty, nil, 0o600))
 	for _, text := range []string{"x first.", "x rewritten."} {
 		require.NoError(t, os.WriteFile(spec, []byte("# S\n\n## 1. X\n\n"+text+"\n\n## 2. Y\n\ny.\n"), 0o600))
 		_, stderr, code = runTP(t, dir, "review", "spec.md")
 		require.Equal(t, 0, code, stderr)
-		_, stderr, code = runTP(t, dir, "review", "spec.md", "--record", empty)
+		_, stderr, code = recordViaInbox(t, dir, "")
 		require.Equal(t, 0, code, stderr)
 	}
 	initGitRepo(t, dir)

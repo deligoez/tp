@@ -9,17 +9,25 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/deligoez/tp/internal/engine"
 )
 
 // recordRound records ndjsonContent as the next review round of dir/spec.md,
-// as a round that was emitted first (markRoundEmitted).
+// as a round that was emitted first (markRoundEmitted). A round a real
+// emission stored its owed roles for is recorded from its inbox, as it must be
+// by hand since that list exists (recordViaInbox).
 func recordRound(t *testing.T, dir, ndjsonContent string) (out map[string]any, stderr string, code int) {
 	t.Helper()
-	markRoundEmitted(t, dir, "review")
-	f := filepath.Join(dir, "findings.ndjson")
-	require.NoError(t, os.WriteFile(f, []byte(ndjsonContent), 0o600))
 	var stdout string
-	stdout, stderr, code = runTP(t, dir, "review", "spec.md", "--record", f)
+	if inbox, err := engine.ReviewInboxPanel(filepath.Join(dir, "spec.md")); err == nil && inbox.Emitted && inbox.Stored {
+		stdout, stderr, code = recordViaInbox(t, dir, ndjsonContent)
+	} else {
+		markRoundEmitted(t, dir, "review")
+		f := filepath.Join(dir, "findings.ndjson")
+		require.NoError(t, os.WriteFile(f, []byte(ndjsonContent), 0o600))
+		stdout, stderr, code = runTP(t, dir, "review", "spec.md", "--record", f)
+	}
 	if code == 0 {
 		require.NoError(t, json.Unmarshal([]byte(stdout), &out))
 	}
