@@ -43,6 +43,19 @@ func TestTouchesWarnings(t *testing.T) {
 		Message: `2 open tasks have no touches, so they run beside other tasks unscreened, and on a clash the later unit to integrate is discarded and rerun alone (run_max_parallel 3): a, c; set each with tp set <id> 'touches=["path/to/file.go","dir/**"]'`}, got[0])
 }
 
+// TestTouchesWarnings_Boundaries: the rule starts at run_max_parallel 2, says
+// nothing when every open task names its touches, and speaks of one task in the
+// singular.
+func TestTouchesWarnings_Boundaries(t *testing.T) {
+	t.Parallel()
+	one := &model.TaskFile{Tasks: []model.Task{batchTask("a"), batchTask("b", "x/")}}
+	got := TouchesWarnings(one, 2)
+	require.Len(t, got, 1, "the cap of 2 already batches")
+	assert.Contains(t, got[0].Message, "1 open task has no touches, so it runs beside")
+	assert.Empty(t, TouchesWarnings(&model.TaskFile{Tasks: []model.Task{batchTask("b", "x/")}}, 3), "nothing to name")
+	assert.True(t, TouchesOverlap([]string{"x/"}, nil), "an empty side still overlaps for any other caller")
+}
+
 // TestImplementBatch_TouchesAreAHint: a task without touches joins a batch,
 // leading or behind, since only touches both tasks name can be compared; the
 // pick and the gate catch a clash (v1.20.0, the operator's decision).
