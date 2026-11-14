@@ -24,7 +24,7 @@ func serve(t *testing.T, method, host, path string) *http.Response {
 	req.Host = host
 	req.Header.Set("Origin", "http://evil.example")
 	rec := httptest.NewRecorder()
-	dashboard.Handler(testPort, nil).ServeHTTP(rec, req)
+	dashboard.Handler(testPort, "", nil).ServeHTTP(rec, req)
 	return rec.Result()
 }
 

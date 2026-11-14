@@ -3,6 +3,7 @@ package dashboard
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"html"
 	"io/fs"
 	"net/http"
 	"regexp"
@@ -51,8 +52,9 @@ var stampedIndex = sync.OnceValues(func() ([]byte, error) {
 })
 
 // serveIndex answers the page itself, never cached, so a reload after an
-// upgrade always reads the new stamp.
-func serveIndex(w http.ResponseWriter) {
+// upgrade always reads the new stamp, with project named in its brand and
+// title.
+func serveIndex(w http.ResponseWriter, project string) {
 	b, err := stampedIndex()
 	if err != nil {
 		http.Error(w, "the page does not read: "+err.Error(), http.StatusInternalServerError)
@@ -60,7 +62,21 @@ func serveIndex(w http.ResponseWriter) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
-	_, _ = w.Write(b)
+	_, _ = w.Write(namedIndex(b, project))
+}
+
+// namedIndex is page with project, escaped, between tp and dashboard in the
+// brand and the title, so two open dashboards tell apart; an empty project
+// leaves page as it is.
+func namedIndex(page []byte, project string) []byte {
+	if project == "" {
+		return page
+	}
+	name := html.EscapeString(project)
+	out := strings.Replace(string(page), `<title>tp dashboard</title>`, `<title>tp `+name+` dashboard</title>`, 1)
+	out = strings.Replace(out, `<span class="tp">tp</span><span>dashboard</span>`,
+		`<span class="tp">tp</span><span class="project">`+name+`</span><span>dashboard</span>`, 1)
+	return []byte(out)
 }
 
 // pageCache is the Cache-Control of a page file asked for at r: immutable

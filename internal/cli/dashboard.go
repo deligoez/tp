@@ -81,7 +81,7 @@ func serveDashboard(parent context.Context, ln net.Listener) error {
 	ctx, stop := signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	srv := &http.Server{
-		Handler:           dashboard.Handler(ln.Addr().(*net.TCPAddr).Port, dashboardAPI{}),
+		Handler:           dashboard.Handler(ln.Addr().(*net.TCPAddr).Port, engine.ProjectName("."), dashboardAPI{}),
 		ReadHeaderTimeout: 10 * time.Second,
 		// Every request's context ends with the signal, so an open event
 		// stream returns and its response completes before Shutdown drains.

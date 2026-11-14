@@ -69,7 +69,7 @@ func TestHandler_ServesTheRendererGzippedOrPlain(t *testing.T) {
 			req.Header.Set("Accept-Encoding", accept)
 		}
 		rec := httptest.NewRecorder()
-		Handler(7377, nil).ServeHTTP(rec, req)
+		Handler(7377, "", nil).ServeHTTP(rec, req)
 		return rec.Result()
 	}
 	for _, accept := range []string{"gzip, deflate, br", ""} {
@@ -99,7 +99,7 @@ func getWith(path string, headers map[string]string) *http.Response {
 		req.Header.Set(k, v)
 	}
 	rec := httptest.NewRecorder()
-	Handler(7377, nil).ServeHTTP(rec, req)
+	Handler(7377, "", nil).ServeHTTP(rec, req)
 	return rec.Result()
 }
 

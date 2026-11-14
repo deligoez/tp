@@ -25,8 +25,9 @@ const Host = "127.0.0.1"
 // request whose Host is the bound address and port, or localhost with that
 // port, and whose method is GET. Every other request is refused, so the
 // server exposes no write endpoint and a rebound DNS name reaches nothing. No
-// response carries a CORS header.
-func Handler(port int, api API) http.Handler {
+// response carries a CORS header. The page names project, the repository's
+// directory, between tp and dashboard; an empty project names none.
+func Handler(port int, project string, api API) http.Handler {
 	sub, err := fs.Sub(page, "page")
 	if err != nil {
 		// The embed directive names page, so the sub-tree always exists.
@@ -59,7 +60,7 @@ func Handler(port int, api API) http.Handler {
 			return
 		}
 		if r.URL.Path == "/" {
-			serveIndex(w)
+			serveIndex(w, project)
 			return
 		}
 		w.Header().Set("Cache-Control", pageCache(r))
