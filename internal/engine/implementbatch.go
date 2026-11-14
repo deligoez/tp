@@ -13,9 +13,10 @@ import (
 // (spec/backlog/parallel-implement.md §2.2): a wip task alone, since an
 // interrupted unit is resumed before anything new starts; otherwise the ready
 // task tp next would take, and, while the batch is under maxParallel, each
-// later ready task whose touches are disjoint from every task already in it.
-// A task without touches, or marked solo by a failed integration, never joins
-// a batch and, leading, runs alone. An empty result means no task is ready.
+// later ready task whose touches overlap none already in it. Touches are a
+// hint (v1.20.0): a task without them joins unscreened, and the pick and the
+// gate catch a clash. A task marked solo by a failed integration never joins a
+// batch and, leading, runs alone. An empty result means no task is ready.
 func ImplementBatch(tf *model.TaskFile, maxParallel int) []string {
 	id, wip, has := ImplementPreview(tf)
 	if !has {
@@ -72,8 +73,8 @@ func implementBatch(units []NextUnit) bool {
 }
 
 // TouchesWarnings names each open task without touches when maxParallel is
-// above 1: such a task never runs beside another, so the batch the operator
-// raised the cap for cannot form around it (tp validate's touches rule).
+// above 1: such a task joins a batch unscreened, so a clash with a sibling
+// discards its unit and reruns it alone (tp validate's touches rule).
 func TouchesWarnings(tf *model.TaskFile, maxParallel int) []Finding {
 	if maxParallel <= 1 {
 		return nil
@@ -89,12 +90,12 @@ func TouchesWarnings(tf *model.TaskFile, maxParallel int) []Finding {
 		return nil
 	}
 	// One finding for all of them: the fix is the same command per task.
-	subject := fmt.Sprintf("%d open tasks have no touches, so they never run", len(ids))
+	subject := fmt.Sprintf("%d open tasks have no touches, so they run", len(ids))
 	if len(ids) == 1 {
-		subject = "1 open task has no touches, so it never runs"
+		subject = "1 open task has no touches, so it runs"
 	}
 	return []Finding{{Severity: "warning", Rule: "touches", Message: fmt.Sprintf(
-		`%s beside another task (run_max_parallel %d): %s; set each with tp set <id> 'touches=["path/to/file.go","dir/**"]'`,
+		`%s beside other tasks unscreened and one that shares a file with a batch sibling is discarded and rerun alone (run_max_parallel %d): %s; set each with tp set <id> 'touches=["path/to/file.go","dir/**"]'`,
 		subject, maxParallel, strings.Join(ids, ", "))}}
 }
 
@@ -111,8 +112,10 @@ func batchBriefs(units []NextUnit) {
 
 // batchable reports whether a task may run beside another: it names what it
 // touches and no failed integration marked it to run alone.
+// batchable reports whether a task may run beside another: no failed
+// integration marked it to run alone, and its id is safe in a branch name.
 func batchable(t *model.Task) bool {
-	return len(t.Touches) > 0 && !t.Solo && batchSafeID(t.ID)
+	return !t.Solo && batchSafeID(t.ID)
 }
 
 // batchSafeIDRe is the id a batch can carry into a branch name, a worktree
@@ -126,9 +129,15 @@ func batchSafeID(id string) bool {
 		!strings.HasSuffix(id, ".lock") && !strings.HasSuffix(id, ".")
 }
 
+// disjointFromAll reports whether t's touches overlap no batch member's;
+// only touches both tasks name can be compared, so a task without them is
+// disjoint from every other.
 func disjointFromAll(t *model.Task, batch []*model.Task) bool {
+	if len(t.Touches) == 0 {
+		return true
+	}
 	for _, b := range batch {
-		if TouchesOverlap(t.Touches, b.Touches) {
+		if len(b.Touches) > 0 && TouchesOverlap(t.Touches, b.Touches) {
 			return false
 		}
 	}
