@@ -330,6 +330,24 @@ func TestTaskAuditRegrade_AChangeToTheFileIsAskedAgain(t *testing.T) {
 	assert.Nil(t, audits[1].(map[string]any)["fix_pass"])
 }
 
+// TestTaskAudit_AnEpochCutsTheTaskAuditsBeforeIt: tp review --rewritten
+// places its epoch after the latest task audit too.
+func TestTaskAudit_AnEpochCutsTheTaskAuditsBeforeIt(t *testing.T) {
+	t.Parallel()
+	dir := taskAuditProject(t, "t1")
+	closeWith(t, dir, "t1", commitFiles(t, dir, "a.go"))
+	recordTaskAuditWith(t, dir, emitTaskAudit(t, dir), "PASS")
+	// An epoch needs a round that read the spec's text; a task audit read code.
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "r1.ndjson"), []byte(`{"role":"spec-coverage","item_id":"x","status":"PASS","location":"§1","class":"x","category":null,"severity":null}`+"\n"), 0o600))
+	_, stderr, code := runTP(t, dir, "audit", "spec.md", "--record", "r1.ndjson")
+	require.Equal(t, 0, code, "record: %s", stderr)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n\nRewritten content.\n"), 0o600))
+	_, stderr, code = runTP(t, dir, "review", "spec.md", "--rewritten", "the spec was rewritten")
+	require.Equal(t, 0, code, "rewritten: %s", stderr)
+	epochs := readReviewState(t, dir)["epochs"].([]any)
+	assert.EqualValues(t, 1, epochs[len(epochs)-1].(map[string]any)["after_task_audit"])
+}
+
 // readReviewState reads spec.md's state.json.
 func readReviewState(t *testing.T, dir string) map[string]any {
 	t.Helper()
