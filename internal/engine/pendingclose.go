@@ -21,6 +21,9 @@ type PendingClose struct {
 	Commits  []string `json:"commits"`
 	Worktree string   `json:"worktree"`
 	At       string   `json:"at"`
+	// PickedOnto is the main branch's HEAD the driver began picking onto,
+	// written before the pick; empty until then.
+	PickedOnto string `json:"picked_onto,omitempty"`
 }
 
 // PendingCloseDir is the cycle's pending-close directory,

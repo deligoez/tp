@@ -134,12 +134,11 @@ func (d *driver) integrateOne(tf *model.TaskFile, p *PendingClose) error {
 		}
 		return nil
 	}
-	pre, err := gitOut(d.opts.Root, "rev-parse", "HEAD")
-	if err != nil {
-		return driverErrorf(err, "read the main branch's HEAD")
-	}
 	logPath := filepath.Join(RunDir(d.opts.Root, d.runID), "integrate-"+p.ID+".log")
-	picked, pickErr := cherryPick(d.opts.Root, p.Commits)
+	pre, picked, pickErr := d.pickUnit(p)
+	if pre == "" {
+		return pickErr
+	}
 	if pickErr == nil {
 		warnTouchesEscape(d.opts.Root, tf, p.ID, pre)
 		pickErr = d.closeTask(p, picked, logPath)
@@ -150,22 +149,62 @@ func (d *driver) integrateOne(tf *model.TaskFile, p *PendingClose) error {
 		return driverErrorf(pickErr, "integrate task %q", p.ID)
 	}
 	if pickErr != nil {
-		// --keep, not --hard: the task file's uncommitted closes of the
-		// batch's earlier units must survive, and a unit's commits never
-		// touch it (CheckUnitCommits).
-		if _, resetErr := gitOut(d.opts.Root, "reset", "-q", "--keep", pre); resetErr != nil {
-			return driverErrorf(resetErr, "restore the main branch after task %q", p.ID)
-		}
-		output.Notice(fmt.Sprintf("task %s did not integrate (%v); it reopens to run alone", p.ID, pickErr))
-		if d.opts.ReopenSolo == nil {
-			return driverErrorf(fmt.Errorf("no reopen function"), "reopen task %q", p.ID)
-		}
-		if err := d.opts.ReopenSolo(p.ID); err != nil {
-			return driverErrorf(err, "reopen task %q", p.ID)
+		if err := d.discardUnit(p.ID, pre, pickErr, logPath); err != nil {
+			return err
 		}
 	}
 	if err := RemovePendingClose(d.opts.Root, d.opts.TaskFile, p.ID); err != nil {
 		return driverErrorf(err, "remove the pending close of %q", p.ID)
+	}
+	return nil
+}
+
+// pickUnit puts a unit's commits on the main branch and returns the HEAD they
+// were picked onto and the picked shas. The HEAD is recorded in the pending
+// close before the pick, so a driver that dies before the close leaves enough
+// for the next run to close those same commits instead of picking them again.
+// An empty pre means a driver error, returned as the error.
+func (d *driver) pickUnit(p *PendingClose) (pre string, picked []string, err error) {
+	head, err := gitOut(d.opts.Root, "rev-parse", "HEAD")
+	if err != nil {
+		return "", nil, driverErrorf(err, "read the main branch's HEAD")
+	}
+	if p.PickedOnto != "" && head != p.PickedOnto {
+		landed, listErr := gitOut(d.opts.Root, "rev-list", "--reverse", p.PickedOnto+"..HEAD")
+		if listErr == nil && len(strings.Fields(landed)) == len(p.Commits) {
+			return p.PickedOnto, strings.Fields(landed), nil
+		}
+		return "", nil, driverErrorf(fmt.Errorf("the main branch moved past %s since task %s's interrupted pick", p.PickedOnto, p.ID),
+			"integrate task %q", p.ID)
+	}
+	p.PickedOnto = head
+	if err := WritePendingClose(d.opts.Root, d.opts.TaskFile, p); err != nil {
+		return "", nil, driverErrorf(err, "record the pick of task %q", p.ID)
+	}
+	picked, err = cherryPick(d.opts.Root, p.Commits)
+	return head, picked, err
+}
+
+// discardUnit takes a pick that conflicted or failed its gate back off the
+// main branch, records why for the unit that redoes it, and reopens the task
+// to run alone.
+func (d *driver) discardUnit(id, pre string, cause error, logPath string) error {
+	// --keep, not --hard: the task file's uncommitted closes of the batch's
+	// earlier units must survive, and a unit's commits never touch it
+	// (CheckUnitCommits).
+	if _, err := gitOut(d.opts.Root, "reset", "-q", "--keep", pre); err != nil {
+		return driverErrorf(err, "restore the main branch after task %q", id)
+	}
+	output.Notice(fmt.Sprintf("task %s did not integrate (%v); it reopens to run alone", id, cause))
+	_ = WriteLastFailure(d.opts.Root, d.opts.TaskFile, &LastFailure{
+		UnitKind: UnitImplement, UnitID: id, Phase: PhaseImplement, ExitCode: 1,
+		Summary: fmt.Sprintf("integration onto the main branch failed: %v; log: %s", cause, logPath),
+	})
+	if d.opts.ReopenSolo == nil {
+		return driverErrorf(fmt.Errorf("no reopen function"), "reopen task %q", id)
+	}
+	if err := d.opts.ReopenSolo(id); err != nil {
+		return driverErrorf(err, "reopen task %q", id)
 	}
 	return nil
 }
