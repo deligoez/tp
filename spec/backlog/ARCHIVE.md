@@ -63,3 +63,4 @@ notes shipped from v1.3.0 to v1.18.0 followed; code comments that cite them reso
 | `carried-rows-block` | `carried-rows-block.md` | `26e2d985` | archived on 2026-11-14: shipped in v1.16.0 (`spec/1.16.0-measurements.md`) |
 | `dashboard-graph` | `dashboard-graph.md` | `1786ff7f` | archived on 2026-11-14: shipped in v1.17.0 (`spec/1.17.0-measurements.md`) |
 | `audit-carried-fail-blocks` | `audit-carried-fail-blocks.md` | `a60ccdd3` | archived on 2026-11-14: shipped in v1.18.0 (`spec/1.18.0-measurements.md`) |
+| `parallel-implement` | `parallel-implement.md` | `ff2b2813` | archived on 2026-11-14: implement units side by side in worktrees shipped in v1.19.0 (`spec/1.19.0-measurements.md`); its follow-ups, the unit gate in the worktree and `touches` as a hint, in v1.20.0 (`spec/1.20.0-measurements.md`) |
