@@ -30,7 +30,7 @@ func TestImplementBatch_TakesDisjointReadyTasksUpToTheCap(t *testing.T) {
 }
 
 // TestTouchesWarnings: under run_max_parallel above 1 each open task without
-// touches is named, since it never runs beside another; at 1 nothing is.
+// touches is named, since it joins a batch unscreened; at 1 nothing is.
 func TestTouchesWarnings(t *testing.T) {
 	t.Parallel()
 	done := batchTask("d")
@@ -40,20 +40,26 @@ func TestTouchesWarnings(t *testing.T) {
 	got := TouchesWarnings(tf, 3)
 	require.Len(t, got, 1, "one finding names every such task")
 	assert.Equal(t, Finding{Severity: "warning", Rule: "touches",
-		Message: `2 open tasks have no touches, so they never run beside another task (run_max_parallel 3): a, c; set each with tp set <id> 'touches=["path/to/file.go","dir/**"]'`}, got[0])
+		Message: `2 open tasks have no touches, so they run beside other tasks unscreened and one that shares a file with a batch sibling is discarded and rerun alone (run_max_parallel 3): a, c; set each with tp set <id> 'touches=["path/to/file.go","dir/**"]'`}, got[0])
 }
 
-// TestImplementBatch_ATaskWithoutTouchesOrMarkedSoloRunsAlone: a lead without
-// touches, or one a failed integration marked solo, runs alone; such a task is
-// never added behind a lead; and a wip task is resumed alone before any batch.
-func TestImplementBatch_ATaskWithoutTouchesOrMarkedSoloRunsAlone(t *testing.T) {
+// TestImplementBatch_TouchesAreAHint: a task without touches joins a batch,
+// leading or behind, since only touches both tasks name can be compared; the
+// pick and the gate catch a clash (v1.20.0, the operator's decision).
+func TestImplementBatch_TouchesAreAHint(t *testing.T) {
 	t.Parallel()
 	noTouches := &model.TaskFile{Tasks: []model.Task{batchTask("a"), batchTask("c", "internal/cli/")}}
-	assert.Equal(t, []string{"a"}, ImplementBatch(noTouches, 3))
+	assert.Equal(t, []string{"a", "c"}, ImplementBatch(noTouches, 3))
 
-	behind := &model.TaskFile{Tasks: []model.Task{batchTask("a", "x/"), batchTask("b"), batchTask("c", "y/")}}
-	assert.Equal(t, []string{"a", "c"}, ImplementBatch(behind, 3))
+	behind := &model.TaskFile{Tasks: []model.Task{batchTask("a", "x/"), batchTask("b"), batchTask("c", "x/y.go"), batchTask("d", "y/")}}
+	assert.Equal(t, []string{"a", "b", "d"}, ImplementBatch(behind, 3), "named touches still keep an overlapping task out")
+}
 
+// TestImplementBatch_ASoloOrWIPOrUnsafeTaskRunsAlone: a task a failed
+// integration marked solo runs alone and never joins a batch; a wip task is
+// resumed alone before any batch.
+func TestImplementBatch_ASoloOrWIPOrUnsafeTaskRunsAlone(t *testing.T) {
+	t.Parallel()
 	solo := batchTask("a", "x/")
 	solo.Solo = true
 	soloFirst := &model.TaskFile{Tasks: []model.Task{solo, batchTask("c", "y/")}}
