@@ -3,6 +3,7 @@ package engine
 import (
 	"bytes"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -45,6 +46,25 @@ func gitToplevel(start string) string {
 		return ""
 	}
 	return strings.TrimSpace(string(out))
+}
+
+// ProjectName is the name the dashboard shows for the repository holding
+// start: its root directory's name, or start's own when start is not inside a
+// git repository, or "" when neither resolves.
+func ProjectName(start string) string {
+	root := gitToplevel(start)
+	if root == "" {
+		abs, err := filepath.Abs(start)
+		if err != nil {
+			return ""
+		}
+		root = abs
+	}
+	name := filepath.Base(root)
+	if name == "/" || name == "." {
+		return ""
+	}
+	return name
 }
 
 // parsePorcelainZ parses a NUL-separated `git status --porcelain=v1 -z` stream
