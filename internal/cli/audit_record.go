@@ -127,6 +127,7 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 		return nil
 	}
 	removeRoundInbox(specPath, engine.PhaseAudit, round)
+	clean = st.AuditRounds[round-1].Clean
 
 	wf, _ := engine.ResolveWorkflow(specPath, flagFile)
 	// converged and stale are computed once, so the payload and §2.4's
@@ -314,6 +315,11 @@ func recordAuditRoundEntry(specPath string, data []byte, rows []map[string]any, 
 			previous = st.AuditRounds[round-1].Graded
 		}
 		entry.Graded = gradedAtRecord(specPath, round, rows, hashScheme, previous)
+		// A round with no emission of its own shows nothing spec-coverage was
+		// asked, and one whose spec-coverage left asked items unanswered is not
+		// clean, whatever its rows say (spec/backlog/role-presence.md).
+		entry.Unasked = hashScheme != engine.HashSchemeSnapshot
+		entry.Clean = entry.Clean && !engine.SpecCoverageUnproven(&entry)
 		if rewrite {
 			st.AuditRounds[round-1] = entry
 		} else {
