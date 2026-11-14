@@ -196,8 +196,34 @@ func taskAuditPrompts(specPath string, rec *engine.TaskAuditRecord) []auditPromp
 		entries = append(entries, engine.AuditFileEntry{Path: f, Tasks: []string{}})
 	}
 	sel := engine.AuditFileSelection{CodeFiles: entries, CodeFilesTotal: len(entries), CodeFilesNamed: true}
-	prompts, _ := generateRoleAuditPrompts(roles, nil, &sel, specPath, "", claudeMDExcerptFor(specPath), nil, engine.PhaseTaskAudit, rec.Seq, 0, 0, 0)
+	prompts, _ := generateRoleAuditPrompts(roles, nil, &sel, specPath, "", claudeMDExcerptFor(specPath),
+		taskAuditPriorRows(specPath, entries), engine.PhaseTaskAudit, rec.Seq, 0, 0, 0)
 	return appendClausesAudit(prompts)
+}
+
+// taskAuditPriorRows is, per role, the open carried rows on the batch's
+// files, read from the spec's state rather than handed in: every reading of
+// a file is shown the rows a PASS of it would clear, so no PASS clears a row
+// its reader never saw.
+func taskAuditPriorRows(specPath string, entries []engine.AuditFileEntry) map[string]*auditPriorRound {
+	all := loadAuditPriorRound(specPath)
+	out := make(map[string]*auditPriorRound, len(all))
+	for role, p := range all {
+		asked := make(map[string]bool, len(entries))
+		for _, it := range fileCheckItems(entries, role) {
+			asked[it.ItemID] = true
+		}
+		kept := &auditPriorRound{legacy: p.legacy}
+		for i := range p.rows {
+			if asked[p.rows[i].ItemID] {
+				kept.rows = append(kept.rows, p.rows[i])
+			}
+		}
+		if len(kept.rows) > 0 {
+			out[role] = kept
+		}
+	}
+	return out
 }
 
 // refuseWhileAuditRoundInFlight exits 1 while a release audit round is
