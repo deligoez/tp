@@ -9,8 +9,10 @@
 # removing them costs one command to restore.
 #
 # Inbox files — ground's scratch file `ground-inbox/round-N.ndjson`, the
-# review and audit role files `{review,audit}-inbox/round-N-<role>.ndjson`, and
-# the pools an audit emission keeps beside them, `audit-inbox/round-N.pools.json`
+# review and audit role files `{review,audit}-inbox/round-N-<role>.ndjson`, the
+# pools an audit emission keeps beside them, `audit-inbox/round-N.pools.json`,
+# and the roles a review emission owes, `review-inbox/round-N.roles.json`, with
+# the rows `--record-inbox` merged from them, `review-inbox/round-N.merged.ndjson`
 # — are judged against the round files one directory up, and differ in guard 1:
 # `--record` removes them, so one whose round IS recorded is debris, not the
 # round's evidence, and is removable too.
@@ -129,7 +131,7 @@ if [ -d "$ROOT" ]; then
     removable+=("$f"); reasons+=("$reason")
   done < <(find "$ROOT" -type f \( -name 'floor-*round-*.txt' -o -name 'snapshot-*round-*.md' \
     -o -path '*/ground-inbox/round-*.ndjson' -o -path '*/review-inbox/round-*.ndjson' -o -path '*/audit-inbox/round-*.ndjson' \
-    -o -path '*/audit-inbox/round-*.pools.json' \) | sort)
+    -o -path '*/audit-inbox/round-*.pools.json' -o -path '*/review-inbox/round-*.roles.json' \) | sort)
 fi
 
 if [ -d "$ROUNDS" ]; then
