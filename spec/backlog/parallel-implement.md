@@ -30,15 +30,18 @@ measurements): worth having, and bounded by how well a task names what it touche
    worktree of the same repository `tp done` writes the pending close below instead of meeting the
    foreign-tree refusal, which every other tree mode still meets there.
 4. **The unit asks; the driver closes.** In a worktree, `tp done` validates the commits are on the
-   unit's branch and touch no tp-owned path (the task file, spec state, `.tp/`), writes a pending close
-   and runs no gate. After the batch the driver, in id order, cherry-picks each unit's commits onto
-   the main branch, runs the quality gate there, and on a pass closes the task with the picked shas.
+   unit's branch and touch no tp-owned path (the task file, spec state, `.tp/`), runs the quality gate
+   in the worktree, and on a pass writes a pending close (v1.20.0, the operator's decision; until then
+   it ran no gate). After the batch the driver, in id order, cherry-picks each unit's commits onto
+   the main branch, runs the quality gate there again, and on a pass closes the task with the picked
+   shas. The second gate stays even when the main branch has not moved since the unit's base: skipping
+   it is a cost the operator has not taken.
    A conflict or a failing gate restores the main branch to before the pick and reopens the task with
    a durable `solo` mark the oracle reads, so it runs alone next. A diff that leaves its `touches` is
    warned on stderr, not reopened: the pick and the gate are the safety, `touches` the schedule.
-5. **Gates are one at a time.** The driver gates one pick at a time, and a unit's brief tells it to
-   run only the tests its change needs, never the whole suite, since parallel test load once
-   exhausted the machine.
+5. **Integration gates are one at a time.** The driver gates one pick at a time. The units' own gates
+   run side by side, up to `run_max_parallel`; while working, a unit's brief tells it to run only the
+   tests its change needs, never the whole suite, since parallel test load once exhausted the machine.
 6. **A crash is reconciled at start.** A run that finds pending closes, unit branches or worktrees from
    an earlier run integrates or reopens them before its first batch, and `tp resume` names them.
 7. **Stops.** When a unit escalates, its finished siblings are integrated before the run stops. A cap
@@ -54,8 +57,8 @@ measurements): worth having, and bounded by how well a task names what it touche
 
 ## 4. Alternatives
 
-- **The unit also gates in its worktree.** Fewer discarded units, about twice the gates. The
-  operator's call, put with the measured discard rate; not built.
+- **The unit also gates in its worktree.** Fewer discarded units, about twice the gates. Taken in
+  v1.20.0 by the operator's decision: a red change is caught in the unit, before a pick.
 - **Reopen a unit whose diff left its `touches`.** Rejected: it discards work that integrated cleanly
   and passed the gate.
 - **Same tree, disjoint files.** Rejected by the operator: the gate would run over another unit's
