@@ -21,5 +21,5 @@ func TestValidate_WarnsOnATaskWithoutTouchesUnderParallel(t *testing.T) {
 	require.Equal(t, 0, code, stderr)
 	stdout, stderr, code = runTP(t, dir, "validate")
 	require.Equal(t, 0, code, stderr)
-	assert.Contains(t, stdout, "1 open task has no touches, so it never runs beside another task (run_max_parallel 2): seed")
+	assert.Contains(t, stdout, "1 open task has no touches, so it runs beside other tasks unscreened and one that shares a file with a batch sibling is discarded and rerun alone (run_max_parallel 2): seed")
 }
