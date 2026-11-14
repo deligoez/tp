@@ -105,6 +105,21 @@ func TestTaskAuditPresence_EveryFileMustBeRead(t *testing.T) {
 	assert.Empty(t, TaskAuditOwedTasks(spec, st))
 }
 
+// TestTaskAuditPresence_AnUnreadableTaskFileHoldsTheAuditAndNamesTheRepair:
+// presence fails closed, and next_action names the file to repair rather
+// than a task audit no emission could run.
+func TestTaskAuditPresence_AnUnreadableTaskFileHoldsTheAuditAndNamesTheRepair(t *testing.T) {
+	t.Parallel()
+	spec := presenceSpec(t, []string{"security"}, closedTask("t1", []string{"a.go"}, "security"))
+	require.NoError(t, os.WriteFile(filepath.Join(filepath.Dir(spec), "spec.tasks.json"), []byte("{"), 0o600))
+	require.Len(t, TaskAuditOwedTasks(spec, &ReviewState{}), 1)
+	d := AuditLoopDone(spec, &ReviewState{}, 2, 0, "")
+	assert.False(t, d.Done)
+	na := AuditNextAction(spec, d, true, 0, "")
+	assert.Contains(t, na, "cannot be read")
+	assert.NotContains(t, na, "--task-audit")
+}
+
 // TestTaskAuditPresence_AReClosedTaskOwesAgain: a record of an earlier close
 // does not answer for a later one.
 func TestTaskAuditPresence_AReClosedTaskOwesAgain(t *testing.T) {
