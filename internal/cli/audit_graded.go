@@ -9,25 +9,40 @@ import (
 
 // auditRolePools takes each emitted code role's pool, its prompt's file_pool,
 // for the round's record to grade against (decision 4 of
-// spec/backlog/checklist-covers-what-changed.md). It reads the prompts before
-// the --role filter, so every sibling unit of a round writes the same pools.
+// spec/backlog/checklist-covers-what-changed.md), and spec-coverage's asked
+// checklist items, its pool being their count (spec/backlog/role-presence.md
+// §2.1). It reads the prompts before the --role filter, so every sibling unit
+// of a round writes the same pools.
 func auditRolePools(prompts []auditPrompt) []engine.AuditRolePool {
 	pools := make([]engine.AuditRolePool, 0, len(prompts))
 	for i := range prompts {
 		if prompts[i].Role == roleSpecCoverage {
+			items := checklistIDs(&prompts[i], func(it *ChecklistItem) bool {
+				// A carried finding stays under the 1.18.0 carried rule, so
+				// one row is never held by two rules.
+				return it.Type != "finding"
+			})
+			pools = append(pools, engine.AuditRolePool{Role: roleSpecCoverage, Pool: len(items), Items: items})
 			continue
 		}
-		items := make([]string, 0, prompts[i].FileCount)
-		if prompts[i].ChecklistItems != nil {
-			for j := range *prompts[i].ChecklistItems {
-				if it := &(*prompts[i].ChecklistItems)[j]; it.Type == "file_check" {
-					items = append(items, it.ItemID)
-				}
-			}
-		}
+		items := checklistIDs(&prompts[i], func(it *ChecklistItem) bool { return it.Type == "file_check" })
 		pools = append(pools, engine.AuditRolePool{Role: prompts[i].Role, Pool: prompts[i].FilePool, Items: items})
 	}
 	return pools
+}
+
+// checklistIDs returns the ids of a prompt's checklist items keep accepts.
+func checklistIDs(p *auditPrompt, keep func(*ChecklistItem) bool) []string {
+	ids := make([]string, 0, p.ChecklistCount)
+	if p.ChecklistItems == nil {
+		return ids
+	}
+	for j := range *p.ChecklistItems {
+		if it := &(*p.ChecklistItems)[j]; keep(it) {
+			ids = append(ids, it.ItemID)
+		}
+	}
+	return ids
 }
 
 // writeAuditRolePools keeps the round's pools until --record. A failed write
