@@ -137,6 +137,11 @@ func GradeAuditRoles(pools []AuditRolePool, rows []map[string]any) []RoleGraded 
 	for _, row := range rows {
 		role, _ := row["role"].(string)
 		id, _ := row["item_id"].(string)
+		if role == "" {
+			// A row that names no role is graded for the one pool that
+			// asked its id; an id two pools asked stays unattributed.
+			role = onlyPoolAsking(pools, id)
+		}
 		if emitted[role][id] {
 			seen[role][id] = true
 		}
@@ -155,13 +160,39 @@ func GradeAuditRoles(pools []AuditRolePool, rows []map[string]any) []RoleGraded 
 // asked ids, so Graded below Pool is containment failing. A round asked
 // nothing, a code role's cut list and a round from before 1.20.0 are not.
 func SpecCoverageUnproven(entry *ReviewRound) bool {
+	return UnprovenReason(entry) != ""
+}
+
+// UnprovenReason is the clause that says why a round leaves spec-coverage
+// unproven, leading next_action so a round recorded with no finding and not
+// clean is never left unexplained; "" when it does not.
+func UnprovenReason(entry *ReviewRound) string {
 	if entry.Unasked {
-		return true
+		return "the round was recorded without its emission, so nothing shows what spec-coverage was asked and it is not clean; emit the round and record over it. "
 	}
 	for _, g := range entry.Graded {
 		if g.Role == RoleSpecCoverage && g.Graded < g.Pool {
-			return true
+			return fmt.Sprintf("spec-coverage answered %d of the %d checklist items it was asked, so the round is not clean; run it again for the rest. ", g.Graded, g.Pool)
 		}
 	}
-	return false
+	return ""
+}
+
+// onlyPoolAsking returns the role of the one pool whose items hold id, or ""
+// when none or more than one does.
+func onlyPoolAsking(pools []AuditRolePool, id string) string {
+	owner := ""
+	for _, p := range pools {
+		for _, item := range p.Items {
+			if item != id {
+				continue
+			}
+			if owner != "" {
+				return ""
+			}
+			owner = p.Role
+			break
+		}
+	}
+	return owner
 }

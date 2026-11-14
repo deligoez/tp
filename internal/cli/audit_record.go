@@ -182,7 +182,7 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 	if len(graded) > 0 {
 		result["graded"] = graded
 	}
-	result["next_action"] = engine.GradedPrefix(graded) +
+	result["next_action"] = engine.GradedPrefix(graded) + engine.UnprovenReason(&st.AuditRounds[round-1]) +
 		engine.AuditNextAction(engine.RepoRelative(specPath), done, clean, findings, engine.LatestRoundFile(specPath, st.AuditRounds))
 	noteRecordWithoutEmission(engine.PhaseAudit, specPath, &st.AuditRounds[round-1], stale)
 	return output.JSON(result)
@@ -527,10 +527,12 @@ func runAuditStatus(specPath string, check bool) error {
 	// count, which is the state the pre-release `len(rounds) > 0 &&` guarded.
 	latestClean, latestFindings := true, 0
 	var latestGraded []engine.RoleGraded
+	unproven := ""
 	if n := len(rounds); n > 0 {
 		latestClean, latestFindings, latestGraded = rounds[n-1].Clean, rounds[n-1].Findings, rounds[n-1].Graded
+		unproven = engine.UnprovenReason(&rounds[n-1])
 	}
-	result["next_action"] = engine.GradedPrefix(latestGraded) +
+	result["next_action"] = engine.GradedPrefix(latestGraded) + unproven +
 		engine.AuditNextAction(engine.RepoRelative(specPath), done, latestClean, latestFindings, engine.LatestRoundFile(specPath, rounds))
 
 	if jsonErr := output.JSON(result); jsonErr != nil {
