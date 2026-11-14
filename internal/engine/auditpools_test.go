@@ -41,15 +41,16 @@ func TestGradeAuditRoles_CountsDistinctFileChecksOfAnyVerdict(t *testing.T) {
 // unanswered; an id two pools asked stays unattributed.
 func TestGradeAuditRoles_ARolelessRowCountsForTheOnePoolAskingItsID(t *testing.T) {
 	pools := []AuditRolePool{
-		{Role: RoleSpecCoverage, Pool: 2, Items: []string{"item-1", "shared"}},
-		{Role: "security", Pool: 1, Items: []string{"shared"}},
+		{Role: RoleSpecCoverage, Pool: 3, Items: []string{"item-1", "item-2", "both"}},
+		{Role: "security", Pool: 2, Items: []string{"file-a", "both"}},
 	}
 	rows := []map[string]any{
 		{"item_id": "item-1", "status": "PASS"},
-		{"item_id": "shared", "status": "PASS"},
+		{"item_id": "file-a", "status": "PASS"},
+		{"item_id": "both", "status": "PASS"},
 	}
-	assert.Equal(t, []RoleGraded{{Role: RoleSpecCoverage, Graded: 1, Pool: 2}, {Role: "security", Graded: 0, Pool: 1}},
-		GradeAuditRoles(pools, rows))
+	assert.Equal(t, []RoleGraded{{Role: RoleSpecCoverage, Graded: 1, Pool: 3}, {Role: "security", Graded: 1, Pool: 2}},
+		GradeAuditRoles(pools, rows), "each roleless id counts for its one asking pool, and an id two pools asked for neither")
 }
 
 // TestAuditPools_RoundTripAndRemovedWithTheInbox: the pools an emission
