@@ -119,7 +119,8 @@ func WorktreeCloseRecipeText(effectiveStrategy, qualityGate, id string, touches 
 		fmt.Fprintf(&b, "   quality_gate (tp done runs it in this worktree): %s\n", qualityGate)
 	}
 	b.WriteString("\n3. Ask for the close, naming every commit you made; it gates this worktree and closes nothing until the driver integrates:\n")
-	fmt.Fprintf(&b, "   tp done %s --commit <sha> -- \"<evidence>\"   (repeat --commit per sha)\n\n", id)
+	fmt.Fprintf(&b, "   tp done %s --commit <sha> -- \"<evidence>\"   (repeat --commit per sha)\n", id)
+	b.WriteString("   On a red gate it exits 4, writes no request and closes nothing: fix it here, commit, and ask again naming every commit.\n\n")
 	b.WriteString("4. Write the closure reason as an evidence contract:\n")
 	writeEvidenceContract(&b)
 	b.WriteString("The \"--\" separator precedes the reason because a reason often starts with \"- \" (a bullet), which a flag parser would otherwise treat as a flag.\n")
