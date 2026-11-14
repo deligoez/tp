@@ -36,8 +36,8 @@ a field run before the tag. The measurements are in `spec/1.21.0-measurements.md
    emission and stored with it. The units have their own sequence, `task-audit-<n>`; they count toward
    neither `audit_max_rounds` nor the clean rounds, and an epoch cuts them like any round. The prompt
    adds one line: follow each call out of these files one hop into its callee to learn the callee's
-   error and exit contract; a row still anchors at a line in the batch's own files. The line stays only
-   if its trial run (§4) shows it earns its place.
+   error and exit contract; a row still anchors at a line in the batch's own files. Its trial run found
+   the cross-file FAIL every earlier run missed, for about a tenth more tokens (§5).
 5. **Findings do not block the close, and no fix unit runs mid-phase.** A task-audit row joins the
    release audit's carried set and is repaired by the existing audit fix path.
 6. **Re-asking.** At the start of the audit phase, the files holding an unresolved task-audit row are
@@ -75,9 +75,9 @@ figure before the tag.
 - Auditing interactions between tasks. The callee hop of §2.4 is evidence for a row on a batch file,
   never a graded item of its own.
 - The trial's historical FAIL was cross-file: a call in one task's file into another file's function
-  that exits the process. Neither the whole-pool runs nor the three-file run found it. If the callee line
-  does not find it either, depth on a task's own files does not reach a callee's contract, and that is a
-  written limit of the role.
+  that exits the process. Neither the whole-pool runs nor the three-file run found it; the same three-file
+  run with the callee line did, at the right line and for the right reason, though graded PARTIAL where
+  the history says FAIL. One run is not a rate; the field run counts how often the hop pays.
 
 ## 6. Field run
 
