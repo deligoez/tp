@@ -81,9 +81,10 @@ its first round delete or narrow; they do not add requirements.
 Open work is `BUGS.md` (the fix track, and entries awaiting an operator decision); the decision
 candidates in `spec/backlog/` are worked through. A shipped decision note leaves for
 `spec/backlog/ARCHIVE.md`, one row each naming the release and the sha to read it at; what the release
-measured stays in `spec/<version>-measurements.md`. Implement units running side by side in worktrees
-under `tp run` shipped in v1.19.0 (`spec/backlog/parallel-implement.md`, `spec/1.19.0-measurements.md`)
-and stays in the backlog until its follow-ups land. The epic layer's deferred pilot items are in
+measured stays in `spec/<version>-measurements.md`. v1.20.0 shipped the unit gate in a parallel unit's
+worktree, `touches` as a hint, spec-coverage answering every asked item and `tp review --record-inbox`
+(`spec/1.20.0-measurements.md`); its note `spec/backlog/role-presence.md` stays while the hand
+`--record` gap in `BUGS.md` waits for the operator. The epic layer's deferred pilot items are in
 `spec/1.3.0-measurements.md`.
 
 ## Rules
