@@ -92,10 +92,16 @@ func taskAuditPieces(cands []TaskAuditCandidate) []TaskAuditMember {
 // of at most ten files. The packing is prefix-stable: a candidate closed later
 // never changes a batch that was full before it closed.
 func PackTaskAudits(cands []TaskAuditCandidate) []TaskAuditBatch {
+	return packTaskAuditPieces(taskAuditPieces(cands))
+}
+
+// packTaskAuditPieces packs members greedily, in order, into batches of at
+// most ten files.
+func packTaskAuditPieces(pieces []TaskAuditMember) []TaskAuditBatch {
 	var out []TaskAuditBatch
 	var cur TaskAuditBatch
 	n := 0
-	for _, m := range taskAuditPieces(cands) {
+	for _, m := range pieces {
 		if len(cur.Members) > 0 && n+len(m.Files) > TaskAuditBatchFiles {
 			cur.Full = true
 			out = append(out, cur)
@@ -113,4 +119,71 @@ func PackTaskAudits(cands []TaskAuditCandidate) []TaskAuditBatch {
 		out = append(out, cur)
 	}
 	return out
+}
+
+// TaskAuditRecord is one recorded task audit in state.json's task_audits: a
+// batch's members (none on a re-grade), the files and roles it read, the HEAD
+// it read them at, where it sits among the audit rounds, and its round file.
+// The same shape, without the recorded fields, is the frozen emission.
+type TaskAuditRecord struct {
+	Seq             int               `json:"seq"`
+	Members         []TaskAuditMember `json:"members,omitempty"`
+	Files           []string          `json:"files"`
+	Roles           []string          `json:"roles"`
+	Head            string            `json:"head"`
+	Regrade         bool              `json:"regrade,omitempty"`
+	EmittedAt       string            `json:"emitted_at"`
+	AfterAuditRound int               `json:"after_audit_round,omitempty"`
+	RecordedAt      string            `json:"recorded_at,omitempty"`
+	File            string            `json:"file,omitempty"`
+	Findings        int               `json:"findings,omitempty"`
+	Clean           bool              `json:"clean,omitempty"`
+}
+
+// taskAuditMemberKey names one member's close and slice.
+type taskAuditMemberKey struct {
+	id, closedAt string
+	piece        int
+}
+
+// owedTaskAuditPieces is every piece of a candidate that owes a role and that
+// no recorded task audit holds for the same close.
+func owedTaskAuditPieces(cands []TaskAuditCandidate, recorded []TaskAuditRecord) []TaskAuditMember {
+	done := make(map[taskAuditMemberKey]bool)
+	for _, r := range recorded {
+		for _, m := range r.Members {
+			done[taskAuditMemberKey{m.ID, m.ClosedAt, m.Piece}] = true
+		}
+	}
+	owing := make([]TaskAuditCandidate, 0, len(cands))
+	for _, c := range cands {
+		if len(c.Roles) > 0 {
+			owing = append(owing, c)
+		}
+	}
+	var out []TaskAuditMember
+	for _, m := range taskAuditPieces(owing) {
+		if !done[taskAuditMemberKey{m.ID, m.ClosedAt, m.Piece}] {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+// DueTaskAudits is the batches the owed pieces pack into that are due now:
+// the full ones, and at the end of the implement phase the partial last one.
+func DueTaskAudits(cands []TaskAuditCandidate, recorded []TaskAuditRecord, endOfPhase bool) []TaskAuditBatch {
+	var out []TaskAuditBatch
+	for _, b := range packTaskAuditPieces(owedTaskAuditPieces(cands, recorded)) {
+		if b.Full || endOfPhase {
+			out = append(out, b)
+		}
+	}
+	return out
+}
+
+// TaskAuditsOwed reports whether any candidate still owes a piece: the
+// presence rule's condition (spec/backlog/per-task-code-audit.md §2.7).
+func TaskAuditsOwed(cands []TaskAuditCandidate, recorded []TaskAuditRecord) bool {
+	return len(owedTaskAuditPieces(cands, recorded)) > 0
 }
