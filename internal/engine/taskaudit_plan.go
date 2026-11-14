@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/deligoez/tp/internal/model"
@@ -67,7 +68,9 @@ func splitTaskAuditRoles(specPath string) (in, out []string) {
 		if r == RoleSpecCoverage {
 			continue
 		}
-		held := err == nil && slices.ContainsFunc(panel.Roles, func(p model.Role) bool { return p.ID == r })
+		// A panel that cannot be resolved holds every role: the debt stands
+		// until the corpus is repaired, as the release audit refuses it too.
+		held := err != nil || slices.ContainsFunc(panel.Roles, func(p model.Role) bool { return p.ID == r })
 		if held {
 			in = append(in, r)
 		} else {
@@ -107,8 +110,14 @@ func taskAuditRoot(specPath string) string {
 func taskAuditFiles(specPath, root string, t *model.Task) []string {
 	var changed []string
 	if len(t.CommitFiles) > 0 && t.CommitFilesTotal == 0 {
-		// tp done recorded them, whole: no git to run.
-		changed = t.CommitFiles
+		// tp done recorded them, whole: no git to run. A name git C-quoted
+		// (one outside plain ASCII, or holding a quote) is read as the name.
+		for _, p := range t.CommitFiles {
+			if unq, err := strconv.Unquote(p); err == nil && strings.HasPrefix(p, `"`) {
+				p = unq
+			}
+			changed = append(changed, p)
+		}
 	} else {
 		for _, sha := range TaskCommitSHAs(t) {
 			changed = append(changed, commitChangedFiles(filepath.Dir(specPath), sha, t.ID)...)
