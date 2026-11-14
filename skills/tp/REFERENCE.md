@@ -226,8 +226,8 @@ With `run_max_parallel` above 1 the implement phase returns a **batch**: the tas
 take, then each later ready task whose `touches` overlap none already in it, up to that many. Two
 globs overlap unless their literal prefixes diverge, compared case-insensitively, and an empty
 literal prefix overlaps everything. `touches` are a hint (v1.20.0): only touches both tasks name can
-be compared, so a task without them joins a batch unscreened, and a clash it brings is caught by the
-pick and the gate, which discard its unit and rerun it alone. A wip task is resumed alone first; a
+be compared, so a task without them joins a batch unscreened, and a clash is caught by the pick and
+the gate: whichever unit of the pair integrates second is discarded and rerun alone. A wip task is resumed alone first; a
 task carrying `solo: true` (managed: set by a failed integration, never by hand), or one whose id is
 unsafe in a branch name or a path (anything but letters, digits, `.`, `_` and `-`, a `..`, a trailing
 `.` or a `.lock` suffix) never joins a batch and, leading, runs alone. A batch of one is the ordinary
@@ -246,7 +246,7 @@ by `tp validate` and `tp set`.
 - **The unit asks; the driver closes.** In a linked worktree of the task file's repository,
   `tp brief <id>` gives the worktree close: the task's `touches`, commit on the branch (with hc
   under `commit_strategy: hc`), run only the tests the change needs while the units beside it run
-  theirs, and ask for the close. `tp done <id> --commit <sha>... -- "<evidence>"` there checks the
+  theirs, and ask for the close, which runs the gate in the worktree. `tp done <id> --commit <sha>... -- "<evidence>"` there checks the
   evidence and the commits, runs the quality gate in the worktree (from the project's directory in
   it) and closes nothing: on a red gate it exits 4 like any close, leaves `last_failure` under the
   main tree's root and writes no request (v1.20.0); on a green one it writes a pending close to
@@ -983,6 +983,19 @@ included.
 
 **Required keys and attribution keys (v1.1.0).** Both gates require four keys of a review finding — `severity`, `finding`, `location` (a `§`-anchor) and `evidence` — and neither lets a row through without them: `tp review <spec> --record` refuses the file, naming every offending line in one exit; `tp review --merge` skips the row, warns on stderr and counts it as skipped. `role` and `class` are attribution and cluster keys, and **no gate requires either** — a row carrying neither records at exit 0, with one stderr advisory about the absent `role` and the class-less finding clustered on its own. Until this release this contract read `role`, `location`, `class` and `severity`, which disagreed with the gates in both directions at once: it named two keys neither gate checked, and omitted `finding`, which `--merge` required at `v1.0.1` (`internal/cli/review_merge.go:192`). That was already true before `evidence` joined the set.
 
+**Recording the inbox (v1.20.0).** `tp review <spec> --record-inbox` records the collected round from
+its inbox, `.tp-review/<base>/review-inbox/round-<N>-<role>.ndjson`, one file per role the round
+owes. The emission stores that list beside the role files (`round-<N>.roles.json`): every prompt it
+built before any `--role` filter, `regression` included when the round carried it, so a role a
+`--diff-from` round or the spec left out is not owed. Each row is stamped with its file's role, the
+rows are written to `round-<N>.merged.ndjson` beside them, and that file is recorded as `--record`
+records one, so a refusal there names its lines. It exits 3 when the round was not emitted, was
+emitted without the list (before v1.20.0 or under `--no-state`: emit it again), or a role of it has
+no file (the message names every such role; a role that found nothing writes an empty file), 1 for a
+line the reader skips or a row naming another role than its file's, and 2 beside `--record` or
+under `TP_ROUND`. `--record <file>` is unchanged and cannot show that every role ran
+(`spec/backlog/role-presence.md`).
+
 Finding text and `class` slugs are written in **English** whatever language the spec is in — the rows are committed artifacts and `--merge` clusters slugs byte-for-byte, so a second language splits one idea into two families; see "Recording language" in `SKILL.md`. The `class` field is free-form (a kebab-case slug, the dedup/cluster key), and an arbitrary class is carried through `--merge`/`--resolve` untouched. `tp review --merge` clusters by `(location key, class)` — a finding with no class is its own cluster — and emits each cluster's representative (highest severity, then lexicographic role, then finding text) annotated with `found_by`/`found_by_roles`. `tp review --report` adds a `by_class` breakdown, the per-role `overlap_report`, and `mechanize_candidates` (a class in ≥ 2 distinct rounds OR ≥ 5 times in one round), sorted by total descending, ties alphabetical.
 
 **Whitespace, exactly (v1.1.0).** Both gates decide *empty* after `strings.TrimSpace`, so the whitespace this release means is the set `unicode.IsSpace` defines — tab, newline, vertical tab, form feed, carriage return and space, plus U+0085, U+00A0, U+1680, U+2000–U+200A, U+2028, U+2029, U+202F, U+205F and U+3000 — and nothing outside it. Every other character is content, the zero-width ones included: a one-row file whose `evidence` is a single U+00A0 makes `--record` exit 1 naming line 1, and the same file with U+200B instead records at exit 0.
@@ -1218,7 +1231,7 @@ A row carrying no `kind` on a claim verdict is rejected naming `kind`, before th
 | 0 | the invocation completed |
 | 1 | a row failed validation, **or** the round would record no row at all — the payload's rows plus the carried rows both zero. An empty payload whose every unit carries is not this case and exits 0 |
 | 2 | usage: `--check` without `--status`, two of `--units`/`--status`/`--record` together, `--record` with no path argument, `--force` on a mode other than the emission, or a discarding `--force` under `TP_UNATTENDED` |
-| 3 | file or corrupt state: an emission over an unrecorded round whose spec changed (without `--force`), a `--record` path that does not exist, a `--record` path that is the pre-1.12.0 scratch name `ground-<base>-r<N>.ndjson` in the working directory (never read; the hint names `.tp-review/<base>/ground-inbox/round-<N>.ndjson` to move it to), and for `tp review` and `tp audit` too: a tree mode whose task file (or spec) belongs to another project (the cross-tree refusal, naming the directory to run from), a `.tp/config.json` of that project that cannot be read or parsed, and `--merge` of an input named in the pre-1.12.0 role-file shape `<phase>-<base>-r<N>-<role>.ndjson` whose `<role>` is a role tp knows (the hint names the inbox file to move it to; any other name in that shape merges as before), no prior emission for the round, an unreadable preceding round, or a state directory holding an unparseable `state.json`; `tp review --record-inbox` with no emitted round or with a role of the round that has no file in the inbox (v1.20.0; a line the reader skips or a row naming another role than its file's exits 1). An unreadable preceding round is a **notice at emit** (exit 0) and a refusal at `--record` — the round is decided at the record |
+| 3 | file or corrupt state: an emission over an unrecorded round whose spec changed (without `--force`), a `--record` path that does not exist, a `--record` path that is the pre-1.12.0 scratch name `ground-<base>-r<N>.ndjson` in the working directory (never read; the hint names `.tp-review/<base>/ground-inbox/round-<N>.ndjson` to move it to), and for `tp review` and `tp audit` too: a tree mode whose task file (or spec) belongs to another project (the cross-tree refusal, naming the directory to run from), a `.tp/config.json` of that project that cannot be read or parsed, and `--merge` of an input named in the pre-1.12.0 role-file shape `<phase>-<base>-r<N>-<role>.ndjson` whose `<role>` is a role tp knows (the hint names the inbox file to move it to; any other name in that shape merges as before), no prior emission for the round, an unreadable preceding round, or a state directory holding an unparseable `state.json`. An unreadable preceding round is a **notice at emit** (exit 0) and a refusal at `--record` — the round is decided at the record |
 | 4 | the write lock could not be taken within `lock_timeout_seconds` |
 
 The lock's target is the **spec path**, not the state file: `.tp/locks/<spec-file>-<hash>.lock`,
@@ -1495,10 +1508,12 @@ is §2.1's sense, so a round whose rows are readable but whose stored `roles_has
 
 **Spec-coverage must answer what it was asked (v1.20.0).** An emission keeps spec-coverage's asked
 checklist item ids beside the code roles' pools (carried `finding` items excluded: they stay under the
-carried-row rule), and `--record` reports them in `graded` as `spec-coverage N of M`. A round in which
+carried-row rule), and `--record` reports them in `graded` as `spec-coverage N of M`; the pools are
+kept beside the round file (`audit-round-<N>.pools.json`), so a re-record grades its new rows against
+the same items, and a row naming no role counts for the one pool that asked its id. A round in which
 spec-coverage returned no row for some asked id — extra or repeated rows make up for none — is not
 clean, and its spec-coverage `consecutive_clean` is 0; a spec-coverage that wrote no rows is `0 of M`,
-not clean, while this field still reads `null` for it. A round asked nothing (`no-checklist-items`)
+not clean, while this field still reads `null` for it; `next_action` then opens with the reason. A round asked nothing (`no-checklist-items`)
 is clean as before. An audit round recorded since v1.20.0 without an emission of its own is stamped
 `unasked: true` and is not clean either: nothing shows what spec-coverage was asked. Rounds recorded
 before v1.20.0 carry neither and are not re-judged.
