@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -301,6 +302,29 @@ func TestIntegrate_ColoredOutputDoesNotFakeAMatchingPick(t *testing.T) {
 
 	require.Error(t, recoveryDriver(root, spec, taskFile, closer).integratePending())
 	assert.Empty(t, closer.closed)
+}
+
+// TestIntegrate_ACrashInsideAConflictingPickIsAborted: a driver that died with
+// a cherry-pick stopped on a conflict left it in progress; the next run aborts
+// it before picking, rather than failing the pick and discarding the unit.
+func TestIntegrate_ACrashInsideAConflictingPickIsAborted(t *testing.T) {
+	root, spec, taskFile, _ := batchProject(t, wipAlpha)
+	pre := gitIn(t, root, "rev-parse", "HEAD")
+	gitIn(t, root, "switch", "-q", "-c", "unit")
+	unit := commitIn(t, root, "a1.txt", "1\n")
+	gitIn(t, root, "switch", "-q", "-c", "clash", pre)
+	clash := commitIn(t, root, "s.md", "# changed elsewhere\n")
+	gitIn(t, root, "switch", "-q", "main")
+	commitIn(t, root, "s.md", "# changed on main\n")
+	picked := gitIn(t, root, "rev-parse", "HEAD")
+	cmd := exec.Command("git", "cherry-pick", clash)
+	cmd.Dir = root
+	require.Error(t, cmd.Run(), "the fixture leaves a conflicting pick in progress")
+	require.NoError(t, WritePendingClose(root, taskFile, &PendingClose{ID: "alpha", Commits: []string{unit}, PickedOnto: picked}))
+	closer := &fakeCloser{closed: map[string][]string{}}
+
+	require.NoError(t, recoveryDriver(root, spec, taskFile, closer).integratePending())
+	assert.Len(t, closer.closed["alpha"], 1, "the unit is picked and closed")
 }
 
 // TestCycleUnitBranches_NamesOnlyKeptBranches: a branch whose task is done is
