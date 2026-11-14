@@ -31,7 +31,21 @@ func WriteTaskAuditEmission(specPath string, rec *TaskAuditRecord) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, append(data, '\n'), 0o600)
+	// A sibling role unit reads it lock-free: it sees no file or the whole one.
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".batch-*.json")
+	if err != nil {
+		return err
+	}
+	if _, err := tmp.Write(append(data, '\n')); err != nil {
+		_ = tmp.Close()
+		_ = os.Remove(tmp.Name())
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		_ = os.Remove(tmp.Name())
+		return err
+	}
+	return os.Rename(tmp.Name(), path)
 }
 
 // ReadTaskAuditEmission reads task audit seq's frozen emission: nil and no
