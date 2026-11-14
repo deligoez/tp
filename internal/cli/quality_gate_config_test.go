@@ -179,7 +179,7 @@ func TestSuiteStateWrapperStillRunsTheRaceDetector(t *testing.T) {
 	// a live-state mutation still in the tree (audit round 8: caught on run 1,
 	// "(cached)" and exit 0 on runs 2 and 3, mutation present each time).
 	var invocations []string
-	for _, line := range strings.Split(string(body), "\n") {
+	for line := range strings.SplitSeq(string(body), "\n") {
 		if trimmed := strings.TrimSpace(line); strings.HasPrefix(trimmed, "go test ") {
 			invocations = append(invocations, trimmed)
 		}

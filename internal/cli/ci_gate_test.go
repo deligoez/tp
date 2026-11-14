@@ -49,7 +49,7 @@ func TestCIRunsEveryStepOfTheProjectGate(t *testing.T) {
 	require.NoError(t, err)
 	ci := string(workflow)
 
-	for _, step := range strings.Split(gate, "&&") {
+	for step := range strings.SplitSeq(gate, "&&") {
 		step = strings.TrimSpace(step)
 		if step == "" {
 			continue

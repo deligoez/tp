@@ -1123,7 +1123,7 @@ func isAuditableType(path string) bool {
 // reaches an auto-detected file list honestly and costs every role its
 // attention.
 func isTPStatePath(path string) bool {
-	for _, part := range strings.Split(filepath.ToSlash(path), "/") {
+	for part := range strings.SplitSeq(filepath.ToSlash(path), "/") {
 		// .tp-review/ beside a spec holds its round files, snapshots and
 		// state.json: tp's record of the review and audit loops, as .tp/ is
 		// of the cycle.

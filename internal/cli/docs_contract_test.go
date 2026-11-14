@@ -25,7 +25,7 @@ const (
 func TestDocsCarryTheMechanizePhaseQualifier(t *testing.T) {
 	t.Parallel()
 	seen := map[string]bool{}
-	for _, line := range strings.Split(readRepoDoc(t, "skills/tp/SKILL.md"), "\n") {
+	for line := range strings.SplitSeq(readRepoDoc(t, "skills/tp/SKILL.md"), "\n") {
 		for _, anchor := range []string{mechanizeRuleAnchor, mechanizeStepAnchor} {
 			if !strings.Contains(line, anchor) {
 				continue
@@ -142,7 +142,7 @@ func TestDocsCarryTheConvergenceSignalWording(t *testing.T) {
 	t.Parallel()
 	skill := readRepoDoc(t, "skills/tp/SKILL.md")
 	anchored := false
-	for _, line := range strings.Split(skill, "\n") {
+	for line := range strings.SplitSeq(skill, "\n") {
 		if !strings.Contains(line, divergenceParagraphAnchor) {
 			continue
 		}
@@ -222,7 +222,7 @@ func TestReferenceDoesNotPromiseTheStoredCleanFlagIsUnchanged(t *testing.T) {
 	assert.Contains(t, section, honestSignalsGovernedBy,
 		"the section states what governs the stored per-round clean flag now")
 
-	for _, sentence := range strings.Split(section, ". ") {
+	for sentence := range strings.SplitSeq(section, ". ") {
 		if !strings.Contains(sentence, storedCleanFlagPhrase) {
 			continue
 		}
@@ -284,7 +284,7 @@ func TestDocsStateTheConvergenceRuleUnderBothPolicies(t *testing.T) {
 	}
 
 	anchored := false
-	for _, para := range strings.Split(skill, "\n\n") {
+	for para := range strings.SplitSeq(skill, "\n\n") {
 		if !strings.Contains(para, auditScopeAnchor) {
 			continue
 		}

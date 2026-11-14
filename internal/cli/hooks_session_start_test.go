@@ -138,7 +138,7 @@ func runSessionStartHook(t *testing.T, version string, extraEnv map[string]strin
 	run.stdout, run.stderr = stdout.String(), stderr.String()
 
 	if logged, readErr := os.ReadFile(logPath); readErr == nil {
-		for _, line := range strings.Split(strings.TrimRight(string(logged), "\n"), "\n") {
+		for line := range strings.SplitSeq(strings.TrimRight(string(logged), "\n"), "\n") {
 			if line != "" {
 				run.tpArgs = append(run.tpArgs, line)
 			}

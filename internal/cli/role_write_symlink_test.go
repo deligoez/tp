@@ -153,7 +153,7 @@ func TestRoleWriteHookStaysCheapOnADeepMissingPath(t *testing.T) {
 	// That is not hypothetical: the first version of this test used five-byte
 	// components, came to 2494 bytes, and passed while the defect was live.
 	deep := root
-	for i := 0; i < 440; i++ {
+	for i := range 440 {
 		deep = filepath.Join(deep, string(rune('a'+i%26)))
 	}
 	require.Less(t, len(deep), 1000,
@@ -177,7 +177,7 @@ func TestRoleWriteHookStaysCheapOnADeepMissingPath(t *testing.T) {
 	// honest estimate of what each case costs.
 	best := func(path string) (time.Duration, int) {
 		fastest, code := time.Hour, 0
-		for i := 0; i < 3; i++ {
+		for range 3 {
 			cmd := exec.Command(script) //nolint:gosec // a fixed path inside the repo under test
 			cmd.Env = env
 			cmd.Dir = root

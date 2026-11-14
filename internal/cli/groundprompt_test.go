@@ -172,7 +172,7 @@ func TestThePromptsKindTierTableIsDerivedFromTheRuleThatRejectsRows(t *testing.T
 
 	for _, kind := range engine.GroundKinds() {
 		line := ""
-		for _, l := range strings.Split(prompt, "\n") {
+		for l := range strings.SplitSeq(prompt, "\n") {
 			if strings.HasPrefix(strings.TrimSpace(l), string(kind)+" ") {
 				line = l
 				break

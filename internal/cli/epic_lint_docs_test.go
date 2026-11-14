@@ -16,7 +16,7 @@ import (
 func TestEpicLintRulesAreInTheReadmeRuleTable(t *testing.T) {
 	t.Parallel()
 	rows := map[string]bool{}
-	for _, line := range strings.Split(readRepoDoc(t, "README.md"), "\n") {
+	for line := range strings.SplitSeq(readRepoDoc(t, "README.md"), "\n") {
 		cells := strings.Split(strings.Trim(strings.TrimSpace(line), "|"), "|")
 		if len(cells) >= 2 && strings.Contains(cells[1], "`tp epic lint`") {
 			rows[strings.Trim(strings.TrimSpace(cells[0]), "`")] = true

@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/deligoez/tp/internal/engine"
@@ -37,11 +38,9 @@ func fenceReviewAcceptance(status string, rows []map[string]any) {
 	if !engine.Unattended() || !acceptanceStatus(status) {
 		return
 	}
-	for _, row := range rows {
-		if engine.ReviewRowBlocking(row) {
-			refuseUnattended("accepting a critical or high review finding without a spec change", engine.EscalateAcceptFinding)
-			return
-		}
+	if slices.ContainsFunc(rows, engine.ReviewRowBlocking) {
+		refuseUnattended("accepting a critical or high review finding without a spec change", engine.EscalateAcceptFinding)
+		return
 	}
 }
 

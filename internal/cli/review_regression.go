@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/deligoez/tp/internal/engine"
@@ -44,9 +45,9 @@ func runReviewRegression(specPath, diffFrom, findingsPath string, q roleQuery) e
 		baselinePath = diffFrom
 		all := mustParseFindingsFile(findingsPath)
 		// newest first: later rows are newer
-		for i := len(all) - 1; i >= 0; i-- {
-			if all[i].Resolved != nil && all[i].Resolved.Status == "fixed" {
-				fixed = append(fixed, all[i])
+		for _, a := range slices.Backward(all) {
+			if a.Resolved != nil && a.Resolved.Status == "fixed" {
+				fixed = append(fixed, a)
 			}
 		}
 	case diffFrom != "" || findingsPath != "":

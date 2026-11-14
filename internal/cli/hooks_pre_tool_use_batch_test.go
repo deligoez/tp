@@ -46,7 +46,7 @@ func pluginWriteMatcher(t *testing.T) string {
 func codedbproWritesIn(t *testing.T, matcher string) []string {
 	t.Helper()
 	var ops []string
-	for _, alt := range strings.Split(matcher, "|") {
+	for alt := range strings.SplitSeq(matcher, "|") {
 		name, ok := strings.CutPrefix(alt, "mcp__codedbpro__")
 		if ok && alt != batchTool {
 			ops = append(ops, name)
