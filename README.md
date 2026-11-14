@@ -241,6 +241,7 @@ tp review spec.md              # Review prompts, rounds, merge/resolve/record/st
 tp review spec.md --role NAME  # Emit one role's prompt only (also on tp audit)
 tp review spec.md --record-inbox  # Record the round from its inbox; refuses while a role has no file
 tp audit spec.md               # Post-implementation: verify the code matches the spec
+tp audit spec.md --task-audit  # Audit closed tasks' own files in batches of ten (--record-inbox records it)
 tp validate                    # Task file + coverage + atomicity (--strict, --project)
 tp epic lint                   # Lint the epic graph in .tp/epics.json (exit 1 on an error, 3 with no file)
 tp epic export                 # The plan as versioned JSON: critical path, graph, derived status, bound files' loops, review slices (--md: tables)
