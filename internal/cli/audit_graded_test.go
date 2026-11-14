@@ -57,22 +57,23 @@ func TestAuditGraded_RecordStatusAndNextActionSayNOfM(t *testing.T) {
 	var rec map[string]any
 	require.NoError(t, json.Unmarshal([]byte(stdout), &rec))
 	want := []any{
+		map[string]any{"role": "spec-coverage", "graded": float64(0), "pool": float64(1)},
 		map[string]any{"role": "security", "graded": float64(4), "pool": float64(14)},
 		map[string]any{"role": "maintainability-conventions", "graded": float64(0), "pool": float64(14)},
 	}
-	assert.Equal(t, want, rec["graded"], "--record reports graded N of M per code role")
+	assert.Equal(t, want, rec["graded"], "--record reports graded N of M per code role and for spec-coverage")
 	next := rec["next_action"].(string)
-	assert.True(t, strings.HasPrefix(next, "latest round graded security 4 of 14, maintainability-conventions 0 of 14. "),
+	assert.True(t, strings.HasPrefix(next, "latest round graded spec-coverage 0 of 1, security 4 of 14, maintainability-conventions 0 of 14. "),
 		"the graded clause leads next_action, apart from the step: %q", next)
 	assert.True(t, strings.HasSuffix(next, "--resolve <role:item_id> wontfix|duplicate \"<evidence>\" (the operator's decision)") ||
 		strings.HasSuffix(next, "--record <file>"), "and the step ends it unchanged, so copying the command copies only the command: %q", next)
 	assert.NoFileExists(t, pools, "the pools leave with the recorded round's inbox")
 
+	gradedEntries := []engine.RoleGraded{{Role: "spec-coverage", Graded: 0, Pool: 1}, {Role: "security", Graded: 4, Pool: 14}, {Role: "maintainability-conventions", Graded: 0, Pool: 14}}
 	st, err := engine.LoadReviewState(specPath)
 	require.NoError(t, err)
 	require.Len(t, st.AuditRounds, 1)
-	assert.Equal(t, []engine.RoleGraded{{Role: "security", Graded: 4, Pool: 14}, {Role: "maintainability-conventions", Graded: 0, Pool: 14}},
-		st.AuditRounds[0].Graded, "the counts land in the round's entry in state.json")
+	assert.Equal(t, gradedEntries, st.AuditRounds[0].Graded, "the counts land in the round's entry in state.json")
 
 	stdout, stderr, code = runTP(t, dir, "audit", specPath, "--status", "--compact")
 	require.Equal(t, 0, code, "stderr: %s", stderr)
@@ -80,12 +81,14 @@ func TestAuditGraded_RecordStatusAndNextActionSayNOfM(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(stdout), &status))
 	round := status["audit_rounds"].([]any)[0].(map[string]any)
 	assert.Equal(t, want, round["graded"], "--status reads them from the state file")
-	assert.True(t, strings.HasPrefix(status["next_action"].(string), "latest round graded security 4 of 14"), "--status leads with it too")
+	assert.True(t, strings.HasPrefix(status["next_action"].(string), "latest round graded spec-coverage 0 of 1, security 4 of 14"), "--status leads with it too")
 }
 
 // TestAuditGraded_RecordWithoutEmissionStoresNone: a round recorded with no
 // emission has no pools to grade against, so its entry carries no graded field
-// and next_action stays as it was.
+// and next_action stays as it was; since v1.20.0 it is stamped unasked and is
+// not clean, since nothing shows what spec-coverage was asked
+// (spec/backlog/role-presence.md §2.3).
 func TestAuditGraded_RecordWithoutEmissionStoresNone(t *testing.T) {
 	t.Parallel()
 	dir, specPath := auditRepoWithChangedFiles(t, 3)
@@ -98,6 +101,36 @@ func TestAuditGraded_RecordWithoutEmissionStoresNone(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(stdout), &rec))
 	assert.NotContains(t, rec, "graded")
 	assert.NotContains(t, rec["next_action"], "graded")
+	assert.Equal(t, false, rec["clean"], "an all-PASS round with no emission is not clean")
+	st, err := engine.LoadReviewState(specPath)
+	require.NoError(t, err)
+	assert.True(t, st.AuditRounds[0].Unasked)
+}
+
+// TestAuditGraded_SpecCoverageMustAnswerEveryAskedItem: an all-PASS round is
+// clean only when spec-coverage returned a row for every checklist item its
+// emission asked (spec/backlog/role-presence.md §2.2).
+func TestAuditGraded_SpecCoverageMustAnswerEveryAskedItem(t *testing.T) {
+	t.Parallel()
+	for _, answered := range []bool{false, true} {
+		dir, specPath := auditRepoWithChangedFiles(t, 2)
+		stdout, stderr, code := runTP(t, dir, "audit", specPath)
+		require.Equal(t, 0, code, "stderr: %s", stderr)
+		var b strings.Builder
+		if answered {
+			for _, it := range auditPromptsByRole(t, stdout)["spec-coverage"]["checklist_items"].([]any) {
+				fmt.Fprintf(&b, `{"role":"spec-coverage","item_id":%q,"status":"PASS","category":null,"severity":null,"notes":""}`+"\n", it.(map[string]any)["item_id"])
+			}
+		}
+		results := filepath.Join(dir, "results.ndjson")
+		require.NoError(t, os.WriteFile(results, []byte(b.String()), 0o600))
+
+		stdout, stderr, code = runTP(t, dir, "audit", specPath, "--record", results)
+		require.Equal(t, 0, code, "stderr: %s", stderr)
+		var rec map[string]any
+		require.NoError(t, json.Unmarshal([]byte(stdout), &rec))
+		assert.Equal(t, answered, rec["clean"], "spec-coverage answered every asked item: %v", answered)
+	}
 }
 
 // TestAuditGraded_ReRecordKeepsWhatWasGraded: a unit's re-record of its own
@@ -120,7 +153,7 @@ func TestAuditGraded_ReRecordKeepsWhatWasGraded(t *testing.T) {
 	st, err := engine.LoadReviewState(specPath)
 	require.NoError(t, err)
 	require.Len(t, st.AuditRounds, 1, "the retry rewrote round 1")
-	assert.Equal(t, []engine.RoleGraded{{Role: "security", Graded: 4, Pool: 14}, {Role: "maintainability-conventions", Graded: 0, Pool: 14}},
+	assert.Equal(t, []engine.RoleGraded{{Role: "spec-coverage", Graded: 0, Pool: 1}, {Role: "security", Graded: 4, Pool: 14}, {Role: "maintainability-conventions", Graded: 0, Pool: 14}},
 		st.AuditRounds[0].Graded, "the re-record keeps what the first record graded")
 }
 
