@@ -293,15 +293,23 @@ func cherryPick(root string, commits []string) ([]string, error) {
 // It warns and records nothing else: the pick and the gate are the safety,
 // touches only the schedule (§2.4).
 func warnTouchesEscape(root string, tf *model.TaskFile, id, pre string) {
+	if outside := touchesEscapes(root, tf, id, pre); len(outside) > 0 {
+		output.Notice(fmt.Sprintf("task %s changed files outside its touches: %s", id, strings.Join(outside, ", ")))
+	}
+}
+
+// touchesEscapes lists the files changed since pre that lie outside the
+// task's touches; a task without touches, or a diff git cannot give, has none.
+func touchesEscapes(root string, tf *model.TaskFile, id, pre string) []string {
 	task, _, err := model.FindTask(tf, id)
 	if err != nil || len(task.Touches) == 0 {
-		return
+		return nil
 	}
 	// --relative: touches are relative to the project root, which in a
 	// monorepo sits below the git top level.
 	files, err := gitOut(root, "diff", "--name-only", "--relative", pre, "HEAD")
 	if err != nil {
-		return
+		return nil
 	}
 	var outside []string
 	for _, f := range strings.Split(files, "\n") {
@@ -309,9 +317,7 @@ func warnTouchesEscape(root string, tf *model.TaskFile, id, pre string) {
 			outside = append(outside, f)
 		}
 	}
-	if len(outside) > 0 {
-		output.Notice(fmt.Sprintf("task %s changed files outside its touches: %s", id, strings.Join(outside, ", ")))
-	}
+	return outside
 }
 
 func removeUnitWorktree(root, worktree, branch string) {
