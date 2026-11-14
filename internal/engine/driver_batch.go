@@ -129,7 +129,7 @@ func CycleUnitBranches(root, taskFile string) []string {
 		return nil
 	}
 	var kept []string
-	for _, branch := range strings.Fields(refs) {
+	for branch := range strings.FieldsSeq(refs) {
 		if keptUnitBranch(root, taskFile, branch) {
 			kept = append(kept, branch)
 		}
@@ -429,7 +429,7 @@ func touchesEscapes(root string, tf *model.TaskFile, id, pre string) []string {
 		return nil
 	}
 	var outside []string
-	for _, f := range strings.Split(files, "\n") {
+	for f := range strings.SplitSeq(files, "\n") {
 		if f != "" && !TouchesMatch(task.Touches, f) {
 			outside = append(outside, f)
 		}
@@ -464,7 +464,7 @@ func (d *driver) reconcileBatches() error {
 	}
 	own := unitBranchPrefix + cycleTag(d.opts.Root, d.opts.TaskFile) + "/"
 	var worktree string
-	for _, line := range strings.Split(list, "\n") {
+	for line := range strings.SplitSeq(list, "\n") {
 		switch {
 		case strings.HasPrefix(line, "worktree "):
 			worktree = strings.TrimPrefix(line, "worktree ")
@@ -480,7 +480,7 @@ func (d *driver) reconcileBatches() error {
 	_, _ = gitOut(d.opts.Root, "worktree", "prune")
 	// A branch whose worktree is already gone is not in the list above.
 	if refs, refErr := gitOut(d.opts.Root, "for-each-ref", "--format=%(refname:short)", "refs/heads/"+own); refErr == nil {
-		for _, branch := range strings.Fields(refs) {
+		for branch := range strings.FieldsSeq(refs) {
 			if !keptUnitBranch(d.opts.Root, d.opts.TaskFile, branch) {
 				_, _ = gitOut(d.opts.Root, "branch", "-D", branch)
 			}

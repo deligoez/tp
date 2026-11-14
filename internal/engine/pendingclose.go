@@ -231,7 +231,7 @@ func checkUnitCommit(root, worktree, taskFile, spec, mainHead, sha string) (stri
 	if err != nil {
 		return "", err
 	}
-	for _, f := range strings.Split(files, "\n") {
+	for f := range strings.SplitSeq(files, "\n") {
 		if f != "" && tpOwnedPath(root, taskFile, spec, f) {
 			return "", fmt.Errorf("commit %s changes %s, which only tp writes", sha, f)
 		}
