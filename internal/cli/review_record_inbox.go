@@ -111,9 +111,10 @@ func runReviewRecordInbox(specPath, harnessNote string) error {
 			fmt.Sprintf("emit the round again with %s, which stores the list, or record a merged file with --record <file>", emit))
 		os.Exit(ExitFile)
 	}
+	files := reviewRoleFiles(specPath, inbox)
 	var missing []string
 	for _, role := range inbox.Roles {
-		if _, statErr := os.Stat(engine.RoleInboxPath(specPath, engine.PhaseReview, inbox.Round, role)); statErr != nil {
+		if files[role] == "" {
 			missing = append(missing, role)
 		}
 	}
@@ -123,7 +124,7 @@ func runReviewRecordInbox(specPath, harnessNote string) error {
 			fmt.Sprintf("run the prompts of roles %s (%s --role <role>), each writing its file, empty when it finds nothing, then %s --record-inbox", roles, emit, emit))
 		os.Exit(ExitFile)
 	}
-	data, problems := reviewInboxRows(specPath, inbox)
+	data, problems := reviewInboxRows(inbox, files)
 	if len(problems) > 0 {
 		output.Error(ExitValidation, "review round "+fmt.Sprint(inbox.Round)+"'s inbox cannot be recorded: "+strings.Join(problems, "; "),
 			"fix the named lines in the role files, then "+emit+" --record-inbox")
@@ -137,13 +138,39 @@ func runReviewRecordInbox(specPath, harnessNote string) error {
 	return runReviewRecord(specPath, merged, harnessNote)
 }
 
+// reviewRoleFiles finds each owed role's findings file: in the round's inbox,
+// or, for a round a tp run collected and stopped before recording, in the
+// run's round directory ($TP_ROUND_DIR/role-<role>.ndjson), which the driver
+// keeps per task file and round. A role with neither maps to "".
+func reviewRoleFiles(specPath string, inbox engine.ReviewInboxRound) map[string]string {
+	runDir := ""
+	if _, taskFile := engine.ResolveWorkflow(specPath, flagFile); taskFile != "" {
+		root := engine.CanonicalProjectRoot(filepath.Dir(taskFile))
+		runDir = engine.RoundDir(root, taskFile, engine.PhaseReview, inbox.Round)
+	}
+	files := make(map[string]string, len(inbox.Roles))
+	for _, role := range inbox.Roles {
+		candidates := []string{engine.RoleInboxPath(specPath, engine.PhaseReview, inbox.Round, role)}
+		if runDir != "" {
+			candidates = append(candidates, engine.RoleFindingsPath(runDir, role))
+		}
+		for _, path := range candidates {
+			if info, err := os.Stat(path); err == nil && !info.IsDir() {
+				files[role] = path
+				break
+			}
+		}
+	}
+	return files
+}
+
 // reviewInboxRows reads each role's file through the reader --merge applies,
 // stamping every row with its file's role, and names each skipped line and each
 // row that names another role.
-func reviewInboxRows(specPath string, inbox engine.ReviewInboxRound) (data []byte, problems []string) {
+func reviewInboxRows(inbox engine.ReviewInboxRound, files map[string]string) (data []byte, problems []string) {
 	var buf bytes.Buffer
 	for _, role := range inbox.Roles {
-		path := engine.RoleInboxPath(specPath, engine.PhaseReview, inbox.Round, role)
+		path := files[role]
 		rows, counts := loadMergeRows([]string{path}, reviewMergeRule)
 		for _, c := range counts {
 			for _, s := range c.skips {
