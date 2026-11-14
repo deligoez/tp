@@ -95,6 +95,13 @@ func unitBranch(root, taskFile, runID, id string) string {
 	return unitBranchPrefix + cycleTag(root, taskFile) + "/" + runID + "/" + id
 }
 
+// keptUnitBranch reports whether a unit branch belongs to a request still
+// pending, deferred for the next run: its branch keeps its commits referenced.
+func keptUnitBranch(root, taskFile, branch string) bool {
+	id := branch[strings.LastIndex(branch, "/")+1:]
+	return HasPendingClose(root, taskFile, id)
+}
+
 // WorktreeBase is where a project's unit worktrees live: under the system's
 // temporary directory, keyed by the project root, so no tool run in the
 // repository ever walks into one.
@@ -166,6 +173,14 @@ func (d *driver) integrateOne(tf *model.TaskFile, p *PendingClose) error {
 	if errors.As(pickErr, &refused) {
 		_, _ = gitOut(d.opts.Root, "reset", "-q", "--keep", pre)
 		return driverErrorf(pickErr, "integrate task %q", p.ID)
+	}
+	// A close killed after it wrote the task done has closed it: the pick
+	// stays with the task and only the request goes.
+	if pickErr != nil && taskIsDone(d.opts.TaskFile, p.ID) {
+		if err := RemovePendingClose(d.opts.Root, d.opts.TaskFile, p.ID); err != nil {
+			return driverErrorf(err, "remove the pending close of %q", p.ID)
+		}
+		return nil
 	}
 	if pickErr != nil && d.sig != nil && d.sig.signalled() {
 		return d.deferUnit(p, pre)
@@ -331,14 +346,21 @@ func (d *driver) reconcileBatches() error {
 		case strings.HasPrefix(line, "worktree "):
 			worktree = strings.TrimPrefix(line, "worktree ")
 		case strings.HasPrefix(line, "branch refs/heads/"+own):
-			removeUnitWorktree(d.opts.Root, worktree, strings.TrimPrefix(line, "branch refs/heads/"))
+			branch := strings.TrimPrefix(line, "branch refs/heads/")
+			if keptUnitBranch(d.opts.Root, d.opts.TaskFile, branch) {
+				_, _ = gitOut(d.opts.Root, "worktree", "remove", "--force", worktree)
+				continue
+			}
+			removeUnitWorktree(d.opts.Root, worktree, branch)
 		}
 	}
 	_, _ = gitOut(d.opts.Root, "worktree", "prune")
 	// A branch whose worktree is already gone is not in the list above.
 	if refs, refErr := gitOut(d.opts.Root, "for-each-ref", "--format=%(refname:short)", "refs/heads/"+own); refErr == nil {
 		for _, branch := range strings.Fields(refs) {
-			_, _ = gitOut(d.opts.Root, "branch", "-D", branch)
+			if !keptUnitBranch(d.opts.Root, d.opts.TaskFile, branch) {
+				_, _ = gitOut(d.opts.Root, "branch", "-D", branch)
+			}
 		}
 	}
 	return nil
