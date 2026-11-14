@@ -250,6 +250,24 @@ func TestIntegrate_AnEqualLengthHistoryIsNotTakenForThePick(t *testing.T) {
 	assert.Empty(t, closer.closed)
 }
 
+// TestRunDriver_AnUnfinishedUnitKeepsItsBranch: a unit that ran out of
+// attempts never asked to close; its branch, with whatever it committed, is
+// kept until its task is done, and tp resume names it.
+func TestRunDriver_AnUnfinishedUnitKeepsItsBranch(t *testing.T) {
+	root, spec, taskFile, _ := batchProject(t, twoBatchableTasks)
+	t.Setenv(fakerunner.EnvDurable, "0")
+	closer := &fakeCloser{closed: map[string][]string{}}
+
+	res := driveBatch(t, root, spec, taskFile, closer)
+	assert.Equal(t, StopUnitFailure, res.StopReason)
+	branches := strings.Fields(gitIn(t, root, "branch", "--list", "--format=%(refname:short)", unitBranchPrefix+"*"))
+	assert.Len(t, branches, 2, "both unfinished units keep their branch")
+	assert.NotContains(t, gitIn(t, root, "worktree", "list"), "tp-worktrees", "the worktrees still go")
+
+	resumed := assemble(t, root, spec, taskFile)
+	assert.ElementsMatch(t, branches, resumed.UnitBranches)
+}
+
 // TestRunDriver_ReconcileLeavesAnotherCyclesUnits: a run removes the unit
 // branches its own task file's batches left, never another task file's, which
 // a second tp run may be driving in the same repository.
@@ -343,14 +361,18 @@ func TestTouchesEscapes(t *testing.T) {
 	assert.Empty(t, touchesEscapes(root, tf, "c", pre))
 }
 
-// TestKeptUnitBranch: reconcile keeps the branch of a unit whose request is
-// still pending, so its commits stay referenced.
+// TestKeptUnitBranch: a unit branch is kept while its request is pending or
+// its task is not done, and goes once the task is done.
 func TestKeptUnitBranch(t *testing.T) {
 	root := t.TempDir()
 	taskFile := filepath.Join(root, "s.tasks.json")
+	require.NoError(t, os.WriteFile(taskFile, []byte(`{"spec":"s.md","tasks":[
+ {"id":"alpha","status":"done"},{"id":"beta","status":"done"},{"id":"gamma","status":"wip"}]}`), 0o600))
 	require.NoError(t, WritePendingClose(root, taskFile, &PendingClose{ID: "alpha"}))
-	assert.True(t, keptUnitBranch(root, taskFile, unitBranch(root, taskFile, "r1", "alpha")))
-	assert.False(t, keptUnitBranch(root, taskFile, unitBranch(root, taskFile, "r1", "beta")))
+	assert.True(t, keptUnitBranch(root, taskFile, unitBranch(root, taskFile, "r1", "alpha")), "a pending request")
+	assert.False(t, keptUnitBranch(root, taskFile, unitBranch(root, taskFile, "r1", "beta")), "a done task")
+	assert.True(t, keptUnitBranch(root, taskFile, unitBranch(root, taskFile, "r1", "gamma")), "an unfinished task")
+	assert.False(t, keptUnitBranch(root, taskFile, unitBranch(root, taskFile, "r1", "gone")), "a task no longer in the file")
 }
 
 // TestAssembleResume_NamesPendingCloses: a pending close a crashed run left is
