@@ -292,6 +292,7 @@ func newReviewCmd() *cobra.Command {
 	var specInline bool
 	var forceFlag bool
 	var recordPath string
+	var recordInbox bool
 	var statusMode bool
 	var checkFlag bool
 	var noState bool
@@ -315,7 +316,10 @@ Modes (mutually exclusive):
 --rewritten "<evidence>": start an epoch after a rewrite; rounds over an older text stop feeding the carried findings.`,
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mode := detectReviewMode(mergeMode, resolveMode, resolveAllMode, verifyMode, reportMode, recordPath != "", statusMode, cmd.Flags().Changed("rewritten"))
+			if recordInbox && recordPath != "" {
+				exitUsage("--record-inbox and --record are mutually exclusive", "record the round's inbox with --record-inbox, or one findings file with --record <file>")
+			}
+			mode := detectReviewMode(mergeMode, resolveMode, resolveAllMode, verifyMode, reportMode, recordPath != "" || recordInbox, statusMode, cmd.Flags().Changed("rewritten"))
 			// --merge takes only its input NDJSON files and -o <file>: it
 			// records no round and reads no state, so a flag belonging to
 			// another mode is named here, ahead of the generic guards. That
@@ -422,6 +426,9 @@ Modes (mutually exclusive):
 				}
 				// --record runs the registered checks against the tree.
 				enterTree(emissionTarget(engine.ResolveSpecArg(args[0])), "tp review --record")
+				if recordInbox {
+					return runReviewRecordInbox(engine.ResolveSpecArg(args[0]), harnessNote)
+				}
 				return runReviewRecord(engine.ResolveSpecArg(args[0]), recordPath, harnessNote)
 			case "rewritten":
 				if len(args) != 1 {
@@ -465,6 +472,7 @@ Modes (mutually exclusive):
 	cmd.Flags().BoolVar(&specInline, "spec-inline", false, "Embed full spec content inline (default: reference by path)")
 	cmd.Flags().BoolVar(&forceFlag, "force", false, "With --resolve/--resolve-all: re-resolve already resolved findings; on an emission: discard an unrecorded round's emission when the spec changed since it")
 	cmd.Flags().StringVar(&recordPath, "record", "", "Record a review round from an NDJSON findings file")
+	cmd.Flags().BoolVar(&recordInbox, "record-inbox", false, "Record the collected round from its inbox, refusing while a role of the round has no file")
 	cmd.Flags().BoolVar(&statusMode, "status", false, "Show recorded review rounds and convergence state")
 	cmd.Flags().BoolVar(&checkFlag, "check", false, "With --status: run registered mechanical checks")
 	cmd.Flags().StringVar(&harnessNote, "harness-note", "", "With --record: store an optional free-text note on the recorded round")

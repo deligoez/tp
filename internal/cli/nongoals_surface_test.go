@@ -98,7 +98,7 @@ remove: force
 reopen:
 report:
 resume: epic
-review: affected-files check diff-from docs-path final-round findings force harness-note merge no-state output perspective record report resolve resolve-all rewritten role round spec-inline status test-path verify
+review: affected-files check diff-from docs-path final-round findings force harness-note merge no-state output perspective record record-inbox report resolve resolve-all rewritten role round spec-inline status test-path verify
 run: dry-run status
 set: bulk epic local project workflow
 show:
