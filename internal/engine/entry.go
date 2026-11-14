@@ -11,7 +11,7 @@ import (
 // rules 1, 3, 4, 5, 6). The caller maps Msg to the structured "error" and Hint
 // to "hint", exiting with code 1.
 type EntryFinding struct {
-	Rule string // "id-blank", "title-blank", "acceptance-blank", "source-anchor", "unknown-dependency"
+	Rule string // "id-blank", "title-blank", "acceptance-blank", "source-anchor", "managed-field", "unknown-dependency"
 	Msg  string
 	Hint string
 }
@@ -55,6 +55,13 @@ func ValidateTaskEntry(task *model.Task, resolvableIDs map[string]bool) *EntryFi
 			Rule: "source-anchor",
 			Msg:  fmt.Sprintf("task %s: needs source_sections or source_lines", task.ID),
 			Hint: `provide at least one of "source_sections" (canonical headings) or "source_lines"`,
+		}
+	}
+	if len(task.TaskAuditOwed) > 0 {
+		return &EntryFinding{
+			Rule: "managed-field",
+			Msg:  fmt.Sprintf("task %s: task_audit_owed is managed by tp and cannot be written", task.ID),
+			Hint: `remove "task_audit_owed"; tp done records the code audit a task owes when it closes`,
 		}
 	}
 	var unknown []string

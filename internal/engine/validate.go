@@ -188,6 +188,11 @@ func validateSchema(tf *model.TaskFile) []Finding {
 		if len(t.SourceSections) == 0 && t.SourceLines == "" {
 			findings = append(findings, Finding{Severity: "error", Rule: "schema", Message: fmt.Sprintf("task %s: needs source_sections (canonical headings) or source_lines", t.ID)})
 		}
+		// task_audit_owed is tp done's record of the audit a close owed; on
+		// a task that is not done it can only have been written by hand.
+		if len(t.TaskAuditOwed) > 0 && t.Status != model.StatusDone {
+			findings = append(findings, Finding{Severity: "error", Rule: "schema", Message: fmt.Sprintf("task %s: task_audit_owed on a task that is %s; only tp done records it", t.ID, t.Status)})
+		}
 		if err := ValidTouches(t.Touches); err != nil {
 			findings = append(findings, Finding{Severity: "error", Rule: "schema", Message: fmt.Sprintf("task %s: %v", t.ID, err)})
 		}
