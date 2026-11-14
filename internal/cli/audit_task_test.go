@@ -221,6 +221,24 @@ func TestTaskAudit_ReleaseEmissionRefusedWhileATaskAuditIsInFlight(t *testing.T)
 	assert.Contains(t, stderr, "task audit 1")
 }
 
+// TestTaskAudit_StatusNamesTheOwedTasksAndTheStep: while a closed task owes a
+// task audit the audit is not converged, --check exits 1, and next_action
+// names the command that clears it.
+func TestTaskAudit_StatusNamesTheOwedTasksAndTheStep(t *testing.T) {
+	t.Parallel()
+	dir := taskAuditProject(t, "t1")
+	closeWith(t, dir, "t1", commitFiles(t, dir, "a.go"))
+	out, stderr, code := runTP(t, dir, "audit", "spec.md", "--status")
+	require.Equal(t, 0, code, stderr)
+	var st map[string]any
+	require.NoError(t, json.Unmarshal([]byte(out), &st), out)
+	assert.Equal(t, []any{"t1"}, st["task_audits_owed"])
+	assert.Equal(t, false, st["converged"])
+	assert.Contains(t, st["next_action"], "--task-audit")
+	_, _, code = runTP(t, dir, "audit", "spec.md", "--status", "--check")
+	assert.Equal(t, 1, code)
+}
+
 // readReviewState reads spec.md's state.json.
 func readReviewState(t *testing.T, dir string) map[string]any {
 	t.Helper()
