@@ -34,6 +34,7 @@ func runSetProjectWorkflow(args []string) error {
 	var reviewConvergeOn *string
 	var auditConvergeOn *string
 	var checksValue *[]model.Check
+	var taskAuditRoles *[]string
 	for _, arg := range args {
 		parts := strings.SplitN(arg, "=", 2)
 		if len(parts) != 2 {
@@ -113,6 +114,11 @@ func runSetProjectWorkflow(args []string) error {
 				checks = []model.Check{}
 			}
 			checksValue = &checks
+		case field == "task_audit_roles":
+			// Above the editableWorkflowFields arm, which would parse the
+			// array as an integer.
+			roles := parseTaskAuditRoles(valueStr)
+			taskAuditRoles = &roles
 		case floatWorkflowFields[field]:
 			val, convErr := strconv.ParseFloat(valueStr, 64)
 			if convErr != nil {
@@ -221,6 +227,10 @@ func runSetProjectWorkflow(args []string) error {
 		if checksValue != nil {
 			pc.Workflow.Checks = checksValue
 			updated["checks"] = *checksValue
+		}
+		if taskAuditRoles != nil {
+			pc.Workflow.TaskAuditRoles = taskAuditRoles
+			updated["task_audit_roles"] = *taskAuditRoles
 		}
 
 		if err := engine.WriteProjectConfig(tpDir, &pc); err != nil {

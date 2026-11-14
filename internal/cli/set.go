@@ -28,6 +28,7 @@ var (
 		"commit_files":        "set automatically by `tp done` / `tp commit` from the task's commits",
 		"commit_files_total":  "set automatically by `tp done` / `tp commit` from the task's commits",
 		"gate_skipped_reason": "set automatically by `tp done --skip-gate`",
+		"task_audit_owed":     "set automatically by `tp done` from the resolved task_audit_roles; cleared by `tp reopen`",
 	}
 	setBulkFile     string
 	setWorkflowFlag bool
@@ -48,6 +49,8 @@ var (
 		// review entry because the two fields grade different vocabularies:
 		// each is validated against its own predicate below.
 		"audit_converge_on": true,
+		// A JSON array of code role ids, parsed by parseTaskAuditRoles.
+		"task_audit_roles": true,
 
 		// §7's integer run caps. runner is deliberately absent: it takes three
 		// shapes rather than a scalar, so it is authored in the file itself.
@@ -361,6 +364,7 @@ func runSetWorkflow(args []string) error {
 	var auditConvergeOnValue string
 	auditConvergeOnSet := false
 	var qualityGateValue *string
+	var taskAuditRoles *[]string
 	for _, arg := range args {
 		parts := strings.SplitN(arg, "=", 2)
 		if len(parts) != 2 {
@@ -436,6 +440,12 @@ func runSetWorkflow(args []string) error {
 				valueStr, auditConvergeOnTaskLayer)
 			auditConvergeOnValue = valueStr
 			auditConvergeOnSet = true
+			continue
+		}
+
+		if field == "task_audit_roles" {
+			roles := parseTaskAuditRoles(valueStr)
+			taskAuditRoles = &roles
 			continue
 		}
 
@@ -548,6 +558,10 @@ func runSetWorkflow(args []string) error {
 			tf.Workflow.Checks = &checksValue
 			updated["checks"] = checksValue
 		}
+		if taskAuditRoles != nil {
+			tf.Workflow.TaskAuditRoles = taskAuditRoles
+			updated["task_audit_roles"] = *taskAuditRoles
+		}
 		if convergeOnSet {
 			v := convergeOnValue
 			tf.Workflow.ReviewConvergeOn = &v
@@ -628,6 +642,25 @@ func workflowFieldRange(field string) (lo, hi int) {
 	default:
 		return 1, 10 // convergence fields
 	}
+}
+
+// parseTaskAuditRoles parses a task_audit_roles literal, the same at the task
+// and the project layer. The value is a command-line argument, so a bad one is
+// a usage error (exit 2). Whether each role exists in the auditor corpus is
+// left to the command that runs the audit.
+func parseTaskAuditRoles(valueStr string) []string {
+	var roles []string
+	if err := json.Unmarshal([]byte(valueStr), &roles); err != nil || roles == nil {
+		output.Error(ExitUsage, fmt.Sprintf("task_audit_roles must be a JSON array of role ids, got %q", valueStr), engine.TaskAuditRolesHint)
+		os.Exit(ExitUsage)
+		return nil
+	}
+	if err := engine.ValidateTaskAuditRoles(roles); err != nil {
+		output.Error(ExitUsage, err.Error(), engine.TaskAuditRolesHint)
+		os.Exit(ExitUsage)
+		return nil
+	}
+	return roles
 }
 
 // validateWorkflowFloat rejects a decimal workflow field written outside §7's
