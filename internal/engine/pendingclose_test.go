@@ -69,6 +69,20 @@ func TestPendingClose_RoundTrip(t *testing.T) {
 	assert.Equal(t, []string{"b"}, []string{got[0].ID})
 }
 
+// TestWorktreeDirFor_KeepsTheProjectsSubdirectory: a project below the git
+// top level gates from the same subdirectory of the unit's worktree, and a
+// directory outside the main tree is returned unchanged.
+func TestWorktreeDirFor_KeepsTheProjectsSubdirectory(t *testing.T) {
+	t.Parallel()
+	root, worktree := unitRepo(t)
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "proj"), 0o750))
+
+	assert.Equal(t, filepath.Join(gitToplevel(worktree), "proj"), WorktreeDirFor(filepath.Join(root, "proj"), worktree))
+	assert.Equal(t, gitToplevel(worktree), WorktreeDirFor(root, worktree))
+	outside := t.TempDir()
+	assert.Equal(t, outside, WorktreeDirFor(outside, worktree))
+}
+
 // TestLinkedWorktreeOf: a linked worktree of the same repository is told apart
 // from the main tree and from an unrelated repository.
 func TestLinkedWorktreeOf(t *testing.T) {
