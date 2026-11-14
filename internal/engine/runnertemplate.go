@@ -121,6 +121,9 @@ var agentByKind = map[UnitKind]string{
 	UnitImplement:  AgentImplementer,
 	UnitReviewRole: AgentReviewer,
 	UnitAuditRole:  AgentAuditor,
+	// A task audit's role reads code against its role's rules, as an
+	// audit-role does, and writes only its findings file.
+	UnitTaskAuditRole: AgentAuditor,
 }
 
 // AgentForKind returns the agent a unit of this kind runs under, or "" for the

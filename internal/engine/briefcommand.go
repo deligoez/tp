@@ -29,7 +29,14 @@ func (k UnitKind) BriefCommand(t UnitTarget) string {
 	case UnitReviewResolve:
 		return "tp review " + t.Spec + " --status"
 	case UnitAuditFix:
+		if file := TaskAuditFixFile(t.Spec, t.ID); file != "" {
+			return auditFixBrief(t.Spec, file, t.ID)
+		}
 		return "tp audit " + t.Spec + " --status"
+	case UnitTaskAuditRole:
+		return "tp audit " + t.Spec + " --task-audit" + roleArg(t.ID)
+	case UnitTaskAuditRecord:
+		return "tp audit " + t.Spec + " --task-audit --record-inbox"
 	case UnitDecompose:
 		return "tp resume"
 	default:

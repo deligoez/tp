@@ -104,7 +104,7 @@ func AssembleResume(start, taskFilePath, specPath string, tf *model.TaskFile) (R
 	// the human summary and the machine surface describe the same work.
 	nextUnits, round := BuildNextUnits(start, taskFilePath, specPath, phase, tf, loops.st, blockers)
 	for i := range nextUnits {
-		nextUnits[i].BriefCommand = nextUnits[i].Kind.BriefCommand(UnitTarget{Spec: shown, ID: nextUnits[i].ID})
+		nextUnits[i].BriefCommand = resumeBriefCommand(start, specPath, shown, &nextUnits[i])
 	}
 	batchBriefs(nextUnits)
 

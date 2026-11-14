@@ -524,7 +524,7 @@ func (d *driver) unitTarget(u *UnitEnv) UnitTarget {
 	t := UnitTarget{TaskFile: d.opts.TaskFile, Spec: d.opts.Spec, ID: u.ID}
 	if u.Round != nil {
 		t.Round = *u.Round
-		t.RoundDir = RoundDir(d.opts.Root, d.opts.TaskFile, u.Phase, *u.Round)
+		t.RoundDir = RoundDir(d.opts.Root, d.opts.TaskFile, UnitRoundPhase(u.Kind, u.Phase), *u.Round)
 	}
 	return t
 }
@@ -855,11 +855,11 @@ func attemptBudget(wf *model.Workflow) int {
 	return 1 + wf.RunMaxUnitRetries
 }
 
-// isRoleKind reports whether a kind is one of the two that write a role
+// isRoleKind reports whether a kind is one of the three that write a role
 // findings file — the kinds whose artifacts the driver clears before an
 // attempt and renames after one.
 func isRoleKind(k UnitKind) bool {
-	return k == UnitReviewRole || k == UnitAuditRole
+	return k == UnitReviewRole || k == UnitAuditRole || k == UnitTaskAuditRole
 }
 
 // unitLogPath returns one attempt's log, $TP_RUN_DIR/<seq>-<kind>-<id>.jsonl

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/deligoez/tp/internal/model"
@@ -26,6 +27,11 @@ const (
 	UnitAuditRole     UnitKind = "audit-role"
 	UnitAuditRecord   UnitKind = "audit-record"
 	UnitAuditFix      UnitKind = "audit-fix"
+	// The task audit's two kinds (spec/backlog/per-task-code-audit.md): one
+	// role of a task audit, and its record. Both work in the task audit's own
+	// round directory, keyed by its seq (TaskAuditRoundPhase).
+	UnitTaskAuditRole   UnitKind = "task-audit-role"
+	UnitTaskAuditRecord UnitKind = "task-audit-record"
 )
 
 // unitKindOrder lists the eight kinds in §3.3's table order. It is the single
@@ -40,6 +46,8 @@ var unitKindOrder = []UnitKind{
 	UnitAuditRole,
 	UnitAuditRecord,
 	UnitAuditFix,
+	UnitTaskAuditRole,
+	UnitTaskAuditRecord,
 }
 
 // UnitKinds returns the eight kinds in §3.3's table order, for callers that
@@ -81,7 +89,7 @@ const (
 // alone, which is the safe direction: running an unrecognized kind concurrently
 // is what would interleave two writers of the same file.
 func (k UnitKind) Concurrency() UnitConcurrency {
-	if k == UnitReviewRole || k == UnitAuditRole {
+	if k == UnitReviewRole || k == UnitAuditRole || k == UnitTaskAuditRole {
 		return ConcurrencySiblingRoles
 	}
 	return ConcurrencyAlone
@@ -165,8 +173,11 @@ func (k UnitKind) DurableWrite(t UnitTarget) bool {
 		// writes one.
 		return taskIsDone(t.TaskFile, t.ID) ||
 			HasPendingClose(CanonicalProjectRoot(filepath.Dir(t.TaskFile)), t.TaskFile, t.ID)
-	case UnitReviewRole, UnitAuditRole:
+	case UnitReviewRole, UnitAuditRole, UnitTaskAuditRole:
 		return roleFindingsParse(RoleFindingsPath(t.RoundDir, t.ID))
+	case UnitTaskAuditRecord:
+		seq, err := strconv.Atoi(t.ID)
+		return err == nil && fileExists(filepath.Join(ReviewStateDir(t.Spec), TaskAuditFileName(seq)))
 	case UnitReviewRecord:
 		return fileExists(MergedFindingsPath(t.RoundDir)) && fileExists(roundFilePath(t.Spec, "review", t.Round))
 	case UnitAuditRecord:
@@ -176,7 +187,7 @@ func (k UnitKind) DurableWrite(t UnitTarget) bool {
 	case UnitDecompose:
 		return taskFileHasTasks(t.TaskFile)
 	case UnitAuditFix:
-		return rowIsDisposed(MergedFindingsPath(t.RoundDir), t.ID)
+		return auditFixDisposed(t)
 	default:
 		return false
 	}

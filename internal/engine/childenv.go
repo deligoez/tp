@@ -98,7 +98,7 @@ func driverEnv(u *UnitEnv) map[string]string {
 	}
 	if u.Round != nil {
 		env[EnvRound] = strconv.Itoa(*u.Round)
-		env[EnvRoundDir] = RoundDir(u.Root, u.TaskFile, u.Phase, *u.Round)
+		env[EnvRoundDir] = RoundDir(u.Root, u.TaskFile, UnitRoundPhase(u.Kind, u.Phase), *u.Round)
 	}
 	return env
 }
