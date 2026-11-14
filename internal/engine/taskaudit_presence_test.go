@@ -43,7 +43,7 @@ func TestTaskAuditPresence_AStampedTaskWithoutARecordIsOwed(t *testing.T) {
 	assert.Equal(t, []string{"t1"}, TaskAuditOwedTasks(spec, st))
 	d := AuditLoopDone(spec, st, 2, 0, "")
 	assert.False(t, d.Done)
-	assert.Equal(t, []string{"t1"}, d.TaskAuditsOwed)
+	assert.Contains(t, AuditNextAction(spec, d, true, 0, ""), "--task-audit")
 
 	st.TaskAudits = []TaskAuditRecord{{Seq: 1, Members: []TaskAuditMember{memberOf(&t1, 0, 1)}}}
 	assert.Empty(t, TaskAuditOwedTasks(spec, st))
@@ -53,7 +53,7 @@ func TestTaskAuditPresence_AStampedTaskWithoutARecordIsOwed(t *testing.T) {
 // stamp met with the roles the field lists now.
 func TestTaskAuditPresence_ARoleNoLongerConfiguredIsNotOwed(t *testing.T) {
 	t.Parallel()
-	spec := presenceSpec(t, []string{"other"}, closedTask("t1", "go-safety"))
+	spec := presenceSpec(t, []string{"other"}, closedTask("t2", "go-safety"))
 	assert.Empty(t, TaskAuditOwedTasks(spec, &ReviewState{}))
 }
 
