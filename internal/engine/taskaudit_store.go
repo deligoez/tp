@@ -51,6 +51,18 @@ func ReadTaskAuditEmission(specPath string, seq int) (*TaskAuditRecord, error) {
 	return &rec, nil
 }
 
+// FileChangedSince reports whether path differs between rev and HEAD in the
+// repository holding dir. A rev git cannot use, an unsafe one included,
+// counts as changed: a reading nobody can compare is no reason to skip one.
+func FileChangedSince(dir, rev, path string) bool {
+	if rev == "" || !SafeGitRev(rev) {
+		return true
+	}
+	cmd := exec.Command("git", "diff", "--quiet", "--no-ext-diff", rev, "HEAD", "--", path)
+	cmd.Dir = dir
+	return cmd.Run() != nil
+}
+
 // GitHead is the commit HEAD names in the repository holding dir, or "" when
 // git cannot say.
 func GitHead(dir string) string {

@@ -133,18 +133,22 @@ func packTaskAuditPieces(pieces []TaskAuditMember) []TaskAuditBatch {
 // it read them at, where it sits among the audit rounds, and its round file.
 // The same shape, without the recorded fields, is the frozen emission.
 type TaskAuditRecord struct {
-	Seq             int               `json:"seq"`
-	Members         []TaskAuditMember `json:"members,omitempty"`
-	Files           []string          `json:"files"`
-	Roles           []string          `json:"roles"`
-	Head            string            `json:"head"`
-	Regrade         bool              `json:"regrade,omitempty"`
-	EmittedAt       string            `json:"emitted_at"`
-	AfterAuditRound int               `json:"after_audit_round,omitempty"`
-	RecordedAt      string            `json:"recorded_at,omitempty"`
-	File            string            `json:"file,omitempty"`
-	Findings        int               `json:"findings,omitempty"`
-	Clean           bool              `json:"clean,omitempty"`
+	Seq     int               `json:"seq"`
+	Members []TaskAuditMember `json:"members,omitempty"`
+	Files   []string          `json:"files"`
+	Roles   []string          `json:"roles"`
+	Head    string            `json:"head"`
+	Regrade bool              `json:"regrade,omitempty"`
+	// FixPass marks a re-grade a fix claim made due: at most one such pass
+	// runs between two audit rounds, so fix and re-grade cannot cycle past
+	// the round cap.
+	FixPass         bool   `json:"fix_pass,omitempty"`
+	EmittedAt       string `json:"emitted_at"`
+	AfterAuditRound int    `json:"after_audit_round,omitempty"`
+	RecordedAt      string `json:"recorded_at,omitempty"`
+	File            string `json:"file,omitempty"`
+	Findings        int    `json:"findings,omitempty"`
+	Clean           bool   `json:"clean,omitempty"`
 }
 
 // TaskAuditFileName is task audit seq's round file in the spec's state
