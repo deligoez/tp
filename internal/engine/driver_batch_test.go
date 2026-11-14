@@ -180,6 +180,28 @@ func TestRunDriver_APendingCloseForADoneTaskIsDropped(t *testing.T) {
 	assert.Empty(t, pending)
 }
 
+// TestRunDriver_APickACrashLeftIsClosedNotRedone: a driver that died after
+// picking a unit's commits but before closing left them on the main branch;
+// the next run closes the task with them rather than picking again.
+func TestRunDriver_APickACrashLeftIsClosedNotRedone(t *testing.T) {
+	const wipTask = `{"spec":"s.md","tasks":[{"id":"alpha","title":"A","status":"wip","depends_on":[],"estimate_minutes":5,"acceptance":"a","source_sections":["x"],"touches":["alpha.txt"]}]}`
+	root, spec, taskFile, records := batchProject(t, wipTask)
+	pre := gitIn(t, root, "rev-parse", "HEAD")
+	gitIn(t, root, "switch", "-q", "-c", "unit")
+	unitSHA := commitIn(t, root, "alpha.txt", "alpha\n")
+	gitIn(t, root, "switch", "-q", "main")
+	gitIn(t, root, "cherry-pick", unitSHA)
+	picked := gitIn(t, root, "rev-parse", "HEAD")
+	require.NoError(t, WritePendingClose(root, taskFile, &PendingClose{ID: "alpha", Commits: []string{unitSHA}, PickedOnto: pre}))
+	closer := &fakeCloser{closed: map[string][]string{}}
+
+	res := driveBatch(t, root, spec, taskFile, closer)
+	assert.Equal(t, StopConverged, res.StopReason)
+	assert.Equal(t, []string{picked}, closer.closed["alpha"], "closed with the commit already on the main branch")
+	assert.Equal(t, picked, gitIn(t, root, "rev-parse", "HEAD"), "nothing picked twice")
+	assert.Empty(t, invocations(t, records), "the work is not redone")
+}
+
 // TestAssembleResume_NamesPendingCloses: a pending close a crashed run left is
 // named by tp resume until a run integrates it (§2.6).
 func TestAssembleResume_NamesPendingCloses(t *testing.T) {
