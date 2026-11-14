@@ -237,6 +237,16 @@ func TaskAuditOwedTasks(specPath string, st *ReviewState) []string {
 	return owed
 }
 
+// owedTaskAuditsNow is TaskAuditOwedTasks over the spec's state as it is on
+// disk, for a reader handed only the loop's verdict.
+func owedTaskAuditsNow(specPath string) []string {
+	st, err := LoadReviewState(specPath)
+	if err != nil {
+		return nil
+	}
+	return TaskAuditOwedTasks(specPath, st)
+}
+
 // TaskAuditOwedClause words what the presence rule holds open and the step
 // that clears it, so a loop held by it names something to do.
 func TaskAuditOwedClause(owed []string, specPath string) string {

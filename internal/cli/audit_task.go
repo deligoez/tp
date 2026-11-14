@@ -261,12 +261,12 @@ func refuseWhileTaskAuditInFlight(specPath string) {
 // addTaskAudits writes the task audits onto an audit status payload: how
 // many are recorded, and the closed tasks still owing one, present only
 // while any does.
-func addTaskAudits(result map[string]any, st *engine.ReviewState, done engine.LoopDone) {
+func addTaskAudits(result map[string]any, specPath string, st *engine.ReviewState) {
 	if st != nil && len(st.TaskAudits) > 0 {
 		result["task_audits"] = len(st.TaskAudits)
 	}
-	if len(done.TaskAuditsOwed) > 0 {
-		result["task_audits_owed"] = done.TaskAuditsOwed
+	if owed := engine.TaskAuditOwedTasks(specPath, st); len(owed) > 0 {
+		result["task_audits_owed"] = owed
 	}
 }
 

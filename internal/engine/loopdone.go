@@ -1,7 +1,5 @@
 package engine
 
-import "slices"
-
 // DoneByConverged and DoneByCap name why a review or audit loop has ended:
 // enough clean rounds, or the round cap reached with every finding of the
 // latest round carrying a disposition. A loop that ends by its cap has not been
@@ -43,10 +41,6 @@ type LoopDone struct {
 	// (ReviewCarriedBlocking). While it is non-empty the loop is open, by
 	// convergence and by the cap alike. Review only; audit leaves it nil.
 	CarriedBlocking []CarriedRow
-	// TaskAuditsOwed is, on an audit loop, the done tasks that still owe a
-	// task audit (TaskAuditOwedTasks). While it is non-empty the loop is open,
-	// by convergence and by the cap alike.
-	TaskAuditsOwed []string
 }
 
 // Same reports whether d and o are one verdict: every count and flag equal,
@@ -55,7 +49,7 @@ func (d *LoopDone) Same(o *LoopDone) bool {
 	if d.Done != o.Done || d.By != o.By || d.CapReached != o.CapReached || d.Undisposed != o.Undisposed ||
 		d.FixedAtCap != o.FixedAtCap || d.BlockingFixedAtCap != o.BlockingFixedAtCap || d.StaleWaived != o.StaleWaived ||
 		d.EpochCutBlocking != o.EpochCutBlocking ||
-		len(d.CarriedBlocking) != len(o.CarriedBlocking) || !slices.Equal(d.TaskAuditsOwed, o.TaskAuditsOwed) {
+		len(d.CarriedBlocking) != len(o.CarriedBlocking) {
 		return false
 	}
 	for i := range d.CarriedBlocking {
@@ -151,10 +145,10 @@ func AuditLoopDone(specPath string, st *ReviewState, requiredClean, maxRounds in
 		d.Done, d.By, d.StaleWaived = false, "", false
 		d.CarriedBlocking = carried
 	}
-	if owed := TaskAuditOwedTasks(specPath, st); len(owed) > 0 {
-		// A closed task's files nobody has audited are no round's silence.
+	if len(TaskAuditOwedTasks(specPath, st)) > 0 {
+		// A closed task's files nobody has audited are no round's silence;
+		// TaskAuditOwedTasks names them for whoever reports the verdict.
 		d.Done, d.By, d.StaleWaived = false, "", false
-		d.TaskAuditsOwed = owed
 	}
 	return d
 }
