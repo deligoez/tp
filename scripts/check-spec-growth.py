@@ -149,8 +149,8 @@ def spec_arg(argv: list[str]) -> pathlib.Path | None:
         return None
     if args[0] == "":
         print(
-            "check-spec-growth: the spec path is empty — the command that names the "
-            "spec (e.g. `tp resume`) printed nothing",
+            "check-spec-growth: the spec path is empty — pass the spec tp names in "
+            "TP_SPEC, as \"${TP_SPEC:?}\"",
             file=sys.stderr,
         )
         return None
