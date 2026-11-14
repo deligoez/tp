@@ -1804,7 +1804,11 @@ its own, so the set may grow without changing directory. `--status` names it as
 | `grant.json` | `--grant-round` (v1.7.0) | `{round}`, the one round past the cap the operator granted; recording that round spends it |
 
 From round 2 a unit whose hash equals the round before's and that holds no open finding is carried
-and not asked; a unit with no recorded hash is asked and makes the slice stale. Convergence and the
+and not asked; a unit with no recorded hash is asked and makes the slice stale. The hash covers the
+unit's own block and its direct dependencies' blocks, never the role's text: a change to a role's
+instructions, from a new tp or an edited role file, reaches a carried unit only once its hash or its
+gate purpose changes (seen in v1.11.0's field run,
+`spec/1.11.0-measurements.md`). Convergence and the
 cap resolve `review_clean_rounds`, `review_converge_on` and `review_max_rounds` from the project
 layer over the built-in default, with no task file layer. A round counts as clean when none of its
 rows is open and blocking, as in `tp review`: a row resolved `wontfix` or `duplicate` is closed, and
