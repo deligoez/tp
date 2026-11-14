@@ -19,6 +19,7 @@ fix needs a design choice leaves this file for a decision note.
   spec-coverage checklist item carries its own `text`, and the marker names the path to read the rest.
   Measured on tp's shipped specs (`spec/1.20.0-measurements.md`): 21 of 22 audited specs exceed the
   cut, 65% of spec-coverage rows grade a section past it, and those rows hold 15 FAILs and 78
-  PARTIALs, so the rest was read. No audit round since v1.15.0 exists to count `M > 10`; whether to cut
-  at all waits for a field round that shows one, with dividing a round by section, parked in
-  `spec/undecided.md` (*The divisible round*).
+  PARTIALs, so the rest was read. The code roles' cut was measured from history in
+  `spec/1.21.0-measurements.md`: half of their findings sit beyond rank 10 and are real, and yield does
+  not follow churn. The next step is one constructed audit round with the full list, the operator's
+  decision of 2026-11-14; the item is in `spec/undecided.md` (*The divisible round*).
