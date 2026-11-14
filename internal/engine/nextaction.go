@@ -237,6 +237,8 @@ func mechanizeOrNextRound(specPath string, mechanizeClasses []string, checks *Ch
 // gates no exit code (§8.1).
 func AuditNextAction(specPath string, done LoopDone, latestRoundClean bool, latestRoundFindings int, roundFile string) string {
 	switch {
+	case len(done.TaskAuditsOwed) > 0:
+		return TaskAuditOwedClause(done.TaskAuditsOwed, specPath)
 	case done.Done && done.By == DoneByCap:
 		return "the audit round cap ended the loop with every finding dispositioned — proceed to release"
 	case done.Done:
