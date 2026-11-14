@@ -243,6 +243,15 @@ func DueTaskAudits(cands []TaskAuditCandidate, recorded []TaskAuditRecord, endOf
 // file to repair instead of a task audit no emission could run.
 const unreadableTaskFile = "unreadable "
 
+// TaskAuditUnreadable reports whether TaskAuditOwedTasks answered for a task
+// file it could not read, and that file's path.
+func TaskAuditUnreadable(owed []string) (string, bool) {
+	if len(owed) != 1 {
+		return "", false
+	}
+	return strings.CutPrefix(owed[0], unreadableTaskFile)
+}
+
 // TaskAuditClosedAt is the close a task owes its task audit for, in the form
 // a batch member records it.
 func TaskAuditClosedAt(t *model.Task) string {
@@ -298,7 +307,7 @@ func taskAuditOwedClauseNow(specPath string) string {
 	if len(owed) == 0 {
 		return ""
 	}
-	if path, ok := strings.CutPrefix(owed[0], unreadableTaskFile); ok {
+	if path, ok := TaskAuditUnreadable(owed); ok {
 		return "the task file " + path + " cannot be read, so whether a closed task owes a task audit is unknown: repair it, then tp audit " + specPath + " --status"
 	}
 	return TaskAuditOwedClause(owed, specPath)

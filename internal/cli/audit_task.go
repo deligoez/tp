@@ -287,7 +287,11 @@ func addTaskAudits(result map[string]any, specPath string, st *engine.ReviewStat
 		result["task_audits"] = len(st.TaskAudits)
 	}
 	if owed := engine.TaskAuditOwedTasks(specPath, st); len(owed) > 0 {
-		result["task_audits_owed"] = owed
+		if path, ok := engine.TaskAuditUnreadable(owed); ok {
+			result["task_audits_unknown"] = path
+		} else {
+			result["task_audits_owed"] = owed
+		}
 	}
 	// What no task audit reads is named, never silent: closes with no file
 	// to audit, and configured roles this spec's panel cannot ask.
