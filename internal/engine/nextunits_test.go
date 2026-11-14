@@ -175,6 +175,10 @@ func TestBuildNextUnits_ImplementBatchUnderRunMaxParallel(t *testing.T) {
 
 	tf.Tasks[2].Touches = nil
 	units, _ = BuildNextUnits(root, taskFile, spec, PhaseImplement, tf, nil, nil)
+	assert.Equal(t, []string{"a", "c"}, []string{units[0].ID, units[1].ID}, "a task without touches joins unscreened")
+
+	tf.Tasks[2].Solo = true
+	units, _ = BuildNextUnits(root, taskFile, spec, PhaseImplement, tf, nil, nil)
 	assert.Equal(t, []NextUnit{{Kind: UnitImplement, ID: "a", BriefCommand: "tp next --brief"}}, units)
 }
 
