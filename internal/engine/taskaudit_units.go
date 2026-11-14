@@ -58,7 +58,7 @@ func oracleTaskAuditCandidates(target UnitTarget, tf *model.TaskFile) []TaskAudi
 	if tf == nil {
 		return nil
 	}
-	roles := EffectiveWorkflowForTaskFile(target.TaskFile).TaskAuditRoles
+	roles := TaskAuditRolesFor(target.Spec)
 	if len(roles) == 0 {
 		return nil
 	}

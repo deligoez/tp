@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/deligoez/tp/internal/model"
 )
@@ -39,6 +40,57 @@ func TaskAuditCandidates(specPath string, tasks []model.Task, roles []string) []
 	return out
 }
 
+// TaskAuditRolesFor is the roles a task audit of specPath can ask: the
+// spec-adjacent task file's resolved task_audit_roles that its audit panel
+// holds, never spec-coverage. A role the panel lacks is reported by
+// TaskAuditRolesOutsidePanel, never owed, since no prompt could ask it.
+func TaskAuditRolesFor(specPath string) []string {
+	in, _ := splitTaskAuditRoles(specPath)
+	return in
+}
+
+// TaskAuditRolesOutsidePanel is the task_audit_roles the spec's audit panel
+// does not hold: configured, and asked by no task audit of this spec.
+func TaskAuditRolesOutsidePanel(specPath string) []string {
+	_, out := splitTaskAuditRoles(specPath)
+	return out
+}
+
+func splitTaskAuditRoles(specPath string) (in, out []string) {
+	taskPath := strings.TrimSuffix(specPath, filepath.Ext(specPath)) + ".tasks.json"
+	roles := EffectiveWorkflowForTaskFile(taskPath).TaskAuditRoles
+	if len(roles) == 0 {
+		return nil, nil
+	}
+	panel, err := ResolveRolePanel(specPath, PhaseAuditors)
+	for _, r := range roles {
+		if r == RoleSpecCoverage {
+			continue
+		}
+		held := err == nil && slices.ContainsFunc(panel.Roles, func(p model.Role) bool { return p.ID == r })
+		if held {
+			in = append(in, r)
+		} else {
+			out = append(out, r)
+		}
+	}
+	return in, out
+}
+
+// TaskAuditNothingToRead counts the stamped closes that owe a role yet had no
+// auditable file in the tree to read: an evidence-only close, a close with no
+// recorded commit, or one whose files are gone. They owe nothing and are
+// counted so the reader can tell them from closes that were audited.
+func TaskAuditNothingToRead(specPath string, tasks []model.Task) int {
+	n := 0
+	for _, c := range TaskAuditCandidates(specPath, tasks, TaskAuditRolesFor(specPath)) {
+		if len(c.Roles) > 0 && len(c.Files) == 0 {
+			n++
+		}
+	}
+	return n
+}
+
 // taskAuditRoot is the directory a task commit's paths are relative to: the
 // repository holding the spec, or the spec's directory outside one.
 func taskAuditRoot(specPath string) string {
@@ -53,17 +105,25 @@ func taskAuditRoot(specPath string) string {
 // audit: the release audit's type filter, no tp state, still on disk under
 // root.
 func taskAuditFiles(specPath, root string, t *model.Task) []string {
-	var out []string
-	for _, sha := range TaskCommitSHAs(t) {
-		for _, p := range commitChangedFiles(filepath.Dir(specPath), sha, t.ID) {
-			if slices.Contains(out, p) || !IsAuditableType(p) || IsTPStatePath(p) || IsBinaryPath(p) {
-				continue
-			}
-			if _, err := os.Stat(filepath.Join(root, p)); err != nil {
-				continue
-			}
-			out = append(out, p)
+	var changed []string
+	if len(t.CommitFiles) > 0 && t.CommitFilesTotal == 0 {
+		// tp done recorded them, whole: no git to run.
+		changed = t.CommitFiles
+	} else {
+		for _, sha := range TaskCommitSHAs(t) {
+			changed = append(changed, commitChangedFiles(filepath.Dir(specPath), sha, t.ID)...)
 		}
+	}
+	var out []string
+	for _, p := range changed {
+		if slices.Contains(out, p) || !IsAuditableType(p) || IsTPStatePath(p) || IsBinaryPath(p) {
+			continue
+		}
+		// A file gone from the tree (deleted or renamed away) owes nothing.
+		if _, err := os.Stat(filepath.Join(root, p)); err != nil {
+			continue
+		}
+		out = append(out, p)
 	}
 	return out
 }
@@ -73,7 +133,7 @@ func taskAuditFiles(specPath, root string, t *model.Task) []string {
 // phase has ended, a re-grade of the files whose open task-audit rows a fix
 // claim or a change made due. The re-grade reads st, the state on disk.
 func DueTaskAudit(specPath string, st *ReviewState, recorded []TaskAuditRecord, seq int, ended bool, cands []TaskAuditCandidate) *TaskAuditRecord {
-	cands = dropGradedFiles(specPath, st, recorded, cands)
+	cands = dropGradedFiles(specPath, st, subtractReadFiles(cands, recorded))
 	if due := DueTaskAudits(cands, recorded, ended); len(due) > 0 {
 		return &TaskAuditRecord{Seq: seq, Members: due[0].Members, Files: due[0].Files(), Roles: due[0].Roles()}
 	}
@@ -93,26 +153,18 @@ func DueTaskAudit(specPath string, st *ReviewState, recorded []TaskAuditRecord, 
 // only a second opinion that could clear a real row
 // (spec/1.22.0-measurements.md). A candidate keeps its membership with no
 // file left, so presence is unaffected, and ten is counted after the drop.
-// A task with a slice already recorded keeps its files, so its slices keep
-// their numbering. The answer is deterministic only because one audit
-// emission is in flight per spec: batch n+1 is packed after batch n is
-// recorded, never beside it. An audit round records no commit, so only task
-// audits cover a file.
-func dropGradedFiles(specPath string, st *ReviewState, recorded []TaskAuditRecord, cands []TaskAuditCandidate) []TaskAuditCandidate {
+// The answer is deterministic only because one audit emission is in flight
+// per spec: batch n+1 is packed after batch n is recorded, never beside it.
+// An audit round records no commit, so only task audits cover a file.
+func dropGradedFiles(specPath string, st *ReviewState, cands []TaskAuditCandidate) []TaskAuditCandidate {
 	cover := taskAuditCoverage(specPath, st)
 	if len(cover) == 0 {
 		return cands
 	}
-	sliced := make(map[[2]string]bool)
-	for i := range recorded {
-		for _, m := range recorded[i].Members {
-			sliced[[2]string{m.ID, m.ClosedAt}] = true
-		}
-	}
 	dir := filepath.Dir(specPath)
 	out := make([]TaskAuditCandidate, 0, len(cands))
 	for _, c := range cands {
-		if len(c.Roles) > 0 && !sliced[[2]string{c.ID, c.ClosedAt}] {
+		if len(c.Roles) > 0 {
 			kept := make([]string, 0, len(c.Files))
 			for _, f := range c.Files {
 				if !coveredForEveryRole(cover, dir, c.Roles, f) {
@@ -161,22 +213,14 @@ func coveredForEveryRole(cover map[string][]string, dir string, roles []string, 
 }
 
 // NextTaskAuditPlan is the task audit an emission would freeze now when none
-// is in flight: DueTaskAudit past every batch with no file of its own, which
-// the emission records at once with no rows, each taking a seq. Nil when
-// nothing is due. It writes nothing: the oracle and the emission compute the
-// same answer from the same state.
+// is in flight, nil when nothing is due. It writes nothing: the oracle and the
+// emission compute the same answer from the same state.
 func NextTaskAuditPlan(specPath string, st *ReviewState, cands []TaskAuditCandidate, ended bool) *TaskAuditRecord {
 	var recorded []TaskAuditRecord
 	if st != nil {
-		recorded = slices.Clone(st.TaskAudits)
+		recorded = st.TaskAudits
 	}
-	for {
-		rec := DueTaskAudit(specPath, st, recorded, len(recorded)+1, ended, cands)
-		if rec == nil || len(rec.Files) > 0 {
-			return rec
-		}
-		recorded = append(recorded, *rec)
-	}
+	return DueTaskAudit(specPath, st, recorded, len(recorded)+1, ended, cands)
 }
 
 // TaskAuditRegrade is the sorted files a re-grade asks again, the roles it

@@ -1,7 +1,9 @@
 package engine
 
 import (
+	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -157,34 +159,71 @@ func TaskAuditFileName(seq int) string {
 	return "task-audit-" + strconv.Itoa(seq) + ".ndjson"
 }
 
-// taskAuditMemberKey names one member's close and slice.
-type taskAuditMemberKey struct {
-	id, closedAt string
-	piece        int
-}
-
-// owedTaskAuditPieces is every piece of a candidate that owes a role and that
-// no recorded task audit holds for the same close.
+// owedTaskAuditPieces is the slices of what each candidate still owes: its
+// files no recorded member of the same close read, cut into slices of ten
+// that number after the close's recorded ones. A candidate with no file left,
+// or owing no role, owes nothing.
 func owedTaskAuditPieces(cands []TaskAuditCandidate, recorded []TaskAuditRecord) []TaskAuditMember {
-	done := make(map[taskAuditMemberKey]bool)
-	for i := range recorded {
-		for _, m := range recorded[i].Members {
-			done[taskAuditMemberKey{m.ID, m.ClosedAt, m.Piece}] = true
-		}
-	}
+	cands = subtractReadFiles(cands, recorded)
+	doneSlices := recordedSlices(recorded)
 	owing := make([]TaskAuditCandidate, 0, len(cands))
 	for _, c := range cands {
-		if len(c.Roles) > 0 {
+		if len(c.Roles) > 0 && len(c.Files) > 0 {
 			owing = append(owing, c)
 		}
 	}
-	var out []TaskAuditMember
-	for _, m := range taskAuditPieces(owing) {
-		if !done[taskAuditMemberKey{m.ID, m.ClosedAt, m.Piece}] {
-			out = append(out, m)
-		}
+	out := taskAuditPieces(owing)
+	for i := range out {
+		done := doneSlices[[2]string{out[i].ID, out[i].ClosedAt}]
+		out[i].Piece += done
+		out[i].Pieces += done
 	}
 	return out
+}
+
+// subtractReadFiles takes from each candidate the files a recorded member of
+// the same close already read. Membership is by file, not by slice number,
+// so a file set that moves after a slice is recorded (a file deleted, one a
+// grading already covers) never leaves a slice owed that no batch can fill.
+func subtractReadFiles(cands []TaskAuditCandidate, recorded []TaskAuditRecord) []TaskAuditCandidate {
+	read := make(map[[2]string]map[string]bool)
+	for i := range recorded {
+		for _, m := range recorded[i].Members {
+			key := [2]string{m.ID, m.ClosedAt}
+			if read[key] == nil {
+				read[key] = make(map[string]bool)
+			}
+			for _, f := range m.Files {
+				read[key][f] = true
+			}
+		}
+	}
+	out := make([]TaskAuditCandidate, 0, len(cands))
+	for _, c := range cands {
+		if seen := read[[2]string{c.ID, c.ClosedAt}]; len(seen) > 0 {
+			left := make([]string, 0, len(c.Files))
+			for _, f := range c.Files {
+				if !seen[f] {
+					left = append(left, f)
+				}
+			}
+			c.Files = left
+		}
+		out = append(out, c)
+	}
+	return out
+}
+
+// recordedSlices counts the recorded members of each close, so a later slice
+// of it numbers after them.
+func recordedSlices(recorded []TaskAuditRecord) map[[2]string]int {
+	n := make(map[[2]string]int)
+	for i := range recorded {
+		for _, m := range recorded[i].Members {
+			n[[2]string{m.ID, m.ClosedAt}]++
+		}
+	}
+	return n
 }
 
 // DueTaskAudits is the batches the owed pieces pack into that are due now:
@@ -209,33 +248,29 @@ func TaskAuditClosedAt(t *model.Task) string {
 }
 
 // TaskAuditOwedTasks is the presence rule (spec/backlog/per-task-code-
-// audit.md §2.7): the ids of the spec's done tasks whose stamp, met with the
-// roles task_audit_roles lists now, is not empty, and for whose close no
-// recorded task audit holds every slice. A task closed before the field was
-// set carries no stamp and owes nothing.
+// audit.md §2.7): the ids of the spec's done tasks that still owe a file to a
+// role their stamp, task_audit_roles and the audit panel all name, by the
+// same computation the emission and the oracle use. A task closed before the
+// field was set carries no stamp and owes nothing.
 func TaskAuditOwedTasks(specPath string, st *ReviewState) []string {
 	taskPath := strings.TrimSuffix(specPath, filepath.Ext(specPath)) + ".tasks.json"
 	tf, err := model.ReadTaskFile(taskPath)
-	if err != nil {
+	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
-	roles := EffectiveWorkflowForTaskFile(taskPath).TaskAuditRoles
-	recorded := make(map[taskAuditMemberKey]int)
-	if st != nil {
-		for i := range st.TaskAudits {
-			for _, m := range st.TaskAudits[i].Members {
-				recorded[taskAuditMemberKey{m.ID, m.ClosedAt, m.Piece}] = m.Pieces
-			}
-		}
+	if err != nil {
+		// A task file nobody can read is no proof that nothing is owed.
+		return []string{"unreadable " + taskPath}
 	}
+	var recorded []TaskAuditRecord
+	if st != nil {
+		recorded = st.TaskAudits
+	}
+	cands := subtractReadFiles(TaskAuditCandidates(specPath, tf.Tasks, TaskAuditRolesFor(specPath)), recorded)
 	var owed []string
-	for i := range tf.Tasks {
-		t := &tf.Tasks[i]
-		if t.Status != model.StatusDone || t.ClosedAt == nil || !slices.ContainsFunc(t.TaskAuditOwed, func(r string) bool { return slices.Contains(roles, r) }) {
-			continue
-		}
-		if !allSlicesRecorded(recorded, t.ID, TaskAuditClosedAt(t)) {
-			owed = append(owed, t.ID)
+	for _, m := range owedTaskAuditPieces(dropGradedFiles(specPath, st, cands), recorded) {
+		if !slices.Contains(owed, m.ID) {
+			owed = append(owed, m.ID)
 		}
 	}
 	return owed
@@ -246,7 +281,7 @@ func TaskAuditOwedTasks(specPath string, st *ReviewState) []string {
 func owedTaskAuditsNow(specPath string) []string {
 	st, err := LoadReviewState(specPath)
 	if err != nil {
-		return nil
+		st = nil // no recorded task audit can be read: everything stamped is owed
 	}
 	return TaskAuditOwedTasks(specPath, st)
 }
@@ -264,18 +299,6 @@ func TaskAuditOwedClause(owed []string, specPath string) string {
 
 // allSlicesRecorded reports whether every slice of the close is recorded:
 // slice 0 names how many there are.
-func allSlicesRecorded(recorded map[taskAuditMemberKey]int, id, closedAt string) bool {
-	pieces, ok := recorded[taskAuditMemberKey{id, closedAt, 0}]
-	if !ok {
-		return false
-	}
-	for p := 1; p < pieces; p++ {
-		if _, ok := recorded[taskAuditMemberKey{id, closedAt, p}]; !ok {
-			return false
-		}
-	}
-	return true
-}
 
 // TaskAuditsOwed reports whether any candidate still owes a piece: the
 // presence rule's condition (spec/backlog/per-task-code-audit.md §2.7).
