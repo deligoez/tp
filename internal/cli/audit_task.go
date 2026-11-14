@@ -132,15 +132,12 @@ func nextTaskAudit(specPath string, st *engine.ReviewState) *engine.TaskAuditRec
 		if rec != nil {
 			return rec
 		}
-		due := engine.DueTaskAudits(taskAuditCandidatesOf(specPath), st.TaskAudits, taskAuditPhaseEnded(specPath))
-		if len(due) == 0 {
+		rec = dueTaskAudit(specPath, st, seq)
+		if rec == nil {
 			return nil
 		}
-		b := due[0]
-		rec = &engine.TaskAuditRecord{
-			Seq: seq, Members: b.Members, Files: b.Files(), Roles: b.Roles(),
-			Head: engine.GitHead(filepath.Dir(specPath)), EmittedAt: time.Now().UTC().Format(time.RFC3339Nano),
-		}
+		rec.Head = engine.GitHead(filepath.Dir(specPath))
+		rec.EmittedAt = time.Now().UTC().Format(time.RFC3339Nano)
 		if err := engine.WriteTaskAuditEmission(specPath, rec); err != nil {
 			output.Error(ExitFile, "cannot write task audit emission: "+err.Error())
 			os.Exit(ExitFile)
@@ -151,6 +148,112 @@ func nextTaskAudit(specPath string, st *engine.ReviewState) *engine.TaskAuditRec
 		recordTaskAuditRows(specPath, rec, nil)
 		st = loadReviewStateOrExit(specPath)
 	}
+}
+
+// dueTaskAudit is task audit seq if one is due: the first due batch of
+// closed tasks, else, once the implement phase has ended, a re-grade of the
+// files whose open task-audit rows a fix claim or a change made due.
+func dueTaskAudit(specPath string, st *engine.ReviewState, seq int) *engine.TaskAuditRecord {
+	ended := taskAuditPhaseEnded(specPath)
+	if due := engine.DueTaskAudits(taskAuditCandidatesOf(specPath), st.TaskAudits, ended); len(due) > 0 {
+		return &engine.TaskAuditRecord{Seq: seq, Members: due[0].Members, Files: due[0].Files(), Roles: due[0].Roles()}
+	}
+	if !ended {
+		return nil
+	}
+	files, roles, fixPass := dueTaskAuditRegrade(specPath, st)
+	if len(files) == 0 {
+		return nil
+	}
+	return &engine.TaskAuditRecord{Seq: seq, Files: files[:min(len(files), engine.TaskAuditBatchFiles)], Roles: roles, Regrade: true, FixPass: fixPass}
+}
+
+// dueTaskAuditRegrade is the sorted files a re-grade asks again, the roles
+// it asks, and whether a fix claim made any due (spec/backlog/per-task-code-
+// audit.md §2.6). A file graded by a task audit is due for a role when that
+// role's row on it is open in the carried set and either its latest grading
+// claims a fix, or it was graded by a task audit at a commit the file has
+// changed since. A row a fix pass graded after the latest audit round waits
+// for the next round, so fix and re-grade cannot cycle past the round cap.
+func dueTaskAuditRegrade(specPath string, st *engine.ReviewState) (files, roles []string, fixPass bool) {
+	scan := newRegradeScan(specPath, st)
+	recs := engine.TaskAuditsSinceEpoch(st)
+	for i := range recs {
+		for _, f := range recs[i].Files {
+			for _, role := range recs[i].Roles {
+				scan.visit(f, role)
+			}
+		}
+	}
+	slices.Sort(scan.files)
+	slices.Sort(scan.roles)
+	return scan.files, scan.roles, scan.fixPass
+}
+
+// regradeScan collects a re-grade's files and roles over the open carried
+// rows a task audit graded.
+type regradeScan struct {
+	specPath     string
+	st           *engine.ReviewState
+	open         map[string]*engine.CarriedRow
+	bySeq        map[int]*engine.TaskAuditRecord
+	files, roles []string
+	fixPass      bool
+}
+
+func newRegradeScan(specPath string, st *engine.ReviewState) *regradeScan {
+	carried, _ := engine.AuditCarriedSet(specPath, st)
+	s := &regradeScan{specPath: specPath, st: st,
+		open: make(map[string]*engine.CarriedRow, len(carried)), bySeq: make(map[int]*engine.TaskAuditRecord, len(st.TaskAudits))}
+	for i := range carried {
+		if carried[i].Disposition != engine.CarryAccepted {
+			s.open[engine.AuditRowRole(carried[i].Row)+"\x00"+rowItemID(carried[i].Row)] = &carried[i]
+		}
+	}
+	for i := range st.TaskAudits {
+		s.bySeq[st.TaskAudits[i].Seq] = &st.TaskAudits[i]
+	}
+	return s
+}
+
+// visit adds file and role when role's open row on file is due again.
+func (s *regradeScan) visit(file, role string) {
+	items := fileCheckItems([]engine.AuditFileEntry{{Path: file}}, role)
+	row := s.open[role+"\x00"+items[0].ItemID]
+	if row == nil {
+		return
+	}
+	due, byFix := regradeDue(s.specPath, s.st, row, s.bySeq[row.TaskAudit], file)
+	if !due {
+		return
+	}
+	s.fixPass = s.fixPass || byFix
+	if !slices.Contains(s.files, file) {
+		s.files = append(s.files, file)
+	}
+	if !slices.Contains(s.roles, role) {
+		s.roles = append(s.roles, role)
+	}
+}
+
+// regradeDue reports whether an open row on file is asked again, and whether
+// a fix claim is the reason. graded is the task audit holding the row's
+// latest grading, nil when an audit round holds it.
+func regradeDue(specPath string, st *engine.ReviewState, row *engine.CarriedRow, graded *engine.TaskAuditRecord, file string) (due, byFix bool) {
+	if row.Disposition == engine.CarryResolved {
+		waits := graded != nil && graded.FixPass && graded.AfterAuditRound == len(st.AuditRounds)
+		return !waits, !waits
+	}
+	if graded != nil && engine.FileChangedSince(filepath.Dir(specPath), graded.Head, file) {
+		return true, false
+	}
+	return false, false
+}
+
+// rowItemID is a row's item_id, empty when it has none.
+func rowItemID(row map[string]any) string {
+	id, _ := row["item_id"].(string)
+	return id
 }
 
 // taskAuditPhaseEnded reports whether the implement phase is over, so a
