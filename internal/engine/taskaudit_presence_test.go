@@ -120,6 +120,23 @@ func TestTaskAuditPresence_AnUnreadableTaskFileHoldsTheAuditAndNamesTheRepair(t 
 	assert.NotContains(t, na, "--task-audit")
 }
 
+// TestTaskAuditPresence_AQuotedCommitFileIsStillOwed: commit_files keeps the
+// C-quoted form git prints for a name outside plain ASCII; the file is read
+// as the name it stands for, not dropped as absent.
+func TestTaskAuditPresence_AQuotedCommitFileIsStillOwed(t *testing.T) {
+	t.Parallel()
+	spec := presenceSpec(t, []string{"security"}, closedTask("t0", nil))
+	dir := filepath.Dir(spec)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "ü.go"), []byte("package x\n"), 0o600))
+	tf, err := model.ReadTaskFile(filepath.Join(dir, "spec.tasks.json"))
+	require.NoError(t, err)
+	tf.Tasks = append(tf.Tasks, closedTask("t1", []string{`"\303\274.go"`}, "security"))
+	require.NoError(t, model.WriteTaskFile(filepath.Join(dir, "spec.tasks.json"), tf))
+	cands := TaskAuditCandidates(spec, tf.Tasks, []string{"security"})
+	require.Len(t, cands, 1, "t0 carries no stamp")
+	assert.Equal(t, []string{"ü.go"}, cands[0].Files)
+}
+
 // TestTaskAuditPresence_AReClosedTaskOwesAgain: a record of an earlier close
 // does not answer for a later one.
 func TestTaskAuditPresence_AReClosedTaskOwesAgain(t *testing.T) {
