@@ -137,6 +137,23 @@ func LinkedWorktreeOf(dir, root string) bool {
 	return common != "" && common == gitCommonDir(root)
 }
 
+// WorktreeDirFor maps mainDir, a directory inside the main tree, to the same
+// directory inside the linked worktree that holds dir: a project below the git
+// top level gates from that subdirectory in the worktree too. It returns
+// mainDir unchanged when either top level cannot be read or mainDir lies
+// outside the main tree.
+func WorktreeDirFor(mainDir, dir string) string {
+	mainTop, wtTop := gitToplevel(mainDir), gitToplevel(dir)
+	if mainTop == "" || wtTop == "" {
+		return mainDir
+	}
+	rel, err := filepath.Rel(canonicalDir(mainTop), canonicalDir(mainDir))
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return mainDir
+	}
+	return filepath.Join(wtTop, rel)
+}
+
 func gitCommonDir(dir string) string {
 	out, err := gitOut(dir, "rev-parse", "--path-format=absolute", "--git-common-dir")
 	if err != nil {
