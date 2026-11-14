@@ -139,7 +139,7 @@ func nextTaskAudit(specPath string, st *engine.ReviewState) *engine.TaskAuditRec
 		rec.Head = engine.GitHead(filepath.Dir(specPath))
 		rec.EmittedAt = time.Now().UTC().Format(time.RFC3339Nano)
 		if err := engine.WriteTaskAuditEmission(specPath, rec); err != nil {
-			output.Error(ExitFile, "cannot write task audit emission: "+err.Error())
+			output.Error(ExitFile, "cannot write task audit emission: "+err.Error(), stateWriteHint)
 			os.Exit(ExitFile)
 		}
 		if len(rec.Files) > 0 {
@@ -243,7 +243,7 @@ func addTaskAudits(result map[string]any, specPath string, st *engine.ReviewStat
 func loadReviewStateOrExit(specPath string) *engine.ReviewState {
 	st, err := engine.LoadReviewState(specPath)
 	if err != nil {
-		output.Error(ExitFile, err.Error())
+		output.Error(ExitFile, err.Error(), stateWriteHint)
 		os.Exit(ExitFile)
 	}
 	if st == nil {
@@ -290,7 +290,7 @@ func taskAuditRoleRows(specPath string, rec *engine.TaskAuditRecord) []map[strin
 		}
 		parsed, _, err := parseAuditRows(path, data)
 		if err != nil {
-			output.Error(ExitValidation, fmt.Sprintf("%s: %v", path, err))
+			output.Error(ExitValidation, fmt.Sprintf("%s: %v", path, err), "fix the line the message names in the role's file: every non-blank line is one JSON object the auditor wrote")
 			os.Exit(ExitValidation)
 		}
 		asked := make(map[string]bool)
@@ -333,7 +333,7 @@ func recordTaskAuditRows(specPath string, rec *engine.TaskAuditRecord, rows []ma
 	for _, row := range rows {
 		line, err := json.Marshal(row)
 		if err != nil {
-			output.Error(ExitFile, err.Error())
+			output.Error(ExitFile, err.Error(), internalEncodeHint)
 			os.Exit(ExitFile)
 		}
 		b.Write(line)
@@ -366,7 +366,7 @@ func recordTaskAuditRows(specPath string, rec *engine.TaskAuditRecord, rows []ma
 		return engine.SaveReviewState(specPath, st)
 	})
 	if err != nil {
-		output.Error(ExitValidation, "cannot record task audit: "+err.Error())
+		output.Error(ExitValidation, "cannot record task audit: "+err.Error(), stateWriteHint)
 		os.Exit(ExitValidation)
 	}
 	removeRoundInbox(specPath, engine.PhaseTaskAudit, rec.Seq)
