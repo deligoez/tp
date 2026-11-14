@@ -387,6 +387,54 @@ func TestTaskAuditPrior_AReleaseRoundIsShownAnOpenTaskAuditRow(t *testing.T) {
 	assert.Contains(t, section, item)
 }
 
+// dedupeProject has t1 over nine files with a.go among them and t2 over b.go,
+// ten files that fill task audit 1, and an open t3.
+func dedupeProject(t *testing.T) string {
+	t.Helper()
+	dir := taskAuditProject(t, "t1", "t2", "t3")
+	nine := []string{"a.go"}
+	for i := range 8 {
+		nine = append(nine, fmt.Sprintf("n%d.go", i))
+	}
+	closeWith(t, dir, "t1", commitFiles(t, dir, nine...))
+	closeWith(t, dir, "t2", commitFiles(t, dir, "b.go"))
+	return dir
+}
+
+// changeAndClose writes a new body to a.go, commits it with c.go and closes
+// t3 over that commit.
+func changeAndClose(t *testing.T, dir, body string) {
+	t.Helper()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.go"), []byte("package x\n\n// "+body+"\n"), 0o600))
+	closeWith(t, dir, "t3", commitFiles(t, dir, "a.go", "c.go"))
+}
+
+// TestTaskAuditDedupe_AnUnchangedGradedFileIsNotReadAgain: t3 changed a.go
+// before task audit 1 read it, so a.go is unchanged since that grading and
+// drops from task audit 2, which counts its ten after the drop.
+func TestTaskAuditDedupe_AnUnchangedGradedFileIsNotReadAgain(t *testing.T) {
+	t.Parallel()
+	dir := dedupeProject(t)
+	changeAndClose(t, dir, "t3 changed it")
+	first := emitTaskAudit(t, dir)
+	require.Equal(t, []any{"t1", "t2"}, first["task_audit"].(map[string]any)["tasks"])
+	recordTaskAuditWith(t, dir, first, "PASS")
+	second := emitTaskAudit(t, dir)["task_audit"].(map[string]any)
+	assert.Equal(t, []any{"t3"}, second["tasks"], "t3 is still named, so presence is unaffected")
+	assert.Equal(t, []any{"c.go"}, second["files"])
+}
+
+// TestTaskAuditDedupe_AChangedGradedFileIsReadAgain: t3 changed a.go after
+// task audit 1 read it, so task audit 2 reads it again.
+func TestTaskAuditDedupe_AChangedGradedFileIsReadAgain(t *testing.T) {
+	t.Parallel()
+	dir := dedupeProject(t)
+	recordTaskAuditWith(t, dir, emitTaskAudit(t, dir), "PASS")
+	changeAndClose(t, dir, "t3 changed it after")
+	second := emitTaskAudit(t, dir)["task_audit"].(map[string]any)
+	assert.Equal(t, []any{"a.go", "c.go"}, second["files"])
+}
+
 // readReviewState reads spec.md's state.json.
 func readReviewState(t *testing.T, dir string) map[string]any {
 	t.Helper()
