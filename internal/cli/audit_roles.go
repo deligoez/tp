@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -94,48 +92,26 @@ func specItemOf(e *checklistEntry, taskToFiles map[string][]string) ChecklistIte
 	}
 }
 
-// fileCheckItems builds one synthetic checklist item per affected file. Each
-// item's id is a function of the role and the file's path and of nothing else
-// (not its position in the list, not which other files share the list, not
-// the shard it was emitted in): file-<roleID>-<slug>.<digest>, where <slug> is
-// the readable prefix slugifySubject derives from the subject (path +
-// checklist text, cut to 40 characters) and <digest> is fileCheckDigest(path).
-// Two files whose slugs collide are told apart by the digest, so there is no
-// positional suffix. The old -2, -3 suffix depended on the neighbours, and two
-// shards of one round could give one id to two different files.
+// fileCheckItems builds one synthetic checklist item per affected file, each
+// id engine.FileCheckItemID's function of the role and the path alone.
 func fileCheckItems(files []engine.AuditFileEntry, roleID string) []ChecklistItem {
 	items := make([]ChecklistItem, 0, len(files))
-	prefix := "file-" + roleID + "-"
 	for _, f := range files {
-		text := fmt.Sprintf("Apply the %s role rules to %s", roleID, f.Path)
 		items = append(items, ChecklistItem{
-			ItemID:           prefix + slugifySubject(f.Path+" "+text) + "." + fileCheckDigest(f.Path),
+			ItemID:           engine.FileCheckItemID(roleID, f.Path),
 			Type:             "file_check",
 			SpecLine:         0,
 			Section:          f.Path,
-			Text:             text,
+			Text:             engine.FileCheckText(roleID, f.Path),
 			ExpectedEvidence: "inspect file: " + f.Path,
 		})
 	}
 	return items
 }
 
-// fileCheckDigestLen is how many hex characters of the path's SHA-256 a
-// file_check id carries: 64 bits, so two files sharing a 40-character slug
-// and a digest is not a case worth a code path.
-const fileCheckDigestLen = 16
-
 // currentFileCheckID matches the tail only the current derivation writes: a
-// "." (slugifySubject never emits one) and fileCheckDigestLen hex characters.
+// "." (engine.SlugifySubject never emits one) and 16 hex characters of digest.
 var currentFileCheckID = regexp.MustCompile(`\.[0-9a-f]{16}$`)
-
-// fileCheckDigest is the first fileCheckDigestLen hex characters of the
-// SHA-256 of the file's cleaned, slash-separated path, so one file spelled
-// "app/a.go", "./app/a.go" or "app//a.go" keeps one id.
-func fileCheckDigest(p string) string {
-	sum := sha256.Sum256([]byte(filepath.ToSlash(filepath.Clean(p))))
-	return hex.EncodeToString(sum[:])[:fileCheckDigestLen]
-}
 
 // isCurrentFileCheckID reports whether a file_check id was derived by
 // fileCheckItems as it is now. An id without the digest tail was derived
@@ -143,34 +119,6 @@ func fileCheckDigest(p string) string {
 // ids only by accident.
 func isCurrentFileCheckID(id string) bool {
 	return currentFileCheckID.MatchString(id)
-}
-
-// slugifySubject derives a stable slug from an audit item's subject text
-// (§10.3): the subject is lowercased; runs of non-alphanumeric characters
-// collapse to a single "-"; leading and trailing "-" are trimmed; then the
-// result is truncated to at most 40 characters with any trailing "-" trimmed.
-// Because the subject always includes a file path, the slug always contains at
-// least one letter (§10.9).
-func slugifySubject(s string) string {
-	s = strings.ToLower(s)
-	var b strings.Builder
-	dash := false
-	for _, r := range s {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
-			b.WriteRune(r)
-			dash = false
-			continue
-		}
-		if !dash {
-			b.WriteRune('-')
-			dash = true
-		}
-	}
-	slug := strings.Trim(b.String(), "-")
-	if len(slug) > 40 {
-		slug = strings.TrimRight(slug[:40], "-")
-	}
-	return slug
 }
 
 // invertTaskFiles converts path->tasks into task->sorted paths.

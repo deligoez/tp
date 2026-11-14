@@ -28,7 +28,7 @@ func TestSlugifySubject(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, slugifySubject(tc.in))
+			assert.Equal(t, tc.want, engine.SlugifySubject(tc.in))
 		})
 	}
 }
@@ -39,7 +39,7 @@ func TestSlugifySubject_Cap40(t *testing.T) {
 	for range 50 {
 		long.WriteString("a")
 	}
-	slug := slugifySubject(long.String())
+	slug := engine.SlugifySubject(long.String())
 	assert.Len(t, slug, 40)
 }
 

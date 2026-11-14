@@ -1,6 +1,10 @@
 package cli
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/deligoez/tp/internal/engine"
+)
 
 // TestIsAuditableType_SkipsNonSourceMetadata pins the type filter's boundary.
 //
@@ -26,8 +30,8 @@ func TestIsAuditableType_SkipsNonSourceMetadata(t *testing.T) {
 		"nested/.tp/config.json",
 	}
 	for _, path := range skipped {
-		if isAuditableType(path) {
-			t.Errorf("isAuditableType(%q) = true, want false: not source the spec is audited against", path)
+		if engine.IsAuditableType(path) {
+			t.Errorf("engine.IsAuditableType(%q) = true, want false: not source the spec is audited against", path)
 		}
 	}
 
@@ -41,8 +45,8 @@ func TestIsAuditableType_SkipsNonSourceMetadata(t *testing.T) {
 		".tprc.json",
 	}
 	for _, path := range audited {
-		if !isAuditableType(path) {
-			t.Errorf("isAuditableType(%q) = false, want true: dropping it hides the file from every auditor", path)
+		if !engine.IsAuditableType(path) {
+			t.Errorf("engine.IsAuditableType(%q) = false, want true: dropping it hides the file from every auditor", path)
 		}
 	}
 }

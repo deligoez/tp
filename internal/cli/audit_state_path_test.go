@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/deligoez/tp/internal/engine"
 )
 
 // TestIsAuditableType_ReviewStateIsNotCode: a spec's .tp-review/ directory
@@ -19,9 +21,9 @@ func TestIsAuditableType_ReviewStateIsNotCode(t *testing.T) {
 		"spec/.tp-review/1.0.0/review-round-1.ndjson",
 		".tp-review/spec/floor-ground-round-1.txt",
 	} {
-		assert.False(t, isAuditableType(p), "%s is tp's review state", p)
+		assert.False(t, engine.IsAuditableType(p), "%s is tp's review state", p)
 	}
 	for _, p := range []string{"internal/tp-review/x.go", "a.go", "cmd/.tp-reviewer/main.go"} {
-		assert.True(t, isAuditableType(p), "%s is code", p)
+		assert.True(t, engine.IsAuditableType(p), "%s is code", p)
 	}
 }

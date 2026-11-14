@@ -103,13 +103,6 @@ type auditResult struct {
 	Notices []auditNotice `json:"notices,omitempty"`
 }
 
-var binaryExtensions = map[string]bool{
-	".png": true, ".jpg": true, ".jpeg": true, ".gif": true, ".svg": true,
-	".ico": true, ".woff": true, ".woff2": true, ".ttf": true, ".eot": true,
-	".zip": true, ".tar": true, ".gz": true, ".pdf": true,
-	".exe": true, ".dll": true, ".so": true, ".dylib": true, ".o": true, ".a": true,
-}
-
 const maxAutoDetectFiles = 50
 
 func newAuditCmd() *cobra.Command {
@@ -1012,7 +1005,7 @@ func autoDetectedFiles(dir, base string) (filtered, allFiles []string, notRepo b
 	allFiles = engine.DedupPaths(allFiles)
 	filtered = make([]string, 0, len(allFiles))
 	for _, f := range allFiles {
-		if !isAuditableType(f) {
+		if !engine.IsAuditableType(f) {
 			continue
 		}
 		filtered = append(filtered, f)
@@ -1091,69 +1084,6 @@ func warnGitFailure(probe string, err error, args ...string) {
 	// suppress, so the detail is capped to one bounded line: an uncapped dump
 	// costs the agent more context than the payload it annotates.
 	noticeOnce("git:"+probe, fmt.Sprintf("warning: git %s failed: %s", strings.Join(args, " "), firstLineCapped(detail)))
-}
-
-func isBinaryFile(path string) bool {
-	ext := strings.ToLower(filepath.Ext(path))
-	if ext == "" {
-		return false
-	}
-	return binaryExtensions[ext]
-}
-
-// isAuditableType reports whether a path survives the type filtering the
-// auto-detection applies: binary files, markdown, task files, tp's own state
-// directory and extensionless repository metadata are skipped.
-func isAuditableType(path string) bool {
-	if isBinaryFile(path) {
-		return false
-	}
-	if strings.HasSuffix(path, ".md") {
-		return false
-	}
-	if strings.HasSuffix(path, ".tasks.json") {
-		return false
-	}
-	if isTPStatePath(path) {
-		return false
-	}
-	if isRepoMetadataDotfile(path) {
-		return false
-	}
-	return true
-}
-
-// isTPStatePath reports whether the path lies inside tp's own state directory.
-// .tp/ holds the project config, the active pointer, the role corpus and the
-// run state: tp's bookkeeping about the cycle, never the code a spec is audited
-// against. A task that edits one commits it like any other file, so the path
-// reaches an auto-detected file list honestly and costs every role its
-// attention.
-func isTPStatePath(path string) bool {
-	for part := range strings.SplitSeq(filepath.ToSlash(path), "/") {
-		// .tp-review/ beside a spec holds its round files, snapshots and
-		// state.json: tp's record of the review and audit loops, as .tp/ is
-		// of the cycle.
-		if part == ".tp" || part == ".tp-review" {
-			return true
-		}
-	}
-	return false
-}
-
-// isRepoMetadataDotfile reports whether the base name is a dotfile carrying no
-// further extension — .gitignore, .gitattributes, .dockerignore.
-//
-// The leading dot is stripped before the check because filepath.Ext(".gitignore")
-// returns ".gitignore", not "": the final dot is at index 0, so the whole name
-// reads as the extension. A dotfile that does carry a real extension is left
-// auditable, which is what keeps .golangci.yml and .github workflows in the set.
-func isRepoMetadataDotfile(path string) bool {
-	base := filepath.Base(path)
-	if !strings.HasPrefix(base, ".") || base == "." || base == ".." {
-		return false
-	}
-	return !strings.Contains(base[1:], ".")
 }
 
 func buildChecklist(specLines []string, specPath string, findingRows []findingRow) []checklistEntry {
@@ -1357,7 +1287,7 @@ func suggestFilesFromTasks(specPath string) []string {
 	out := make([]string, 0)
 	for sha := range shas {
 		for _, p := range execCommitFiles(specDir, sha) {
-			if !seen[p] && isAuditableType(p) {
+			if !seen[p] && engine.IsAuditableType(p) {
 				seen[p] = true
 				out = append(out, p)
 			}
