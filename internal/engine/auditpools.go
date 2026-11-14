@@ -122,3 +122,21 @@ func GradeAuditRoles(pools []AuditRolePool, rows []map[string]any) []RoleGraded 
 	}
 	return graded
 }
+
+// SpecCoverageUnproven reports whether a recorded audit round leaves
+// spec-coverage unproven (spec/backlog/role-presence.md §2.2, §2.3): the role
+// answered fewer of its asked checklist items than it was asked, or the round
+// was recorded since v1.20.0 without an emission. Graded counts only distinct
+// asked ids, so Graded below Pool is containment failing. A round asked
+// nothing, a code role's cut list and a round from before 1.20.0 are not.
+func SpecCoverageUnproven(entry *ReviewRound) bool {
+	if entry.Unasked {
+		return true
+	}
+	for _, g := range entry.Graded {
+		if g.Role == RoleSpecCoverage && g.Graded < g.Pool {
+			return true
+		}
+	}
+	return false
+}

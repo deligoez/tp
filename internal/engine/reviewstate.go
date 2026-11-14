@@ -58,11 +58,16 @@ type ReviewRound struct {
 	// value is never trimmed.
 	HarnessNote string `json:"harness_note,omitempty"`
 	// Graded is, per code role of an audit round, how many files the role
-	// graded of the pool its list was cut from (RoleGraded). Taken at --record
-	// from the round's rows and the pools its emission kept (AuditPoolsPath);
-	// omitted on a review round, on an audit round recorded with no emission,
-	// and on one recorded before this field existed.
+	// graded of the pool its list was cut from (RoleGraded), and, since
+	// v1.20.0, how many of its asked checklist items spec-coverage answered.
+	// Taken at --record from the round's rows and the pools its emission kept
+	// (AuditPoolsPath); omitted on a review round, on an audit round recorded
+	// with no emission, and on one recorded before this field existed.
 	Graded []RoleGraded `json:"graded,omitempty"`
+	// Unasked marks an audit round recorded since v1.20.0 without an emission
+	// of its own: nothing shows what spec-coverage was asked, so the round is
+	// no clean spec-coverage round (spec/backlog/role-presence.md §2.3).
+	Unasked bool `json:"unasked,omitempty"`
 }
 
 // IDSchemeSlug is the marker value recorded on a v0.30.0+ audit round, whose
