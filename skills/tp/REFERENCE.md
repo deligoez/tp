@@ -293,7 +293,9 @@ by `tp validate` and `tp set`.
   `HEAD` holds that same tree, its working tree differs from `HEAD` only in paths tp writes, and the
   resolved gate command is the same. It says so on stderr (the integrate log keeps it), and the task's
   `gate_passed_at` is the unit's gate time. Anything unequal, a `tp keep` file on the main branch
-  included, runs the gate. This is not `--skip-gate`: a gate ran on that exact tree. The first unit a
+  included, runs the gate. Paths under `.tp/` count as tp's own, so an uncommitted change to the gate's
+  timeout, the checks or the role corpus there does not stop the reuse; one to `quality_gate` does, since
+  the command is compared. This is not `--skip-gate`: a gate ran on that exact tree. The first unit a
   group integrates onto an unmoved main branch is the usual case.
 ### Stop reasons
 
