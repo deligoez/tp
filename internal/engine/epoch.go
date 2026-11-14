@@ -11,10 +11,13 @@ package engine
 // written, convergence still reads the trailing clean rounds and the round cap
 // still counts every recorded round.
 type Epoch struct {
-	AfterReviewRound int    `json:"after_review_round"`
-	AfterAuditRound  int    `json:"after_audit_round"`
-	Evidence         string `json:"evidence"`
-	At               string `json:"at"`
+	AfterReviewRound int `json:"after_review_round"`
+	AfterAuditRound  int `json:"after_audit_round"`
+	// AfterTaskAudit is the epoch's position among the task audits, which
+	// number on their own sequence; 0 on an epoch started before they existed.
+	AfterTaskAudit int    `json:"after_task_audit,omitempty"`
+	Evidence       string `json:"evidence"`
+	At             string `json:"at"`
 }
 
 // EpochCut returns the newest epoch's position for phase (PhaseReview or
@@ -77,4 +80,23 @@ func RoundsSinceEpoch(st *ReviewState, phase string) []ReviewRound {
 		}
 	}
 	return rounds[len(rounds):]
+}
+
+// TaskAuditsSinceEpoch returns a copy of the recorded task audits after the
+// newest epoch's task-audit position: the ones whose rows are still carried.
+func TaskAuditsSinceEpoch(st *ReviewState) []TaskAuditRecord {
+	if st == nil {
+		return nil
+	}
+	cut := 0
+	if n := len(st.Epochs); n > 0 {
+		cut = st.Epochs[n-1].AfterTaskAudit
+	}
+	out := make([]TaskAuditRecord, 0, len(st.TaskAudits))
+	for i := range st.TaskAudits {
+		if st.TaskAudits[i].Seq > cut {
+			out = append(out, st.TaskAudits[i])
+		}
+	}
+	return out
 }
