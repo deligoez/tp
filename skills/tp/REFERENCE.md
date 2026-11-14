@@ -1072,6 +1072,10 @@ on a rune boundary, the prompt's marker names the same counts, and the key survi
     the pre-cap count.
   - `code-files-cut`: the code roles' list is cut below the auto-detect cap.
   - `spec-coverage-files-cut`: spec-coverage's own list is cut at 20.
+  - `named-list-one-prompt` (v1.21.1): a named list longer than the code roles' cap of 10 goes
+    whole into each code role's one prompt. Above 10 a role was measured skimming rather than
+    reading (121 files in the trial, `spec/1.21.1-measurements.md`); where between the two the depth
+    falls is not measured, so it is a notice and nothing is cut.
   - `merge-only-files`: under auto-detection, with a committed range (`--base` or the latest tag), a
     file is in `<rev>...HEAD` but no first-parent, non-merge commit of `<rev>..HEAD` changed it, so
     `git log --first-parent` sees fewer files than the audit. Only the committed range is compared;
@@ -1093,7 +1097,9 @@ on a rune boundary, the prompt's marker names the same counts, and the key survi
   round recorded with no emission carries no `graded`, whatever sits in the inbox. `--record`
   reports the same array, and so does each `audit_rounds[]` entry of `--status`. Both
   `next_action`s open with `latest round graded <role> <n> of <m>, …. ` and end with the step
-  unchanged, so the command is still the end of the string.
+  unchanged, so the command is still the end of the string. `graded` counts rows returned, not files
+  read: in a measured trial a role given 121 files in one prompt graded 121 of 121 while it
+  pattern-scanned most of them (`spec/1.21.1-measurements.md`).
 
 ## Grounding (`tp ground`, v1.0.0)
 
