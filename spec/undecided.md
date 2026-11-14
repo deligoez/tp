@@ -371,7 +371,7 @@ trigger, the measurement pointer and, when there is one, the note that carries t
 
 | entry | decision | trigger | measurements |
 |---|---|---|---|
-| The divisible round | the split key is spec location — the section; the one full-track candidate left | an audit field round whose auto-detected file list exceeds 10 (`M > 10`), the same trigger as `BUGS.md`'s entry on the 10-file / 10 KB cut | `spec/undecided-measurements.md` §The divisible round |
+| The divisible round | out of the park on 2026-11-14: half of the code roles' findings sit beyond the ten-file cut and are real, and yield does not follow churn; splitting by spec section does not reach a file pool, so the key is open again (a raised cap, or a code-lens pass per task at its close) | the next step is one constructed audit round on a large release with the full list, to see whether a role grades a whole pool in one prompt | `spec/1.21.0-measurements.md` §The audit's ten-file cut; `spec/undecided-measurements.md` §The divisible round |
 | A converged payload says what it left open | an audit-side `nonblocking_open`, a count of accepted blocking rows, and audit rows written with review severity words; `spec/backlog/converged-payload-open.md` | the first project that sets `audit_converge_on: blocking` (`review_converge_on` already defaults to `blocking`) | `spec/undecided-measurements.md` §From the rows spec |
 
 ---
