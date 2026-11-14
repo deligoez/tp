@@ -121,9 +121,10 @@ func pickString(layers []*string, def string) string {
 	return def
 }
 
-// pickChecks returns the first present checks layer in precedence order — replace
+// pickSlice returns the first present slice layer in precedence order — replace
 // semantics, so a present slice (even empty) wins over lower layers — or def.
-func pickChecks(layers []*[]model.Check, def []model.Check) []model.Check {
+// checks and task_audit_roles resolve through it.
+func pickSlice[T any](layers []*[]T, def []T) []T {
 	for _, p := range layers {
 		if p != nil {
 			return *p
@@ -289,6 +290,7 @@ func ResolveWorkflowLayers(taskOverride, project *model.WorkflowOverride) model.
 		GateTimeoutSeconds:     600,
 		LockTimeoutSeconds:     5,
 		Checks:                 []model.Check{},
+		TaskAuditRoles:         []string{},
 		ReviewConvergeOn:       ReviewConvergeOnBlocking,
 		AuditConvergeOn:        AuditConvergeOnAll,
 		RunMaxUnits:            RunMaxUnitsDefault,
@@ -308,7 +310,8 @@ func ResolveWorkflowLayers(taskOverride, project *model.WorkflowOverride) model.
 		AuditCleanRounds:   pickInt([]*int{taskOverride.AuditCleanRounds, project.AuditCleanRounds}, def.AuditCleanRounds),
 		ReviewMaxRounds:    pickInt([]*int{taskOverride.ReviewMaxRounds, project.ReviewMaxRounds}, def.ReviewMaxRounds),
 		AuditMaxRounds:     pickInt([]*int{taskOverride.AuditMaxRounds, project.AuditMaxRounds}, def.AuditMaxRounds),
-		Checks:             pickChecks([]*[]model.Check{taskOverride.Checks, project.Checks}, def.Checks),
+		Checks:             pickSlice([]*[]model.Check{taskOverride.Checks, project.Checks}, def.Checks),
+		TaskAuditRoles:     pickSlice([]*[]string{taskOverride.TaskAuditRoles, project.TaskAuditRoles}, def.TaskAuditRoles),
 		ReviewConvergeOn:   pickString([]*string{taskOverride.ReviewConvergeOn, project.ReviewConvergeOn}, def.ReviewConvergeOn),
 		AuditConvergeOn:    pickString([]*string{taskOverride.AuditConvergeOn, project.AuditConvergeOn}, def.AuditConvergeOn),
 

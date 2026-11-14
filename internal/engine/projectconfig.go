@@ -92,6 +92,7 @@ var knownWorkflowKeys = map[string]bool{
 	"run_max_units": true, "run_max_wall_clock_seconds": true,
 	"run_max_budget_usd": true, "run_max_unit_budget_usd": true,
 	"run_max_unit_retries": true, "run_max_parallel": true, "runner": true,
+	"task_audit_roles": true,
 }
 
 // parseWorkflowOverride leniently parses a workflow object: an unknown key or a
@@ -195,6 +196,15 @@ func parseWorkflowOverride(raw json.RawMessage) (wo model.WorkflowOverride, warn
 				warnings = append(warnings, "workflow.checks: expected an array, ignored")
 			} else {
 				wo.Checks = &cs
+			}
+		case "task_audit_roles":
+			// Parsed for shape only; the entries are graded by
+			// ValidateTaskAuditRoles at the write sinks and in tp validate.
+			var roles []string
+			if err := json.Unmarshal(v, &roles); err != nil || roles == nil {
+				warnings = append(warnings, "workflow.task_audit_roles: expected an array of strings, ignored")
+			} else {
+				wo.TaskAuditRoles = &roles
 			}
 		}
 	}
