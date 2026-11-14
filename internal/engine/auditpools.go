@@ -64,7 +64,14 @@ func WriteAuditPools(specPath string, round int, pools []AuditRolePool) error {
 // ReadAuditPools reads a round's pools; found is false when no emission wrote
 // any, which is the normal case for a round recorded without one.
 func ReadAuditPools(specPath string, round int) (pools []AuditRolePool, found bool, err error) {
-	data, err := os.ReadFile(AuditPoolsPath(specPath, round)) //nolint:gosec // a path built from the spec's own state dir
+	path := AuditPoolsPath(specPath, round)
+	data, err := os.ReadFile(path) //nolint:gosec // a path built from the spec's own state dir
+	if os.IsNotExist(err) {
+		// The round's record moved its pools beside the round file, so a
+		// re-record grades its new rows against the same asked items.
+		path = RecordedAuditPoolsPath(specPath, round)
+		data, err = os.ReadFile(path) //nolint:gosec // a path built from the spec's own state dir
+	}
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, false, nil
@@ -73,9 +80,27 @@ func ReadAuditPools(specPath string, round int) (pools []AuditRolePool, found bo
 	}
 	var f auditPoolsFile
 	if err := json.Unmarshal(data, &f); err != nil {
-		return nil, false, fmt.Errorf("%s: %w", AuditPoolsPath(specPath, round), err)
+		return nil, false, fmt.Errorf("%s: %w", path, err)
 	}
 	return f.Pools, true, nil
+}
+
+// RecordedAuditPoolsPath is where a recorded audit round keeps the pools its
+// emission wrote, beside its round file: audit-round-<N>.pools.json. A
+// re-record of the round (TP_ROUND) reads them there once --record has
+// emptied the inbox, so a rewritten round is graded against what it was asked
+// (spec/backlog/role-presence.md).
+func RecordedAuditPoolsPath(specPath string, round int) string {
+	return filepath.Join(ReviewStateDir(specPath), fmt.Sprintf("audit-round-%d.pools.json", round))
+}
+
+// KeepRecordedAuditPools copies a round's pools beside its round file.
+func KeepRecordedAuditPools(specPath string, round int, pools []AuditRolePool) error {
+	data, err := json.MarshalIndent(auditPoolsFile{Round: round, Pools: pools}, "", "  ")
+	if err != nil {
+		return err
+	}
+	return writeFileAtomic(RecordedAuditPoolsPath(specPath, round), append(data, '\n'))
 }
 
 // GradedPrefix renders a round's Graded entries as the sentence that opens
