@@ -163,14 +163,20 @@ func configStart() string {
 // resolveConfigWorkflow resolves the effective workflow for tp config: the
 // task file's project config layered under the active/--file task file's own
 // workflow override. A missing task file yields the working directory's
-// project layer alone. A malformed config aborts with exit 3 and a
-// repair-or-delete hint.
+// project layer alone. A task file that does not parse, or a malformed config,
+// aborts with exit 3.
 func resolveConfigWorkflow() (model.Workflow, model.WorkflowOverride) {
 	var override model.WorkflowOverride
 	if taskFilePath, err := engine.DiscoverTaskFile(".", flagFile); err == nil && taskFilePath != "" {
-		// A parse error yields an empty override; ResolveEffectiveWorkflow below
-		// re-reads and aborts with exit 3 on a truly malformed config.
-		override, _ = engine.LoadTaskWorkflowOverride(taskFilePath)
+		// A task file that does not read or parse aborts with exit 3, as tp list
+		// does: resolving without its override would report project and default
+		// values as if the file set none.
+		loaded, loadErr := engine.LoadTaskWorkflowOverride(taskFilePath)
+		if loadErr != nil {
+			output.Error(ExitFile, taskFileLoadError(loadErr))
+			os.Exit(ExitFile)
+		}
+		override = loaded
 	}
 	wf, warnings, err := engine.ResolveEffectiveWorkflow(configStart(), &override)
 	if err != nil {
@@ -189,6 +195,17 @@ func resolveConfigWorkflow() (model.Workflow, model.WorkflowOverride) {
 	// layer that supplied the resolved value, not "override" (§3.4).
 	engine.ClampWorkflowRanges(&override)
 	return wf, override
+}
+
+// taskFileLoadError words a task file load failure as model.ReadTaskFile does,
+// so tp config names it the way tp list does: a failed read keeps its path
+// error, anything else is a parse failure.
+func taskFileLoadError(err error) string {
+	var pathErr *os.PathError
+	if errors.As(err, &pathErr) {
+		return fmt.Sprintf("read task file: %v", err)
+	}
+	return fmt.Sprintf("parse task file: %v", err)
 }
 
 func runConfig(_ *cobra.Command, _ []string) error {
