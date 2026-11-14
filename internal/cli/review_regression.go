@@ -99,7 +99,7 @@ func runReviewRegression(specPath, diffFrom, findingsPath string, q roleQuery) e
 	wfChecks, checksTaskFile := engine.ResolveWorkflow(specPath, flagFile)
 	var mechChecks []map[string]any
 	if len(wfChecks.Checks) > 0 {
-		mechChecks, _ = runMechanicalChecks(&wfChecks, checksTaskFile)
+		mechChecks, _ = runMechanicalChecks(&wfChecks, checksTaskFile, specPath)
 	}
 	// §3.2: the exclusion sentence carries the mechanized classes, a narrower set
 	// than the registered entries — see engine.ReviewerExclusionClasses — kept

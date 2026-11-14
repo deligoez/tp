@@ -134,7 +134,7 @@ func runImportChecks(targetPath string, tf *model.TaskFile) *importCheckGate {
 	if err != nil || loop == nil || !loop.done.Done || len(loop.wf.Checks) == 0 {
 		return nil
 	}
-	results, _ := runMechanicalChecks(&loop.wf, loop.checksFile)
+	results, _ := runMechanicalChecks(&loop.wf, loop.checksFile, loop.stateSpec)
 	return &importCheckGate{done: loop.done, checks: loop.wf.Checks, verdict: checkVerdict(loop.wf.Checks, results, loop.checksFile)}
 }
 

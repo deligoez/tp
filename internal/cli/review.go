@@ -724,7 +724,7 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 	// no registered command.
 	var mechChecks []map[string]any
 	if len(wfChecks.Checks) > 0 {
-		mechChecks, _ = runMechanicalChecks(&wfChecks, checksTaskFile)
+		mechChecks, _ = runMechanicalChecks(&wfChecks, checksTaskFile, specPath)
 	}
 	// The exclusion sentence is written only now, so a check that could not
 	// run, or never started, leaves its class reportable in every prompt

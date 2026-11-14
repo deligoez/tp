@@ -2,11 +2,51 @@ package cli
 
 import (
 	"fmt"
+	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/deligoez/tp/internal/engine"
 	"github.com/deligoez/tp/internal/model"
 )
+
+// checkEnv is the environment a registered check runs in: tp's own, without
+// any TP_SPEC or TP_ROUND it inherited, plus TP_SPEC naming specPath. A check
+// used to learn its spec by asking `tp resume`, which names the active task
+// file's spec rather than the one the command is about; an inherited value is
+// the same mistake from the shell or from a `tp run` unit's environment.
+// TP_SPEC is relative to dir, the directory the check runs in (the caller's
+// working directory when dir is empty), when the spec lies under it, so a
+// path a check prints into recorded state names no machine; absolute
+// otherwise. With no spec it stays unset rather than empty.
+func checkEnv(parent []string, specPath, dir string) []string {
+	env := make([]string, 0, len(parent)+1)
+	for _, kv := range parent {
+		if strings.HasPrefix(kv, "TP_SPEC=") || strings.HasPrefix(kv, "TP_ROUND=") {
+			continue
+		}
+		env = append(env, kv)
+	}
+	if specPath == "" {
+		return env
+	}
+	return append(env, "TP_SPEC="+checkSpecPath(specPath, dir))
+}
+
+// checkSpecPath is specPath as checkEnv hands it to a check.
+func checkSpecPath(specPath, dir string) string {
+	if dir == "" {
+		return specPath
+	}
+	abs, err := filepath.Abs(specPath)
+	if err != nil {
+		return specPath
+	}
+	if rel, err := filepath.Rel(dir, abs); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return rel
+	}
+	return abs
+}
 
 // checkRanClasses returns the classes a registered check ran for in one
 // invocation: an entry of the class the runner reported `ran: true`, and no
@@ -84,12 +124,12 @@ func checkVerdict(checks []model.Check, results []map[string]any, taskFilePath s
 // runs: with no candidate registered both rules keep every candidate, and no
 // next_action branch that reads the verdict can fire. With no check registered
 // there is nothing to run at all.
-func recordChecks(wf *model.Workflow, taskFilePath string, candidates []mechanizeCandidate, done engine.LoopDone) (mechanized func(string) bool, verdict engine.CheckVerdict, results []map[string]any) {
+func recordChecks(wf *model.Workflow, taskFilePath, specPath string, candidates []mechanizeCandidate, done engine.LoopDone) (mechanized func(string) bool, verdict engine.CheckVerdict, results []map[string]any) {
 	registered := registeredMechanized(wf.Checks)
 	candidateRegistered := slices.ContainsFunc(candidates, func(c mechanizeCandidate) bool { return registered(c.Class) })
 	if len(wf.Checks) == 0 || (!done.Done && !done.CapReached && !candidateRegistered) {
 		return registered, engine.CheckVerdict{}, nil
 	}
-	results, _ = runMechanicalChecks(wf, taskFilePath)
+	results, _ = runMechanicalChecks(wf, taskFilePath, specPath)
 	return ranMechanized(wf.Checks, results), checkVerdict(wf.Checks, results, taskFilePath), results
 }

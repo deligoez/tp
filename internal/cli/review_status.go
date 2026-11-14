@@ -80,7 +80,7 @@ func runReviewStatus(specPath string, check bool) error {
 	mechanized := registeredMechanized(wf.Checks)
 	verdict := engine.CheckVerdict{Unverified: len(wf.Checks) > 0}
 	if check {
-		mechChecks, allPass = runMechanicalChecks(&wf, taskFilePath)
+		mechChecks, allPass = runMechanicalChecks(&wf, taskFilePath, specPath)
 		mechanized = ranMechanized(wf.Checks, mechChecks)
 		verdict = checkVerdict(wf.Checks, mechChecks, taskFilePath)
 	} else {
@@ -200,7 +200,11 @@ func registeredChecksList(wf *model.Workflow) []map[string]any {
 // checks schema are skipped with an info line. When no task file resolves,
 // none run — and allPass is then false whenever a check was registered,
 // because a check that did not run is not a check that passed.
-func runMechanicalChecks(wf *model.Workflow, taskFilePath string) (results []map[string]any, allPass bool) {
+//
+// specPath is the spec the command is about. It reaches every check as
+// TP_SPEC (checkEnv); it is a parameter of this one sink so no caller can run
+// a check without saying which spec it grades.
+func runMechanicalChecks(wf *model.Workflow, taskFilePath, specPath string) (results []map[string]any, allPass bool) {
 	results = make([]map[string]any, 0, len(wf.Checks))
 	allPass = true
 	// The sink every registered check runs through, so a check is never run
@@ -211,6 +215,7 @@ func runMechanicalChecks(wf *model.Workflow, taskFilePath string) (results []map
 	if taskFilePath != "" {
 		dir := gateDir(taskFilePath)
 		timeout := time.Duration(wf.EffectiveGateTimeoutSeconds()) * time.Second
+		env := checkEnv(os.Environ(), specPath, dir)
 
 		for i := range wf.Checks {
 			c := wf.Checks[i]
@@ -218,7 +223,7 @@ func runMechanicalChecks(wf *model.Workflow, taskFilePath string) (results []map
 				output.Notice(fmt.Sprintf("skipping invalid check %d (%s): %v", i, c.Class, err))
 				continue
 			}
-			res := engine.RunCommand(c.Cmd, dir, timeout, gateOutputTailLines)
+			res := engine.RunCommandEnv(c.Cmd, dir, env, timeout, gateOutputTailLines)
 			// ran is the exit-code contract's third state: a check that
 			// could not run neither passes nor suppresses its class.
 			entry := map[string]any{
