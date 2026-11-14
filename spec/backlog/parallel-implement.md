@@ -17,8 +17,10 @@ measurements): worth having, and bounded by how well a task names what it touche
 ## 2. Decision
 
 1. **`touches` names what a task may change.** An optional task field of repo-relative path globs,
-   written at decompose. A task without it always runs alone. `tp validate` refuses a malformed glob
-   and warns on an open task without `touches` when `run_max_parallel` is above 1.
+   written at decompose. It is a hint that avoids discards: a task without it joins a batch
+   unscreened (v1.20.0, the operator's decision; until then it always ran alone), since safety rests on
+   the pick and the gate. `tp validate` refuses a malformed glob and warns on an open task without
+   `touches` when `run_max_parallel` is above 1.
 2. **`run_max_parallel` caps a batch.** A workflow field, default 1, so nothing changes until the
    operator raises it, an operator decision as every `run_max_*` is. In the implement phase the oracle
    returns up to that many ready tasks whose `touches` are pairwise disjoint, the first ready task
@@ -40,7 +42,9 @@ measurements): worth having, and bounded by how well a task names what it touche
    a durable `solo` mark the oracle reads, so it runs alone next. A diff that leaves its `touches` is
    warned on stderr, not reopened: the pick and the gate are the safety, `touches` the schedule.
 5. **Integration gates are one at a time.** The driver gates one pick at a time. The units' own gates
-   run side by side, up to `run_max_parallel`; while working, a unit's brief tells it to run only the
+   run side by side, up to `run_max_parallel`: the operator revised 1.19.0's "gates always
+   serialized" for this in v1.20.0, choosing it over one lock for every gate with the modelled cost in
+   `spec/1.20.0-measurements.md` before them. While working, a unit's brief tells it to run only the
    tests its change needs, never the whole suite, since parallel test load once exhausted the machine.
 6. **A crash is reconciled at start.** A run that finds pending closes, unit branches or worktrees from
    an earlier run integrates or reopens them before its first batch, and `tp resume` names them.
