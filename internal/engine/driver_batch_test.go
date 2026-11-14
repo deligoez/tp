@@ -202,6 +202,54 @@ func TestRunDriver_APickACrashLeftIsClosedNotRedone(t *testing.T) {
 	assert.Empty(t, invocations(t, records), "the work is not redone")
 }
 
+// recoveryDriver is a driver whose closes succeed by marking the task done.
+func recoveryDriver(root, spec, taskFile string, closer *fakeCloser) *driver {
+	return &driver{
+		opts:  &DriverOptions{Root: root, TaskFile: taskFile, Spec: spec, CloseTask: closer.close(taskFile), ReopenSolo: func(string) error { return nil }},
+		runID: "r1",
+		sig:   &interrupts{ch: make(chan os.Signal, 1)},
+	}
+}
+
+const wipAlpha = `{"spec":"s.md","tasks":[{"id":"alpha","title":"A","status":"wip","depends_on":[],"estimate_minutes":5,"acceptance":"a","source_sections":["x"],"touches":["a1.txt","a2.txt"]}]}`
+
+// TestIntegrate_AMidPickCrashFinishesThePick: a crash between a unit's two
+// picks left the first on the main branch; the next run takes it back and
+// picks both, rather than refusing or picking the first twice.
+func TestIntegrate_AMidPickCrashFinishesThePick(t *testing.T) {
+	root, spec, taskFile, _ := batchProject(t, wipAlpha)
+	pre := gitIn(t, root, "rev-parse", "HEAD")
+	gitIn(t, root, "switch", "-q", "-c", "unit")
+	first := commitIn(t, root, "a1.txt", "1\n")
+	second := commitIn(t, root, "a2.txt", "2\n")
+	gitIn(t, root, "switch", "-q", "main")
+	gitIn(t, root, "cherry-pick", first)
+	require.NoError(t, WritePendingClose(root, taskFile, &PendingClose{ID: "alpha", Commits: []string{first, second}, PickedOnto: pre}))
+	closer := &fakeCloser{closed: map[string][]string{}}
+
+	require.NoError(t, recoveryDriver(root, spec, taskFile, closer).integratePending())
+	require.Len(t, closer.closed["alpha"], 2)
+	assert.Equal(t, "2", gitIn(t, root, "rev-list", "--count", pre+"..HEAD"), "each commit picked once")
+}
+
+// TestIntegrate_AnEqualLengthHistoryIsNotTakenForThePick: commits on the main
+// branch after an interrupted pick that are not the unit's, though as many,
+// are never closed as its work.
+func TestIntegrate_AnEqualLengthHistoryIsNotTakenForThePick(t *testing.T) {
+	root, spec, taskFile, _ := batchProject(t, wipAlpha)
+	pre := gitIn(t, root, "rev-parse", "HEAD")
+	gitIn(t, root, "switch", "-q", "-c", "unit")
+	unit := commitIn(t, root, "a1.txt", "1\n")
+	gitIn(t, root, "switch", "-q", "main")
+	commitIn(t, root, "other.txt", "someone else\n")
+	require.NoError(t, WritePendingClose(root, taskFile, &PendingClose{ID: "alpha", Commits: []string{unit}, PickedOnto: pre}))
+	closer := &fakeCloser{closed: map[string][]string{}}
+
+	err := recoveryDriver(root, spec, taskFile, closer).integratePending()
+	require.Error(t, err, "the operator decides what the main branch now holds")
+	assert.Empty(t, closer.closed)
+}
+
 // TestRunDriver_ReconcileLeavesAnotherCyclesUnits: a run removes the unit
 // branches its own task file's batches left, never another task file's, which
 // a second tp run may be driving in the same repository.
