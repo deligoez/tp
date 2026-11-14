@@ -57,6 +57,12 @@ func BuildNextUnits(root, taskFilePath, specPath, phase string, tf *model.TaskFi
 
 	switch phase {
 	case PhaseImplement:
+		// A task audit in flight, or a full batch due, runs before the next
+		// implement unit and never beside one
+		// (spec/backlog/per-task-code-audit.md).
+		if taskAudit, seq := implementTaskAuditUnits(root, target, tf, st); len(taskAudit) > 0 {
+			return taskAudit, seq
+		}
 		// The subject is the task tp next would claim — the in-progress task
 		// when one exists, so a crashed unit is resumed rather than skipped.
 		// No ready task is the no-ready-task blocker's condition and returns
@@ -71,7 +77,14 @@ func BuildNextUnits(root, taskFilePath, specPath, phase string, tf *model.TaskFi
 		batchBriefs(units)
 	case PhaseDecompose:
 		units = append(units, newNextUnit(UnitDecompose, SpecBaseName(specPath), target))
-	case PhaseReview, PhaseAudit:
+	case PhaseAudit:
+		// The task audits owed, fixed and re-graded come before the release
+		// audit's own units.
+		if taskAudit, seq := auditTaskAuditUnits(root, target, tf, st, recorded); len(taskAudit) > 0 {
+			return soloIfNotConcurrent(taskAudit), seq
+		}
+		units, round = roundBasedUnits(root, phase, recorded, target, st)
+	case PhaseReview:
 		units, round = roundBasedUnits(root, phase, recorded, target, st)
 	}
 	return soloIfNotConcurrent(units), round
