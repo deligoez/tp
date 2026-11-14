@@ -45,9 +45,20 @@ func markRoundEmitted(t *testing.T, dir, phase string) {
 	stateDir := filepath.Join(dir, ".tp-review", "spec")
 	recorded, err := filepath.Glob(filepath.Join(stateDir, phase+"-round-*.ndjson"))
 	require.NoError(t, err)
-	name := fmt.Sprintf("snapshot-round-%d.md", len(recorded)+1)
+	// A fixture may delete a recorded round's file, so the state's own count
+	// wins when it is the larger.
+	next := len(recorded) + 1
+	if data, readErr := os.ReadFile(filepath.Join(stateDir, "state.json")); readErr == nil {
+		var st map[string]any
+		if json.Unmarshal(data, &st) == nil {
+			if rounds, ok := st[phase+"_rounds"].([]any); ok && len(rounds) >= next {
+				next = len(rounds) + 1
+			}
+		}
+	}
+	name := fmt.Sprintf("snapshot-round-%d.md", next)
 	if phase != "review" {
-		name = fmt.Sprintf("snapshot-%s-round-%d.md", phase, len(recorded)+1)
+		name = fmt.Sprintf("snapshot-%s-round-%d.md", phase, next)
 	}
 	snapshot := filepath.Join(stateDir, name)
 	if _, statErr := os.Stat(snapshot); statErr == nil {
