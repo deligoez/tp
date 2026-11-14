@@ -83,7 +83,7 @@ func ComputeAuditRoleStreaks(specPath string, rounds []ReviewRound) (streaks []R
 	consecutive := make(map[string]int, len(latestOpen))
 	streakOpen := make(map[string]struct{}, len(latestOpen))
 	for role, open := range latestOpen {
-		if open == 0 {
+		if open == 0 && !unprovenRole(role, &rounds[len(rounds)-1]) {
 			consecutive[role] = 1
 			streakOpen[role] = struct{}{}
 		}
@@ -96,7 +96,7 @@ func ComputeAuditRoleStreaks(specPath string, rounds []ReviewRound) (streaks []R
 		}
 		earlierOpen := auditRoundOpenByRole(earlierRows)
 		for role := range streakOpen {
-			if open, measured := earlierOpen[role]; measured && open == 0 {
+			if open, measured := earlierOpen[role]; measured && open == 0 && !unprovenRole(role, &rounds[i]) {
 				consecutive[role]++
 				continue
 			}
@@ -142,4 +142,10 @@ func auditRoundOpenByRole(rows []map[string]any) map[string]int {
 		}
 	}
 	return open
+}
+
+// unprovenRole reports whether role is spec-coverage in a round that left it
+// unproven: all-PASS rows there do not make it clean (SpecCoverageUnproven).
+func unprovenRole(role string, entry *ReviewRound) bool {
+	return role == RoleSpecCoverage && SpecCoverageUnproven(entry)
 }
