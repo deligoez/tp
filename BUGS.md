@@ -13,13 +13,6 @@ fix needs a design choice leaves this file for a decision note.
 
 ## Decided elsewhere, not a fix
 
-- **A hand-recorded `tp review --record <file>` converges with roles that never ran.** Since v1.20.0
-  (`spec/backlog/role-presence.md`) `tp review <spec> --record-inbox` is the proving form: it refuses
-  while a role of the round, the ones a `--role` filter skipped included, has no file. Under `tp run`
-  the oracle schedules the record unit only once every role's file parses. What stays open is
-  `--record <file>`, empty or not, which cannot tell a role that found nothing from one that never
-  ran. Closing it costs refusing an empty `--record` over an emitted round, or a `--status` field
-  showing presence unproven: the operator's call.
 - **An auto-detected file list beyond 10 is cut per code role, and an inline spec excerpt stops at
   10 KB.** A named `--affected-files` list is not cut since v1.15.0, and every code role's round says
   `graded N of M` in `--record`, `--status` and `next_action`. The spec cut drops prose only: each
