@@ -138,7 +138,8 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 	liveRounds := engine.LiveAuditRounds(specPath, st.AuditRounds)
 	// A carried blocking row holds convergence open whatever the trailing
 	// rounds say (spec/backlog/audit-carried-fail-blocks.md).
-	converged := engine.Converged(liveRounds, wf.AuditCleanRounds, specHash) && len(engine.AuditCarriedBlocking(specPath, st)) == 0
+	converged := engine.Converged(liveRounds, wf.AuditCleanRounds, specHash) && len(engine.AuditCarriedBlocking(specPath, st)) == 0 &&
+		len(engine.TaskAuditOwedTasks(specPath, st)) == 0
 	stale := engine.StateStale(liveRounds, specHash)
 	result := map[string]any{
 		"round":                 round,
@@ -459,7 +460,7 @@ func runAuditStatus(specPath string, check bool) error {
 		rounds = engine.LiveAuditRounds(specPath, st.AuditRounds)
 	}
 	done := engine.AuditLoopDone(specPath, st, wf.AuditCleanRounds, wf.AuditMaxRounds, specHash)
-	converged := engine.Converged(rounds, wf.AuditCleanRounds, specHash) && len(done.CarriedBlocking) == 0
+	converged := engine.Converged(rounds, wf.AuditCleanRounds, specHash) && len(done.CarriedBlocking) == 0 && len(done.TaskAuditsOwed) == 0
 	stale := engine.StateStale(rounds, specHash)
 	rolesHash := phaseRolesHash(specPath, engine.PhaseAuditors)
 
@@ -472,6 +473,7 @@ func runAuditStatus(specPath string, check bool) error {
 		"roles_stale":           engine.RolesStale(rounds, rolesHash),
 	}
 	addLoopDone(result, done)
+	addTaskAudits(result, st, done)
 	addEpochs(result, st)
 	// §2.5: the three fields are written HERE, before the --check exit-code
 	// branch at the end of this function, so `--status --check` — the invocation

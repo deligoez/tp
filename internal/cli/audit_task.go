@@ -189,7 +189,7 @@ func taskAuditCandidatesOf(specPath string) []engine.TaskAuditCandidate {
 			}
 		}
 		out = append(out, engine.TaskAuditCandidate{
-			ID: t.ID, ClosedAt: t.ClosedAt.UTC().Format(time.RFC3339Nano), Roles: roles, Files: taskAuditFiles(specPath, t),
+			ID: t.ID, ClosedAt: engine.TaskAuditClosedAt(t), Roles: roles, Files: taskAuditFiles(specPath, t),
 		})
 	}
 	return out
@@ -255,6 +255,18 @@ func refuseWhileTaskAuditInFlight(specPath string) {
 		output.Error(ExitValidation, fmt.Sprintf("task audit %d is emitted and unrecorded; an audit round waits for it", seq),
 			fmt.Sprintf("run its roles and record it: tp audit %s --task-audit --record-inbox", specPath))
 		os.Exit(ExitValidation)
+	}
+}
+
+// addTaskAudits writes the task audits onto an audit status payload: how
+// many are recorded, and the closed tasks still owing one, present only
+// while any does.
+func addTaskAudits(result map[string]any, st *engine.ReviewState, done engine.LoopDone) {
+	if st != nil && len(st.TaskAudits) > 0 {
+		result["task_audits"] = len(st.TaskAudits)
+	}
+	if len(done.TaskAuditsOwed) > 0 {
+		result["task_audits_owed"] = done.TaskAuditsOwed
 	}
 }
 
