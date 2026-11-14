@@ -414,7 +414,7 @@ Every rule identifier tp can put in a `findings[].rule` field, and the command t
 | `duplicate-id` | `tp validate` | error | Two tasks share an id |
 | `coverage` | `tp validate` | error/warning | Wrong `total_sections`, unmapped sections, coverage arithmetic that does not add up (error); spec missing or unparseable (warning) |
 | `section-anchor` | `tp validate` | warning | A `source_sections` entry that matches no heading, or is ambiguous between several |
-| `touches` | `tp validate` | warning | An open task without `touches` while the effective `run_max_parallel` is above 1: it never runs beside another task under `tp run` |
+| `touches` | `tp validate` | warning | An open task without `touches` while the effective `run_max_parallel` is above 1: it runs beside other tasks under `tp run` unscreened, and a clash discards its unit and reruns it alone |
 | `line-coverage` | `tp validate` | warning/info | Uncovered spec lines, unusable or invalid `source_lines` (warning); the "…and N more gap(s)" continuation (info) |
 | `any-of-shape` | `tp epic lint` | error | A `depends_on` entry carries both or neither of `id` and `any_of`, an any-of group has fewer than two distinct members or sits beside a plain edge to one of its members, or two groups of one epic have one member set |
 | `cycle` | `tp epic lint` | error | The epic dependency graph has a cycle, an edge to any member of an any-of group counting; one finding per strongly connected component |
