@@ -177,7 +177,10 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 		output.Notice("quality gate is executed by tp; --gate-passed ignored")
 	}
 	gateRan := false
-	reusedAt := reusedGateTime(taskFilePath, tfPre, taskID)
+	var reusedAt *time.Time
+	if doneSkipGate == "" {
+		reusedAt = reusedGateTime(taskFilePath, tfPre, taskID)
+	}
 	if doneSkipGate == "" && reusedAt == nil {
 		gateRan = runQualityGatePreFlock(taskFilePath, true)
 	}
