@@ -55,7 +55,7 @@ import (
 const pinnedSurface = `
 : color compact file json no-color no-compact no-quiet quiet
 add: bulk spec stdin
-audit: affected-files affected-from-tasks base check findings force harness-note merge output record resolve resolve-all role status
+audit: affected-files affected-from-tasks base check findings force harness-note merge output record record-inbox resolve resolve-all role status task-audit
 blocked:
 brief: prior
 claim: all-ready
