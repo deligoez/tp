@@ -98,9 +98,10 @@ type taskAuditResult struct {
 func runTaskAudit(specPath, roleFilter string, roleGiven bool) error {
 	st := loadReviewStateOrExit(specPath)
 	refuseWhileAuditRoundInFlight(specPath, st)
-	rec := nextTaskAudit(specPath, st)
+	rec := nextTaskAudit(specPath)
 	if rec == nil {
-		return output.JSON(taskAuditResult{Spec: specPath, Owed: taskAuditsOwed(specPath, st), Prompts: []auditPrompt{}})
+		// The freeze may have changed the state; owed is read after it.
+		return output.JSON(taskAuditResult{Spec: specPath, Owed: taskAuditsOwed(specPath, loadReviewStateOrExit(specPath)), Prompts: []auditPrompt{}})
 	}
 	prompts := taskAuditPrompts(specPath, rec)
 	if roleGiven {
@@ -121,32 +122,53 @@ func runTaskAudit(specPath, roleFilter string, roleGiven bool) error {
 // nextTaskAudit is the task audit to emit: the frozen unrecorded one, or the
 // first due batch frozen now. A batch with no file of its own records at
 // once with no rows, since no role has anything to read.
-func nextTaskAudit(specPath string, st *engine.ReviewState) *engine.TaskAuditRecord {
+func nextTaskAudit(specPath string) *engine.TaskAuditRecord {
+	// Role units of one task audit run side by side and each emits it: the
+	// read-or-freeze is one critical section, so they freeze it once.
+	var rec *engine.TaskAuditRecord
+	err := engine.WithReviewStateLock(specPath, func() error {
+		var err error
+		rec, err = freezeNextTaskAudit(specPath)
+		return err
+	})
+	if err != nil {
+		output.Error(ExitFile, "cannot freeze the next task audit: "+err.Error(), stateWriteHint)
+		os.Exit(ExitFile)
+	}
+	return rec
+}
+
+// freezeNextTaskAudit is nextTaskAudit's body, run under the state lock.
+func freezeNextTaskAudit(specPath string) (*engine.TaskAuditRecord, error) {
 	for {
+		st, err := engine.LoadReviewState(specPath)
+		if err != nil {
+			return nil, err
+		}
+		if st == nil {
+			st = &engine.ReviewState{}
+		}
 		seq := len(st.TaskAudits) + 1
 		rec, err := engine.ReadTaskAuditEmission(specPath, seq)
-		if err != nil {
-			output.Error(ExitFile, err.Error(), "remove the file to emit the task audit again")
-			os.Exit(ExitFile)
-		}
-		if rec != nil {
-			return rec
+		if err != nil || rec != nil {
+			return rec, err
 		}
 		rec = dueTaskAudit(specPath, st, seq)
 		if rec == nil {
-			return nil
+			return nil, nil
 		}
 		rec.Head = engine.GitHead(filepath.Dir(specPath))
 		rec.EmittedAt = time.Now().UTC().Format(time.RFC3339Nano)
 		if err := engine.WriteTaskAuditEmission(specPath, rec); err != nil {
-			output.Error(ExitFile, "cannot write task audit emission: "+err.Error(), stateWriteHint)
-			os.Exit(ExitFile)
+			return nil, err
 		}
 		if len(rec.Files) > 0 {
-			return rec
+			return rec, nil
 		}
-		recordTaskAuditRows(specPath, rec, nil)
-		st = loadReviewStateOrExit(specPath)
+		if _, err := writeTaskAuditRecord(specPath, rec, nil); err != nil {
+			return nil, err
+		}
+		removeRoundInbox(specPath, engine.PhaseTaskAudit, rec.Seq)
 	}
 }
 
@@ -170,15 +192,14 @@ func taskAuditPhaseEnded(specPath string) bool {
 
 // taskAuditsOwed reports whether a done task still owes a task audit.
 func taskAuditsOwed(specPath string, st *engine.ReviewState) bool {
-	return engine.TaskAuditsOwed(taskAuditCandidatesOf(specPath), st.TaskAudits)
+	return len(engine.TaskAuditOwedTasks(specPath, st)) > 0
 }
 
 // taskAuditCandidatesOf is every done task of the spec's task file with the
-// roles it still owes, its stamp meeting the roles the field lists now, and
-// its auditable files.
+// roles it still owes, its stamp met with the roles task_audit_roles lists
+// and the audit panel holds, and its auditable files.
 func taskAuditCandidatesOf(specPath string) []engine.TaskAuditCandidate {
-	wf, _ := engine.ResolveWorkflow(specPath, flagFile)
-	return engine.TaskAuditCandidates(specPath, auditTasksOf(specPath), wf.TaskAuditRoles)
+	return engine.TaskAuditCandidates(specPath, auditTasksOf(specPath), engine.TaskAuditRolesFor(specPath))
 }
 
 // taskAuditPrompts builds one prompt per role of the task audit that the
@@ -245,7 +266,13 @@ func refuseWhileTaskAuditInFlight(specPath string) {
 		st = &engine.ReviewState{}
 	}
 	seq := len(st.TaskAudits) + 1
-	if rec, _ := engine.ReadTaskAuditEmission(specPath, seq); rec != nil {
+	rec, err := engine.ReadTaskAuditEmission(specPath, seq)
+	if err != nil {
+		// The task-audit side refuses this file too: neither emits past it.
+		output.Error(ExitFile, err.Error(), "the frozen task audit cannot be read; restore it, or remove it once no role of it is running")
+		os.Exit(ExitFile)
+	}
+	if rec != nil {
 		output.Error(ExitValidation, fmt.Sprintf("task audit %d is emitted and unrecorded; an audit round waits for it", seq),
 			fmt.Sprintf("run its roles and record it: tp audit %s --task-audit --record-inbox", specPath))
 		os.Exit(ExitValidation)
@@ -261,6 +288,14 @@ func addTaskAudits(result map[string]any, specPath string, st *engine.ReviewStat
 	}
 	if owed := engine.TaskAuditOwedTasks(specPath, st); len(owed) > 0 {
 		result["task_audits_owed"] = owed
+	}
+	// What no task audit reads is named, never silent: closes with no file
+	// to audit, and configured roles this spec's panel cannot ask.
+	if n := engine.TaskAuditNothingToRead(specPath, auditTasksOf(specPath)); n > 0 {
+		result["task_audits_nothing_to_read"] = n
+	}
+	if outside := engine.TaskAuditRolesOutsidePanel(specPath); len(outside) > 0 {
+		result["task_audit_roles_outside_panel"] = outside
 	}
 }
 
@@ -302,7 +337,7 @@ func runTaskAuditRecord(specPath string) error {
 // taskAuditRoleRows reads every prompted role's file of the task audit and
 // checks each row against the items the batch asked that role.
 func taskAuditRoleRows(specPath string, rec *engine.TaskAuditRecord) []map[string]any {
-	var missing, foreign []string
+	var missing, foreign, ungraded []string
 	var rows []map[string]any
 	for _, p := range taskAuditPrompts(specPath, rec) {
 		path := roleOutputPath(engine.PhaseTaskAudit, specPath, rec.Seq, p.Role)
@@ -319,36 +354,73 @@ func taskAuditRoleRows(specPath string, rec *engine.TaskAuditRecord) []map[strin
 			output.Error(ExitValidation, fmt.Sprintf("%s: %v", path, err), "fix the line the message names in the role's file: every non-blank line is one JSON object the auditor wrote")
 			os.Exit(ExitValidation)
 		}
-		asked := make(map[string]bool)
-		if p.ChecklistItems != nil {
-			for _, it := range *p.ChecklistItems {
-				asked[it.ItemID] = true
-			}
-		}
-		for _, row := range parsed {
-			id, _ := row["item_id"].(string)
-			if !asked[id] || engine.AuditRowRole(row) != p.Role {
-				foreign = append(foreign, p.Role+":"+id)
-			}
-		}
+		f, u := checkTaskAuditRows(&p, parsed)
+		foreign, ungraded = append(foreign, f...), append(ungraded, u...)
 		rows = append(rows, parsed...)
 	}
-	if len(missing) > 0 {
-		output.Error(ExitValidation, fmt.Sprintf("task audit %d is missing role files: %s", rec.Seq, strings.Join(missing, ", ")),
-			"run each role's prompt, then record again")
-		os.Exit(ExitValidation)
-	}
-	if len(foreign) > 0 {
-		output.Error(ExitValidation, fmt.Sprintf("task audit %d holds rows on items it did not ask: %s", rec.Seq, strings.Join(foreign, ", ")),
-			"a task-audit row grades one of its prompt's checklist items, under the prompt's role")
-		os.Exit(ExitValidation)
+	for _, refusal := range []struct {
+		list      []string
+		msg, hint string
+	}{
+		{missing, "is missing role files", "run each role's prompt, then record again"},
+		{foreign, "holds rows on items it did not ask", "a task-audit row grades one of its prompt's checklist items, under the prompt's role"},
+		{ungraded, "leaves items ungraded", "a task audit settles a file only when every role graded it: add a row for each item named, then record again"},
+	} {
+		if len(refusal.list) > 0 {
+			output.Error(ExitValidation, fmt.Sprintf("task audit %d %s: %s", rec.Seq, refusal.msg, strings.Join(refusal.list, ", ")), refusal.hint)
+			os.Exit(ExitValidation)
+		}
 	}
 	return rows
+}
+
+// checkTaskAuditRows is the rows of one role's file that grade no item its
+// prompt asked, and the asked items no row grades: a file counts as read
+// only when every role graded it.
+func checkTaskAuditRows(p *auditPrompt, parsed []map[string]any) (foreign, ungraded []string) {
+	asked := make(map[string]bool)
+	if p.ChecklistItems != nil {
+		for _, it := range *p.ChecklistItems {
+			asked[it.ItemID] = false
+		}
+	}
+	for _, row := range parsed {
+		id, _ := row["item_id"].(string)
+		if _, ok := asked[id]; !ok || engine.AuditRowRole(row) != p.Role {
+			foreign = append(foreign, p.Role+":"+id)
+			continue
+		}
+		asked[id] = true
+	}
+	for id, graded := range asked {
+		if !graded {
+			ungraded = append(ungraded, p.Role+":"+id)
+		}
+	}
+	slices.Sort(ungraded)
+	return foreign, ungraded
 }
 
 // recordTaskAuditRows writes task audit rec.Seq's round file and appends its
 // entry to the review state under the state lock, then clears its inbox.
 func recordTaskAuditRows(specPath string, rec *engine.TaskAuditRecord, rows []map[string]any) engine.TaskAuditRecord {
+	var entry engine.TaskAuditRecord
+	err := engine.WithReviewStateLock(specPath, func() error {
+		var err error
+		entry, err = writeTaskAuditRecord(specPath, rec, rows)
+		return err
+	})
+	if err != nil {
+		output.Error(ExitValidation, "cannot record task audit: "+err.Error(), stateWriteHint)
+		os.Exit(ExitValidation)
+	}
+	removeRoundInbox(specPath, engine.PhaseTaskAudit, rec.Seq)
+	return entry
+}
+
+// writeTaskAuditRecord writes task audit rec.Seq's round file and appends its
+// entry to the review state; the caller holds the state lock.
+func writeTaskAuditRecord(specPath string, rec *engine.TaskAuditRecord, rows []map[string]any) (engine.TaskAuditRecord, error) {
 	wf, _ := engine.ResolveWorkflow(specPath, flagFile)
 	policy := wf.AuditConvergeOn
 	if !engine.ValidAuditConvergeOn(policy) {
@@ -359,8 +431,7 @@ func recordTaskAuditRows(specPath string, rec *engine.TaskAuditRecord, rows []ma
 	for _, row := range rows {
 		line, err := json.Marshal(row)
 		if err != nil {
-			output.Error(ExitFile, err.Error(), internalEncodeHint)
-			os.Exit(ExitFile)
+			return engine.TaskAuditRecord{}, err
 		}
 		b.Write(line)
 		b.WriteByte('\n')
@@ -368,33 +439,25 @@ func recordTaskAuditRows(specPath string, rec *engine.TaskAuditRecord, rows []ma
 			findings++
 		}
 	}
-	entry := *rec
-	err := engine.WithReviewStateLock(specPath, func() error {
-		st, err := engine.LoadReviewState(specPath)
-		if err != nil {
-			return err
-		}
-		if st == nil {
-			st = &engine.ReviewState{Spec: specPath}
-		}
-		if len(st.TaskAudits)+1 != rec.Seq {
-			return fmt.Errorf("task audit %d was recorded meanwhile", rec.Seq)
-		}
-		entry.File = engine.TaskAuditFileName(rec.Seq)
-		entry.Findings = findings
-		entry.Clean = engine.AuditRowsCleanLive(rows, policy)
-		entry.AfterAuditRound = len(st.AuditRounds)
-		entry.RecordedAt = time.Now().UTC().Format(time.RFC3339)
-		if err := os.WriteFile(filepath.Join(engine.ReviewStateDir(specPath), entry.File), []byte(b.String()), 0o600); err != nil {
-			return err
-		}
-		st.TaskAudits = append(st.TaskAudits, entry)
-		return engine.SaveReviewState(specPath, st)
-	})
+	st, err := engine.LoadReviewState(specPath)
 	if err != nil {
-		output.Error(ExitValidation, "cannot record task audit: "+err.Error(), stateWriteHint)
-		os.Exit(ExitValidation)
+		return engine.TaskAuditRecord{}, err
 	}
-	removeRoundInbox(specPath, engine.PhaseTaskAudit, rec.Seq)
-	return entry
+	if st == nil {
+		st = &engine.ReviewState{Spec: specPath}
+	}
+	if len(st.TaskAudits)+1 != rec.Seq {
+		return engine.TaskAuditRecord{}, fmt.Errorf("task audit %d was recorded meanwhile", rec.Seq)
+	}
+	entry := *rec
+	entry.File = engine.TaskAuditFileName(rec.Seq)
+	entry.Findings = findings
+	entry.Clean = engine.AuditRowsCleanLive(rows, policy)
+	entry.AfterAuditRound = len(st.AuditRounds)
+	entry.RecordedAt = time.Now().UTC().Format(time.RFC3339)
+	if err := os.WriteFile(filepath.Join(engine.ReviewStateDir(specPath), entry.File), []byte(b.String()), 0o600); err != nil {
+		return engine.TaskAuditRecord{}, err
+	}
+	st.TaskAudits = append(st.TaskAudits, entry)
+	return entry, engine.SaveReviewState(specPath, st)
 }
