@@ -24,6 +24,13 @@ type PendingClose struct {
 	// PickedOnto is the main branch's HEAD the driver began picking onto,
 	// written before the pick; empty until then.
 	PickedOnto string `json:"picked_onto,omitempty"`
+	// GatedTree is the tree the unit's gate passed on, recorded only when its
+	// worktree was clean at gate time, and GateCmd the gate it ran; both empty
+	// otherwise. The close on the main branch reuses that result instead of
+	// running the gate again when it would gate the same tree with the same
+	// command (ReusableGate).
+	GatedTree string `json:"gated_tree,omitempty"`
+	GateCmd   string `json:"gate_cmd,omitempty"`
 }
 
 // PendingCloseDir is the cycle's pending-close directory,
