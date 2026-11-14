@@ -266,11 +266,13 @@ by `tp validate` and `tp set`.
   closes under `pending_closes`, and its `next_action` is `tp run`, which integrates them before its
   first batch. It reads what an interrupted pick left by patch id: the unit's whole pick is closed
   rather than picked again, a prefix of it (a crash between two picks) is taken back and picked
-  again, and any other history since the pick is a driver error for the operator to judge; a close
-  for a task already done is dropped. It then removes its own cycle's worktrees. A task whose unit
-  never asked to close (it escalated or ran out of attempts) stays wip and is resumed alone, and its
-  unit's branch, with whatever it committed, is kept until the task is done: the driver says so on
-  stderr and `tp resume` names it under `unit_branches` (v1.19.1).
+  again, and a main branch that no longer contains the pick's start, or holds any other history since
+  it, is a driver error for the operator to judge, left as it is; a close for a task already done is
+  dropped. It then removes its own cycle's worktrees. A task whose unit never asked to close (it
+  escalated or ran out of attempts) stays wip and is resumed alone, and its unit's branch, with
+  whatever it committed, is kept: the driver says so on stderr, `tp resume` names it under
+  `unit_branches` while its task is not done, and the first `tp run` after the task is done deletes
+  it (v1.19.1).
 - **Limits.** A worktree is a fresh checkout of `HEAD`, without ignored files (dependencies, `.env`,
   build output); `tp run --dry-run` says so on stderr before a batch, and a project whose units need
   them keeps `run_max_parallel` at 1. `tp validate` names every open task without `touches` in one
