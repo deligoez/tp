@@ -27,4 +27,5 @@ fix needs a design choice leaves this file for a decision note.
   Measured on tp's shipped specs (`spec/1.20.0-measurements.md`): 21 of 22 audited specs exceed the
   cut, 65% of spec-coverage rows grade a section past it, and those rows hold 15 FAILs and 78
   PARTIALs, so the rest was read. No audit round since v1.15.0 exists to count `M > 10`; whether to cut
-  at all waits for a field round that shows one, in `spec/backlog/checklist-covers-what-changed.md`.
+  at all waits for a field round that shows one, with dividing a round by section, parked in
+  `spec/undecided.md` (*The divisible round*).

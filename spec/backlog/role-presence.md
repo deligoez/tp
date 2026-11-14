@@ -68,4 +68,5 @@ in `spec/1.20.0-measurements.md`.
 
 - Epic review's other inbox machinery: the re-emit guard, frozen dispositions, `--discard`.
 - Showing presence as unproven in `--status` for a round recorded from a hand file.
-- Cutting or chunking the audit's file list or the spec excerpt (`checklist-covers-what-changed.md`).
+- Cutting or chunking the audit's file list or the spec excerpt (`BUGS.md`; the divisible round is
+  parked in `spec/undecided.md`).

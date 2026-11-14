@@ -215,8 +215,9 @@ re-grade**: on a no-repair round the brief lists the previous round's PASS rows 
 them verbatim, `evidence_file` and `evidence_lines` carried, and re-measures only non-PASS rows; on a
 round after repairs, only rows whose `evidence_file` is untouched by
 `git -c diff.external= diff --name-only <previous record sha>..HEAD` are carried. No pending spec
-makes tp do this derivation yet; `spec/backlog/checklist-covers-what-changed-measurements.md` §What
-v1.1.1 changed under this spec records the three rules a spec taking it must reproduce. A carried row
+makes tp do this derivation yet; `checklist-covers-what-changed-measurements.md` §What v1.1.1
+changed under this spec (archived; `spec/backlog/ARCHIVE.md` gives the sha) records the three rules
+a spec taking it must reproduce. A carried row
 is keyed by `item_id`, which at `HEAD` can name a different file in the next round on a tree whose
 paths share a long prefix — `spec/backlog/audit-records-what-was-graded.md` removes that. (4) **The
 class-to-slug table goes into the brief before round 1**: a finding matching a routed class is recorded

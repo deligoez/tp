@@ -1,6 +1,6 @@
 # Archived backlog
 
-On 2026-09-11 the backlog was cut to the decision candidates still in this directory
+On 2026-09-11 the backlog was cut to the decision candidates in this directory at the time
 (`checklist-covers-what-changed`, `reconcile`; `gate-sequence` followed after v1.2.0). Reproduced defects live in
 `BUGS.md` and are fixed test-first; everything else was removed. Each row names the files and the
 last commit that touched them: read one with `git show <sha>:spec/backlog/<file>`. The ground and
@@ -64,3 +64,4 @@ notes shipped from v1.3.0 to v1.18.0 followed; code comments that cite them reso
 | `dashboard-graph` | `dashboard-graph.md` | `1786ff7f` | archived on 2026-11-14: shipped in v1.17.0 (`spec/1.17.0-measurements.md`) |
 | `audit-carried-fail-blocks` | `audit-carried-fail-blocks.md` | `a60ccdd3` | archived on 2026-11-14: shipped in v1.18.0 (`spec/1.18.0-measurements.md`) |
 | `parallel-implement` | `parallel-implement.md` | `ff2b2813` | archived on 2026-11-14: implement units side by side in worktrees shipped in v1.19.0 (`spec/1.19.0-measurements.md`); its follow-ups, the unit gate in the worktree and `touches` as a hint, in v1.20.0 (`spec/1.20.0-measurements.md`) |
+| `checklist-covers-what-changed` | `checklist-covers-what-changed-measurements.md`, `checklist-covers-what-changed.md` | `c3e726f1` | archived on 2026-11-14: shipped in v1.15.0 (`spec/1.15.0-measurements.md`); the remaining cut question is `BUGS.md`'s, the follow-on (dividing a round by section) is parked in `spec/undecided.md`; `checklist-covers-what-changed-measurements.md` last changed at `fee45172` |
