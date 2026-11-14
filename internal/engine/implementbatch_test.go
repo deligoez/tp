@@ -69,4 +69,7 @@ func TestImplementBatch_ATaskWithoutTouchesOrMarkedSoloRunsAlone(t *testing.T) {
 	assert.Equal(t, []string{"w"}, ImplementBatch(withWIP, 3))
 
 	assert.Empty(t, ImplementBatch(&model.TaskFile{}, 3))
+
+	unsafe := &model.TaskFile{Tasks: []model.Task{batchTask("a", "x/"), batchTask("b/c", "y/"), batchTask("d..e", "z/")}}
+	assert.Equal(t, []string{"a"}, ImplementBatch(unsafe, 3), "an id unsafe in a branch name or a path never joins a batch")
 }

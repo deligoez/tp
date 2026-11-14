@@ -202,6 +202,22 @@ func TestRunDriver_APickACrashLeftIsClosedNotRedone(t *testing.T) {
 	assert.Empty(t, invocations(t, records), "the work is not redone")
 }
 
+// TestRunDriver_ReconcileLeavesAnotherCyclesUnits: a run removes the unit
+// branches its own task file's batches left, never another task file's, which
+// a second tp run may be driving in the same repository.
+func TestRunDriver_ReconcileLeavesAnotherCyclesUnits(t *testing.T) {
+	root, spec, taskFile, _ := batchProject(t, oneDoneTask)
+	own := unitBranch(root, taskFile, "r1", "t")
+	other := unitBranch(root, filepath.Join(root, "other.tasks.json"), "r1", "t")
+	gitIn(t, root, "branch", own)
+	gitIn(t, root, "branch", other)
+
+	driveBatch(t, root, spec, taskFile, &fakeCloser{closed: map[string][]string{}})
+	branches := gitIn(t, root, "branch", "--list", unitBranchPrefix+"*")
+	assert.NotContains(t, branches, own)
+	assert.Contains(t, branches, other)
+}
+
 // TestAssembleResume_NamesPendingCloses: a pending close a crashed run left is
 // named by tp resume until a run integrates it (§2.6).
 func TestAssembleResume_NamesPendingCloses(t *testing.T) {
