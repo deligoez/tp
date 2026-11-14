@@ -218,6 +218,37 @@ func TestRunDriver_ReconcileLeavesAnotherCyclesUnits(t *testing.T) {
 	assert.Contains(t, branches, other)
 }
 
+// TestIntegrate_AFailedCloseAfterASignalLeavesThePendingClose: an operator's
+// Ctrl-C reaches the gate child too, so a close that fails once the run was
+// signalled says nothing about the unit's work: the pick is taken back and the
+// request left for the next run, and the task is not reopened.
+func TestIntegrate_AFailedCloseAfterASignalLeavesThePendingClose(t *testing.T) {
+	const wipTask = `{"spec":"s.md","tasks":[{"id":"alpha","title":"A","status":"wip","depends_on":[],"estimate_minutes":5,"acceptance":"a","source_sections":["x"],"touches":["alpha.txt"]}]}`
+	root, spec, taskFile, _ := batchProject(t, wipTask)
+	pre := gitIn(t, root, "rev-parse", "HEAD")
+	gitIn(t, root, "switch", "-q", "-c", "unit")
+	unitSHA := commitIn(t, root, "alpha.txt", "alpha\n")
+	gitIn(t, root, "switch", "-q", "main")
+	require.NoError(t, WritePendingClose(root, taskFile, &PendingClose{ID: "alpha", Commits: []string{unitSHA}}))
+	reopened := false
+	d := &driver{
+		opts: &DriverOptions{Root: root, TaskFile: taskFile, Spec: spec,
+			CloseTask:  func(string, string, []string, string) error { return errors.New("signal: interrupt") },
+			ReopenSolo: func(string) error { reopened = true; return nil },
+		},
+		runID: "r1",
+		sig:   &interrupts{ch: make(chan os.Signal, 1), seen: true},
+	}
+
+	require.NoError(t, d.integratePending())
+	assert.False(t, reopened, "the unit's work is not discarded")
+	assert.Equal(t, pre, gitIn(t, root, "rev-parse", "HEAD"), "the pick is taken back")
+	pending, err := ReadPendingCloses(root, taskFile)
+	require.NoError(t, err)
+	require.Len(t, pending, 1, "the request waits for the next run")
+	assert.Empty(t, pending[0].PickedOnto)
+}
+
 // TestAssembleResume_NamesPendingCloses: a pending close a crashed run left is
 // named by tp resume until a run integrates it (§2.6).
 func TestAssembleResume_NamesPendingCloses(t *testing.T) {
