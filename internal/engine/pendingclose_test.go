@@ -126,6 +126,24 @@ func TestCheckUnitCommits_NamesEveryCommitOfTheBranch(t *testing.T) {
 	assert.Equal(t, []string{first, second}, got)
 }
 
+// TestCheckUnitCommits_FromAWorktreeSubdirectory: a unit may run tp done from
+// a subdirectory of its worktree; the commits are checked the same.
+func TestCheckUnitCommits_FromAWorktreeSubdirectory(t *testing.T) {
+	t.Parallel()
+	root, worktree := unitRepo(t)
+	taskFile := filepath.Join(root, "spec.tasks.json")
+	spec := filepath.Join(root, "spec.md")
+	sha := commitIn(t, worktree, "pkg/a.go", "package pkg\n")
+	got, err := CheckUnitCommits(root, filepath.Join(worktree, "pkg"), taskFile, spec, []string{sha})
+	require.NoError(t, err)
+	assert.Equal(t, []string{sha}, got)
+
+	owned := commitIn(t, worktree, "spec.tasks.json", "{}\n")
+	_, err = CheckUnitCommits(root, filepath.Join(worktree, "pkg"), taskFile, spec, []string{sha, owned})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "only tp writes")
+}
+
 // TestCheckUnitCommits_AProjectBelowTheGitTopLevel: in a project whose .tp/ sits
 // in a subdirectory of the repository, a commit changing its task file is
 // still refused.
