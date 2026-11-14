@@ -98,13 +98,17 @@ func printBrief(tf *model.TaskFile, task *model.Task, taskFilePath, specPath str
 
 	// A unit in a worktree beside others commits on its branch and asks for
 	// the close; the driver gates (spec/backlog/parallel-implement.md §2.4).
-	if donePendingRoot(taskFilePath) != "" {
-		b.Close = engine.WorktreeCloseRecipeText(wf.QualityGate)
+	// The cycle's last failure lives under the main tree's root, which in a
+	// worktree is not the working directory.
+	failureRoot := "."
+	if root := donePendingRoot(taskFilePath); root != "" {
+		b.Close = engine.WorktreeCloseRecipeText(effective, wf.QualityGate, task.ID, task.Touches)
+		failureRoot = root
 	}
 
 	// v0.35.0 §4.2: the cycle's last failure, when one is present, so the unit
 	// about to start reads it before it walks into the same wall.
-	b.LastFailure = engine.ReadLastFailure(".", taskFilePath)
+	b.LastFailure = engine.ReadLastFailure(failureRoot, taskFilePath)
 
 	if output.IsJSON() {
 		return output.JSON(b)

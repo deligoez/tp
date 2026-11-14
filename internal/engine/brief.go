@@ -100,17 +100,26 @@ func writeEvidenceContract(b *strings.Builder) {
 // a worktree beside others (spec/backlog/parallel-implement.md §2.4, §2.5):
 // it commits on its branch, runs only the tests its change needs, and asks
 // for the close; the driver integrates the commits and runs the gate.
-func WorktreeCloseRecipeText(qualityGate string) string {
+func WorktreeCloseRecipeText(effectiveStrategy, qualityGate, id string, touches []string) string {
 	var b strings.Builder
 	b.WriteString("How to close this unit.\n\n")
-	b.WriteString("You work in a worktree of your own while other units run beside you. The driver picks your commits onto the main branch, runs the gate there and closes the task.\n\n")
-	b.WriteString("1. Commit your change on this worktree's branch. Change no path only tp writes: the task file, the spec's .tp-review/ or .tp/.\n")
+	b.WriteString("You work in a worktree of your own while other units run beside you. The driver picks your commits onto the main branch, runs the gate there and closes the task.\n")
+	if len(touches) > 0 {
+		fmt.Fprintf(&b, "Your task's touches: %s. Keep your change inside them: they are what lets the units beside you run.\n", strings.Join(touches, ", "))
+	}
+	b.WriteString("\n1. ")
+	if effectiveStrategy == CommitStrategyHC {
+		b.WriteString("Commit with hc on this worktree's branch.")
+	} else {
+		b.WriteString("Commit your change on this worktree's branch.")
+	}
+	b.WriteString(" Change no path only tp writes: the task file, the spec's .tp-review/ or .tp/.\n")
 	b.WriteString("2. Run only the tests your change needs, never the whole suite: the units beside you are running theirs.\n")
 	if qualityGate != "" {
 		fmt.Fprintf(&b, "   quality_gate (the driver runs it): %s\n", qualityGate)
 	}
-	b.WriteString("\n3. Ask for the close; it runs no gate and closes nothing until the driver integrates:\n")
-	b.WriteString("   tp done <id> --commit <sha> -- \"<evidence>\"   (repeat --commit per sha)\n\n")
+	b.WriteString("\n3. Ask for the close, naming every commit you made; it runs no gate and closes nothing until the driver integrates:\n")
+	fmt.Fprintf(&b, "   tp done %s --commit <sha> -- \"<evidence>\"   (repeat --commit per sha)\n\n", id)
 	b.WriteString("4. Write the closure reason as an evidence contract:\n")
 	writeEvidenceContract(&b)
 	b.WriteString("The \"--\" separator precedes the reason because a reason often starts with \"- \" (a bullet), which a flag parser would otherwise treat as a flag.\n")
