@@ -238,6 +238,11 @@ func DueTaskAudits(cands []TaskAuditCandidate, recorded []TaskAuditRecord, endOf
 	return out
 }
 
+// unreadableTaskFile prefixes the one entry TaskAuditOwedTasks returns for a
+// task file it cannot read: presence fails closed, and the clause names the
+// file to repair instead of a task audit no emission could run.
+const unreadableTaskFile = "unreadable "
+
 // TaskAuditClosedAt is the close a task owes its task audit for, in the form
 // a batch member records it.
 func TaskAuditClosedAt(t *model.Task) string {
@@ -260,7 +265,7 @@ func TaskAuditOwedTasks(specPath string, st *ReviewState) []string {
 	}
 	if err != nil {
 		// A task file nobody can read is no proof that nothing is owed.
-		return []string{"unreadable " + taskPath}
+		return []string{unreadableTaskFile + taskPath}
 	}
 	var recorded []TaskAuditRecord
 	if st != nil {
@@ -284,6 +289,19 @@ func owedTaskAuditsNow(specPath string) []string {
 		st = nil // no recorded task audit can be read: everything stamped is owed
 	}
 	return TaskAuditOwedTasks(specPath, st)
+}
+
+// taskAuditOwedClauseNow is the clause the presence rule holds the audit open
+// with, read from disk, or "" when nothing is owed.
+func taskAuditOwedClauseNow(specPath string) string {
+	owed := owedTaskAuditsNow(specPath)
+	if len(owed) == 0 {
+		return ""
+	}
+	if path, ok := strings.CutPrefix(owed[0], unreadableTaskFile); ok {
+		return "the task file " + path + " cannot be read, so whether a closed task owes a task audit is unknown: repair it, then tp audit " + specPath + " --status"
+	}
+	return TaskAuditOwedClause(owed, specPath)
 }
 
 // TaskAuditOwedClause words what the presence rule holds open and the step

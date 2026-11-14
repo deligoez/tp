@@ -236,9 +236,12 @@ func mechanizeOrNextRound(specPath string, mechanizeClasses []string, checks *Ch
 // default `all` the two agree and the numeral never appears. Advisory/read-only;
 // gates no exit code (§8.1).
 func AuditNextAction(specPath string, done LoopDone, latestRoundClean bool, latestRoundFindings int, roundFile string) string {
+	if !done.Done {
+		if clause := taskAuditOwedClauseNow(specPath); clause != "" {
+			return clause
+		}
+	}
 	switch {
-	case !done.Done && len(owedTaskAuditsNow(specPath)) > 0:
-		return TaskAuditOwedClause(owedTaskAuditsNow(specPath), specPath)
 	case done.Done && done.By == DoneByCap:
 		return "the audit round cap ended the loop with every finding dispositioned — proceed to release"
 	case done.Done:
