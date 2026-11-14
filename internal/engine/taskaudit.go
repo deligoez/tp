@@ -1,9 +1,15 @@
 package engine
 
 import (
+	"fmt"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strconv"
+	"strings"
+	"time"
+
+	"github.com/deligoez/tp/internal/model"
 )
 
 // TaskAuditBatchFiles is the most files one task-audit prompt reads: the only
@@ -187,6 +193,74 @@ func DueTaskAudits(cands []TaskAuditCandidate, recorded []TaskAuditRecord, endOf
 		}
 	}
 	return out
+}
+
+// TaskAuditClosedAt is the close a task owes its task audit for, in the form
+// a batch member records it.
+func TaskAuditClosedAt(t *model.Task) string {
+	if t.ClosedAt == nil {
+		return ""
+	}
+	return t.ClosedAt.UTC().Format(time.RFC3339Nano)
+}
+
+// TaskAuditOwedTasks is the presence rule (spec/backlog/per-task-code-
+// audit.md §2.7): the ids of the spec's done tasks whose stamp, met with the
+// roles task_audit_roles lists now, is not empty, and for whose close no
+// recorded task audit holds every slice. A task closed before the field was
+// set carries no stamp and owes nothing.
+func TaskAuditOwedTasks(specPath string, st *ReviewState) []string {
+	taskPath := strings.TrimSuffix(specPath, filepath.Ext(specPath)) + ".tasks.json"
+	tf, err := model.ReadTaskFile(taskPath)
+	if err != nil {
+		return nil
+	}
+	roles := EffectiveWorkflowForTaskFile(taskPath).TaskAuditRoles
+	recorded := make(map[taskAuditMemberKey]int)
+	if st != nil {
+		for i := range st.TaskAudits {
+			for _, m := range st.TaskAudits[i].Members {
+				recorded[taskAuditMemberKey{m.ID, m.ClosedAt, m.Piece}] = m.Pieces
+			}
+		}
+	}
+	var owed []string
+	for i := range tf.Tasks {
+		t := &tf.Tasks[i]
+		if t.Status != model.StatusDone || t.ClosedAt == nil || !slices.ContainsFunc(t.TaskAuditOwed, func(r string) bool { return slices.Contains(roles, r) }) {
+			continue
+		}
+		if !allSlicesRecorded(recorded, t.ID, TaskAuditClosedAt(t)) {
+			owed = append(owed, t.ID)
+		}
+	}
+	return owed
+}
+
+// TaskAuditOwedClause words what the presence rule holds open and the step
+// that clears it, so a loop held by it names something to do.
+func TaskAuditOwedClause(owed []string, specPath string) string {
+	shown := owed
+	if len(shown) > 5 {
+		shown = shown[:5]
+	}
+	return fmt.Sprintf("%d closed task(s) owe a task audit (%s): emit it — tp audit %s --task-audit — run its roles, then tp audit %s --task-audit --record-inbox",
+		len(owed), strings.Join(shown, ", "), specPath, specPath)
+}
+
+// allSlicesRecorded reports whether every slice of the close is recorded:
+// slice 0 names how many there are.
+func allSlicesRecorded(recorded map[taskAuditMemberKey]int, id, closedAt string) bool {
+	pieces, ok := recorded[taskAuditMemberKey{id, closedAt, 0}]
+	if !ok {
+		return false
+	}
+	for p := 1; p < pieces; p++ {
+		if _, ok := recorded[taskAuditMemberKey{id, closedAt, p}]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // TaskAuditsOwed reports whether any candidate still owes a piece: the
