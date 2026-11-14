@@ -96,6 +96,9 @@ type ReviewState struct {
 	// lists of earlier findings an emission carries. Omitted while empty, so a
 	// state.json recorded before epochs existed is written back unchanged.
 	Epochs []Epoch `json:"epochs,omitempty"`
+	// TaskAudits are the recorded task audits (spec/backlog/per-task-code-
+	// audit.md), in sequence order. Omitted while empty, like Epochs.
+	TaskAudits []TaskAuditRecord `json:"task_audits,omitempty"`
 }
 
 // StateCorruptError marks an unusable state directory. Callers abort with

@@ -3,6 +3,7 @@ package engine
 import (
 	"slices"
 	"sort"
+	"strconv"
 )
 
 // TaskAuditBatchFiles is the most files one task-audit prompt reads: the only
@@ -138,6 +139,12 @@ type TaskAuditRecord struct {
 	File            string            `json:"file,omitempty"`
 	Findings        int               `json:"findings,omitempty"`
 	Clean           bool              `json:"clean,omitempty"`
+}
+
+// TaskAuditFileName is task audit seq's round file in the spec's state
+// directory.
+func TaskAuditFileName(seq int) string {
+	return "task-audit-" + strconv.Itoa(seq) + ".ndjson"
 }
 
 // taskAuditMemberKey names one member's close and slice.
