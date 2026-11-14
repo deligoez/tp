@@ -429,6 +429,7 @@ Modes (mutually exclusive):
 				if recordInbox {
 					return runReviewRecordInbox(engine.ResolveSpecArg(args[0]), harnessNote)
 				}
+				refuseHandRecordOverEmission(engine.ResolveSpecArg(args[0]))
 				return runReviewRecord(engine.ResolveSpecArg(args[0]), recordPath, harnessNote)
 			case "rewritten":
 				if len(args) != 1 {

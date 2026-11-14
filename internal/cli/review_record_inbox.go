@@ -31,6 +31,52 @@ func keepOwedReviewRoles(specPath string, round int, owed []string) {
 	}
 }
 
+// refuseHandRecordOverEmission exits 3 when --record <file> would record a
+// round whose emission stored the roles it owes (v1.20.0+) and nothing on
+// disk shows every one of them ran. By hand that round is recorded from its
+// inbox with --record-inbox: a hand file cannot tell a role that found
+// nothing from one that never ran, and a row deleted from it leaves without a
+// disposition. Under tp run the record unit merges the role files the driver
+// collected in $TP_ROUND_DIR, so the same rule is met there by each owed
+// role's file being present, not by the environment variable alone. A round
+// nobody emitted, one emitted before the list was stored, and a re-record of
+// a round already recorded (TP_ROUND naming it) keep --record <file>.
+func refuseHandRecordOverEmission(specPath string) {
+	inbox, err := engine.ReviewInboxPanel(specPath)
+	if err != nil || !inbox.Emitted || !inbox.Stored {
+		return
+	}
+	if r := os.Getenv(engine.EnvRound); r != "" && r != fmt.Sprint(inbox.Round) {
+		return
+	}
+	if dir := os.Getenv(engine.EnvRoundDir); dir != "" && everyRoleFilePresent(dir, inbox.Roles) {
+		return
+	}
+	output.Error(ExitFile, fmt.Sprintf("review round %d of %s was emitted with the roles it owes, so it is recorded from its inbox, not from a hand file", inbox.Round, specPath),
+		fmt.Sprintf("have each role write its prompt's output_path (empty when it finds nothing), then tp review %s --record-inbox", specPath))
+	os.Exit(ExitFile)
+}
+
+// recordRoundCommand is the command that records an emitted round in flight:
+// a review round from its inbox (v1.21.0), an audit round from its file.
+func recordRoundCommand(phase, specPath string) string {
+	if phase == "review" {
+		return "tp review " + specPath + " --record-inbox"
+	}
+	return "tp " + phase + " " + specPath + " --record <file>"
+}
+
+// everyRoleFilePresent reports whether the driver's round directory holds a
+// findings file for every owed role.
+func everyRoleFilePresent(roundDir string, roles []string) bool {
+	for _, role := range roles {
+		if _, err := os.Stat(engine.RoleFindingsPath(roundDir, role)); err != nil {
+			return false
+		}
+	}
+	return true
+}
+
 // runReviewRecordInbox records the collected review round from its inbox
 // (spec/backlog/role-presence.md §2.4): one file per role the round's emission
 // asked before any --role filter, as the emission stored them. It refuses,
