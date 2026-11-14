@@ -159,6 +159,8 @@ func exportTasks(tf *model.TaskFile, taskFilePath string) ([]ExportTask, error) 
 // the epic block waits on (nil when it blocks nothing).
 func exportTask(t *model.Task, done map[string]bool, epicWaits []string) ExportTask {
 	et := ExportTask{Task: *t, WaitsOn: []string{}}
+	// §6.2: a list a task file leaves out prints [], never null.
+	et.Tags, et.DependsOn, et.SourceSections = orEmpty(t.Tags), orEmpty(t.DependsOn), orEmpty(t.SourceSections)
 	switch t.Status {
 	case model.StatusDone, model.StatusWIP:
 		et.State = t.Status
@@ -179,6 +181,14 @@ func exportTask(t *model.Task, done map[string]bool, epicWaits []string) ExportT
 		et.State = TaskStateReady
 	}
 	return et
+}
+
+// orEmpty is s, or an empty list when s is nil.
+func orEmpty(s []string) []string {
+	if s == nil {
+		return []string{}
+	}
+	return s
 }
 
 // epicBlockWaits names what b waits on: each plain dependency by id, then

@@ -47,6 +47,11 @@ func SpecSections(data []byte) []SpecSection {
 		b.line(i+1, line)
 	}
 	b.flush()
+	for i := range b.sections {
+		if b.sections[i].Paragraphs == nil {
+			b.sections[i].Paragraphs = []SpecParagraph{}
+		}
+	}
 	if s := b.sections[0]; s.Heading == "" && len(s.Paragraphs) == 0 {
 		return b.sections[1:]
 	}
