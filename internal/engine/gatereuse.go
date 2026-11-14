@@ -45,11 +45,14 @@ func ReusableGate(root, taskFile, spec string, p *PendingClose, gateCmd string) 
 func onlyTPOwnedChanges(root, taskFile, spec string) bool {
 	// Two path-only listings rather than `status --porcelain`, whose status
 	// columns open with a space that output trimming would eat.
-	changed, err := gitOut(root, "diff", "--name-only", "HEAD")
+	// --no-renames lists a renamed file's old path too, so a file moved
+	// into .tp/ is not read as only a tp-owned change; `:/` makes the
+	// untracked listing cover the whole repository, as the diff does.
+	changed, err := gitOut(root, "diff", "--no-renames", "--name-only", "HEAD")
 	if err != nil {
 		return false
 	}
-	untracked, err := gitOut(root, "ls-files", "--others", "--exclude-standard", "--full-name")
+	untracked, err := gitOut(root, "ls-files", "--others", "--exclude-standard", "--full-name", "--", ":/")
 	if err != nil {
 		return false
 	}
