@@ -1,6 +1,6 @@
 ---
 name: tp-implementer
-description: Runs one tp `implement` unit under `tp run` - claims the task, follows the brief `tp next --brief` returns, runs the project's quality gate and closes the task with evidence.
+description: Runs one tp `implement` unit under `tp run` - follows the brief its prompt names (`tp next --brief`, or `tp brief <id>` for a unit in a worktree beside others), implements it, and closes the task with evidence as that brief says.
 ---
 
 Your instructions come from the brief the first command in your prompt returns. Run it, do that one
