@@ -223,13 +223,15 @@ like any other unit.
 ### Implement batches (v1.19.0)
 
 With `run_max_parallel` above 1 the implement phase returns a **batch**: the task `tp next` would
-take, then each later ready task whose `touches` are disjoint from every task already in it, up to
-that many. Two globs overlap unless their literal prefixes diverge, compared case-insensitively, and
-an empty literal prefix overlaps everything. A wip task is resumed alone first; a task without
-`touches`, one carrying `solo: true` (managed: set by a failed integration, never by hand), or one
-whose id is unsafe in a branch name or a path (anything but letters, digits, `.`, `_` and `-`, a
-`..`, a trailing `.` or a `.lock` suffix) never joins a batch and, leading, runs alone. A batch of one is the
-ordinary implement unit. Batches are `tp run`'s alone: nothing else integrates a pending close.
+take, then each later ready task whose `touches` overlap none already in it, up to that many. Two
+globs overlap unless their literal prefixes diverge, compared case-insensitively, and an empty
+literal prefix overlaps everything. `touches` are a hint (v1.20.0): only touches both tasks name can
+be compared, so a task without them joins a batch unscreened, and a clash it brings is caught by the
+pick and the gate, which discard its unit and rerun it alone. A wip task is resumed alone first; a
+task carrying `solo: true` (managed: set by a failed integration, never by hand), or one whose id is
+unsafe in a branch name or a path (anything but letters, digits, `.`, `_` and `-`, a `..`, a trailing
+`.` or a `.lock` suffix) never joins a batch and, leading, runs alone. A batch of one is the ordinary
+implement unit. Batches are `tp run`'s alone: nothing else integrates a pending close.
 
 `touches` is a JSON array of globs relative to the project root, read as Go's `path.Match` (`*`
 stays inside one directory). `dir/` or `dir/**` takes a whole subtree; `**` anywhere else is refused
