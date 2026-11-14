@@ -127,6 +127,7 @@ func newAuditCmd() *cobra.Command {
 	var affectedFromTasks bool
 	var outputPath string
 	var harnessNote string
+	var taskAudit, recordInbox bool
 
 	cmd := &cobra.Command{
 		Use:   "audit <spec.md>",
@@ -139,6 +140,9 @@ Use --findings to also verify review findings were addressed.`,
 		Args:              cobra.ArbitraryArgs,
 		DisableAutoGenTag: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if taskAudit || recordInbox {
+				return runTaskAuditMode(cmd, args, taskAudit, recordInbox, roleFilter)
+			}
 			// §3.3: --resolve/--resolve-all act on the round's results NDJSON,
 			// which is the positional. They are routed ahead of every other
 			// mode so the combination guard below sees the whole flag set, and
@@ -278,6 +282,8 @@ Use --findings to also verify review findings were addressed.`,
 	cmd.Flags().BoolVar(&resolveAllMode, "resolve-all", false, "Dispose every undisposed audit row with a status (results NDJSON is the positional)")
 	cmd.Flags().BoolVar(&forceFlag, "force", false, "With --resolve/--resolve-all: re-resolve rows that already carry a disposition; on an emission: discard an unrecorded round's emission when the spec changed since it")
 	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "Output file path (for --merge; - writes the rows to stdout)")
+	cmd.Flags().BoolVar(&taskAudit, "task-audit", false, "Emit the task audit due now: the code roles of task_audit_roles over a batch of closed tasks' files")
+	cmd.Flags().BoolVar(&recordInbox, "record-inbox", false, "With --task-audit: record the emitted task audit from its roles' files")
 
 	return cmd
 }
@@ -314,6 +320,7 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	// ever came from.
 	findingRows := readAuditFindings(findingsPath)
 	refuseAuditIfBudgetExhausted(specPath)
+	refuseWhileTaskAuditInFlight(specPath)
 
 	// Expand comma-separated values in --affected-files
 	affectedFiles = expandCommaFiles(affectedFiles)
@@ -374,7 +381,7 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 		auditConsecutive = engine.ConsecutiveClean(st.AuditRounds)
 	}
 	// §7.2: one prompt per active auditor role in the resolved panel.
-	prompts, auditSkipped := generateRoleAuditPrompts(panel.roles, specItems, &sel, specPath, specContent, claudeMDExcerptFor(specPath), priorByRole, auditRound, auditWf.AuditCleanRounds, auditConsecutive, auditWf.AuditMaxRounds)
+	prompts, auditSkipped := generateRoleAuditPrompts(panel.roles, specItems, &sel, specPath, specContent, claudeMDExcerptFor(specPath), priorByRole, engine.PhaseAudit, auditRound, auditWf.AuditCleanRounds, auditConsecutive, auditWf.AuditMaxRounds)
 
 	prompts = appendClausesAudit(prompts)
 	// §9.1: name every non-emitted auditor — empty-checklist roles above plus
