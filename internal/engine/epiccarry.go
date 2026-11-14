@@ -210,7 +210,8 @@ func (c *EpicCarry) readPriorRows(path string) (map[string]bool, error) {
 // readEpicSnapshotFile returns round's snapshot, hashes and blocks; an absent
 // one is empty. A snapshot written before blocks were kept has none.
 func readEpicSnapshotFile(stateDir string, round int) (epicSnapshot, error) {
-	data, err := os.ReadFile(filepath.Join(stateDir, epicSnapshotFile(round)))
+	path := filepath.Join(stateDir, epicSnapshotFile(round))
+	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
 		return epicSnapshot{Units: map[string]string{}}, nil
 	}
@@ -219,7 +220,7 @@ func readEpicSnapshotFile(stateDir string, round int) (epicSnapshot, error) {
 	}
 	var snap epicSnapshot
 	if err := json.Unmarshal(data, &snap); err != nil {
-		return epicSnapshot{}, fmt.Errorf("epic review snapshot of round %d: %w", round, err)
+		return epicSnapshot{}, fmt.Errorf("epic review snapshot of round %d (%s): %w", round, path, err)
 	}
 	return snap, nil
 }
