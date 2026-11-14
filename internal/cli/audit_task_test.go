@@ -348,6 +348,45 @@ func TestTaskAudit_AnEpochCutsTheTaskAuditsBeforeIt(t *testing.T) {
 	assert.EqualValues(t, 1, epochs[len(epochs)-1].(map[string]any)["after_task_audit"])
 }
 
+// firstPrompt is the first prompt of an emission payload.
+func firstPrompt(t *testing.T, res map[string]any) string {
+	t.Helper()
+	prompts, _ := res["prompts"].([]any)
+	require.NotEmpty(t, prompts, "%v", res)
+	return prompts[0].(map[string]any)["prompt"].(string)
+}
+
+// TestTaskAuditPrior_AReadingOfAFileIsShownItsOpenRow: a file changed after
+// its task audit graded it FAIL is asked again, and that prompt lists the
+// open row with its reason, so a PASS that clears it was shown it.
+func TestTaskAuditPrior_AReadingOfAFileIsShownItsOpenRow(t *testing.T) {
+	t.Parallel()
+	dir, item := failedTaskAudit(t)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.go"), []byte("package x\n\n// changed for another reason\n"), 0o600))
+	commitFiles(t, dir, "a.go")
+	prompt := firstPrompt(t, emitTaskAudit(t, dir))
+	_, section, found := strings.Cut(prompt, "## Prior Round")
+	require.True(t, found, "the prompt carries a Prior Round section")
+	assert.Contains(t, section, item)
+	assert.Contains(t, prompt, `"notes":"n"`, "the row's reason travels with it")
+}
+
+// TestTaskAuditPrior_AReleaseRoundIsShownAnOpenTaskAuditRow: the release
+// round's Prior Round lists an open task-audit row on a file in its pool,
+// before any release round was recorded.
+func TestTaskAuditPrior_AReleaseRoundIsShownAnOpenTaskAuditRow(t *testing.T) {
+	t.Parallel()
+	dir, item := failedTaskAudit(t)
+	out, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "a.go", "--role", "go-safety")
+	require.Equal(t, 0, code, stderr)
+	var res map[string]any
+	require.NoError(t, json.Unmarshal([]byte(out), &res), out)
+	prompt := firstPrompt(t, res)
+	_, section, found := strings.Cut(prompt, "## Prior Round")
+	require.True(t, found, "the prompt carries a Prior Round section")
+	assert.Contains(t, section, item)
+}
+
 // readReviewState reads spec.md's state.json.
 func readReviewState(t *testing.T, dir string) map[string]any {
 	t.Helper()
