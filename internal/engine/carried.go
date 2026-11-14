@@ -355,5 +355,5 @@ func fixedClause(n int, specPath string, atCap bool) string {
 	if atCap {
 		return clause + "; the round cap admits none, so raising review_max_rounds for one is the operator's decision (" + EscalateRaiseReviewCap + ")"
 	}
-	return clause + ": run the next review round — tp review " + specPath + ", then tp review " + specPath + " --record <file>"
+	return clause + ": run the next review round — tp review " + specPath + ", then tp review " + specPath + " --record-inbox"
 }

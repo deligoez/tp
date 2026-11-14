@@ -162,7 +162,7 @@ func BuildBlockers(in *BlockerInputs) []Blocker {
 // as raise-review-cap, and after a record that reaches the cap it is dropped.
 func specStaleBlocker(in *BlockerInputs) Blocker {
 	emit := "tp review " + in.SpecPath
-	record := emit + " --record <file>"
+	record := emit + " --record-inbox"
 	b := Blocker{
 		Code:  "spec-stale",
 		Class: ClassEscalate,
@@ -311,7 +311,7 @@ func carriedBlockingBlocker(in *BlockerInputs) *Blocker {
 	} else {
 		data["operator"] = map[string]any{
 			"decision": EscalateRaiseReviewCap,
-			"commands": []string{emit, emit + " --record <file>"},
+			"commands": []string{emit, emit + " --record-inbox"},
 		}
 	}
 	return &Blocker{

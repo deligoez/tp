@@ -202,7 +202,7 @@ func carriedEarlierNote(rows []CarriedRow, specPath string) string {
 
 // mechanizeOrNextRound is ReviewNextAction's branches 4 and 5.
 func mechanizeOrNextRound(specPath string, mechanizeClasses []string, checks *CheckVerdict) string {
-	nextRound := "run the next review round: tp review " + specPath + " --record <file>"
+	nextRound := "run the next review round: tp review " + specPath + ", then tp review " + specPath + " --record-inbox"
 	cls := firstMechanizableClass(mechanizeClasses)
 	if cls == "" {
 		return nextRound

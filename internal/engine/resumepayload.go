@@ -158,7 +158,7 @@ func BuildNextAction(phase, specPath, shown string, tf *model.TaskFile, st *Revi
 		// new one.
 		if inFlight := InFlightRound(specPath, PhaseReview, len(rounds)); inFlight > 0 {
 			return NextAction{
-				Command:      cmd(fmt.Sprintf("tp review %s --record <findings-round-%d.ndjson>", shown, inFlight)),
+				Command:      cmd(fmt.Sprintf("tp review %s --record-inbox", shown)),
 				BriefCommand: cmd(fmt.Sprintf("tp review %s --round %d", shown, inFlight)),
 				Summary:      fmt.Sprintf("record review round %d (its snapshot exists; the round was started but never recorded)", inFlight),
 				Payload:      map[string]any{"action": "record-round", "round": inFlight},

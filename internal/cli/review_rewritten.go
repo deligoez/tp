@@ -223,7 +223,7 @@ func refusePastBlocking(specPath string, st *engine.ReviewState, specHash string
 // record, or — when it was emitted over text the spec no longer holds — its
 // discard, the operator's decision.
 func inFlightEpochRefusal(specPath, phase string, round int) *rewrittenRefusal {
-	hint := fmt.Sprintf("record %s round %d first (tp %s %s --record <file>), then start the epoch", phase, round, phase, specPath)
+	hint := fmt.Sprintf("record %s round %d first (%s), then start the epoch", phase, round, recordRoundCommand(phase, specPath))
 	if changed, _ := inFlightSnapshotChanged(specPath, phase, round); changed {
 		hint += fmt.Sprintf("; discarding its emission instead is the operator's decision (tp %s %s --force, %s)",
 			phase, specPath, engine.EscalateDiscardEmission)

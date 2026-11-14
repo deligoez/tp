@@ -50,6 +50,6 @@ func guardInFlightEmission(phase, specPath string, round int, overwrites []strin
 	}
 	output.Error(ExitFile,
 		fmt.Sprintf("round %d is in flight and unrecorded, and the spec changed since its emission: emitting again would overwrite %s", round, files),
-		fmt.Sprintf("record round %d first (tp %s %s --record <file>), or pass --force to discard its emission and emit over the spec as it now stands", round, phase, specPath))
+		fmt.Sprintf("record round %d first (%s), or pass --force to discard its emission and emit over the spec as it now stands", round, recordRoundCommand(phase, specPath)))
 	os.Exit(ExitFile)
 }
