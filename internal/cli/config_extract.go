@@ -35,6 +35,23 @@ func commonPtr[T comparable](overrides []model.WorkflowOverride, get func(*model
 	return &val
 }
 
+// commonSlice is commonPtr for a presence-tracked slice field: the list every
+// override sets equal under eq, copied, or nil when any override omits it or
+// differs.
+func commonSlice[T any](overrides []model.WorkflowOverride, get func(*model.WorkflowOverride) *[]T, eq func(a, b []T) bool) *[]T {
+	first := get(&overrides[0])
+	if first == nil {
+		return nil
+	}
+	for i := 1; i < len(overrides); i++ {
+		if v := get(&overrides[i]); v == nil || !eq(*v, *first) {
+			return nil
+		}
+	}
+	val := slices.Clone(*first)
+	return &val
+}
+
 // computeCommonPolicy returns the workflow fields that EVERY override sets with
 // an identical value — the only fields tp config --extract hoists.
 //
@@ -83,19 +100,8 @@ func computeCommonPolicy(overrides []model.WorkflowOverride) model.WorkflowOverr
 	common.RunMaxParallel = commonPtr(overrides, func(o *model.WorkflowOverride) *int { return o.RunMaxParallel })
 	common.RunMaxBudgetUSD = commonPtr(overrides, func(o *model.WorkflowOverride) *float64 { return o.RunMaxBudgetUSD })
 	common.RunMaxUnitBudgetUSD = commonPtr(overrides, func(o *model.WorkflowOverride) *float64 { return o.RunMaxUnitBudgetUSD })
-	if first := overrides[0].Checks; first != nil {
-		all := true
-		for i := 1; i < len(overrides); i++ {
-			if overrides[i].Checks == nil || !checksEqual(*overrides[i].Checks, *first) {
-				all = false
-				break
-			}
-		}
-		if all {
-			c := *first
-			common.Checks = &c
-		}
-	}
+	common.Checks = commonSlice(overrides, func(o *model.WorkflowOverride) *[]model.Check { return o.Checks }, checksEqual)
+	common.TaskAuditRoles = commonSlice(overrides, func(o *model.WorkflowOverride) *[]string { return o.TaskAuditRoles }, slices.Equal[[]string])
 	// runner is compared as raw JSON bytes: this layer hoists a value it never
 	// interprets, so two spellings of the same runner are two values here.
 	if first := overrides[0].Runner; first != nil {
@@ -145,6 +151,9 @@ func hoistedFields(common *model.WorkflowOverride) []string {
 	}
 	if common.Checks != nil {
 		fields = append(fields, "checks")
+	}
+	if common.TaskAuditRoles != nil {
+		fields = append(fields, "task_audit_roles")
 	}
 	if common.RunMaxUnits != nil {
 		fields = append(fields, "run_max_units")
@@ -205,6 +214,9 @@ func mergeCommon(dst, common *model.WorkflowOverride) {
 	}
 	if common.Checks != nil {
 		dst.Checks = common.Checks
+	}
+	if common.TaskAuditRoles != nil {
+		dst.TaskAuditRoles = common.TaskAuditRoles
 	}
 	if common.RunMaxUnits != nil {
 		dst.RunMaxUnits = common.RunMaxUnits

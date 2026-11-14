@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 
 	"github.com/deligoez/tp/internal/engine"
@@ -79,6 +80,13 @@ func workflowDeviations(file string, override, project *model.WorkflowOverride) 
 		add("checks",
 			fmt.Sprintf("%d entries", len(*override.Checks)),
 			fmt.Sprintf("%d entries", len(*project.Checks)))
+	}
+	// task_audit_roles is an ordered list compared element by element; the
+	// order is the order the roles audit in.
+	if override.TaskAuditRoles != nil && project.TaskAuditRoles != nil && !slices.Equal(*override.TaskAuditRoles, *project.TaskAuditRoles) {
+		add("task_audit_roles",
+			fmt.Sprintf("%q", *override.TaskAuditRoles),
+			fmt.Sprintf("%q", *project.TaskAuditRoles))
 	}
 	return devs
 }

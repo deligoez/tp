@@ -73,6 +73,7 @@ func resolvedConfig(wf *model.Workflow, override *model.WorkflowOverride) map[st
 		"review_max_rounds":    vs(wf.ReviewMaxRounds, override.ReviewMaxRounds != nil, project.ReviewMaxRounds != nil),
 		"audit_max_rounds":     vs(wf.AuditMaxRounds, override.AuditMaxRounds != nil, project.AuditMaxRounds != nil),
 		"checks":               vs(wf.Checks, override.Checks != nil, project.Checks != nil),
+		"task_audit_roles":     vs(wf.TaskAuditRoles, override.TaskAuditRoles != nil, project.TaskAuditRoles != nil),
 		// review_converge_on reports the raw resolved value and its source; an
 		// invalid stored value is surfaced, not rejected here (§3.3).
 		"review_converge_on": vs(wf.ReviewConvergeOn, override.ReviewConvergeOn != nil, project.ReviewConvergeOn != nil),
