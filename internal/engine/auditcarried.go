@@ -78,11 +78,10 @@ type auditOpen struct {
 // cleared or accepted. Rows are in round and index order; missing lists the
 // rounds whose file could not be read.
 func AuditCarriedSet(specPath string, st *ReviewState) (rows []CarriedRow, missing []ReviewRound) {
-	rounds := RoundsSinceEpoch(st, PhaseAudit)
 	open := make(map[auditKey]*auditOpen)
 	texts := &snapshotItemTexts{specPath: specPath, byRound: make(map[int]map[string]string)}
-	for i := range rounds {
-		r := &rounds[i]
+	for _, g := range auditGradings(st) {
+		r := &g.round
 		recorded, found := LoadRoundRows(specPath, r)
 		if !found {
 			missing = append(missing, *r)
@@ -93,6 +92,9 @@ func AuditCarriedSet(specPath string, st *ReviewState) (rows []CarriedRow, missi
 		for _, k := range keys {
 			j := worst[k]
 			carryAuditRow(open, texts, k, r, file, j, recorded[j])
+			if o := open[k]; o != nil && o.row.File == file {
+				o.row.TaskAudit = g.taskAudit
+			}
 		}
 	}
 	latest := 0
@@ -110,9 +112,50 @@ func AuditCarriedSet(specPath string, st *ReviewState) (rows []CarriedRow, missi
 		if rows[a].Round != rows[b].Round {
 			return rows[a].Round < rows[b].Round
 		}
+		if rows[a].TaskAudit != rows[b].TaskAudit {
+			return rows[a].TaskAudit < rows[b].TaskAudit
+		}
 		return rows[a].Index < rows[b].Index
 	})
 	return rows, missing
+}
+
+// auditGrading is one recorded grading the carried set reads: an audit round,
+// or a task audit standing as the round it was recorded after.
+type auditGrading struct {
+	round     ReviewRound
+	taskAudit int
+}
+
+// auditGradings is every grading since the newest epoch in the one order the
+// carried set reads them: a task audit recorded after audit round k sits
+// after it and before round k+1, task audits after the same round by their
+// sequence. A task audit stands as round k, with no spec hash, since its ids
+// name files and not text.
+func auditGradings(st *ReviewState) []auditGrading {
+	rounds := RoundsSinceEpoch(st, PhaseAudit)
+	tasks := TaskAuditsSinceEpoch(st)
+	sort.SliceStable(tasks, func(a, b int) bool {
+		if tasks[a].AfterAuditRound != tasks[b].AfterAuditRound {
+			return tasks[a].AfterAuditRound < tasks[b].AfterAuditRound
+		}
+		return tasks[a].Seq < tasks[b].Seq
+	})
+	out := make([]auditGrading, 0, len(rounds)+len(tasks))
+	next := 0
+	taskBefore := func(round int) {
+		for next < len(tasks) && tasks[next].AfterAuditRound < round {
+			t := tasks[next]
+			out = append(out, auditGrading{round: ReviewRound{Round: t.AfterAuditRound, File: t.File}, taskAudit: t.Seq})
+			next++
+		}
+	}
+	for i := range rounds {
+		taskBefore(rounds[i].Round)
+		out = append(out, auditGrading{round: rounds[i]})
+	}
+	taskBefore(int(^uint(0) >> 1))
+	return out
 }
 
 // worstAuditRows returns a round's keys in the order they first appear and,

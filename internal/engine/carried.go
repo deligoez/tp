@@ -73,6 +73,9 @@ type CarriedRow struct {
 	// Earlier is whether the row's latest occurrence is in a round before the
 	// latest recorded one: a row no further round will raise again.
 	Earlier bool
+	// TaskAudit is the sequence of the task audit the row's latest grading
+	// is in, 0 when it is in an audit round.
+	TaskAudit int
 }
 
 // State is the blocking state a blocking carried row is in.
