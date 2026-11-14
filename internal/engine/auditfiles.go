@@ -230,7 +230,7 @@ func (in *AuditFileInputs) rankByChurn(paths []string) {
 }
 
 // isTestSourcePath reports whether p names a test source file by the common
-// conventions: a _test or .test/.spec stem, a test_ name prefix, or a test,
+// conventions: a _test, _spec or .test/.spec stem, a test_ name prefix, or a test,
 // tests or __tests__ directory. Such a file is ranked by churn, never promoted
 // by a priority keyword in its name (selectCodeFiles).
 func isTestSourcePath(p string) bool {
@@ -243,7 +243,7 @@ func isTestSourcePath(p string) bool {
 	}
 	base := parts[len(parts)-1]
 	stem := strings.TrimSuffix(base, filepath.Ext(base))
-	return strings.HasPrefix(base, "test_") || strings.HasSuffix(stem, "_test") ||
+	return strings.HasPrefix(base, "test_") || strings.HasSuffix(stem, "_test") || strings.HasSuffix(stem, "_spec") ||
 		strings.HasSuffix(stem, ".test") || strings.HasSuffix(stem, ".spec")
 }
 
