@@ -33,8 +33,8 @@ func pendingProject(t *testing.T) (root, worktree, taskFile string) {
 }
 
 // TestDone_InALinkedWorktreeWritesAPendingClose: in a unit's worktree tp done
-// runs no gate and closes nothing; it records the request for the driver
-// (spec/backlog/parallel-implement.md §2.4).
+// runs the gate in the worktree, closes nothing, and records the request for
+// the driver (spec/backlog/parallel-implement.md §2.4).
 func TestDone_InALinkedWorktreeWritesAPendingClose(t *testing.T) {
 	t.Parallel()
 	root, worktree, taskFile := pendingProject(t)
@@ -58,8 +58,35 @@ func TestDone_InALinkedWorktreeWritesAPendingClose(t *testing.T) {
 
 	status, _, _ := runTP(t, root, "show", "t1")
 	assert.Contains(t, status, `"status": "wip"`, "the driver closes the task, not the unit")
-	assert.NoFileExists(t, filepath.Join(worktree, "gate-ran"))
-	assert.NoFileExists(t, filepath.Join(root, "gate-ran"))
+	assert.FileExists(t, filepath.Join(worktree, "gate-ran"), "the unit gates its own worktree")
+	assert.NoFileExists(t, filepath.Join(root, "gate-ran"), "the main tree is the driver's to gate")
+}
+
+// TestDone_InALinkedWorktreeRedGateWritesNoRequest: a unit whose gate fails
+// in its worktree exits like any red close, and the driver has nothing to
+// integrate; the failure is left under the main tree's root for the retry.
+func TestDone_InALinkedWorktreeRedGateWritesNoRequest(t *testing.T) {
+	t.Parallel()
+	root, worktree, taskFile := pendingProject(t)
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".tp", "config.json"), []byte(`{"workflow":{"quality_gate":"echo unit-gate-red; false"}}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(worktree, "a.go"), []byte("package a\n"), 0o600))
+	gitRun(t, worktree, "add", "a.go")
+	gitRun(t, worktree, "commit", "-q", "-m", "add a")
+	sha := gitRun(t, worktree, "rev-parse", "HEAD")
+
+	_, stderr, code := runTPEnv(t, worktree,
+		[]string{"TP_FILE=" + taskFile, engine.EnvUnitKind + "=implement", engine.EnvUnitID + "=t1"},
+		"done", "t1", "implemented and verified", "--commit", sha)
+	assert.Equal(t, 4, code, stderr)
+	assert.Contains(t, stderr, "unit-gate-red")
+	assert.NotContains(t, stderr, "--skip-gate", "a unit cannot skip its gate, so the hint does not offer it")
+
+	pending, err := engine.ReadPendingCloses(root, taskFile)
+	require.NoError(t, err)
+	assert.Empty(t, pending, "a red unit gate asks for no close")
+	failure := engine.ReadLastFailure(root, taskFile)
+	require.NotNil(t, failure, "the retry's brief reads the failure from the main tree's root")
+	assert.Contains(t, failure.Summary, "unit-gate-red")
 }
 
 // TestBrief_InALinkedWorktreeGivesTheWorktreeClose: tp brief in a unit's
