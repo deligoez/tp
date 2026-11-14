@@ -461,8 +461,9 @@ func buildRolePrompt(role string, rules []string, items []ChecklistItem, files [
 // order. Only spec-coverage routes to a dedicated checklist and file
 // selection; every other role takes the shared arm. A role whose routed
 // checklist is empty produces no prompt and is named in skipped_roles
-// with reason no-checklist-items (§9.1).
-func generateRoleAuditPrompts(auditorRoles []model.Role, specItems []ChecklistItem, sel *engine.AuditFileSelection, specPath, specContent, claudeExcerpt string, priorByRole map[string]*auditPriorRound, round, requiredClean, consecutiveClean, maxRounds int) ([]auditPrompt, []engine.SkippedRole) {
+// with reason no-checklist-items (§9.1). phase is the audit's own or the
+// task audit's, which names the output file and frames the prompt.
+func generateRoleAuditPrompts(auditorRoles []model.Role, specItems []ChecklistItem, sel *engine.AuditFileSelection, specPath, specContent, claudeExcerpt string, priorByRole map[string]*auditPriorRound, phase string, round, requiredClean, consecutiveClean, maxRounds int) ([]auditPrompt, []engine.SkippedRole) {
 	prompts := make([]auditPrompt, 0, len(auditorRoles))
 	skipped := make([]engine.SkippedRole, 0)
 	// §10.7 per-role inliner: the first emitted role whose files fit whole under
@@ -496,12 +497,12 @@ func generateRoleAuditPrompts(auditorRoles []model.Role, specItems []ChecklistIt
 			filePaths = append(filePaths, fl.Path)
 		}
 		f := promptFraming{
-			phase:            "audit",
+			phase:            phase,
 			round:            round,
 			requiredClean:    requiredClean,
 			consecutiveClean: consecutiveClean,
 			maxRounds:        maxRounds,
-			outputPath:       roleOutputPath("audit", specPath, round, role.ID),
+			outputPath:       roleOutputPath(phase, specPath, round, role.ID),
 			hasFiles:         len(filePaths) > 0,
 		}
 		inlinedContent := ""

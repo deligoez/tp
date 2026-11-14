@@ -65,15 +65,19 @@ func renderFraming(f *promptFraming) string {
 	fmt.Fprintf(&b, "Write this round's findings to: %s\n", f.outputPath)
 	b.WriteString("Produce findings for this round only, write them to that file, then stop.\n\n")
 
-	// §10.6 loop budget: round number, required clean count, consecutive clean
-	// so far, and the remaining budget when a cap is set.
-	fmt.Fprintf(&b, "Loop budget: %s round %d; %d consecutive clean round(s) required, %d so far",
-		f.phase, f.round, f.requiredClean, f.consecutiveClean)
-	if f.maxRounds > 0 {
-		remaining := max(f.maxRounds-f.round+1, 1)
-		fmt.Fprintf(&b, "; cap %d, %d round(s) remain (this one included)", f.maxRounds, remaining)
+	if f.phase == engine.PhaseTaskAudit {
+		b.WriteString(renderTaskAuditFraming(f.round))
+	} else {
+		// §10.6 loop budget: round number, required clean count, consecutive
+		// clean so far, and the remaining budget when a cap is set.
+		fmt.Fprintf(&b, "Loop budget: %s round %d; %d consecutive clean round(s) required, %d so far",
+			f.phase, f.round, f.requiredClean, f.consecutiveClean)
+		if f.maxRounds > 0 {
+			remaining := max(f.maxRounds-f.round+1, 1)
+			fmt.Fprintf(&b, "; cap %d, %d round(s) remain (this one included)", f.maxRounds, remaining)
+		}
+		b.WriteString(".\n\n")
 	}
-	b.WriteString(".\n\n")
 
 	// §10.7 file-reading statement.
 	b.WriteString("File reading: ")
@@ -94,6 +98,18 @@ func renderFraming(f *promptFraming) string {
 		}
 	}
 	return b.String()
+}
+
+// renderTaskAuditFraming is a task audit's place in the loop and its one
+// instruction beyond the role's (spec/backlog/per-task-code-audit.md §2.4):
+// follow each call out of the batch's files one hop, so a callee that exits
+// where the caller expects an error is seen, while every row still anchors in
+// the batch's own files.
+func renderTaskAuditFraming(seq int) string {
+	return fmt.Sprintf("Task audit %d: the first audit of these files since their tasks closed; it counts toward no round budget.\n\n", seq) +
+		"Calls out of these files: for every call these files make into a function defined in another file, read that callee's body " +
+		"(one hop: the callee itself, not its callees) far enough to know its error and exit contract: whether it returns the error, " +
+		"panics, or exits the process. A row still anchors at a line in the files below; the callee is evidence, never the graded item.\n\n"
 }
 
 // fileSetRead reads the listed paths in full and returns a rendered content
