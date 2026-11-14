@@ -914,15 +914,14 @@ func validateReviewInputs(perspective string, round int, roundGiven bool, findin
 // the set requiredFindingFields declares in review_record.go — because the file
 // a reviewer writes from this line reaches tp review --merge and tp review
 // <spec> --record: a row copied without evidence is skipped by the first and
-// refuses the whole file at the second. category, suggestion and the optional
-// class below are not in that set and stay optional.
+// refuses the whole file at the second. category and suggestion are not in
+// that set and stay optional. class is asked once, by the output contract
+// (outputContractInstruction), not here as well.
 const findingFormat = `
 For each issue found, respond with one JSON object per line (NDJSON):
 {"severity":"critical|high|medium|low","category":"completeness|ambiguity|consistency|feasibility|redundancy|regression","location":"section heading or line number","finding":"what is wrong","evidence":"what you ran or read to reach this finding — the command and its output, the query, or the artifact and line","suggestion":"how to fix it"}
 
 The keys severity, finding, location and evidence are required and must each be non-empty: a row missing one is skipped by tp review --merge and makes tp review <spec> --record refuse the whole file.
-
-Optional "class" field: add "class":"<kebab-case-slug>" (example: "code-citation-drift") when the finding is an instance of a pattern a script could check across the whole corpus; omit it otherwise.
 
 Only report real issues. Do not generate findings just to appear thorough.`
 
