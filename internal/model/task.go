@@ -47,6 +47,10 @@ type Task struct {
 	CommitFiles       []string   `json:"commit_files,omitempty"`
 	CommitFilesTotal  int        `json:"commit_files_total,omitempty"`
 	GateSkippedReason *string    `json:"gate_skipped_reason,omitempty"`
+	// TaskAuditOwed is managed by tp: the resolved task_audit_roles at the
+	// moment the task closed, the code audit this task owes. Absent when no
+	// role was owed; cleared by tp reopen.
+	TaskAuditOwed []string `json:"task_audit_owed,omitempty"`
 }
 
 // UnmarshalJSON supports aliases and flexible types:
@@ -120,6 +124,17 @@ func (t *Task) SetCommitSHAs(shas []string) {
 	t.CommitSHAs = shas
 	primary := shas[0]
 	t.CommitSHA = &primary
+}
+
+// SetTaskAuditOwed stamps the task with a copy of the roles its close owes a
+// code audit, so a later change to the workflow cannot reach the record. An
+// empty list clears the stamp, which then marshals with no key.
+func (t *Task) SetTaskAuditOwed(roles []string) {
+	if len(roles) == 0 {
+		t.TaskAuditOwed = nil
+		return
+	}
+	t.TaskAuditOwed = append([]string(nil), roles...)
 }
 
 const maxCommitFiles = 50
