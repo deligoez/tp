@@ -249,6 +249,47 @@ func TestIntegrate_AFailedCloseAfterASignalLeavesThePendingClose(t *testing.T) {
 	assert.Empty(t, pending[0].PickedOnto)
 }
 
+// TestIntegrate_AFailedCloseThatClosedTheTaskKeepsThePick: a close that wrote
+// the task done and then failed (killed before it exited) leaves the task
+// done; its pick stays on the main branch and the request is dropped.
+func TestIntegrate_AFailedCloseThatClosedTheTaskKeepsThePick(t *testing.T) {
+	const wipTask = `{"spec":"s.md","tasks":[{"id":"alpha","title":"A","status":"wip","depends_on":[],"estimate_minutes":5,"acceptance":"a","source_sections":["x"],"touches":["alpha.txt"]}]}`
+	root, spec, taskFile, _ := batchProject(t, wipTask)
+	gitIn(t, root, "switch", "-q", "-c", "unit")
+	unitSHA := commitIn(t, root, "alpha.txt", "alpha\n")
+	gitIn(t, root, "switch", "-q", "main")
+	require.NoError(t, WritePendingClose(root, taskFile, &PendingClose{ID: "alpha", Commits: []string{unitSHA}}))
+	reopened := false
+	d := &driver{
+		opts: &DriverOptions{Root: root, TaskFile: taskFile, Spec: spec,
+			CloseTask: func(id, _ string, _ []string, _ string) error {
+				require.NoError(t, editTasks(taskFile, []string{id}, func(task *model.Task) { task.Status = model.StatusDone }))
+				return errors.New("signal: killed")
+			},
+			ReopenSolo: func(string) error { reopened = true; return nil },
+		},
+		runID: "r1",
+		sig:   &interrupts{ch: make(chan os.Signal, 1), seen: true},
+	}
+
+	require.NoError(t, d.integratePending())
+	assert.False(t, reopened)
+	assert.FileExists(t, filepath.Join(root, "alpha.txt"), "the pick stays with the done task")
+	pending, err := ReadPendingCloses(root, taskFile)
+	require.NoError(t, err)
+	assert.Empty(t, pending)
+}
+
+// TestKeptUnitBranch: reconcile keeps the branch of a unit whose request is
+// still pending, so its commits stay referenced.
+func TestKeptUnitBranch(t *testing.T) {
+	root := t.TempDir()
+	taskFile := filepath.Join(root, "s.tasks.json")
+	require.NoError(t, WritePendingClose(root, taskFile, &PendingClose{ID: "alpha"}))
+	assert.True(t, keptUnitBranch(root, taskFile, unitBranch(root, taskFile, "r1", "alpha")))
+	assert.False(t, keptUnitBranch(root, taskFile, unitBranch(root, taskFile, "r1", "beta")))
+}
+
 // TestAssembleResume_NamesPendingCloses: a pending close a crashed run left is
 // named by tp resume until a run integrates it (§2.6).
 func TestAssembleResume_NamesPendingCloses(t *testing.T) {
