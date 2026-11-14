@@ -226,36 +226,53 @@ With `run_max_parallel` above 1 the implement phase returns a **batch**: the tas
 take, then each later ready task whose `touches` are disjoint from every task already in it, up to
 that many. Two globs overlap unless their literal prefixes diverge, compared case-insensitively, and
 an empty literal prefix overlaps everything. A wip task is resumed alone first; a task without
-`touches`, or one carrying `solo: true`, never joins a batch and, leading, runs alone. A batch of one
-is the ordinary implement unit.
+`touches`, one carrying `solo: true` (managed: set by a failed integration, never by hand), or one
+whose id is unsafe in a branch name or a path (anything but letters, digits, `.`, `_` and `-`, a
+`..`, or a `.lock` suffix) never joins a batch and, leading, runs alone. A batch of one is the
+ordinary implement unit. Batches are `tp run`'s alone: nothing else integrates a pending close.
+
+`touches` is a JSON array of globs relative to the project root, read as Go's `path.Match` (`*`
+stays inside one directory). `dir/` or `dir/**` takes a whole subtree; `**` anywhere else is refused
+by `tp validate` and `tp set`.
 
 - **Claim and worktrees.** The driver claims the batch's tasks, then adds a git worktree per unit
-  under the system temporary directory (`tp-worktrees/<project hash>/<run id>/<task id>`) on a branch
-  `tp-unit/<run id>/<task id>` from the main branch's `HEAD`. Each child is spawned in its worktree
-  with `TP_FILE` naming the main tree's task file by absolute path, and its brief is `tp brief <id>`.
+  under the system temporary directory (`tp-worktrees/<project hash>/<cycle tag>/<run id>/<task
+  id>`) on a branch `tp-unit/<cycle tag>/<run id>/<task id>` from the main branch's `HEAD`; the
+  cycle tag keys both to the task file, so a run over another task file never touches them. Each
+  child is spawned in its worktree with `TP_FILE` naming the main tree's task file by absolute path,
+  and its brief is `tp brief <id>`.
 - **The unit asks; the driver closes.** In a linked worktree of the task file's repository,
-  `tp brief <id>` gives the worktree close: commit on the branch, run only the tests the change
-  needs while the units beside it run theirs, and ask for the close. `tp done <id> "<evidence>"
-  --commit <sha>...` there checks the evidence and the commits, runs no gate and closes nothing: it
-  writes a pending close to `.tp/runs/pending/<key>/<id>.json`. `--commit` is required and names one
-  task; `--auto-commit`, `--covered-by` and `--skip-gate` are usage errors (exit 2). A sha that is
-  not on the unit's branch, is already on the main branch, or changes the task file, the spec's
-  `.tp-review/` or the project's `.tp/` is refused (exit 1) and nothing is written.
+  `tp brief <id>` gives the worktree close: the task's `touches`, commit on the branch (with hc
+  under `commit_strategy: hc`), run only the tests the change needs while the units beside it run
+  theirs, and ask for the close. `tp done <id> --commit <sha>... -- "<evidence>"` there checks the
+  evidence and the commits, runs no gate and closes nothing: it writes a pending close to
+  `.tp/runs/pending/<key>/<id>.json`. `--commit` is required, must name every commit the branch made
+  since it left the main branch (recorded in branch order), and the close names one task;
+  `--auto-commit`, `--covered-by` and `--skip-gate` are usage errors (exit 2). A sha that is not on
+  the unit's branch, is already on the main branch, or changes the task file, the spec's
+  `.tp-review/` or the project's `.tp/`, or a set short of the branch's commits, is refused (exit 1)
+  and nothing is written.
 - **Integration.** After the batch, whatever it ended as, the driver integrates every pending close in
-  id order: it cherry-picks the commits onto the main branch and runs `tp done <id> "<evidence>"
-  --commit <picked sha>...` there, so the gate and the record are `tp done`'s and the gates run one at
-  a time. A conflicting pick or a failing gate resets the main branch to before the pick with
-  `git reset --keep` (the task file's other closes survive), reopens the task and sets `solo: true`,
-  so it runs alone next. A picked diff that leaves the task's `touches` is reported on stderr and not
-  reopened. The worktrees and branches are then removed.
+  id order: it records the `HEAD` it picks onto, cherry-picks the commits onto the main branch and
+  runs `tp done <id> --commit <picked sha>... -- "<evidence>"` there, so the gate and the record are
+  `tp done`'s and the gates run one at a time. A conflicting pick or a failing gate resets the main
+  branch to before the pick with `git reset --keep` (the task file's other closes survive), writes
+  `last_failure`, reopens the task and sets `solo: true`, so it runs alone next. A close that fails
+  after the operator's signal is not the unit's failure: the pick is taken back and the pending
+  close kept for the next run. A usage refusal from that `tp done` stops the run as a driver error.
+  A picked diff that leaves the task's `touches` is reported on stderr and not reopened. The
+  worktrees and branches are then removed, except the branch of a close kept for the next run.
 - **A crash** leaves pending closes, worktrees or `tp-unit/` branches. `tp resume` names the pending
-  closes under `pending_closes`; the next `tp run` integrates them and removes the rest before its
-  first batch. A task whose unit never asked to close stays wip and is resumed alone.
+  closes under `pending_closes`, and its `next_action` is `tp run`, which integrates them before its
+  first batch: commits a crash left picked on the main branch are closed rather than picked again,
+  and a close for a task already done is dropped. It then removes its own cycle's worktrees and
+  branches. A task whose unit never asked to close stays wip and is resumed alone; its unit's
+  unfinished commits are not kept.
 - **Limits.** A worktree is a fresh checkout of `HEAD`, without ignored files (dependencies, `.env`,
   build output); `tp run --dry-run` says so on stderr before a batch, and a project whose units need
-  them keeps `run_max_parallel` at 1. `tp validate` warns on an open task without `touches` while
-  `run_max_parallel` is above 1. The caps are checked between iterations, so a batch can overshoot
-  `run_max_units` by up to its size less one.
+  them keeps `run_max_parallel` at 1. `tp validate` names every open task without `touches` in one
+  warning while `run_max_parallel` is above 1. The caps are checked between iterations, so a batch
+  can overshoot `run_max_units` by up to its size less one.
 
 ### Stop reasons
 
