@@ -129,3 +129,44 @@ func TestReviewRecordInbox_NeedsAnEmission(t *testing.T) {
 	_, stderr, code = runTP(t, dir, "review", "spec.md", "--record-inbox", "--record", "x.ndjson")
 	assert.Equal(t, 2, code, "stderr: %s", stderr)
 }
+
+// TestReviewRecordInbox_OwesWhatTheEmissionAsked: the emission stores the
+// roles it built prompts for, and --record-inbox owes exactly those, so a role
+// the emission left out (a --diff-from round, a deactivated role) is never
+// asked for, and a regression prompt it emitted is never dropped.
+func TestReviewRecordInbox_OwesWhatTheEmissionAsked(t *testing.T) {
+	t.Parallel()
+	dir, spec := inboxSpec(t)
+	prompts := emittedPrompts(t, dir, noRoundDir(), "review", "spec.md")
+	emitted := make([]string, 0, len(prompts))
+	for _, pm := range prompts {
+		emitted = append(emitted, pm["role"].(string))
+	}
+	inbox, err := engine.ReviewInboxPanel(spec)
+	require.NoError(t, err)
+	assert.True(t, inbox.Stored)
+	assert.Equal(t, emitted, inbox.Roles)
+
+	// A stored list is what is owed: shrink it and the record passes on the
+	// files it names.
+	require.NoError(t, engine.WriteReviewOwedRoles(spec, 1, emitted[:1]))
+	writeRoleFile(t, spec, emitted[0], "")
+	_, stderr, code := runTP(t, dir, "review", "spec.md", "--record-inbox")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+}
+
+// TestReviewRecordInbox_RefusesARoundWithoutItsList: a round emitted before
+// the list was stored cannot prove its roles, so it is refused with the way
+// forward.
+func TestReviewRecordInbox_RefusesARoundWithoutItsList(t *testing.T) {
+	t.Parallel()
+	dir, spec := inboxSpec(t)
+	prompts := emittedPrompts(t, dir, noRoundDir(), "review", "spec.md")
+	for _, pm := range prompts {
+		writeRoleFile(t, spec, pm["role"].(string), "")
+	}
+	require.NoError(t, os.Remove(engine.ReviewOwedRolesPath(spec, 1)))
+	_, stderr, code := runTP(t, dir, "review", "spec.md", "--record-inbox")
+	assert.Equal(t, 3, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "emit the round again")
+}
