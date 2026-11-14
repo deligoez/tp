@@ -48,6 +48,21 @@ func TestCleanTree_AnUntrackedFileMeansTheGateDidNotGateTheTree(t *testing.T) {
 	assert.Empty(t, CleanTree(root), "an untracked file means the gate ran on more than the tree")
 }
 
+// TestReusableGate_AFileMovedIntoTPStateIsNotTPsOwnChange: a rename lists
+// only its new path unless renames are turned off, so a source file moved
+// under .tp/ would read as tp's own change while the source is gone.
+func TestReusableGate_AFileMovedIntoTPStateIsNotTPsOwnChange(t *testing.T) {
+	t.Parallel()
+	root, taskFile, spec := gateReuseRepo(t)
+	p := &PendingClose{ID: "t1", GatedTree: CleanTree(root), GateCmd: "make test"}
+	require.NoError(t, os.MkdirAll(filepath.Join(root, ".tp"), 0o750))
+	cmd := exec.Command("git", "mv", "a.go", ".tp/a.go")
+	cmd.Dir = root
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, "%s", out)
+	assert.False(t, ReusableGate(root, taskFile, spec, p, "make test"), "a.go is gone from the tree the gate would run on")
+}
+
 // TestReusableGate_OnlyTheSameTreeCommandAndACleanTreeReuse: the gate result
 // is reused only when every condition holds; each one broken alone runs the
 // gate.
