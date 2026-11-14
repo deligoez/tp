@@ -95,7 +95,7 @@ func enforceImportConvergence(targetPath string, tf *model.TaskFile, gate *impor
 	}
 
 	required := loop.wf.ReviewCleanRounds
-	hint := "record the remaining clean rounds with tp review --record, or import with user-approved --force"
+	hint := "record the remaining clean rounds with tp review --record-inbox, or import with user-approved --force"
 	// Review-convergence enforcement uses the live severity-aware predicate so a
 	// blocking-policy round whose only survivors are medium/low counts clean,
 	// consistent with tp review --status/--record.
