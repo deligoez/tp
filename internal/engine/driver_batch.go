@@ -112,6 +112,12 @@ func (d *driver) integrateBatch(units map[string]batchUnit) error {
 		return err
 	}
 	for _, u := range sortedBatch(units) {
+		// A request left for the next run keeps its branch, so its commits
+		// stay referenced until reconcile integrates them.
+		if HasPendingClose(d.opts.Root, d.opts.TaskFile, u.id) {
+			_, _ = gitOut(d.opts.Root, "worktree", "remove", "--force", u.worktree)
+			continue
+		}
 		removeUnitWorktree(d.opts.Root, u.worktree, u.branch)
 	}
 	return nil
@@ -161,6 +167,9 @@ func (d *driver) integrateOne(tf *model.TaskFile, p *PendingClose) error {
 		_, _ = gitOut(d.opts.Root, "reset", "-q", "--keep", pre)
 		return driverErrorf(pickErr, "integrate task %q", p.ID)
 	}
+	if pickErr != nil && d.sig != nil && d.sig.signalled() {
+		return d.deferUnit(p, pre)
+	}
 	if pickErr != nil {
 		if err := d.discardUnit(p.ID, pre, pickErr, logPath); err != nil {
 			return err
@@ -196,6 +205,21 @@ func (d *driver) pickUnit(p *PendingClose) (pre string, picked []string, err err
 	}
 	picked, err = cherryPick(d.opts.Root, p.Commits)
 	return head, picked, err
+}
+
+// deferUnit takes a pick back and leaves its request for the next run: the
+// operator's signal reaches the gate child too, so a close that failed after
+// it says nothing about the unit's work.
+func (d *driver) deferUnit(p *PendingClose, pre string) error {
+	if _, err := gitOut(d.opts.Root, "reset", "-q", "--keep", pre); err != nil {
+		return driverErrorf(err, "restore the main branch after task %q", p.ID)
+	}
+	p.PickedOnto = ""
+	if err := WritePendingClose(d.opts.Root, d.opts.TaskFile, p); err != nil {
+		return driverErrorf(err, "keep the pending close of %q", p.ID)
+	}
+	output.Notice(fmt.Sprintf("task %s was not integrated before the run stopped; the next tp run integrates it", p.ID))
+	return nil
 }
 
 // discardUnit takes a pick that conflicted or failed its gate back off the
