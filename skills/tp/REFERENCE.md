@@ -993,8 +993,18 @@ records one, so a refusal there names its lines. It exits 3 when the round was n
 emitted without the list (before v1.20.0 or under `--no-state`: emit it again), or a role of it has
 no file (the message names every such role; a role that found nothing writes an empty file), 1 for a
 line the reader skips or a row naming another role than its file's, and 2 beside `--record` or
-under `TP_ROUND`. `--record <file>` is unchanged and cannot show that every role ran
-(`spec/backlog/role-presence.md`).
+under `TP_ROUND`.
+
+**A hand file over an emitted round (v1.21.0).** `tp review <spec> --record <file>` exits 3 when the
+round it would record was emitted with its `round-<N>.roles.json`, naming `--record-inbox`: a hand
+file cannot tell a role that found nothing from one that never ran, and a row deleted from it would
+leave the round without a disposition. The same rule holds under `tp run`, where the record unit
+merges the role files in `$TP_ROUND_DIR`: it records only when every owed role's
+`role-<role>.ndjson` is there, never on the environment variable alone. `--record <file>` still
+records a round nobody emitted, one emitted without the list (before v1.20.0 or under `--no-state`),
+and a re-record of a recorded round (`TP_ROUND` naming it). The emission now fails, exit 3, when it
+cannot write the list, since a round without one would read as emitted before v1.20.0. Every review
+`next_action` and blocker command that records a round names `--record-inbox`.
 
 Finding text and `class` slugs are written in **English** whatever language the spec is in — the rows are committed artifacts and `--merge` clusters slugs byte-for-byte, so a second language splits one idea into two families; see "Recording language" in `SKILL.md`. The `class` field is free-form (a kebab-case slug, the dedup/cluster key), and an arbitrary class is carried through `--merge`/`--resolve` untouched. `tp review --merge` clusters by `(location key, class)` — a finding with no class is its own cluster — and emits each cluster's representative (highest severity, then lexicographic role, then finding text) annotated with `found_by`/`found_by_roles`. `tp review --report` adds a `by_class` breakdown, the per-role `overlap_report`, and `mechanize_candidates` (a class in ≥ 2 distinct rounds OR ≥ 5 times in one round), sorted by total descending, ties alphabetical.
 
