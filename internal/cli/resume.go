@@ -82,13 +82,21 @@ func runResume(_ *cobra.Command, args []string) error {
 func resolveCycle(args []string) (taskFilePath, specPath string, tf *model.TaskFile) {
 	if len(args) == 1 {
 		// A spec argument is authoritative: use its adjacent <base>.tasks.json,
-		// treating an absent adjacent file as an empty task set (§4.1).
+		// treating an absent adjacent file as an empty task set (§4.1). Only
+		// absence does: a file that is there but does not read or parse exits
+		// 3, as the no-argument form does, rather than reading as an empty plan.
 		specPath = engine.ResolveSpecArg(args[0])
 		taskFilePath = engine.SpecAdjacentTaskFile(specPath)
-		if loaded, err := model.ReadTaskFile(taskFilePath); err == nil {
+		loaded, err := model.ReadTaskFile(taskFilePath)
+		switch {
+		case err == nil:
 			tf = loaded
-		} else {
+		case errors.Is(err, os.ErrNotExist):
 			tf = &model.TaskFile{Spec: specPath, Tasks: []model.Task{}}
+		default:
+			output.Error(ExitFile, err.Error())
+			os.Exit(ExitFile)
+			return "", "", nil
 		}
 	} else {
 		// No spec argument: discover the active task file and derive the spec.
