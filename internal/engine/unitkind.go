@@ -320,11 +320,6 @@ func rowIsDisposed(path, key string) bool {
 	return findings > 0
 }
 
-// readNDJSONRows reads an NDJSON artifact into its content rows, reporting
-// false when the file cannot be read or any content line does not unmarshal
-// into a JSON object. Blank and whitespace-only lines are skipped rather than
-// counted, which is the blank-line rule §3.3 states for role files and the same
-// rule the record path applies to a recorded round file.
 // readEpicRoundRows reads an epic review round file's rows, or an error
 // naming the file and why: the read error wrapped, or the line that does
 // not parse and its JSON error.
@@ -350,6 +345,11 @@ func readEpicRoundRows(path string) ([]map[string]any, error) {
 	return rows, nil
 }
 
+// readNDJSONRows reads an NDJSON artifact into its content rows, reporting
+// false when the file cannot be read or any content line does not unmarshal
+// into a JSON object. Blank and whitespace-only lines are skipped rather than
+// counted, which is the blank-line rule §3.3 states for role files and the same
+// rule the record path applies to a recorded round file.
 func readNDJSONRows(path string) ([]map[string]any, bool) {
 	data, err := os.ReadFile(path)
 	if err != nil {
