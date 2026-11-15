@@ -371,7 +371,6 @@ trigger, the measurement pointer and, when there is one, the note that carries t
 
 | entry | decision | trigger | measurements |
 |---|---|---|---|
-| The divisible round | out of the park on 2026-11-14: half of the code roles' findings sit beyond the ten-file cut and are real, and yield does not follow churn; splitting by spec section does not reach a file pool, so the key is open again (a raised cap, or a code-lens pass per task at its close) | the next step is one constructed audit round on a large release with the full list, to see whether a role grades a whole pool in one prompt | `spec/1.21.0-measurements.md` §The audit's ten-file cut; `spec/undecided-measurements.md` §The divisible round |
 | A converged payload says what it left open | an audit-side `nonblocking_open`, a count of accepted blocking rows, and audit rows written with review severity words; `spec/backlog/converged-payload-open.md` | the first project that sets `audit_converge_on: blocking` (`review_converge_on` already defaults to `blocking`) | `spec/undecided-measurements.md` §From the rows spec |
 
 ---
@@ -381,6 +380,19 @@ trigger, the measurement pointer and, when there is one, the note that carries t
 **Closed means no pending spec carries it and none is expected to.** Each entry names why, and the
 condition that would reopen it. A reopen condition is a measurement, not an opinion.
 
+### The divisible round
+
+**Closed by `v1.22.0`.** The key reopened on 2026-11-14 because half of the code roles' findings sit
+beyond the ten-file cut and are real, and yield does not follow churn (`spec/1.21.0-measurements.md`
+§The audit's ten-file cut). The next step it named, one constructed audit round with the full list,
+ran in `v1.21.1`: a role given a long list in one prompt graded every file by pattern-scanning and
+missed most of what ten-file prompts found on the same files (`spec/1.21.1-measurements.md`). So a
+whole pool is not graded in one prompt, and the answer taken was the other branch the row named, a
+code-lens pass per task at its close: `v1.22.0`'s task audit, each closed task's own files in batches
+of at most ten (`spec/1.22.0-measurements.md`). The release audit keeps its ten-file cut.
+
+**It reopens** if a release audit's code role, after every owed task audit is recorded, files a
+confirmed finding on a file a task audit graded `PASS` at a commit the file has not changed since.
 ### The identifier set behind class families
 
 **Closed by a yield bar.** A normaliser for the identifier set behind class families is worth building
