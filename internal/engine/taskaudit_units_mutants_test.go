@@ -142,3 +142,16 @@ func TestExpandArgs_KeepsTheTextAfterABracedLiteral(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []string{"{a b}z"}, got)
 }
+
+// TestTaskAuditFixFile_SkipsARowAReleaseRoundGraded: with a task audit on
+// record, a row whose latest grading is an audit round has no task-audit
+// round file to be fixed in.
+func TestTaskAuditFixFile_SkipsARowAReleaseRoundGraded(t *testing.T) {
+	t.Parallel()
+	spec := auditSpec(t)
+	st := auditState(t, spec, AuditConvergeOnAll, []string{auditFail})
+	st.TaskAudits = []TaskAuditRecord{taskAuditRec(t, spec, 1, 1, codeFail)}
+	require.NoError(t, SaveReviewState(spec, st))
+	assert.Empty(t, TaskAuditFixFile(spec, "r:task-t1"))
+	assert.NotEmpty(t, TaskAuditFixFile(spec, taskAuditFailKey))
+}
