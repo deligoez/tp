@@ -120,8 +120,8 @@ func runTaskAudit(specPath, roleFilter string, roleGiven bool) error {
 }
 
 // nextTaskAudit is the task audit to emit: the frozen unrecorded one, or the
-// first due batch frozen now. A batch with no file of its own records at
-// once with no rows, since no role has anything to read.
+// first due batch frozen now. A due batch always holds a file: a close with
+// none left to read owes nothing, and a re-grade with none is not due.
 func nextTaskAudit(specPath string) *engine.TaskAuditRecord {
 	// Role units of one task audit run side by side and each emits it: the
 	// read-or-freeze is one critical section, so they freeze it once.
@@ -140,36 +140,28 @@ func nextTaskAudit(specPath string) *engine.TaskAuditRecord {
 
 // freezeNextTaskAudit is nextTaskAudit's body, run under the state lock.
 func freezeNextTaskAudit(specPath string) (*engine.TaskAuditRecord, error) {
-	for {
-		st, err := engine.LoadReviewState(specPath)
-		if err != nil {
-			return nil, err
-		}
-		if st == nil {
-			st = &engine.ReviewState{}
-		}
-		seq := len(st.TaskAudits) + 1
-		rec, err := engine.ReadTaskAuditEmission(specPath, seq)
-		if err != nil || rec != nil {
-			return rec, err
-		}
-		rec = dueTaskAudit(specPath, st, seq)
-		if rec == nil {
-			return nil, nil
-		}
-		rec.Head = engine.GitHead(filepath.Dir(specPath))
-		rec.EmittedAt = time.Now().UTC().Format(time.RFC3339Nano)
-		if err := engine.WriteTaskAuditEmission(specPath, rec); err != nil {
-			return nil, err
-		}
-		if len(rec.Files) > 0 {
-			return rec, nil
-		}
-		if _, err := writeTaskAuditRecord(specPath, rec, nil); err != nil {
-			return nil, err
-		}
-		removeRoundInbox(specPath, engine.PhaseTaskAudit, rec.Seq)
+	st, err := engine.LoadReviewState(specPath)
+	if err != nil {
+		return nil, err
 	}
+	if st == nil {
+		st = &engine.ReviewState{}
+	}
+	seq := len(st.TaskAudits) + 1
+	rec, err := engine.ReadTaskAuditEmission(specPath, seq)
+	if err != nil || rec != nil {
+		return rec, err
+	}
+	rec = dueTaskAudit(specPath, st, seq)
+	if rec == nil {
+		return nil, nil
+	}
+	rec.Head = engine.GitHead(filepath.Dir(specPath))
+	rec.EmittedAt = time.Now().UTC().Format(time.RFC3339Nano)
+	if err := engine.WriteTaskAuditEmission(specPath, rec); err != nil {
+		return nil, err
+	}
+	return rec, nil
 }
 
 // dueTaskAudit is task audit seq if one is due: the engine's answer over the
