@@ -180,7 +180,7 @@ spawn — so it is safe to point at a cycle another run is already driving.
 
 ### Unit kinds
 
-A unit is the smallest piece of work that ends in a durable write. `next_units` returns these eight
+A unit is the smallest piece of work that ends in a durable write. `next_units` returns these ten
 kinds and no others; `(kind, id)` identifies a unit, and `id` is its durable subject.
 
 | Kind | `id` | Durable write | Concurrency | `brief_command` |
@@ -192,7 +192,9 @@ kinds and no others; `(kind, id)` identifies a unit, and `id` is its durable sub
 | `decompose` | spec base name | the task file holds at least one task | alone | `tp resume` |
 | `audit-role` | role id | `$TP_ROUND_DIR/role-$TP_UNIT_ID.ndjson` exists and every content line parses | parallel with sibling roles | `tp audit <spec>` |
 | `audit-record` | round number | `$TP_ROUND_DIR/merged.ndjson` **and** an audit round file for `$TP_ROUND` exist | alone | the `tp audit` form of the review-record command above |
-| `audit-fix` | the finding's `role:item_id` | every non-`PASS` row under that key carries a disposition in the round's results file | alone | `tp audit <spec> --status` |
+| `audit-fix` | the finding's `role:item_id` | every non-`PASS` row under that key carries a disposition in the round's results file; when a task audit holds the key's latest grading, in that task audit's round file, with nothing under the key left undisposed in the results file | alone | `tp audit <spec> --status`; for a task-audit row, `tp audit <spec> --status && echo 'fix <key>, graded in <file>, then claim it: tp audit <file> --resolve <key> fixed "<evidence>"'` |
+| `task-audit-role` (v1.22.0) | role id | `$TP_ROUND_DIR/role-$TP_UNIT_ID.ndjson` exists and every content line parses, in the task audit's own round directory (`task-audit-r<seq>`) | parallel with sibling roles | `tp audit <spec> --task-audit --role <id>` |
+| `task-audit-record` (v1.22.0) | the task audit's seq | the state directory holds `task-audit-<seq>.ndjson` | alone | `tp audit <spec> --task-audit --record-inbox` |
 
 An attempt **succeeded** when the child exited 0 **and** the kind's durable write is present; either
 alone is a failed attempt. Every predicate is a state, never a delta, which is what lets the `Stop`
