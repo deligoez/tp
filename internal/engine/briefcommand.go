@@ -12,7 +12,7 @@ import "fmt"
 // environment (§3.1.1), so the command reads the same in a run state, a log and
 // a `next_units` entry whatever run it belongs to.
 //
-// A kind outside the eight returns the empty string, the same defensive
+// A kind outside the ten returns the empty string, the same defensive
 // direction DurableWrite takes: there is no brief for a unit tp cannot name.
 func (k UnitKind) BriefCommand(t UnitTarget) string {
 	switch k {

@@ -12,7 +12,7 @@ import (
 	"github.com/deligoez/tp/internal/model"
 )
 
-// UnitKind is one of §3.3's eight unit kinds — a unit being the smallest piece
+// UnitKind is one of the ten unit kinds (§3.3's eight, plus v1.22.0's two task-audit kinds) — a unit being the smallest piece
 // of work that ends in a durable write. The string values are the wire form:
 // they are what TP_UNIT_KIND carries, what next_units reports and what a
 // per-kind runner map keys on, so they are the table's spellings byte for byte.
@@ -34,7 +34,7 @@ const (
 	UnitTaskAuditRecord UnitKind = "task-audit-record"
 )
 
-// unitKindOrder lists the eight kinds in §3.3's table order. It is the single
+// unitKindOrder lists the ten kinds in REFERENCE.md's table order. It is the single
 // source for both the exported set and the validity test, so a kind can never
 // be valid without being listed.
 var unitKindOrder = []UnitKind{
@@ -50,7 +50,7 @@ var unitKindOrder = []UnitKind{
 	UnitTaskAuditRecord,
 }
 
-// UnitKinds returns the eight kinds in §3.3's table order, for callers that
+// UnitKinds returns the ten kinds in REFERENCE.md's table order, for callers that
 // need to name the set rather than test one value. The copy keeps a caller from
 // reordering the sequence every other reader depends on.
 func UnitKinds() []UnitKind {
@@ -61,7 +61,7 @@ func UnitKinds() []UnitKind {
 
 // ParseUnitKind maps a wire value — a TP_UNIT_KIND, a runner map key, a
 // recorded run-state row — onto a kind, reporting false for anything outside
-// the eight. It does not trim or case-fold: the values are tp's own, written by
+// the ten. It does not trim or case-fold: the values are tp's own, written by
 // tp, so a near-miss is a caller's bug and surfacing it is the point.
 func ParseUnitKind(s string) (UnitKind, bool) {
 	k := UnitKind(s)

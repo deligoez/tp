@@ -322,7 +322,7 @@ func ResolveUnitRunner(raw json.RawMessage, v TemplateValues) (*Runner, error) {
 // short is the point: anything the driver says here is a second, drifting copy
 // of the brief.
 //
-// A kind outside the eight has no brief command and so has no prompt, the same
+// A kind outside the ten has no brief command and so has no prompt, the same
 // defensive direction BriefCommand and DurableWrite take.
 func UnitPrompt(kind UnitKind, t UnitTarget) string {
 	return briefPrompt(kind, kind.BriefCommand(t))

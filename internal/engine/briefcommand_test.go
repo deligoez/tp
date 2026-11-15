@@ -53,7 +53,7 @@ func TestUnitKind_BriefCommand_DocumentedPerKind(t *testing.T) {
 		assert.NotEmpty(t, got, "%s has a brief", k)
 	}
 
-	// A kind outside the eight has no brief.
+	// A kind outside the ten has no brief.
 	assert.Empty(t, UnitKind("mystery").BriefCommand(target))
 }
 
