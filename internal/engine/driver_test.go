@@ -187,7 +187,7 @@ func TestRunDriver_AdvancesThroughImplementAndStopsConverged(t *testing.T) {
 	assert.Equal(t, StopConverged, *st.StopReason)
 }
 
-// The two role kinds are the only ones §3.3 lets run together, and the loop
+// The role kinds are the only ones §3.3 lets run together, and the loop
 // spawns the whole panel in one iteration. The role files land at their final
 // names, which is the driver's rename of the .part each role wrote (§3.3.1);
 // the collected round then owes its record unit, which the driver spawns alone

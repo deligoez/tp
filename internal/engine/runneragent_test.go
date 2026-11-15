@@ -12,7 +12,7 @@ import (
 // agentForKind is §6.3's table, written out literally rather than derived from
 // the production mapping: a test that asked the code what it maps would agree
 // with any mapping at all. The empty string is "this kind takes no agent",
-// which is five of the eight — and it is the half of test 44 a three-case test
+// which is six of the ten — and it is the half of test 44 a three-case test
 // would pass without ever exercising.
 var agentForKind = map[engine.UnitKind]string{
 	engine.UnitImplement:       "tp-implementer",
@@ -27,7 +27,7 @@ var agentForKind = map[engine.UnitKind]string{
 	engine.UnitTaskAuditRecord: "",
 }
 
-// agentlessKind is one of the five kinds §6.3 leaves with the ordinary tool
+// agentlessKind is one of the six kinds §6.3 leaves with the ordinary tool
 // set. §3.2.1's own tests measure the template on it, so the base argv and the
 // budget condition stay separable from the per-kind pair layered on top.
 const agentlessKind = engine.UnitReviewRecord
@@ -57,8 +57,8 @@ func agentArg(args []string) (string, bool) {
 }
 
 // TestBuiltinRunner_ClaudeAppendsTheAgentPerKind is test 44. Every one of the
-// eight kinds is asserted, in both directions: the three that take an agent get
-// exactly that agent's name, and the five that take none carry no --agent token
+// ten kinds is asserted, in both directions: the four that take an agent get
+// exactly that agent's name, and the six that take none carry no --agent token
 // anywhere in the argv. The five matter more than the three — §6.3 gives the
 // record, resolve, decompose and fix kinds "the ordinary tool set", and a test
 // covering only the three named agents passes whether or not the "none" branch

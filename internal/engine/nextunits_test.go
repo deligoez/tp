@@ -212,7 +212,7 @@ func TestBuildNextUnits_EmptyCases(t *testing.T) {
 
 // TestBuildNextUnits_NonConcurrentKindIsNeverAlongsideAnother is §4.1's
 // concurrency invariant, checked over every kind rather than over the phases
-// that happen to emit one today: only the two role kinds may share an array.
+// that happen to emit one today: only the three role kinds may share an array.
 func TestBuildNextUnits_NonConcurrentKindIsNeverAlongsideAnother(t *testing.T) {
 	for _, kind := range UnitKinds() {
 		pair := []NextUnit{{Kind: kind, ID: "a"}, {Kind: UnitReviewRole, ID: "b"}}

@@ -44,7 +44,7 @@ var claudeBaseArgs = []string{
 //
 // It is measured on a kind §6.3 leaves alone, so this test keeps saying what
 // §3.2.1 says and nothing about the per-kind --agent pair layered on top of it;
-// that pair has its own test, over all eight kinds.
+// that pair has its own test, over all ten kinds.
 func TestBuiltinRunner_ClaudeArgv(t *testing.T) {
 	runner, err := engine.BuiltinRunner(engine.TemplateClaude, kindValues(agentlessKind, 0))
 	require.NoError(t, err)

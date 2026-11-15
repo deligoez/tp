@@ -25,7 +25,7 @@ func TestRoleUnitBriefNamesItsOwnRole(t *testing.T) {
 }
 
 // TestRoleUnitBriefWithoutAnIDStaysWhole guards the direction that would break
-// every other caller: the two role kinds are the only ones that gain the flag,
+// every other caller: the three role kinds are the only ones that gain the flag,
 // and a target with no ID must not emit a dangling `--role`.
 func TestRoleUnitBriefWithoutAnIDStaysWhole(t *testing.T) {
 	target := UnitTarget{Spec: "spec/0.36.0.md"}
