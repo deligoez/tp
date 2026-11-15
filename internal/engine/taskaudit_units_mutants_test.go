@@ -38,3 +38,14 @@ func TestTaskAuditUnits_AOneRoleBatchRunsBeforeImplement(t *testing.T) {
 	require.NotNil(t, round)
 	assert.Equal(t, 1, *round)
 }
+
+// TestTaskAuditUnits_AOneRoleAuditRunsBeforeTheReleaseAudit: in the audit
+// phase the partial batch is due, and its one role unit comes before the
+// release audit's roles.
+func TestTaskAuditUnits_AOneRoleAuditRunsBeforeTheReleaseAudit(t *testing.T) {
+	t.Parallel()
+	root, taskFile, spec, tf := taskAuditUnitsRepo(t, 1)
+	units, _ := BuildNextUnits(root, taskFile, spec, PhaseAudit, tf, nil, nil)
+	assert.Equal(t, []UnitKind{UnitTaskAuditRole}, unitKinds(units))
+	assert.Equal(t, []string{"security"}, unitIDs(units))
+}
