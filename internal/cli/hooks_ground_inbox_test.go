@@ -67,6 +67,38 @@ func TestPreToolUseHookAllowsTheRoleInboxes(t *testing.T) {
 	}
 }
 
+// TestPreToolUseHookAllowsTheTaskAuditInbox: outside a run a task-audit role
+// writes .tp-review/<base>/task-audit-inbox/round-<seq>-<role>.ndjson, the
+// output_path tp audit --task-audit emits, so that name passes like the
+// review and audit inboxes; the frozen batch beside it stays refused.
+func TestPreToolUseHookAllowsTheTaskAuditInbox(t *testing.T) {
+	t.Parallel()
+	root := repoRoot(t)
+	allowed := []string{
+		"spec/.tp-review/0.35.0/task-audit-inbox/round-1-go-safety.ndjson",
+		filepath.Join(root, "spec", ".tp-review", "a", "task-audit-inbox", "round-2-implementer.ndjson"),
+	}
+	refused := []string{
+		".tp-review/a/task-audit-inbox/batch-1.json",
+		".tp-review/a/task-audit-1.ndjson",
+		".tp-review/a/task-audit-inbox/round-0-go-safety.ndjson",
+	}
+	for _, path := range allowed {
+		t.Run("allowed "+path, func(t *testing.T) {
+			t.Parallel()
+			run := runWriteDenyHookIn(t, root, nil, path)
+			assert.Zero(t, run.exitCode, "%s is the task-audit inbox name; stderr=%q", path, run.stderr)
+		})
+	}
+	for _, path := range refused {
+		t.Run("refused "+path, func(t *testing.T) {
+			t.Parallel()
+			run := runWriteDenyHookIn(t, root, nil, path)
+			assert.True(t, run.denied(), "%s must stay refused; exit=%d stderr=%q", path, run.exitCode, run.stderr)
+		})
+	}
+}
+
 // TestPreToolUseHookRefusesEveryOtherGroundStatePath is the allowance's other
 // edge: exactly the inbox name passes, so the recorded round, a round 0, a
 // nested or suffixed file, a `..` escape and an inbox with no state directory
