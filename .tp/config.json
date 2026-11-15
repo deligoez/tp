@@ -16,6 +16,9 @@
         "class": "spec-growth",
         "cmd": "python3 scripts/check-spec-growth.py \"${TP_SPEC:?}\""
       }
+    ],
+    "task_audit_roles": [
+      "go-safety"
     ]
   }
 }
