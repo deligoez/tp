@@ -164,6 +164,16 @@ func runImport(_ *cobra.Command, args []string) error {
 	}
 	var loopVerdict *engine.LoopDone
 	if lockErr := engine.WithFileLock(targetPath, func() error {
+		// A target that exists and cannot be read carries an epic binding and
+		// a workflow block no import can see: writing over it would drop them
+		// without a word, so even --force refuses until it is repaired.
+		if _, statErr := os.Stat(targetPath); statErr == nil {
+			if _, readErr := model.ReadTaskFile(targetPath); readErr != nil {
+				output.Error(ExitFile, fmt.Sprintf("the task file %s exists and cannot be read: %v", targetPath, readErr),
+					"repair it, or remove it if nothing in it is worth keeping, then import again; --force does not write over a file it cannot read")
+				os.Exit(ExitFile)
+			}
+		}
 		// Workflow preservation (§9.3): when the target exists and the imported
 		// document carries no top-level workflow key (raw-JSON key check, before
 		// struct defaulting), the existing file's workflow block is carried over.
