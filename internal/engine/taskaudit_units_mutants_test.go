@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -48,4 +49,16 @@ func TestTaskAuditUnits_AOneRoleAuditRunsBeforeTheReleaseAudit(t *testing.T) {
 	units, _ := BuildNextUnits(root, taskFile, spec, PhaseAudit, tf, nil, nil)
 	assert.Equal(t, []UnitKind{UnitTaskAuditRole}, unitKinds(units))
 	assert.Equal(t, []string{"security"}, unitIDs(units))
+}
+
+// TestTaskAuditUnits_AReleaseRoundInFlightGoesFirst: release audit round 1
+// emitted and unrecorded holds back the task audit that is due.
+func TestTaskAuditUnits_AReleaseRoundInFlightGoesFirst(t *testing.T) {
+	t.Parallel()
+	root, taskFile, spec, tf := taskAuditUnitsRepo(t, 1)
+	dir := ReviewStateDir(spec)
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, snapshotFilename(PhaseAudit, 1)), []byte("# Spec\n"), 0o600))
+	units, _ := BuildNextUnits(root, taskFile, spec, PhaseAudit, tf, nil, nil)
+	assert.NotContains(t, unitKinds(units), UnitTaskAuditRole)
 }
