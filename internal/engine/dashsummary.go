@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"fmt"
 	"path/filepath"
 
 	"github.com/deligoez/tp/internal/model"
@@ -103,9 +102,9 @@ func sliceRoundCounts(stateDir string) ([]SliceRoundCount, error) {
 	out := make([]SliceRoundCount, 0, last)
 	for r := 1; r <= last; r++ {
 		path := filepath.Join(stateDir, epicRoundFile(r))
-		rows, ok := readNDJSONRows(path)
-		if !ok {
-			return nil, fmt.Errorf("epic review round file %s cannot be read as NDJSON", path)
+		rows, err := readEpicRoundRows(path)
+		if err != nil {
+			return nil, err
 		}
 		c := SliceRoundCount{Round: r, Total: len(rows), ByRole: map[string]int{}}
 		for _, row := range rows {

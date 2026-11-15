@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -127,9 +126,9 @@ func EpicReviewLoopStatus(stateDir string, units []EpicReviewUnit, p EpicReviewP
 	rounds := make([][]map[string]any, 0, st.Round)
 	for r := 1; r <= st.Round; r++ {
 		path := filepath.Join(stateDir, epicRoundFile(r))
-		rows, ok := readNDJSONRows(path)
-		if !ok {
-			return EpicReviewStatus{}, fmt.Errorf("epic review round file %s cannot be read as NDJSON", path)
+		rows, err := readEpicRoundRows(path)
+		if err != nil {
+			return EpicReviewStatus{}, err
 		}
 		rounds = append(rounds, rows)
 	}

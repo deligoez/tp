@@ -91,9 +91,9 @@ func epicNarrowHistory(stateDir string, last, from, to int) (EpicHistory, error)
 // its difference from base.
 func epicHistoryRound(stateDir string, round, base int) (EpicHistoryRound, error) {
 	path := filepath.Join(stateDir, epicRoundFile(round))
-	rows, ok := readNDJSONRows(path)
-	if !ok {
-		return EpicHistoryRound{}, fmt.Errorf("epic review round file %s cannot be read as NDJSON", path)
+	rows, err := readEpicRoundRows(path)
+	if err != nil {
+		return EpicHistoryRound{}, err
 	}
 	out := EpicHistoryRound{Round: round, FindingsByRole: map[string][]map[string]any{}}
 	for _, row := range rows {

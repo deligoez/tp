@@ -325,6 +325,31 @@ func rowIsDisposed(path, key string) bool {
 // into a JSON object. Blank and whitespace-only lines are skipped rather than
 // counted, which is the blank-line rule §3.3 states for role files and the same
 // rule the record path applies to a recorded round file.
+// readEpicRoundRows reads an epic review round file's rows, or an error
+// naming the file and why: the read error wrapped, or the line that does
+// not parse and its JSON error.
+func readEpicRoundRows(path string) ([]map[string]any, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("epic review round file %s cannot be read: %w", path, err)
+	}
+	rows := make([]map[string]any, 0)
+	n := 0
+	for line := range strings.SplitSeq(string(data), "\n") {
+		n++
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		var row map[string]any
+		if err := json.Unmarshal([]byte(line), &row); err != nil {
+			return nil, fmt.Errorf("epic review round file %s, line %d, is not a JSON object: %w", path, n, err)
+		}
+		rows = append(rows, row)
+	}
+	return rows, nil
+}
+
 func readNDJSONRows(path string) ([]map[string]any, bool) {
 	data, err := os.ReadFile(path)
 	if err != nil {

@@ -2,7 +2,6 @@ package engine
 
 import (
 	"cmp"
-	"fmt"
 	"maps"
 	"path/filepath"
 	"slices"
@@ -75,9 +74,9 @@ func EpicReviewClasses(dirs []EpicSliceDir) ([]EpicClassRaised, error) {
 		d := &dirs[i]
 		for r := 1; r < EpicReviewNextRound(d.Path); r++ {
 			path := filepath.Join(d.Path, epicRoundFile(r))
-			rows, ok := readNDJSONRows(path)
-			if !ok {
-				return nil, fmt.Errorf("epic review round file %s cannot be read as NDJSON", path)
+			rows, err := readEpicRoundRows(path)
+			if err != nil {
+				return nil, err
 			}
 			tallyEpicRound(tallies, d, r, rows)
 		}

@@ -266,9 +266,9 @@ func EpicUnresolvedRows(stateDir string, round int, on func(location string) boo
 		return nil, nil
 	}
 	path := filepath.Join(stateDir, epicRoundFile(round-1))
-	rows, ok := readNDJSONRows(path)
-	if !ok {
-		return nil, fmt.Errorf("epic review round file %s cannot be read as NDJSON", path)
+	rows, err := readEpicRoundRows(path)
+	if err != nil {
+		return nil, err
 	}
 	var out []EpicIndexedRow
 	for i, row := range rows {

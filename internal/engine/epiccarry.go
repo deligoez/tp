@@ -155,9 +155,9 @@ func (c *EpicCarry) readDecided(stateDir string, round int) error {
 		if _, err := os.Stat(path); os.IsNotExist(err) {
 			continue
 		}
-		rows, ok := readNDJSONRows(path)
-		if !ok {
-			return fmt.Errorf("epic review round file %s cannot be read as NDJSON", path)
+		rows, err := readEpicRoundRows(path)
+		if err != nil {
+			return err
 		}
 		for _, row := range rows {
 			loc, _ := row["location"].(string)
@@ -180,9 +180,9 @@ type EpicIndexedRow struct {
 // gate unit's into Fixed and any other into ScopeFixed, and returns the unit
 // keys an open row names. Only the epic and gate rows decide VerifyOnly.
 func (c *EpicCarry) readPriorRows(path string) (map[string]bool, error) {
-	rows, ok := readNDJSONRows(path)
-	if !ok {
-		return nil, fmt.Errorf("epic review round file %s cannot be read as NDJSON", path)
+	rows, err := readEpicRoundRows(path)
+	if err != nil {
+		return nil, err
 	}
 	reask := map[string]bool{}
 	onlyLowFixes := true
