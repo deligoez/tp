@@ -62,3 +62,23 @@ func TestTaskAuditUnits_AReleaseRoundInFlightGoesFirst(t *testing.T) {
 	units, _ := BuildNextUnits(root, taskFile, spec, PhaseAudit, tf, nil, nil)
 	assert.NotContains(t, unitKinds(units), UnitTaskAuditRole)
 }
+
+// TestTaskAuditUnits_InFlightSeqIsOnePastTheRecorded: the in-flight task audit
+// is the emission one past the recorded ones, seq 1 with no state.
+func TestTaskAuditUnits_InFlightSeqIsOnePastTheRecorded(t *testing.T) {
+	t.Parallel()
+	root, taskFile, spec, _ := taskAuditUnitsRepo(t, 0)
+	target := UnitTarget{TaskFile: taskFile, Spec: spec}
+	for _, st := range []*ReviewState{nil, {TaskAudits: []TaskAuditRecord{{Seq: 1}}}} {
+		want := 1
+		if st != nil {
+			want = 2
+		}
+		require.NoError(t, WriteTaskAuditEmission(spec, &TaskAuditRecord{Seq: want, Roles: []string{"security"}}))
+		units, seq := inFlightTaskAuditUnits(root, target, st)
+		assert.Equal(t, []string{"security"}, unitIDs(units), "seq %d", want)
+		require.NotNil(t, seq)
+		assert.Equal(t, want, *seq)
+		require.NoError(t, os.Remove(TaskAuditEmissionPath(spec, want)))
+	}
+}
