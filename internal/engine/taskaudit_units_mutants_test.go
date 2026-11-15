@@ -102,3 +102,13 @@ func TestTaskAuditFixFile_NamesTheTaskAuditsRoundFile(t *testing.T) {
 	assert.Equal(t, file, TaskAuditFixFile(spec, taskAuditFailKey))
 	assert.Empty(t, TaskAuditFixFile(spec, "go-safety:other"))
 }
+
+// TestResumeBriefCommand_AnAuditFixNamesTheTaskAuditFile: resume's brief of
+// such a fix unit names the task audit's round file.
+func TestResumeBriefCommand_AnAuditFixNamesTheTaskAuditFile(t *testing.T) {
+	t.Parallel()
+	spec, file := taskAuditFailSpec(t)
+	u := &NextUnit{Kind: UnitAuditFix, ID: taskAuditFailKey}
+	want := auditFixBrief("spec.md", repoRelative(filepath.Dir(spec), file), taskAuditFailKey)
+	assert.Equal(t, want, resumeBriefCommand(filepath.Dir(spec), spec, "spec.md", u))
+}
