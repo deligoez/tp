@@ -12,8 +12,10 @@
 # review and audit role files `{review,audit}-inbox/round-N-<role>.ndjson`, the
 # pools an audit emission keeps beside them, `audit-inbox/round-N.pools.json`,
 # and the roles a review emission owes, `review-inbox/round-N.roles.json`, with
-# the rows `--record-inbox` merged from them, `review-inbox/round-N.merged.ndjson`
-# — are judged against the round files one directory up, and differ in guard 1:
+# the rows `--record-inbox` merged from them, `review-inbox/round-N.merged.ndjson`,
+# and a task audit's role files and frozen batch,
+# `task-audit-inbox/{round-<seq>-<role>.ndjson,batch-<seq>.json}` (judged against
+# `task-audit-<seq>.ndjson`) — are judged against the round files one directory up, and differ in guard 1:
 # `--record` removes them, so one whose round IS recorded is debris, not the
 # round's evidence, and is removable too.
 #
@@ -55,7 +57,7 @@ while [ $# -gt 0 ]; do
     --apply)          APPLY=1; shift ;;
     --min-age-hours)  MIN_AGE_HOURS="${2:?--min-age-hours needs a number}"; shift 2 ;;
     --root)           ROOT="${2:?--root needs a path}"; shift 2 ;;
-    -h|--help)        sed -n '2,42p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help)        sed -n '2,46p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *)                echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -90,6 +92,8 @@ if [ -d "$ROOT" ]; then
     dir=$(dirname "$f")
 
     round=$(printf '%s' "$base" | sed -n 's/.*round-\([0-9][0-9]*\)[.-].*/\1/p')
+    # A task audit's frozen batch carries its seq as batch-<seq>.json.
+    [ -n "$round" ] || round=$(printf '%s' "$base" | sed -n 's/^batch-\([0-9][0-9]*\)\.json$/\1/p')
     [ -n "$round" ] || continue
 
     case "$base" in
@@ -99,9 +103,10 @@ if [ -d "$ROOT" ]; then
     esac
     inbox=0
     case "$(basename "$dir")" in
-      ground-inbox) phase=ground; inbox=1 ;;
-      review-inbox) phase=review; inbox=1 ;;
-      audit-inbox)  phase=audit;  inbox=1 ;;
+      ground-inbox)     phase=ground;     inbox=1 ;;
+      review-inbox)     phase=review;     inbox=1 ;;
+      audit-inbox)      phase=audit;      inbox=1 ;;
+      task-audit-inbox) phase=task-audit; inbox=1 ;;
     esac
     [ "$inbox" -eq 0 ] || dir=$(dirname "$dir")
 
@@ -121,7 +126,9 @@ if [ -d "$ROOT" ]; then
     fi
 
     if [ "$inbox" -eq 1 ]; then
-      if [ -f "$dir/$phase-round-$round.ndjson" ]; then reason="recorded inbox file"; else reason="unrecorded inbox file"; fi
+      recorded="$dir/$phase-round-$round.ndjson"
+      [ "$phase" != task-audit ] || recorded="$dir/task-audit-$round.ndjson"
+      if [ -f "$recorded" ]; then reason="recorded inbox file"; else reason="unrecorded inbox file"; fi
     else
       case "$base" in
         floor-*) reason="orphan floor" ;;
@@ -131,7 +138,8 @@ if [ -d "$ROOT" ]; then
     removable+=("$f"); reasons+=("$reason")
   done < <(find "$ROOT" -type f \( -name 'floor-*round-*.txt' -o -name 'snapshot-*round-*.md' \
     -o -path '*/ground-inbox/round-*.ndjson' -o -path '*/review-inbox/round-*.ndjson' -o -path '*/audit-inbox/round-*.ndjson' \
-    -o -path '*/audit-inbox/round-*.pools.json' -o -path '*/review-inbox/round-*.roles.json' \) | sort)
+    -o -path '*/audit-inbox/round-*.pools.json' -o -path '*/review-inbox/round-*.roles.json' \
+    -o -path '*/task-audit-inbox/round-*.ndjson' -o -path '*/task-audit-inbox/batch-*.json' \) | sort)
 fi
 
 if [ -d "$ROUNDS" ]; then
