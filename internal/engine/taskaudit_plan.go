@@ -234,7 +234,7 @@ func NextTaskAuditPlan(specPath string, st *ReviewState, cands []TaskAuditCandid
 
 // TaskAuditRegrade is the sorted files a re-grade asks again, the roles it
 // asks, and whether a fix claim made any due (spec/backlog/per-task-code-
-// audit.md §2.6). A file graded by a task audit is due for a role when that
+// audit.md at c15412d4 §2.6). A file graded by a task audit is due for a role when that
 // role's row on it is open in the carried set and either its latest grading
 // claims a fix, or it was graded by a task audit at a commit the file has
 // changed since. A row a fix pass graded after the latest audit round waits
