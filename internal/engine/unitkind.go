@@ -27,7 +27,7 @@ const (
 	UnitAuditRole     UnitKind = "audit-role"
 	UnitAuditRecord   UnitKind = "audit-record"
 	UnitAuditFix      UnitKind = "audit-fix"
-	// The task audit's two kinds (spec/backlog/per-task-code-audit.md): one
+	// The task audit's two kinds (spec/backlog/per-task-code-audit.md at c15412d4): one
 	// role of a task audit, and its record. Both work in the task audit's own
 	// round directory, keyed by its seq (TaskAuditRoundPhase).
 	UnitTaskAuditRole   UnitKind = "task-audit-role"
@@ -84,7 +84,7 @@ const (
 	ConcurrencySiblingRoles UnitConcurrency = "sibling-roles"
 )
 
-// Concurrency returns the kind's §3.3 concurrency. Only the two role kinds run
+// Concurrency returns the kind's §3.3 concurrency. Only the three role kinds run
 // beside a sibling; every other kind — and any value outside the enum — is
 // alone, which is the safe direction: running an unrecognized kind concurrently
 // is what would interleave two writers of the same file.

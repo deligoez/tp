@@ -101,7 +101,7 @@ func renderFraming(f *promptFraming) string {
 }
 
 // renderTaskAuditFraming is a task audit's place in the loop and its one
-// instruction beyond the role's (spec/backlog/per-task-code-audit.md §2.4):
+// instruction beyond the role's (spec/backlog/per-task-code-audit.md at c15412d4 §2.4):
 // follow each call out of the batch's files one hop, so a callee that exits
 // where the caller expects an error is seen, while every row still anchors in
 // the batch's own files.

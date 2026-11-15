@@ -31,7 +31,7 @@ type Workflow struct {
 	ReviewConvergeOn   string  `json:"review_converge_on,omitempty"`
 	AuditConvergeOn    string  `json:"audit_converge_on,omitempty"`
 	// TaskAuditRoles are the code roles that audit each task's own files after
-	// it closes (spec/backlog/per-task-code-audit.md). Never spec-coverage.
+	// it closes (spec/backlog/per-task-code-audit.md at c15412d4). Never spec-coverage.
 	TaskAuditRoles []string `json:"task_audit_roles"`
 
 	RunMaxUnits            int             `json:"run_max_units"`

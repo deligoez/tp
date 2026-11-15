@@ -23,7 +23,7 @@ var taskAuditConflicts = []string{
 }
 
 // runTaskAuditMode routes tp audit <spec> --task-audit [--role r] and
-// --task-audit --record-inbox (spec/backlog/per-task-code-audit.md).
+// --task-audit --record-inbox (spec/backlog/per-task-code-audit.md at c15412d4).
 func runTaskAuditMode(cmd *cobra.Command, args []string, taskAudit, recordInbox bool, roleFilter string) error {
 	if !taskAudit {
 		usageExit("--record-inbox on tp audit requires --task-audit", "record a release audit round with --record <file>")

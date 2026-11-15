@@ -59,7 +59,7 @@ func BuildNextUnits(root, taskFilePath, specPath, phase string, tf *model.TaskFi
 	case PhaseImplement:
 		// A task audit in flight, or a full batch due, runs before the next
 		// implement unit and never beside one
-		// (spec/backlog/per-task-code-audit.md).
+		// (spec/backlog/per-task-code-audit.md at c15412d4).
 		if taskAudit, seq := implementTaskAuditUnits(root, target, tf, st); len(taskAudit) > 0 {
 			return taskAudit, seq
 		}

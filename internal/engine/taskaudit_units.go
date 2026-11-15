@@ -20,7 +20,7 @@ func UnitRoundPhase(kind UnitKind, phase string) string {
 }
 
 // implementTaskAuditUnits is the implement phase's task-audit step
-// (spec/backlog/per-task-code-audit.md): the task audit in flight, else a full
+// (spec/backlog/per-task-code-audit.md at c15412d4): the task audit in flight, else a full
 // batch due now, runs before the next implement unit. Nil when neither is.
 func implementTaskAuditUnits(root string, target UnitTarget, tf *model.TaskFile, st *ReviewState) (units []NextUnit, seq *int) {
 	if units, seq := inFlightTaskAuditUnits(root, target, st); units != nil {

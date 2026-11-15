@@ -15,7 +15,7 @@ import (
 )
 
 // TaskAuditBatchFiles is the most files one task-audit prompt reads: the only
-// prompt size whose depth was measured (spec/backlog/per-task-code-audit.md §1).
+// prompt size whose depth was measured (spec/backlog/per-task-code-audit.md at c15412d4 §1).
 const TaskAuditBatchFiles = 10
 
 // TaskAuditCandidate is a done task that owes a task audit: its id, the close
@@ -328,7 +328,7 @@ func TaskAuditOwedClause(owed []string, specPath string) string {
 // slice 0 names how many there are.
 
 // TaskAuditsOwed reports whether any candidate still owes a piece: the
-// presence rule's condition (spec/backlog/per-task-code-audit.md §2.7).
+// presence rule's condition (spec/backlog/per-task-code-audit.md at c15412d4 §2.7).
 func TaskAuditsOwed(cands []TaskAuditCandidate, recorded []TaskAuditRecord) bool {
 	return len(owedTaskAuditPieces(cands, recorded)) > 0
 }
