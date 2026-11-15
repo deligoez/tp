@@ -82,3 +82,23 @@ func TestTaskAuditUnits_InFlightSeqIsOnePastTheRecorded(t *testing.T) {
 		require.NoError(t, os.Remove(TaskAuditEmissionPath(spec, want)))
 	}
 }
+
+// taskAuditFailKey is the key of codeFail's row.
+const taskAuditFailKey = "go-safety:file-go-safety-a-go.0123456789abcdef"
+
+// taskAuditFailSpec is a spec whose one recorded task audit graded a FAIL.
+func taskAuditFailSpec(t *testing.T) (spec, file string) {
+	t.Helper()
+	spec = auditSpec(t)
+	require.NoError(t, SaveReviewState(spec, &ReviewState{TaskAudits: []TaskAuditRecord{taskAuditRec(t, spec, 1, 0, codeFail)}}))
+	return spec, filepath.Join(ReviewStateDir(spec), TaskAuditFileName(1))
+}
+
+// TestTaskAuditFixFile_NamesTheTaskAuditsRoundFile: a row whose latest
+// grading is a task audit is fixed in that task audit's round file.
+func TestTaskAuditFixFile_NamesTheTaskAuditsRoundFile(t *testing.T) {
+	t.Parallel()
+	spec, file := taskAuditFailSpec(t)
+	assert.Equal(t, file, TaskAuditFixFile(spec, taskAuditFailKey))
+	assert.Empty(t, TaskAuditFixFile(spec, "go-safety:other"))
+}
