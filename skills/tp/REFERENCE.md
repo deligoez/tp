@@ -404,8 +404,9 @@ object carrying both `cmd` and `default` is a runner; one carrying neither is a 
 Two templates ship by name. `claude` is `claude -p {prompt} --output-format stream-json --verbose
 --permission-mode auto`, with `--max-budget-usd {max_budget_usd}` appended **only** when the resolved
 `run_max_unit_budget_usd` is non-zero (0 omits the pair rather than passing a literal 0), and
-`spend_key: total_cost_usd`; it also appends `--agent <name>` per unit kind — `tp-implementer`,
-`tp-reviewer`, `tp-auditor` — and none for the record, resolve, decompose and fix kinds. `opencode`
+`spend_key: total_cost_usd`; it also appends `--agent <name>` per unit kind — `tp-implementer` for
+`implement`, `tp-reviewer` for `review-role`, `tp-auditor` for `audit-role` and `task-audit-role` —
+and none for the record kinds (`task-audit-record` included), resolve, decompose and fix kinds. `opencode`
 is `opencode run {prompt}`, with no budget flag and no `spend_key`, so `cap-budget` is inert for it.
 
 `{prompt}` expands to a fixed per-kind instruction the driver owns: run this unit's `brief_command`,
@@ -565,8 +566,8 @@ The session hook deliberately does not branch on the matcher (`clear` is not rel
 every client, and an occasionally redundant orientation costs less than an occasionally missing one).
 Shell tools are deliberately outside the `PreToolUse` matcher: the denial exists to stop
 hand-editing, not to sandbox, and tp's own commands rewrite `*.tasks.json` on every close. The stop
-hook is scoped to `review-role`/`audit-role` — the two kinds whose durable write is a file at a path
-already in its environment — reads `$TP_ROUND_DIR/role-$TP_UNIT_ID.ndjson.part` (it runs inside the
+hook is scoped to the role kinds — `review-role`, `audit-role` and `task-audit-role` (v1.22.0), whose
+durable write is a file at a path already in its environment — reads `$TP_ROUND_DIR/role-$TP_UNIT_ID.ndjson.part` (it runs inside the
 child, before the driver's rename) alongside `$TP_RUN_DIR/$TP_UNIT_SEQ-escalation.json`, consults
 `stop_hook_active`, and blocks at most once per unit. **Every hook declares a `timeout` of 10
 seconds** and exits non-zero rather than hanging.
@@ -638,7 +639,7 @@ spec/
 | `gate_timeout_seconds` | int | 600 | 30-3600 | settable |
 | `lock_timeout_seconds` | int | 5 | 1-60 | settable (§12.1: write-lock retry/backoff window; timeout exits 4) |
 | `checks` | array of `{class, cmd}` | `[]` | — | settable (replace semantics). A check exits 0 when it passed and 1 when it found violations; anything else — 2 or higher, 126/127, a signal, a start failure, a timeout — could not run and is reported `ran: false` in `mechanical_checks`. A prompt suppresses a class only when its check reported `ran: true` in that emission; with no task file resolving no check runs, so nothing is suppressed. A check reads the spec it grades from `TP_SPEC` (v1.20.1; SKILL.md, Class & Checks Guidance) |
-| `task_audit_roles` | array of role ids | `[]` | distinct kebab-case ids | settable (replace semantics; exit 2 on a non-array, a duplicate or `spec-coverage`). Code roles that audit each task's own files after it closes (v1.22.0, spec/backlog/per-task-code-audit.md); never spec-coverage. A close stamps the task's managed `task_audit_owed` with the resolved list; `tp reopen` clears it |
+| `task_audit_roles` | array of role ids | `[]` | distinct kebab-case ids | settable (replace semantics; exit 2 on a non-array, a duplicate or `spec-coverage`). Code roles that audit each task's own files after it closes (v1.22.0, spec/1.22.0-measurements.md); never spec-coverage. A close stamps the task's managed `task_audit_owed` with the resolved list; `tp reopen` clears it |
 | `review_clean_rounds` | int | 2 | 1-10 | settable |
 | `audit_clean_rounds` | int | 2 | 1-10 | settable |
 | `review_converge_on` | string | `blocking` | `blocking`\|`all` | settable (a review round is **clean** when no surviving finding is critical/high under `blocking`, or when no finding survives under `all`; the same rule says which unresolved carried row blocks convergence, see Review convergence; audit never reads it) |
@@ -759,7 +760,7 @@ tp owns the review/audit round lifecycle in `<spec-dir>/.tp-review/<spec-base>/`
 
 | File | Content |
 |------|---------|
-| `state.json` | Round index: `{spec, review_rounds: [...], audit_rounds: [...], epochs: [...]}` (`epochs` absent until the first `--rewritten`) |
+| `state.json` | Round index: `{spec, review_rounds: [...], audit_rounds: [...], task_audits: [...], epochs: [...]}` (`task_audits` absent until the first task audit is recorded, `epochs` until the first `--rewritten`) |
 | `snapshot-round-<N>.md` | Byte copy of the spec at round N prompt generation |
 | `review-round-<N>.ndjson` | Recorded review round N findings |
 | `audit-round-<N>.ndjson` | Recorded audit round N results |
@@ -767,11 +768,15 @@ tp owns the review/audit round lifecycle in `<spec-dir>/.tp-review/<spec-base>/`
 | `floor-ground-round-<N>.txt` | The floor index that emission derived from that snapshot |
 | `ground-round-<N>.ndjson` | Recorded ground round N dispositions |
 | `audit-inbox/round-<N>.pools.json` | Each code role's file pool and listed `file_check` ids at audit round N emission, removed at `--record` (v1.15.0) |
+| `task-audit-<seq>.ndjson` | Recorded task audit seq's rows (v1.22.0) |
+| `task-audit-inbox/batch-<seq>.json` | Task audit seq's frozen emission, removed at `--record-inbox` |
+| `task-audit-inbox/round-<seq>-<role>.ndjson` | One role's file for task audit seq, outside a run |
 
 Each round entry is `{round, findings, clean, recorded_at, file, spec_hash, hash_scheme}`, and an audit round recorded after its emission adds `graded` (v1.15.0, see the Audit JSON Schema). `spec_hash` is `sha256:<hex>` of the text the round read and powers the staleness rule; `hash_scheme` names which text that is — `snapshot`, the round's own emission snapshot, or `no-emission`, no snapshot on disk at record time, so the hash is of the spec file and names text no prompt read. Both markers are written from v1.2.2; a round recorded before them carries none and keeps the meaning it was written with, the spec as it stood at record time. Staleness compares the current spec against the last recorded round that read text, skipping `no-emission` rounds; where no round of the phase ever read text the spec is stale whatever it holds, since a record clears staleness only through the snapshot of its own emission. Such a `--record` is still accepted, and says on stderr why `spec-stale` stays and that `tp <phase> <spec>` emits the round that binds to the text. An unmarked round from before v1.2.2 counts as one that read text, so a history converged before the markers stays as it was. tp writes `snapshot-round-<N>.md` **atomically** (write to a `.tmp` then rename) when round N begins (prompt emission) and `review-round-<N>.ndjson`/`audit-round-<N>.ndjson` when the round is recorded; a snapshot with no round file means a round was started and never recorded, and `--status` reports it as `in_flight_round: N` (`tp resume` then points at `{action:"record-round", round:N}`). Re-emitting an unrecorded round is idempotent while the spec is unchanged; if the spec changed since the emission, `tp ground`, `tp review` and `tp audit` exit 3 naming the round and the files they would overwrite, and `--force` discards the emission (exit 2 under `TP_UNATTENDED`). A refused `--role` writes nothing to the state directory. A snapshot that is present but unreadable aborts `--record` with exit 3, naming the round, the snapshot path and the way out: remove or repair it, then re-emit the round and record its findings — the recorded hash is that snapshot's, so tp does not guess the spec file in its place. A directory holding round files with no `state.json` aborts state-reading commands with exit 3 and a `repair or delete <path>` hint — that index referenced recorded history, and tp never rebuilds over it. A directory holding only snapshots is the in-flight window between emitting a round and recording it: nothing was ever recorded there, so the next `--record` rebuilds the index rather than refusing.
 
 **Epochs (v1.14.0).** `tp review <spec> --rewritten "<evidence>"` appends `{after_review_round,
-after_audit_round, evidence, at}` to `epochs`. Each position is, per phase, the number of the last
+after_audit_round, after_task_audit, evidence, at}` to `epochs` (`after_task_audit` since v1.22.0,
+omitted when 0: the count of task audits recorded, all of which the epoch cuts). Each position is, per phase, the number of the last
 recorded round that read an older text than the spec now holds — a round whose `spec_hash` differs
 from the spec's, or whose `hash_scheme` is not `snapshot` (an unmarked or `no-emission` round, whose
 reading cannot be established) — and never less than the newest earlier epoch's position for that
@@ -880,7 +885,8 @@ when the spec was rewritten (`rewrite-past-blocking`). Decision and measurements
 
 **Audit acceptance across rounds.** The next audit prompt's Prior Round block lists every row of the
 audit carried set whose latest grade is not `PASS` (v1.18.0; before, the immediately prior round's
-non-`PASS` rows), a row graded before the previous round carrying that `round`, each with its
+non-`PASS` rows), a row graded before the previous round carrying that `round` (a row a task audit
+graded carries `task_audit`, its seq, instead), each with its
 `disposition` and `disposition_evidence` beside `status` and `changed_since` (measured from the row's
 own round): an accepted row (`wontfix`/`duplicate` with evidence) is to be recorded as before if it
 still stands, unless `changed_since` is true; a `fixed` row asks for the repair to be verified.
@@ -1109,7 +1115,7 @@ on a rune boundary, the prompt's marker names the same counts, and the key survi
 ## Task Audit (v1.22.0)
 
 A task's code is audited once, soon after it closes, by the code roles `task_audit_roles` lists
-(`spec/backlog/per-task-code-audit.md`). The release audit is unchanged; the task audit adds depth
+(`spec/1.22.0-measurements.md`; the decision note is archived, `spec/backlog/ARCHIVE.md`). The release audit is unchanged; the task audit adds depth
 on every closed task's own files, where the release audit's code roles read only the ten files
 with the most churn.
 
@@ -1142,6 +1148,9 @@ ten is counted after the drop; a changed file is read again.
 
 One audit emission of either kind is in flight per spec: `--task-audit` exits 1 while a release
 audit round is emitted and unrecorded, and `tp audit <spec>` exits 1 while a task audit is.
+`--task-audit` with another mode flag, `--record-inbox` without `--task-audit`, and a `--role` the
+batch does not ask each exit 2; a role file that does not parse exits 1 at `--record-inbox`, and a
+frozen emission that cannot be read exits 3.
 
 **The `task_audits` entry**: `seq`, `members` (`{id, closed_at, piece, pieces, roles, files}`, none
 on a re-grade), `files`, `roles`, `head` (the commit it read), `regrade`, `fix_pass`, `emitted_at`,
@@ -1154,7 +1163,7 @@ task audit recorded after audit round k sits after it and before round k+1, task
 same round by `seq`. An epoch (`tp review --rewritten`) records `after_task_audit` and cuts every
 task audit at or below it; task audits read code, not the spec, so they never make an epoch due.
 
-**Presence.** The audit is not converged, and `--status --check` exits 1, while a closed task owes
+**Presence.** The audit is not converged, nor done at its cap, and `--status --check` exits 1, while a closed task owes
 a task audit. `--status` then carries `task_audits_owed` (the task ids) and `next_action` names
 `tp audit <spec> --task-audit`; `task_audits` is the count recorded. A task file that cannot be
 read holds the audit too, shown as `task_audits_unknown` with its path. Presence, the emission and
