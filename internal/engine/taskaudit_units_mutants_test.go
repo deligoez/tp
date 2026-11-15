@@ -112,3 +112,15 @@ func TestResumeBriefCommand_AnAuditFixNamesTheTaskAuditFile(t *testing.T) {
 	want := auditFixBrief("spec.md", repoRelative(filepath.Dir(spec), file), taskAuditFailKey)
 	assert.Equal(t, want, resumeBriefCommand(filepath.Dir(spec), spec, "spec.md", u))
 }
+
+// TestOwedTaskAuditsNow_ReadsTheRecordedTaskAudits: a task audit recorded on
+// disk clears the task it read.
+func TestOwedTaskAuditsNow_ReadsTheRecordedTaskAudits(t *testing.T) {
+	t.Parallel()
+	t1 := closedTask("t1", []string{"a.go"}, "security")
+	spec := presenceSpec(t, []string{"security"}, t1)
+	require.Equal(t, []string{"t1"}, owedTaskAuditsNow(spec))
+	require.NoError(t, os.MkdirAll(ReviewStateDir(spec), 0o755))
+	require.NoError(t, SaveReviewState(spec, &ReviewState{TaskAudits: []TaskAuditRecord{read(1, &t1, "a.go")}}))
+	assert.Empty(t, owedTaskAuditsNow(spec))
+}
