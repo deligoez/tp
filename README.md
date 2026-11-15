@@ -175,7 +175,7 @@ What ends each loop is not the same condition, and that difference is the point:
 | `tp ground` | **coverage**: every emitted floor unit carries one of the six verdicts, the floor is not empty, and the latest round holds no `FAIL` |
 | `tp epic review` | the same as `tp review`, for one slice of `.tp/epics.json` and from the project layer alone, and no unit of the slice changed since its last recorded round; every error rule of `tp epic lint` passes over the whole file |
 | `tp review` | **absence**: `review_clean_rounds` trailing rounds carry no finding that `review_converge_on` counts and the spec has not moved since — **or disposition**: at `review_max_rounds`, every finding of the latest round carries a disposition. Either way no finding that `review_converge_on` counts is left unresolved in an earlier round, since the next round is told not to re-report it, and every registered `checks` entry passes |
-| `tp audit` | the same with `audit_clean_rounds`, `audit_converge_on` and `audit_max_rounds`; audit runs no `checks` |
+| `tp audit` | the same with `audit_clean_rounds`, `audit_converge_on` and `audit_max_rounds`, and no closed task still owing a task audit (`task_audit_roles`, v1.22.0); audit runs no `checks` |
 
 A finding leaves a round as a change or as a recorded disposition (`--resolve`). `--status` reports
 which condition ended the loop as `done_by` — `converged` or `cap` — and `tp import`, `next_action`
@@ -363,7 +363,7 @@ lifecycle phase and the single next action from durable state alone, and
 work, verbatim acceptance, and the close recipe for the effective `commit_strategy`.
 
 **`tp run` drives that loop unattended.** It reads the cycle, spawns one runner process per unit —
-the two role kinds concurrently, everything else alone — re-reads the state from disk, checks its
+the three role kinds concurrently, everything else alone — re-reads the state from disk, checks its
 caps, and repeats. A unit's result is whatever it wrote to disk: tp reads a child's exit code and
 one spend number, never its prose. The run exits **0** only when the cycle converged and **4** on
 every other stop reason, so a caller never has to read the output to know what happened. Units run
@@ -525,7 +525,9 @@ the rest of the repository. What a round must be clean **of** is `audit_converge
 `all` counts every non-`PASS` row, and `blocking` — which stops advisory rows from holding a phase
 open — is opt-in, human-only, and fenced at all four of its write paths under `TP_UNATTENDED`. An
 evidenced `wontfix`/`duplicate` clears its round, and accepting a finding without a code change is
-the operator's decision. The
+the operator's decision. With `task_audit_roles` set, each closed task's own files are also audited
+by those code roles in batches of at most ten (`tp audit --task-audit`, v1.22.0), and the audit
+does not converge while one is owed. The
 round-by-round recipe is in
 [SKILL.md](skills/tp/SKILL.md); the fields and the audit JSON schema are in
 [REFERENCE.md](skills/tp/REFERENCE.md).
@@ -636,7 +638,7 @@ marketplace is a git repository, so installation stays Homebrew or `go install`,
 `SessionStart` hook preflights `tp`'s presence and version and fails with the install command rather
 than degrading quietly. It also injects `tp resume --compact` as orientation. A `PreToolUse` hook
 denies hand-writes to tp's own state — `.tp-review/` contents, `*.tasks.json`, `.tp/config.json`,
-`.tp/local.json` — and a `Stop` hook refuses a review or audit role unit's stop, once, while its
+`.tp/local.json` — and a `Stop` hook refuses a review, audit or task-audit role unit's stop, once, while its
 findings file is still missing and it has written no escalation record. `agents/` declares
 `tp-implementer`, `tp-reviewer` and `tp-auditor`, carrying tool restrictions only: a role's content
 lives in the corpus and reaches the unit through the prompt tp emits. Every hook is bounded by a
