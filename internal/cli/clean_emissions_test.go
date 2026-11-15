@@ -99,6 +99,29 @@ func TestCleanEmissionsKnowsTheReviewOwedRoles(t *testing.T) {
 	assert.Contains(t, out, filepath.Join("review-inbox", "round-1.merged.ndjson")+"  recorded inbox file")
 }
 
+// TestCleanEmissionsKnowsTheTaskAuditInbox: a task audit's role files and its
+// frozen batch (task-audit-inbox/round-<seq>-<role>.ndjson, batch-<seq>.json)
+// are inbox files too, judged against task-audit-<seq>.ndjson one directory
+// up — --record-inbox removes them, so an old one is removable either way.
+func TestCleanEmissionsKnowsTheTaskAuditInbox(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	initGitRepo(t, dir)
+	state := filepath.Join(dir, "spec", ".tp-review", "a")
+	writeOld(t, filepath.Join(state, "task-audit-inbox", "round-1-go-safety.ndjson"))
+	writeOld(t, filepath.Join(state, "task-audit-inbox", "batch-1.json"))
+	writeOld(t, filepath.Join(state, "task-audit-inbox", "round-2-go-safety.ndjson"))
+	writeOld(t, filepath.Join(state, "task-audit-inbox", "batch-2.json"))
+	writeOld(t, filepath.Join(state, "task-audit-1.ndjson"))
+
+	out := runCleanEmissions(t, dir)
+	assert.Contains(t, out, filepath.Join("task-audit-inbox", "round-1-go-safety.ndjson")+"  recorded inbox file")
+	assert.Contains(t, out, filepath.Join("task-audit-inbox", "batch-1.json")+"  recorded inbox file")
+	assert.Contains(t, out, filepath.Join("task-audit-inbox", "round-2-go-safety.ndjson")+"  unrecorded inbox file")
+	assert.Contains(t, out, filepath.Join("task-audit-inbox", "batch-2.json")+"  unrecorded inbox file")
+	assert.NotContains(t, out, "task-audit-1.ndjson", "a recorded task audit is never removable")
+}
+
 // TestCleanEmissionsReportsOldLayoutRoundDirectories: a round directory under
 // the pre-1.12.0 layout, .tp/rounds/<base>/<phase>-r<N>, for a task file that
 // is not at the root is no longer read by the driver
