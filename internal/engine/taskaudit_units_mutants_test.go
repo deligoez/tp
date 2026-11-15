@@ -155,3 +155,19 @@ func TestTaskAuditFixFile_SkipsARowAReleaseRoundGraded(t *testing.T) {
 	assert.Empty(t, TaskAuditFixFile(spec, "r:task-t1"))
 	assert.NotEmpty(t, TaskAuditFixFile(spec, taskAuditFailKey))
 }
+
+// TestTaskAuditUnits_EveryRoleWrittenLeavesTheRecord: once every role of the
+// in-flight task audit has its file, the one unit left is its record.
+func TestTaskAuditUnits_EveryRoleWrittenLeavesTheRecord(t *testing.T) {
+	t.Parallel()
+	root, taskFile, spec, _ := taskAuditUnitsRepo(t, 0)
+	require.NoError(t, WriteTaskAuditEmission(spec, &TaskAuditRecord{Seq: 1, Roles: []string{"security"}}))
+	dir := RoundDir(root, taskFile, PhaseTaskAudit, 1)
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	require.NoError(t, os.WriteFile(RoleFindingsPath(dir, "security"), []byte(codeFail+"\n"), 0o600))
+	units, seq := inFlightTaskAuditUnits(root, UnitTarget{TaskFile: taskFile, Spec: spec}, nil)
+	assert.Equal(t, []UnitKind{UnitTaskAuditRecord}, unitKinds(units))
+	assert.Equal(t, []string{"1"}, unitIDs(units))
+	require.NotNil(t, seq)
+	assert.Equal(t, 1, *seq)
+}
