@@ -133,3 +133,12 @@ func TestTaskAuditOwedClause_ShowsAtMostFive(t *testing.T) {
 	assert.Equal(t, "6 closed task(s) owe a task audit (t1, t2, t3, t4, t5): emit it — tp audit s.md --task-audit — "+
 		"run its roles, then tp audit s.md --task-audit --record-inbox", TaskAuditOwedClause(owed, "s.md"))
 }
+
+// TestExpandArgs_KeepsTheTextAfterABracedLiteral: braces that are not a
+// placeholder are copied, and so is the text after them.
+func TestExpandArgs_KeepsTheTextAfterABracedLiteral(t *testing.T) {
+	t.Parallel()
+	got, err := ExpandArgs([]string{"{a b}z"}, TemplateValues{})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"{a b}z"}, got)
+}
