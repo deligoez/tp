@@ -20,5 +20,6 @@ fix needs a design choice leaves this file for a decision note.
   cut, 65% of spec-coverage rows grade a section past it, and those rows hold 15 FAILs and 78
   PARTIALs, so the rest was read. The code roles' cut was measured from history in
   `spec/1.21.0-measurements.md`: half of their findings sit beyond rank 10 and are real, and yield does
-  not follow churn. The next step is one constructed audit round with the full list, the operator's
-  decision of 2026-11-14; the item is in `spec/undecided.md` (*The divisible round*).
+  not follow churn. The constructed full-list round ran in v1.21.1 and showed one long prompt skims;
+  the depth now comes from v1.22.0's task audit of every closed task's own files, and the cut stays
+  (`spec/undecided.md`, *The divisible round*, closed).
