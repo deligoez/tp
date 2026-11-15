@@ -466,29 +466,34 @@ func resolveCommitFiles(shas []string) []string {
 // `git show --name-status`: added/modified/deleted/renamed-new are kept and
 // renamed-old is excluded. ok is false when git cannot resolve sha.
 func commitChangedPaths(dir, sha string) ([]string, bool) {
-	cmd := exec.Command("git", "show", "--name-status", "--pretty=format:", sha)
+	// The sha comes from --commit or the task file: guard it at the git sink.
+	if !engine.SafeGitRev(sha) {
+		return nil, false
+	}
+	// -z: a path git would C-quote (one outside plain ASCII, or holding a
+	// quote) arrives as written, so commit_files stores the real name.
+	cmd := exec.Command("git", "show", "--name-status", "--pretty=format:", "-z", sha)
 	cmd.Dir = dir
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, false
 	}
+	fields := strings.Split(string(out), "\x00")
 	paths := make([]string, 0)
-	for line := range strings.SplitSeq(string(out), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
+	for i := 0; i < len(fields); i++ {
+		status := strings.TrimSpace(fields[i])
+		if status == "" {
 			continue
 		}
-		fields := strings.Split(line, "\t")
-		if len(fields) < 2 || fields[0] == "" {
-			continue
+		switch {
+		case (status[0] == 'R' || status[0] == 'C') && i+2 < len(fields):
+			// A rename or copy names the old path, then the new one.
+			paths = append(paths, fields[i+2])
+			i += 2
+		case i+1 < len(fields):
+			paths = append(paths, fields[i+1])
+			i++
 		}
-		if c := fields[0][0]; c == 'R' || c == 'C' {
-			if len(fields) >= 3 {
-				paths = append(paths, fields[2])
-			}
-			continue
-		}
-		paths = append(paths, fields[1])
 	}
 	return paths, true
 }
