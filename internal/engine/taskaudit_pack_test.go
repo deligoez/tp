@@ -94,6 +94,36 @@ func TestPackTaskAudits_CutsALargeTaskIntoSortedSlices(t *testing.T) {
 	assert.Equal(t, append(files("big", 23)[20:], "c.go"), bs[3].Files())
 }
 
+// TestPackTaskAudits_ABatchAfterAFullOneFillsFromZero: the count restarts at
+// zero after a full batch, so a second ten-file task is full too.
+func TestPackTaskAudits_ABatchAfterAFullOneFillsFromZero(t *testing.T) {
+	t.Parallel()
+	bs := PackTaskAudits([]TaskAuditCandidate{
+		cand("a", "2026-01-01T00:00:00Z", files("a", 10)...),
+		cand("b", "2026-01-02T00:00:00Z", files("b", 10)...),
+	})
+	require.Equal(t, [][]string{{"a"}, {"b"}}, batchIDs(bs))
+	assert.True(t, bs[1].Full, "the second ten files are full at once, not when a later task overflows them")
+
+	bs = PackTaskAudits([]TaskAuditCandidate{
+		cand("a", "2026-01-01T00:00:00Z", files("a", 6)...),
+		cand("b", "2026-01-02T00:00:00Z", files("b", 6)...),
+		cand("c", "2026-01-03T00:00:00Z", files("c", 4)...),
+	})
+	require.Equal(t, [][]string{{"a"}, {"b", "c"}}, batchIDs(bs))
+	assert.True(t, bs[1].Full, "after an overflow the count restarts at zero")
+}
+
+// TestPackTaskAudits_ElevenFilesAreTwoSlices: one file over ten is a second
+// slice, never dropped.
+func TestPackTaskAudits_ElevenFilesAreTwoSlices(t *testing.T) {
+	t.Parallel()
+	bs := PackTaskAudits([]TaskAuditCandidate{cand("e", "2026-01-01T00:00:00Z", files("e", 11)...)})
+	require.Equal(t, [][]string{{"e#0"}, {"e#1"}}, batchIDs(bs))
+	assert.Len(t, bs[0].Files(), 10)
+	assert.Equal(t, []string{"e/f10.go"}, bs[1].Files())
+}
+
 // TestPackTaskAudits_IsPrefixStable: a later close never changes an earlier
 // batch.
 func TestPackTaskAudits_IsPrefixStable(t *testing.T) {
