@@ -124,7 +124,7 @@ func resolveRunnerMap(obj map[string]json.RawMessage, kind UnitKind) (RunnerSpec
 			if _, ok := ParseUnitKind(key); !ok {
 				return RunnerSpec{}, &RunnerShapeError{
 					Field: runnerField + "." + key,
-					Msg:   "not a unit kind; a per-kind runner map keys on the eight unit kinds plus " + runnerDefaultKey,
+					Msg:   "not a unit kind; a per-kind runner map keys on the ten unit kinds plus " + runnerDefaultKey,
 				}
 			}
 		}
