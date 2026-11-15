@@ -6,7 +6,7 @@
 # gone. This hook is the one place the unit itself can still be told, while it
 # is still running.
 #
-# It is deliberately scoped to `review-role` and `audit-role`, the two kinds
+# It is deliberately scoped to `review-role`, `audit-role` and `task-audit-role`, the kinds
 # whose durable write is a file at a path the environment already names. It
 # fires when TP_UNIT_KIND ends in `-role` and applies section 3.3's predicate to
 # $TP_ROUND_DIR/role-$TP_UNIT_ID.ndjson.part - present and wholly parseable -
@@ -26,7 +26,7 @@ set -u
 
 payload=$(cat)
 
-# Only the two role kinds. An unset or non-role TP_UNIT_KIND is not this hook's
+# Only the three role kinds. An unset or non-role TP_UNIT_KIND is not this hook's
 # business, and a session outside a run has no unit at all.
 case ${TP_UNIT_KIND:-} in
 *-role) ;;

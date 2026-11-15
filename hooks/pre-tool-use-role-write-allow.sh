@@ -3,7 +3,7 @@
 # tp-auditor agent definitions register for themselves (v0.35.0 sections 6.3
 # and 6.4).
 #
-# Section 6.3 gives a review-role or audit-role unit exactly one path it may
+# Section 6.3 gives a review-role, audit-role or task-audit-role unit exactly one path it may
 # write - its own findings file at $TP_ROUND_DIR/role-$TP_UNIT_ID.ndjson.part -
 # plus the escalation record `tp escalate` writes on its behalf, and denies
 # every other write. Claude Code's agent frontmatter carries no per-path
@@ -200,7 +200,7 @@ for path in $paths; do
 
 	printf '%s\n' \
 		"tp role scope: $path is not this unit's to write (v0.35.0 §6.3)." \
-		"A review-role or audit-role unit writes exactly one file: ${findings:-none - TP_ROUND_DIR and TP_UNIT_ID are what name it, and this unit has neither}." \
+		"A review-role, audit-role or task-audit-role unit writes exactly one file: ${findings:-none - TP_ROUND_DIR and TP_UNIT_ID are what name it, and this unit has neither}." \
 		"An escalation goes through \`tp escalate\`, which writes the run's escalation record on your behalf." \
 		'Everything else - source, specs, docs, another role, another round, the merged file - is outside this unit.' \
 		'A finding outside your scope belongs in your findings file, not in an edit.' >&2
