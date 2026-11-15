@@ -486,8 +486,10 @@ func commitChangedPaths(dir, sha string) ([]string, bool) {
 			continue
 		}
 		switch {
-		case (status[0] == 'R' || status[0] == 'C') && i+2 < len(fields):
-			// A rename or copy names the old path, then the new one.
+		case (status[0] == 'R' || status[0] == 'C') && strings.Trim(status[1:], "0123456789") == "" && i+2 < len(fields):
+			// A rename or copy (one letter and its score) names the old path,
+			// then the new one. A merge's combined status (RM, MM: one letter
+			// per parent) names one path, and takes the branch below.
 			paths = append(paths, fields[i+2])
 			i += 2
 		case i+1 < len(fields):
