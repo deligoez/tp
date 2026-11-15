@@ -57,6 +57,23 @@ func TestTaskAuditPresence_AStampedTaskWithoutARecordIsOwed(t *testing.T) {
 	assert.Empty(t, TaskAuditOwedTasks(spec, st))
 }
 
+// TestTaskAuditPresence_OneOwedTaskHoldsAConvergedAudit: two clean audit
+// rounds converge the loop, and a single task still owing holds it open.
+func TestTaskAuditPresence_OneOwedTaskHoldsAConvergedAudit(t *testing.T) {
+	t.Parallel()
+	t1 := closedTask("t1", []string{"a.go"}, "security")
+	spec := presenceSpec(t, []string{"security"}, t1)
+	st := auditState(t, spec, AuditConvergeOnAll, []string{codePass}, []string{codePass})
+	for i := range st.AuditRounds {
+		st.AuditRounds[i].Clean = true
+		st.AuditRounds[i].HashScheme = HashSchemeSnapshot
+	}
+	hash := st.AuditRounds[0].SpecHash
+	assert.False(t, AuditLoopDone(spec, st, 2, 0, hash).Done, "one owed task holds the loop")
+	st.TaskAudits = []TaskAuditRecord{read(1, &t1, "a.go")}
+	assert.True(t, AuditLoopDone(spec, st, 2, 0, hash).Done, "read, the loop converges")
+}
+
 // TestTaskAuditPresence_ARoleOutsideThePanelIsNotOwed: a role the spec's
 // audit panel does not hold is never asked, so it is never owed; it is
 // reported instead.
