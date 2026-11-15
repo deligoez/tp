@@ -124,3 +124,12 @@ func TestOwedTaskAuditsNow_ReadsTheRecordedTaskAudits(t *testing.T) {
 	require.NoError(t, SaveReviewState(spec, &ReviewState{TaskAudits: []TaskAuditRecord{read(1, &t1, "a.go")}}))
 	assert.Empty(t, owedTaskAuditsNow(spec))
 }
+
+// TestTaskAuditOwedClause_ShowsAtMostFive: six owed tasks are counted whole
+// and named five at a time.
+func TestTaskAuditOwedClause_ShowsAtMostFive(t *testing.T) {
+	t.Parallel()
+	owed := []string{"t1", "t2", "t3", "t4", "t5", "t6"}
+	assert.Equal(t, "6 closed task(s) owe a task audit (t1, t2, t3, t4, t5): emit it — tp audit s.md --task-audit — "+
+		"run its roles, then tp audit s.md --task-audit --record-inbox", TaskAuditOwedClause(owed, "s.md"))
+}
