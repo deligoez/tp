@@ -103,7 +103,7 @@ tp done create-model "User model at app/Models/User.php. Migration runs." --gate
 `tp resume` reports exactly five phases — `review`, `decompose`, `implement`, `audit`, `release`
 (`internal/engine/phase.go`), derivable with `tp resume --json | jq .phase` across a cycle. `tp lint`
 and `tp ground` are deliberately **not** among them. They are steps you run, not phases an oracle
-tracks, and `tp run` makes the same omission concrete: it drives eight unit kinds
+tracks, and `tp run` makes the same omission concrete: it drives ten unit kinds
 (`internal/engine/unitkind.go`) and none of them grounds anything, so no unattended run ever reaches
 grounding. Ground is the one loop you have to remember inside a spec's cycle.
 
