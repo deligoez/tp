@@ -289,3 +289,24 @@ func TestEpicOwner_AGraphWithoutOwnersPrintsNoOwnerAnywhere(t *testing.T) {
 		assert.NotContains(t, stdout, "owner", "%v", args)
 	}
 }
+
+// TestEpicOwner_AnEpicNamingOnlyUndeclaredHandlesIsUnowned: such an epic is
+// a lint error, and no --owner can name its handles, so --unowned shows it
+// rather than every filter hiding it.
+func TestEpicOwner_AnEpicNamingOnlyUndeclaredHandlesIsUnowned(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{
+  "version": 1,
+  "milestones": [["A"]],
+  "owners": [{"handle": "ana"}],
+  "epics": [
+    {"id": "w", "title": "W", "milestone": "A", "root": true, "owner": ["zed"]},
+    {"id": "v", "title": "V", "milestone": "A", "root": true, "owner": ["zed", "ana"]}
+  ]
+}
+`)
+	ready, _ := readyIDs(t, dir, "--unowned")
+	assert.Equal(t, []string{"w"}, ready)
+	ready, _ = readyIDs(t, dir, "--owner", "ana")
+	assert.Equal(t, []string{"v"}, ready)
+}
