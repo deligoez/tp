@@ -117,3 +117,32 @@ func TestEpicOwner_AHandleTheSetDoesNotDeclareIsUnknownOwner(t *testing.T) {
 	assert.Equal(t, []string{"e1"}, got[0].Epics)
 	assert.Contains(t, got[0].Message, `"zed"`)
 }
+
+// TestEpicOwner_OwnerHandleFlagsWhatWouldSplitOnePersonInTwo: handles are
+// compared byte for byte, so the rule flags each shape that would let one
+// person be two handles, and a clean set yields nothing.
+func TestEpicOwner_OwnerHandleFlagsWhatWouldSplitOnePersonInTwo(t *testing.T) {
+	cases := []struct {
+		name    string
+		handles []string
+		owners  [][]string
+		want    string
+	}{
+		{"blank", []string{"ana", ""}, nil, `a blank handle`},
+		{"leading space", []string{" ana"}, nil, `" ana"`},
+		{"trailing space", []string{"ana "}, nil, `"ana "`},
+		{"declared twice", []string{"ana", "ana"}, nil, `"ana" twice`},
+		{"equal ignoring case", []string{"ana", "Ana"}, nil, `"Ana"`},
+		{"named twice by one epic", []string{"ana"}, [][]string{{"ana", "ana"}}, `"ana" twice`},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := ownerFindings(ownedGraph(c.handles, c.owners...))
+			require.Len(t, got, 1, "%+v", got)
+			assert.Equal(t, EpicRuleOwnerHandle, got[0].Rule)
+			assert.Equal(t, EpicSeverityError, got[0].Severity)
+			assert.Contains(t, got[0].Message, c.want)
+		})
+	}
+	assert.Empty(t, ownerFindings(ownedGraph([]string{"ana", "ben"}, []string{"ben", "ana"})))
+}
