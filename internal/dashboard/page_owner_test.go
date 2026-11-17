@@ -224,3 +224,19 @@ func TestPage_TheSelectionWinsOverTheOwnerDim(t *testing.T) {
 	assert.Contains(t, script, `    if (P.sel >= 0) return inChain(P, n.i) ? pure.chainAlpha(stepsOf(P, n.i), G.whole) : 40;
     if (P.owners.length && !pure.ownerSelected(n.owner, P.owners, G.ownerSel)) return 50;`)
 }
+
+// TestPage_OtherOperatorRowsStartUnderTheirOwnHeading: with the conditions
+// grouped by owner, the rows no owner group holds (choose-one groups, gates,
+// threshold rewrites, slices, escalations) start under their own counted
+// heading so none reads as the last owner's; without owner groups the list
+// is the plain one it was.
+func TestPage_OtherOperatorRowsStartUnderTheirOwnHeading(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, s := range []string{
+		`const grouped = ownerGrouped(v);`,
+		`return grouped && rest.length ? conds.concat(['<h3 class="ogroup">' + esc(t("op.other")) + ' <span class="num muted">' + esc(t.num(rest.length)) + "</span></h3>"], rest) : conds.concat(rest);`,
+	} {
+		assert.Contains(t, script, s)
+	}
+}
