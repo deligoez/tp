@@ -133,6 +133,8 @@ func TestEpicOwner_OwnerHandleFlagsWhatWouldSplitOnePersonInTwo(t *testing.T) {
 		{"trailing space", []string{"ana "}, nil, `"ana "`},
 		{"declared twice", []string{"ana", "ana"}, nil, `"ana" twice`},
 		{"equal ignoring case", []string{"ana", "Ana"}, nil, `"Ana"`},
+		{"equal under Unicode case folding", []string{"ας", "ασ"}, nil, `"ασ"`},
+		{"long s folds to s", []string{"sam", "ſam"}, nil, `"ſam"`},
 		{"named twice by one epic", []string{"ana"}, [][]string{{"ana", "ana"}}, `"ana" twice`},
 	}
 	for _, c := range cases {
