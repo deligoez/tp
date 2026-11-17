@@ -381,7 +381,7 @@ func TestPage_TheGraphDrawsByLabelSizeWithItsOwnZoomAndKeys(t *testing.T) {
 	for _, s := range []string{
 		"G.detail = pure.detailLevel(P.geo.fs * scale);", "pure.fitId(out.label, geo.chars)", "const nodeText = (n) => n.text;", "getSize: (n) => P.geo.fs * n.fit,", `getAlignmentBaseline: "center", lineHeight: 1.25,`,
 		"epic: { w: 150, h: 32, col: 172, row: 44, fs: 11, chars: 20 },",
-		"mix(mark, bandFill(c, n.band), REGION_TINT)", "return G.detail === \"far\" ? 0 : 1;", "G.colors = pure.graphPalette(tok);",
+		"mix(mark, bandFill(c, n.band), REGION_TINT)", "return G.detail === \"far\" && !ownerPainted(P) ? 0 : 1;", "G.colors = pure.graphPalette(tok);",
 		"background: true, getBackgroundColor: [...c.page, 235]", "pure.fitFloor(P.nodes.length, P.L.view, P.geo.fs)",
 		"if (refit && G.prepared && G.deck && G.atFit) fit();", `$("gc-zin").addEventListener("click"`, `$("gc-nfs").textContent = $("gc-n").textContent;`,
 		`crossFar: [24, 28, 0.6], cross: [40, 45, 0.75]`, `tree: [170, 150, 1.4]`,
