@@ -85,3 +85,14 @@ out([P.ownerNamesHTML(owners, ["ana", "<b>h</b>"]), P.ownerOptionsHTML(owners, 0
 		[true, true, true]
 	]`, got)
 }
+
+// TestPage_TheDrawerListsTheEpicsOwnersOnlyWhenOwnersAreDeclared: the
+// epic drawer's fields carry an owner row, its owners in order through the
+// escaping helper, and only when the graph declares owners and the epic
+// names one, so a graph without owners draws the drawer it drew before.
+func TestPage_TheDrawerListsTheEpicsOwnersOnlyWhenOwnersAreDeclared(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Contains(t, script, `owners.length && (ge.owner || []).length ? [t("drawer.f.owner"), tpPure.ownerNamesHTML(owners, ge.owner), true] : null,`)
+	assert.Contains(t, script, `const owners = (g.graph && g.graph.owners) || [];`)
+}
