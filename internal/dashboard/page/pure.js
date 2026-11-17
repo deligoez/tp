@@ -861,6 +861,9 @@
   P.OWNER_SLOTS = 8;
   // ownerIndex is handle's place in owners, -1 when it declares none.
   const ownerIndex = (owners, handle) => (owners || []).findIndex((o) => o.handle === handle);
+  // ownerless says whether owner, an epic's list, names no declared owner:
+  // what the page calls unowned, a list of undeclared handles included.
+  const ownerless = (owner, owners) => !(owner || []).some((h) => ownerIndex(owners, h) >= 0);
   // ownerLabel is how the page names handle: its display name when the set
   // gives one, the handle otherwise, an undeclared handle as it is.
   P.ownerLabel = function (owners, handle) {
@@ -876,31 +879,30 @@
     return Math.min(i, P.OWNER_SLOTS);
   };
   // ownerSelected says whether an epic whose owner list is owner passes the
-  // map's owner selection sel: undefined keeps every epic, null the unowned,
+  // map's owner selection sel: undefined keeps every epic, null the unowned
+  // (ownerless),
   // a number the epics naming the owner at that place in owners.
   P.ownerSelected = function (owner, owners, sel) {
     if (sel === undefined) return true;
-    const list = owner || [];
-    if (sel === null) return list.length === 0;
+    if (sel === null) return ownerless(owner, owners);
     const o = (owners || [])[sel];
-    return !!o && list.includes(o.handle);
+    return !!o && (owner || []).includes(o.handle);
   };
   // ownerLegend counts epics, each { owner }, by membership: an epic counts
   // under every owner it names, whatever colour paints it. owners lists the
   // first OWNER_SLOTS declared owners with an epic, { slot, label, n }, in
   // declaration order; other, null when the set is no longer, counts the
   // owners past them and once each epic naming any of them; unowned counts
-  // the epics naming no one.
+  // the epics naming no declared owner (ownerless).
   P.ownerLegend = function (owners, epics) {
     const set = owners || [];
     const n = set.map(() => 0);
     let other = 0;
     let unowned = 0;
     (epics || []).forEach((e) => {
-      const list = e.owner || [];
-      if (!list.length) unowned++;
+      if (ownerless(e.owner, set)) unowned++;
       let past = false;
-      list.forEach((h) => {
+      (e.owner || []).forEach((h) => {
         const i = ownerIndex(set, h);
         if (i >= P.OWNER_SLOTS) past = true;
         else if (i >= 0) n[i]++;
