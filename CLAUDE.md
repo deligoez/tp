@@ -81,7 +81,9 @@ its first round delete or narrow; they do not add requirements.
 Open work is `BUGS.md` (the fix track, and entries awaiting an operator decision); the decision
 candidates in `spec/backlog/` are worked through. A shipped decision note leaves for
 `spec/backlog/ARCHIVE.md`, one row each naming the release and the sha to read it at; what the release
-measured stays in `spec/<version>-measurements.md`. v1.22.0 audits each closed task's own files in
+measured stays in `spec/<version>-measurements.md`. v1.23.0 gives an epic an owner: a declared
+`owners` set and `epics[].owner`, filtered by `--owner`/`--unowned` and drawn on the dashboard
+(`spec/1.23.0-measurements.md`). v1.22.0 audits each closed task's own files in
 batches of ten through `task_audit_roles` (`tp audit --task-audit`; `spec/1.22.0-measurements.md`), after
 the audit trial in `spec/1.21.1-measurements.md` showed one prompt over a long file list skims. v1.21.0
 records an emitted review round only from its inbox and reuses a parallel unit's gate when the main
