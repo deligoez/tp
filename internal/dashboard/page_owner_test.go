@@ -240,3 +240,10 @@ func TestPage_OtherOperatorRowsStartUnderTheirOwnHeading(t *testing.T) {
 		assert.Contains(t, script, s)
 	}
 }
+
+// TestPage_TheTurkishOwnerHeadingNamesTheDecider: the owner of a condition
+// is who decides it, so its Turkish heading names the owner as the decider.
+func TestPage_TheTurkishOwnerHeadingNamesTheDecider(t *testing.T) {
+	t.Parallel()
+	assert.Contains(t, string(served(t, "/i18n/tr.json")), `"op.waitingOn": "Karar sahibi: {owner}",`)
+}
