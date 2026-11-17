@@ -69,3 +69,19 @@ out([P.ownerLegend(owners, [{ owner: ["zed"] }, { owner: [] }]).unowned,
   P.ownerSelected(["zed"], owners, null), P.ownerSelected(["zed", "ben"], owners, null)]);`)
 	assert.JSONEq(t, `[2, true, false]`, got)
 }
+
+// TestPure_OwnerMarkupIsEscapedWhereItIsWritten: a handle and a display
+// name are author content, so the drawer's owner list and the map's owner
+// selector write markup in them as text; the selector's values are places
+// in the set and "u" for the unowned, never a handle.
+func TestPure_OwnerMarkupIsEscapedWhereItIsWritten(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const owners = [{ handle: "<b>h</b>" }, { handle: "ana", name: "<img src=x onerror=1>" }];
+out([P.ownerNamesHTML(owners, ["ana", "<b>h</b>"]), P.ownerOptionsHTML(owners, 0, T),
+  [P.ownerSel("") === undefined, P.ownerSel("u") === null, P.ownerSel("1") === 1]]);`)
+	assert.JSONEq(t, `[
+		"<span class=\"downer\">&lt;img src=x onerror=1&gt;</span>, <span class=\"downer\">&lt;b&gt;h&lt;/b&gt;</span>",
+		"<option value=\"\">All owners</option><option value=\"0\" selected>&lt;b&gt;h&lt;/b&gt;</option><option value=\"1\">&lt;img src=x onerror=1&gt;</option><option value=\"u\">Unowned</option>",
+		[true, true, true]
+	]`, got)
+}
