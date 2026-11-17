@@ -205,3 +205,12 @@ out([sel, P.ownerResolve(dropped, sel) === undefined, P.ownerResolve(moved, sel)
   P.ownerSelKey(undefined) !== P.ownerSelKey("undefined"), P.ownerSelKey(null) !== P.ownerSelKey("unowned")]);`)
 	assert.JSONEq(t, `["cem", true, "cem", true, true, true, true, true, "unowned", true, false, true, true]`, got)
 }
+
+// TestPage_OwnerColourKeepsTheStateBorderFarOut: with the fill in the
+// owner's colour the border is the only state mark, so the far view, which
+// otherwise draws no border, keeps one while owners paint the nodes.
+func TestPage_OwnerColourKeepsTheStateBorderFarOut(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Contains(t, script, `return G.detail === "far" && !ownerPainted(P) ? 0 : 1;`)
+}
