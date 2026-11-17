@@ -76,6 +76,9 @@
     deck: null, deckState: "idle", visible: false, built: null, builtFor: null, prepared: null,
     vs: null, detail: "near", fitted: null, matchIdx: -1, colors: null, loadMs: null, firstDrawMs: null,
     sets: null, setsKey: null, drawing: null, msgKey: tk("graph.notYet"), pinch: 1, gesture: false, themeVer: 0,
+    // ownerSel is the owner selector's choice (tpPure.ownerSelected's sel)
+    // and ownerColour the colour-by-owner switch (spec/backlog/epic-owner.md).
+    ownerSel: undefined, ownerColour: false,
   };
   window.tpGraph = G;
 
@@ -99,6 +102,20 @@
     G.colors = pure.graphPalette(tok);
   }
   const mix = (a, b, t) => a.map((x, i) => Math.round(x + (b[i] - x) * t));
+
+  // ---------- owners (spec/backlog/epic-owner.md) ----------
+  // ownersOf is the export's declared owners set, [] when it declares none.
+  const ownersOf = (g) => (g && g.graph && g.graph.owners) || [];
+  // ownerPainted says whether nodes are filled in their owner's colour: the
+  // switch is on and the drawing holds owned epics.
+  const ownerPainted = (P) => G.ownerColour && P.owners.length > 0;
+  // ownerSlotOf is n's slot in the owner palette: its first declared
+  // owner's, "other" past the eighth, the unowned's last one when it names
+  // no declared owner.
+  function ownerSlotOf(P, n) {
+    const first = (n.owner || []).find((h) => pure.ownerSlot(P.owners, h) !== null);
+    return first === undefined ? pure.OWNER_SLOTS + 1 : pure.ownerSlot(P.owners, first);
+  }
 
   // ---------- loading deck.gl, once and lazily ----------
   function hasWebGL2() {
@@ -206,7 +223,7 @@
     const x = n.col * geo.col;
     const y = n.layer * geo.row;
     const out = { i, id: n.id, x, y, w: geo.w, h: geo.h, mark: null, hold: null, label: n.id, ms: n.milestone || null, title: "", cond: false,
-      centre: !!n.centre, deferrable: !!n.deferrable, layer: n.layer, col: n.col, status: null };
+      centre: !!n.centre, deferrable: !!n.deferrable, layer: n.layer, col: n.col, status: null, owner: [] };
     if (L.view === "milestones") {
       out.mark = n.open ? (n.epics && n.done === n.epics ? "done" : "ready") : "waiting";
       out.label = milestoneLabel(n);
@@ -220,7 +237,12 @@
       out.title = (ctx.titles[n.id] && ctx.titles[n.id].title) || e.title || "";
       out.cond = !!e.condition;
       out.status = e.status;
-      out.label = n.id + (ctx.described.has(n.id) ? " ¶" : "");
+      // An epic's owners in order, read only when the graph declares owners;
+      // one with more than one carries "+N", painted in its first owner's
+      // colour.
+      const owner = (ctx.owners.length && ctx.titles[n.id] && ctx.titles[n.id].owner) || [];
+      out.owner = owner;
+      out.label = n.id + (ctx.described.has(n.id) ? " ¶" : "") + (owner.length > 1 ? " +" + (owner.length - 1) : "");
     }
     // The id whole in its fixed-width box: wrapped at punctuation marks, and
     // drawn smaller in more lines when two would not hold it (tpPure.fitId);
@@ -269,7 +291,8 @@
     // described is the graph's epics with a description, each marked ¶
     // after its id.
     const described = new Set(((g.graph && g.graph.epics) || []).filter((e) => String(e.description || "").trim()).map((e) => e.id));
-    const ctx = { geo, epics: {}, reports: {}, titles: {}, described };
+    const owners = L.view === "milestones" ? [] : ownersOf(g);
+    const ctx = { geo, epics: {}, reports: {}, titles: {}, described, owners };
     (g.epics || []).forEach((e) => { ctx.epics[e.id] = e; });
     (g.milestones || []).forEach((m) => { ctx.reports[m.milestone] = m; });
     ((g.graph && g.graph.epics) || []).forEach((e) => { ctx.titles[e.id] = e; });
@@ -300,7 +323,7 @@
       if (l.critical) counts.edges.critical = (counts.edges.critical || 0) + 1;
       if (l.any) counts.edges.any = (counts.edges.any || 0) + 1;
     });
-    return { L, geo, nodes, links, preds, succs, bands, bounds, counts, index, described, charSet: pure.glyphsOf(nodes, bands), sel: -1, anc: null, desc: null, ver: 0 };
+    return { L, geo, nodes, links, preds, succs, bands, bounds, counts, index, described, owners, charSet: pure.glyphsOf(nodes, bands), sel: -1, anc: null, desc: null, ver: 0 };
   }
 
   // curve is an edge's path: a cubic from the bottom of its dependency to
@@ -358,6 +381,7 @@
   const staged = (n) => !n.status || app.inStage(n);
   function nodeAlpha(P, hits, n) {
     if (G.hiddenMarks.has(n.mark)) return 28;
+    if (P.owners.length && !pure.ownerSelected(n.owner, P.owners, G.ownerSel)) return 50;
     if (P.sel >= 0) return inChain(P, n.i) ? pure.chainAlpha(stepsOf(P, n.i), G.whole) : 40;
     if (hits && !hits.has(n.i)) return 50;
     return staged(n) ? 255 : 50;
@@ -371,6 +395,7 @@
   function nodeFill(P, hits) {
     const c = G.colors;
     return (n) => {
+      if (ownerPainted(P)) return [...c.owner.fill[ownerSlotOf(P, n)], nodeAlpha(P, hits, n)];
       const mark = c.mark[n.mark] || c.muted;
       const fill = G.detail !== "far" ? c.fill[n.mark] || mark : n.band >= 0 ? mix(mark, bandFill(c, n.band), REGION_TINT) : mark;
       return [...fill, nodeAlpha(P, hits, n)];
@@ -497,7 +522,7 @@
     const scale = Math.pow(2, G.vs.zoom);
     G.detail = pure.detailLevel(P.geo.fs * scale);
     const hits = matches(P);
-    const v = [P.ver, G.q, G.detail, pure.crossShown(G), G.whole, [...G.hiddenMarks].join(), [...G.hiddenEdges].join(), G.themeVer, app.stage()];
+    const v = [P.ver, G.q, G.detail, pure.crossShown(G), G.whole, [...G.hiddenMarks].join(), [...G.hiddenEdges].join(), G.themeVer, app.stage(), String(G.ownerSel), G.ownerColour];
     const fontSettings = { sdf: true, fontSize: 64, buffer: 6, radius: 12, cutoff: 0.22 };
     const dash = window.deck.PathStyleExtension ? [new window.deck.PathStyleExtension({ dash: true })] : [];
     const sets = edgeSets(P);
@@ -782,6 +807,15 @@
     }
     $("gc-ms").value = gateMilestone(g) || "";
     $("gc-depth").value = String(G.depth);
+    // The owner selector and the colour-by-owner switch show when the graph
+    // declares owners and epics are drawn (spec/backlog/epic-owner.md).
+    const owned = ownersOf(g).length > 0 && G.mode !== "milestones";
+    $("gc-owner-pick").hidden = !owned;
+    $("gc-ocolour").hidden = !owned;
+    if (owned) {
+      $("gc-owner").innerHTML = pure.ownerOptionsHTML(ownersOf(g), G.ownerSel, app.tr());
+      $("gc-ocolour").setAttribute("aria-pressed", String(G.ownerColour));
+    }
     $("gc-cross").setAttribute("aria-pressed", String(pure.crossShown(G)));
     // The search's placeholder names what it finds in this mode.
     $("gc-q").placeholder = t(G.mode === "milestones" ? tk("graph.searchMilestone") : tk("graph.search"));
@@ -796,8 +830,14 @@
     // included, so they differ from the plan figures above), then one row
     // of edge toggles; since 1.17.1 no heading says so, the counts sit on
     // the marks themselves.
+    // With the colour-by-owner switch on, a node's fill is its owner's
+    // colour and its border the state mark: the owners, counted by
+    // membership, and the marks, each drawn as a border, under headings.
+    const painted = ownerPainted(P);
+    const owned = painted ? '<span class="lsec">' + escape(t("graph.legend.owner")) + "</span>" + ownerRows(P, rgb) +
+      '<span class="lsec">' + escape(t("graph.legend.state")) + "</span>" : "";
     const marks = MARKS.filter(([k]) => P.counts.marks[k]).map(([k]) =>
-      '<button type="button" data-lmark="' + k + '" aria-pressed="' + !G.hiddenMarks.has(k) + '"><i style="background:' + rgb(c.mark[k]) + '"></i>' + escape(app.markWord(k)) + " <b>" + escape(app.tr().num(P.counts.marks[k])) + "</b></button>").join("");
+      '<button type="button" data-lmark="' + k + '" aria-pressed="' + !G.hiddenMarks.has(k) + '"><i' + (painted ? ' class="bd" style="border-color:' : ' style="background:') + rgb(c.mark[k]) + '"></i>' + escape(app.markWord(k)) + " <b>" + escape(app.tr().num(P.counts.marks[k])) + "</b></button>").join("");
     const ecol = { tree: c.tree, cross: c.muted, back: c.back, critical: c.crit, any: c.accent };
     const edges = EDGE_CLASSES.filter((k) => P.counts.edges[k]).map((k) =>
       '<button type="button" data-ledge="' + k + '" aria-pressed="' + (k === "cross" ? pure.crossShown(G) : !G.hiddenEdges.has(k)) + '"><i class="ln" style="background:' + rgb(ecol[k]) + (k === "cross" ? ";opacity:.45" : "") + '"></i>' + escape(t(EDGE_TEXT[k])) + " <b>" + escape(app.tr().num(P.counts.edges[k])) + "</b></button>").join("");
@@ -806,9 +846,31 @@
     const sel = P.sel >= 0 ? '<span><i class="ln" style="background:' + rgb(c.anc) + '"></i>' + escape(t("graph.waitsOn")) + " <b>" + escape(t("graph.near", { n: P.anc.size, near: pure.withinTwo(P.anc) })) +
       '</b></span><span><i class="ln" style="background:' + rgb(c.desc) + '"></i>' + escape(t("graph.waitedOn")) + " <b>" + escape(t("graph.near", { n: P.desc.size, near: pure.withinTwo(P.desc) })) + "</b></span>" +
       '<button type="button" data-lwhole aria-pressed="' + G.whole + '">' + escape(t("graph.whole")) + "</button>" : "";
-    $("gc-legend").innerHTML = marks + '<span class="lhead"></span>' + edges + sel +
+    $("gc-legend").innerHTML = owned + marks + '<span class="lhead"></span>' + edges + sel +
       '<span class="help">' + escape((P.L.view === "milestones" ? t("graph.help.milestones") : t("graph.help.epics")) + " " + t("graph.help.input")) + "</span>";
   }
+  // ownerRows are the owner legend's swatches (tpPure.ownerLegend): each
+  // owner with an epic drawn, counted by membership, then "other" for the
+  // owners past the eighth and the unowned, each counted.
+  function ownerRows(P, rgb) {
+    const c = G.colors;
+    const lg = pure.ownerLegend(P.owners, P.nodes);
+    const sw = (slot, label, n) => '<span><i style="background:' + rgb(c.owner.fill[slot]) + ";box-shadow:inset 0 0 0 1px " + rgb(c.owner.line[slot]) + '"></i>' +
+      escape(label) + " <b>" + escape(app.tr().num(n)) + "</b></span>";
+    return lg.owners.map((o) => sw(o.slot, o.label, o.n)).join("") +
+      (lg.other ? sw(pure.OWNER_SLOTS, t("graph.legend.other", { n: lg.other.owners }), lg.other.n) : "") +
+      (lg.unowned ? sw(pure.OWNER_SLOTS + 1, t("graph.owner.unowned"), lg.unowned) : "");
+  }
+  $("gc-owner").addEventListener("change", (ev) => {
+    G.ownerSel = pure.ownerSel(ev.target.value);
+    render();
+  });
+  $("gc-ocolour").addEventListener("click", () => {
+    G.ownerColour = !G.ownerColour;
+    drawToolbar(app.data("epic-export") || {});
+    drawLegend();
+    render();
+  });
   $("gc-legend").addEventListener("click", (ev) => {
     const m = ev.target.closest("[data-lmark]");
     const e = ev.target.closest("[data-ledge]");
