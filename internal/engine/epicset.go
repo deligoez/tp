@@ -23,7 +23,7 @@ func (e *EpicNotFoundError) Error() string {
 }
 
 // EpicGraphSetKeys are the top-level keys tp epic set replaces whole (§3).
-var EpicGraphSetKeys = []string{"milestones", "opens_after", "gates", "tag_checks"}
+var EpicGraphSetKeys = []string{"milestones", "opens_after", "gates", "tag_checks", "owners"}
 
 // EpicFieldSetKeys are the epic fields tp epic set <id> writes. title,
 // milestone, acceptance and description take the value as written, a blank
@@ -63,6 +63,12 @@ func ParseEpicGraphSet(key, value string) (func(*model.EpicGraph) error, error) 
 			return nil, err
 		}
 		return func(g *model.EpicGraph) error { g.TagChecks = checks; return nil }, nil
+	case "owners":
+		var owners []model.EpicOwner
+		if err := decodeStrict(value, &owners); err != nil {
+			return nil, err
+		}
+		return func(g *model.EpicGraph) error { g.Owners = owners; return nil }, nil
 	}
 	return nil, fmt.Errorf("unknown key %q: one of %v", key, EpicGraphSetKeys)
 }
