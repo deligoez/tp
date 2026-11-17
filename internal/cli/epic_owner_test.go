@@ -51,3 +51,21 @@ func TestEpicOwner_SetOwnersReplacesTheWholeSet(t *testing.T) {
 	set, _ := graphOwners(t, dir)
 	assert.Equal(t, []map[string]string{{"handle": "ana"}, {"handle": "ben", "name": "Ben B."}, {"handle": "cem"}}, set)
 }
+
+// TestEpicOwner_SetOwnerWritesTheListInOrderAndEmptyUnsetsIt: the list keeps
+// the order written, and [] leaves no owner key behind.
+func TestEpicOwner_SetOwnerWritesTheListInOrderAndEmptyUnsetsIt(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, ownerGraph)
+
+	_, stderr, code := runTP(t, dir, "epic", "set", "d", `owner=["ben","ana"]`)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	_, owner := graphOwners(t, dir)
+	assert.Equal(t, []string{"ben", "ana"}, owner["d"])
+
+	_, stderr, code = runTP(t, dir, "epic", "set", "d", "owner=[]")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	_, owner = graphOwners(t, dir)
+	assert.Nil(t, owner["d"])
+	assert.NotContains(t, string(readEpicGraphFile(t, dir)), `"owner": []`)
+}
