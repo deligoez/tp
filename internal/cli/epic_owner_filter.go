@@ -13,11 +13,13 @@ import (
 )
 
 // epicOwnerFilter keeps the entries whose owner names one of handles, and
-// with unowned the ones with no owner; with neither it keeps everything
-// (spec/backlog/epic-owner.md).
+// with unowned the ones with no declared owner; with neither it keeps
+// everything (spec/backlog/epic-owner.md). An epic naming only handles the
+// set does not declare reads as unowned, so some filter always shows it.
 type epicOwnerFilter struct {
-	handles []string
-	unowned bool
+	handles  []string
+	unowned  bool
+	declared []string
 }
 
 // addEpicOwnerFlags registers --owner and --unowned on cmd.
@@ -42,7 +44,7 @@ func epicOwnerFilterOrExit(cmd *cobra.Command, g *model.EpicGraph) epicOwnerFilt
 			os.Exit(ExitUsage)
 		}
 	}
-	return epicOwnerFilter{handles: handles, unowned: unowned}
+	return epicOwnerFilter{handles: handles, unowned: unowned, declared: declared}
 }
 
 // on reports whether f filters at all.
@@ -55,7 +57,7 @@ func (f epicOwnerFilter) keeps(owner []string) bool {
 	if !f.on() {
 		return true
 	}
-	if len(owner) == 0 {
+	if !slices.ContainsFunc(owner, func(h string) bool { return slices.Contains(f.declared, h) }) {
 		return f.unowned
 	}
 	return slices.ContainsFunc(owner, func(h string) bool { return slices.Contains(f.handles, h) })
