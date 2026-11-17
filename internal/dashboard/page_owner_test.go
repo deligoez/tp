@@ -112,7 +112,7 @@ func TestPage_TheOperatorsConditionsGroupByWhoseDecisionItIs(t *testing.T) {
 		`const by = tpPure.ownerGroups(owners, ids, (id) => (graphEpic(v.g, id) || {}).owner);`,
 		`esc(t("op.toDecide", { n: by.total }))`,
 		`esc(gr.owner === null ? t("op.unowned") : t("op.waitingOn", { owner: gr.label }))`,
-		`const ops = conditionRows(v, done);`,
+		`const conds = conditionRows(v, done);`,
 	} {
 		assert.Contains(t, script, s)
 	}
