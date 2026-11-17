@@ -852,6 +852,40 @@
     return t;
   };
 
+  // ---------- owners (spec/backlog/epic-owner.md) ----------
+  // An owner is a handle the graph's owners set declares. The page keys an
+  // owner by its place in that set and the unowned by null, never by a
+  // string, so a handle spelled like a word the page uses stays an owner.
+  // OWNER_SLOTS is how many owners get a colour of their own; the rest share
+  // the slot OWNER_SLOTS ("other").
+  P.OWNER_SLOTS = 8;
+  // ownerIndex is handle's place in owners, -1 when it declares none.
+  const ownerIndex = (owners, handle) => (owners || []).findIndex((o) => o.handle === handle);
+  // ownerLabel is how the page names handle: its display name when the set
+  // gives one, the handle otherwise, an undeclared handle as it is.
+  P.ownerLabel = function (owners, handle) {
+    const o = (owners || [])[ownerIndex(owners, handle)];
+    return o && o.name ? o.name : String(handle);
+  };
+  // ownerSlot is handle's colour slot: its place in the set up to
+  // OWNER_SLOTS - 1, OWNER_SLOTS past it, null for no handle or one the set
+  // does not declare.
+  P.ownerSlot = function (owners, handle) {
+    const i = handle === null || handle === undefined ? -1 : ownerIndex(owners, handle);
+    if (i < 0) return null;
+    return Math.min(i, P.OWNER_SLOTS);
+  };
+  // ownerSelected says whether an epic whose owner list is owner passes the
+  // map's owner selection sel: undefined keeps every epic, null the unowned,
+  // a number the epics naming the owner at that place in owners.
+  P.ownerSelected = function (owner, owners, sel) {
+    if (sel === undefined) return true;
+    const list = owner || [];
+    if (sel === null) return list.length === 0;
+    const o = (owners || [])[sel];
+    return !!o && list.includes(o.handle);
+  };
+
   if (typeof module === "object" && module.exports) module.exports = P;
   else root.tpPure = P;
 })(this);
