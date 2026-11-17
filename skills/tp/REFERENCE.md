@@ -2648,6 +2648,19 @@ The epic drawer shows a selected epic's `description` (v1.11.0), read from the e
 as markdown (v1.17.1): headings, lists, tables, fenced code, bold, italic, code spans and http(s)
 links are drawn, and everything else, raw HTML and other link schemes included, is escaped text.
 
+**Owners** (v1.23.0), read from the export's raw graph and drawn only when it declares `owners`;
+without them the page is the one it was before. Every handle and display name is escaped text.
+The drawer lists an epic's owners in order, by display name or handle. The graph card offers an
+owner selector, which keeps one owner's epics, or the unowned ones, lit and dims the rest, and a
+colour-by-owner switch: the fill is the epic's first owner's colour and the border keeps its state
+mark, the legend showing the two under separate headings. A colour is taken by position in the
+declared set from eight slots, defined for both themes; owners past the eighth share one "other"
+swatch, unowned epics have their own, and an epic with more than one owner carries a `+N` mark.
+Legend counts are by membership, never by paint. The operator view groups the conditions to decide
+under "waiting on <owner>", a condition with two owners under each, so group counts can sum past
+the conditions, whose distinct number heads the list; the unowned group comes last. An epic naming
+only handles the set does not declare counts as unowned.
+
 **Language** (v1.17.0). The page reads in English or Turkish: an EN | TR switch in its header
 picks one, the browser keeps the choice, and without one a browser language starting `tr` reads
 Turkish and any other English. The words come from `/i18n/<lang>.json`; every API answer and
