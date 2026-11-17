@@ -901,8 +901,9 @@
   // ownerLegend counts epics, each { owner }, by membership: an epic counts
   // under every owner it names, whatever colour paints it. owners lists the
   // first OWNER_SLOTS declared owners with an epic, { slot, label, n }, in
-  // declaration order; other, null when the set is no longer, counts the
-  // owners past them and once each epic naming any of them; unowned counts
+  // declaration order; other counts the owners past them and once each epic
+  // naming any of them, null when the set is no longer or none of those
+  // owners has an epic, as an owner with none has no row; unowned counts
   // the epics naming no declared owner (ownerless).
   P.ownerLegend = function (owners, epics) {
     const set = owners || [];
@@ -921,7 +922,7 @@
     });
     const rows = [];
     set.slice(0, P.OWNER_SLOTS).forEach((o, i) => { if (n[i]) rows.push({ slot: i, label: P.ownerLabel(set, o.handle), n: n[i] }); });
-    return { owners: rows, other: set.length > P.OWNER_SLOTS ? { owners: set.length - P.OWNER_SLOTS, n: other } : null, unowned };
+    return { owners: rows, other: set.length > P.OWNER_SLOTS && other ? { owners: set.length - P.OWNER_SLOTS, n: other } : null, unowned };
   };
   // ownerGroups groups ids, the conditions waiting on a decision, by whose
   // decision it is (ownerOf(id) is an id's owner list): one group per
