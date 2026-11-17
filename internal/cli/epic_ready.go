@@ -127,6 +127,7 @@ func newEpicReadyCmd() *cobra.Command {
 		RunE:  runEpicReady,
 	}
 	cmd.Flags().Bool("all", false, "list epics of milestones that are not open yet too, and every condition not done, actionable or not")
+	addEpicOwnerFlags(cmd)
 	return cmd
 }
 
@@ -135,9 +136,12 @@ func newEpicReadyCmd() *cobra.Command {
 func runEpicReady(cmd *cobra.Command, _ []string) error {
 	all, _ := cmd.Flags().GetBool("all")
 	g, states, bound := loadEpicStates()
+	filter := epicOwnerFilterOrExit(cmd, g)
 	matcher := epicPlaceholderMatcher(engine.DiscoverTPDir("."))
 	readiness := engine.EpicReady(g, states, bound, all)
-	if err := output.JSON(epicReadyReport(g, &readiness, matcher, flagCompact)); err != nil {
+	report := epicReadyReport(g, &readiness, matcher, flagCompact)
+	filter.filterReady(&report)
+	if err := output.JSON(report); err != nil {
 		output.Error(ExitFile, err.Error(), internalEncodeHint)
 		os.Exit(ExitFile)
 	}
