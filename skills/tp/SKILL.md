@@ -612,7 +612,11 @@ from a done record.
    file's phase and loop states: read it rather than tp's state files.
 2. **Claim to reserve.** `tp epic claim <id> [--by <name>]` before you plan an epic, so a parallel
    agent sees it taken; `--release` gives it back. A blocked epic or one in a closed milestone can be
-   claimed. It runs under `TP_UNATTENDED`: an agent reserves its own work.
+   claimed. It runs under `TP_UNATTENDED`: an agent reserves its own work. A claim says who is on an
+   epic now; whose job it is, or who decides a condition, is its `owner` (v1.23.0): handles from the
+   graph's declared `owners` set, written with `tp epic set <id> owner='["ana"]'` and never matched
+   against `--by`. `tp epic ready --owner <h>` and `tp epic status --owner <h>` keep one owner's
+   entries, `--unowned` the ones nobody owns.
 3. **Bind when you start.** `tp init <spec> --epic <id>`, or `tp set --epic <id>` on an existing task
    file, once you write the epic's spec: binding is the decision to start it, its status follows the
    file from then on, and its claim is ignored. Write one spec per epic (a family shares a design
