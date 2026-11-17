@@ -26,3 +26,17 @@ out([
 ]);`)
 	assert.JSONEq(t, `["Ana A.", "ben", "zed", 0, 2, null, null, true, false, true, true, false, true]`, got)
 }
+
+// TestPure_TheOwnerLegendCountsByMembershipNeverByPaint: an epic with two
+// owners counts under each though the map paints it in the first one's
+// colour; owners past the eighth share one counted "other" row, counting
+// each epic naming any of them once; the unowned are counted on their own.
+func TestPure_TheOwnerLegendCountsByMembershipNeverByPaint(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const owners = Array.from({ length: 10 }, (_, i) => ({ handle: "h" + i }));
+owners[0].name = "Zero";
+const epics = [{ owner: ["h0"] }, { owner: ["h1", "h0"] }, { owner: ["h8"] }, { owner: ["h9", "h8"] }, {}, { owner: [] }];
+out(P.ownerLegend(owners, epics));`)
+	assert.JSONEq(t, `{"owners": [{"slot": 0, "label": "Zero", "n": 2}, {"slot": 1, "label": "h1", "n": 1}],
+		"other": {"owners": 2, "n": 2}, "unowned": 2}`, got)
+}
