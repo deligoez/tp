@@ -15,7 +15,7 @@ const ownersJS = `const owners = [{ handle: "ana", name: "Ana A." }, { handle: "
 
 // TestPure_AnOwnerIsNamedSlottedAndSelectedByItsPlaceInTheSet: a label is
 // the display name or the handle; a slot is the position in the declared
-// set; a selection is a declared index or null for the unowned, so a handle
+// set; a selection is a declared handle or null for the unowned, so a handle
 // spelled "unowned" is selected as itself and never as the unowned.
 func TestPure_AnOwnerIsNamedSlottedAndSelectedByItsPlaceInTheSet(t *testing.T) {
 	t.Parallel()
@@ -23,8 +23,8 @@ func TestPure_AnOwnerIsNamedSlottedAndSelectedByItsPlaceInTheSet(t *testing.T) {
 out([
   P.ownerLabel(owners, "ana"), P.ownerLabel(owners, "ben"), P.ownerLabel(owners, "zed"),
   P.ownerSlot(owners, "ana"), P.ownerSlot(owners, "unowned"), P.ownerSlot(owners, null), P.ownerSlot(owners, "zed"),
-  P.ownerSelected(["unowned"], owners, 2), P.ownerSelected(["unowned"], owners, null), P.ownerSelected([], owners, null),
-  P.ownerSelected(["ben", "ana"], owners, 0), P.ownerSelected(["ben"], owners, 0), P.ownerSelected(["ben"], owners, undefined),
+  P.ownerSelected(["unowned"], owners, "unowned"), P.ownerSelected(["unowned"], owners, null), P.ownerSelected([], owners, null),
+  P.ownerSelected(["ben", "ana"], owners, "ana"), P.ownerSelected(["ben"], owners, "ana"), P.ownerSelected(["ben"], owners, undefined),
 ]);`)
 	assert.JSONEq(t, `["Ana A.", "ben", "zed", 0, 2, null, null, true, false, true, true, false, true]`, got)
 }
@@ -79,8 +79,8 @@ out([P.ownerLegend(owners, [{ owner: ["zed"] }, { owner: [] }]).unowned,
 func TestPure_OwnerMarkupIsEscapedWhereItIsWritten(t *testing.T) {
 	t.Parallel()
 	got := runPure(t, `const owners = [{ handle: "<b>h</b>" }, { handle: "ana", name: "<img src=x onerror=1>" }];
-out([P.ownerNamesHTML(owners, ["ana", "<b>h</b>"]), P.ownerOptionsHTML(owners, 0, T),
-  [P.ownerSel("") === undefined, P.ownerSel("u") === null, P.ownerSel("1") === 1]]);`)
+out([P.ownerNamesHTML(owners, ["ana", "<b>h</b>"]), P.ownerOptionsHTML(owners, "<b>h</b>", T),
+  [P.ownerSel("", owners) === undefined, P.ownerSel("u", owners) === null, P.ownerSel("1", owners) === "ana"]]);`)
 	assert.JSONEq(t, `[
 		"<span class=\"downer\">&lt;img src=x onerror=1&gt;</span>, <span class=\"downer\">&lt;b&gt;h&lt;/b&gt;</span>",
 		"<option value=\"\">All owners</option><option value=\"0\" selected>&lt;b&gt;h&lt;/b&gt;</option><option value=\"1\">&lt;img src=x onerror=1&gt;</option><option value=\"u\">Unowned</option>",
@@ -176,9 +176,10 @@ func TestPage_TheMapSelectsAndColoursByOwner(t *testing.T) {
 		`if (ownerPainted(P)) return [...c.owner.fill[ownerSlotOf(P, n)], nodeAlpha(P, hits, n)];`,
 		`pure.ownerLegend(P.owners, P.nodes)`,
 		`(owner.length > 1 ? " +" + (owner.length - 1) : "")`,
-		`G.ownerSel = pure.ownerSel(ev.target.value);`,
+		`G.ownerSel = pure.ownerSel(ev.target.value, ownersOf(app.data("epic-export")));`,
+		`G.ownerSel = pure.ownerResolve(ownersOf(g), G.ownerSel);`,
 		`G.ownerColour = !G.ownerColour;`,
-		`String(G.ownerSel), G.ownerColour`,
+		`pure.ownerSelKey(G.ownerSel), G.ownerColour`,
 		`escape(t("graph.legend.owner"))`, `escape(t("graph.legend.state"))`,
 	} {
 		assert.Contains(t, script, s)
