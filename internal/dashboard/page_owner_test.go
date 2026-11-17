@@ -96,3 +96,23 @@ func TestPage_TheDrawerListsTheEpicsOwnersOnlyWhenOwnersAreDeclared(t *testing.T
 	assert.Contains(t, script, `owners.length && (ge.owner || []).length ? [t("drawer.f.owner"), tpPure.ownerNamesHTML(owners, ge.owner), true] : null,`)
 	assert.Contains(t, script, `const owners = (g.graph && g.graph.owners) || [];`)
 }
+
+// TestPage_TheOperatorsConditionsGroupByWhoseDecisionItIs: with owners
+// declared, the conditions waiting on a decision are grouped under "waiting
+// on <owner>" by tpPure.ownerGroups, the unowned last, each heading counted
+// and escaped, after a line stating the distinct conditions; without owners
+// they stay one plain list.
+func TestPage_TheOperatorsConditionsGroupByWhoseDecisionItIs(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	for _, s := range []string{
+		`if (!owners.length || !ids.length) return rows(ids);`,
+		`const by = tpPure.ownerGroups(owners, ids, (id) => (graphEpic(v.g, id) || {}).owner);`,
+		`esc(t("op.toDecide", { n: by.total }))`,
+		`esc(gr.owner === null ? t("op.unowned") : t("op.waitingOn", { owner: gr.label }))`,
+		`const ops = conditionRows(v, done);`,
+	} {
+		assert.Contains(t, script, s)
+	}
+	assert.Contains(t, page, ".list .ogroup {")
+}
