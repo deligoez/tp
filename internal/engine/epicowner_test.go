@@ -146,3 +146,17 @@ func TestEpicOwner_OwnerHandleFlagsWhatWouldSplitOnePersonInTwo(t *testing.T) {
 	}
 	assert.Empty(t, ownerFindings(ownedGraph([]string{"ana", "ben"}, []string{"ben", "ana"})))
 }
+
+// TestEpicOwner_MarkdownGainsAnOwnerColumnOnlyWhenOwnersAreDeclared: the
+// column lists each epic's handles in order after tags; a graph declaring
+// no owners renders the table it rendered before owners existed.
+func TestEpicOwner_MarkdownGainsAnOwnerColumnOnlyWhenOwnersAreDeclared(t *testing.T) {
+	owned := EpicGraphMarkdown(ownedGraph([]string{"ana", "ben"}, []string{"ben", "ana"}, nil))
+	assert.Contains(t, owned, "| id | title | tags | owner | depends on |\n|---|---|---|---|---|\n")
+	assert.Contains(t, owned, "| e0 | E |  | ben, ana |  |\n")
+	assert.Contains(t, owned, "| e1 | E |  |  |  |\n")
+
+	plain := EpicGraphMarkdown(ownedGraph(nil, nil))
+	assert.Contains(t, plain, "| id | title | tags | depends on |\n|---|---|---|---|\n| e0 | E |  |  |\n")
+	assert.NotContains(t, plain, "owner")
+}
