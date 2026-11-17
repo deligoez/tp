@@ -27,9 +27,10 @@ var EpicGraphSetKeys = []string{"milestones", "opens_after", "gates", "tag_check
 
 // EpicFieldSetKeys are the epic fields tp epic set <id> writes. title,
 // milestone, acceptance and description take the value as written, a blank
-// description unsetting it; tags and depends_on take JSON; root and condition
-// take true or false. The id is not settable: it is the epic's identity.
-var EpicFieldSetKeys = []string{"title", "milestone", "tags", "depends_on", "acceptance", "description", "root", "condition"}
+// description unsetting it; tags, depends_on and owner take JSON, an empty
+// owner list unsetting it; root and condition take true or false. The id is
+// not settable: it is the epic's identity.
+var EpicFieldSetKeys = []string{"title", "milestone", "tags", "depends_on", "acceptance", "description", "root", "condition", "owner"}
 
 // ParseEpicGraphSet decodes value for one of EpicGraphSetKeys and returns the
 // mutation that replaces that whole object, or for gates.<m>.<field> the one
@@ -242,6 +243,15 @@ func epicFieldSetter(field, value string) (func(*model.Epic), error) {
 			return nil, err
 		}
 		return func(e *model.Epic) { e.DependsOn = deps }, nil
+	case "owner":
+		var owner []string
+		if err := decodeStrict(value, &owner); err != nil {
+			return nil, err
+		}
+		if len(owner) == 0 {
+			owner = nil
+		}
+		return func(e *model.Epic) { e.Owner = owner }, nil
 	case "root", "condition":
 		return epicFlagSetter(field, value)
 	}
