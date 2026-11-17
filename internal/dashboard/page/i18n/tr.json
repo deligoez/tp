@@ -337,6 +337,7 @@
   "drawer.f.downstream": "Bekleyenler",
   "drawer.f.estimate": "Tahmin",
   "drawer.f.tags": "Etiketler",
+  "drawer.f.owner": "Sahip",
   "drawer.f.acceptance": "Kabul ölçütü",
   "drawer.f.done": "Bitiş kaydı",
   "drawer.msGate": "{ms}; geçiş koşulu {done}/{n}",

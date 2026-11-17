@@ -1344,6 +1344,7 @@
       return;
     }
     const ge = graphEpic(g, id) || {};
+    const owners = (g.graph && g.graph.owners) || [];
     const ms = (g.milestones || []).find((m) => m.milestone === e.milestone) || {};
     const crit = ((g.critical_path && g.critical_path.by_count) || []).includes(id);
     const down = e.downstream;
@@ -1373,6 +1374,7 @@
     const fields = [
       [t("drawer.f.milestone"), ms.state ? t("drawer.msGate", { ms: msLine, done: ms.state.members_done, n: ms.state.members }) : msLine],
       [t("drawer.f.status"), word(STAGE_LABEL, e.status)],
+      owners.length && (ge.owner || []).length ? [t("drawer.f.owner"), tpPure.ownerNamesHTML(owners, ge.owner), true] : null,
       [t("drawer.f.downstream"), down ? t("drawer.downstream", { n: down.dependents, open: down.dependents_open, chain: down.longest_chain }) : t("drawer.noDownstream")],
       ge.estimate_minutes ? [t("drawer.f.estimate"), t.dur(ge.estimate_minutes)] : null,
       (ge.tags || []).length ? [t("drawer.f.tags"), ge.tags.map((x) => '<span class="dtag">' + esc(x) + "</span>").join(" "), true] : null,

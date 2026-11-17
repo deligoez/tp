@@ -337,6 +337,7 @@
   "drawer.f.downstream": "Downstream",
   "drawer.f.estimate": "Estimate",
   "drawer.f.tags": "Tags",
+  "drawer.f.owner": "Owner",
   "drawer.f.acceptance": "Acceptance",
   "drawer.f.done": "Done record",
   "drawer.msGate": "{ms}; gate {done}/{n}",
