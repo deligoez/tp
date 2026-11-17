@@ -214,3 +214,13 @@ func TestPage_OwnerColourKeepsTheStateBorderFarOut(t *testing.T) {
 	_, script := pageText(t)
 	assert.Contains(t, script, `return G.detail === "far" && !ownerPainted(P) ? 0 : 1;`)
 }
+
+// TestPage_TheSelectionWinsOverTheOwnerDim: a selected epic and its chain
+// are drawn as the selection draws them even when the owner selection would
+// dim them, so clicking another owner's epic never leaves it faint.
+func TestPage_TheSelectionWinsOverTheOwnerDim(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Contains(t, script, `    if (P.sel >= 0) return inChain(P, n.i) ? pure.chainAlpha(stepsOf(P, n.i), G.whole) : 40;
+    if (P.owners.length && !pure.ownerSelected(n.owner, P.owners, G.ownerSel)) return 50;`)
+}
