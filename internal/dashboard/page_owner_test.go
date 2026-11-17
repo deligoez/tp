@@ -57,3 +57,15 @@ out(P.ownerGroups(owners, ["c1", "c2", "c3", "c4", "c5"], (id) => own[id]));`)
 		{"owner": 2, "label": "U", "ids": ["c5"]},
 		{"owner": null, "label": null, "ids": ["c3", "c4"]}]}`, got)
 }
+
+// TestPure_UnownedMeansNoDeclaredOwnerEverywhere: an epic naming only a
+// handle the set does not declare (a lint error the page still draws) is
+// unowned to the legend and to the map's selection, as it is to the
+// operator groups, so it is counted and lit once and never hidden.
+func TestPure_UnownedMeansNoDeclaredOwnerEverywhere(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, ownersJS+`
+out([P.ownerLegend(owners, [{ owner: ["zed"] }, { owner: [] }]).unowned,
+  P.ownerSelected(["zed"], owners, null), P.ownerSelected(["zed", "ben"], owners, null)]);`)
+	assert.JSONEq(t, `[2, true, false]`, got)
+}
