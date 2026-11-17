@@ -160,3 +160,13 @@ func TestEpicOwner_MarkdownGainsAnOwnerColumnOnlyWhenOwnersAreDeclared(t *testin
 	assert.Contains(t, plain, "| id | title | tags | depends on |\n|---|---|---|---|\n| e0 | E |  |  |\n")
 	assert.NotContains(t, plain, "owner")
 }
+
+// TestEpicOwner_AnOwnerIsNotInTheReviewBlock: who owns an epic is not its
+// scope, so setting or moving an owner changes no review unit's hash and
+// re-asks nothing.
+func TestEpicOwner_AnOwnerIsNotInTheReviewBlock(t *testing.T) {
+	plain := model.Epic{ID: "w", Title: "W", Milestone: "A", Acceptance: "it ships"}
+	owned := plain
+	owned.Owner = []string{"ana", "ben"}
+	assert.Equal(t, epicBlock(&plain), epicBlock(&owned))
+}
