@@ -57,7 +57,8 @@ description prose. The two diverge: an agent claims for an hour an epic a person
     can sum past the conditions, and the header states the number of distinct conditions. Legend
     counts are by membership too, never by paint.
   - Unowned epics are their own group, colour and legend entry, counted and never hidden. The API
-    keys that group by null, never by a string a handle could be.
+    keys that group by null, never by a string a handle could be. An epic naming only handles the
+    set does not declare, a lint error, counts as unowned so it is never hidden either.
 - **A graph without owners.** With no `owners` declared, every output is what 1.22.3 wrote: no
   `owner` keys, no `--md` column, no selector, switch, unowned group or legend entry.
 
