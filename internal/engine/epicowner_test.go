@@ -172,3 +172,14 @@ func TestEpicOwner_AnOwnerIsNotInTheReviewBlock(t *testing.T) {
 	owned.Owner = []string{"ana", "ben"}
 	assert.Equal(t, epicBlock(&plain), epicBlock(&owned))
 }
+
+// TestEpicOwner_ARepeatAfterACaseTwinIsReportedAsARepeat: the first shape
+// that applies wins, so a handle repeating an earlier one byte for byte is
+// "twice" even when a case twin of it was declared before both.
+func TestEpicOwner_ARepeatAfterACaseTwinIsReportedAsARepeat(t *testing.T) {
+	got := ownerFindings(ownedGraph([]string{"Ana", "ana", "ana"}))
+
+	require.Len(t, got, 2)
+	assert.Contains(t, got[0].Message, `"Ana" and "ana", equal ignoring case`)
+	assert.Contains(t, got[1].Message, `"ana" twice`)
+}
