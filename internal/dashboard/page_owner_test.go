@@ -247,3 +247,30 @@ func TestPage_TheTurkishOwnerHeadingNamesTheDecider(t *testing.T) {
 	t.Parallel()
 	assert.Contains(t, string(served(t, "/i18n/tr.json")), `"op.waitingOn": "Karar sahibi: {owner}",`)
 }
+
+// TestPage_EveryOwnerFillStaysApart: in colour-by-owner mode a node's fill is
+// the only owner signal, the border showing its state, so the ten fills
+// graphPalette draws (eight slots, "other" and the unowned) keep a colour
+// difference of at least 12 from each other in every theme.
+func TestPage_EveryOwnerFillStaysApart(t *testing.T) {
+	t.Parallel()
+	css := string(served(t, "/style.css"))
+	for _, over := range []string{"", darkByControl, darkBySystem} {
+		tok, err := json.Marshal(themeTokens(t, css, over))
+		require.NoError(t, err)
+		got := runPure(t, `const tok = `+string(tok)+`;
+const fill = P.graphPalette(tok).owner.fill;
+let near = { d: 99 };
+for (let a = 0; a < fill.length; a++) for (let b = a + 1; b < fill.length; b++) {
+  const d = P.deltaE(fill[a], fill[b]);
+  if (d < near.d) near = { d: Math.round(d * 10) / 10, a: P.OWNER_TOKENS[a], b: P.OWNER_TOKENS[b] };
+}
+out(near);`)
+		var near struct {
+			D    float64 `json:"d"`
+			A, B string
+		}
+		require.NoError(t, json.Unmarshal([]byte(got), &near), got)
+		assert.GreaterOrEqual(t, near.D, 12.0, "theme %q: the closest owner fills are %s and %s", over, near.A, near.B)
+	}
+}
