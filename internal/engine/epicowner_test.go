@@ -1,12 +1,16 @@
 package engine
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/deligoez/tp/internal/model"
 )
 
 // epicGraphWithOwners declares two owners and names them on a work epic and a
@@ -78,4 +82,38 @@ func TestEpicOwner_AKeyInsideAnOwnerEntryOutsideTheSchemaIsUnknown(t *testing.T)
 	_, unknown, err := LoadEpicGraph(tpDir)
 	require.NoError(t, err)
 	assert.Equal(t, []EpicGraphUnknownKey{{Path: "owners[1].email", Key: "email"}}, unknown)
+}
+
+// ownedGraph is a one-milestone graph declaring handles, with one root work
+// epic per owner list given.
+func ownedGraph(handles []string, owners ...[]string) *model.EpicGraph {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"A"}}}
+	for _, h := range handles {
+		g.Owners = append(g.Owners, model.EpicOwner{Handle: h})
+	}
+	for i, o := range owners {
+		g.Epics = append(g.Epics, model.Epic{ID: fmt.Sprintf("e%d", i), Title: "E", Milestone: "A", Root: true, Owner: o})
+	}
+	return g
+}
+
+// ownerFindings keeps the findings of the owner rules.
+func ownerFindings(g *model.EpicGraph) []EpicLintFinding {
+	var out []EpicLintFinding
+	for _, f := range LintEpicGraph(g, nil) {
+		if strings.Contains(f.Rule, "owner") {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+func TestEpicOwner_AHandleTheSetDoesNotDeclareIsUnknownOwner(t *testing.T) {
+	got := ownerFindings(ownedGraph([]string{"ana"}, []string{"ana"}, []string{"ana", "zed"}))
+
+	require.Len(t, got, 1)
+	assert.Equal(t, EpicRuleUnknownOwner, got[0].Rule)
+	assert.Equal(t, EpicSeverityError, got[0].Severity)
+	assert.Equal(t, []string{"e1"}, got[0].Epics)
+	assert.Contains(t, got[0].Message, `"zed"`)
 }
