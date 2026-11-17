@@ -700,9 +700,12 @@
   P.foldAt = function (list, n) {
     return list.length <= n + 1 ? [list, []] : [list.slice(0, n), list.slice(n)];
   };
+  // OWNER_TOKENS are the owner palette's tokens: one per colour slot
+  // (P.OWNER_SLOTS of them), then "other" and the unowned.
+  P.OWNER_TOKENS = ["--own-0", "--own-1", "--own-2", "--own-3", "--own-4", "--own-5", "--own-6", "--own-7", "--own-other", "--own-none"];
   // GRAPH_TOKENS are every token graphPalette reads.
   P.GRAPH_TOKENS = ["--sunk", "--surface", "--ink", "--muted", "--line", "--accent", "--crit", "--g-back", "--g-anc", "--g-desc", "--color-paper-3"]
-    .concat(P.GRAPH_MARKS.map((m) => m[1]));
+    .concat(P.GRAPH_MARKS.map((m) => m[1]), P.OWNER_TOKENS);
 
   // parseColour reads "#rrggbb" or "rgb(r, g, b)" as [r, g, b], grey for
   // anything else.
@@ -724,19 +727,28 @@
     const surface = rgb("--surface");
     const ink = rgb("--ink");
     const line = (name) => P.nudgeContrast(rgb(name), page, 3);
+    // fillOf is hue mixed share of the way from the card, eased back toward
+    // it until the ink reads on it at 4.5:1.
+    const fillOf = (hue, share) => {
+      const f = mixColour(surface, hue, share);
+      let eased = f;
+      for (let step = 1; P.contrast(ink, eased) < 4.5 && step <= 20; step++) eased = mixColour(f, surface, step / 20);
+      return eased;
+    };
     const mark = {};
     const fill = {};
     P.GRAPH_MARKS.forEach(([k, name]) => {
       mark[k] = line(name);
-      const f = mixColour(surface, mark[k], FILL_SHARE[k] || 0.32);
-      let eased = f;
-      for (let step = 1; P.contrast(ink, eased) < 4.5 && step <= 20; step++) eased = mixColour(f, surface, step / 20);
-      fill[k] = eased;
+      fill[k] = fillOf(mark[k], FILL_SHARE[k] || 0.32);
     });
+    // owner holds the owner palette in OWNER_TOKENS' order: each slot's hue
+    // as a border or swatch (line) and as a node's fill.
+    const ownLine = P.OWNER_TOKENS.map(line);
+    const owner = { line: ownLine, fill: ownLine.map((h) => fillOf(h, 0.5)) };
     return {
       dark: luminance(page) < 0.18, page, surface, ink, tree: ink, band: rgb("--color-paper-3"), line: rgb("--line"),
       muted: line("--muted"), accent: line("--accent"), crit: line("--crit"), back: line("--g-back"), anc: line("--g-anc"), desc: line("--g-desc"),
-      mark, fill,
+      mark, fill, owner,
     };
   };
 
