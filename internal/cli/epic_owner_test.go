@@ -206,3 +206,62 @@ func TestEpicOwner_ReadyFiltersByOwnerAndUnownedAsAUnion(t *testing.T) {
 	assert.Equal(t, 2, code)
 	assert.Contains(t, stderr, "zed")
 }
+
+// TestEpicOwner_StatusTakesTheSameFilters: "what of mine is blocked" is a
+// status question, so status filters its ready, blocked and condition
+// entries as ready does.
+func TestEpicOwner_StatusTakesTheSameFilters(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{
+  "version": 1,
+  "milestones": [["A"]],
+  "owners": [{"handle": "ana"}, {"handle": "ben"}],
+  "epics": [
+    {"id": "w", "title": "W", "milestone": "A", "root": true, "owner": ["ben"]},
+    {"id": "x", "title": "X", "milestone": "A", "depends_on": [{"id": "w", "why": "x builds on w"}], "owner": ["ana"]},
+    {"id": "d", "title": "D", "milestone": "A", "root": true, "condition": true}
+  ]
+}
+`)
+	ids := func(args ...string) (ready, blocked, conditions []string) {
+		stdout, stderr, code := runTP(t, dir, append([]string{"epic", "status"}, args...)...)
+		require.Equal(t, 0, code, "stderr: %s", stderr)
+		var out struct {
+			Milestones []struct {
+				Ready    []struct{ ID string } `json:"ready"`
+				Blocked  []struct{ ID string } `json:"blocked"`
+				Operator struct {
+					Conditions []struct{ ID string } `json:"conditions"`
+				} `json:"operator"`
+			} `json:"milestones"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(stdout), &out), "stdout: %s", stdout)
+		require.Len(t, out.Milestones, 1)
+		m := out.Milestones[0]
+		ready, blocked, conditions = []string{}, []string{}, []string{}
+		for _, e := range m.Ready {
+			ready = append(ready, e.ID)
+		}
+		for _, e := range m.Blocked {
+			blocked = append(blocked, e.ID)
+		}
+		for _, e := range m.Operator.Conditions {
+			conditions = append(conditions, e.ID)
+		}
+		return ready, blocked, conditions
+	}
+
+	ready, blocked, conditions := ids("--owner", "ana")
+	assert.Equal(t, []string{}, ready)
+	assert.Equal(t, []string{"x"}, blocked)
+	assert.Equal(t, []string{}, conditions)
+
+	ready, blocked, conditions = ids("--unowned")
+	assert.Equal(t, []string{}, ready)
+	assert.Equal(t, []string{}, blocked)
+	assert.Equal(t, []string{"d"}, conditions)
+
+	ready, blocked, _ = ids()
+	assert.Equal(t, []string{"w"}, ready)
+	assert.Equal(t, []string{"x"}, blocked)
+}
