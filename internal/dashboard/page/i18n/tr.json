@@ -526,6 +526,8 @@
   "graph.whole": "Bütün zinciri göster",
   "graph.help.epics": "Zincirini görmek için bir epic'e tıklayın. Tuşlar: / arar, Enter sonraki eşleşmeye gider (Shift+Enter öncekine), F sığdırır, K çapraz bağımlılıkları açıp kapar, Esc seçimi kaldırır; odaklanmış tuvalde ok tuşları kaydırır, + − yakınlaştırır.",
   "graph.legendCard": "Simgeler ve tuşlar",
+  "graph.owner.all": "Tüm sahipler",
+  "graph.owner.unowned": "Sahipsiz",
   "graph.keysLabel": "Klavye kısayolları",
   "graph.zoomLabel": "Yakınlaştırma",
   "graph.zoomIn": "Yakınlaştır",

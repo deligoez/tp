@@ -526,6 +526,8 @@
   "graph.whole": "Show the whole chain",
   "graph.help.epics": "Click an epic for its chain. Keys: / search, Enter next match (Shift+Enter back), F fit, K cross edges, Esc clear; on the focused canvas the arrows pan and + − zoom.",
   "graph.legendCard": "Legend and keys",
+  "graph.owner.all": "All owners",
+  "graph.owner.unowned": "Unowned",
   "graph.keysLabel": "Keyboard shortcuts",
   "graph.zoomLabel": "Zoom",
   "graph.zoomIn": "Zoom in",

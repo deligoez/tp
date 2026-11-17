@@ -933,6 +933,27 @@
     if (unowned.length) groups.push({ owner: null, label: null, ids: unowned });
     return { total: (ids || []).length, groups };
   };
+  // ownerNamesHTML is handles, an epic's owner list, as the drawer writes
+  // it: each owner's label in its order, escaped, since a handle and a name
+  // are author content.
+  P.ownerNamesHTML = function (owners, handles) {
+    return (handles || []).map((h) => '<span class="downer">' + escText(P.ownerLabel(owners, h)) + "</span>").join(", ");
+  };
+  // ownerOptionsHTML is the map's owner selector: every owner, then the
+  // unowned, sel's option selected (ownerSelected's sel). An option's value
+  // is the owner's place in the set, "u" the unowned's and "" every epic's,
+  // never a handle, so no handle can be read as another choice.
+  P.ownerOptionsHTML = function (owners, sel, t) {
+    const opt = (value, text, on) => '<option value="' + value + '"' + (on ? " selected" : "") + ">" + escText(text) + "</option>";
+    return opt("", t("graph.owner.all"), sel === undefined) +
+      (owners || []).map((o, i) => opt(String(i), P.ownerLabel(owners, o.handle), sel === i)).join("") +
+      opt("u", t("graph.owner.unowned"), sel === null);
+  };
+  // ownerSel reads an owner selector's value back as ownerSelected's sel.
+  P.ownerSel = function (value) {
+    if (value === "" || value === undefined || value === null) return undefined;
+    return value === "u" ? null : Number(value);
+  };
 
   if (typeof module === "object" && module.exports) module.exports = P;
   else root.tpPure = P;
