@@ -310,3 +310,14 @@ func TestEpicOwner_AnEpicNamingOnlyUndeclaredHandlesIsUnowned(t *testing.T) {
 	ready, _ = readyIDs(t, dir, "--owner", "ana")
 	assert.Equal(t, []string{"v"}, ready)
 }
+
+// TestEpicOwner_AnOwnerFilterOnAGraphWithoutOwnersSaysSo: the refusal names
+// the empty set rather than printing an empty list of declared handles.
+func TestEpicOwner_AnOwnerFilterOnAGraphWithoutOwnersSaysSo(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{"version": 1, "milestones": [["A"]], "epics": [{"id": "w", "title": "W", "milestone": "A", "root": true}]}`)
+
+	_, stderr, code := runTP(t, dir, "epic", "ready", "--owner", "ana")
+	assert.Equal(t, 2, code)
+	assert.Contains(t, stderr, "the graph declares no owners")
+}
