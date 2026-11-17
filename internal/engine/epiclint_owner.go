@@ -62,14 +62,12 @@ func lintOwnerSet(owners []model.EpicOwner) []EpicLintFinding {
 			msg = "owners declares a blank handle"
 		case strings.TrimSpace(h) != h:
 			msg = fmt.Sprintf("owners declares %q, with leading or trailing space", h)
-		case i >= 0 && earlier[i] == h:
+		case slices.Contains(earlier, h):
 			msg = fmt.Sprintf("owners declares %q twice", h)
 		case i >= 0:
 			msg = fmt.Sprintf("owners declares %q and %q, equal ignoring case", earlier[i], h)
 		}
-		if i < 0 {
-			earlier = append(earlier, h)
-		}
+		earlier = append(earlier, h)
 		if msg != "" {
 			out = append(out, epicNamedError(EpicRuleOwnerHandle, msg, []string{h}))
 		}
