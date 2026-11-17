@@ -160,6 +160,7 @@
   "op.toDecide": "Karar bekleyen {n} koşul",
   "op.waitingOn": "Kararı bekleniyor: {owner}",
   "op.unowned": "Sahipsiz",
+  "op.other": "Diğer kararlar",
   "op.chooseOne": "{n} koşuldan birini seç",
   "op.or": "ya da",
   "op.gate": "ölçülecek geçiş koşulu",

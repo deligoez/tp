@@ -160,6 +160,7 @@
   "op.toDecide": { "one": "{n} condition to decide", "other": "{n} conditions to decide" },
   "op.waitingOn": "Waiting on {owner}",
   "op.unowned": "Unowned",
+  "op.other": "Other decisions",
   "op.chooseOne": { "one": "choose one of {n} condition", "other": "choose one of {n} conditions" },
   "op.or": "or",
   "op.gate": "gate to measure",

@@ -606,20 +606,29 @@
       ['<h3 class="ogroup">' + esc(gr.owner === null ? t("op.unowned") : t("op.waitingOn", { owner: gr.label })) +
         ' <span class="num muted">' + esc(t.num(gr.ids.length)) + "</span></h3>"].concat(rows(gr.ids))));
   }
+  // ownerGrouped says whether conditionRows groups the conditions by owner:
+  // the graph declares owners and some condition waits on a decision.
+  const ownerGrouped = (v) => ((v.g.graph && v.g.graph.owners) || []).length > 0 && v.plan.operator_conditions.length > 0;
+  // operatorRows lists the conditions, then every other decision; with the
+  // conditions grouped by owner, the others start under their own counted
+  // heading so none reads as the last owner's.
   function operatorRows(v) {
     const evidence = ' --evidence "<' + t("op.evidence") + '>"';
     const done = (id) => copyCmd("tp epic done " + id + evidence);
-    const ops = conditionRows(v, done);
-    (v.plan.operator_groups || []).forEach((c) => ops.push(row(c.epic, titleOf(v, c.epic), t("op.chooseOne", { n: c.any_of.length }),
+    const grouped = ownerGrouped(v);
+    const conds = conditionRows(v, done);
+    const rest = [];
+    (v.plan.operator_groups || []).forEach((c) => rest.push(row(c.epic, titleOf(v, c.epic), t("op.chooseOne", { n: c.any_of.length }),
       c.any_of.map(done).join(" " + esc(t("op.or")) + " "))));
     (v.g.milestones || []).forEach((m) => {
       const o = m.operator || {};
-      (o.gates || []).forEach((gate) => ops.push(row(gate.milestone, gate.threshold, t("op.gate"), copyCmd("tp epic gate " + gate.milestone + " --met" + evidence))));
-      (o.threshold_rewrites || []).forEach((r) => ops.push(row(r.milestone, r.threshold, t("op.threshold"), copyCmd(r.command))));
+      (o.gates || []).forEach((gate) => rest.push(row(gate.milestone, gate.threshold, t("op.gate"), copyCmd("tp epic gate " + gate.milestone + " --met" + evidence))));
+      (o.threshold_rewrites || []).forEach((r) => rest.push(row(r.milestone, r.threshold, t("op.threshold"), copyCmd(r.command))));
     });
-    (v.g.slices || []).filter((s) => s.grantable).forEach((s) => ops.push(row(t("op.slice"), sliceLabel(s), roundText(s),
+    (v.g.slices || []).filter((s) => s.grantable).forEach((s) => rest.push(row(t("op.slice"), sliceLabel(s), roundText(s),
       esc(t("op.staleAtCap")) + ": " + copyCmd("tp epic review " + sliceLabel(s) + " --grant-round"))));
-    return ops.concat(escalationRows());
+    rest.push(...escalationRows());
+    return grouped && rest.length ? conds.concat(['<h3 class="ogroup">' + esc(t("op.other")) + ' <span class="num muted">' + esc(t.num(rest.length)) + "</span></h3>"], rest) : conds.concat(rest);
   }
 
   // Waiting epics (dashboard-ux.md §2) answers what is blocked and by what:
