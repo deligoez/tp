@@ -80,6 +80,6 @@ func TestEpicOwner_DroppingAHandleAnEpicStillNamesIsRefused(t *testing.T) {
 	_, stderr, code := runTP(t, dir, "epic", "set", `owners=[{"handle":"ana"}]`)
 	require.Equal(t, 1, code, "stderr: %s", stderr)
 	assert.Contains(t, stderr, "unknown-owner")
-	assert.Contains(t, stderr, `"ben"`)
+	assert.Contains(t, stderr, `names owner \"ben\"`)
 	assert.Equal(t, before, readEpicGraphFile(t, dir), "a refused set writes nothing")
 }
