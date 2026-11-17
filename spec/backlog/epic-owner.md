@@ -34,6 +34,8 @@ description prose. The two diverge: an agent claims for an hour an epic a person
   A file whose epics name handles it does not declare is written and its `unknown-owner` findings
   reported, as import treats every lint error today.
 - **Claim is untouched.** `claimed.by` stays free text, never matched against handles.
+- **Not scope.** An owner is not in an epic's review block or the scope fingerprint, so setting or
+  moving one re-asks no review unit.
 - **Ready and status.** Each ready, claimed, blocked and condition entry carries `owner` when set.
   Both commands take `--owner <h>` (repeatable) and `--unowned`; given together they are a union,
   and an entry matches when its owner names any of them. A handle outside the set is exit 2. Gates
