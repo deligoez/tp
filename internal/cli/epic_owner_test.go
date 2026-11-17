@@ -104,3 +104,29 @@ func TestEpicOwner_ARenameIsOneApplyFile(t *testing.T) {
 	assert.Equal(t, []map[string]string{{"handle": "ana", "name": "Ana A."}, {"handle": "bea"}}, set)
 	assert.Equal(t, []string{"bea", "ana"}, owner["w"])
 }
+
+// TestEpicOwner_ExportThenImportIntoAnEmptyProjectCarriesBothKeys: a graph
+// file carries its own owners set, so the export's graph imported elsewhere
+// brings the set with the epics that name it.
+func TestEpicOwner_ExportThenImportIntoAnEmptyProjectCarriesBothKeys(t *testing.T) {
+	t.Parallel()
+	src := epicGraphDir(t, ownerGraph)
+	stdout, stderr, code := runTP(t, src, "epic", "export")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var exported struct {
+		Graph json.RawMessage `json:"graph"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &exported))
+	file := filepath.Join(t.TempDir(), "graph.json")
+	require.NoError(t, os.WriteFile(file, exported.Graph, 0o600))
+
+	dst := epicGraphDir(t, "")
+	_, stderr, code = runTP(t, dst, "epic", "import", file)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	wantSet, wantOwner := graphOwners(t, src)
+	gotSet, gotOwner := graphOwners(t, dst)
+	assert.Equal(t, wantSet, gotSet)
+	assert.Equal(t, wantOwner, gotOwner)
+	assert.Equal(t, []string{"ben", "ana"}, gotOwner["w"])
+}
