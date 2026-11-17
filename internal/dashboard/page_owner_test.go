@@ -274,3 +274,13 @@ out(near);`)
 		assert.GreaterOrEqual(t, near.D, 12.0, "theme %q: the closest owner fills are %s and %s", over, near.A, near.B)
 	}
 }
+
+// TestPure_TheOtherOwnersRowShowsOnlyWithAnEpic: owners past the eighth with
+// no epic drawn add no "other" row, as a named owner with none adds no row,
+// so the legend never reads "2 other owners 0".
+func TestPure_TheOtherOwnersRowShowsOnlyWithAnEpic(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const owners = Array.from({ length: 10 }, (_, i) => ({ handle: "h" + i }));
+out(P.ownerLegend(owners, [{ owner: ["h0"] }]));`)
+	assert.JSONEq(t, `{"owners": [{"slot": 0, "label": "h0", "n": 1}], "other": null, "unowned": 0}`, got)
+}
