@@ -76,7 +76,8 @@
     deck: null, deckState: "idle", visible: false, built: null, builtFor: null, prepared: null,
     vs: null, detail: "near", fitted: null, matchIdx: -1, colors: null, loadMs: null, firstDrawMs: null,
     sets: null, setsKey: null, drawing: null, msgKey: tk("graph.notYet"), pinch: 1, gesture: false, themeVer: 0,
-    // ownerSel is the owner selector's choice (tpPure.ownerSelected's sel)
+    // ownerSel is the owner selector's choice (tpPure.ownerSelected's sel:
+    // a handle, null for the unowned, undefined for every epic)
     // and ownerColour the colour-by-owner switch (spec/backlog/epic-owner.md).
     ownerSel: undefined, ownerColour: false,
   };
@@ -522,7 +523,7 @@
     const scale = Math.pow(2, G.vs.zoom);
     G.detail = pure.detailLevel(P.geo.fs * scale);
     const hits = matches(P);
-    const v = [P.ver, G.q, G.detail, pure.crossShown(G), G.whole, [...G.hiddenMarks].join(), [...G.hiddenEdges].join(), G.themeVer, app.stage(), String(G.ownerSel), G.ownerColour];
+    const v = [P.ver, G.q, G.detail, pure.crossShown(G), G.whole, [...G.hiddenMarks].join(), [...G.hiddenEdges].join(), G.themeVer, app.stage(), pure.ownerSelKey(G.ownerSel), G.ownerColour];
     const fontSettings = { sdf: true, fontSize: 64, buffer: 6, radius: 12, cutoff: 0.22 };
     const dash = window.deck.PathStyleExtension ? [new window.deck.PathStyleExtension({ dash: true })] : [];
     const sets = edgeSets(P);
@@ -810,6 +811,9 @@
     // The owner selector and the colour-by-owner switch show when the graph
     // declares owners and epics are drawn (spec/backlog/epic-owner.md).
     const owned = ownersOf(g).length > 0 && G.mode !== "milestones";
+    // Every push brings the set again: the selected owner is kept by handle
+    // wherever it moved, and one the set dropped falls back to every epic.
+    G.ownerSel = pure.ownerResolve(ownersOf(g), G.ownerSel);
     $("gc-owner-pick").hidden = !owned;
     $("gc-ocolour").hidden = !owned;
     if (owned) {
@@ -862,7 +866,7 @@
       (lg.unowned ? sw(pure.OWNER_SLOTS + 1, t("graph.owner.unowned"), lg.unowned) : "");
   }
   $("gc-owner").addEventListener("change", (ev) => {
-    G.ownerSel = pure.ownerSel(ev.target.value);
+    G.ownerSel = pure.ownerSel(ev.target.value, ownersOf(app.data("epic-export")));
     render();
   });
   $("gc-ocolour").addEventListener("click", () => {

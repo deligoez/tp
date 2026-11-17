@@ -892,13 +892,11 @@
   };
   // ownerSelected says whether an epic whose owner list is owner passes the
   // map's owner selection sel: undefined keeps every epic, null the unowned
-  // (ownerless),
-  // a number the epics naming the owner at that place in owners.
+  // (ownerless), a handle the epics naming it while owners declares it.
   P.ownerSelected = function (owner, owners, sel) {
     if (sel === undefined) return true;
     if (sel === null) return ownerless(owner, owners);
-    const o = (owners || [])[sel];
-    return !!o && (owner || []).includes(o.handle);
+    return ownerIndex(owners, sel) >= 0 && (owner || []).includes(sel);
   };
   // ownerLegend counts epics, each { owner }, by membership: an epic counts
   // under every owner it names, whatever colour paints it. owners lists the
@@ -958,13 +956,29 @@
   P.ownerOptionsHTML = function (owners, sel, t) {
     const opt = (value, text, on) => '<option value="' + value + '"' + (on ? " selected" : "") + ">" + escText(text) + "</option>";
     return opt("", t("graph.owner.all"), sel === undefined) +
-      (owners || []).map((o, i) => opt(String(i), P.ownerLabel(owners, o.handle), sel === i)).join("") +
+      (owners || []).map((o, i) => opt(String(i), P.ownerLabel(owners, o.handle), sel === o.handle)).join("") +
       opt("u", t("graph.owner.unowned"), sel === null);
   };
-  // ownerSel reads an owner selector's value back as ownerSelected's sel.
-  P.ownerSel = function (value) {
-    if (value === "" || value === undefined || value === null) return undefined;
-    return value === "u" ? null : Number(value);
+  // ownerSel reads an owner selector's value back as ownerSelected's sel:
+  // the handle at that place in owners, null for "u", undefined for "" or a
+  // place the set no longer holds.
+  P.ownerSel = function (value, owners) {
+    if (value === "u") return null;
+    const o = value === "" || value === undefined || value === null ? undefined : (owners || [])[Number(value)];
+    return o ? o.handle : undefined;
+  };
+  // ownerResolve keeps sel against owners, the set a push brought: a handle
+  // the set still declares stays selected wherever it moved, one it dropped
+  // falls back to every epic (undefined); null and undefined stay.
+  P.ownerResolve = function (owners, sel) {
+    if (sel === undefined || sel === null) return sel;
+    return ownerIndex(owners, sel) >= 0 ? sel : undefined;
+  };
+  // ownerSelKey is sel as a redraw key, apart for every epic, the unowned
+  // and any handle, "undefined" and "unowned" included.
+  P.ownerSelKey = function (sel) {
+    if (sel === undefined) return "a";
+    return sel === null ? "u" : "h:" + sel;
   };
 
   if (typeof module === "object" && module.exports) module.exports = P;
