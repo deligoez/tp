@@ -21,7 +21,7 @@ type epicReadyResult struct {
 
 // epicReadyEpic is one listed epic. Owner is its owner list, in the order
 // written, and is left out when the graph declares no owners or the epic
-// names none (spec/backlog/epic-owner.md).
+// names none (spec/backlog/epic-owner.md at edeebda0).
 type epicReadyEpic struct {
 	ID        string   `json:"id"`
 	Title     string   `json:"title"`

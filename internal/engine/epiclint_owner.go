@@ -8,7 +8,7 @@ import (
 	"github.com/deligoez/tp/internal/model"
 )
 
-// Owner rules of the epic graph lint (spec/backlog/epic-owner.md).
+// Owner rules of the epic graph lint (spec/backlog/epic-owner.md at edeebda0).
 const (
 	// EpicRuleUnknownOwner is the error on an epic naming a handle the
 	// owners set does not declare.

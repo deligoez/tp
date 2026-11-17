@@ -30,7 +30,7 @@ type EpicGraph struct {
 	// (spec/1.8.0.md §10).
 	ForbiddenEdges []EpicForbiddenEdge `json:"forbidden_edges,omitempty"`
 	// Owners is the declared set of handles an epic's owner may name
-	// (spec/backlog/epic-owner.md).
+	// (spec/backlog/epic-owner.md at edeebda0).
 	Owners []EpicOwner `json:"owners,omitempty"`
 	Epics  []Epic      `json:"epics"`
 }

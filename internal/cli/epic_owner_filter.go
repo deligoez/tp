@@ -14,7 +14,7 @@ import (
 
 // epicOwnerFilter keeps the entries whose owner names one of handles, and
 // with unowned the ones with no declared owner; with neither it keeps
-// everything (spec/backlog/epic-owner.md). An epic naming only handles the
+// everything (spec/backlog/epic-owner.md at edeebda0). An epic naming only handles the
 // set does not declare reads as unowned, so some filter always shows it.
 type epicOwnerFilter struct {
 	handles  []string

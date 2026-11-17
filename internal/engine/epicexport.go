@@ -10,7 +10,7 @@ import (
 // track order (spec/1.3.0.md §6): one row per epic with its id, title, tags and
 // every dependency with its why, an any-of group as one of {A, B}
 // (spec/1.7.0.md §7), and an owner column when the graph declares owners
-// (spec/backlog/epic-owner.md). Rows keep the file's epic order. A milestone
+// (spec/backlog/epic-owner.md at edeebda0). Rows keep the file's epic order. A milestone
 // named twice gets one table, and epics whose milestone is in no track follow
 // in tables of their own, so every epic is in exactly one row.
 func EpicGraphMarkdown(g *model.EpicGraph) string {

@@ -10,7 +10,7 @@ import (
 
 // ownersJS is a declared owners set for the owner tests: a named owner, an
 // unnamed one, and one whose handle is the word "unowned", which must stay
-// an owner like any other (spec/backlog/epic-owner.md).
+// an owner like any other (spec/backlog/epic-owner.md at edeebda0).
 const ownersJS = `const owners = [{ handle: "ana", name: "Ana A." }, { handle: "ben" }, { handle: "unowned", name: "U" }];`
 
 // TestPure_AnOwnerIsNamedSlottedAndSelectedByItsPlaceInTheSet: a label is

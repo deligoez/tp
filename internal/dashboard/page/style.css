@@ -597,7 +597,7 @@ body.dopen:not([data-tab="epics"]) { padding: 0; }
   :root:not([data-theme="light"]) { --g-claimed: #e0a93a; --g-specced: #3cc7c9; --g-inprog: #e07ac8; --g-anc: #6ea0ff; --g-desc: #46b07a; --g-back: #b69cff; --g-blocked: #a8746c; --g-waiting: #56688f; }
 }
 :root[data-theme="dark"] { --g-claimed: #e0a93a; --g-specced: #3cc7c9; --g-inprog: #e07ac8; --g-anc: #6ea0ff; --g-desc: #46b07a; --g-back: #b69cff; --g-blocked: #a8746c; --g-waiting: #56688f; }
-/* The owner palette (spec/backlog/epic-owner.md): a colour per owner by its
+/* The owner palette (spec/backlog/epic-owner.md at edeebda0): a colour per owner by its
    place in the declared set, eight slots, "other" for the owners past them
    and the unowned's own grey; tpPure.graphPalette eases each into a fill. */
 :root { --own-0: #0b6fb8; --own-1: #d4860a; --own-2: #0a8f6a; --own-3: #c2418f; --own-4: #00838f; --own-5: #c84f12; --own-6: #7b6a2e; --own-7: #6a4fc0; --own-other: #3d4757; --own-none: #e6dccb; }

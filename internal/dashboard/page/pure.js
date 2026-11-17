@@ -864,7 +864,7 @@
     return t;
   };
 
-  // ---------- owners (spec/backlog/epic-owner.md) ----------
+  // ---------- owners (spec/backlog/epic-owner.md at edeebda0) ----------
   // An owner is a handle the graph's owners set declares. The page keys an
   // owner by its place in that set and the unowned by null, never by a
   // string, so a handle spelled like a word the page uses stays an owner.

@@ -78,7 +78,7 @@
     sets: null, setsKey: null, drawing: null, msgKey: tk("graph.notYet"), pinch: 1, gesture: false, themeVer: 0,
     // ownerSel is the owner selector's choice (tpPure.ownerSelected's sel:
     // a handle, null for the unowned, undefined for every epic)
-    // and ownerColour the colour-by-owner switch (spec/backlog/epic-owner.md).
+    // and ownerColour the colour-by-owner switch (spec/backlog/epic-owner.md at edeebda0).
     ownerSel: undefined, ownerColour: false,
   };
   window.tpGraph = G;
@@ -104,7 +104,7 @@
   }
   const mix = (a, b, t) => a.map((x, i) => Math.round(x + (b[i] - x) * t));
 
-  // ---------- owners (spec/backlog/epic-owner.md) ----------
+  // ---------- owners (spec/backlog/epic-owner.md at edeebda0) ----------
   // ownersOf is the export's declared owners set, [] when it declares none.
   const ownersOf = (g) => (g && g.graph && g.graph.owners) || [];
   // ownerPainted says whether nodes are filled in their owner's colour: the
@@ -810,7 +810,7 @@
     $("gc-ms").value = gateMilestone(g) || "";
     $("gc-depth").value = String(G.depth);
     // The owner selector and the colour-by-owner switch show when the graph
-    // declares owners and epics are drawn (spec/backlog/epic-owner.md).
+    // declares owners and epics are drawn (spec/backlog/epic-owner.md at edeebda0).
     const owned = ownersOf(g).length > 0 && G.mode !== "milestones";
     // Every push brings the set again: the selected owner is kept by handle
     // wherever it moved, and one the set dropped falls back to every epic.

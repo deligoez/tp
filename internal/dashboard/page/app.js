@@ -595,7 +595,7 @@
   // declared they are grouped by whose decision it is (tpPure.ownerGroups):
   // a line stating the distinct conditions, then one counted "waiting on
   // <owner>" heading per owner, a two-owner condition under each, the
-  // unowned last (spec/backlog/epic-owner.md); without, one plain list.
+  // unowned last (spec/backlog/epic-owner.md at edeebda0); without, one plain list.
   function conditionRows(v, done) {
     const rows = (list) => list.map((id) => row(id, titleOf(v, id), t("op.condition"), done(id)));
     const owners = (v.g.graph && v.g.graph.owners) || [];
