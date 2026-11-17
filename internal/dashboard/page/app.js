@@ -591,10 +591,25 @@
   // slices that may take --grant-round, and the bound specs' escalations.
   // Each command carries a Copy button (1.17.1).
   const copyCmd = (cmd) => "<code>" + esc(cmd) + '</code> <button type="button" class="key copy" data-copy="' + esc(cmd) + '">' + esc(t("copy.copy")) + "</button>";
+  // conditionRows are the conditions waiting on a decision. With owners
+  // declared they are grouped by whose decision it is (tpPure.ownerGroups):
+  // a line stating the distinct conditions, then one counted "waiting on
+  // <owner>" heading per owner, a two-owner condition under each, the
+  // unowned last (spec/backlog/epic-owner.md); without, one plain list.
+  function conditionRows(v, done) {
+    const rows = (list) => list.map((id) => row(id, titleOf(v, id), t("op.condition"), done(id)));
+    const owners = (v.g.graph && v.g.graph.owners) || [];
+    const ids = v.plan.operator_conditions;
+    if (!owners.length || !ids.length) return rows(ids);
+    const by = tpPure.ownerGroups(owners, ids, (id) => (graphEpic(v.g, id) || {}).owner);
+    return ['<p class="ohead sm muted">' + esc(t("op.toDecide", { n: by.total })) + "</p>"].concat(...by.groups.map((gr) =>
+      ['<h3 class="ogroup">' + esc(gr.owner === null ? t("op.unowned") : t("op.waitingOn", { owner: gr.label })) +
+        ' <span class="num muted">' + esc(t.num(gr.ids.length)) + "</span></h3>"].concat(rows(gr.ids))));
+  }
   function operatorRows(v) {
     const evidence = ' --evidence "<' + t("op.evidence") + '>"';
     const done = (id) => copyCmd("tp epic done " + id + evidence);
-    const ops = v.plan.operator_conditions.map((id) => row(id, titleOf(v, id), t("op.condition"), done(id)));
+    const ops = conditionRows(v, done);
     (v.plan.operator_groups || []).forEach((c) => ops.push(row(c.epic, titleOf(v, c.epic), t("op.chooseOne", { n: c.any_of.length }),
       c.any_of.map(done).join(" " + esc(t("op.or")) + " "))));
     (v.g.milestones || []).forEach((m) => {
