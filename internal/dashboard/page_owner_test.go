@@ -40,3 +40,20 @@ out(P.ownerLegend(owners, epics));`)
 	assert.JSONEq(t, `{"owners": [{"slot": 0, "label": "Zero", "n": 2}, {"slot": 1, "label": "h1", "n": 1}],
 		"other": {"owners": 2, "n": 2}, "unowned": 2}`, got)
 }
+
+// TestPure_ConditionsGroupUnderEachOwnerTheUnownedLast: a condition with two
+// owners is listed under each, so the groups can sum past the conditions and
+// total counts them once; the unowned group comes last, keyed by null, and
+// holds a condition naming only handles the set does not declare, so none
+// is hidden; a handle spelled "unowned" is an owner's group.
+func TestPure_ConditionsGroupUnderEachOwnerTheUnownedLast(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, ownersJS+`
+const own = { c1: ["ben", "ana"], c2: ["ana"], c3: [], c4: ["zed"], c5: ["unowned"] };
+out(P.ownerGroups(owners, ["c1", "c2", "c3", "c4", "c5"], (id) => own[id]));`)
+	assert.JSONEq(t, `{"total": 5, "groups": [
+		{"owner": 0, "label": "Ana A.", "ids": ["c1", "c2"]},
+		{"owner": 1, "label": "ben", "ids": ["c1"]},
+		{"owner": 2, "label": "U", "ids": ["c5"]},
+		{"owner": null, "label": null, "ids": ["c3", "c4"]}]}`, got)
+}
