@@ -162,3 +162,47 @@ func TestEpicOwner_ReadyEntriesCarryTheirOwnerInOrder(t *testing.T) {
 	}
 	assert.Equal(t, map[string][]string{"c": {"ana"}, "d": nil}, owners)
 }
+
+// readyIDs runs tp epic ready with args and returns the ready and condition
+// ids it lists.
+func readyIDs(t *testing.T, dir string, args ...string) (ready, conditions []string) {
+	t.Helper()
+	stdout, stderr, code := runTP(t, dir, append([]string{"epic", "ready"}, args...)...)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var out ownerReady
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out), "stdout: %s", stdout)
+	ready, conditions = []string{}, []string{}
+	for _, e := range out.Ready {
+		ready = append(ready, e.ID)
+	}
+	for _, c := range out.Operator.Conditions {
+		conditions = append(conditions, c.ID)
+	}
+	return ready, conditions
+}
+
+// TestEpicOwner_ReadyFiltersByOwnerAndUnownedAsAUnion: an entry matches
+// when its owner names any --owner given; --unowned adds the ones with none.
+func TestEpicOwner_ReadyFiltersByOwnerAndUnownedAsAUnion(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, ownerGraph)
+	cases := []struct {
+		args              []string
+		ready, conditions []string
+	}{
+		{[]string{"--owner", "ana"}, []string{"w"}, []string{"c"}},
+		{[]string{"--owner", "ben"}, []string{"w"}, []string{}},
+		{[]string{"--unowned"}, []string{}, []string{"d"}},
+		{[]string{"--owner", "ben", "--unowned"}, []string{"w"}, []string{"d"}},
+		{[]string{"--owner", "ben", "--owner", "ana"}, []string{"w"}, []string{"c"}},
+	}
+	for _, c := range cases {
+		ready, conditions := readyIDs(t, dir, c.args...)
+		assert.Equal(t, c.ready, ready, "%v", c.args)
+		assert.Equal(t, c.conditions, conditions, "%v", c.args)
+	}
+
+	_, stderr, code := runTP(t, dir, "epic", "ready", "--owner", "zed")
+	assert.Equal(t, 2, code)
+	assert.Contains(t, stderr, "zed")
+}
