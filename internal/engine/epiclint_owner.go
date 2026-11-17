@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/deligoez/tp/internal/model"
@@ -48,28 +49,28 @@ func lintEpicOwners(g *model.EpicGraph) []EpicLintFinding {
 }
 
 // lintOwnerSet reports each declared handle that is blank, carries leading or
-// trailing space, repeats an earlier one, or equals an earlier one ignoring
-// case; one finding per handle, the first shape that applies.
+// trailing space, repeats an earlier one, or equals an earlier one under
+// Unicode case folding (strings.EqualFold, so "ς" meets "σ" and "ſ" meets
+// "s"); one finding per handle, the first shape that applies.
 func lintOwnerSet(owners []model.EpicOwner) []EpicLintFinding {
 	var out []EpicLintFinding
-	seen := make(map[string]string, len(owners))
+	var earlier []string
 	for _, o := range owners {
 		h := o.Handle
-		folded := strings.ToLower(h)
-		first, repeated := seen[folded]
+		i := slices.IndexFunc(earlier, func(e string) bool { return strings.EqualFold(e, h) })
 		var msg string
 		switch {
 		case strings.TrimSpace(h) == "":
 			msg = "owners declares a blank handle"
 		case strings.TrimSpace(h) != h:
 			msg = fmt.Sprintf("owners declares %q, with leading or trailing space", h)
-		case repeated && first == h:
+		case i >= 0 && earlier[i] == h:
 			msg = fmt.Sprintf("owners declares %q twice", h)
-		case repeated:
-			msg = fmt.Sprintf("owners declares %q and %q, equal ignoring case", first, h)
+		case i >= 0:
+			msg = fmt.Sprintf("owners declares %q and %q, equal ignoring case", earlier[i], h)
 		}
-		if !repeated {
-			seen[folded] = h
+		if i < 0 {
+			earlier = append(earlier, h)
 		}
 		if msg != "" {
 			out = append(out, epicNamedError(EpicRuleOwnerHandle, msg, []string{h}))
