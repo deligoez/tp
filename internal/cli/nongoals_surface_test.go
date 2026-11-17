@@ -76,12 +76,12 @@ epic link: any-of if-revision
 epic lint:
 epic milestone:
 epic milestone add: after before if-revision new-track
-epic ready: all
+epic ready: all owner unowned
 epic remove: force if-revision
 epic review: all check discard epic epics force from grant-round history milestone milestones name of-epic record record-inbox report resolve resolve-all role status to
 epic scope:
 epic set: if-revision
-epic status: milestone open
+epic status: milestone open owner unowned
 epic unlink: any-of if-revision
 escalate: decision evidence option
 export: list
