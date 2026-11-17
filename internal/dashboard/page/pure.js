@@ -911,6 +911,26 @@
     set.slice(0, P.OWNER_SLOTS).forEach((o, i) => { if (n[i]) rows.push({ slot: i, label: P.ownerLabel(set, o.handle), n: n[i] }); });
     return { owners: rows, other: set.length > P.OWNER_SLOTS ? { owners: set.length - P.OWNER_SLOTS, n: other } : null, unowned };
   };
+  // ownerGroups groups ids, the conditions waiting on a decision, by whose
+  // decision it is (ownerOf(id) is an id's owner list): one group per
+  // declared owner naming one, { owner: its place, label, ids }, in
+  // declaration order, an id with two owners in both; then the unowned,
+  // { owner: null, label: null, ids }, holding every id that names no
+  // declared owner, so none is hidden. total counts the ids once each.
+  P.ownerGroups = function (owners, ids, ownerOf) {
+    const set = owners || [];
+    const by = set.map(() => []);
+    const unowned = [];
+    (ids || []).forEach((id) => {
+      const at = (ownerOf(id) || []).map((h) => ownerIndex(set, h)).filter((i) => i >= 0);
+      if (!at.length) unowned.push(id);
+      [...new Set(at)].forEach((i) => by[i].push(id));
+    });
+    const groups = [];
+    set.forEach((o, i) => { if (by[i].length) groups.push({ owner: i, label: P.ownerLabel(set, o.handle), ids: by[i] }); });
+    if (unowned.length) groups.push({ owner: null, label: null, ids: unowned });
+    return { total: (ids || []).length, groups };
+  };
 
   if (typeof module === "object" && module.exports) module.exports = P;
   else root.tpPure = P;
