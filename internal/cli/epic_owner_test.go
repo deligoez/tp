@@ -2,6 +2,8 @@ package cli_test
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -82,4 +84,23 @@ func TestEpicOwner_DroppingAHandleAnEpicStillNamesIsRefused(t *testing.T) {
 	assert.Contains(t, stderr, "unknown-owner")
 	assert.Contains(t, stderr, `names owner \"ben\"`)
 	assert.Equal(t, before, readEpicGraphFile(t, dir), "a refused set writes nothing")
+}
+
+// TestEpicOwner_ARenameIsOneApplyFile: apply lints once after its last row,
+// so re-pointing the epics at a handle the set does not declare yet, then
+// replacing the set, is one write.
+func TestEpicOwner_ARenameIsOneApplyFile(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, ownerGraph)
+	rows := filepath.Join(t.TempDir(), "rename.ndjson")
+	require.NoError(t, os.WriteFile(rows, []byte(
+		`{"op":"set","id":"w","field":"owner","value":["bea","ana"]}`+"\n"+
+			`{"op":"set","field":"owners","value":[{"handle":"ana","name":"Ana A."},{"handle":"bea"}]}`+"\n"), 0o600))
+
+	_, stderr, code := runTP(t, dir, "epic", "apply", rows)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	set, owner := graphOwners(t, dir)
+	assert.Equal(t, []map[string]string{{"handle": "ana", "name": "Ana A."}, {"handle": "bea"}}, set)
+	assert.Equal(t, []string{"bea", "ana"}, owner["w"])
 }
