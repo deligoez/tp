@@ -579,6 +579,12 @@ owns the spec written for it; the graph is designed and reviewed the way a spec 
   `epic-blocked`, so `tp run` stops instead of driving a unit that cannot move; a `wip` task still
   finishes. When only conditions block it, `tp next` and `tp resume` name the operator's
   `tp epic done <c> --evidence`.
+- **Owners.** A graph split across several people declares its handles once in `owners` and names
+  them on an epic's `owner`: whose job it is, or on a condition who decides it. It is separate from a
+  claim, which says who is on the epic now. `tp epic ready` and `tp epic status` take `--owner <h>`
+  and `--unowned`, and the dashboard groups the operator's decisions by owner and can colour the map
+  by it. An unknown or doubled handle is a lint error, so a person still named cannot be dropped from
+  the set. Owner gates nothing, and a graph without `owners` reads as before.
 - **Read as one contract.** `tp epic ready` says what can start, ranked by the not-done work that
   waits on each epic (`downstream`), and who holds a claim; `tp epic status` adds the graph's
   critical path and, per milestone, the gate, what it opens after and waits on, the blocked list,
