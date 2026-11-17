@@ -130,3 +130,35 @@ func TestEpicOwner_ExportThenImportIntoAnEmptyProjectCarriesBothKeys(t *testing.
 	assert.Equal(t, wantOwner, gotOwner)
 	assert.Equal(t, []string{"ben", "ana"}, gotOwner["w"])
 }
+
+// ownerReady is the part of tp epic ready's payload the owner tests read.
+type ownerReady struct {
+	Ready []struct {
+		ID    string   `json:"id"`
+		Owner []string `json:"owner"`
+	} `json:"ready"`
+	Operator struct {
+		Conditions []struct {
+			ID    string   `json:"id"`
+			Owner []string `json:"owner"`
+		} `json:"conditions"`
+	} `json:"operator"`
+}
+
+func TestEpicOwner_ReadyEntriesCarryTheirOwnerInOrder(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, ownerGraph)
+
+	stdout, stderr, code := runTP(t, dir, "epic", "ready")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var out ownerReady
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out), "stdout: %s", stdout)
+
+	require.Len(t, out.Ready, 1)
+	assert.Equal(t, []string{"ben", "ana"}, out.Ready[0].Owner)
+	owners := map[string][]string{}
+	for _, c := range out.Operator.Conditions {
+		owners[c.ID] = c.Owner
+	}
+	assert.Equal(t, map[string][]string{"c": {"ana"}, "d": nil}, owners)
+}
