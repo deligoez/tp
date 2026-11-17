@@ -59,7 +59,7 @@ const oneDefectPerErrorRule = `{
     {"id": "a", "title": "A step", "milestone": "A", "depends_on": [{"id": "zz", "why": "needs the absent one"}]},
     {"id": "dup", "title": "Dup one", "milestone": "A"},
     {"id": "dup", "title": "Dup two", "milestone": "A"},
-    {"id": "k", "title": "K", "milestone": "A", "owner": "someone"},
+    {"id": "k", "title": "K", "milestone": "A", "assignee": "someone"},
     {"id": "w", "title": "W", "milestone": "A", "depends_on": [{"id": "k", "why": "   "}]},
     {"id": "nm", "title": "No milestone"},
     {"id": "early", "title": "Early", "milestone": "A", "depends_on": [{"id": "late", "why": "uses the later work"}]},
