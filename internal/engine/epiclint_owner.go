@@ -19,8 +19,6 @@ const (
 	EpicRuleOwnerHandle = "owner-handle"
 )
 
-// lintEpicOwners reports each handle an epic names that the owners set does
-// not declare, once per epic and handle, in graph order.
 // lintEpicOwners reports the owners set's bad handles in declaration order,
 // then, epic by epic in graph order, each handle an epic names twice and each
 // it names that the set does not declare.

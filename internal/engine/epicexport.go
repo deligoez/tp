@@ -44,7 +44,6 @@ func EpicGraphMarkdown(g *model.EpicGraph) string {
 	return b.String()
 }
 
-// writeMilestoneTable writes one milestone's heading and table.
 // writeMilestoneTable writes one milestone's heading and table; owners adds
 // an owner column after tags, each epic's handles in the order written.
 func writeMilestoneTable(b *strings.Builder, name string, epics []model.Epic, owners bool) {
