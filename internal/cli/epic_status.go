@@ -283,7 +283,7 @@ func (p *epicPlan) claimedAndBlocked(m string) (claimed []epicClaimedEpic, block
 		if e.Milestone != m {
 			continue
 		}
-		entry := epicReadyEpic{ID: e.ID, Title: e.Title, Milestone: e.Milestone}
+		entry := newEpicReadyEpic(p.g, e)
 		status := p.states[e.ID].Status
 		if status == engine.EpicStatusClaimed {
 			claimed = append(claimed, epicClaimedEpic{epicReadyEpic: entry, By: e.Claimed.By, At: e.Claimed.At})

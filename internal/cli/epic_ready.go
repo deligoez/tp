@@ -19,11 +19,24 @@ type epicReadyResult struct {
 	Operator epicOperatorWait  `json:"operator"`
 }
 
-// epicReadyEpic is one listed epic.
+// epicReadyEpic is one listed epic. Owner is its owner list, in the order
+// written, and is left out when the graph declares no owners or the epic
+// names none (spec/backlog/epic-owner.md).
 type epicReadyEpic struct {
-	ID        string `json:"id"`
-	Title     string `json:"title"`
-	Milestone string `json:"milestone"`
+	ID        string   `json:"id"`
+	Title     string   `json:"title"`
+	Milestone string   `json:"milestone"`
+	Owner     []string `json:"owner,omitempty"`
+}
+
+// newEpicReadyEpic is e's entry in g; a graph without an owners set lists
+// no owner, so its payload is the one written before owners existed.
+func newEpicReadyEpic(g *model.EpicGraph, e *model.Epic) epicReadyEpic {
+	entry := epicReadyEpic{ID: e.ID, Title: e.Title, Milestone: e.Milestone}
+	if len(g.Owners) > 0 {
+		entry.Owner = e.Owner
+	}
+	return entry
 }
 
 // epicReadyItem is one ready epic with what waits on it (spec/1.6.0.md F1).
@@ -168,10 +181,7 @@ func epicReadyReport(g *model.EpicGraph, r *engine.EpicReadiness, matcher *engin
 	for i := range g.Epics {
 		byID[g.Epics[i].ID] = &g.Epics[i]
 	}
-	entry := func(id string) epicReadyEpic {
-		e := byID[id]
-		return epicReadyEpic{ID: e.ID, Title: e.Title, Milestone: e.Milestone}
-	}
+	entry := func(id string) epicReadyEpic { return newEpicReadyEpic(g, byID[id]) }
 	result := epicReadyResult{
 		Ready:    make([]epicReadyItem, 0, len(r.Ready)),
 		Claimed:  make([]epicClaimedEpic, 0, len(r.Claimed)),
