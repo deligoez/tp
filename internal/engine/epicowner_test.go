@@ -66,3 +66,16 @@ func TestEpicOwner_TheSetAndTheFieldRoundTripByteIdentical(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, epicGraphWithOwners, string(got))
 }
+
+// TestEpicOwner_AKeyInsideAnOwnerEntryOutsideTheSchemaIsUnknown: an owner
+// entry holds a handle and a name and nothing else tp would read, an email
+// included.
+func TestEpicOwner_AKeyInsideAnOwnerEntryOutsideTheSchemaIsUnknown(t *testing.T) {
+	tpDir := epicGraphDir(t, `{"version": 1, "milestones": [["A"]],
+  "owners": [{"handle": "ana"}, {"handle": "ben", "email": "x"}],
+  "epics": [{"id": "w", "title": "W", "milestone": "A", "root": true}]}`)
+
+	_, unknown, err := LoadEpicGraph(tpDir)
+	require.NoError(t, err)
+	assert.Equal(t, []EpicGraphUnknownKey{{Path: "owners[1].email", Key: "email"}}, unknown)
+}
