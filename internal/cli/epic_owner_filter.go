@@ -37,10 +37,13 @@ func epicOwnerFilterOrExit(cmd *cobra.Command, g *model.EpicGraph) epicOwnerFilt
 	for _, o := range g.Owners {
 		declared = append(declared, o.Handle)
 	}
+	hint := "the graph declares no owners; tp epic set owners=<json> declares them"
+	if len(declared) > 0 {
+		hint = "declared: " + strings.Join(declared, ", ") + "; tp epic set owners=<json> declares more"
+	}
 	for _, h := range handles {
 		if !slices.Contains(declared, h) {
-			output.Error(ExitUsage, fmt.Sprintf("--owner %q is not a declared handle", h),
-				"declared: "+strings.Join(declared, ", ")+"; tp epic set owners=<json> declares them")
+			output.Error(ExitUsage, fmt.Sprintf("--owner %q is not a declared handle", h), hint)
 			os.Exit(ExitUsage)
 		}
 	}
