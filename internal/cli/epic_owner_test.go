@@ -69,3 +69,17 @@ func TestEpicOwner_SetOwnerWritesTheListInOrderAndEmptyUnsetsIt(t *testing.T) {
 	assert.Nil(t, owner["d"])
 	assert.NotContains(t, string(readEpicGraphFile(t, dir)), `"owner": []`)
 }
+
+// TestEpicOwner_DroppingAHandleAnEpicStillNamesIsRefused: the set's write
+// would add unknown-owner on w, so it exits 1 and writes nothing.
+func TestEpicOwner_DroppingAHandleAnEpicStillNamesIsRefused(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, ownerGraph)
+	before := readEpicGraphFile(t, dir)
+
+	_, stderr, code := runTP(t, dir, "epic", "set", `owners=[{"handle":"ana"}]`)
+	require.Equal(t, 1, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "unknown-owner")
+	assert.Contains(t, stderr, `"ben"`)
+	assert.Equal(t, before, readEpicGraphFile(t, dir), "a refused set writes nothing")
+}
