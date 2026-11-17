@@ -9,7 +9,8 @@ import (
 // EpicGraphMarkdown renders the graph as one Markdown table per milestone, in
 // track order (spec/1.3.0.md §6): one row per epic with its id, title, tags and
 // every dependency with its why, an any-of group as one of {A, B}
-// (spec/1.7.0.md §7). Rows keep the file's epic order. A milestone
+// (spec/1.7.0.md §7), and an owner column when the graph declares owners
+// (spec/backlog/epic-owner.md). Rows keep the file's epic order. A milestone
 // named twice gets one table, and epics whose milestone is in no track follow
 // in tables of their own, so every epic is in exactly one row.
 func EpicGraphMarkdown(g *model.EpicGraph) string {
@@ -38,22 +39,32 @@ func EpicGraphMarkdown(g *model.EpicGraph) string {
 		if i > 0 {
 			b.WriteString("\n")
 		}
-		writeMilestoneTable(&b, name, byMilestone[name])
+		writeMilestoneTable(&b, name, byMilestone[name], len(g.Owners) > 0)
 	}
 	return b.String()
 }
 
 // writeMilestoneTable writes one milestone's heading and table.
-func writeMilestoneTable(b *strings.Builder, name string, epics []model.Epic) {
+// writeMilestoneTable writes one milestone's heading and table; owners adds
+// an owner column after tags, each epic's handles in the order written.
+func writeMilestoneTable(b *strings.Builder, name string, epics []model.Epic, owners bool) {
 	b.WriteString("## " + markdownCell(name) + "\n\n")
-	b.WriteString("| id | title | tags | depends on |\n|---|---|---|---|\n")
+	if owners {
+		b.WriteString("| id | title | tags | owner | depends on |\n|---|---|---|---|---|\n")
+	} else {
+		b.WriteString("| id | title | tags | depends on |\n|---|---|---|---|\n")
+	}
 	for k := range epics {
 		e := &epics[k]
 		deps := make([]string, 0, len(e.DependsOn))
 		for _, d := range e.DependsOn {
 			deps = append(deps, epicDepName(d)+": "+d.Why)
 		}
-		cells := []string{e.ID, e.Title, strings.Join(e.Tags, ", "), strings.Join(deps, "; ")}
+		cells := []string{e.ID, e.Title, strings.Join(e.Tags, ", ")}
+		if owners {
+			cells = append(cells, strings.Join(e.Owner, ", "))
+		}
+		cells = append(cells, strings.Join(deps, "; "))
 		for i := range cells {
 			cells[i] = markdownCell(cells[i])
 		}
