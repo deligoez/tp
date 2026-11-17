@@ -158,7 +158,7 @@
   "op.evidence": "metin ya da URL",
   "op.condition": "koşul",
   "op.toDecide": "Karar bekleyen {n} koşul",
-  "op.waitingOn": "Kararı bekleniyor: {owner}",
+  "op.waitingOn": "Karar sahibi: {owner}",
   "op.unowned": "Sahipsiz",
   "op.other": "Diğer kararlar",
   "op.chooseOne": "{n} koşuldan birini seç",
