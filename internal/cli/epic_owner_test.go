@@ -265,3 +265,27 @@ func TestEpicOwner_StatusTakesTheSameFilters(t *testing.T) {
 	assert.Equal(t, []string{"w"}, ready)
 	assert.Equal(t, []string{"x"}, blocked)
 }
+
+// TestEpicOwner_AGraphWithoutOwnersPrintsNoOwnerAnywhere: with no owners
+// declared every read is what it was before owners existed, so no output
+// names the word, an epic whose owner a hand edit left behind included.
+func TestEpicOwner_AGraphWithoutOwnersPrintsNoOwnerAnywhere(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{
+  "version": 1,
+  "milestones": [["A"]],
+  "epics": [
+    {"id": "w", "title": "W", "milestone": "A", "root": true},
+    {"id": "x", "title": "X", "milestone": "A", "depends_on": [{"id": "w", "why": "x builds on w"}], "owner": ["ana"]},
+    {"id": "d", "title": "D", "milestone": "A", "root": true, "condition": true}
+  ]
+}
+`)
+	for _, args := range [][]string{
+		{"epic", "ready"}, {"epic", "ready", "--all"}, {"epic", "status"}, {"epic", "export", "--md"},
+	} {
+		stdout, stderr, code := runTP(t, dir, args...)
+		require.Equal(t, 0, code, "%v stderr: %s", args, stderr)
+		assert.NotContains(t, stdout, "owner", "%v", args)
+	}
+}
