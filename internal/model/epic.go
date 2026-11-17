@@ -29,7 +29,17 @@ type EpicGraph struct {
 	// ForbiddenEdges lists the dependencies the project forbids
 	// (spec/1.8.0.md §10).
 	ForbiddenEdges []EpicForbiddenEdge `json:"forbidden_edges,omitempty"`
-	Epics          []Epic              `json:"epics"`
+	// Owners is the declared set of handles an epic's owner may name
+	// (spec/backlog/epic-owner.md).
+	Owners []EpicOwner `json:"owners,omitempty"`
+	Epics  []Epic      `json:"epics"`
+}
+
+// EpicOwner is one declared owner: a handle, opaque to tp and compared byte
+// for byte, and an optional display name. Both are content.
+type EpicOwner struct {
+	Handle string `json:"handle"`
+	Name   string `json:"name,omitempty"`
 }
 
 // EpicForbiddenEdge forbids a direct edge, or an any-of member, from an epic
@@ -122,6 +132,9 @@ type Epic struct {
 	// Condition marks a precondition the operator decides rather than work;
 	// written only when true.
 	Condition bool `json:"condition,omitempty"`
+	// Owner lists the declared handles whose job the epic is, or who decide
+	// a condition, in the order written; empty is unset and not written.
+	Owner []string `json:"owner,omitempty"`
 	// EstimateMinutes is the epic's own estimate; 0 is unset and not written.
 	EstimateMinutes int `json:"estimate_minutes,omitempty"`
 	// Claimed and Done are written by their commands and by tp epic import.

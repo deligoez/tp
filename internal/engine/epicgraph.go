@@ -27,12 +27,12 @@ var ErrEpicGraphNotFound = errors.New("epic graph not found")
 // to the caller for the lint to report.
 var (
 	knownEpicGraphKeys = map[string]bool{
-		"version": true, "milestones": true, "opens_after": true, "gates": true, "tag_checks": true, "forbidden_edges": true, "epics": true,
+		"version": true, "milestones": true, "opens_after": true, "gates": true, "tag_checks": true, "forbidden_edges": true, "owners": true, "epics": true,
 	}
 	knownEpicForbiddenEdgeKeys = map[string]bool{"from": true, "to": true, "why": true}
 	knownEpicKeys              = map[string]bool{
 		"id": true, "title": true, "milestone": true, "tags": true, "depends_on": true, "acceptance": true, "description": true, "root": true,
-		"condition": true, "estimate_minutes": true, "claimed": true, "done": true,
+		"condition": true, "owner": true, "estimate_minutes": true, "claimed": true, "done": true,
 	}
 	knownEpicGateKeys     = map[string]bool{"members": true, "deferrable": true, "threshold": true, "purpose": true, "met": true}
 	knownEpicTagCheckKeys = map[string]bool{"provided_by": true, "direct": true}
