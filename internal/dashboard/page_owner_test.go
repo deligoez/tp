@@ -185,3 +185,23 @@ func TestPage_TheMapSelectsAndColoursByOwner(t *testing.T) {
 		assert.Contains(t, script, s)
 	}
 }
+
+// TestPure_AnOwnerSelectionFollowsItsHandleAcrossPushes: the map keeps the
+// selected owner by handle, the unowned as null and every epic as
+// undefined, so a push that reorders the set keeps the same owner and one
+// that drops it resets to every epic; a handle spelled "undefined" or
+// "unowned" stays an owner, apart from those two in the redraw key too.
+func TestPure_AnOwnerSelectionFollowsItsHandleAcrossPushes(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const a = [{ handle: "ana" }, { handle: "ben" }, { handle: "cem" }];
+const dropped = [{ handle: "ana" }, { handle: "ben" }];
+const moved = [{ handle: "cem" }, { handle: "ana" }, { handle: "ben" }];
+const odd = [{ handle: "undefined" }, { handle: "unowned" }];
+const sel = P.ownerSel("2", a);
+out([sel, P.ownerResolve(dropped, sel) === undefined, P.ownerResolve(moved, sel),
+  P.ownerSelected(["cem"], moved, P.ownerResolve(moved, sel)), P.ownerOptionsHTML(moved, "cem", T).includes('value="0" selected'),
+  P.ownerSel("u", a) === null, P.ownerResolve(a, null) === null, P.ownerSel("", a) === undefined,
+  P.ownerSel("1", odd), P.ownerSelected(["unowned"], odd, "unowned"), P.ownerSelected([], odd, "unowned"),
+  P.ownerSelKey(undefined) !== P.ownerSelKey("undefined"), P.ownerSelKey(null) !== P.ownerSelKey("unowned")]);`)
+	assert.JSONEq(t, `["cem", true, "cem", true, true, true, true, true, "unowned", true, false, true, true]`, got)
+}
