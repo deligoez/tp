@@ -1,9 +1,11 @@
 package dashboard_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // ownersJS is a declared owners set for the owner tests: a named owner, an
@@ -115,4 +117,38 @@ func TestPage_TheOperatorsConditionsGroupByWhoseDecisionItIs(t *testing.T) {
 		assert.Contains(t, script, s)
 	}
 	assert.Contains(t, page, ".list .ogroup {")
+}
+
+// TestPage_EveryOwnerColourReadsAndStaysApart: the owner palette, eight
+// slots, "other" and the unowned, is a token set on the light theme and
+// both dark ones; drawn through tpPure.graphPalette, the ink reads on every
+// owner fill at 4.5:1, every owner hue reads on the canvas at 3:1, and no
+// two of the eight slots come closer than a colour difference of 12.
+func TestPage_EveryOwnerColourReadsAndStaysApart(t *testing.T) {
+	t.Parallel()
+	css := string(served(t, "/style.css"))
+	for _, over := range []string{"", darkByControl, darkBySystem} {
+		tok, err := json.Marshal(themeTokens(t, css, over))
+		require.NoError(t, err)
+		got := runPure(t, `const tok = `+string(tok)+`;
+const pal = P.graphPalette(tok);
+const r = (a, b) => Math.round(P.contrast(a, b) * 100) / 100;
+let near = 99;
+for (let a = 0; a < P.OWNER_SLOTS; a++) for (let b = a + 1; b < P.OWNER_SLOTS; b++) near = Math.min(near, P.deltaE(pal.owner.line[a], pal.owner.line[b]));
+out({ n: pal.owner.fill.length, text: Math.min(...pal.owner.fill.map((f) => r(pal.ink, f))), line: Math.min(...pal.owner.line.map((l) => r(l, pal.page))), near: Math.round(near * 10) / 10,
+  tokens: P.OWNER_TOKENS.every((name) => /^#[0-9a-f]{6}$/i.test(tok[name] || "")) });`)
+		var res struct {
+			N      int     `json:"n"`
+			Text   float64 `json:"text"`
+			Line   float64 `json:"line"`
+			Near   float64 `json:"near"`
+			Tokens bool    `json:"tokens"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(got), &res), got)
+		assert.True(t, res.Tokens, "theme %q: every owner token is a colour", over)
+		assert.Equal(t, 10, res.N, "theme %q: eight slots, other and the unowned", over)
+		assert.GreaterOrEqual(t, res.Text, 4.5, "theme %q: ink on an owner fill", over)
+		assert.GreaterOrEqual(t, res.Line, 3.0, "theme %q: an owner hue on the canvas", over)
+		assert.GreaterOrEqual(t, res.Near, 12.0, "theme %q: the closest two owner slots", over)
+	}
 }
