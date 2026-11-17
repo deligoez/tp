@@ -382,8 +382,8 @@
   const staged = (n) => !n.status || app.inStage(n);
   function nodeAlpha(P, hits, n) {
     if (G.hiddenMarks.has(n.mark)) return 28;
-    if (P.owners.length && !pure.ownerSelected(n.owner, P.owners, G.ownerSel)) return 50;
     if (P.sel >= 0) return inChain(P, n.i) ? pure.chainAlpha(stepsOf(P, n.i), G.whole) : 40;
+    if (P.owners.length && !pure.ownerSelected(n.owner, P.owners, G.ownerSel)) return 50;
     if (hits && !hits.has(n.i)) return 50;
     return staged(n) ? 255 : 50;
   }
