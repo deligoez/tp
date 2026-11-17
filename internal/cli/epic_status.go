@@ -88,6 +88,7 @@ func newEpicStatusCmd() *cobra.Command {
 	}
 	cmd.Flags().String("milestone", "", "report only this milestone")
 	cmd.Flags().Bool("open", false, "report only open milestones (the whole graph's critical_path is unchanged)")
+	addEpicOwnerFlags(cmd)
 	return cmd
 }
 
@@ -99,6 +100,7 @@ func newEpicStatusCmd() *cobra.Command {
 func runEpicStatus(cmd *cobra.Command, _ []string) error {
 	only, _ := cmd.Flags().GetString("milestone")
 	g, states, bound := loadEpicStates()
+	filter := epicOwnerFilterOrExit(cmd, g)
 	milestones := trackedMilestones(g)
 	if only != "" {
 		if !slices.Contains(milestones, only) {
@@ -117,6 +119,7 @@ func runEpicStatus(cmd *cobra.Command, _ []string) error {
 		output.Error(ExitFile, err.Error(), epicBoundFileHint)
 		os.Exit(ExitFile)
 	}
+	filter.filterStatus(&result)
 	if err := output.JSON(result); err != nil {
 		output.Error(ExitFile, err.Error(), internalEncodeHint)
 		os.Exit(ExitFile)

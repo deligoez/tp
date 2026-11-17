@@ -76,3 +76,16 @@ func (f epicOwnerFilter) filterReady(r *epicReadyResult) {
 	r.Claimed = epicOwnerKept(f, r.Claimed, func(e epicClaimedEpic) []string { return e.Owner })
 	r.Operator.Conditions = epicOwnerKept(f, r.Operator.Conditions, func(e epicOperatorCondition) []string { return e.Owner })
 }
+
+// filterStatus keeps, in each milestone of r, the ready, claimed, blocked
+// and condition entries f keeps. Counts, share done, gates and critical
+// paths describe the milestone and stay whole.
+func (f epicOwnerFilter) filterStatus(r *epicPlanResult) {
+	for i := range r.Milestones {
+		m := &r.Milestones[i]
+		m.Ready = epicOwnerKept(f, m.Ready, func(e epicReadyItem) []string { return e.Owner })
+		m.Claimed = epicOwnerKept(f, m.Claimed, func(e epicClaimedEpic) []string { return e.Owner })
+		m.Blocked = epicOwnerKept(f, m.Blocked, func(e epicBlockedEpic) []string { return e.Owner })
+		m.Operator.Conditions = epicOwnerKept(f, m.Operator.Conditions, func(e epicOperatorCondition) []string { return e.Owner })
+	}
+}
