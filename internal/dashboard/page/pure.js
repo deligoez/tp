@@ -885,6 +885,32 @@
     const o = (owners || [])[sel];
     return !!o && list.includes(o.handle);
   };
+  // ownerLegend counts epics, each { owner }, by membership: an epic counts
+  // under every owner it names, whatever colour paints it. owners lists the
+  // first OWNER_SLOTS declared owners with an epic, { slot, label, n }, in
+  // declaration order; other, null when the set is no longer, counts the
+  // owners past them and once each epic naming any of them; unowned counts
+  // the epics naming no one.
+  P.ownerLegend = function (owners, epics) {
+    const set = owners || [];
+    const n = set.map(() => 0);
+    let other = 0;
+    let unowned = 0;
+    (epics || []).forEach((e) => {
+      const list = e.owner || [];
+      if (!list.length) unowned++;
+      let past = false;
+      list.forEach((h) => {
+        const i = ownerIndex(set, h);
+        if (i >= P.OWNER_SLOTS) past = true;
+        else if (i >= 0) n[i]++;
+      });
+      if (past) other++;
+    });
+    const rows = [];
+    set.slice(0, P.OWNER_SLOTS).forEach((o, i) => { if (n[i]) rows.push({ slot: i, label: P.ownerLabel(set, o.handle), n: n[i] }); });
+    return { owners: rows, other: set.length > P.OWNER_SLOTS ? { owners: set.length - P.OWNER_SLOTS, n: other } : null, unowned };
+  };
 
   if (typeof module === "object" && module.exports) module.exports = P;
   else root.tpPure = P;
