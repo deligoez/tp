@@ -419,13 +419,14 @@
     };
   }
   // nodeLineWidth draws no border far out but the selection's cone, a
-  // search's matches and the marks a node holds.
+  // search's matches and the marks a node holds, unless owners paint the
+  // fill: the border is then the only state mark and stays.
   function nodeLineWidth(P, hits) {
     return (n) => {
       if (n.i === P.sel) return 3;
       if (P.sel >= 0 && (P.anc.has(n.i) || P.desc.has(n.i))) return stepsOf(P, n.i) <= 2 ? 2 : 1;
       if ((hits && hits.has(n.i)) || n.hold || n.centre) return 2;
-      return G.detail === "far" ? 0 : 1;
+      return G.detail === "far" && !ownerPainted(P) ? 0 : 1;
     };
   }
   // onChain says whether l lies on the selection's chain: into the selection
