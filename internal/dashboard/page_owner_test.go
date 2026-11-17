@@ -152,3 +152,35 @@ out({ n: pal.owner.fill.length, text: Math.min(...pal.owner.fill.map((f) => r(pa
 		assert.GreaterOrEqual(t, res.Near, 12.0, "theme %q: the closest two owner slots", over)
 	}
 }
+
+// TestPage_TheMapSelectsAndColoursByOwner: with owners declared and epics
+// drawn, the toolbar shows an owner selector and a colour-by-owner switch;
+// the selection dims the other epics through nodeAlpha as search and the
+// stage do; the switch fills a node in its first owner's colour while its
+// border keeps the state mark, and the legend then shows the owners, counted
+// by membership, and the state marks under separate headings; an epic with
+// more than one owner carries "+N"; without owners none of it shows.
+func TestPage_TheMapSelectsAndColoursByOwner(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	for _, s := range []string{
+		`<label class="gpick" id="gc-owner-pick" hidden>`, `<select id="gc-owner"></select>`,
+		`id="gc-ocolour" aria-pressed="false" hidden`,
+	} {
+		assert.Contains(t, page, s)
+	}
+	for _, s := range []string{
+		`const owned = ownersOf(g).length > 0 && G.mode !== "milestones";`,
+		`$("gc-owner").innerHTML = pure.ownerOptionsHTML(ownersOf(g), G.ownerSel, app.tr());`,
+		`if (P.owners.length && !pure.ownerSelected(n.owner, P.owners, G.ownerSel)) return 50;`,
+		`if (ownerPainted(P)) return [...c.owner.fill[ownerSlotOf(P, n)], nodeAlpha(P, hits, n)];`,
+		`pure.ownerLegend(P.owners, P.nodes)`,
+		`(owner.length > 1 ? " +" + (owner.length - 1) : "")`,
+		`G.ownerSel = pure.ownerSel(ev.target.value);`,
+		`G.ownerColour = !G.ownerColour;`,
+		`String(G.ownerSel), G.ownerColour`,
+		`escape(t("graph.legend.owner"))`, `escape(t("graph.legend.state"))`,
+	} {
+		assert.Contains(t, script, s)
+	}
+}
