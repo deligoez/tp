@@ -159,6 +159,7 @@ func LintEpicGraph(g *model.EpicGraph, unknown []EpicGraphUnknownKey) []EpicLint
 	out = append(out, lintEpicDependencyOpensLater(g)...)
 	out = append(out, lintEpicGateHeldByCondition(g)...)
 	out = append(out, lintEpicGateEmpty(g)...)
+	out = append(out, lintEpicOwners(g)...)
 	return out
 }
 
