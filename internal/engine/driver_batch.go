@@ -47,7 +47,8 @@ type batchUnit struct {
 }
 
 // startBatch claims the batch's tasks and adds a worktree per unit, outside
-// the repository, on a branch from the main branch's HEAD (§2.3).
+// the repository, on a branch from the main branch's HEAD (§2.3), running the
+// project's worktree_setup_cmd in each (spec/backlog/worktree-setup.md).
 func (d *driver) startBatch(units []NextUnit) (map[string]batchUnit, error) {
 	ids := make([]string, len(units))
 	for i := range units {
@@ -56,9 +57,20 @@ func (d *driver) startBatch(units []NextUnit) (map[string]batchUnit, error) {
 	if d.opts.ClaimTasks == nil {
 		return nil, driverErrorf(fmt.Errorf("no claim function"), "claim the implement batch")
 	}
+	setup, err := worktreeSetupCmd(d.opts.Root)
+	if err != nil {
+		return nil, err
+	}
 	if err := d.opts.ClaimTasks(ids); err != nil {
 		return nil, driverErrorf(err, "claim the implement batch")
 	}
+	return d.addBatchWorktrees(ids, setup)
+}
+
+// addBatchWorktrees adds each unit's worktree and runs the setup there, one
+// after another in batch order, before any unit is spawned. A failed add or a
+// failed setup unwinds the whole batch.
+func (d *driver) addBatchWorktrees(ids []string, setup string) (map[string]batchUnit, error) {
 	base := filepath.Join(WorktreeBase(d.opts.Root), cycleTag(d.opts.Root, d.opts.TaskFile))
 	out := make(map[string]batchUnit, len(ids))
 	for _, id := range ids {
@@ -68,9 +80,19 @@ func (d *driver) startBatch(units []NextUnit) (map[string]batchUnit, error) {
 			branch:   unitBranch(d.opts.Root, d.opts.TaskFile, d.runID, id),
 		}
 		if _, err := gitOut(d.opts.Root, "worktree", "add", "-q", "-b", u.branch, u.worktree, "HEAD"); err != nil {
-			return nil, driverErrorf(err, "add the worktree for task %q", id)
+			addErr := driverErrorf(err, "add the worktree for task %q", id)
+			return nil, errors.Join(addErr, d.unwindBatch(ids, out, &u))
 		}
 		out[id] = u
+		if setup == "" {
+			continue
+		}
+		if err := d.setupWorktree(setup, u); err != nil {
+			if unwindErr := d.unwindBatch(ids, out, nil); unwindErr != nil {
+				return nil, errors.Join(unwindErr, err)
+			}
+			return nil, err
+		}
 	}
 	return out, nil
 }
