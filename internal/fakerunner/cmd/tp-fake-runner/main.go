@@ -63,30 +63,35 @@ func run() int {
 	}
 	defer file.Close()
 
-	if ms := intEnv(fakerunner.EnvSleepMS); ms > 0 {
+	id := os.Getenv("TP_UNIT_ID")
+	if ms := sleepFor(id); ms > 0 {
 		time.Sleep(time.Duration(ms) * time.Millisecond)
 	}
 	if err := writeSpendLine(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return exitSetup
 	}
-	if durableAt(os.Getenv(fakerunner.EnvDurable), seq) {
-		if err := durableWrite(); err != nil {
+	code := scriptedExit(os.Getenv(fakerunner.EnvExits), seq)
+	switch {
+	case listed(fakerunner.EnvFailFirst, id) && !attemptedBefore(dir, id):
+		code = 1
+	case listed(fakerunner.EnvEscalateIDs, id):
+		if err := writeEscalation(escalateValid); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return exitSetup
 		}
-	}
-	if mode := escalateAt(os.Getenv(fakerunner.EnvEscalate), seq); mode != "" {
-		if err := writeEscalation(mode); err != nil {
+	default:
+		if err := scriptedWrites(seq); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return exitSetup
 		}
 	}
 
-	code := scriptedExit(os.Getenv(fakerunner.EnvExits), seq)
+	wd, _ := os.Getwd()
 	record := fakerunner.Invocation{
 		Seq:       seq,
 		Argv:      os.Args[1:],
+		Dir:       wd,
 		Env:       environ(),
 		SpawnedAt: spawnedAt,
 		ExitedAt:  time.Now().UTC(),
@@ -97,6 +102,58 @@ func run() int {
 		return exitSetup
 	}
 	return code
+}
+
+// scriptedWrites performs the writes EnvDurable and EnvEscalate script for this
+// invocation's seq, the durable write first.
+func scriptedWrites(seq int) error {
+	if durableAt(os.Getenv(fakerunner.EnvDurable), seq) {
+		if err := durableWrite(); err != nil {
+			return err
+		}
+	}
+	if mode := escalateAt(os.Getenv(fakerunner.EnvEscalate), seq); mode != "" {
+		return writeEscalation(mode)
+	}
+	return nil
+}
+
+// sleepFor is how long this unit holds itself open: its EnvSleepByID entry,
+// else EnvSleepMS.
+func sleepFor(id string) int {
+	for entry := range strings.SplitSeq(os.Getenv(fakerunner.EnvSleepByID), ",") {
+		if name, ms, ok := strings.Cut(strings.TrimSpace(entry), "="); ok && name == id {
+			if value, err := strconv.Atoi(ms); err == nil {
+				return value
+			}
+		}
+	}
+	return intEnv(fakerunner.EnvSleepMS)
+}
+
+// listed reports whether the comma-separated knob names id.
+func listed(knob, id string) bool {
+	for entry := range strings.SplitSeq(os.Getenv(knob), ",") {
+		if id != "" && strings.TrimSpace(entry) == id {
+			return true
+		}
+	}
+	return false
+}
+
+// attemptedBefore reports whether an earlier, finished invocation in dir ran
+// the same unit id.
+func attemptedBefore(dir, id string) bool {
+	recs, err := fakerunner.Records(dir)
+	if err != nil {
+		return false
+	}
+	for i := range recs {
+		if recs[i].Env["TP_UNIT_ID"] == id {
+			return true
+		}
+	}
+	return false
 }
 
 // environ returns the child's whole environment as a map. An entry without "="

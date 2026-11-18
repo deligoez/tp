@@ -66,6 +66,17 @@ const (
 	// worktree, <id>.txt by default; two units naming one file conflict
 	// when the driver integrates the second.
 	EnvFile = "TP_FAKE_RUNNER_FILE"
+	// EnvSleepByID gives units their own lengths, `alpha=800,beta=100` in
+	// milliseconds by TP_UNIT_ID; an id it does not name sleeps EnvSleepMS.
+	// Uneven units are what tell a rolling pool from a batch barrier.
+	EnvSleepByID = "TP_FAKE_RUNNER_SLEEP_BY_ID"
+	// EnvFailFirst names units, comma-separated by TP_UNIT_ID, whose first
+	// attempt exits 1 having written nothing; every later attempt of the
+	// same id behaves as the other knobs say.
+	EnvFailFirst = "TP_FAKE_RUNNER_FAIL_FIRST"
+	// EnvEscalateIDs names units, comma-separated by TP_UNIT_ID, that write
+	// a valid escalation record instead of their durable write.
+	EnvEscalateIDs = "TP_FAKE_RUNNER_ESCALATE_IDS"
 )
 
 // Invocation is one spawn of the fake runner, as it recorded itself.
@@ -80,6 +91,8 @@ type Invocation struct {
 	Seq int `json:"seq"`
 	// Argv is the child's arguments, without the executable itself.
 	Argv []string `json:"argv"`
+	// Dir is the directory the child was spawned in.
+	Dir string `json:"dir"`
 	// Env is the child's whole environment.
 	Env map[string]string `json:"env"`
 	// SpawnedAt is the first thing the child records; ExitedAt the last.
