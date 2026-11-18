@@ -283,3 +283,42 @@ func TestRunDriver_ANonStringWorktreeSetupIsADriverError(t *testing.T) {
 	assert.Equal(t, StopDriverError, res.StopReason)
 	assertBatchUnwound(t, root, taskFile, records)
 }
+
+// TestRunDriver_WorktreeSetupRunsInTheProjectSubdirectory: in a repository
+// whose project lives below the git top level, the setup runs in the
+// worktree's copy of the project directory, the directory TP_MAIN_ROOT names
+// in the main tree, so a relative path means the same thing in both.
+func TestRunDriver_WorktreeSetupRunsInTheProjectSubdirectory(t *testing.T) {
+	probe := t.TempDir()
+	t.Setenv("TP_SETUP_PROBE", probe)
+	flat, flatSpec, flatTaskFile, _ := setupBatchProject(t,
+		`printf '%s\n%s\n' "$PWD" "$TP_MAIN_ROOT" > "$TP_SETUP_PROBE/$TP_UNIT_ID"; exit 1`)
+
+	top, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	root := filepath.Join(top, "proj")
+	require.NoError(t, os.CopyFS(root, os.DirFS(flat)))
+	require.NoError(t, os.RemoveAll(filepath.Join(root, ".git")))
+	gitIn(t, top, "init", "-q", "-b", "main")
+	gitIn(t, top, "config", "user.email", "t@example.com")
+	gitIn(t, top, "config", "user.name", "t")
+	gitIn(t, top, "add", ".")
+	gitIn(t, top, "commit", "-q", "-m", "monorepo")
+	rel := func(p string) string {
+		r, relErr := filepath.Rel(flat, p)
+		require.NoError(t, relErr)
+		return filepath.Join(root, r)
+	}
+
+	res, err := driveSetupBatch(t, root, rel(flatSpec), rel(flatTaskFile))
+	require.NoError(t, err)
+	require.Equal(t, StopWorktreeSetupFailed, res.StopReason)
+
+	data, err := os.ReadFile(filepath.Join(probe, "alpha"))
+	require.NoError(t, err, "the setup ran for the first task")
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	require.Len(t, lines, 2)
+	assert.Equal(t, filepath.Join("alpha", "proj"), filepath.Join(filepath.Base(filepath.Dir(lines[0])), filepath.Base(lines[0])),
+		"the setup runs in the worktree's project directory: %s", lines[0])
+	assert.Equal(t, CanonicalPath(root), CanonicalPath(lines[1]), "TP_MAIN_ROOT is the project directory")
+}
