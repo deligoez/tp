@@ -32,7 +32,7 @@ the gate again. SIGINT or SIGTERM kills the gate's processes before tp exits.
 
 Exit 0 when the gate passes.
 Exit 4 when it fails, times out or a signal ends it (the slot wait included).
-Exit 2 when no quality_gate is set.
+Exit 0 also when no quality_gate is set, with nothing run (gate_configured: false).
 Exit 3 when no task file is found or it is another project's.`,
 		Args: cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
@@ -55,14 +55,12 @@ func runGate() error {
 	}
 	wf := engine.EffectiveWorkflowForTaskFile(taskFilePath)
 	if wf.QualityGate == "" {
-		// Inside a run tp set refuses the gate write (fenceQualityGateSet),
-		// so the hint is the escalation a gate change takes.
-		hint := "set one with tp set --workflow --project quality_gate=\"<command>\""
-		if engine.Unattended() {
-			hint = "setting quality_gate is the operator's decision: tp escalate --decision " + engine.EscalateSkipGate + " --evidence <what you found>"
-		}
-		output.Error(ExitUsage, "no quality_gate is set, so there is no gate to run", hint)
-		os.Exit(ExitUsage)
+		// A project without a gate is legal, and tp done closes there with
+		// no gate run; tp gate has nothing to run either.
+		const nothing = "no quality_gate configured; nothing to gate"
+		output.Success(nothing)
+		printResultOrExit(map[string]any{"passed": true, "gate_configured": false, "message": nothing})
+		return nil
 	}
 	// The directory rule of a unit's tp done: the task file's project
 	// directory, carried into the linked worktree the command runs in. On the
