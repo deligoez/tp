@@ -80,11 +80,9 @@ func TestAddGateTimes_ConcurrentAddsLoseNothing(t *testing.T) {
 	const adders = 40
 	var wg sync.WaitGroup
 	for range adders {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			assert.NoError(t, AddGateTimes(path, time.Time{}, 0, time.Second))
-		}()
+		})
 	}
 	wg.Wait()
 	gt, ok := ReadGateTimes(path)
