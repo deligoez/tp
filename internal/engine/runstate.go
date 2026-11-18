@@ -3,6 +3,7 @@ package engine
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -39,6 +40,10 @@ type RunState struct {
 	// these, under a live run, as running, and offers no unit beside them.
 	// Absent when the pool is empty.
 	Pool []string `json:"pool,omitempty"`
+	// Orphans are the pids of the pool members a dead run left running,
+	// which this run waits for before it recovers (liveUnits): no row of
+	// this run carries them. Absent when there are none.
+	Orphans map[string]int `json:"orphans,omitempty"`
 }
 
 // RunSetupRow is one worktree_setup_cmd run in one pool worktree. ExitCode is
@@ -79,6 +84,9 @@ type RunUnitRow struct {
 	// Worktree is where a pooled implement unit runs, or "" for the main
 	// tree. It is observability only: which units a live pool runs is Pool's.
 	Worktree string `json:"worktree,omitempty"`
+	// PID is the pooled unit's own child, recorded once it has started: half
+	// of what tells a dead run's unit still running (liveUnits).
+	PID int `json:"pid,omitempty"`
 }
 
 // RunStatePath returns a cycle's run state file, .tp/run-<key>.json under the
@@ -92,9 +100,10 @@ func RunStatePath(root, taskFile string) string {
 // no run state exists for the task file, which is the condition `tp run
 // --status` reports as exit 3 rather than as a failure.
 //
-// It is the reporting path's reader and nothing else: the driver never reads
-// its own run state back, since two sources of truth for one fact is the drift
-// §3.5 exists to avoid.
+// It is the reporting path's reader: the driver never reads its own run state
+// back, since two sources of truth for one fact is the drift §3.5 exists to
+// avoid. The one state a driver reads is the dead run's, once, before its own
+// replaces it, for the units that run left live (liveUnits).
 func ReadRunState(root, taskFile string) (*RunState, error) {
 	data, err := os.ReadFile(RunStatePath(root, taskFile))
 	if err != nil {
@@ -223,6 +232,37 @@ func (r *RunRecorder) LeavePool(id string) error {
 	if len(r.state.Pool) == 0 {
 		r.state.Pool = nil
 	}
+	delete(r.state.Orphans, id)
+	if len(r.state.Orphans) == 0 {
+		r.state.Orphans = nil
+	}
+	return r.writeLocked()
+}
+
+// JoinOrphan carries a dead run's live unit into this run's pool, with its
+// pid, so outside readers see it running while this run waits for it.
+func (r *RunRecorder) JoinOrphan(id string, pid int) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if !slices.Contains(r.state.Pool, id) {
+		r.state.Pool = append(r.state.Pool, id)
+	}
+	if r.state.Orphans == nil {
+		r.state.Orphans = map[string]int{}
+	}
+	r.state.Orphans[id] = pid
+	return r.writeLocked()
+}
+
+// SetUnitPID records the pid of seq's child once it has started.
+func (r *RunRecorder) SetUnitPID(seq, pid int) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	row := r.rowLocked(seq)
+	if row == nil {
+		return fmt.Errorf("run state: no unit row with seq %d", seq)
+	}
+	row.PID = pid
 	return r.writeLocked()
 }
 
@@ -267,6 +307,7 @@ func (r *RunRecorder) Snapshot() RunState {
 	out.Units = make([]RunUnitRow, len(r.state.Units))
 	copy(out.Units, r.state.Units)
 	out.Pool = slices.Clone(r.state.Pool)
+	out.Orphans = maps.Clone(r.state.Orphans)
 	return out
 }
 
@@ -330,26 +371,76 @@ func writeFileAtomic(path string, data []byte) error {
 	return os.Rename(tmpName, path)
 }
 
-// LiveRunningUnits names the implement units a live tp run's rolling pool runs
-// now, for a reader outside the run (spec/backlog/rolling-implement.md §2):
-// the pool a run state with no stop_reason names, and only while some process
-// holds the run lock. No run state, a run that stopped or died, a main-tree
-// unit, or a probe that failed gives nil, and the reader sees the cycle as it
-// always has. The lock is probed last, and only when the pool has members, so
-// a reader of a cycle with no pool never touches it.
+// LiveRunningUnits names the implement units running for a cycle now, for a
+// reader outside the run (spec/backlog/rolling-implement.md §2). While some
+// process holds the run lock, they are the pool a run state with no
+// stop_reason names. With the run lock free, they are the units the dead run
+// left still running (liveUnits), the same ones a restarted run waits for. No
+// run state, a stopped run's empty pool, a main-tree unit, or a probe that
+// failed gives nil, and the reader sees the cycle as it always has. The run
+// lock is probed only when the pool has members, so a reader of a cycle with
+// no pool never touches it.
 func LiveRunningUnits(root, taskFile string) []string {
 	st, err := ReadRunState(root, taskFile)
-	if err != nil {
+	if err != nil || len(st.Pool) == 0 {
 		return nil
 	}
-	ids := poolMembers(st)
-	if len(ids) == 0 {
+	held, err := RunLockHeld(taskFile)
+	switch {
+	case err != nil:
 		return nil
+	case held:
+		return poolMembers(st)
 	}
-	if held, err := RunLockHeld(taskFile); err != nil || !held {
-		return nil
+	var ids []string
+	for _, u := range liveUnits(st, taskFile) {
+		ids = append(ids, u.ID)
 	}
 	return ids
+}
+
+// liveUnit is a dead run's pool member whose own child still runs.
+type liveUnit struct {
+	ID  string
+	PID int
+}
+
+// liveUnits are a dead run's pool members still running, sorted: a unit is
+// live only when (a) the run state lists it in pool, so it was never
+// integrated, (b) the pid of its own child, recorded at spawn, is alive, and
+// (c) its unit lock is held. A daemon the unit left behind holds the lock
+// after the unit's child exited and fails (b); a run that stopped cleanly
+// emptied its pool and fails (a).
+func liveUnits(st *RunState, taskFile string) []liveUnit {
+	if st == nil {
+		return nil
+	}
+	ids := slices.Clone(st.Pool)
+	slices.Sort(ids)
+	var live []liveUnit
+	for _, id := range slices.Compact(ids) {
+		u := liveUnit{ID: id, PID: unitPID(st, id)}
+		if u.alive(taskFile) {
+			live = append(live, u)
+		}
+	}
+	return live
+}
+
+// alive is (b) and (c) of liveUnits, read again on every poll of the wait.
+func (u liveUnit) alive(taskFile string) bool {
+	return u.PID > 0 && processAlive(u.PID) && unitLockHeld(unitLockPath(taskFile, u.ID))
+}
+
+// unitPID is the pid of id's latest child in st: its last row's, else the
+// one an orphan carried in, else 0.
+func unitPID(st *RunState, id string) int {
+	for i := len(st.Units) - 1; i >= 0; i-- {
+		if st.Units[i].ID == id && st.Units[i].PID > 0 {
+			return st.Units[i].PID
+		}
+	}
+	return st.Orphans[id]
 }
 
 // poolMembers is what a run state says its pool holds, sorted: nothing once

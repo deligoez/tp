@@ -244,6 +244,9 @@ func (d *driver) spawnSlot(p *pool, id string) {
 		p.exits <- a
 		return
 	}
+	if err := d.rec.SetUnitPID(a.seq, a.cmd.Process.Pid); err != nil {
+		p.fail(driverErrorf(err, "record the pid of task %q", id))
+	}
 	go func() {
 		a.wait()
 		p.exits <- a
