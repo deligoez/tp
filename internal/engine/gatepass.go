@@ -37,18 +37,35 @@ func RecordGatePass(runDir string, seq int, tree, gateCmd string) error {
 }
 
 // GatePassCovers reports whether the attempt's recorded pass gated tree with
-// gateCmd. An empty tree, a dirty checkout's, is covered by nothing.
-func GatePassCovers(runDir string, seq int, tree, gateCmd string) bool {
+// gateCmd, and when it passed. An empty tree, a checkout no pass can stand
+// for, is covered by nothing.
+func GatePassCovers(runDir string, seq int, tree, gateCmd string) (time.Time, bool) {
 	if tree == "" || gateCmd == "" {
-		return false
+		return time.Time{}, false
 	}
 	data, err := os.ReadFile(GatePassPath(runDir, seq)) //nolint:gosec // under the run dir, keyed by the driver's own seq
 	if err != nil {
-		return false
+		return time.Time{}, false
 	}
 	var p GatePass
-	if json.Unmarshal(data, &p) != nil {
-		return false
+	if json.Unmarshal(data, &p) != nil || p.Tree != tree || p.GateCmd != gateCmd {
+		return time.Time{}, false
 	}
-	return p.Tree == tree && p.GateCmd == gateCmd
+	at, err := time.Parse(time.RFC3339Nano, p.At)
+	if err != nil {
+		return time.Time{}, false
+	}
+	return at.UTC(), true
+}
+
+// MainGatedTree is the tree a gate on the main tree gates, when its pass may
+// stand for that tree's close: HEAD's tree, while the working tree differs
+// from HEAD only in paths tp writes (a claimed task file, .tp/), the rule
+// ReusableGate holds the main-branch close to. "" otherwise.
+func MainGatedTree(root, taskFile, spec string) string {
+	tree, err := gitOut(root, "rev-parse", "HEAD^{tree}")
+	if err != nil || !onlyTPOwnedChanges(root, taskFile, spec) {
+		return ""
+	}
+	return tree
 }

@@ -92,7 +92,7 @@ func runDonePending(root, taskFilePath string, taskIDs []string, reason string) 
 func unitGate(taskFilePath, worktree, root, gatedTree string) bool {
 	taker := unitGateTaker()
 	gateCmd := engine.EffectiveWorkflowForTaskFile(taskFilePath).QualityGate
-	if taker.runDir != "" && engine.GatePassCovers(taker.runDir, taker.seq, gatedTree, gateCmd) {
+	if _, ok := engine.GatePassCovers(taker.runDir, taker.seq, gatedTree, gateCmd); taker.runDir != "" && ok {
 		output.Notice(fmt.Sprintf("gate reused from tp gate: tree %s passed %q in this attempt", gatedTree, gateCmd))
 		return true
 	}
