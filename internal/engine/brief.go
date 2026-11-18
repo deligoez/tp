@@ -58,6 +58,7 @@ func CloseRecipeText(effectiveStrategy, qualityGate string) string {
 
 	// §8.2: the resolved gate verbatim, and the rule a red gate is never closed over.
 	b.WriteString("1. Run the gate and confirm it is green before closing. A red gate is never closed over: --skip-gate is a human decision, never the unit's.\n")
+	b.WriteString("   While you work, run the targeted package tests your change needs directly, and a full suite only through tp gate: when the run caps its gates, tp gate waits for a gate slot. tp done runs the gate, and not again on the committed tree tp gate just passed.\n")
 	if qualityGate != "" {
 		fmt.Fprintf(&b, "   quality_gate: %s\n", qualityGate)
 	} else {
