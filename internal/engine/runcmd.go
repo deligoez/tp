@@ -70,7 +70,41 @@ func RunCommand(command, dir string, timeout time.Duration, tailLines int) RunRe
 func RunCommandEnv(command, dir string, env []string, timeout time.Duration, tailLines int) RunResult {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
+	cmd, buf := shellCommand(ctx, command, dir, env)
+	err := cmd.Run()
+	return commandResult(ctx, err, buf, timeout, tailLines)
+}
 
+// gateWaitDelay bounds how long a gate is waited for once its command has
+// exited or been killed, for a descendant that still holds the output pipe.
+const gateWaitDelay = time.Second
+
+// RunGateCommand is RunCommandEnv for a quality gate, which holds a gate slot
+// while it runs (spec/backlog/gate-slots.md): the command leads a process
+// group of its own, the timeout kills the whole group, and once the command
+// has exited whatever it left in the group is killed too. WaitDelay bounds the
+// wait for a descendant that left the group and keeps the pipe open. So the
+// call returns when the gate is done, and the slot frees then, not when the
+// last descendant closes the pipe; nothing the gate started runs on outside
+// the cap.
+func RunGateCommand(command, dir string, env []string, timeout time.Duration, tailLines int) RunResult {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	cmd, buf := shellCommand(ctx, command, dir, env)
+	setupProcessGroup(cmd)
+	cmd.WaitDelay = gateWaitDelay
+	err := cmd.Run()
+	killProcessGroup(cmd)
+	if errors.Is(err, exec.ErrWaitDelay) {
+		// The command itself exited 0; only a descendant held the pipe.
+		err = nil
+	}
+	return commandResult(ctx, err, buf, timeout, tailLines)
+}
+
+// shellCommand is command under the platform shell in dir, its combined
+// output captured in a bounded buffer.
+func shellCommand(ctx context.Context, command, dir string, env []string) (*exec.Cmd, *tailBuffer) {
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
 		cmd = exec.CommandContext(ctx, "cmd", "/C", command)
@@ -82,8 +116,11 @@ func RunCommandEnv(command, dir string, env []string, timeout time.Duration, tai
 	buf := &tailBuffer{max: runBufferSize}
 	cmd.Stdout = buf
 	cmd.Stderr = buf
+	return cmd, buf
+}
 
-	err := cmd.Run()
+// commandResult reads a finished command's outcome.
+func commandResult(ctx context.Context, err error, buf *tailBuffer, timeout time.Duration, tailLines int) RunResult {
 	res := RunResult{OutputTail: buf.tail(tailLines)}
 
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
