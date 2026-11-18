@@ -27,7 +27,11 @@ Above `run_max_parallel` 1, the implement phase keeps its slots filled.
 **The serial rule.** One loop owns the main branch. While a pick or a main gate is running, nothing
 is spawned, refilled or retried, and no worktree is added or set up. Every unit that has exited is
 integrated before any slot is refilled. So a worktree never branches from a half-picked `HEAD`, and
-"disjoint from the running units" is the whole overlap rule.
+"disjoint from the running units" is the whole overlap rule. A child's process is started on the
+loop itself, so a spawn or a retry never lands inside a later integration; only the wait for it runs
+beside the loop. A refill that frees several slots starts their units off one oracle read: safe,
+because only the loop claims or integrates, and it does neither between that read and those starts,
+so the read is still what the main branch holds.
 
 **The loop.** Whenever a unit's child exits:
 
@@ -45,9 +49,13 @@ alone". Two readers need to tell a live claim from an abandoned one, and they an
   the oracle explicitly (one function, a `running` parameter), so the decision path never guesses
   liveness. When `tp run` takes its lock, every open unit row left by an earlier run is abandoned
   by definition: reconcile closes it, and the pool starts empty. A test: a run that starts over a
-  crashed run's open rows treats those tasks as wip resumes, run alone, not as pool members.
+  crashed run's open rows treats those tasks as wip resumes, run alone, not as pool members. The
+  one exception is a child the dead run left still running: each unit in a worktree holds a lock
+  its child inherits, so the new run sees it live and waits for it to exit before it integrates or
+  removes anything (a grandchild that keeps the descriptor prolongs the wait; Windows takes no lock).
 - **An outside `tp resume`** (the operator, a hook, the dashboard, `tp run --dry-run`) reads
-  identity from the run state's open rows and liveness from whether the run lock is held: the
+  identity from the run state's `pool` (a unit is a member from its claim through its setup and
+  exit until it is integrated) and liveness from whether the run lock is held: the
   kernel releases a lock on a crash, and rows stay. Probing must not race a starting run: a
   `tp run` that starts while `tp resume` is called in a loop does not exit 4 as a second run, and a
   test shows it. During a live run, `tp resume` names the running units as running, and
