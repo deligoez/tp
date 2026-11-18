@@ -43,6 +43,14 @@ type NextUnit struct {
 //
 // The returned slice is never nil: an empty next_units must serialize as [].
 func BuildNextUnits(root, taskFilePath, specPath, phase string, tf *model.TaskFile, st *ReviewState, blockers []Blocker) (units []NextUnit, round *int) {
+	return BuildNextUnitsRunning(root, taskFilePath, specPath, phase, tf, st, blockers, nil)
+}
+
+// BuildNextUnitsRunning is BuildNextUnits with the implement tasks a rolling
+// pool is running now left out (spec/backlog/rolling-implement.md §2): the
+// driver passes its own pool, and an outside reader the open rows of a run it
+// found live. Every other phase ignores running.
+func BuildNextUnitsRunning(root, taskFilePath, specPath, phase string, tf *model.TaskFile, st *ReviewState, blockers []Blocker, running []string) (units []NextUnit, round *int) {
 	units = make([]NextUnit, 0)
 	target := UnitTarget{TaskFile: taskFilePath, Spec: specPath}
 
@@ -70,11 +78,11 @@ func BuildNextUnits(root, taskFilePath, specPath, phase string, tf *model.TaskFi
 		// Under run_max_parallel above 1 that task leads a batch of ready
 		// tasks with disjoint touches, each brief naming its own task
 		// (spec/backlog/parallel-implement.md §2.2).
-		ids := ImplementUnits(tf, implementMaxParallel(taskFilePath, tf))
+		ids := ImplementUnits(tf, implementMaxParallel(taskFilePath, tf), running)
 		for _, id := range ids {
 			units = append(units, newNextUnit(UnitImplement, id, target))
 		}
-		poolBriefs(units)
+		poolBriefs(units, len(running) > 0)
 	case PhaseDecompose:
 		units = append(units, newNextUnit(UnitDecompose, SpecBaseName(specPath), target))
 	case PhaseAudit:

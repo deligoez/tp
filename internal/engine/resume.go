@@ -61,6 +61,13 @@ type ResumeResult struct {
 // write (§4.8). A corrupt review-state directory is surfaced as an error for the
 // caller to abort on; a missing spec or non-git tree degrades gracefully.
 func AssembleResume(start, taskFilePath, specPath string, tf *model.TaskFile) (ResumeResult, error) {
+	return AssembleResumeRunning(start, taskFilePath, specPath, tf, nil)
+}
+
+// AssembleResumeRunning is AssembleResume with the implement tasks a rolling
+// pool runs now left out of next_units (spec/backlog/rolling-implement.md
+// §2); running is nil outside a pool.
+func AssembleResumeRunning(start, taskFilePath, specPath string, tf *model.TaskFile, running []string) (ResumeResult, error) {
 	// Working-tree classification against the keep-list (§4.5). A malformed keep
 	// pattern leaves every change unexplained rather than silently swallowing it.
 	raw := WorktreeChanges(start)
@@ -102,11 +109,11 @@ func AssembleResume(start, taskFilePath, specPath string, tf *model.TaskFile) (R
 	// The units come after the blockers because an escalate blocker is what
 	// empties them (§4.1), and next_action is rendered from the first unit so
 	// the human summary and the machine surface describe the same work.
-	nextUnits, round := BuildNextUnits(start, taskFilePath, specPath, phase, tf, loops.st, blockers)
+	nextUnits, round := BuildNextUnitsRunning(start, taskFilePath, specPath, phase, tf, loops.st, blockers, running)
 	for i := range nextUnits {
 		nextUnits[i].BriefCommand = resumeBriefCommand(start, specPath, shown, &nextUnits[i])
 	}
-	poolBriefs(nextUnits)
+	poolBriefs(nextUnits, len(running) > 0)
 	if phase == PhaseImplement {
 		guidance = implementGuidance(guidance, tf, wf.RunMaxParallel, nextUnits)
 	}

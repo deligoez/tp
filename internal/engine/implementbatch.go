@@ -9,41 +9,61 @@ import (
 	"github.com/deligoez/tp/internal/model"
 )
 
-// ImplementUnits returns the task ids one implement batch runs
-// (spec/backlog/parallel-implement.md §2.2): a wip task alone, since an
-// interrupted unit is resumed before anything new starts; otherwise the ready
-// task tp next would take, and, while the batch is under maxParallel, each
-// later ready task whose touches overlap none already in it. Touches are a
+// ImplementUnits returns the task ids the implement phase runs next. running
+// is the tasks a rolling pool is running now, which the driver passes from
+// memory (spec/backlog/rolling-implement.md §2); nil outside a pool.
+//
+// A wip task no pool runs is an interrupted unit, resumed alone before
+// anything new starts; a solo task, or one whose id cannot name a branch, runs
+// alone when it is next in line. Either waits, with nothing returned, while
+// the pool still runs, so the pool drains for it. Otherwise the ready tasks
+// fill the free slots under maxParallel in tp next's order, each one's touches
+// overlapping none of the running tasks' or those already taken. Touches are a
 // hint (v1.20.0): a task without them joins unscreened, and the pick and the
-// gate catch a clash. A task marked solo by a failed integration never joins a
-// batch and, leading, runs alone. An empty result means no task is ready.
-func ImplementUnits(tf *model.TaskFile, maxParallel int) []string {
-	id, wip, has := ImplementPreview(tf)
-	if !has {
-		return nil
+// gate catch a clash. An empty result means nothing can start now.
+func ImplementUnits(tf *model.TaskFile, maxParallel int, running []string) []string {
+	busy := make(map[string]bool, len(running))
+	for _, id := range running {
+		busy[id] = true
 	}
-	if wip {
-		return []string{id}
+	for i := range tf.Tasks {
+		if t := &tf.Tasks[i]; t.Status == model.StatusWIP && !busy[t.ID] {
+			return aloneOnceDrained(t.ID, running)
+		}
 	}
 	ready := ReadyTasks(tf)
-	lead := ready[0]
-	if maxParallel <= 1 || !poolable(lead) {
-		return []string{lead.ID}
+	if len(ready) == 0 {
+		return nil
 	}
-	batch := []*model.Task{lead}
-	for _, t := range ready[1:] {
-		if len(batch) >= maxParallel {
+	if lead := ready[0]; maxParallel <= 1 || !poolable(lead) {
+		return aloneOnceDrained(lead.ID, running)
+	}
+	taken := make([]*model.Task, 0, maxParallel)
+	for i := range tf.Tasks {
+		if busy[tf.Tasks[i].ID] {
+			taken = append(taken, &tf.Tasks[i])
+		}
+	}
+	ids := make([]string, 0, maxParallel)
+	for _, t := range ready {
+		if len(taken) >= maxParallel {
 			break
 		}
-		if poolable(t) && disjointFromAll(t, batch) {
-			batch = append(batch, t)
+		if poolable(t) && disjointFromAll(t, taken) {
+			taken = append(taken, t)
+			ids = append(ids, t.ID)
 		}
 	}
-	ids := make([]string, len(batch))
-	for i, t := range batch {
-		ids[i] = t.ID
-	}
 	return ids
+}
+
+// aloneOnceDrained is a task that runs alone: itself once no pool runs, and
+// nothing while one does.
+func aloneOnceDrained(id string, running []string) []string {
+	if len(running) > 0 {
+		return nil
+	}
+	return []string{id}
 }
 
 // implementMaxParallel is the task file's effective run_max_parallel: its own
@@ -58,12 +78,14 @@ func implementMaxParallel(taskFilePath string, tf *model.TaskFile) int {
 	return ResolveWorkflowLayers(&override, &project).RunMaxParallel
 }
 
-// implementPool reports whether units are an implement batch: more than one
+// implementPool reports whether units start a rolling pool: more than one
 // unit, all of the implement kind.
 func implementPool(units []NextUnit) bool {
-	if len(units) < 2 {
-		return false
-	}
+	return len(units) >= 2 && allImplement(units)
+}
+
+// allImplement reports whether every unit is of the implement kind.
+func allImplement(units []NextUnit) bool {
 	for i := range units {
 		if units[i].Kind != UnitImplement {
 			return false
@@ -100,10 +122,11 @@ func TouchesWarnings(tf *model.TaskFile, maxParallel int) []Finding {
 		subject, maxParallel, strings.Join(ids, ", "))}}
 }
 
-// poolBriefs gives each unit of an implement batch the brief that names its
-// task; any other set of units is left as it is.
-func poolBriefs(units []NextUnit) {
-	if !implementPool(units) {
+// poolBriefs gives each implement unit of a pool the brief that names its
+// task, since the driver claims it: two or more implement units, or any
+// implement unit beside a running pool. Any other set is left as it is.
+func poolBriefs(units []NextUnit, pooled bool) {
+	if !implementPool(units) && (!pooled || !allImplement(units)) {
 		return
 	}
 	for i := range units {
