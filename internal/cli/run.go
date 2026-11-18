@@ -118,6 +118,11 @@ func runRun(_ *cobra.Command, args []string) error {
 	if n := result.Notify; n != nil {
 		payload["notify"] = notifyPayload(n)
 	}
+	// worktree-setup-failed names the task and the setup's log; the key is
+	// absent on every other stop.
+	if s := result.WorktreeSetup; s != nil {
+		payload["worktree_setup"] = s
+	}
 	if err := output.JSON(payload); err != nil {
 		return err
 	}
