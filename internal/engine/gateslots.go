@@ -140,8 +140,23 @@ func MainGateTimesPath(runDir, id string) string {
 	return filepath.Join(runDir, "gate-main-"+id+".json")
 }
 
-// ReadGateTimes reads a gate time file; false when none was written.
+// ReadGateTimes reads the gate time file of a taker that has exited; false
+// when none was written. A wait still open, one cut short by a SIGKILL tp
+// cannot catch, counts up to the read, which is when the driver learns the
+// taker is gone.
 func ReadGateTimes(path string) (GateTimes, bool) {
+	gt, ok := readGateTimes(path)
+	if !ok || gt.WaitingSince == "" {
+		return gt, ok
+	}
+	if since, err := time.Parse(time.RFC3339Nano, gt.WaitingSince); err == nil {
+		gt.WaitedSeconds += time.Since(since).Seconds()
+	}
+	gt.WaitingSince = ""
+	return gt, true
+}
+
+func readGateTimes(path string) (GateTimes, bool) {
 	data, err := os.ReadFile(path) //nolint:gosec // a path under the run dir, built by GateTimesPath or MainGateTimesPath
 	if err != nil {
 		return GateTimes{}, false
@@ -154,9 +169,19 @@ func ReadGateTimes(path string) (GateTimes, bool) {
 }
 
 // AddGateTimes adds waited and gated to the gate times at path and sets
-// WaitingSince to since, or clears it for a zero since. The write is atomic.
+// WaitingSince to since, or clears it for a zero since. The read, sum and
+// atomic write hold the file's lock: a unit's tp gate and its tp done may add
+// at once.
 func AddGateTimes(path string, since time.Time, waited, gated time.Duration) error {
-	gt, _ := ReadGateTimes(path)
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		return err
+	}
+	lock := flock.New(path + ".lock")
+	if err := lock.Lock(); err != nil {
+		return err
+	}
+	defer func() { _ = lock.Unlock() }()
+	gt, _ := readGateTimes(path)
 	gt.WaitingSince = ""
 	if !since.IsZero() {
 		gt.WaitingSince = since.UTC().Format(time.RFC3339Nano)
@@ -165,9 +190,6 @@ func AddGateTimes(path string, since time.Time, waited, gated time.Duration) err
 	gt.GateSeconds += gated.Seconds()
 	data, err := json.MarshalIndent(&gt, "", "  ")
 	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return err
 	}
 	return writeFileAtomic(path, append(data, '\n'))
