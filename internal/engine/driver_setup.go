@@ -47,8 +47,12 @@ func (d *driver) setupWorktree(command string, u batchUnit) error {
 		"TP_MAIN_ROOT="+d.opts.Root, EnvUnitID+"="+u.id, EnvUnattended+"=1")
 	timeout := time.Duration(d.opts.Workflow.EffectiveGateTimeoutSeconds()) * time.Second
 
+	run := d.opts.runSetup
+	if run == nil {
+		run = runSetupCommand
+	}
 	start := time.Now()
-	exitCode, cause := runSetupCommand(command, u.worktree, env, timeout, logPath)
+	exitCode, cause := run(context.Background(), command, u.worktree, env, timeout, logPath)
 	elapsed := time.Since(start)
 	if cause == "" {
 		cause = dirtyWorktree(u.worktree, logPath)
@@ -65,19 +69,22 @@ func (d *driver) setupWorktree(command string, u batchUnit) error {
 	return nil
 }
 
+// setupRunner is runSetupCommand's shape, so the driver can be handed another.
+type setupRunner func(ctx context.Context, command, dir string, env []string, timeout time.Duration, logPath string) (exitCode *int, cause string)
+
 // runSetupCommand runs command through the platform shell in dir with stdin
 // closed and stdout and stderr written straight to logPath. A file rather than
 // a pipe is what lets the wait end at the timeout even when a grandchild still
 // holds the output open. It returns the exit code (nil when the command timed
 // out or never started) and, on failure, why.
-func runSetupCommand(command, dir string, env []string, timeout time.Duration, logPath string) (exitCode *int, cause string) {
+func runSetupCommand(parent context.Context, command, dir string, env []string, timeout time.Duration, logPath string) (exitCode *int, cause string) {
 	log, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600) //nolint:gosec // the run directory is tp's own
 	if err != nil {
 		return nil, "could not open its log: " + err.Error()
 	}
 	defer func() { _ = log.Close() }()
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {

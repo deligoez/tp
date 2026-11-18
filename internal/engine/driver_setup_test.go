@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -23,7 +24,7 @@ func TestRunSetupCommand_TimesOut(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	start := time.Now()
-	code, cause := runSetupCommand("sleep 5", dir, os.Environ(), 200*time.Millisecond, filepath.Join(dir, "setup.log"))
+	code, cause := runSetupCommand(context.Background(), "sleep 5", dir, os.Environ(), 200*time.Millisecond, filepath.Join(dir, "setup.log"))
 	assert.Nil(t, code, "a timed-out setup has no exit code")
 	assert.Contains(t, cause, "timed out")
 	assert.Less(t, time.Since(start), 3*time.Second, "the wait ends at the timeout")

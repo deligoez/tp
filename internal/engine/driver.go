@@ -57,6 +57,9 @@ type DriverOptions struct {
 	// worktree add or setup failed spends nothing
 	// (spec/backlog/worktree-setup.md §1).
 	ReleaseTasks func(ids []string) error
+	// runSetup runs one worktree's setup command: runSetupCommand when
+	// nil, a test's own when it observes what the driver hands over.
+	runSetup setupRunner
 }
 
 // DriverResult is what one run ended as. It is the loop's own answer, not a
