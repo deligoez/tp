@@ -123,7 +123,9 @@ func runRun(_ *cobra.Command, args []string) error {
 		payload["notify"] = notifyPayload(n)
 	}
 	// worktree-setup-failed names the task and the setup's log; the key is
-	// absent on every other stop.
+	// absent on every other stop. A setup failure whose unwind also failed
+	// is a driver error, which returns above before any payload: its notice
+	// on stderr names the log instead.
 	if s := result.WorktreeSetup; s != nil {
 		payload["worktree_setup"] = s
 	}
