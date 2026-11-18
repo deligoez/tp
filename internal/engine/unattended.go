@@ -61,12 +61,16 @@ func FencedCapField(field string) bool {
 }
 
 // FencedCommandField reports whether field names a command the driver itself
-// executes — runner and notify_cmd. §5.1 fences these more strictly than the
-// caps: under the variable a unit cannot set them at all, at any layer and at
-// any value.
+// executes — runner, notify_cmd and worktree_setup_cmd. §5.1 fences these more
+// strictly than the caps: under the variable a unit cannot set them at all, at
+// any layer and at any value.
 func FencedCommandField(field string) bool {
-	return field == "runner" || field == "notify_cmd"
+	return field == "runner" || field == "notify_cmd" || field == WorktreeSetupCmdField
 }
+
+// WorktreeSetupCmdField is the command tp run runs in each new batch worktree
+// (spec/backlog/worktree-setup.md). It is read from the project layer only.
+const WorktreeSetupCmdField = "worktree_setup_cmd"
 
 // FencedGateField reports whether field is the quality gate. Under the variable
 // a unit may not change the command every close runs: replacing it with one
