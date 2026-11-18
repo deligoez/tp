@@ -194,3 +194,35 @@ func TestWithRunLock_GitignoreWarningIsANotice(t *testing.T) {
 	})
 	assert.Empty(t, silent, "--quiet suppresses the advisory")
 }
+
+// TestWithRunLock_ARunStartedDuringAProbeStillStarts: an outside reader's
+// RunLockHeld takes the lock for the instant it probes it. A run starting in
+// that instant waits the probe out rather than refusing itself as busy
+// (spec/backlog/rolling-implement.md §2: tp resume probes while a pool runs).
+func TestWithRunLock_ARunStartedDuringAProbeStillStarts(t *testing.T) {
+	taskFile := runLockTarget(t)
+	require.NoError(t, WithRunLock(taskFile, func() error { return nil }), "the lock file exists")
+	inProbe, endProbe := make(chan struct{}), make(chan struct{})
+	runLockProbed = func() {
+		close(inProbe)
+		<-endProbe
+	}
+	t.Cleanup(func() { runLockProbed = func() {} })
+
+	probed := make(chan bool, 1)
+	go func() {
+		held, err := RunLockHeld(taskFile)
+		assert.NoError(t, err)
+		probed <- held
+	}()
+	<-inProbe
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		close(endProbe)
+	}()
+	ran := false
+	err := WithRunLock(taskFile, func() error { ran = true; return nil })
+	require.NoError(t, err, "the run waits out the probe")
+	assert.True(t, ran)
+	assert.False(t, <-probed, "the probe found no run")
+}
