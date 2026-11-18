@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"syscall"
 	"testing"
 	"time"
 
@@ -151,4 +152,36 @@ func TestDone_AWaitLongerThanTheGateTimeoutSpendsNothing(t *testing.T) {
 	require.True(t, ok)
 	assert.GreaterOrEqual(t, gt.WaitedSeconds, 30.0, "the wait is recorded apart from the gate")
 	assert.Empty(t, gt.WaitingSince, "the wait is over")
+}
+
+// TestDone_ASignalWhileWaitingAsksForNoClose: a unit signalled while it waits
+// for a slot exits on its own terms, having run no gate, asked for no close
+// and taken no slot.
+func TestDone_ASignalWhileWaitingAsksForNoClose(t *testing.T) {
+	t.Parallel()
+	root, worktree, taskFile, sha, slots, env := unitInRun(t, "")
+	held := holdSlots(t, slots, 1)
+
+	unit := startTP(t, worktree, env, "done", "t1", "implemented and verified", "--commit", sha)
+	require.Eventually(t, func() bool {
+		gt, ok := engine.ReadGateTimes(filepath.Dir(slots), 1)
+		return ok && gt.WaitingSince != ""
+	}, 10*time.Second, 20*time.Millisecond, "the unit waits for the slot")
+	require.NoError(t, unit.cmd.Process.Signal(syscall.SIGTERM))
+
+	code, ok := unit.exited(t, 10*time.Second)
+	require.True(t, ok, "the signal ends the wait")
+	assert.Equal(t, 4, code, "an exit of tp's own, not a death by the signal: %s", unit.stderr.String())
+	assert.Contains(t, unit.stderr.String(), "interrupted while waiting for a gate slot")
+	assert.NoFileExists(t, filepath.Join(worktree, "gate-ran"), "no gate ran")
+	pending, err := engine.ReadPendingCloses(root, taskFile)
+	require.NoError(t, err)
+	assert.Empty(t, pending, "no close was asked for")
+
+	held[0].Release()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	slot, err := engine.AcquireGateSlot(ctx, slots, 1, true)
+	require.NoError(t, err, "the unit left no slot and no main claim behind")
+	slot.Release()
 }
