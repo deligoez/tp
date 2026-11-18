@@ -24,6 +24,19 @@ type RunState struct {
 	StopReason *StopReason  `json:"stop_reason"`
 	Totals     RunTotals    `json:"totals"`
 	Units      []RunUnitRow `json:"units"`
+	// Setups are the worktree setups the run's implement batches ran
+	// (spec/backlog/worktree-setup.md). They are not unit attempts: no seq,
+	// no cap counts them. Absent when no setup ran.
+	Setups []RunSetupRow `json:"setups,omitempty"`
+}
+
+// RunSetupRow is one worktree_setup_cmd run in one batch worktree. ExitCode is
+// null when the command timed out or never started.
+type RunSetupRow struct {
+	ID              string  `json:"id"`
+	ExitCode        *int    `json:"exit_code"`
+	DurationSeconds float64 `json:"duration_seconds"`
+	LogPath         string  `json:"log_path"`
 }
 
 // RunTotals are the run's accrued figures — what §3.4's caps bound. Units
@@ -164,6 +177,15 @@ func (r *RunRecorder) FinishUnit(seq, exitCode int, duration time.Duration, spen
 		amount := *spend
 		row.SpendUSD = &amount
 	}
+	return r.writeLocked()
+}
+
+// RecordSetup appends one worktree setup's row and writes the file. Setups are
+// not unit attempts, so no total and no cap reads them.
+func (r *RunRecorder) RecordSetup(row *RunSetupRow) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.state.Setups = append(r.state.Setups, *row)
 	return r.writeLocked()
 }
 
