@@ -23,11 +23,3 @@ func setupProcessGroup(cmd *exec.Cmd) {
 		return err
 	}
 }
-
-// killProcessGroup SIGKILLs what is left of the group cmd led once cmd has
-// been waited for. The group is gone, or holds only what cmd left behind.
-func killProcessGroup(cmd *exec.Cmd) {
-	if cmd.Process != nil {
-		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-	}
-}

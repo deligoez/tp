@@ -85,14 +85,14 @@ const gateWaitDelay = time.Second
 
 // RunGateCommand is RunCommandEnv for a quality gate, which holds a gate slot
 // while it runs (spec/backlog/gate-slots.md): the command leads a process
-// group of its own, the timeout kills the whole group, and once the command
-// has exited whatever it left in the group is killed too. WaitDelay bounds the
-// wait for a descendant that left the group and keeps the pipe open. So the
-// call returns when the gate is done, and the slot frees then, not when the
-// last descendant closes the pipe; nothing the gate started runs on outside
-// the cap. The command never sees the run's slot variables (gateEnv). parent
-// ending (tp caught a signal) kills the group as the timeout does, and the
-// result says Interrupted.
+// group of its own, and the timeout, or parent ending (tp caught a signal),
+// kills the whole group; the result then says TimedOut or Interrupted. A gate
+// that exits on its own, pass or fail, has nothing killed: what it left
+// running (a build server the next gate uses) runs on, outside the cap, as it
+// did before gate slots. WaitDelay bounds the wait for such a leftover that
+// still holds the output pipe, so the call returns, and the slot frees, when
+// the gate is done. Off unix there is no group and only that bound applies.
+// The command never sees the run's slot variables (gateEnv).
 func RunGateCommand(parent context.Context, command, dir string, env []string, timeout time.Duration, tailLines int) RunResult {
 	if parent.Err() != nil {
 		return RunResult{Interrupted: true, Message: "interrupted before the gate started"}
@@ -103,7 +103,6 @@ func RunGateCommand(parent context.Context, command, dir string, env []string, t
 	setupProcessGroup(cmd)
 	cmd.WaitDelay = gateWaitDelay
 	err := cmd.Run()
-	killProcessGroup(cmd)
 	if errors.Is(err, exec.ErrWaitDelay) {
 		// The command itself exited 0; only a descendant held the pipe.
 		err = nil
