@@ -81,7 +81,10 @@ its first round delete or narrow; they do not add requirements.
 Open work is `BUGS.md` (the fix track, and entries awaiting an operator decision); the decision
 candidates in `spec/backlog/` are worked through. A shipped decision note leaves for
 `spec/backlog/ARCHIVE.md`, one row each naming the release and the sha to read it at; what the release
-measured stays in `spec/<version>-measurements.md`. v1.23.0 gives an epic an owner: a declared
+measured stays in `spec/<version>-measurements.md`. v1.24.0 answers a parallel-implement field
+report: `worktree_setup_cmd` warms each implement-batch worktree from the main tree, a wip task can
+name what it is `waiting` on, `tp resume` reports `plugin_stale`, and `tp add`/`tp set` refuse what
+`tp validate` would (`spec/1.24.0-measurements.md`). v1.23.0 gives an epic an owner: a declared
 `owners` set and `epics[].owner`, filtered by `--owner`/`--unowned` and drawn on the dashboard
 (`spec/1.23.0-measurements.md`). v1.22.0 audits each closed task's own files in
 batches of ten through `task_audit_roles` (`tp audit --task-audit`; `spec/1.22.0-measurements.md`), after
