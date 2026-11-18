@@ -178,7 +178,7 @@ by each `tp` write they make.
 | `tp run --dry-run` | **0** | none | no |
 
 `tp run` prints `{run_id, phase, stop_reason, units}`, plus `notify: {cmd, exit_code, error}` when a
-`notify_cmd` ran. `--dry-run` prints `{phase, round, next_units}` — the same batch the loop would
+`notify_cmd` ran, and `worktree_setup: {id, log_path}` when it stopped on `worktree-setup-failed`. `--dry-run` prints `{phase, round, next_units}` — the same batch the loop would
 spawn — so it is safe to point at a cycle another run is already driving.
 
 ### Unit kinds
@@ -250,6 +250,24 @@ by `tp validate` and `tp set`.
   cycle tag keys both to the task file, so a run over another task file never touches them. Each
   child is spawned in its worktree with `TP_FILE` naming the main tree's task file by absolute path,
   and its brief is `tp brief <id>`.
+- **Worktree setup (v1.24.0).** When `.tp/config.json`'s `workflow` block sets `worktree_setup_cmd`
+  (read there alone, as each batch starts; a task file's value is ignored), the driver runs it in
+  each new worktree, one after another in batch order, before any unit is spawned. Its working
+  directory is the worktree; its environment is the driver's plus `TP_MAIN_ROOT` (the main tree's
+  root, absolute), `TP_UNIT_ID` and `TP_UNATTENDED=1`; stdin is closed; stdout and stderr go to
+  `$TP_RUN_DIR/setup-<id>.log`; its timeout is `gate_timeout_seconds`. Afterwards
+  `git status --porcelain` in the worktree must print nothing, untracked files included, so the
+  command may write ignored files only: a copy-on-write clone of a build cache, a link, a dependency
+  fetch. A non-zero exit, a timeout or a dirty tree unwinds the batch before any unit runs (every
+  claimed task back to open, every worktree and `tp-unit/` branch it added removed, no attempt
+  spent, `solo` untouched) and stops the run with `worktree-setup-failed`, with no retry. A failed
+  `git worktree add` unwinds the same way and stops with `driver-error`. Each setup's wall time is
+  written to its log and to the run state's `setups`; it is no gate's time and no cap counts it. A
+  resumed wip task, a `solo` task and a batch of one run in the main tree and get no setup; crash
+  recovery makes no worktrees. Setting or changing the command is the operator's
+  (`tp set --workflow --project worktree_setup_cmd=<command>`); the task-level setter refuses it
+  (exit 2), under `TP_UNATTENDED` both refuse it (exit 2, escalated as `other`), and a unit's commit
+  that changes it is refused like any change to `.tp/`.
 - **The unit asks; the driver closes.** In a linked worktree of the task file's repository,
   `tp brief <id>` gives the worktree close: the task's `touches`, commit on the branch (with hc
   under `commit_strategy: hc`), run only the tests the change needs while the units beside it run
@@ -285,9 +303,11 @@ by `tp validate` and `tp set`.
   `unit_branches` while its task is not done, and the first `tp run` after the task is done deletes
   it (v1.19.1).
 - **Limits.** A worktree is a fresh checkout of `HEAD`, without ignored files (dependencies, `.env`,
-  build output), and the unit's gate runs there; `tp run --dry-run` says so on stderr before a batch,
-  and a project whose units or gate need them keeps `run_max_parallel` at 1. `tp validate` names every
-  open task without `touches` in one warning while `run_max_parallel` is above 1. The caps are checked
+  build output), and the unit's gate runs there; `tp run --dry-run` says so on stderr before a batch.
+  A project whose units or gate need them sets `worktree_setup_cmd` to prepare each worktree (above)
+  or keeps `run_max_parallel` at 1; a hand-driven parallel flow gets no setup, and its remedy is
+  `tp run`. `tp validate` names every open task without `touches` in one warning while
+  `run_max_parallel` is above 1, and the warning names `worktree_setup_cmd`. The caps are checked
   between iterations, so a batch can overshoot `run_max_units` by up to its size less one.
 - **Test load.** Each unit runs the quality gate in its own worktree when it asks for the close, so
   up to `run_max_parallel` gates can run at once; the driver's integration gates on the main branch
@@ -321,9 +341,10 @@ reason ever records a round, marks a phase converged, or closes a task its own u
 | `no-units` | the oracle reports no pending units and the cycle is not releasable |
 | `interrupted` | `SIGINT`/`SIGTERM`: in-flight children finish, no new unit is spawned, run state is written |
 | `driver-error` | the driver could not spawn a unit or write its own state — charged to the driver, not to the unit |
+| `worktree-setup-failed` | an implement batch's `worktree_setup_cmd` exited non-zero, timed out or left its worktree dirty; the batch was unwound before any unit ran (v1.24.0) |
 
 When one checkpoint satisfies several rows the recorded reason is the first of `converged`,
-`driver-error`, `escalation`, `unit-failure`, `interrupted`, `cap-budget`, `cap-wall-clock`,
+`driver-error`, `worktree-setup-failed`, `escalation`, `unit-failure`, `interrupted`, `cap-budget`, `cap-wall-clock`,
 `cap-units`, `no-units`. Caps are evaluated **between iterations only**: children already spawned run
 to completion, so a run can overshoot its wall-clock and budget caps by at most one iteration, and
 the driver kills nothing.
@@ -348,8 +369,12 @@ the old directory can be deleted by hand. `scripts/clean-emissions.sh` reports i
 {"run_id": "", "started_at": "", "phase": "", "stop_reason": null,
  "totals": {"units": 0, "wall_clock_seconds": 0, "spend_usd": 0},
  "units": [{"seq": 0, "kind": "", "id": "", "attempt": 1, "exit_code": 0,
-            "duration_seconds": 0, "spend_usd": null, "log_path": ""}]}
+            "duration_seconds": 0, "spend_usd": null, "log_path": ""}],
+ "setups": [{"id": "", "exit_code": 0, "duration_seconds": 0, "log_path": ""}]}
 ```
+
+`setups` (v1.24.0) holds one row per `worktree_setup_cmd` run, `exit_code` null on a timeout, and
+is absent when no setup ran; a setup is not a unit attempt, so it has no `seq` and no total counts it.
 
 A row is appended before its child is spawned (`exit_code`, `duration_seconds`, `spend_usd` null) and
 updated in place when the child exits; both writes are atomic (temp + rename) because concurrent
@@ -655,6 +680,7 @@ spec/
 | `run_max_unit_budget_usd` | number | 0 (flag omitted) | 0-1000 | settable (v0.35.0; decimal dollars, passed to the runner's own budget flag) |
 | `run_max_unit_retries` | int | 1 | 0-5 | settable (v0.35.0; a unit is attempted `1 + this`) |
 | `run_max_parallel` | int | 1 | 1-8 | settable (v1.19.0; the implement units one `tp run` batch runs side by side, see Implement batches; raising it is the operator's, fenced under `TP_UNATTENDED` like the other caps) |
+| `worktree_setup_cmd` | string | unset | any command string | project layer only (v1.24.0): `tp set --workflow --project worktree_setup_cmd=<command>`; the task-level setter exits 2, and under `TP_UNATTENDED` both exit 2. Runs in each implement batch worktree before its unit, see Implement batches |
 | `runner` | string or object | `"claude"` | built-in name, runner object, or per-kind map | **not a `tp set --workflow` field** (`unknown workflow field`, exit 2) — hand-written under `workflow` in `.tp/config.json` or a task file |
 | `notify_cmd` | string | unset | any command string | **not a `tp set` field of any form** — hand-written at the top level of `.tp/local.json` |
 
@@ -672,6 +698,8 @@ exceptions, and both name a command the driver executes, so neither has a setter
 - Both are fenced under `TP_UNATTENDED` at **every** layer (not just above the resolved value):
   `tp set --workflow runner=…` and `tp set --local notify_cmd=…` exit 2 with
   `names a command the driver executes and cannot be set under TP_UNATTENDED, at any layer`.
+  `worktree_setup_cmd` is a third such command and is fenced the same way, though attended it has a
+  project-layer setter.
 - `TP_RUNNER_SEAM` is a test-only override of `runner` that outranks every layer including a CLI flag.
 
 **The two converge-on fields are twins with deliberately opposite defaults (v0.37.0).**
