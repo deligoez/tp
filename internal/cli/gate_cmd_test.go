@@ -61,3 +61,31 @@ func TestGate_ThenDoneOnTheSameTreeRunsOneGate(t *testing.T) {
 	require.Len(t, pending, 1)
 	assert.NotEmpty(t, pending[0].GatedTree, "the main branch can still reuse the pass")
 }
+
+// TestGate_ThenDoneOnTheMainTreeRunsOneGate: a unit on the main tree (a run
+// at run_max_parallel 1) closes its task itself, and that close stands on its
+// tp gate pass for the same tree and gate command as a worktree close does.
+// The claimed task file is the one difference from HEAD, and it is tp's own.
+func TestGate_ThenDoneOnTheMainTreeRunsOneGate(t *testing.T) {
+	t.Parallel()
+	count := filepath.Join(t.TempDir(), "count")
+	root := projectGated(t, "echo ran >> "+count)
+	addTask(t, root, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+	gitRun(t, root, "init", "-q", "-b", "main")
+	gitRun(t, root, "add", "-A")
+	gitRun(t, root, "-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-q", "-m", "base")
+	_, stderr, code := runTP(t, root, "claim", "t1")
+	require.Equal(t, 0, code, stderr)
+	env := []string{engine.EnvRunDir + "=" + engine.RunDir(root, "01JTESTRUN0000000000000000"), engine.EnvUnitSeq + "=1"}
+
+	stdout, stderr, code := runTPEnv(t, root, env, "gate")
+	require.Equal(t, 0, code, stderr)
+	assert.Contains(t, stdout, `"recorded": true`, "the main tree's pass is recorded despite the claimed task file")
+	_, stderr, code = runTPEnv(t, root, env, "done", "t1", "implemented and verified")
+	require.Equal(t, 0, code, stderr)
+
+	runs, err := os.ReadFile(count) //nolint:gosec // the test's own temp file
+	require.NoError(t, err)
+	assert.Equal(t, "ran\n", string(runs), "one full gate for tp gate and the close together")
+	assert.Contains(t, stderr, "gate reused from tp gate")
+}
