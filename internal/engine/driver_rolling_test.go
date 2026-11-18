@@ -35,29 +35,7 @@ func rollingTasks(capacity int, ids ...string) string {
 // functions and the given workflow, returning whatever it ended with.
 func driveRolling(t *testing.T, root, spec, taskFile string, wf *model.Workflow, mods ...func(*DriverOptions)) (DriverResult, error) {
 	t.Helper()
-	closer := &fakeCloser{closed: map[string][]string{}}
-	opts := &DriverOptions{
-		Root: root, TaskFile: taskFile, Spec: spec, Workflow: *wf, CloseTask: closer.close(taskFile),
-		ClaimTasks: func(ids []string) error {
-			return editTasks(taskFile, ids, func(task *model.Task) {
-				if task.Status == model.StatusOpen {
-					task.Status = model.StatusWIP
-				}
-			})
-		},
-		ReopenSolo: func(id string) error {
-			return editTasks(taskFile, []string{id}, func(task *model.Task) {
-				task.Status, task.Solo = model.StatusOpen, true
-			})
-		},
-		ReleaseTasks: func(ids []string) error {
-			return editTasks(taskFile, ids, func(task *model.Task) {
-				if task.Status == model.StatusWIP {
-					task.Status = model.StatusOpen
-				}
-			})
-		},
-	}
+	opts := rollingOptions(root, spec, taskFile, wf)
 	for _, mod := range mods {
 		mod(opts)
 	}
@@ -257,5 +235,33 @@ func TestRolling_ACrashedRunsOpenRowsResumeAlone(t *testing.T) {
 				assert.False(t, overlapped(&recs[i], &recs[j]), "a wip resume runs alone")
 			}
 		}
+	}
+}
+
+// rollingOptions are the loop's options with the batch test's close, claim,
+// reopen and release functions.
+func rollingOptions(root, spec, taskFile string, wf *model.Workflow) *DriverOptions {
+	closer := &fakeCloser{closed: map[string][]string{}}
+	return &DriverOptions{
+		Root: root, TaskFile: taskFile, Spec: spec, Workflow: *wf, CloseTask: closer.close(taskFile),
+		ClaimTasks: func(ids []string) error {
+			return editTasks(taskFile, ids, func(task *model.Task) {
+				if task.Status == model.StatusOpen {
+					task.Status = model.StatusWIP
+				}
+			})
+		},
+		ReopenSolo: func(id string) error {
+			return editTasks(taskFile, []string{id}, func(task *model.Task) {
+				task.Status, task.Solo = model.StatusOpen, true
+			})
+		},
+		ReleaseTasks: func(ids []string) error {
+			return editTasks(taskFile, ids, func(task *model.Task) {
+				if task.Status == model.StatusWIP {
+					task.Status = model.StatusOpen
+				}
+			})
+		},
 	}
 }
