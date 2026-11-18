@@ -81,7 +81,7 @@ func TaskExportOf(start, taskFilePath string) (TaskExport, error) {
 	if exp.Loops, err = exportLoops(taskFilePath, specPath); err != nil {
 		return TaskExport{}, err
 	}
-	if exp.Resume, err = AssembleResume(start, taskFilePath, specPath, tf); err != nil {
+	if exp.Resume, err = AssembleResumeLive(start, taskFilePath, specPath, tf); err != nil {
 		return TaskExport{}, err
 	}
 	return exp, nil

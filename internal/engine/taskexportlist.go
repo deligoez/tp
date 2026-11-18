@@ -121,7 +121,7 @@ func taskFileRow(start, shown, path string) (TaskFileRow, *model.TaskFile) {
 		row.Error = err.Error()
 		return row, nil
 	}
-	resume, err := AssembleResume(start, path, specPath, tf)
+	resume, err := AssembleResumeLive(start, path, specPath, tf)
 	if err != nil {
 		row.Error = err.Error()
 		return row, nil
