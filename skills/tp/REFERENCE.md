@@ -695,7 +695,7 @@ spec/
 | `run_max_unit_budget_usd` | number | 0 (flag omitted) | 0-1000 | settable (v0.35.0; decimal dollars, passed to the runner's own budget flag) |
 | `run_max_unit_retries` | int | 1 | 0-5 | settable (v0.35.0; a unit is attempted `1 + this`) |
 | `run_max_parallel` | int | 1 | 1-8 | settable (v1.19.0; the implement units one `tp run` batch runs side by side, see Implement batches; raising it is the operator's, fenced under `TP_UNATTENDED` like the other caps) |
-| `worktree_setup_cmd` | string | unset | any command string | project layer only (v1.24.0): `tp set --workflow --project worktree_setup_cmd=<command>`; the task-level setter exits 2, and under `TP_UNATTENDED` both exit 2. Runs in each implement batch worktree before its unit, see Implement batches |
+| `worktree_setup_cmd` | string | unset | any command string | project layer only (v1.24.0): `tp set --workflow --project worktree_setup_cmd=<command>`; the task-level setter exits 2, a task file's value is a `tp validate` error and `tp import` refuses it, under `TP_UNATTENDED` both setters exit 2, and `tp config --resolved` reports it as `project` or `default`. Runs in each implement batch worktree before its unit, see Implement batches |
 | `runner` | string or object | `"claude"` | built-in name, runner object, or per-kind map | **not a `tp set --workflow` field** (`unknown workflow field`, exit 2) — hand-written under `workflow` in `.tp/config.json` or a task file |
 | `notify_cmd` | string | unset | any command string | **not a `tp set` field of any form** — hand-written at the top level of `.tp/local.json` |
 
