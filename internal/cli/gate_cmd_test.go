@@ -102,3 +102,17 @@ func TestGate_ATreeTheGateChangedIsNotRecorded(t *testing.T) {
 	require.Equal(t, 0, code, stderr)
 	assert.Contains(t, stdout, `"recorded": false`, "the tree after the gate is not the one it was read as")
 }
+
+// TestGate_AGateThatCannotRunGetsTheFixTheCommandHint: a gate sh could not
+// run (exit 127) gets the hint tp done gives it, naming the command to fix,
+// not tp gate's hint for a gate that ran red.
+func TestGate_AGateThatCannotRunGetsTheFixTheCommandHint(t *testing.T) {
+	t.Parallel()
+	root := projectGated(t, "tp-no-such-gate-command")
+
+	_, stderr, code := runTP(t, root, "gate")
+	require.Equal(t, 4, code, stderr)
+	assert.Contains(t, stderr, "fix the gate command")
+	assert.Contains(t, stderr, "tp-no-such-gate-command")
+	assert.NotContains(t, stderr, "run tp gate again")
+}
