@@ -1,9 +1,11 @@
 package engine
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/deligoez/tp/internal/model"
 )
@@ -65,6 +67,38 @@ type ResumeResult struct {
 // caller to abort on; a missing spec or non-git tree degrades gracefully.
 func AssembleResume(start, taskFilePath, specPath string, tf *model.TaskFile) (ResumeResult, error) {
 	return AssembleResumeRunning(start, taskFilePath, specPath, tf, nil)
+}
+
+// AssembleResumeLive is AssembleResume for a reader outside any run: tp
+// resume, tp export and the dashboard. Beside a live run's rolling pool it
+// lists no unit, even for a free slot, and its next action takes no task: the
+// pool starts what comes next itself, and a reader that took a unit would run
+// a task the pool runs, or is about to (spec/backlog/rolling-implement.md
+// §2). That answer outranks a pending close's tp run, whose lock the live run
+// holds. The driver never reads its cycle through this: it holds the run lock
+// and would see its own pool as live.
+func AssembleResumeLive(start, taskFilePath, specPath string, tf *model.TaskFile) (ResumeResult, error) {
+	res, err := AssembleResume(start, taskFilePath, specPath, tf)
+	if err != nil {
+		return res, err
+	}
+	running := LiveRunningUnits(CanonicalProjectRoot(filepath.Dir(taskFilePath)), taskFilePath)
+	if len(running) == 0 {
+		return res, nil
+	}
+	res.RunningUnits = running
+	res.NextUnits = []NextUnit{}
+	res.NextAction = livePoolAction(taskFilePath, running)
+	return res, nil
+}
+
+// livePoolAction is the next action beside a live pool: nothing to run.
+func livePoolAction(taskFilePath string, running []string) NextAction {
+	return NextAction{
+		Summary: fmt.Sprintf("a tp run is in progress over %s and its pool runs %s; it starts the next units itself",
+			RunBase(taskFilePath), strings.Join(running, ", ")),
+		Payload: map[string]any{"running_units": running},
+	}
 }
 
 // AssembleResumeRunning is AssembleResume with the implement tasks a rolling
