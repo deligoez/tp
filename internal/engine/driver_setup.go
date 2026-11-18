@@ -51,9 +51,16 @@ func (d *driver) setupWorktree(command string, u batchUnit) error {
 	if run == nil {
 		run = runSetupCommand
 	}
+	before, err := worktreeHead(u.worktree)
+	if err != nil {
+		return driverErrorf(err, "read HEAD in the worktree of task %q", u.id)
+	}
 	start := time.Now()
 	exitCode, cause := run(context.Background(), command, u.worktree, env, timeout, logPath)
 	elapsed := time.Since(start)
+	if cause == "" {
+		cause = movedHead(u.worktree, before, logPath)
+	}
 	if cause == "" {
 		cause = dirtyWorktree(u.worktree, logPath)
 	}
@@ -116,11 +123,41 @@ func runSetupCommand(parent context.Context, command, dir string, env []string, 
 	}
 }
 
+// worktreeHead is what HEAD names in a batch worktree: its commit and the
+// branch it is on. A batch worktree is always on its unit's branch.
+func worktreeHead(worktree string) (string, error) {
+	commit, err := gitOut(worktree, "rev-parse", "HEAD")
+	if err != nil {
+		return "", err
+	}
+	branch, err := gitOut(worktree, "symbolic-ref", "-q", "HEAD")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(commit) + " " + strings.TrimSpace(branch), nil
+}
+
+// movedHead returns why the setup changed the worktree's HEAD, or "". A
+// commit or a checkout leaves the status clean, and the unit would then start
+// from a tree the driver never chose.
+func movedHead(worktree, before, logPath string) string {
+	after, err := worktreeHead(worktree)
+	if err != nil {
+		return "could not read the worktree's HEAD: " + err.Error()
+	}
+	if after == before {
+		return ""
+	}
+	appendLog(logPath, "the setup moved HEAD; it must leave the worktree's commit and branch as it found them:\nbefore: "+before+"\nafter:  "+after+"\n")
+	return "moved HEAD"
+}
+
 // dirtyWorktree returns why the worktree is not clean after its setup, or "".
 // Untracked files are listed explicitly, whatever status.showUntrackedFiles
-// the user's configuration sets.
+// the user's configuration sets, and so are submodules, whatever
+// diff.ignoreSubmodules does.
 func dirtyWorktree(worktree, logPath string) string {
-	status, err := gitOut(worktree, "status", "--porcelain", "--untracked-files=normal")
+	status, err := gitOut(worktree, "status", "--porcelain", "--untracked-files=normal", "--ignore-submodules=none")
 	if err != nil {
 		return "could not read the worktree's status: " + err.Error()
 	}
