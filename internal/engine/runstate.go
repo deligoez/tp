@@ -44,6 +44,17 @@ type RunState struct {
 	// which this run waits for before it recovers (liveUnits): no row of
 	// this run carries them. Absent when there are none.
 	Orphans map[string]int `json:"orphans,omitempty"`
+	// MainGates are the main-branch closes whose gate ran under a gate cap
+	// (spec/backlog/gate-slots.md): a run-level record, since the close runs
+	// after its unit's row is finished. Absent when none did.
+	MainGates []RunMainGateRow `json:"main_gates,omitempty"`
+}
+
+// RunMainGateRow is one main-branch close's wait for a slot and its gate time.
+type RunMainGateRow struct {
+	ID          string  `json:"id"`
+	WaitSeconds float64 `json:"wait_seconds"`
+	GateSeconds float64 `json:"gate_seconds"`
 }
 
 // RunSetupRow is one worktree_setup_cmd run in one pool worktree. ExitCode is
@@ -64,6 +75,11 @@ type RunTotals struct {
 	Units            int     `json:"units"`
 	WallClockSeconds int     `json:"wall_clock_seconds"`
 	SpendUSD         float64 `json:"spend_usd"`
+	// MainGateWaitSeconds sums the main-branch gates' waits for a slot and
+	// MainGateWaitMaxSeconds is the longest one; a unit's own wait is on its
+	// row. Both are accrued from MainGates.
+	MainGateWaitSeconds    float64 `json:"main_gate_wait_seconds,omitempty"`
+	MainGateWaitMaxSeconds float64 `json:"main_gate_wait_max_seconds,omitempty"`
 }
 
 // RunUnitRow is one unit attempt. The three result fields are pointers because
@@ -223,6 +239,14 @@ func (r *RunRecorder) RecordGateTimes(seq int, gt GateTimes) error {
 	return r.writeLocked()
 }
 
+// RecordMainGate appends one main-branch close's gate times.
+func (r *RunRecorder) RecordMainGate(id string, gt GateTimes) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.state.MainGates = append(r.state.MainGates, RunMainGateRow{ID: id, WaitSeconds: gt.WaitedSeconds, GateSeconds: gt.GateSeconds})
+	return r.writeLocked()
+}
+
 // RecordSetup appends one worktree setup's row and writes the file. Setups are
 // not unit attempts, so the unit and spend totals and their caps never read
 // them; the wall clock counts their time only as part of the run's elapsed time.
@@ -355,6 +379,13 @@ func (r *RunRecorder) accrueLocked() {
 	r.state.Totals.Units = len(r.state.Units)
 	r.state.Totals.WallClockSeconds = int(time.Since(r.start).Seconds())
 	r.state.Totals.SpendUSD = spend
+	wait, longest := 0.0, 0.0
+	for _, g := range r.state.MainGates {
+		wait += g.WaitSeconds
+		longest = max(longest, g.WaitSeconds)
+	}
+	r.state.Totals.MainGateWaitSeconds = wait
+	r.state.Totals.MainGateWaitMaxSeconds = longest
 }
 
 // writeLocked accrues the totals and writes the file atomically. The caller

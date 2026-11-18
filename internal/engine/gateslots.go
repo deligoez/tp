@@ -113,6 +113,10 @@ func tryGateSlots(dir string, capN int, gate *flock.Flock) (*GateSlot, error) {
 // a close run by hand outside a run takes no slot.
 const EnvGateMainSlots = "TP_GATE_MAIN_SLOTS"
 
+// EnvGateMainTimes names the gate time file of that same close, which the
+// driver moves into the run state once the close has exited.
+const EnvGateMainTimes = "TP_GATE_MAIN_TIMES"
+
 // GateTimes is one gate taker's time waiting for a slot and time in the gate:
 // a unit attempt's, summed over every close it asked for, which the driver
 // copies onto the attempt's row when the unit exits; or a main-branch close's,

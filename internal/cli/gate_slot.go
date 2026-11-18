@@ -43,7 +43,7 @@ func unitGateTaker() gateTaker {
 // mainGateTaker is the main-branch gate of the driver's close, which alone
 // sets engine.EnvGateMainSlots on its tp done child.
 func mainGateTaker() gateTaker {
-	return gateTaker{dir: os.Getenv(engine.EnvGateMainSlots), main: true}
+	return gateTaker{dir: os.Getenv(engine.EnvGateMainSlots), times: os.Getenv(engine.EnvGateMainTimes), main: true}
 }
 
 // take waits for a slot when the run caps its gates and returns what to call

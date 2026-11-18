@@ -347,7 +347,22 @@ func (d *driver) closeTask(p *PendingClose, picked []string, logPath string) err
 	if d.opts.CloseTask == nil {
 		return fmt.Errorf("no close function: the driver cannot gate an integration")
 	}
-	return d.opts.CloseTask(p.ID, p.Reason, picked, logPath)
+	err := d.opts.CloseTask(p.ID, p.Reason, picked, logPath)
+	d.recordMainGate(p.ID)
+	return err
+}
+
+// recordMainGate moves the gate times a main-branch close left under the run
+// directory into the run state, whatever the close's outcome. They are
+// observability, so a write error is dropped rather than stopping the run.
+func (d *driver) recordMainGate(id string) {
+	path := MainGateTimesPath(RunDir(d.opts.Root, d.runID), id)
+	gt, ok := ReadGateTimes(path)
+	if !ok || d.rec == nil {
+		return
+	}
+	_ = d.rec.RecordMainGate(id, gt)
+	_ = os.Remove(path)
 }
 
 // cherryPick picks commits onto the current branch in the order given and
