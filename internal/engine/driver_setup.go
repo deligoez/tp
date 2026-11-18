@@ -69,6 +69,10 @@ func (d *driver) setupWorktree(command string, u batchUnit) error {
 	return nil
 }
 
+// setupWaitDelay bounds the wait after the setup is killed, for a process that
+// left its group and still holds something the wait is waiting on.
+const setupWaitDelay = 5 * time.Second
+
 // setupRunner is runSetupCommand's shape, so the driver can be handed another.
 type setupRunner func(ctx context.Context, command, dir string, env []string, timeout time.Duration, logPath string) (exitCode *int, cause string)
 
@@ -93,6 +97,8 @@ func runSetupCommand(parent context.Context, command, dir string, env []string, 
 		cmd = exec.CommandContext(ctx, "sh", "-c", command)
 	}
 	cmd.Dir, cmd.Env, cmd.Stdout, cmd.Stderr = dir, env, log, log
+	setupProcessGroup(cmd)
+	cmd.WaitDelay = setupWaitDelay
 	runErr := cmd.Run()
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return nil, fmt.Sprintf("timed out after %ds", int(timeout.Seconds()))
