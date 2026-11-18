@@ -63,10 +63,20 @@ func runResume(_ *cobra.Command, args []string) error {
 		output.Notice("notice: " + result.EpicNotice)
 	}
 
+	// Kept under --compact: the SessionStart hook injects the compact form,
+	// and that is the one place the notice reaches a stale session.
+	stale := pluginStaleNotice(version, os.Getenv("CLAUDE_PLUGIN_ROOT"))
 	if output.IsJSON() {
-		return output.JSON(resumeJSON(&result, flagCompact))
+		out := resumeJSON(&result, flagCompact)
+		if stale != "" {
+			out["plugin_stale"] = stale
+		}
+		return output.JSON(out)
 	}
 	printResumeSummary(&result)
+	if stale != "" {
+		fmt.Printf("plugin: %s\n", stale)
+	}
 	return nil
 }
 
