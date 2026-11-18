@@ -29,3 +29,15 @@ func TestUnitLock_TheLockIsFreeOnceTheChildExits(t *testing.T) {
 	assert.False(t, unitLockHeld(path), "the driver's own copy of the lock was closed")
 }
 
+// TestLiveUnits_APoolMemberWithoutAPidIsNotLive: the dead run's alpha is in
+// its pool and its lock is held, but no pid was ever recorded for it. Without
+// its own child's pid it is not live; pid 0 is not a process.
+func TestLiveUnits_APoolMemberWithoutAPidIsNotLive(t *testing.T) {
+	root, _, taskFile := setupResumeProject(t, rollingTasks(2, "alpha"))
+	held, err := lockUnitFile(unitLockPath(taskFile, "alpha"))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = held.Close() })
+
+	deadRunState(t, root, taskFile, 0)
+	assert.Empty(t, LiveRunningUnits(root, taskFile))
+}
