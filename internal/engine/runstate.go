@@ -31,6 +31,12 @@ type RunState struct {
 	// inside the run's elapsed time, so the wall clock and its cap do.
 	// Absent when no setup ran.
 	Setups []RunSetupRow `json:"setups,omitempty"`
+	// Pool names the tasks a rolling implement pool holds now, from the
+	// claim of each until its slot ends after integration or release
+	// (spec/backlog/rolling-implement.md §2). A reader outside the run takes
+	// these, under a live run, as running: the one place a decision outside
+	// the driver reads this file. Absent when the pool is empty.
+	Pool []string `json:"pool,omitempty"`
 }
 
 // RunSetupRow is one worktree_setup_cmd run in one pool worktree. ExitCode is
@@ -197,6 +203,28 @@ func (r *RunRecorder) RecordSetup(row *RunSetupRow) error {
 	return r.writeLocked()
 }
 
+// JoinPool records a task as a member of the rolling pool, before its claim,
+// so a reader can see an extra member but never miss one.
+func (r *RunRecorder) JoinPool(id string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if !slices.Contains(r.state.Pool, id) {
+		r.state.Pool = append(r.state.Pool, id)
+	}
+	return r.writeLocked()
+}
+
+// LeavePool takes a task out of the pool once its slot has ended.
+func (r *RunRecorder) LeavePool(id string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.state.Pool = slices.DeleteFunc(r.state.Pool, func(m string) bool { return m == id })
+	if len(r.state.Pool) == 0 {
+		r.state.Pool = nil
+	}
+	return r.writeLocked()
+}
+
 // SetPhase records the phase the driver is now working in, so a run that
 // crosses from implement into audit reports where it stopped rather than where
 // it began.
@@ -237,6 +265,7 @@ func (r *RunRecorder) Snapshot() RunState {
 	out := r.state
 	out.Units = make([]RunUnitRow, len(r.state.Units))
 	copy(out.Units, r.state.Units)
+	out.Pool = slices.Clone(r.state.Pool)
 	return out
 }
 
@@ -302,7 +331,7 @@ func writeFileAtomic(path string, data []byte) error {
 
 // LiveRunningUnits names the implement units a live tp run's rolling pool runs
 // now, for a reader outside the run (spec/backlog/rolling-implement.md §2):
-// poolMembers of a run state with no stop_reason, and only while some process
+// the pool a run state with no stop_reason names, and only while some process
 // holds the run lock. No run state, a run that stopped or died, a main-tree
 // unit, or a probe that failed gives nil, and the reader sees the cycle as it
 // always has. The lock is probed last, and only when the pool has members, so
@@ -328,12 +357,7 @@ func poolMembers(st *RunState) []string {
 	if st.StopReason != nil {
 		return nil
 	}
-	var ids []string
-	for i := range st.Units {
-		if u := &st.Units[i]; u.Kind == UnitImplement && u.Worktree != "" && u.ExitCode == nil {
-			ids = append(ids, u.ID)
-		}
-	}
+	ids := slices.Clone(st.Pool)
 	slices.Sort(ids)
 	return slices.Compact(ids)
 }

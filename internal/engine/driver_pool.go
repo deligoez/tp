@@ -178,8 +178,12 @@ func (d *driver) startUnit(p *pool, u NextUnit) {
 		worktree: filepath.Join(WorktreeBase(d.opts.Root), cycleTag(d.opts.Root, d.opts.TaskFile), d.runID, u.ID),
 		branch:   unitBranch(d.opts.Root, d.opts.TaskFile, d.runID, u.ID),
 	}
+	if err := d.rec.JoinPool(u.ID); err != nil {
+		p.fail(driverErrorf(err, "record task %q in the pool", u.ID))
+		return
+	}
 	if err := d.opts.ClaimTasks([]string{u.ID}); err != nil {
-		p.fail(driverErrorf(err, "claim task %q", u.ID))
+		p.fail(errors.Join(driverErrorf(err, "claim task %q", u.ID), d.leavePool(u.ID)))
 		return
 	}
 	if _, err := gitOut(d.opts.Root, "worktree", "add", "-q", "-b", tree.branch, tree.worktree, "HEAD"); err != nil {
@@ -310,9 +314,20 @@ func (d *driver) endSlot(p *pool, id string) {
 		if !HasPendingClose(d.opts.Root, d.opts.TaskFile, u.id) {
 			output.Notice(fmt.Sprintf("task %s did not finish; its unit's work stays on branch %s until the task is done", u.id, u.branch))
 		}
-		return
+	} else {
+		removeUnitWorktree(d.opts.Root, u.worktree, u.branch)
 	}
-	removeUnitWorktree(d.opts.Root, u.worktree, u.branch)
+	if err := d.leavePool(id); err != nil {
+		p.fail(err)
+	}
+}
+
+// leavePool takes an ended unit out of the run state's pool.
+func (d *driver) leavePool(id string) error {
+	if err := d.rec.LeavePool(id); err != nil {
+		return driverErrorf(err, "take task %q out of the pool", id)
+	}
+	return nil
 }
 
 // releaseUnit takes back a unit that never spawned: its worktree and tp-unit
@@ -330,6 +345,9 @@ func (d *driver) releaseUnit(u unitTree) error {
 		errs = append(errs, driverErrorf(errors.New("no release function"), "release task %q", u.id))
 	} else if err := d.opts.ReleaseTasks([]string{u.id}); err != nil {
 		errs = append(errs, driverErrorf(err, "release task %q", u.id))
+	}
+	if err := d.leavePool(u.id); err != nil {
+		errs = append(errs, err)
 	}
 	return errors.Join(errs...)
 }
