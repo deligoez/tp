@@ -30,8 +30,8 @@ integrated before any slot is refilled. So a worktree never branches from a half
 "disjoint from the running units" is the whole overlap rule. A child's process is started on the
 loop itself, so a spawn or a retry never lands inside a later integration; only the wait for it runs
 beside the loop. A refill that frees several slots starts their units off one oracle read: safe,
-because only the loop claims or integrates, and it does neither between that read and those starts,
-so the read is still what the main branch holds.
+because nothing is integrated between that read and those starts, so `HEAD` does not move, and the
+only claims made meanwhile are of units that same read returned.
 
 **The loop.** Whenever a unit's child exits:
 

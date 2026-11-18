@@ -346,9 +346,10 @@ by `tp validate` and `tp set`.
   setup and its exit until it is integrated. One rule holds for every outside reader: **while a pool
   is live, nothing offers a unit.** `tp resume` names them under `running_units`, its `next_units`
   is empty, and its `next_action` says the run starts the next units itself and carries no command;
-  this outranks a pending close. `tp run --dry-run` prints the same, and says on stderr that a run is
-  in progress. `tp export` and the dashboard read the cycle the same way. With an empty pool (a run
-  at `run_max_parallel` 1, or no live run) all of them print what they always did. A run that starts
+  this outranks a pending close. `tp run --dry-run` prints the same `running_units` and an empty
+  `next_units` (it has no `next_action`), and says on stderr that a run is in progress. `tp export`
+  and the dashboard read the cycle the same way. With an empty pool (a run at `run_max_parallel` 1,
+  or no live run) all of them print what they always did. A run that starts
   while one of them probes the lock waits up to a second for it rather than reporting the lock busy.
 - **Limits.** A worktree is a fresh checkout of `HEAD`, without ignored files (dependencies, `.env`,
   build output), and the unit's gate runs there; `tp run --dry-run` says so on stderr before a pool.
