@@ -351,6 +351,14 @@ func (d *driver) fail(result *DriverResult, err error) (DriverResult, error) {
 	if errors.As(err, &driverErr) {
 		return d.stop(result, StopDriverError), err
 	}
+	// A batch whose worktree setup failed was unwound before any unit ran:
+	// a stop with its own reason, reported rather than raised.
+	var setupErr *WorktreeSetupError
+	if errors.As(err, &setupErr) {
+		result.WorktreeSetup = &WorktreeSetupFailure{ID: setupErr.ID, LogPath: setupErr.LogPath}
+		output.Notice(setupErr.Error())
+		return d.stop(result, StopWorktreeSetupFailed), nil
+	}
 	return *result, err
 }
 
