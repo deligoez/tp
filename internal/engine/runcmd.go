@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"runtime"
 	"strings"
@@ -86,11 +87,11 @@ const gateWaitDelay = time.Second
 // wait for a descendant that left the group and keeps the pipe open. So the
 // call returns when the gate is done, and the slot frees then, not when the
 // last descendant closes the pipe; nothing the gate started runs on outside
-// the cap.
+// the cap. The command never sees the run's slot variables (gateEnv).
 func RunGateCommand(command, dir string, env []string, timeout time.Duration, tailLines int) RunResult {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	cmd, buf := shellCommand(ctx, command, dir, env)
+	cmd, buf := shellCommand(ctx, command, dir, gateEnv(env))
 	setupProcessGroup(cmd)
 	cmd.WaitDelay = gateWaitDelay
 	err := cmd.Run()
@@ -100,6 +101,35 @@ func RunGateCommand(command, dir string, env []string, timeout time.Duration, ta
 		err = nil
 	}
 	return commandResult(ctx, err, buf, timeout, tailLines)
+}
+
+// gateSlotVars are what makes a tp call take one of the run's gate slots.
+var gateSlotVars = []string{EnvRunDir, EnvUnitSeq, EnvGateMainSlots, EnvGateMainTimes}
+
+// gateEnv is env (nil: the tp process's own) without the run's slot
+// variables. A gate holds a slot while its command runs, so a tp call inside
+// it that took another slot of the same run would wait on its own caller, and
+// at a cap of 1 never return; without them it is a call by hand.
+func gateEnv(env []string) []string {
+	if env == nil {
+		env = os.Environ()
+	}
+	out := make([]string, 0, len(env))
+	for _, kv := range env {
+		if !slotVar(kv) {
+			out = append(out, kv)
+		}
+	}
+	return out
+}
+
+func slotVar(kv string) bool {
+	for _, name := range gateSlotVars {
+		if strings.HasPrefix(kv, name+"=") {
+			return true
+		}
+	}
+	return false
 }
 
 // shellCommand is command under the platform shell in dir, its combined
