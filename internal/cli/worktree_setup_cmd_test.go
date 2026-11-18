@@ -78,3 +78,61 @@ func TestWorktreeSetupCmd_ConfigExtractDoesNotHoistIt(t *testing.T) {
 		assert.NotContains(t, string(cfg), "worktree_setup_cmd", "the command is not hoisted (unattended %v)", unattended)
 	}
 }
+
+// worktreeSetupMoveHint is the refusal a task-file worktree_setup_cmd gets.
+const worktreeSetupMoveHint = "read only from the project layer; move it to .tp/config.json"
+
+// validWorktreeSetupProject is a project whose task file validates clean, so
+// a refusal its tests see comes from the field they add and nothing else.
+func validWorktreeSetupProject(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(normSpec), 0o600))
+	_, stderr, code := runTP(t, dir, "init", "spec.md")
+	require.Equal(t, 0, code, "init: %s", stderr)
+	importPath := filepath.Join(dir, "seed.json")
+	require.NoError(t, os.WriteFile(importPath, []byte(`[`+importWorkflowTask+`]`), 0o600))
+	_, stderr, code = runTP(t, dir, "import", importPath, "--spec", "spec.md", "--force")
+	require.Equal(t, 0, code, "import: %s", stderr)
+	stdout, stderr, code := runTP(t, dir, "validate")
+	require.Equal(t, 0, code, "the control validates clean: %s%s", stdout, stderr)
+	return dir
+}
+
+// tp validate reports a task file's workflow.worktree_setup_cmd as an error:
+// the driver never reads that layer, so a value there is a command the
+// operator believes runs and does not.
+func TestWorktreeSetupCmd_ValidateRefusesItInATaskFile(t *testing.T) {
+	t.Parallel()
+	dir := validWorktreeSetupProject(t)
+	path := filepath.Join(dir, "spec.tasks.json")
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	var tf map[string]any
+	require.NoError(t, json.Unmarshal(data, &tf))
+	tf["workflow"] = map[string]any{"worktree_setup_cmd": "touch stray"}
+	data, err = json.Marshal(tf)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path, data, 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "validate")
+	assert.NotEqual(t, 0, code, "the task file is invalid: %s%s", stdout, stderr)
+	assert.Contains(t, stdout+stderr, worktreeSetupMoveHint)
+}
+
+// tp import refuses a document whose workflow block carries the field, even
+// under --force, which relaxes atomicity but not validation.
+func TestWorktreeSetupCmd_ImportRefusesItInTheDocument(t *testing.T) {
+	t.Parallel()
+	dir := validWorktreeSetupProject(t)
+	doc := `{"version":1,"spec":"spec.md","workflow":{"worktree_setup_cmd":"touch stray"},"tasks":[` + importWorkflowTask + `]}`
+	importPath := filepath.Join(dir, "import.json")
+	require.NoError(t, os.WriteFile(importPath, []byte(doc), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "import", importPath, "--force")
+	assert.NotEqual(t, 0, code, "the import is refused: %s%s", stdout, stderr)
+	assert.Contains(t, stdout+stderr, worktreeSetupMoveHint)
+	data, err := os.ReadFile(filepath.Join(dir, "spec.tasks.json"))
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), "worktree_setup_cmd", "nothing is written")
+}
