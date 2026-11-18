@@ -26,10 +26,14 @@ Nothing is closed and no task changes.
 In a unit's worktree the gate runs in the worktree, as that unit's tp done
 would run it. Inside tp run the gate first takes one of the run's gate slots
 (run_max_parallel_gates); outside a run it runs at once. A pass inside a run
-on a clean checkout is recorded, so the unit's following tp done on the same
-tree with the same gate command does not run the gate again.
+on a committed tree the gate left unchanged is recorded, so the unit's
+following tp done on the same tree with the same gate command does not run
+the gate again. SIGINT or SIGTERM kills the gate's processes before tp exits.
 
-Exit 0 when the gate passes, 4 when it fails, 2 when no quality_gate is set.`,
+Exit 0 when the gate passes.
+Exit 4 when it fails, times out or a signal ends it (the slot wait included).
+Exit 2 when no quality_gate is set.
+Exit 3 when no task file is found or it is another project's.`,
 		Args: cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return runGate()
