@@ -376,9 +376,11 @@ by `tp validate` and `tp set`.
   `tp gate` inside the run, and the main-branch close the driver spawns. Each takes one of N
   `flock`ed files under `$TP_RUN_DIR/gate-slots/` before its command starts and frees it as soon as
   the gate is done; the kernel frees the slot of a holder that dies. The gate's command leads a
-  process group of its own: the timeout kills the whole group, whatever the command left in the
-  group is killed once it exits, and a descendant that still holds the output pipe is waited for
-  at most a second, so a backgrounded child never holds the slot. The command runs without the
+  process group of its own, which only the timeout and a signal tp catches kill. A gate that exits
+  on its own, pass or fail, has nothing killed: what it left running (a build server shared across
+  gates) runs on outside the cap, as before gate slots, and a leftover that still holds the output
+  pipe is waited for at most a second, so it never holds the slot. Off Unix there is no group, and
+  that one-second bound is all that applies. The command runs without the
   run's slot variables (`TP_RUN_DIR`, `TP_UNIT_SEQ`, `TP_GATE_MAIN_SLOTS`, `TP_GATE_MAIN_TIMES`), so
   a `tp` call inside a gate is a call by hand and takes no slot of the same run. A reused gate
   (below) takes no slot, and a `tp done` or `tp gate` run by hand outside a run takes none. The main
@@ -387,12 +389,13 @@ by `tp validate` and `tp set`.
   unit gates, slots are **polled, not queued fairly**: a gate that has waited longest is not served
   first, and the run state records each wait so the longest is visible. `gate_timeout_seconds`
   starts once a slot is taken, so a wait neither times out the gate nor kills the unit nor spends an
-  attempt; the run's elapsed time, which `run_max_wall_clock_seconds` measures, includes it. SIGINT
-  or SIGTERM while waiting exits the child at 4 without a gate and without asking for the close;
-  during the gate it kills the gate's process group first, then exits 4 the same way. SIGKILL
-  cannot be caught: the gate's processes then run on past the cap until they end, and a wait it
-  cut short is counted up to when the driver reads the unit's gate times. 0 (the default) means no
-  cap. Limits:
+  attempt; the run's elapsed time, which `run_max_wall_clock_seconds` measures, includes it.
+  SIGINT, SIGTERM, SIGHUP or SIGQUIT while waiting exits the child at 4 without a gate and without
+  asking for the close; during the gate it kills the gate's process group first, then exits 4 the
+  same way. Since the gate has its own group, a signal sent to tp's group reaches the gate only
+  through tp. SIGKILL to tp, or to its group from above, cannot be caught: it orphans the gate,
+  whose processes run on outside the cap until they end, and a wait it cut short is counted up to
+  when the driver reads the unit's gate times. 0 (the default) means no cap. Limits:
   - The cap is **per run, not per machine**: two runs at once, two cycles in two checkouts
     included, each get the full N.
   - Lowering `run_max_parallel_gates` mid-run applies to gates that take a slot after the change;
@@ -406,16 +409,18 @@ by `tp validate` and `tp set`.
   runs at once. On a pass it prints `{passed, gate_cmd, dir, recorded}`. Inside a run it writes
   `$TP_RUN_DIR/gate-pass-<seq>.json` (the tree and the gate command, `recorded: true`) when the
   pass stands for a committed tree: in a unit's worktree a clean checkout's `HEAD` tree; on the main
-  tree `HEAD`'s tree while only tp's own paths differ from it (the claimed task file, `.tp/`). The
+  tree `HEAD`'s tree while only tp's own paths differ from it (the claimed task file, the spec's
+  `.tp-review/`, `.tp/`). The
   tree is read before the gate and again after it, and a gate that changed it records nothing. The
   unit's following `tp done` on that same tree with the same gate command does not run the gate
   again (stderr: `gate reused from tp gate`), in a worktree or on the main tree; in a worktree it
   still records `gated_tree` for the main-branch reuse below. Exit 0 on a pass; 4 when the gate
   fails or times out (the same error object as `tp done`'s gate failure: `gate_cmd`, `exit_code`,
   `output_tail`, and for a command sh could not run the same fix-the-command hint) or when a signal
-  ends the slot wait or the gate; 2 when no `quality_gate` is set (inside a run the hint is
-  `tp escalate --decision skip-gate`, since `tp set` refuses the gate write there); 3 when no task
-  file is found or it is another project's.
+  ends the slot wait or the gate; 3 when no task file is found or it is another project's. A
+  project with no `quality_gate` is legal: there `tp gate` runs nothing and exits 0 with
+  `{passed: true, gate_configured: false, message: "no quality_gate configured; nothing to gate"}`,
+  in a run or not.
 - **A gate on the same tree runs once (v1.21.0).** When the unit's worktree was clean as its gate
   ran, the pending close records the tree it gated (`gated_tree`) and the gate command. The close on
   the main branch then reuses that result instead of running the gate again when the main branch's
