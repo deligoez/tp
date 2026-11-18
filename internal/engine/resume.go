@@ -47,6 +47,9 @@ type ResumeResult struct {
 	// UnitBranches names the branches an unfinished batched unit left: its
 	// work, kept until its task is done (spec/backlog/parallel-implement.md).
 	UnitBranches []string `json:"unit_branches,omitempty"`
+	// RunningUnits names the implement units a live run's rolling pool runs
+	// now, left out of NextUnits (spec/backlog/rolling-implement.md §2).
+	RunningUnits []string `json:"running_units,omitempty"`
 	// EpicNotice is the epic block's notice (EpicBlock.Notice) of an implement
 	// phase: the file is bound to an epic the graph does not hold, or there is
 	// no graph file, so it behaves as unbound. It is not part of the payload;
@@ -135,6 +138,7 @@ func AssembleResumeRunning(start, taskFilePath, specPath string, tf *model.TaskF
 		Blockers:      blockers,
 		PendingCloses: pendingCloseIDs(taskFilePath),
 		UnitBranches:  CycleUnitBranches(CanonicalProjectRoot(filepath.Dir(taskFilePath)), taskFilePath),
+		RunningUnits:  running,
 		EpicNotice:    epicNotice,
 	}
 	if len(res.PendingCloses) > 0 {

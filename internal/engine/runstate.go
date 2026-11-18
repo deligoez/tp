@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 	"time"
 )
@@ -297,4 +298,33 @@ func writeFileAtomic(path string, data []byte) error {
 		return err
 	}
 	return os.Rename(tmpName, path)
+}
+
+// LiveRunningUnits names the implement units a live tp run's rolling pool runs
+// now, for a reader outside the run (spec/backlog/rolling-implement.md §2):
+// the open implement rows with a worktree in a run state with no stop_reason,
+// and only while some process holds the run lock. No run state, a run that
+// stopped or died, a main-tree unit, or a probe that failed gives nil, and the
+// reader sees the cycle as it always has. The lock is probed last, and only
+// when there are such rows, so a reader of a cycle with no pool never touches
+// it.
+func LiveRunningUnits(root, taskFile string) []string {
+	st, err := ReadRunState(root, taskFile)
+	if err != nil || st.StopReason != nil {
+		return nil
+	}
+	var ids []string
+	for i := range st.Units {
+		if u := &st.Units[i]; u.Kind == UnitImplement && u.Worktree != "" && u.ExitCode == nil {
+			ids = append(ids, u.ID)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	if held, err := RunLockHeld(taskFile); err != nil || !held {
+		return nil
+	}
+	slices.Sort(ids)
+	return slices.Compact(ids)
 }
