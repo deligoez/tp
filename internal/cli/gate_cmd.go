@@ -60,13 +60,14 @@ func runGate() error {
 	// main tree it is that directory itself.
 	cwd, _ := os.Getwd()
 	dir := engine.WorktreeDirFor(gateDir(taskFilePath), cwd)
-	// The tree is read before the gate runs, as tp done reads it: only a
-	// pass on a committed tree is a fact a close can stand on.
+	// The tree is read before the gate runs, as tp done reads it, and again
+	// after: only a pass on a committed tree the gate left as it found it is
+	// a fact a close can stand on.
 	tree := gatePassTree(taskFilePath)
 	taker := unitGateTaker()
 	runQualityGateIn(taskFilePath, dir, "", gateRerunHint, taker)
 	recorded := false
-	if taker.runDir != "" && tree != "" {
+	if taker.runDir != "" && tree != "" && gatePassTree(taskFilePath) == tree {
 		recorded = engine.RecordGatePass(taker.runDir, taker.seq, tree, wf.QualityGate) == nil
 	}
 	output.Success("gate passed")
