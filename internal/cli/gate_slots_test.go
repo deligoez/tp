@@ -110,20 +110,27 @@ func TestDone_AReusedMainGateTakesNoSlot(t *testing.T) {
 	assert.FileExists(t, filepath.Join(root, "gate-ran"))
 }
 
-// unitInRun is a claimed task's committed change in a unit's worktree, the
-// project capping its gates at one, and the environment tp run gives the
+// runUnit is a claimed task's committed change in a unit's worktree, under a
+// project capping its gates at one, with the environment tp run gives the
 // unit: its run directory and attempt seq. slots is where that run's slots are.
-func unitInRun(t *testing.T, extraConfig string) (root, worktree, taskFile, sha, slots string, env []string) {
+type runUnit struct {
+	root, worktree, taskFile, sha, runDir, slots string
+	env                                          []string
+}
+
+func unitInRun(t *testing.T, extraConfig string) runUnit {
 	t.Helper()
-	root, worktree, taskFile = pendingProject(t)
-	capGates(t, root, extraConfig)
-	require.NoError(t, os.WriteFile(filepath.Join(worktree, "a.go"), []byte("package a\n"), 0o600))
-	gitRun(t, worktree, "add", "a.go")
-	gitRun(t, worktree, "commit", "-q", "-m", "add a")
-	sha = gitRun(t, worktree, "rev-parse", "HEAD")
-	runDir := engine.RunDir(root, "01JTESTRUN0000000000000000")
-	env = []string{"TP_FILE=" + taskFile, engine.EnvRunDir + "=" + runDir, engine.EnvUnitSeq + "=1"}
-	return root, worktree, taskFile, sha, engine.GateSlotsDir(runDir), env
+	var u runUnit
+	u.root, u.worktree, u.taskFile = pendingProject(t)
+	capGates(t, u.root, extraConfig)
+	require.NoError(t, os.WriteFile(filepath.Join(u.worktree, "a.go"), []byte("package a\n"), 0o600))
+	gitRun(t, u.worktree, "add", "a.go")
+	gitRun(t, u.worktree, "commit", "-q", "-m", "add a")
+	u.sha = gitRun(t, u.worktree, "rev-parse", "HEAD")
+	u.runDir = engine.RunDir(u.root, "01JTESTRUN0000000000000000")
+	u.slots = engine.GateSlotsDir(u.runDir)
+	u.env = []string{"TP_FILE=" + u.taskFile, engine.EnvRunDir + "=" + u.runDir, engine.EnvUnitSeq + "=1"}
+	return u
 }
 
 // TestDone_AWaitLongerThanTheGateTimeoutSpendsNothing: a unit that waits for
@@ -133,22 +140,22 @@ func unitInRun(t *testing.T, extraConfig string) (root, worktree, taskFile, sha,
 // can kill it or spend its attempt meanwhile.
 func TestDone_AWaitLongerThanTheGateTimeoutSpendsNothing(t *testing.T) {
 	t.Parallel()
-	root, worktree, taskFile, sha, slots, env := unitInRun(t, `,"gate_timeout_seconds":30`)
-	held := holdSlots(t, slots, 1)
+	u := unitInRun(t, `,"gate_timeout_seconds":30`)
+	held := holdSlots(t, u.slots, 1)
 	time.AfterFunc(32*time.Second, held[0].Release)
 
 	start := time.Now()
-	unit := startTP(t, worktree, env, "done", "t1", "implemented and verified", "--commit", sha)
+	unit := startTP(t, u.worktree, u.env, "done", "t1", "implemented and verified", "--commit", u.sha)
 	code, ok := unit.exited(t, 60*time.Second)
 	require.True(t, ok, "the unit finishes once the slot is free")
 	require.Equal(t, 0, code, unit.stderr.String())
 	assert.GreaterOrEqual(t, time.Since(start), 30*time.Second, "the wait outlasted the gate timeout")
-	assert.FileExists(t, filepath.Join(worktree, "gate-ran"), "the gate ran to the end after the wait")
+	assert.FileExists(t, filepath.Join(u.worktree, "gate-ran"), "the gate ran to the end after the wait")
 
-	pending, err := engine.ReadPendingCloses(root, taskFile)
+	pending, err := engine.ReadPendingCloses(u.root, u.taskFile)
 	require.NoError(t, err)
 	require.Len(t, pending, 1, "the close is asked for: the attempt is not spent")
-	gt, ok := engine.ReadGateTimes(filepath.Dir(slots), 1)
+	gt, ok := engine.ReadGateTimes(u.runDir, 1)
 	require.True(t, ok)
 	assert.GreaterOrEqual(t, gt.WaitedSeconds, 30.0, "the wait is recorded apart from the gate")
 	assert.Empty(t, gt.WaitingSince, "the wait is over")
@@ -159,12 +166,12 @@ func TestDone_AWaitLongerThanTheGateTimeoutSpendsNothing(t *testing.T) {
 // and taken no slot.
 func TestDone_ASignalWhileWaitingAsksForNoClose(t *testing.T) {
 	t.Parallel()
-	root, worktree, taskFile, sha, slots, env := unitInRun(t, "")
-	held := holdSlots(t, slots, 1)
+	u := unitInRun(t, "")
+	held := holdSlots(t, u.slots, 1)
 
-	unit := startTP(t, worktree, env, "done", "t1", "implemented and verified", "--commit", sha)
+	unit := startTP(t, u.worktree, u.env, "done", "t1", "implemented and verified", "--commit", u.sha)
 	require.Eventually(t, func() bool {
-		gt, ok := engine.ReadGateTimes(filepath.Dir(slots), 1)
+		gt, ok := engine.ReadGateTimes(u.runDir, 1)
 		return ok && gt.WaitingSince != ""
 	}, 10*time.Second, 20*time.Millisecond, "the unit waits for the slot")
 	require.NoError(t, unit.cmd.Process.Signal(syscall.SIGTERM))
@@ -173,15 +180,15 @@ func TestDone_ASignalWhileWaitingAsksForNoClose(t *testing.T) {
 	require.True(t, ok, "the signal ends the wait")
 	assert.Equal(t, 4, code, "an exit of tp's own, not a death by the signal: %s", unit.stderr.String())
 	assert.Contains(t, unit.stderr.String(), "interrupted while waiting for a gate slot")
-	assert.NoFileExists(t, filepath.Join(worktree, "gate-ran"), "no gate ran")
-	pending, err := engine.ReadPendingCloses(root, taskFile)
+	assert.NoFileExists(t, filepath.Join(u.worktree, "gate-ran"), "no gate ran")
+	pending, err := engine.ReadPendingCloses(u.root, u.taskFile)
 	require.NoError(t, err)
 	assert.Empty(t, pending, "no close was asked for")
 
 	held[0].Release()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	slot, err := engine.AcquireGateSlot(ctx, slots, 1, true)
+	slot, err := engine.AcquireGateSlot(ctx, u.slots, 1, true)
 	require.NoError(t, err, "the unit left no slot and no main claim behind")
 	slot.Release()
 }
