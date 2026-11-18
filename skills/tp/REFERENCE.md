@@ -178,8 +178,9 @@ by each `tp` write they make.
 | `tp run --dry-run` | **0** | none | no |
 
 `tp run` prints `{run_id, phase, stop_reason, units}`, plus `notify: {cmd, exit_code, error}` when a
-`notify_cmd` ran, and `worktree_setup: {id, log_path}` when it stopped on `worktree-setup-failed`. `--dry-run` prints `{phase, round, next_units}` — the same batch the loop would
-spawn — so it is safe to point at a cycle another run is already driving.
+`notify_cmd` ran, and `worktree_setup: {id, log_path}` when it stopped on `worktree-setup-failed`.
+`--dry-run` prints `{phase, round, next_units}` — the same batch the loop would spawn — so it is
+safe to point at a cycle another run is already driving.
 
 ### Unit kinds
 
