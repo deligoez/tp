@@ -193,3 +193,19 @@ func TestRunDriver_AFailedWorktreeAddUnwindsTheBatch(t *testing.T) {
 	assertBatchUnwound(t, root, taskFile, records)
 }
 
+// TestRunDriver_UnsetWorktreeSetupRecordsNothing: with no command the batch
+// runs as before and the run state carries no setups key.
+func TestRunDriver_UnsetWorktreeSetupRecordsNothing(t *testing.T) {
+	root, spec, taskFile, _ := setupBatchProject(t, "")
+	t.Setenv(fakerunner.EnvDurable, "1")
+
+	res, err := driveSetupBatch(t, root, spec, taskFile)
+	require.NoError(t, err)
+	assert.Equal(t, StopConverged, res.StopReason)
+	data, err := os.ReadFile(RunStatePath(root, taskFile))
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), "setups")
+	logs, err := filepath.Glob(filepath.Join(RunDir(root, res.RunID), "setup-*.log"))
+	require.NoError(t, err)
+	assert.Empty(t, logs)
+}
