@@ -237,9 +237,15 @@ func (d *driver) spawnSlot(p *pool, id string) {
 		return
 	}
 	slot.attempts++
-	a, parent := attempts[0], os.Environ()
+	// The child's process starts here, on the loop's goroutine (the serial
+	// rule); only the wait runs beside the loop.
+	a := attempts[0]
+	if !a.start(d.opts.Root, os.Environ()) {
+		p.exits <- a
+		return
+	}
 	go func() {
-		a.spawn(d.opts.Root, parent)
+		a.wait()
 		p.exits <- a
 	}()
 }
@@ -300,6 +306,8 @@ func (d *driver) integrateUnit(id string) error {
 	if !HasPendingClose(d.opts.Root, d.opts.TaskFile, id) {
 		return nil
 	}
+	poolHook("integrating", id)
+	defer poolHook("integrated", id)
 	pending, err := ReadPendingCloses(d.opts.Root, d.opts.TaskFile)
 	if err != nil {
 		return driverErrorf(err, "read the pending closes")
