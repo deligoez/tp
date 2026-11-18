@@ -158,7 +158,7 @@ func notifyPayload(n *engine.NotifyOutcome) map[string]any {
 // dispatchError, and never reaches here.)
 //
 // It is a whitelist of the one reason that exits 0 rather than a list of the
-// eight that exit 4, so a stop reason added later — or an empty one from a run
+// nine that exit 4, so a stop reason added later — or an empty one from a run
 // that ended without naming its reason — is reported as needing a human instead
 // of being silently accepted as convergence. That asymmetry is the point: every
 // non-converged stop is a report to a human, never an acceptance, so the
