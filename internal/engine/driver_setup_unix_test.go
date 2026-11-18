@@ -50,3 +50,25 @@ func TestRunDriver_ATimedOutWorktreeSetupKillsItsProcessGroup(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, left, "the timed-out worktree is gone from disk")
 }
+
+// TestRunDriver_AWorktreeTheUnwindCannotRemoveIsADriverError: a failed setup
+// that left a directory nobody may empty keeps its worktree on disk through
+// the unwind, and the driver reports that instead of passing over it.
+func TestRunDriver_AWorktreeTheUnwindCannotRemoveIsADriverError(t *testing.T) {
+	probe := t.TempDir()
+	t.Setenv("TP_SETUP_PROBE", probe)
+	root, spec, taskFile, _ := setupBatchProject(t,
+		`mkdir -p cache/locked && touch cache/locked/f && chmod 500 cache/locked && echo "$PWD/cache/locked" > "$TP_SETUP_PROBE/locked"; exit 1`)
+	t.Cleanup(func() {
+		if data, err := os.ReadFile(filepath.Join(probe, "locked")); err == nil {
+			_ = os.Chmod(strings.TrimSpace(string(data)), 0o700) //nolint:gosec // the test's own directory, made removable again
+		}
+		_ = os.RemoveAll(WorktreeBase(root))
+	})
+
+	res, err := driveSetupBatch(t, root, spec, taskFile)
+	var driverErr *DriverError
+	require.ErrorAs(t, err, &driverErr)
+	assert.Contains(t, err.Error(), "still on disk")
+	assert.Equal(t, StopDriverError, res.StopReason)
+}
