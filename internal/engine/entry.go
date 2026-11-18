@@ -11,7 +11,7 @@ import (
 // rules 1, 3, 4, 5, 6). The caller maps Msg to the structured "error" and Hint
 // to "hint", exiting with code 1.
 type EntryFinding struct {
-	Rule string // "id-blank", "title-blank", "acceptance-blank", "source-anchor", "managed-field", "unknown-dependency"
+	Rule string // "id-blank", "title-blank", "acceptance-blank", "source-anchor", "managed-field", "schema", "unknown-dependency"
 	Msg  string
 	Hint string
 }
@@ -22,6 +22,7 @@ type EntryFinding struct {
 //  3. title present (non-blank after trim)
 //  4. acceptance present (non-blank after trim)
 //  5. at least one source anchor (source_sections or source_lines)
+//     then every other per-task error tp validate reports (TaskSchemaErrors)
 //  6. every depends_on id resolvable against resolvableIDs
 //
 // Rule 2 (duplicate id) is intentionally omitted: it is inherently cross-task
@@ -62,6 +63,15 @@ func ValidateTaskEntry(task *model.Task, resolvableIDs map[string]bool) *EntryFi
 			Rule: "managed-field",
 			Msg:  fmt.Sprintf("task %s: task_audit_owed is managed by tp and cannot be written", task.ID),
 			Hint: `remove "task_audit_owed"; tp done records the code audit a task owes when it closes`,
+		}
+	}
+	// Every other per-task error tp validate reports is refused here too, so
+	// an entry never writes a task the next tp validate rejects.
+	if msgs := TaskSchemaErrors(task); len(msgs) > 0 {
+		return &EntryFinding{
+			Rule: "schema",
+			Msg:  msgs[0],
+			Hint: "tp validate rejects this task; fix the field before writing it",
 		}
 	}
 	var unknown []string
