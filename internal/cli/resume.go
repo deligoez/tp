@@ -48,10 +48,7 @@ func runResume(_ *cobra.Command, args []string) error {
 	applyEpicFileFlag()
 	taskFilePath, specPath, tf := resolveCycle(args)
 
-	// A live run's pool is left out of next_units, so a reader beside the
-	// run is not offered the units it is running (rolling-implement.md §2).
-	running := engine.LiveRunningUnits(engine.CanonicalProjectRoot(filepath.Dir(taskFilePath)), taskFilePath)
-	result, err := engine.AssembleResumeRunning(resumeStart(taskFilePath), taskFilePath, specPath, tf, running)
+	result, err := engine.AssembleResumeLive(resumeStart(taskFilePath), taskFilePath, specPath, tf)
 	if err != nil {
 		var sce *engine.StateCorruptError
 		if errors.As(err, &sce) {
