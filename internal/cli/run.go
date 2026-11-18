@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -191,15 +193,24 @@ func runRunDryRun(args []string) error {
 	taskFilePath, specPath, _ := resolveCycle(args)
 	enterTree(taskFilePath, "tp run --dry-run")
 
+	root := engine.CanonicalProjectRoot(filepath.Dir(taskFilePath))
 	phase, round, units, err := engine.DryRunUnits(&engine.DriverOptions{
-		Root:     engine.CanonicalProjectRoot(filepath.Dir(taskFilePath)),
+		Root:     root,
 		TaskFile: taskFilePath,
 		Spec:     specPath,
 	})
 	if err != nil {
 		return err
 	}
-	if len(units) > 1 && units[0].Kind == engine.UnitImplement {
+	// A run whose pool is running starts what comes next itself; listing it
+	// here would offer the operator units the pool is about to take
+	// (spec/backlog/rolling-implement.md §2).
+	running := engine.LiveRunningUnits(root, taskFilePath)
+	if len(running) > 0 {
+		output.Notice(fmt.Sprintf("a tp run is in progress over %s and its pool runs %s; it starts the next units itself",
+			engine.RunBase(taskFilePath), strings.Join(running, ", ")))
+		units = nil
+	} else if len(units) > 1 && units[0].Kind == engine.UnitImplement {
 		output.Notice(engine.PoolCheckoutNotice)
 	}
 
@@ -215,9 +226,13 @@ func runRunDryRun(args []string) error {
 			"brief_command": u.BriefCommand,
 		})
 	}
-	return output.JSON(map[string]any{
+	out := map[string]any{
 		"phase":      phase,
 		"round":      round,
 		"next_units": rows,
-	})
+	}
+	if len(running) > 0 {
+		out["running_units"] = running
+	}
+	return output.JSON(out)
 }
