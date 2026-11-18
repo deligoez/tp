@@ -22,7 +22,10 @@ iteration at a time: read the cycle state, stop if it is releasable, take
 next_units, spawn a runner process per unit — the role kinds together, and with
 run_max_parallel above 1 a batch of implement units side by side, each in its own
 git worktree; every other kind alone — re-read the state from disk, check caps,
-loop.
+loop. The project layer's worktree_setup_cmd, when set, runs in each new batch
+worktree before its unit is spawned; a setup that fails, times out or leaves
+the worktree changed unwinds the batch and stops the run with
+worktree-setup-failed.
 
 A unit's result is whatever it wrote to disk. The driver reads a child's exit
 code and nothing else it said, and tp resume remains the single authority on
@@ -49,6 +52,7 @@ under notify; its own exit code changes nothing about the run.
 
 Output: {run_id, phase, stop_reason, units}
         notify: {cmd, exit_code, error} when a notify_cmd ran
+        worktree_setup: {id, log_path} on worktree-setup-failed
         --dry-run: {phase, round, next_units}`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
