@@ -48,8 +48,8 @@ func setupBatchProject(t *testing.T, command string) (root, spec, taskFile, reco
 }
 
 // driveSetupBatch runs the loop with a release function and returns whatever
-// it ended with, error included.
-func driveSetupBatch(t *testing.T, root, spec, taskFile string) (DriverResult, error) {
+// it ended with, error included. Each mod adjusts the options first.
+func driveSetupBatch(t *testing.T, root, spec, taskFile string, mods ...func(*DriverOptions)) (DriverResult, error) {
 	t.Helper()
 	closer := &fakeCloser{closed: map[string][]string{}}
 	type outcome struct {
@@ -57,30 +57,34 @@ func driveSetupBatch(t *testing.T, root, spec, taskFile string) (DriverResult, e
 		err error
 	}
 	done := make(chan outcome, 1)
+	opts := &DriverOptions{
+		Root: root, TaskFile: taskFile, Spec: spec, Workflow: *driverWorkflow(), CloseTask: closer.close(taskFile),
+		ClaimTasks: func(ids []string) error {
+			return editTasks(taskFile, ids, func(task *model.Task) {
+				if task.Status == model.StatusOpen {
+					now := time.Now()
+					task.Status, task.StartedAt = model.StatusWIP, &now
+				}
+			})
+		},
+		ReopenSolo: func(id string) error {
+			return editTasks(taskFile, []string{id}, func(task *model.Task) {
+				task.Status, task.Solo = model.StatusOpen, true
+			})
+		},
+		ReleaseTasks: func(ids []string) error {
+			return editTasks(taskFile, ids, func(task *model.Task) {
+				if task.Status == model.StatusWIP {
+					task.Status, task.StartedAt = model.StatusOpen, nil
+				}
+			})
+		},
+	}
+	for _, mod := range mods {
+		mod(opts)
+	}
 	go func() {
-		res, err := RunDriver(&DriverOptions{
-			Root: root, TaskFile: taskFile, Spec: spec, Workflow: *driverWorkflow(), CloseTask: closer.close(taskFile),
-			ClaimTasks: func(ids []string) error {
-				return editTasks(taskFile, ids, func(task *model.Task) {
-					if task.Status == model.StatusOpen {
-						now := time.Now()
-						task.Status, task.StartedAt = model.StatusWIP, &now
-					}
-				})
-			},
-			ReopenSolo: func(id string) error {
-				return editTasks(taskFile, []string{id}, func(task *model.Task) {
-					task.Status, task.Solo = model.StatusOpen, true
-				})
-			},
-			ReleaseTasks: func(ids []string) error {
-				return editTasks(taskFile, ids, func(task *model.Task) {
-					if task.Status == model.StatusWIP {
-						task.Status, task.StartedAt = model.StatusOpen, nil
-					}
-				})
-			},
-		})
+		res, err := RunDriver(opts)
 		done <- outcome{res, err}
 	}()
 	select {
