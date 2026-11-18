@@ -23,3 +23,16 @@ func TestNextUnits_OneFreeSlotBesideOneRunningUnitGetsThePoolBrief(t *testing.T)
 	assert.Equal(t, PoolBriefCommand("beta"), units[0].BriefCommand)
 }
 
+// TestRunRecorder_LeavingThePoolKeepsTheOtherOrphans: two orphans were carried
+// in and one is integrated. The other is still waited for, so its pid stays.
+func TestRunRecorder_LeavingThePoolKeepsTheOtherOrphans(t *testing.T) {
+	root, _, taskFile := setupResumeProject(t, rollingTasks(2, "alpha", "beta"))
+	rec, err := NewRunRecorder(root, taskFile, "r", "implement")
+	require.NoError(t, err)
+	require.NoError(t, rec.JoinOrphan("alpha", 101))
+	require.NoError(t, rec.JoinOrphan("beta", 102))
+
+	require.NoError(t, rec.LeavePool("alpha"))
+	assert.Equal(t, map[string]int{"beta": 102}, rec.Snapshot().Orphans)
+}
+
