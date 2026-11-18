@@ -40,6 +40,34 @@ func claimBatchFunc(taskFile string) func(ids []string) error {
 	}
 }
 
+// releaseBatchFunc is how tp run takes back a batch that failed to start, its
+// worktree add or setup refused (spec/backlog/worktree-setup.md §1): every
+// task still wip goes back to open as the claim found it. Solo is untouched,
+// since no attempt was spent.
+func releaseBatchFunc(taskFile string) func(ids []string) error {
+	return func(ids []string) error {
+		return engine.WithFileLock(taskFile, func() error {
+			tf, err := model.ReadTaskFile(taskFile)
+			if err != nil {
+				return err
+			}
+			for _, id := range ids {
+				task, _, findErr := model.FindTask(tf, id)
+				if findErr != nil {
+					return findErr
+				}
+				if task.Status == model.StatusWIP {
+					task.Status = model.StatusOpen
+					task.StartedAt = nil
+					task.DurationSource = ""
+				}
+			}
+			tf.UpdatedAt = time.Now().UTC()
+			return model.WriteTaskFile(taskFile, tf)
+		})
+	}
+}
+
 // reopenSoloFunc is how tp run reopens a task whose unit failed to integrate:
 // back to open, marked solo so it runs alone from then on.
 func reopenSoloFunc(taskFile string) func(id string) error {
