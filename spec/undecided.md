@@ -380,6 +380,34 @@ trigger, the measurement pointer and, when there is one, the note that carries t
 **Closed means no pending spec carries it and none is expected to.** Each entry names why, and the
 condition that would reopen it. A reopen condition is a measurement, not an opinion.
 
+### The parallel field report's deferred items
+
+**Closed on 2026-11-18, while v1.24.0 was cut.** A field report from a requesting project, which drove a
+spec through tp with up to six implementers at once, made nine proposals. Two already existed
+(`tp run`'s implement batches and `touches`, v1.19.0 to v1.21.0), and v1.24.0 takes the gaps. Four
+items are deferred here, each with a measurement that would reopen it. Its reporter could not be
+reached for follow-up, so no loss attributed to these four was measured.
+
+- **Moving wip and claim state into `.tp/local.json`.** *Refused.* `.tp/local.json` is per machine
+  and git-ignored, so another machine or session would not see a task in progress, and `tp resume`
+  would stop being the single source between resets. A claim exists precisely so that concurrent
+  agents see each other. **It reopens** if a measured cost shows conflicts on the task file between
+  trees under `tp run`'s own batch flow, which claims and closes only on the main branch.
+- **Folding a close into the task's last code commit.** *Impossible as asked.* A close records the
+  code commit's sha (`internal/cli/commit.go`, `followUpClosureCommitOrExit`). Writing that record
+  into the same commit would change the sha it records. What remains possible is a batch variant:
+  N closes in one `chore(tp)` commit. **It reopens** on a measured cost of the close commits
+  themselves. A read-only count of the requesting project's log for that night found 89 `chore(tp)`
+  commits out of 494, about 25 claims and 53 closes. No cost beyond the count was measured.
+- **A per-project brief preamble.** *Deferred.* Text prepended to every brief costs tokens on every
+  unit (P3). The report names three rule slips but not what they cost, nor whether the rules were in
+  the project's own `CLAUDE.md`, which every agent already reads. **It reopens** on a measured slip
+  whose rule was written in the project's instructions and still missed by a unit.
+- **An inbox for findings seen during implement (`tp note`).** *Deferred.* The report kept its
+  out-of-scope findings in its own context, and they survived only because a compaction summary
+  carried them. Whether any was lost was not counted. **It reopens** on a counted finding
+  that was lost between a unit's report and the audit.
+
 ### The divisible round
 
 **Closed by `v1.22.0`.** The key reopened on 2026-11-14 because half of the code roles' findings sit
