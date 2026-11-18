@@ -51,8 +51,13 @@ func runGate() error {
 	}
 	wf := engine.EffectiveWorkflowForTaskFile(taskFilePath)
 	if wf.QualityGate == "" {
-		output.Error(ExitUsage, "no quality_gate is set, so there is no gate to run",
-			"set one with tp set --workflow --project quality_gate=\"<command>\"")
+		// Inside a run tp set refuses the gate write (fenceQualityGateSet),
+		// so the hint is the escalation a gate change takes.
+		hint := "set one with tp set --workflow --project quality_gate=\"<command>\""
+		if engine.Unattended() {
+			hint = "setting quality_gate is the operator's decision: tp escalate --decision " + engine.EscalateSkipGate + " --evidence <what you found>"
+		}
+		output.Error(ExitUsage, "no quality_gate is set, so there is no gate to run", hint)
 		os.Exit(ExitUsage)
 	}
 	// The directory rule of a unit's tp done: the task file's project
