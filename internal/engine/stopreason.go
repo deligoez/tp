@@ -1,18 +1,18 @@
 package engine
 
-// StopReason is §3.4's closed vocabulary. A run stops for exactly one of nine
+// StopReason is §3.4's closed vocabulary. A run stops for exactly one of ten
 // reasons, recorded verbatim in the run state, and every non-converged one is a
 // report to a human rather than an acceptance: no stop reason records a round,
 // marks a phase converged, or closes a task its own unit did not close.
 //
 // It is a named type rather than a bare string so the reason a run ends with is
-// one of the nine by construction. A caller composing its own string cannot
+// one of the ten by construction. A caller composing its own string cannot
 // reach the recorder, and the caps, the signal handler, the escalation check
 // and the exit-code mapping all name the same values instead of each spelling
 // them out.
 type StopReason string
 
-// The nine, in §3.4's cause-table order. That is the order the table documents
+// The ten, in §3.4's cause-table order. That is the order the table documents
 // them in, not the order a checkpoint satisfying several of them resolves in —
 // precedence is a separate rule over the same set.
 const (
@@ -39,9 +39,14 @@ const (
 	// a runner that will not exec, a run directory it cannot write. It is
 	// deliberately not charged to the unit as a failed attempt.
 	StopDriverError StopReason = "driver-error"
+	// StopWorktreeSetupFailed is an implement batch whose worktree_setup_cmd
+	// failed, timed out or left the worktree dirty, or whose git worktree add
+	// failed, before any unit was spawned (spec/backlog/worktree-setup.md).
+	// The batch is unwound and no attempt is spent.
+	StopWorktreeSetupFailed StopReason = "worktree-setup-failed"
 )
 
-// Known reports whether r is one of §3.4's nine.
+// Known reports whether r is one of §3.4's ten.
 //
 // The empty string is not one of them: it is what capStop returns while a run
 // is within every cap, which is the absence of a stop rather than a stop nobody
@@ -49,7 +54,8 @@ const (
 func (r StopReason) Known() bool {
 	switch r {
 	case StopConverged, StopCapUnits, StopCapWallClock, StopCapBudget,
-		StopEscalation, StopUnitFailure, StopNoUnits, StopInterrupted, StopDriverError:
+		StopEscalation, StopUnitFailure, StopNoUnits, StopInterrupted, StopDriverError,
+		StopWorktreeSetupFailed:
 		return true
 	}
 	return false
@@ -58,7 +64,7 @@ func (r StopReason) Known() bool {
 // stopPrecedence is §3.4's precedence order: when one checkpoint satisfies
 // several rows, the recorded reason is the first of these. It is deliberately a
 // different order from the cause table the constants are declared in — that
-// table names the nine, this names which one a checkpoint that satisfied two of
+// table names the ten, this names which one a checkpoint that satisfied two of
 // them at once records.
 //
 // converged leads because §3.1 checks releasability before caps, and a cycle
@@ -74,6 +80,7 @@ func (r StopReason) Known() bool {
 var stopPrecedence = [...]StopReason{
 	StopConverged,
 	StopDriverError,
+	StopWorktreeSetupFailed,
 	StopEscalation,
 	StopUnitFailure,
 	StopInterrupted,
@@ -103,7 +110,7 @@ func stopRank(r StopReason) int {
 // them records (§3.4), or "" when it satisfied none.
 //
 // Callers hand it every condition they found true instead of testing them in
-// order, so the ordering has exactly one home: a tenth reason cannot be added
+// order, so the ordering has exactly one home: a new reason cannot be added
 // to the loop without being placed in stopPrecedence first, because an unplaced
 // one loses to every reason that is.
 func highestPrecedence(reasons ...StopReason) StopReason {
