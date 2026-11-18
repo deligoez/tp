@@ -116,14 +116,15 @@ items are in `spec/1.3.0-measurements.md`.
    implementing commit, for every tp call including review and audit; never the lagging PATH release.
 9. **Operator decisions are never the agent's own**: `--skip-gate`, `tp import --force`, raising
    `review_max_rounds`/`audit_max_rounds` (default 3; an explicit 0 is uncapped) or any `run_max_*`,
-   `audit_converge_on: blocking`, changing `quality_gate`, setting or changing `worktree_setup_cmd`, accepting a critical/high review finding
-   or any audit finding without a change (`accept-finding`), `--force` over an unrecorded
-   emission or `tp epic review --discard` (`discard-emission`), granting a stale epic review slice one round past its cap
-   (`tp epic review <slice> --grant-round`, `grant-round`), and an epoch whose cut holds an unresolved
-   blocking review or audit finding (`tp review <spec> --rewritten`, `rewrite-past-blocking`). Under `tp run`
-   each exits 2; the unit records it with `tp escalate --decision <name>` (the closed set is
-   `engine.EscalationDecisions`) and the run stops for the operator. Policy: SKILL.md's "Gate, Budget
-   & Escalation Policy".
+   `audit_converge_on: blocking`, changing `quality_gate`, setting or changing `worktree_setup_cmd`,
+   accepting a critical/high review finding or any audit finding without a change
+   (`accept-finding`), `--force` over an unrecorded emission or `tp epic review --discard`
+   (`discard-emission`), granting a stale epic review slice one round past its cap
+   (`tp epic review <slice> --grant-round`, `grant-round`), and an epoch whose cut holds an
+   unresolved blocking review or audit finding (`tp review <spec> --rewritten`,
+   `rewrite-past-blocking`). Under `tp run` each exits 2; the unit records it with
+   `tp escalate --decision <name>` (the closed set is `engine.EscalationDecisions`) and the run
+   stops for the operator. Policy: SKILL.md's "Gate, Budget & Escalation Policy".
 10. **Measurement traps**: from a non-TTY child use `git -c diff.external= diff --no-ext-diff`;
     `tp review`/`tp audit` write round state even without `--record`, so probe in a `git clone`,
     never the repo; confirm a zero-match search with one that must match.
