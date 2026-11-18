@@ -95,9 +95,8 @@ func AssembleResumeLive(start, taskFilePath, specPath string, tf *model.TaskFile
 // livePoolAction is the next action beside a live pool: nothing to run.
 func livePoolAction(taskFilePath string, running []string) NextAction {
 	return NextAction{
-		Summary: fmt.Sprintf("a tp run is in progress over %s and its pool runs %s; it starts the next units itself",
+		Summary: fmt.Sprintf("units of a tp run over %s are in progress (%s); a live run starts the next units itself, and a new tp run waits for these first",
 			RunBase(taskFilePath), strings.Join(running, ", ")),
-		Payload: map[string]any{"running_units": running},
 	}
 }
 
