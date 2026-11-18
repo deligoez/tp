@@ -799,7 +799,12 @@ func (a *unitAttempt) startLocked(cmd *exec.Cmd) error {
 		return cmd.Start()
 	}
 	lock, err := lockUnitFile(a.lockPath)
-	if err != nil {
+	switch {
+	case errors.Is(err, errUnitLockBusy):
+		// A process the last attempt left holds it; that holder keeps a
+		// restarted run waiting, but not for this attempt.
+		output.Notice(fmt.Sprintf("a process unit %s's last attempt left still holds its lock; this attempt runs without it, so once that process exits, a run restarted after a crash no longer sees this attempt as live", a.unit.ID))
+	case err != nil:
 		return fmt.Errorf("lock unit %q: %w", a.unit.ID, err)
 	}
 	if lock != nil {

@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -21,8 +22,13 @@ import (
 // process is writing in or handing its task out a second time.
 //
 // The limit is the descriptor's: a grandchild the unit leaves running with it
-// open holds the lock, and the wait, until it exits too. Where ExtraFiles is
+// open holds the lock, and the wait, until it exits too; a retry that finds
+// its lock so held starts without one and says so. Where ExtraFiles is
 // unsupported (Windows) no lock is taken and a restarted run cannot tell.
+
+// errUnitLockBusy is a unit lock some process already holds: one the unit's
+// previous attempt left running with the descriptor still open.
+var errUnitLockBusy = errors.New("unit lock held")
 
 // unitLockPrefix is the shared stem of a cycle's unit lock files, beside its
 // run lock: .tp/locks/run-<key>-unit-.

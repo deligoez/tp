@@ -3,6 +3,7 @@
 package engine
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -20,6 +21,9 @@ func lockUnitFile(path string) (*os.File, error) {
 	}
 	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
 		_ = f.Close()
+		if errors.Is(err, syscall.EWOULDBLOCK) {
+			return nil, errUnitLockBusy
+		}
 		return nil, err
 	}
 	return f, nil
