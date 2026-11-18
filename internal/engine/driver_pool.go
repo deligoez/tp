@@ -122,17 +122,24 @@ func (d *driver) refill(p *pool) {
 		return
 	}
 	p.res = &res
-	units := make([]NextUnit, 0, len(res.NextUnits))
-	for i := range res.NextUnits {
-		u := res.NextUnits[i]
+	d.fill(p, refillUnits(res.NextUnits, p.running))
+}
+
+// refillUnits is what a refill starts of the oracle's units: the implement
+// units the pool does not run already, or none at all when any unit is of
+// another kind, since that unit waits for the pool to drain.
+func refillUnits(next []NextUnit, running map[string]*poolSlot) []NextUnit {
+	units := make([]NextUnit, 0, len(next))
+	for i := range next {
+		u := next[i]
 		if u.Kind != UnitImplement {
-			return
+			return nil
 		}
-		if p.running[u.ID] == nil {
+		if running[u.ID] == nil {
 			units = append(units, u)
 		}
 	}
-	d.fill(p, units)
+	return units
 }
 
 // fill starts each unit in turn while nothing stops the pool, the caps and
