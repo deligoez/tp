@@ -40,10 +40,10 @@ func claimTasksFunc(taskFile string) func(ids []string) error {
 	}
 }
 
-// releaseTasksFunc is how tp run takes back a batch that failed to start, its
-// worktree add or setup refused (spec/backlog/worktree-setup.md §1): every
-// task still wip goes back to open as the claim found it. Solo is untouched,
-// since no attempt was spent.
+// releaseTasksFunc is how tp run takes back a pool unit that never spawned,
+// its worktree add or setup refused or a stop read before its spawn
+// (spec/backlog/rolling-implement.md §2): every task still wip goes back to
+// open as the claim found it. Solo is untouched, since no attempt was spent.
 func releaseTasksFunc(taskFile string) func(ids []string) error {
 	return func(ids []string) error {
 		return engine.WithFileLock(taskFile, func() error {
@@ -91,7 +91,7 @@ func reopenSoloFunc(taskFile string) func(id string) error {
 	}
 }
 
-// closeTaskFunc is how tp run closes an integrated batch unit
+// closeTaskFunc is how tp run closes an integrated pool unit
 // (spec/backlog/parallel-implement.md §2.4): it runs this binary's own tp done
 // in the main tree with the picked shas, so the gate, the evidence check and
 // the record are tp done's and nothing is reimplemented. Its output goes to

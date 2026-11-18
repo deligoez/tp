@@ -21,7 +21,7 @@ import (
 const unitBranchPrefix = "tp-unit/"
 
 // PoolCheckoutNotice is what tp run --dry-run says before an implement
-// batch: its units start from a fresh checkout and gate there (spec/backlog/parallel-implement.md §3).
+// pool: its units start from a fresh checkout and gate there (spec/backlog/parallel-implement.md §3).
 const PoolCheckoutNotice = "an implement pool runs each unit in a fresh worktree of HEAD, without ignored files (dependencies, .env, build output), and each unit runs the quality gate there before the driver gates it again on the main branch; if the units or the gate need those files, set worktree_setup_cmd at the project layer to prepare each worktree, or keep run_max_parallel at 1"
 
 // CloseFunc closes a task on the main branch once its commits are picked
