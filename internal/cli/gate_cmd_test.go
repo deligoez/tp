@@ -116,3 +116,20 @@ func TestGate_AGateThatCannotRunGetsTheFixTheCommandHint(t *testing.T) {
 	assert.Contains(t, stderr, "tp-no-such-gate-command")
 	assert.NotContains(t, stderr, "run tp gate again")
 }
+
+// TestGate_NoGateInsideARunPointsAtEscalate: tp set refuses a quality_gate
+// write under TP_UNATTENDED, so a unit that finds no gate is pointed at the
+// escalation a gate change takes, not at the write it would be refused.
+func TestGate_NoGateInsideARunPointsAtEscalate(t *testing.T) {
+	t.Parallel()
+	root := projectGated(t, "")
+
+	_, stderr, code := runTPEnv(t, root, []string{engine.EnvUnattended + "=1"}, "gate")
+	require.Equal(t, 2, code, stderr)
+	assert.Contains(t, stderr, "tp escalate --decision "+engine.EscalateSkipGate)
+	assert.NotContains(t, stderr, "tp set --workflow")
+
+	_, stderr, code = runTPEnv(t, root, []string{engine.EnvUnattended + "=0"}, "gate")
+	require.Equal(t, 2, code, stderr)
+	assert.Contains(t, stderr, "tp set --workflow --project", "by hand the write is the fix")
+}
