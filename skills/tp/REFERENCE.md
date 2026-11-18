@@ -373,8 +373,10 @@ the old directory can be deleted by hand. `scripts/clean-emissions.sh` reports i
  "setups": [{"id": "", "exit_code": 0, "duration_seconds": 0, "log_path": ""}]}
 ```
 
-`setups` (v1.24.0) holds one row per `worktree_setup_cmd` run, `exit_code` null on a timeout, and
-is absent when no setup ran; a setup is not a unit attempt, so it has no `seq` and no total counts it.
+`setups` (v1.24.0) holds one row per `worktree_setup_cmd` run, `exit_code` null on a timeout or a
+signal, and is absent when no setup ran. A setup is not a unit attempt: it has no `seq`, and
+`totals.units` and `totals.spend_usd` do not count it. Its time is inside the run's elapsed time,
+which `totals.wall_clock_seconds` and `run_max_wall_clock_seconds` measure.
 
 A row is appended before its child is spawned (`exit_code`, `duration_seconds`, `spend_usd` null) and
 updated in place when the child exits; both writes are atomic (temp + rename) because concurrent
