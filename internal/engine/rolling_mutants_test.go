@@ -36,3 +36,12 @@ func TestRunRecorder_LeavingThePoolKeepsTheOtherOrphans(t *testing.T) {
 	assert.Equal(t, map[string]int{"beta": 102}, rec.Snapshot().Orphans)
 }
 
+// TestUnitPID_ARowWithoutAPidFallsBackToTheOrphansPid: the unit's only row
+// carries no pid, so its pid is the one the orphan was carried in with.
+func TestUnitPID_ARowWithoutAPidFallsBackToTheOrphansPid(t *testing.T) {
+	st := &RunState{
+		Units:   []RunUnitRow{{Seq: 1, Kind: UnitImplement, ID: "alpha"}},
+		Orphans: map[string]int{"alpha": 4242},
+	}
+	assert.Equal(t, 4242, unitPID(st, "alpha"))
+}
