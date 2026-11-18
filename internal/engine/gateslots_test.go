@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gofrs/flock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -129,4 +130,48 @@ func TestGateSlots_AKilledHolderFreesItsSlotAtOnce(t *testing.T) {
 	require.NoError(t, err, "the dead holder's slot is free")
 	slot.Release()
 	assert.Less(t, time.Since(start), time.Second, "freed at once, not after a timeout")
+}
+
+// mainWaiting reports whether some process holds the main gate's lock.
+func mainWaiting(dir string) bool {
+	probe := flock.New(filepath.Join(dir, gateMainLockName))
+	ok, err := probe.TryRLock()
+	if err != nil {
+		return false
+	}
+	if ok {
+		_ = probe.Unlock()
+	}
+	return !ok
+}
+
+// TestGateSlots_TheMainGateTakesTheFirstFreedSlot: a unit gate waiting longer
+// than the main gate still yields the next free slot to it.
+func TestGateSlots_TheMainGateTakesTheFirstFreedSlot(t *testing.T) {
+	t.Parallel()
+	dir := filepath.Join(t.TempDir(), "gate-slots")
+	blocker, err := acquireWithin(dir, 1, false, time.Second)
+	require.NoError(t, err)
+
+	order := make(chan string, 2)
+	take := func(name string, main bool) {
+		slot, err := acquireWithin(dir, 1, main, 10*time.Second)
+		if !assert.NoError(t, err) {
+			order <- "error"
+			return
+		}
+		order <- name
+		time.Sleep(50 * time.Millisecond)
+		slot.Release()
+	}
+	go take("unit", false)
+	time.Sleep(150 * time.Millisecond)
+	go take("main", true)
+	require.Eventually(t, func() bool { return mainWaiting(dir) }, 5*time.Second, 10*time.Millisecond,
+		"the main gate says it is waiting")
+	require.Empty(t, order, "neither gate got past the held slot")
+
+	blocker.Release()
+	assert.Equal(t, "main", <-order, "the main gate gets the freed slot")
+	assert.Equal(t, "unit", <-order, "the unit gets the slot the main gate frees")
 }
