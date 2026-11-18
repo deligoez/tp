@@ -96,7 +96,7 @@ func TouchesWarnings(tf *model.TaskFile, maxParallel int) []Finding {
 		subject = "1 open task has no touches, so it runs"
 	}
 	return []Finding{{Severity: "warning", Rule: "touches", Message: fmt.Sprintf(
-		`%s beside other tasks unscreened, and on a clash the later unit to integrate is discarded and rerun alone (run_max_parallel %d): %s; set each with tp set <id> 'touches=["path/to/file.go","dir/**"]'`,
+		`%s beside other tasks unscreened, and on a clash the later unit to integrate is discarded and rerun alone (run_max_parallel %d): %s; set each with tp set <id> 'touches=["path/to/file.go","dir/**"]'; a batch worktree starts without ignored files, which the operator's worktree_setup_cmd can prepare`,
 		subject, maxParallel, strings.Join(ids, ", "))}}
 }
 
