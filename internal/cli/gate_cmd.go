@@ -39,6 +39,11 @@ func runGate() error {
 		output.Error(ExitFile, err.Error())
 		os.Exit(ExitFile)
 	}
+	// As tp done: in a unit's worktree the task file is the main tree's, so
+	// only a checkout outside one is held to the task file's project.
+	if donePendingRoot(taskFilePath) == "" {
+		enterTree(taskFilePath, "tp gate")
+	}
 	wf := engine.EffectiveWorkflowForTaskFile(taskFilePath)
 	if wf.QualityGate == "" {
 		output.Error(ExitUsage, "no quality_gate is set, so there is no gate to run",
