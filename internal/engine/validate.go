@@ -169,35 +169,45 @@ func validateSchema(tf *model.TaskFile) []Finding {
 		findings = append(findings, Finding{Severity: "error", Rule: "schema", Message: "tasks array is empty"})
 	}
 	for i := range tf.Tasks {
-		t := &tf.Tasks[i]
-		if t.ID == "" {
-			findings = append(findings, Finding{Severity: "error", Rule: "schema", Message: "task id is required"})
-		}
-		if t.Title == "" {
-			findings = append(findings, Finding{Severity: "error", Rule: "schema", Message: fmt.Sprintf("task %s: title is required", t.ID)})
-		}
-		if !model.ValidStatus(t.Status) {
-			findings = append(findings, Finding{Severity: "error", Rule: "schema", Message: fmt.Sprintf("task %s: invalid status %q", t.ID, t.Status)})
-		}
-		if t.Acceptance == "" {
-			findings = append(findings, Finding{Severity: "error", Rule: "schema", Message: fmt.Sprintf("task %s: acceptance is required", t.ID)})
-		}
-		if t.EstimateMinutes == 0 {
-			findings = append(findings, Finding{Severity: "error", Rule: "schema", Message: fmt.Sprintf("task %s: estimate_minutes is required", t.ID)})
-		}
-		if len(t.SourceSections) == 0 && t.SourceLines == "" {
-			findings = append(findings, Finding{Severity: "error", Rule: "schema", Message: fmt.Sprintf("task %s: needs source_sections (canonical headings) or source_lines", t.ID)})
-		}
-		// task_audit_owed is tp done's record of the audit a close owed; on
-		// a task that is not done it can only have been written by hand.
-		if len(t.TaskAuditOwed) > 0 && t.Status != model.StatusDone {
-			findings = append(findings, Finding{Severity: "error", Rule: "schema", Message: fmt.Sprintf("task %s: task_audit_owed on a task that is %s; only tp done records it", t.ID, t.Status)})
-		}
-		if err := ValidTouches(t.Touches); err != nil {
-			findings = append(findings, Finding{Severity: "error", Rule: "schema", Message: fmt.Sprintf("task %s: %v", t.ID, err)})
+		for _, msg := range TaskSchemaErrors(&tf.Tasks[i]) {
+			findings = append(findings, Finding{Severity: "error", Rule: "schema", Message: msg})
 		}
 	}
 	return findings
+}
+
+// TaskSchemaErrors returns the per-task schema errors tp validate reports for
+// one task. It is the single list the write-time entry check shares, so a
+// write never leaves a task the next tp validate rejects.
+func TaskSchemaErrors(t *model.Task) []string {
+	var msgs []string
+	if t.ID == "" {
+		msgs = append(msgs, "task id is required")
+	}
+	if t.Title == "" {
+		msgs = append(msgs, fmt.Sprintf("task %s: title is required", t.ID))
+	}
+	if !model.ValidStatus(t.Status) {
+		msgs = append(msgs, fmt.Sprintf("task %s: invalid status %q", t.ID, t.Status))
+	}
+	if t.Acceptance == "" {
+		msgs = append(msgs, fmt.Sprintf("task %s: acceptance is required", t.ID))
+	}
+	if t.EstimateMinutes == 0 {
+		msgs = append(msgs, fmt.Sprintf("task %s: estimate_minutes is required", t.ID))
+	}
+	if len(t.SourceSections) == 0 && t.SourceLines == "" {
+		msgs = append(msgs, fmt.Sprintf("task %s: needs source_sections (canonical headings) or source_lines", t.ID))
+	}
+	// task_audit_owed is tp done's record of the audit a close owed; on
+	// a task that is not done it can only have been written by hand.
+	if len(t.TaskAuditOwed) > 0 && t.Status != model.StatusDone {
+		msgs = append(msgs, fmt.Sprintf("task %s: task_audit_owed on a task that is %s; only tp done records it", t.ID, t.Status))
+	}
+	if err := ValidTouches(t.Touches); err != nil {
+		msgs = append(msgs, fmt.Sprintf("task %s: %v", t.ID, err))
+	}
+	return msgs
 }
 
 var conjunctionRegex = regexp.MustCompile(`\band\b|,|\+`)
