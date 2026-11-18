@@ -85,6 +85,7 @@ epic status: milestone open owner unowned
 epic unlink: any-of if-revision
 escalate: decision evidence option
 export: list
+gate:
 graph: from tag
 ground: check force record status units
 import: force spec
