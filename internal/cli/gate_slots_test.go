@@ -135,6 +135,32 @@ func unitInRun(t *testing.T, extraConfig string) runUnit {
 	return u
 }
 
+// outsideRun blanks every variable a run gives its children, so a test run
+// inside a tp run unit still calls tp the way an operator does by hand.
+var outsideRun = []string{engine.EnvRunDir + "=", engine.EnvUnitSeq + "=", engine.EnvGateMainSlots + "=", engine.EnvGateMainTimes + "="}
+
+// TestDone_AHandRunCloseTakesNoSlot: outside a run there are no slots to
+// take, so a capped project's close by hand, in a worktree or on the main
+// branch, gates at once and leaves no slot or gate time file behind.
+func TestDone_AHandRunCloseTakesNoSlot(t *testing.T) {
+	t.Parallel()
+	u := unitInRun(t, "")
+	env := append([]string{"TP_FILE=" + u.taskFile}, outsideRun...)
+	_, stderr, code := runTPEnv(t, u.worktree, env, "done", "t1", "implemented and verified", "--commit", u.sha)
+	require.Equal(t, 0, code, stderr)
+	assert.FileExists(t, filepath.Join(u.worktree, "gate-ran"))
+	assert.NoDirExists(t, filepath.Join(u.worktree, "gate-slots"), "no slot directory in the worktree")
+	assert.NoDirExists(t, filepath.Join(u.root, ".tp", "runs", "01JTESTRUN0000000000000000"), "nor under a run")
+
+	root := setupProjectWithGate(t, "touch gate-ran")
+	capGates(t, root, "")
+	addTask(t, root, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+	_, stderr, code = runTPEnv(t, root, outsideRun, "done", "t1", "task complete and verified fully")
+	require.Equal(t, 0, code, stderr)
+	assert.FileExists(t, filepath.Join(root, "gate-ran"))
+	assert.NoDirExists(t, filepath.Join(root, "gate-slots"), "no slot directory on the main branch")
+}
+
 // TestDone_AWaitLongerThanTheGateTimeoutSpendsNothing: a unit that waits for
 // a slot longer than gate_timeout_seconds still gets its whole gate, since the
 // timeout starts once the slot is taken, and its close is asked for as if it
