@@ -375,28 +375,47 @@ by `tp validate` and `tp set`.
   at once in a run, the main-branch gate included: a unit's worktree gate inside its `tp done`,
   `tp gate` inside the run, and the main-branch close the driver spawns. Each takes one of N
   `flock`ed files under `$TP_RUN_DIR/gate-slots/` before its command starts and frees it as soon as
-  the command exits; the kernel frees the slot of a holder that dies. A reused gate (below) takes no
-  slot, and a `tp done` or `tp gate` run by hand outside a run takes none. The main gate goes
-  first: while it waits it holds `gate-slots/main.lock` exclusively, and a unit gate tries the slots
-  only under a shared hold of it, so the first slot to free is the main gate's. Between unit gates,
-  slots are **polled, not queued fairly**: a gate that has waited longest is not served first, and
-  the run state records each wait so the longest is visible. `gate_timeout_seconds` starts once a
-  slot is taken, so a wait neither times out the gate nor kills the unit nor spends an attempt; the
-  run's elapsed time, which `run_max_wall_clock_seconds` measures, includes it. A signal while
-  waiting exits the child at 4 without a gate and without asking for the close. 0 (the default)
-  means no cap.
+  the gate is done; the kernel frees the slot of a holder that dies. The gate's command leads a
+  process group of its own: the timeout kills the whole group, whatever the command left in the
+  group is killed once it exits, and a descendant that still holds the output pipe is waited for
+  at most a second, so a backgrounded child never holds the slot. The command runs without the
+  run's slot variables (`TP_RUN_DIR`, `TP_UNIT_SEQ`, `TP_GATE_MAIN_SLOTS`, `TP_GATE_MAIN_TIMES`), so
+  a `tp` call inside a gate is a call by hand and takes no slot of the same run. A reused gate
+  (below) takes no slot, and a `tp done` or `tp gate` run by hand outside a run takes none. The main
+  gate goes first: while it waits it holds `gate-slots/main.lock` exclusively, and a unit gate tries
+  the slots only under a shared hold of it, so the first slot to free is the main gate's. Between
+  unit gates, slots are **polled, not queued fairly**: a gate that has waited longest is not served
+  first, and the run state records each wait so the longest is visible. `gate_timeout_seconds`
+  starts once a slot is taken, so a wait neither times out the gate nor kills the unit nor spends an
+  attempt; the run's elapsed time, which `run_max_wall_clock_seconds` measures, includes it. SIGINT
+  or SIGTERM while waiting exits the child at 4 without a gate and without asking for the close;
+  during the gate it kills the gate's process group first, then exits 4 the same way. SIGKILL
+  cannot be caught: the gate's processes then run on past the cap until they end, and a wait it
+  cut short is counted up to when the driver reads the unit's gate times. 0 (the default) means no
+  cap. Limits:
+  - The cap is **per run, not per machine**: two runs at once, two cycles in two checkouts
+    included, each get the full N.
+  - Lowering `run_max_parallel_gates` mid-run applies to gates that take a slot after the change;
+    a holder of a slot numbered above the new cap finishes its gate beside the new takers.
+  - A background `tp gate` that outlives its unit still holds its slot until it is done, but its
+    times arrive after the driver read the unit's row, so they are lost.
 - **`tp gate` (v1.26.0).** Runs the resolved `quality_gate` on the current checkout and closes
   nothing. It runs where `tp done` runs the gate: in a unit's worktree, the worktree; elsewhere,
   the repository root above the task file. Outside a unit's worktree a task file of another project
-  is refused at exit 3, as for `tp done`. Inside a run it takes a gate slot as above; outside one it runs at once.
-  On a pass it prints `{passed, gate_cmd, dir, recorded}`; inside a run on a clean checkout it
-  writes `$TP_RUN_DIR/gate-pass-<seq>.json` (the tree and the gate command, `recorded: true`), and
-  the unit's following `tp done` in its worktree on the same clean tree with the same gate command
-  does not run the gate again (stderr: `gate reused from tp gate`) and still records `gated_tree`
-  for the main-branch reuse below. Exit 0 on a pass; 4 when the gate fails or times out (the same
-  error object as `tp done`'s gate failure: `gate_cmd`, `exit_code`, `output_tail`) or when a
-  signal ends the slot wait; 2 when no `quality_gate` is set; 3 when no task file is found or it is
-  another project's.
+  is refused at exit 3, as for `tp done`. Inside a run it takes a gate slot as above; outside one it
+  runs at once. On a pass it prints `{passed, gate_cmd, dir, recorded}`. Inside a run it writes
+  `$TP_RUN_DIR/gate-pass-<seq>.json` (the tree and the gate command, `recorded: true`) when the
+  pass stands for a committed tree: in a unit's worktree a clean checkout's `HEAD` tree; on the main
+  tree `HEAD`'s tree while only tp's own paths differ from it (the claimed task file, `.tp/`). The
+  tree is read before the gate and again after it, and a gate that changed it records nothing. The
+  unit's following `tp done` on that same tree with the same gate command does not run the gate
+  again (stderr: `gate reused from tp gate`), in a worktree or on the main tree; in a worktree it
+  still records `gated_tree` for the main-branch reuse below. Exit 0 on a pass; 4 when the gate
+  fails or times out (the same error object as `tp done`'s gate failure: `gate_cmd`, `exit_code`,
+  `output_tail`, and for a command sh could not run the same fix-the-command hint) or when a signal
+  ends the slot wait or the gate; 2 when no `quality_gate` is set (inside a run the hint is
+  `tp escalate --decision skip-gate`, since `tp set` refuses the gate write there); 3 when no task
+  file is found or it is another project's.
 - **A gate on the same tree runs once (v1.21.0).** When the unit's worktree was clean as its gate
   ran, the pending close records the tree it gated (`gated_tree`) and the gate command. The close on
   the main branch then reuses that result instead of running the gate again when the main branch's
