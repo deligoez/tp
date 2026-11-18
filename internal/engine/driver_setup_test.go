@@ -16,6 +16,19 @@ import (
 	"github.com/deligoez/tp/internal/model"
 )
 
+// A setup that outlives its timeout is cut off and reported as timed out,
+// with no exit code. The driver passes the gate timeout, whose 30 s floor is
+// too long for a test, so this calls the runner with a short one directly.
+func TestRunSetupCommand_TimesOut(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	start := time.Now()
+	code, cause := runSetupCommand("sleep 5", dir, os.Environ(), 200*time.Millisecond, filepath.Join(dir, "setup.log"))
+	assert.Nil(t, code, "a timed-out setup has no exit code")
+	assert.Contains(t, cause, "timed out")
+	assert.Less(t, time.Since(start), 3*time.Second, "the wait ends at the timeout")
+}
+
 // setupProject is batchProject with worktree_setup_cmd committed to the
 // project layer, and cache/ ignored so a setup may write there.
 func setupBatchProject(t *testing.T, command string) (root, spec, taskFile, records string) {
