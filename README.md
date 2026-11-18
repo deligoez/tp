@@ -195,6 +195,7 @@ tp plan                        # Full execution plan (THE primary command; --min
 tp commit <id> [reason]        # Stage + structured commit + record SHA (--files)
 tp done <id> <reason>          # Close with implicit claim + verification; runs the quality gate
 tp done --batch file.ndjson    # Batch close from NDJSON
+tp gate                        # Run the quality gate on this checkout, closing nothing (a gate slot inside tp run)
 tp resume [spec]               # Report phase + the single next action from durable state (read-only; --epic <id>)
 tp brief [id]                  # The unit brief: identity, scope fence, prior work, close recipe
 tp run [spec]                  # Drive the whole cycle unattended (--status, --dry-run)
@@ -367,7 +368,9 @@ the three role kinds concurrently, and with `run_max_parallel` above 1 a rolling
 units side by side in their own git worktrees (each prepared by the operator's `worktree_setup_cmd`
 when one is set; each unit integrated as it exits and its slot refilled while the others run),
 everything else alone — re-reads the state from disk, checks its
-caps, and repeats. A unit's result is whatever it wrote to disk: tp reads a child's exit code and
+caps, and repeats. `run_max_parallel_gates` caps how many quality gates run at once, the
+main-branch gate first, and a unit runs a full suite only through `tp gate`, which takes the same
+slot. A unit's result is whatever it wrote to disk: tp reads a child's exit code and
 one spend number, never its prose. The run exits **0** only when the cycle converged and **4** on
 every other stop reason, so a caller never has to read the output to know what happened. Units run
 with `TP_UNATTENDED=1`, under which the decisions reserved for a human — skipping the quality gate,
