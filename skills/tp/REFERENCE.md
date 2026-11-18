@@ -179,8 +179,9 @@ by each `tp` write they make.
 
 `tp run` prints `{run_id, phase, stop_reason, units}`, plus `notify: {cmd, exit_code, error}` when a
 `notify_cmd` ran, and `worktree_setup: {id, log_path}` when it stopped on `worktree-setup-failed`.
-`--dry-run` prints `{phase, round, next_units}` — the same batch the loop would spawn — so it is
-safe to point at a cycle another run is already driving.
+`--dry-run` prints `{phase, round, next_units}` — the units the loop would spawn next — so it is
+safe to point at a cycle another run is already driving; beside a live pool it lists none and adds
+`running_units` (Implement pool, below).
 
 ### Unit kinds
 
@@ -189,7 +190,7 @@ kinds and no others; `(kind, id)` identifies a unit, and `id` is its durable sub
 
 | Kind | `id` | Durable write | Concurrency | `brief_command` |
 |------|------|---------------|-------------|-----------------|
-| `implement` | task id | the task's `status` is `done`; in a batch, a pending close for the task | alone, or side by side in an implement batch (v1.19.0) | `tp next --brief`; `tp brief <id>` in a batch |
+| `implement` | task id | the task's `status` is `done`; in a pool, a pending close for the task | alone, or side by side in an implement pool (v1.19.0) | `tp next --brief`; `tp brief <id>` in a pool |
 | `review-role` | role id | `$TP_ROUND_DIR/role-$TP_UNIT_ID.ndjson` exists and every content line parses | parallel with sibling roles | `tp review <spec>` |
 | `review-record` | round number | `$TP_ROUND_DIR/merged.ndjson` **and** a review round file for `$TP_ROUND` exist | alone | `[ -f "$TP_ROUND_DIR/merged.ndjson" ] \|\| tp review --merge "$TP_ROUND_DIR"/role-*.ndjson -o "$TP_ROUND_DIR/merged.ndjson" && tp review <spec> --record "$TP_ROUND_DIR/merged.ndjson"` |
 | `review-resolve` | spec base name | every finding in `$TP_ROUND_DIR/merged.ndjson` carries a disposition | alone | `tp review <spec> --status` |
@@ -228,33 +229,43 @@ id is `regression`, after the corpus roles. The oracle and the emission read the
 neither side can name a role the other lacks. The regression unit counts against `run_max_units`
 like any other unit.
 
-### Implement batches (v1.19.0)
+### Implement pool (v1.19.0; rolling slots since v1.25.0)
 
-With `run_max_parallel` above 1 the implement phase returns a **batch**: the task `tp next` would
-take, then each later ready task whose `touches` overlap none already in it, up to that many. Two
-globs overlap unless their literal prefixes diverge, compared case-insensitively, and an empty
-literal prefix overlaps everything. `touches` are a hint (v1.20.0): only touches both tasks name can
-be compared, so a task without them joins a batch unscreened, and a clash is caught by the pick and
-the gate: whichever unit of the pair integrates second is discarded and rerun alone. A wip task is resumed alone first; a
-task carrying `solo: true` (managed: set by a failed integration, never by hand), or one whose id is
-unsafe in a branch name or a path (anything but letters, digits, `.`, `_` and `-`, a `..`, a trailing
-`.` or a `.lock` suffix) never joins a batch and, leading, runs alone. A batch of one is the ordinary
-implement unit. Batches are `tp run`'s alone: nothing else integrates a pending close.
+With `run_max_parallel` above 1 the implement phase runs a **pool** of that many slots. The oracle
+fills the free slots with the task `tp next` would take, then each later ready task whose `touches`
+overlap none of the running tasks' or those already taken. Two globs overlap unless their literal
+prefixes diverge, compared case-insensitively, and an empty literal prefix overlaps everything.
+`touches` are a hint (v1.20.0): only touches both tasks name can be compared, so a task without
+them joins the pool unscreened, and a clash is caught by the pick and the gate: whichever unit of
+the pair integrates second is discarded and rerun alone. A wip task that no pool runs (an
+interrupted unit) is resumed alone; a task carrying `solo: true` (managed: set by a failed
+integration, never by hand), or one whose id is unsafe in a branch name or a path (anything but
+letters, digits, `.`, `_` and `-`, a `..`, a trailing `.` or a `.lock` suffix), never joins the pool
+and, when it is next, runs alone. Either one, next in line while the pool runs, starts nothing: the
+pool drains for it, and it runs alone in the main tree once the pool is empty. A pool starts with two
+or more units; one unit with an empty pool is the ordinary implement unit. Pools are `tp run`'s
+alone: nothing else integrates a pending close.
+
+The slots roll (v1.25.0): each unit is integrated on the main branch as soon as it exits, and its
+slot is refilled from the oracle, with the running units named, while the others still run. One
+goroutine does every main-branch step, so nothing starts while a unit is integrated and the main
+branch's gates run one at a time. A task-audit batch that falls due drains the pool the same way.
 
 `touches` is a JSON array of globs relative to the project root, read as Go's `path.Match` (`*`
 stays inside one directory). `dir/` or `dir/**` takes a whole subtree; `**` anywhere else is refused
 by `tp validate` and `tp set`.
 
-- **Claim and worktrees.** The driver claims the batch's tasks, then adds a git worktree per unit
+- **Claim and worktrees.** As each unit starts, the driver claims its task, then adds a git worktree
   under the system temporary directory (`tp-worktrees/<project hash>/<cycle tag>/<run id>/<task
   id>`) on a branch `tp-unit/<cycle tag>/<run id>/<task id>` from the main branch's `HEAD`; the
-  cycle tag keys both to the task file, so a run over another task file never touches them. Each
+  cycle tag keys both to the task file, so a run over another task file never touches them. The
   child is spawned in its worktree with `TP_FILE` naming the main tree's task file by absolute path,
-  and its brief is `tp brief <id>`.
+  its brief is `tp brief <id>`, and its run-state row carries `worktree`. A failed attempt is retried
+  in the same worktree while its budget lasts.
 - **Worktree setup (v1.24.0).** When `.tp/config.json`'s `workflow` block sets `worktree_setup_cmd`,
-  read there alone as each batch starts, the driver runs it in each new worktree, one after another
-  in batch order, before any unit is spawned. A value there that is not a string stops the batch
-  with `driver-error` before anything is claimed. Its working directory is the worktree's copy of
+  read there alone as each pool starts, the driver runs it in each new worktree before that unit is
+  spawned. A value there that is not a string stops the run with `driver-error` before anything is
+  claimed. Its working directory is the worktree's copy of
   the project directory, the one `TP_MAIN_ROOT` names in the main tree (the same as the worktree
   root unless the project lives below the git top level); its environment is the driver's plus
   `TP_MAIN_ROOT` (absolute), `TP_UNIT_ID` and `TP_UNATTENDED=1`; stdin is closed; stdout and stderr
@@ -263,20 +274,22 @@ by `tp validate` and `tp set`.
   `HEAD` must name the same commit and branch, and `git status --porcelain` there must print
   nothing, untracked files and submodules included, so the command may write ignored files only: a
   copy-on-write clone of a build cache, a link, a dependency fetch. A non-zero exit, a timeout, a
-  moved `HEAD` or a dirty tree unwinds the batch before any unit runs (every claimed task back to
-  open, every worktree and `tp-unit/` branch it added removed, no attempt spent, `solo` untouched)
-  and stops the run with `worktree-setup-failed`, with no retry. A failed `git worktree add`
-  unwinds the same way and stops with `driver-error`, and so does an unwind that leaves a worktree
-  on disk or cannot release the tasks. When a setup failed and its unwind failed too, the stop is
+  moved `HEAD` or a dirty tree releases that one unit before it runs (its task back to open, its
+  worktree and `tp-unit/` branch removed, no attempt spent, `solo` untouched); the units already
+  running drain and are integrated, and the run stops with `worktree-setup-failed`, with no retry.
+  A failed `git worktree add` releases its unit the same way and stops with `driver-error`, and so
+  does a release that leaves a worktree on disk or cannot release the task. When a setup failed and
+  its release failed too, the stop is
   `driver-error`: `tp run` prints no payload, the setup's notice on stderr names its log, and the
-  run state keeps its `setups` row. `SIGINT`/`SIGTERM` during a setup kills it, unwinds the batch
+  run state keeps its `setups` row. `SIGINT`/`SIGTERM` during a setup kills it, releases its unit
   and stops the run with `interrupted`. Each setup's wall time is written to its log and to the
   run state's `setups`; it is not a unit attempt, so `run_max_units` and the budget do not count
   it, but it is part of the run's elapsed time, so `run_max_wall_clock_seconds` and
   `totals.wall_clock_seconds` do. A unit's gate in its worktree may pass on ignored files the setup
   supplied, and when the close reuses that result on the main branch (v1.21.0, below) the main
-  tree's own ignored files are never gated. A resumed wip task, a `solo` task and a batch of one
-  run in the main tree and get no setup; crash recovery makes no worktrees. Setting or changing the
+  tree's own ignored files are never gated. A resumed wip task, a `solo` task and a unit started
+  with an empty pool run in the main tree and get no setup; crash recovery makes no worktrees.
+  Setting or changing the
   command is the operator's (`tp set --workflow --project worktree_setup_cmd=<command>`); the
   task-level setter refuses it (exit 2), a task file's `workflow.worktree_setup_cmd` is a
   `tp validate` error that `tp import` refuses too ("read only from the project layer; move it to
@@ -295,37 +308,53 @@ by `tp validate` and `tp set`.
   the unit's branch, is already on the main branch, or changes the task file, the spec's
   `.tp-review/` or the project's `.tp/`, or a set short of the branch's commits, is refused (exit 1)
   and nothing is written.
-- **Integration.** After the batch, whatever it ended as, the driver integrates every pending close in
-  id order: it records the `HEAD` it picks onto, cherry-picks the commits onto the main branch and
+- **Integration.** As each unit exits, whatever it ended as, the driver integrates its pending
+  close: it records the `HEAD` it picks onto, cherry-picks the commits onto the main branch and
   runs `tp done <id> --commit <picked sha>... -- "<evidence>"` there, so the gate and the record are
-  `tp done`'s and the gates run one at a time. A conflicting pick or a failing gate resets the main
+  `tp done`'s. A conflicting pick or a failing gate resets the main
   branch to before the pick with `git reset --keep` (the task file's other closes survive), writes
   `last_failure`, reopens the task and sets `solo: true`, so it runs alone next. A close that fails
   after the operator's signal is not the unit's failure: the pick is taken back and the pending
-  close kept for the next run. A usage refusal from that `tp done` stops the run as a driver error.
-  A picked diff that leaves the task's `touches` is reported on stderr and not reopened. The
-  worktrees are then removed, and each unit's branch once its task is done.
-- **A crash** leaves pending closes, worktrees or `tp-unit/` branches. `tp resume` names the pending
+  close kept for the next run. A usage refusal from that `tp done` stops the run as a driver error,
+  and the pool then drains without picking anything more onto the main branch; the requests left
+  wait for the next run. A picked diff that leaves the task's `touches` is reported on stderr and
+  not reopened. The unit's worktree is then removed, and its branch once its task is done.
+- **Stopping.** An escalation, a unit that spent its attempts, the operator's signal, a reached cap
+  or an error drains the pool: nothing more is spawned, retries included, every running child is
+  waited for and integrated, and then the run records its stop.
+- **A crash** leaves pending closes, worktrees or `tp-unit/` branches, and run-state rows with no
+  exit code. `tp resume` names the pending
   closes under `pending_closes`, and its `next_action` is `tp run`, which integrates them before its
-  first batch. It reads what an interrupted pick left by patch id: the unit's whole pick is closed
+  first pool. It reads what an interrupted pick left by patch id: the unit's whole pick is closed
   rather than picked again, a prefix of it (a crash between two picks) is taken back and picked
   again, and a main branch that no longer contains the pick's start, or holds any other history since
   it, is a driver error for the operator to judge, left as it is; a close for a task already done is
   dropped. It then removes its own cycle's worktrees. A task whose unit never asked to close (it
-  escalated or ran out of attempts) stays wip and is resumed alone, and its unit's branch, with
-  whatever it committed, is kept: the driver says so on stderr, `tp resume` names it under
-  `unit_branches` while its task is not done, and the first `tp run` after the task is done deletes
-  it (v1.19.1).
+  escalated, ran out of attempts or was cut off by the crash) stays wip and is resumed alone, and
+  its unit's branch, with whatever it committed, is kept: the driver says so on stderr, `tp resume`
+  names it under `unit_branches` while its task is not done, and the first `tp run` after the task
+  is done deletes it (v1.19.1). A crashed run's open rows are abandoned: the next run's state
+  replaces them.
+- **Reading a live run (v1.25.0).** While a run holds the run lock and its state has no
+  `stop_reason`, its open implement rows with a `worktree` are the pool's running units. `tp resume`
+  names them under `running_units` and leaves them out of `next_units`, which then holds only what
+  the free slots would take; `tp run --dry-run` lists no unit, names them under `running_units` and
+  says on stderr that a run is in progress. With no such rows (a run at `run_max_parallel` 1, or no
+  live run) both print what they always did. A run that starts while one of them probes the lock
+  waits up to a second for it rather than reporting the lock busy.
 - **Limits.** A worktree is a fresh checkout of `HEAD`, without ignored files (dependencies, `.env`,
-  build output), and the unit's gate runs there; `tp run --dry-run` says so on stderr before a batch.
+  build output), and the unit's gate runs there; `tp run --dry-run` says so on stderr before a pool.
   A project whose units or gate need them sets `worktree_setup_cmd` to prepare each worktree (above)
   or keeps `run_max_parallel` at 1; a hand-driven parallel flow gets no setup, and its remedy is
   `tp run`. `tp validate` names every open task without `touches` in one warning while
-  `run_max_parallel` is above 1, and the warning names `worktree_setup_cmd`. The caps are checked
-  between iterations, so a batch can overshoot `run_max_units` by up to its size less one.
+  `run_max_parallel` is above 1, and the warning names `worktree_setup_cmd`. The caps are read
+  before every spawn in a pool, retries included, so `run_max_units` is never passed; the spend and
+  wall-clock caps can be, by the units still running while the pool drains.
 - **Test load.** Each unit runs the quality gate in its own worktree when it asks for the close, so
   up to `run_max_parallel` gates can run at once; the driver's integration gates on the main branch
-  run one at a time. Between those, the worktree brief asks each unit to run only the tests its change
+  run one at a time, and a slot freed by an integration is refilled only after its gate ends, so a
+  main gate and the unit gates beside it are at most `run_max_parallel` together. Between those,
+  the worktree brief asks each unit to run only the tests its change
   needs, never the whole suite, and nothing enforces it. On a machine where several full gates at
   once are too heavy, keep `run_max_parallel` low.
 - **A gate on the same tree runs once (v1.21.0).** When the unit's worktree was clean as its gate
@@ -354,8 +383,8 @@ reason ever records a round, marks a phase converged, or closes a task its own u
 | `unit-failure` | one unit exhausted its `1 + run_max_unit_retries` attempts |
 | `no-units` | the oracle reports no pending units and the cycle is not releasable |
 | `interrupted` | `SIGINT`/`SIGTERM`: in-flight children finish, no new unit is spawned, run state is written |
-| `driver-error` | the driver could not spawn a unit or write its own state, or an implement batch's `git worktree add` failed — charged to the driver, not to the unit |
-| `worktree-setup-failed` | an implement batch's `worktree_setup_cmd` exited non-zero, timed out, moved `HEAD` or left its worktree dirty; the batch was unwound before any unit ran (v1.24.0) |
+| `driver-error` | the driver could not spawn a unit or write its own state, or an implement pool's `git worktree add` failed — charged to the driver, not to the unit |
+| `worktree-setup-failed` | an implement unit's `worktree_setup_cmd` exited non-zero, timed out, moved `HEAD` or left its worktree dirty; that unit was released before it ran and the pool drained (v1.24.0; one unit since v1.25.0) |
 
 When one checkpoint satisfies several rows the recorded reason is the first of `converged`,
 `driver-error`, `worktree-setup-failed`, `escalation`, `unit-failure`, `interrupted`, `cap-budget`, `cap-wall-clock`,
@@ -695,8 +724,8 @@ spec/
 | `run_max_budget_usd` | number | 0 (disabled) | 0-10000 | settable (v0.35.0; decimal dollars) |
 | `run_max_unit_budget_usd` | number | 0 (flag omitted) | 0-1000 | settable (v0.35.0; decimal dollars, passed to the runner's own budget flag) |
 | `run_max_unit_retries` | int | 1 | 0-5 | settable (v0.35.0; a unit is attempted `1 + this`) |
-| `run_max_parallel` | int | 1 | 1-8 | settable (v1.19.0; the implement units one `tp run` batch runs side by side, see Implement batches; raising it is the operator's, fenced under `TP_UNATTENDED` like the other caps) |
-| `worktree_setup_cmd` | string | unset | any command string | project layer only (v1.24.0): `tp set --workflow --project worktree_setup_cmd=<command>`; the task-level setter exits 2, a task file's value is a `tp validate` error and `tp import` refuses it, under `TP_UNATTENDED` both setters exit 2, and `tp config --resolved` reports it as `project` or `default`. Runs in each implement batch worktree before its unit, see Implement batches |
+| `run_max_parallel` | int | 1 | 1-8 | settable (v1.19.0; the slots of `tp run`'s implement pool, the units it runs side by side, see Implement pool; raising it is the operator's, fenced under `TP_UNATTENDED` like the other caps) |
+| `worktree_setup_cmd` | string | unset | any command string | project layer only (v1.24.0): `tp set --workflow --project worktree_setup_cmd=<command>`; the task-level setter exits 2, a task file's value is a `tp validate` error and `tp import` refuses it, under `TP_UNATTENDED` both setters exit 2, and `tp config --resolved` reports it as `project` or `default`. Runs in each implement pool worktree before its unit, see Implement pool |
 | `runner` | string or object | `"claude"` | built-in name, runner object, or per-kind map | **not a `tp set --workflow` field** (`unknown workflow field`, exit 2) — hand-written under `workflow` in `.tp/config.json` or a task file |
 | `notify_cmd` | string | unset | any command string | **not a `tp set` field of any form** — hand-written at the top level of `.tp/local.json` |
 
