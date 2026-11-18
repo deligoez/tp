@@ -122,7 +122,8 @@ func TestCloseRecipeText_AutoResolvesToMatchingRecipe(t *testing.T) {
 }
 
 // TestWorktreeCloseRecipeText: a unit in a worktree commits on its branch,
-// runs only the tests its change needs while working, and asks for the close
+// runs targeted package tests directly and a full suite only through tp gate
+// while working (spec/backlog/gate-slots.md), and asks for the close
 // with --commit, which gates the worktree; the driver gates again
 // (spec/backlog/parallel-implement.md §2.4, §2.5).
 func TestWorktreeCloseRecipeText(t *testing.T) {
@@ -134,7 +135,8 @@ func TestWorktreeCloseRecipeText(t *testing.T) {
 	for _, want := range []string{
 		"tp done t1 --commit <sha> -- \"<evidence>\"",
 		"touches: internal/x.go",
-		"only the tests your change needs",
+		"run the targeted package tests your change needs directly",
+		"a full suite only through tp gate",
 		"quality_gate (tp done runs it in this worktree): go test ./...",
 		"the task file",
 		"One line per acceptance criterion",
