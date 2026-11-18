@@ -36,20 +36,30 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// byHandEnv is the inherited environment minus TP_RUN_ID, so a child runs as
-// an invocation by hand even when the suite itself was started inside a tp run
-// unit (the quality gate runs in one). tp review/audit --role narrow
-// skipped_roles differently for a driven unit; a test that wants that arm
-// passes the variable through runTPEnv, whose extra entries come last and win.
+// byHandEnv is the inherited environment minus TP_RUN_ID and the run's gate
+// slot variables, so a child runs as an invocation by hand even when the suite
+// itself was started inside a tp run unit (the quality gate runs in one): it
+// takes no slot of that run. tp review/audit --role narrow skipped_roles
+// differently for a driven unit; a test that wants that arm passes the
+// variable through runTPEnv, whose extra entries come last and win.
 func byHandEnv() []string {
 	inherited := os.Environ()
 	env := make([]string, 0, len(inherited))
 	for _, kv := range inherited {
-		if !strings.HasPrefix(kv, engine.EnvRunID+"=") {
+		if !runVar(kv) {
 			env = append(env, kv)
 		}
 	}
 	return env
+}
+
+func runVar(kv string) bool {
+	for _, name := range []string{engine.EnvRunID, engine.EnvRunDir, engine.EnvUnitSeq, engine.EnvGateMainSlots, engine.EnvGateMainTimes} {
+		if strings.HasPrefix(kv, name+"=") {
+			return true
+		}
+	}
+	return false
 }
 
 // runTP runs the tp binary with the given args in the given directory.

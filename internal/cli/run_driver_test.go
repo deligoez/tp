@@ -22,7 +22,7 @@ func runTPEnv(t *testing.T, dir string, extra []string, args ...string) (stdout,
 	t.Helper()
 	cmd := exec.Command(binaryPath, append([]string{"--json"}, args...)...)
 	cmd.Dir = dir
-	cmd.Env = append(append(os.Environ(), "NO_COLOR=1", "TP_HC=0"), extra...)
+	cmd.Env = append(append(byHandEnv(), "NO_COLOR=1", "TP_HC=0"), extra...)
 
 	var outBuf, errBuf bytes.Buffer
 	cmd.Stdout = &outBuf
