@@ -38,12 +38,15 @@ A decision note (Decision track). It is built after rolling implement slots
 
   A reused main gate (`gated_tree`) takes no slot.
 - **The main gate goes first.** Under the serial rule nothing refills while a main gate runs, so a
-  main gate waiting behind unit gates would stall the whole pool. The driver therefore holds a
-  "main waiting" lock file, a `flock` and not a plain marker, so a crashed driver leaves nothing
-  behind. The driver takes that lock before it tries a slot. A unit gate probes it without blocking,
-  takes a slot, then probes again: if the main gate is waiting it releases the slot and retries, so
-  a unit gate that raced the driver's lock never keeps the slot the main gate needs. The cap binds
-  the total: at most N gates at once, the main gate included.
+  main gate waiting behind unit gates would stall the whole pool. The main gate's own `tp done`,
+  which the driver spawns for the close, holds `main.lock` under the run's slot directory
+  exclusively while it waits, and releases it once it holds a slot. A unit gate tries the slots only
+  under a shared, non-blocking hold of that same lock, released right after the try. While the main
+  gate waits, no unit gate can take the shared hold, so none takes a slot; and since the exclusive
+  hold cannot be granted while a unit's try is in flight, no unit can be part-way into a slot when
+  the main gate starts waiting. No probe, take and probe again is needed. Both are `flock`s on
+  files opened close-on-exec, so a crashed holder leaves nothing behind and the gate's own child
+  never inherits them. The cap binds the total: at most N gates at once, the main gate included.
 - **A killed slot holder.** The cap bounds slot holders. The driver kills no unit's process group,
   and a gate's command runs in the holder's own group, so a holder killed from outside frees its
   slot at once while the gate's test processes may run on. Those orphans are outside the cap, and
