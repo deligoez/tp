@@ -353,8 +353,8 @@ reason ever records a round, marks a phase converged, or closes a task its own u
 | `unit-failure` | one unit exhausted its `1 + run_max_unit_retries` attempts |
 | `no-units` | the oracle reports no pending units and the cycle is not releasable |
 | `interrupted` | `SIGINT`/`SIGTERM`: in-flight children finish, no new unit is spawned, run state is written |
-| `driver-error` | the driver could not spawn a unit or write its own state — charged to the driver, not to the unit |
-| `worktree-setup-failed` | an implement batch's `worktree_setup_cmd` exited non-zero, timed out or left its worktree dirty; the batch was unwound before any unit ran (v1.24.0) |
+| `driver-error` | the driver could not spawn a unit or write its own state, or an implement batch's `git worktree add` failed — charged to the driver, not to the unit |
+| `worktree-setup-failed` | an implement batch's `worktree_setup_cmd` exited non-zero, timed out, moved `HEAD` or left its worktree dirty; the batch was unwound before any unit ran (v1.24.0) |
 
 When one checkpoint satisfies several rows the recorded reason is the first of `converged`,
 `driver-error`, `worktree-setup-failed`, `escalation`, `unit-failure`, `interrupted`, `cap-budget`, `cap-wall-clock`,
