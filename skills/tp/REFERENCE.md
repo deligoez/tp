@@ -336,16 +336,21 @@ by `tp validate` and `tp set`.
   its unit's branch, with whatever it committed, is kept: the driver says so on stderr, `tp resume`
   names it under `unit_branches` while its task is not done, and the first `tp run` after the task
   is done deletes it (v1.19.1). A crashed run's open rows are abandoned: the next run's state
-  replaces them. A child the crashed run left still running is not: each unit in a worktree hands
-  its child a lock (`.tp/locks/run-<key>-unit-<id>.lock`) that lives as long as the child's
-  descriptor, and the next run says on stderr which units it waits for, then waits until they exit
-  before it integrates or removes anything. A grandchild that keeps the descriptor prolongs the
-  wait; on Windows no lock is taken.
+  replaces them. A unit the crashed run left live is not: the next run waits for it before it
+  integrates or removes anything, and says on stderr which units and pids it waits for. A unit is
+  live only when all three hold: the dead run's state lists it in `pool` (it was never
+  integrated), the pid of its own child, recorded on its row (`pid`) at spawn, is alive, and its
+  unit lock (`.tp/locks/run-<key>-unit-<id>.lock`, handed to its child) is held. A daemon the unit
+  left behind keeps the lock but not the pid, and a clean stop leaves an empty `pool`, so neither is
+  waited for. On Windows no lock is taken.
 - **Reading a live run (v1.25.0).** While a run holds the run lock and its state has no
   `stop_reason`, its `pool` names the running units: a unit is a member from its claim through its
-  setup and its exit until it is integrated. One rule holds for every outside reader: **while a pool
-  is live, nothing offers a unit.** `tp resume` names them under `running_units`, its `next_units`
-  is empty, and its `next_action` says the run starts the next units itself and carries no command;
+  setup and its exit until it is integrated. With the run lock free, the units the dead run left
+  live, by the three-part rule above, are read as running too, so the reader and a restarted run
+  agree; a run that waits for them carries them, with their pids, into its own `pool`. One rule
+  holds for every outside reader: **while a pool is live, nothing offers a unit.** `tp resume`
+  names them under `running_units`, its `next_units` is empty, and its `next_action` says a live
+  run starts the next units itself and a new one waits for these first, and carries no command;
   this outranks a pending close. `tp run --dry-run` prints the same `running_units` and an empty
   `next_units` (it has no `next_action`), and says on stderr that a run is in progress. `tp export`
   and the dashboard read the cycle the same way. With an empty pool (a run at `run_max_parallel` 1,
@@ -421,13 +426,16 @@ the old directory can be deleted by hand. `scripts/clean-emissions.sh` reports i
 {"run_id": "", "started_at": "", "phase": "", "stop_reason": null,
  "totals": {"units": 0, "wall_clock_seconds": 0, "spend_usd": 0},
  "units": [{"seq": 0, "kind": "", "id": "", "attempt": 1, "exit_code": 0,
-            "duration_seconds": 0, "spend_usd": null, "log_path": "", "worktree": ""}],
+            "duration_seconds": 0, "spend_usd": null, "log_path": "", "worktree": "", "pid": 0}],
  "setups": [{"id": "", "exit_code": 0, "duration_seconds": 0, "log_path": ""}],
- "pool": [""]}
+ "pool": [""], "orphans": {"": 0}}
 ```
 
-`worktree` (v1.25.0) is the unit's worktree, absent for a unit in the main tree. `pool` (v1.25.0)
-lists the ids of the rolling pool's units, absent when the pool is empty.
+`worktree` (v1.25.0) is the unit's worktree, absent for a unit in the main tree, and `pid` the
+pid of a pooled unit's own child once it has started. `pool` (v1.25.0) lists the ids of the rolling
+pool's units, absent when the pool is empty. `orphans` maps the units a dead run left live, which
+this run carried into its `pool` while it waits for them, to their pids; absent when there are
+none.
 
 `setups` (v1.24.0) holds one row per `worktree_setup_cmd` run, `exit_code` null on a timeout or a
 signal, and is absent when no setup ran. A setup is not a unit attempt: it has no `seq`, and

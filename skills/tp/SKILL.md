@@ -708,6 +708,7 @@ r = tp resume
 for each blocker: agent-clearable (unexplained-changes) → reconcile (commit or tp keep), re-run resume
                   escalate (no-ready-task, epic-blocked, *-budget-exhausted, spec-stale) → stop, hand to a human
                     (next_action.summary names the blocker; command and brief_command are null)
+running_units set (next_action.command null) → a tp run is driving the pool: stop and report; do not poll
 blockers empty  → run next_action.command in a FRESH unit (sub-agent / session / process)
 repeat until phase == release
 ```

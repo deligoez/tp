@@ -50,12 +50,18 @@ alone". Two readers need to tell a live claim from an abandoned one, and they an
   liveness. When `tp run` takes its lock, every open unit row left by an earlier run is abandoned
   by definition: reconcile closes it, and the pool starts empty. A test: a run that starts over a
   crashed run's open rows treats those tasks as wip resumes, run alone, not as pool members. The
-  one exception is a child the dead run left still running: each unit in a worktree holds a lock
-  its child inherits, so the new run sees it live and waits for it to exit before it integrates or
-  removes anything (a grandchild that keeps the descriptor prolongs the wait; Windows takes no lock).
+  one exception is a unit the dead run left live, which the new run waits for before it integrates
+  or removes anything. A unit is live only when all three hold: (a) the dead run's state lists it in
+  `pool`, so it was never integrated; (b) the pid of the unit's own child, recorded on its row at
+  spawn, is alive (`kill(pid, 0)`, EPERM counting as alive); (c) its unit lock, which its child
+  inherits, is held. A daemon the unit left behind holds the lock after the child exited and fails
+  (b); a clean stop empties the pool and fails (a). While it waits, the new run carries those units
+  and their pids into its own `pool`, and its notice names each unit and pid. Windows takes no
+  lock, so a restarted run there cannot tell a live unit.
 - **An outside `tp resume`** (the operator, a hook, the dashboard, `tp run --dry-run`) reads
   identity from the run state's `pool` (a unit is a member from its claim through its setup and
-  exit until it is integrated) and liveness from whether the run lock is held: the
+  exit until it is integrated) and liveness from whether the run lock is held, or, with the lock
+  free, from the same three-part rule a restarted run waits on, so the reader and the driver agree: the
   kernel releases a lock on a crash, and rows stay. Probing must not race a starting run: a
   `tp run` that starts while `tp resume` is called in a loop does not exit 4 as a second run, and a
   test shows it. During a live run, `tp resume` names the running units as running, and
