@@ -372,11 +372,14 @@ func (d *driver) fail(result *DriverResult, err error) (DriverResult, error) {
 // unitAttempt is one attempt at one unit: what the driver resolved before
 // spawning, and what the child left behind.
 type unitAttempt struct {
-	unit     NextUnit
-	env      UnitEnv
-	target   UnitTarget
-	runner   *Runner
-	logPath  string
+	unit    NextUnit
+	env     UnitEnv
+	target  UnitTarget
+	runner  *Runner
+	logPath string
+	// lockPath is the unit lock a unit in a worktree holds while it runs,
+	// "" for a unit in the main tree.
+	lockPath string
 	seq      int
 	exitCode int
 	duration time.Duration
@@ -496,6 +499,7 @@ func (d *driver) prepare(res *ResumeResult, units []NextUnit, attempt int) ([]*u
 		a.target = d.unitTarget(&a.env)
 		if u, ok := d.trees[a.unit.ID]; ok {
 			a.dir = u.worktree
+			a.lockPath = unitLockPath(d.opts.TaskFile, a.unit.ID)
 			// Spawned in its worktree, a relative TP_FILE would name the
 			// worktree's own copy of the task file; the unit works the
 			// main tree's.
@@ -733,7 +737,7 @@ func (a *unitAttempt) spawn(root string, parent []string) {
 	}
 
 	start := time.Now()
-	err := cmd.Run()
+	err := a.run(cmd)
 	a.duration = time.Since(start)
 
 	var exitErr *exec.ExitError
@@ -747,6 +751,32 @@ func (a *unitAttempt) spawn(root string, parent []string) {
 	}
 	a.promoteRoleFindings()
 	a.readEscalation()
+}
+
+// run starts the child and waits for it. A unit in a worktree is handed its
+// unit lock (unitlock.go) as an extra descriptor, and the driver's own copy is
+// closed once the child has it, so the lock is held for as long as the child
+// runs and no longer, whether or not this driver lives to see it exit. A lock
+// that cannot be taken fails the spawn as the driver's, as a log would.
+func (a *unitAttempt) run(cmd *exec.Cmd) error {
+	if a.lockPath == "" {
+		return cmd.Run()
+	}
+	lock, err := lockUnitFile(a.lockPath)
+	if err != nil {
+		return fmt.Errorf("lock unit %q: %w", a.unit.ID, err)
+	}
+	if lock != nil {
+		cmd.ExtraFiles = []*os.File{lock}
+	}
+	err = cmd.Start()
+	if lock != nil {
+		_ = lock.Close()
+	}
+	if err != nil {
+		return err
+	}
+	return cmd.Wait()
 }
 
 // readEscalation keeps the escalation record this attempt's unit wrote, when it
