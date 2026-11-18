@@ -30,8 +30,8 @@ new batch worktree, after `git worktree add` and before any unit of the batch is
   refuses it ("read only from the project layer; move it to .tp/config.json"), and the driver never
   runs it. `tp config --resolved` reports it with source `project` or `default`. Setting or
   changing it is added to rule 9's operator decisions, and under `TP_UNATTENDED` it is fenced like
-  the `run_max_*` caps: exit 2, recorded as `other`, like a `quality_gate` change. No new
-  escalation name is added, since the driver would not branch on it.
+  `runner` and `notify_cmd`: refused at every layer and every value, exit 2, recorded as `other`.
+  No new escalation name is added, since the driver would not branch on it.
   A unit cannot change the field through a file either: integration already refuses any sha that
   changes the project's `.tp/` (REFERENCE.md, Implement batches). A test pins this for this field,
   and a mutant that removes the refusal must turn it red.
