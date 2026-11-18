@@ -101,7 +101,8 @@ func TestBrief_InALinkedWorktreeGivesTheWorktreeClose(t *testing.T) {
 
 	stdout, stderr, code = runTPEnv(t, root, nil, "brief", "t1")
 	require.Equal(t, 0, code, stderr)
-	assert.NotContains(t, stdout, "a full suite only through tp gate", "the main tree keeps the ordinary close")
+	assert.Contains(t, stdout, "--auto-commit", "the main tree keeps the ordinary close")
+	assert.Contains(t, stdout, "a full suite only through tp gate", "both briefs carry the tp gate rule")
 }
 
 // TestDone_InALinkedWorktreeRefusesATpOwnedPath: a unit's commit that changes
