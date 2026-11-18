@@ -44,3 +44,25 @@ func TestGate_ABackgroundedChildDoesNotHoldTheSlot(t *testing.T) {
 	assert.Equal(t, 0, code, next.stderr.String())
 }
 
+// TestGate_ATimedOutGateFreesItsSlotAtTheTimeout: a gate killed at
+// gate_timeout_seconds frees its slot then, even when the command's own child
+// would run on and hold the pipe, so a gate waiting behind it can start.
+func TestGate_ATimedOutGateFreesItsSlotAtTheTimeout(t *testing.T) {
+	t.Parallel()
+	u := unitInRun(t, "")
+	gateConfig(t, u.root, "sleep 60; true", `,"gate_timeout_seconds":30`)
+
+	start := time.Now()
+	gate := startTP(t, u.worktree, u.env, "gate")
+	code, ok := gate.exited(t, 45*time.Second)
+	require.True(t, ok, "the timeout ends the gate, sleep included")
+	assert.Equal(t, 4, code, gate.stderr.String())
+	assert.Contains(t, gate.stderr.String(), "gate timed out after 30s")
+	assert.Less(t, time.Since(start), 45*time.Second)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	slot, err := engine.AcquireGateSlot(ctx, u.slots, 1, false)
+	require.NoError(t, err, "the timed-out gate's slot is free")
+	slot.Release()
+}
