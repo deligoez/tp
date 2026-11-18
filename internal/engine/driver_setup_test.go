@@ -264,3 +264,22 @@ func TestRunDriver_AWorktreeSetupThatCommitsFails(t *testing.T) {
 	assert.Contains(t, string(log), "HEAD", "the log names what moved")
 	assertBatchUnwound(t, root, taskFile, records)
 }
+
+// TestRunDriver_ANonStringWorktreeSetupIsADriverError: a project layer whose
+// worktree_setup_cmd is not a string stops the batch before anything is
+// claimed. Read as unset, it would run a batch the operator meant to prepare.
+func TestRunDriver_ANonStringWorktreeSetupIsADriverError(t *testing.T) {
+	root, spec, taskFile, records := setupBatchProject(t, "")
+	require.NoError(t, os.MkdirAll(filepath.Join(root, ".tp"), 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".tp", "config.json"),
+		[]byte(`{"workflow":{"worktree_setup_cmd":["make","deps"]}}`), 0o600))
+	gitIn(t, root, "add", ".")
+	gitIn(t, root, "commit", "-q", "-m", "a list, not a command")
+
+	res, err := driveSetupBatch(t, root, spec, taskFile)
+	var driverErr *DriverError
+	require.ErrorAs(t, err, &driverErr)
+	assert.Contains(t, err.Error(), "worktree_setup_cmd")
+	assert.Equal(t, StopDriverError, res.StopReason)
+	assertBatchUnwound(t, root, taskFile, records)
+}
