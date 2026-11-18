@@ -24,9 +24,9 @@ func TestImplementBatch_TakesDisjointReadyTasksUpToTheCap(t *testing.T) {
 		batchTask("c", "internal/cli/"),
 		batchTask("d", "docs/"),
 	}}
-	assert.Equal(t, []string{"a", "c", "d"}, ImplementUnits(tf, 3))
-	assert.Equal(t, []string{"a", "c"}, ImplementUnits(tf, 2))
-	assert.Equal(t, []string{"a"}, ImplementUnits(tf, 1), "the default cap runs one at a time")
+	assert.Equal(t, []string{"a", "c", "d"}, ImplementUnits(tf, 3, nil))
+	assert.Equal(t, []string{"a", "c"}, ImplementUnits(tf, 2, nil))
+	assert.Equal(t, []string{"a"}, ImplementUnits(tf, 1, nil), "the default cap runs one at a time")
 }
 
 // TestTouchesWarnings: under run_max_parallel above 1 each open task without
@@ -62,10 +62,10 @@ func TestTouchesWarnings_Boundaries(t *testing.T) {
 func TestImplementBatch_TouchesAreAHint(t *testing.T) {
 	t.Parallel()
 	noTouches := &model.TaskFile{Tasks: []model.Task{batchTask("a"), batchTask("c", "internal/cli/")}}
-	assert.Equal(t, []string{"a", "c"}, ImplementUnits(noTouches, 3))
+	assert.Equal(t, []string{"a", "c"}, ImplementUnits(noTouches, 3, nil))
 
 	behind := &model.TaskFile{Tasks: []model.Task{batchTask("a", "x/"), batchTask("b"), batchTask("c", "x/y.go"), batchTask("d", "y/")}}
-	assert.Equal(t, []string{"a", "b", "d"}, ImplementUnits(behind, 3), "named touches still keep an overlapping task out")
+	assert.Equal(t, []string{"a", "b", "d"}, ImplementUnits(behind, 3, nil), "named touches still keep an overlapping task out")
 }
 
 // TestImplementBatch_ASoloOrWIPOrUnsafeTaskRunsAlone: a task a failed
@@ -76,19 +76,59 @@ func TestImplementBatch_ASoloOrWIPOrUnsafeTaskRunsAlone(t *testing.T) {
 	solo := batchTask("a", "x/")
 	solo.Solo = true
 	soloFirst := &model.TaskFile{Tasks: []model.Task{solo, batchTask("c", "y/")}}
-	assert.Equal(t, []string{"a"}, ImplementUnits(soloFirst, 3))
+	assert.Equal(t, []string{"a"}, ImplementUnits(soloFirst, 3, nil))
 	trailing := batchTask("z", "x/")
 	trailing.Solo = true
 	soloBehind := &model.TaskFile{Tasks: []model.Task{batchTask("c", "y/"), trailing}}
-	assert.Equal(t, []string{"c"}, ImplementUnits(soloBehind, 3), "a solo task never joins a batch")
+	assert.Equal(t, []string{"c"}, ImplementUnits(soloBehind, 3, nil), "a solo task never joins a batch")
 
 	wip := batchTask("w", "x/")
 	wip.Status = model.StatusWIP
 	withWIP := &model.TaskFile{Tasks: []model.Task{batchTask("a", "y/"), wip}}
-	assert.Equal(t, []string{"w"}, ImplementUnits(withWIP, 3))
+	assert.Equal(t, []string{"w"}, ImplementUnits(withWIP, 3, nil))
 
-	assert.Empty(t, ImplementUnits(&model.TaskFile{}, 3))
+	assert.Empty(t, ImplementUnits(&model.TaskFile{}, 3, nil))
 
 	unsafe := &model.TaskFile{Tasks: []model.Task{batchTask("a", "x/"), batchTask("b/c", "y/"), batchTask("d..e", "z/"), batchTask("f.", "w/")}}
-	assert.Equal(t, []string{"a"}, ImplementUnits(unsafe, 3), "an id unsafe in a branch name or a path never joins a batch")
+	assert.Equal(t, []string{"a"}, ImplementUnits(unsafe, 3, nil), "an id unsafe in a branch name or a path never joins a batch")
+}
+
+// TestImplementUnits_RefillsAroundARunningPool: with the pool's tasks named
+// as running, the oracle leaves them out, takes only tasks disjoint from
+// theirs, and fills the free slots alone (spec/backlog/rolling-implement.md
+// §2). A wip task that is not running, or a solo task next in line, waits for
+// the pool to drain, and then runs alone.
+func TestImplementUnits_RefillsAroundARunningPool(t *testing.T) {
+	t.Parallel()
+	running := func(task model.Task) model.Task {
+		task.Status = model.StatusWIP
+		return task
+	}
+	pool := &model.TaskFile{Tasks: []model.Task{
+		running(batchTask("a", "x/")),
+		batchTask("b", "x/y.go"),
+		batchTask("c", "y/"),
+		batchTask("d", "z/"),
+	}}
+	assert.Equal(t, []string{"c", "d"}, ImplementUnits(pool, 3, []string{"a"}), "b overlaps the running a")
+	assert.Equal(t, []string{"c"}, ImplementUnits(pool, 2, []string{"a"}), "one free slot")
+	assert.Empty(t, ImplementUnits(pool, 1, []string{"a"}), "no free slot")
+
+	abandoned := running(batchTask("w", "w/"))
+	withWIP := &model.TaskFile{Tasks: []model.Task{running(batchTask("a", "x/")), abandoned, batchTask("c", "y/")}}
+	assert.Empty(t, ImplementUnits(withWIP, 3, []string{"a"}), "a wip task no pool runs waits for the drain")
+	withWIP.Tasks[0].Status = model.StatusDone
+	assert.Equal(t, []string{"w"}, ImplementUnits(withWIP, 3, nil), "then resumes alone")
+
+	solo := batchTask("b", "s/")
+	solo.Solo = true
+	soloNext := &model.TaskFile{Tasks: []model.Task{running(batchTask("a", "x/")), solo, batchTask("c", "y/")}}
+	assert.Empty(t, ImplementUnits(soloNext, 3, []string{"a"}), "a solo task next in line stops the refill")
+	soloNext.Tasks[0].Status = model.StatusDone
+	assert.Equal(t, []string{"b"}, ImplementUnits(soloNext, 3, nil), "and runs alone once the pool is empty")
+
+	trailing := batchTask("z", "s/")
+	trailing.Solo = true
+	soloBehind := &model.TaskFile{Tasks: []model.Task{running(batchTask("a", "x/")), batchTask("c", "y/"), trailing}}
+	assert.Equal(t, []string{"c"}, ImplementUnits(soloBehind, 3, []string{"a"}), "a solo task behind the next one is passed over, as before")
 }
