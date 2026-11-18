@@ -155,12 +155,14 @@ func TestRunDriver_WorktreeSetupRunsInEachWorktreeWithItsEnvironment(t *testing.
 	}
 }
 
-// TestRunDriver_AFailingWorktreeSetupUnwindsTheBatch: a setup that exits
-// non-zero releases every claimed task, removes every worktree and branch,
-// spends no attempt, and stops the run with worktree-setup-failed naming the
-// task and its log.
-func TestRunDriver_AFailingWorktreeSetupUnwindsTheBatch(t *testing.T) {
+// TestRunDriver_AFailingWorktreeSetupReleasesOnlyThatUnit: a setup that exits
+// non-zero releases its own unit's claim, worktree and branch and spends no
+// attempt; the unit already running drains and is integrated, and the run
+// stops with worktree-setup-failed naming the task and its log
+// (spec/backlog/rolling-implement.md §2).
+func TestRunDriver_AFailingWorktreeSetupReleasesOnlyThatUnit(t *testing.T) {
 	root, spec, taskFile, records := setupBatchProject(t, `echo refusing; test "$TP_UNIT_ID" != beta`)
+	t.Setenv(fakerunner.EnvDurable, "1")
 
 	res, err := driveSetupBatch(t, root, spec, taskFile)
 	require.NoError(t, err, "a failed setup is a stop, not a driver error")
@@ -171,7 +173,7 @@ func TestRunDriver_AFailingWorktreeSetupUnwindsTheBatch(t *testing.T) {
 	require.NoError(t, readErr, "the stop names the setup's log")
 	assert.Contains(t, string(log), "refusing")
 
-	assertBatchUnwound(t, root, taskFile, records)
+	assertOnlyBetaReleased(t, root, taskFile, records)
 	st, err := ReadRunState(root, taskFile)
 	require.NoError(t, err)
 	require.NotNil(t, st.StopReason)
@@ -194,21 +196,37 @@ func TestRunDriver_AnUntrackedFileFailsTheWorktreeSetup(t *testing.T) {
 	assertBatchUnwound(t, root, taskFile, records)
 }
 
-// TestRunDriver_AFailedWorktreeAddUnwindsTheBatch: a git worktree add that
-// fails after an earlier one succeeded releases the batch the same way, with
-// no setup configured. A post-checkout hook refusing beta's checkout leaves
-// beta's own worktree and branch behind, which the unwind removes too.
-func TestRunDriver_AFailedWorktreeAddUnwindsTheBatch(t *testing.T) {
+// TestRunDriver_AFailedWorktreeAddReleasesOnlyThatUnit: a git worktree add
+// that fails after an earlier unit started releases that one unit, with no
+// setup configured; the running unit drains and is integrated, and the run
+// stops with driver-error. A post-checkout hook refusing beta's checkout
+// leaves beta's own worktree and branch behind, which the release removes.
+func TestRunDriver_AFailedWorktreeAddReleasesOnlyThatUnit(t *testing.T) {
 	root, spec, taskFile, records := setupBatchProject(t, "")
 	hook := filepath.Join(root, ".git", "hooks", "post-checkout")
 	require.NoError(t, os.MkdirAll(filepath.Dir(hook), 0o750))
 	require.NoError(t, os.WriteFile(hook, []byte("#!/bin/sh\ncase \"$PWD\" in */beta) exit 1;; esac\nexit 0\n"), 0o700)) //nolint:gosec // a hook must be executable
+	t.Setenv(fakerunner.EnvDurable, "1")
 
 	res, err := driveSetupBatch(t, root, spec, taskFile)
 	var driverErr *DriverError
 	require.True(t, errors.As(err, &driverErr), "a failed add stays a driver error: %v", err)
 	assert.Equal(t, StopDriverError, res.StopReason)
-	assertBatchUnwound(t, root, taskFile, records)
+	assertOnlyBetaReleased(t, root, taskFile, records)
+}
+
+// assertOnlyBetaReleased: alpha ran and was integrated, beta was released
+// unspawned and not marked solo, and neither left a worktree or a branch.
+func assertOnlyBetaReleased(t *testing.T, root, taskFile, records string) {
+	t.Helper()
+	assert.Equal(t, model.StatusDone, taskByID(t, taskFile, "alpha").Status, "the running unit drains and is integrated")
+	beta := taskByID(t, taskFile, "beta")
+	assert.Equal(t, model.StatusOpen, beta.Status, "beta is released")
+	assert.Nil(t, beta.StartedAt, "beta carries no claim")
+	assert.False(t, beta.Solo, "beta is not marked solo")
+	assert.Equal(t, []string{"alpha"}, spawnedIDs(invocations(t, records)), "beta is never spawned")
+	assert.NotContains(t, gitIn(t, root, "worktree", "list"), "tp-worktrees", "every worktree is removed")
+	assert.Empty(t, gitIn(t, root, "branch", "--list", unitBranchPrefix+"*"), "every tp-unit branch is removed")
 }
 
 // TestRunDriver_UnsetWorktreeSetupRecordsNothing: with no command the batch
