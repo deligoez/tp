@@ -133,3 +133,19 @@ func TestGate_NoGateInsideARunPointsAtEscalate(t *testing.T) {
 	require.Equal(t, 2, code, stderr)
 	assert.Contains(t, stderr, "tp set --workflow --project", "by hand the write is the fix")
 }
+
+// TestGate_HelpListsEveryExit: tp gate --help names each exit REFERENCE
+// gives it, so an agent reading only the help can branch on the code.
+func TestGate_HelpListsEveryExit(t *testing.T) {
+	t.Parallel()
+	stdout, stderr, code := runTP(t, t.TempDir(), "gate", "--help")
+	require.Equal(t, 0, code, stderr)
+	for _, want := range []string{
+		"Exit 0 when the gate passes",
+		"Exit 4 when it fails, times out or a signal ends it",
+		"Exit 2 when no quality_gate is set",
+		"Exit 3 when no task file is found or it is another project's",
+	} {
+		assert.Contains(t, stdout, want)
+	}
+}
