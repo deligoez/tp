@@ -367,10 +367,36 @@ by `tp validate` and `tp set`.
 - **Test load.** Each unit runs the quality gate in its own worktree when it asks for the close, so
   up to `run_max_parallel` gates can run at once; the driver's integration gates on the main branch
   run one at a time, and a slot freed by an integration is refilled only after its gate ends, so a
-  main gate and the unit gates beside it are at most `run_max_parallel` together. Between those,
-  the worktree brief asks each unit to run only the tests its change
-  needs, never the whole suite, and nothing enforces it. On a machine where several full gates at
-  once are too heavy, keep `run_max_parallel` low.
+  main gate and the unit gates beside it are at most `run_max_parallel` together.
+  `run_max_parallel_gates` (v1.26.0) bounds them further, below. Between those, the worktree brief
+  asks each unit to run targeted package tests directly and a full suite only through `tp gate`,
+  and nothing enforces it.
+- **Gate slots (v1.26.0).** With `run_max_parallel_gates` at N above 0, at most N quality gates run
+  at once in a run, the main-branch gate included: a unit's worktree gate inside its `tp done`,
+  `tp gate` inside the run, and the main-branch close the driver spawns. Each takes one of N
+  `flock`ed files under `$TP_RUN_DIR/gate-slots/` before its command starts and frees it as soon as
+  the command exits; the kernel frees the slot of a holder that dies. A reused gate (below) takes no
+  slot, and a `tp done` or `tp gate` run by hand outside a run takes none. The main gate goes
+  first: while it waits it holds `gate-slots/main.lock` exclusively, and a unit gate tries the slots
+  only under a shared hold of it, so the first slot to free is the main gate's. Between unit gates,
+  slots are **polled, not queued fairly**: a gate that has waited longest is not served first, and
+  the run state records each wait so the longest is visible. `gate_timeout_seconds` starts once a
+  slot is taken, so a wait neither times out the gate nor kills the unit nor spends an attempt; the
+  run's elapsed time, which `run_max_wall_clock_seconds` measures, includes it. A signal while
+  waiting exits the child at 4 without a gate and without asking for the close. 0 (the default)
+  means no cap.
+- **`tp gate` (v1.26.0).** Runs the resolved `quality_gate` on the current checkout and closes
+  nothing. It runs where `tp done` runs the gate: in a unit's worktree, the worktree; elsewhere,
+  the repository root above the task file. Outside a unit's worktree a task file of another project
+  is refused at exit 3, as for `tp done`. Inside a run it takes a gate slot as above; outside one it runs at once.
+  On a pass it prints `{passed, gate_cmd, dir, recorded}`; inside a run on a clean checkout it
+  writes `$TP_RUN_DIR/gate-pass-<seq>.json` (the tree and the gate command, `recorded: true`), and
+  the unit's following `tp done` in its worktree on the same clean tree with the same gate command
+  does not run the gate again (stderr: `gate reused from tp gate`) and still records `gated_tree`
+  for the main-branch reuse below. Exit 0 on a pass; 4 when the gate fails or times out (the same
+  error object as `tp done`'s gate failure: `gate_cmd`, `exit_code`, `output_tail`) or when a
+  signal ends the slot wait; 2 when no `quality_gate` is set; 3 when no task file is found or it is
+  another project's.
 - **A gate on the same tree runs once (v1.21.0).** When the unit's worktree was clean as its gate
   ran, the pending close records the tree it gated (`gated_tree`) and the gate command. The close on
   the main branch then reuses that result instead of running the gate again when the main branch's
@@ -424,12 +450,25 @@ the old directory can be deleted by hand. `scripts/clean-emissions.sh` reports i
 
 ```json
 {"run_id": "", "started_at": "", "phase": "", "stop_reason": null,
- "totals": {"units": 0, "wall_clock_seconds": 0, "spend_usd": 0},
+ "totals": {"units": 0, "wall_clock_seconds": 0, "spend_usd": 0,
+            "main_gate_wait_seconds": 0, "main_gate_wait_max_seconds": 0},
  "units": [{"seq": 0, "kind": "", "id": "", "attempt": 1, "exit_code": 0,
-            "duration_seconds": 0, "spend_usd": null, "log_path": "", "worktree": "", "pid": 0}],
+            "duration_seconds": 0, "spend_usd": null, "log_path": "", "worktree": "", "pid": 0,
+            "gate_seconds": 0, "wait_seconds": 0}],
  "setups": [{"id": "", "exit_code": 0, "duration_seconds": 0, "log_path": ""}],
+ "main_gates": [{"id": "", "wait_seconds": 0, "gate_seconds": 0}],
  "pool": [""], "orphans": {"": 0}}
 ```
+
+`gate_seconds` and `wait_seconds` (v1.26.0) are a unit attempt's quality-gate time and its wait for
+a gate slot, summed over every slot-taking gate the attempt ran (its `tp gate` calls and its
+close's gate). They are recorded only while `run_max_parallel_gates` is above 0, since only a
+gate that takes a slot is timed, and are absent on an attempt that took no slot.
+`duration_seconds` stays the whole attempt, both included. `main_gates` holds one row per
+main-branch close whose gate took a slot, with its wait and gate time (a reused gate takes none
+and has no row); `totals.main_gate_wait_seconds` sums those waits and
+`totals.main_gate_wait_max_seconds` keeps the longest, both absent while they are 0. The longest
+unit wait is the largest `wait_seconds` over the rows.
 
 `worktree` (v1.25.0) is the unit's worktree, absent for a unit in the main tree, and `pid` the
 pid of a pooled unit's own child once it has started. `pool` (v1.25.0) lists the ids of the rolling
@@ -481,6 +520,11 @@ the `runner.env` merge so an `env` entry can never override them:
 
 `TP_ROUND` and `TP_ROUND_DIR` are **unset** — not empty — when the oracle reports `round` null (the
 `implement`, `decompose` and `release` phases).
+
+The `tp done` child the driver spawns for a main-branch close (v1.26.0) also carries
+`TP_GATE_MAIN_SLOTS` (the run's `gate-slots/` directory) and `TP_GATE_MAIN_TIMES` (its
+`gate-main-<id>.json` time file), which make its gate the main gate of "Gate slots". A unit's own
+gate finds its slots from `TP_RUN_DIR` and `TP_UNIT_SEQ`.
 
 ### The `runner` field
 
@@ -748,11 +792,12 @@ spec/
 | `run_max_unit_budget_usd` | number | 0 (flag omitted) | 0-1000 | settable (v0.35.0; decimal dollars, passed to the runner's own budget flag) |
 | `run_max_unit_retries` | int | 1 | 0-5 | settable (v0.35.0; a unit is attempted `1 + this`) |
 | `run_max_parallel` | int | 1 | 1-8 | settable (v1.19.0; the slots of `tp run`'s implement pool, the units it runs side by side, see Implement pool; raising it is the operator's, fenced under `TP_UNATTENDED` like the other caps) |
+| `run_max_parallel_gates` | int | 0 (no cap) | 0-8 | settable (v1.26.0; the most quality gates a `tp run` runs at once, the main-branch gate included, see Implement pool, "Gate slots"; raising it, or setting 0 over a cap, is the operator's, fenced under `TP_UNATTENDED` like the other caps; lowering it is free) |
 | `worktree_setup_cmd` | string | unset | any command string | project layer only (v1.24.0): `tp set --workflow --project worktree_setup_cmd=<command>`; the task-level setter exits 2, a task file's value is a `tp validate` error and `tp import` refuses it, under `TP_UNATTENDED` both setters exit 2, and `tp config --resolved` reports it as `project` or `default`. Runs in each implement pool worktree before its unit, see Implement pool |
 | `runner` | string or object | `"claude"` | built-in name, runner object, or per-kind map | **not a `tp set --workflow` field** (`unknown workflow field`, exit 2) — hand-written under `workflow` in `.tp/config.json` or a task file |
 | `notify_cmd` | string | unset | any command string | **not a `tp set` field of any form** — hand-written at the top level of `.tp/local.json` |
 
-The six `run_max_*` fields resolve through the normal precedence and are settable with
+The seven `run_max_*` fields resolve through the normal precedence and are settable with
 `tp set --workflow` and `tp set --workflow --project`. `runner` and `notify_cmd` are the two
 exceptions, and both name a command the driver executes, so neither has a setter:
 
