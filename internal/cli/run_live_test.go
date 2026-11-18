@@ -100,7 +100,7 @@ func TestResume_ALivePoolOffersNoUnitAndNoTaskToTake(t *testing.T) {
 	assert.Nil(t, action["command"], "no command that takes a task")
 	assert.Nil(t, action["brief_command"])
 	assert.Contains(t, action["summary"], "in progress")
-	assert.Equal(t, map[string]any{"running_units": []any{"seed"}}, action["payload"])
+	assert.Nil(t, action["payload"], "running_units is said once, at the top level, not again in the payload")
 }
 
 // TestResume_ALivePoolOutranksAPendingClose: a unit that asked to close and is
