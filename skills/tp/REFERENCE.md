@@ -250,24 +250,37 @@ by `tp validate` and `tp set`.
   cycle tag keys both to the task file, so a run over another task file never touches them. Each
   child is spawned in its worktree with `TP_FILE` naming the main tree's task file by absolute path,
   and its brief is `tp brief <id>`.
-- **Worktree setup (v1.24.0).** When `.tp/config.json`'s `workflow` block sets `worktree_setup_cmd`
-  (read there alone, as each batch starts; a task file's value is ignored), the driver runs it in
-  each new worktree, one after another in batch order, before any unit is spawned. Its working
-  directory is the worktree; its environment is the driver's plus `TP_MAIN_ROOT` (the main tree's
-  root, absolute), `TP_UNIT_ID` and `TP_UNATTENDED=1`; stdin is closed; stdout and stderr go to
-  `$TP_RUN_DIR/setup-<id>.log`; its timeout is `gate_timeout_seconds`. Afterwards
-  `git status --porcelain` in the worktree must print nothing, untracked files included, so the
-  command may write ignored files only: a copy-on-write clone of a build cache, a link, a dependency
-  fetch. A non-zero exit, a timeout or a dirty tree unwinds the batch before any unit runs (every
-  claimed task back to open, every worktree and `tp-unit/` branch it added removed, no attempt
-  spent, `solo` untouched) and stops the run with `worktree-setup-failed`, with no retry. A failed
-  `git worktree add` unwinds the same way and stops with `driver-error`. Each setup's wall time is
-  written to its log and to the run state's `setups`; it is no gate's time and no cap counts it. A
-  resumed wip task, a `solo` task and a batch of one run in the main tree and get no setup; crash
-  recovery makes no worktrees. Setting or changing the command is the operator's
-  (`tp set --workflow --project worktree_setup_cmd=<command>`); the task-level setter refuses it
-  (exit 2), under `TP_UNATTENDED` both refuse it (exit 2, escalated as `other`), and a unit's commit
-  that changes it is refused like any change to `.tp/`.
+- **Worktree setup (v1.24.0).** When `.tp/config.json`'s `workflow` block sets `worktree_setup_cmd`,
+  read there alone as each batch starts, the driver runs it in each new worktree, one after another
+  in batch order, before any unit is spawned. A value there that is not a string stops the batch
+  with `driver-error` before anything is claimed. Its working directory is the worktree's copy of
+  the project directory, the one `TP_MAIN_ROOT` names in the main tree (the same as the worktree
+  root unless the project lives below the git top level); its environment is the driver's plus
+  `TP_MAIN_ROOT` (absolute), `TP_UNIT_ID` and `TP_UNATTENDED=1`; stdin is closed; stdout and stderr
+  go to `$TP_RUN_DIR/setup-<id>.log`; its timeout is `gate_timeout_seconds`, and on unix a timeout
+  kills its whole process group, anything it backgrounded included. Afterwards the worktree's
+  `HEAD` must name the same commit and branch, and `git status --porcelain` there must print
+  nothing, untracked files and submodules included, so the command may write ignored files only: a
+  copy-on-write clone of a build cache, a link, a dependency fetch. A non-zero exit, a timeout, a
+  moved `HEAD` or a dirty tree unwinds the batch before any unit runs (every claimed task back to
+  open, every worktree and `tp-unit/` branch it added removed, no attempt spent, `solo` untouched)
+  and stops the run with `worktree-setup-failed`, with no retry. A failed `git worktree add`
+  unwinds the same way and stops with `driver-error`, and so does an unwind that leaves a worktree
+  on disk or cannot release the tasks. When a setup failed and its unwind failed too, the stop is
+  `driver-error`: `tp run` prints no payload, the setup's notice on stderr names its log, and the
+  run state keeps its `setups` row. `SIGINT`/`SIGTERM` during a setup kills it, unwinds the batch
+  and stops the run with `interrupted`. Each setup's wall time is written to its log and to the
+  run state's `setups`; it is not a unit attempt, so `run_max_units` and the budget do not count
+  it, but it is part of the run's elapsed time, so `run_max_wall_clock_seconds` and
+  `totals.wall_clock_seconds` do. A unit's gate in its worktree may pass on ignored files the setup
+  supplied, and when the close reuses that result on the main branch (v1.21.0, below) the main
+  tree's own ignored files are never gated. A resumed wip task, a `solo` task and a batch of one
+  run in the main tree and get no setup; crash recovery makes no worktrees. Setting or changing the
+  command is the operator's (`tp set --workflow --project worktree_setup_cmd=<command>`); the
+  task-level setter refuses it (exit 2), a task file's `workflow.worktree_setup_cmd` is a
+  `tp validate` error that `tp import` refuses too ("read only from the project layer; move it to
+  .tp/config.json"), under `TP_UNATTENDED` both setters refuse it (exit 2, escalated as `other`),
+  and a unit's commit that changes it is refused like any change to `.tp/`.
 - **The unit asks; the driver closes.** In a linked worktree of the task file's repository,
   `tp brief <id>` gives the worktree close: the task's `touches`, commit on the branch (with hc
   under `commit_strategy: hc`), run only the tests the change needs while the units beside it run
