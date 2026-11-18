@@ -24,40 +24,56 @@ new batch worktree, after `git worktree add` and before any unit of the batch is
   large cache, a symlink, or a dependency fetch, and a glob list cannot express those. A command
   covers all of them, and a plain copy is one of them.
 - **Where it is read and who sets it.** It is read only from the project layer (`.tp/config.json`)
-  of the main tree, as the batch starts. Like `quality_gate`, the task-level setter refuses it
-  (exit 2). Setting or changing it is added to rule 9's operator decisions, and under
-  `TP_UNATTENDED` it is fenced like the `run_max_*` caps: exit 2, recorded as `other`, like a
-  `quality_gate` change. No new escalation name is added, since the driver would not branch on it.
+  of the main tree, as the batch starts; a value there that is not a string is a driver error. Like
+  `quality_gate`, the task-level setter refuses it (exit 2). A task file's
+  `workflow.worktree_setup_cmd` is refused too: `tp validate` reports it as an error and `tp import`
+  refuses it ("read only from the project layer; move it to .tp/config.json"), and the driver never
+  runs it. `tp config --resolved` reports it with source `project` or `default`. Setting or
+  changing it is added to rule 9's operator decisions, and under `TP_UNATTENDED` it is fenced like
+  the `run_max_*` caps: exit 2, recorded as `other`, like a `quality_gate` change. No new
+  escalation name is added, since the driver would not branch on it.
   A unit cannot change the field through a file either: integration already refuses any sha that
   changes the project's `.tp/` (REFERENCE.md, Implement batches). A test pins this for this field,
   and a mutant that removes the refusal must turn it red.
 - **Where and how it runs.**
-  - Its working directory is the worktree.
-  - Its environment is the driver's, plus `TP_MAIN_ROOT` (the main tree's root, absolute),
-    `TP_UNIT_ID` (the task) and `TP_UNATTENDED=1`.
+  - Its working directory is the worktree's copy of the project directory: the worktree itself,
+    or, when the project lives below the git top level, the same subdirectory inside it, so the
+    working directory and `TP_MAIN_ROOT` name the same place in the two trees.
+  - Its environment is the driver's, plus `TP_MAIN_ROOT` (the main tree's project root,
+    absolute), `TP_UNIT_ID` (the task) and `TP_UNATTENDED=1`.
   - stdin is closed.
-  - stdout and stderr go to the unit's log.
-  - Its timeout is `gate_timeout_seconds` (always resolved; 600 by default).
+  - stdout and stderr go to `$TP_RUN_DIR/setup-<id>.log`. The unit has not been spawned yet, so
+    it has no attempt log to write to.
+  - Its timeout is `gate_timeout_seconds` (always resolved; 600 by default). On unix it runs in a
+    process group of its own, and a timeout kills the whole group.
+  - `SIGINT` or `SIGTERM` during a setup kills it, unwinds the batch and stops the run with
+    `interrupted`, not `worktree-setup-failed`.
 - **When.** Only where a worktree is made, which is at the batch start. The setups run one after
   another, in batch order, before any unit is spawned. A unit that runs alone runs in the main
   tree, which already holds the ignored files, so no setup runs for it. That covers a resumed wip
   task, a `solo` task and a batch of one. Crash recovery removes worktrees and makes none.
-- **It leaves the tree clean.** After the command, `git status --porcelain` in the worktree must
-  print nothing, untracked files included, so only ignored files may be written. An untracked file
+- **It leaves the tree clean.** After the command, the worktree's `HEAD` must name the same commit
+  and branch as before it, and `git status --porcelain` in the worktree must print nothing,
+  untracked files and submodules included, so only ignored files may be written. An untracked file
   would ride into the unit's commits, and it would break the clean-tree condition that v1.21.0's
   gate reuse rests on.
-- **Its failure is its own.** A non-zero exit, a timeout or a dirty tree fails the batch start
-  before any unit is spawned:
+- **Its failure is its own.** A non-zero exit, a timeout, a moved `HEAD` or a dirty tree fails the
+  batch start before any unit is spawned:
   - every task the batch claimed goes back to open;
   - every worktree and `tp-unit/` branch it added is removed;
   - no attempt is spent and `solo` is not set;
   - the run stops with a new stop reason, `worktree-setup-failed`, naming the task and the log
     path, and does not retry.
 
-  The same unwinding applies to a failed `git worktree add`, with its own test. Today that failure
-  leaves the batch claimed and its earlier worktrees in place.
-- **Reported, not counted.** The setup's wall time is written to the log and the run state beside
-  the gate's, and is not part of the gate's time.
+  The same unwinding applies to a failed `git worktree add`, with its own test, but that stop is
+  `driver-error`: the driver could not make the worktree, which is not the setup failing. Before
+  this release that failure left the batch claimed and its earlier worktrees in place. An unwind
+  that leaves a worktree on disk or cannot release the tasks is a driver error as well; when it
+  follows a failed setup, the result still names the setup and its log.
+- **Reported, not counted as a unit.** The setup's wall time is written to its log and to a row of
+  the run state's `setups`, since the run state has no gate time to sit beside. It is not a unit
+  attempt, so `run_max_units` and the budget do not count it, but it is part of the run's elapsed
+  time, which `run_max_wall_clock_seconds` and `totals.wall_clock_seconds` measure.
 - **Unset changes almost nothing.** With no command a batch behaves as in v1.23.0, apart from a
   failed `git worktree add`, which now releases the batch. The Limits paragraph and
   `tp validate`'s `touches` warning name the field as the way past the cold worktree.
