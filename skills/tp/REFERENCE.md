@@ -180,8 +180,8 @@ by each `tp` write they make.
 `tp run` prints `{run_id, phase, stop_reason, units}`, plus `notify: {cmd, exit_code, error}` when a
 `notify_cmd` ran, and `worktree_setup: {id, log_path}` when it stopped on `worktree-setup-failed`.
 `--dry-run` prints `{phase, round, next_units}` — the units the loop would spawn next — so it is
-safe to point at a cycle another run is already driving; beside a live pool it lists none and adds
-`running_units` (Implement pool, below).
+safe to point at a cycle another run is already driving; beside a live pool its `next_units` is
+empty and it adds `running_units`, as `tp resume` does (Implement pool, below).
 
 ### Unit kinds
 
@@ -321,7 +321,9 @@ by `tp validate` and `tp set`.
   not reopened. The unit's worktree is then removed, and its branch once its task is done.
 - **Stopping.** An escalation, a unit that spent its attempts, the operator's signal, a reached cap
   or an error drains the pool: nothing more is spawned, retries included, every running child is
-  waited for and integrated, and then the run records its stop.
+  waited for and integrated, and then the run records its stop. After an integration's driver
+  error the children are waited for but nothing more is picked; their requests wait for the next
+  run. A driver error outranks a setup failure seen before it, and the result names both.
 - **A crash** leaves pending closes, worktrees or `tp-unit/` branches, and run-state rows with no
   exit code. `tp resume` names the pending
   closes under `pending_closes`, and its `next_action` is `tp run`, which integrates them before its
@@ -334,14 +336,20 @@ by `tp validate` and `tp set`.
   its unit's branch, with whatever it committed, is kept: the driver says so on stderr, `tp resume`
   names it under `unit_branches` while its task is not done, and the first `tp run` after the task
   is done deletes it (v1.19.1). A crashed run's open rows are abandoned: the next run's state
-  replaces them.
+  replaces them. A child the crashed run left still running is not: each unit in a worktree hands
+  its child a lock (`.tp/locks/run-<key>-unit-<id>.lock`) that lives as long as the child's
+  descriptor, and the next run says on stderr which units it waits for, then waits until they exit
+  before it integrates or removes anything. A grandchild that keeps the descriptor prolongs the
+  wait; on Windows no lock is taken.
 - **Reading a live run (v1.25.0).** While a run holds the run lock and its state has no
-  `stop_reason`, its open implement rows with a `worktree` are the pool's running units. `tp resume`
-  names them under `running_units` and leaves them out of `next_units`, which then holds only what
-  the free slots would take; `tp run --dry-run` lists no unit, names them under `running_units` and
-  says on stderr that a run is in progress. With no such rows (a run at `run_max_parallel` 1, or no
-  live run) both print what they always did. A run that starts while one of them probes the lock
-  waits up to a second for it rather than reporting the lock busy.
+  `stop_reason`, its `pool` names the running units: a unit is a member from its claim through its
+  setup and its exit until it is integrated. One rule holds for every outside reader: **while a pool
+  is live, nothing offers a unit.** `tp resume` names them under `running_units`, its `next_units`
+  is empty, and its `next_action` says the run starts the next units itself and carries no command;
+  this outranks a pending close. `tp run --dry-run` prints the same, and says on stderr that a run is
+  in progress. `tp export` and the dashboard read the cycle the same way. With an empty pool (a run
+  at `run_max_parallel` 1, or no live run) all of them print what they always did. A run that starts
+  while one of them probes the lock waits up to a second for it rather than reporting the lock busy.
 - **Limits.** A worktree is a fresh checkout of `HEAD`, without ignored files (dependencies, `.env`,
   build output), and the unit's gate runs there; `tp run --dry-run` says so on stderr before a pool.
   A project whose units or gate need them sets `worktree_setup_cmd` to prepare each worktree (above)
@@ -412,9 +420,13 @@ the old directory can be deleted by hand. `scripts/clean-emissions.sh` reports i
 {"run_id": "", "started_at": "", "phase": "", "stop_reason": null,
  "totals": {"units": 0, "wall_clock_seconds": 0, "spend_usd": 0},
  "units": [{"seq": 0, "kind": "", "id": "", "attempt": 1, "exit_code": 0,
-            "duration_seconds": 0, "spend_usd": null, "log_path": ""}],
- "setups": [{"id": "", "exit_code": 0, "duration_seconds": 0, "log_path": ""}]}
+            "duration_seconds": 0, "spend_usd": null, "log_path": "", "worktree": ""}],
+ "setups": [{"id": "", "exit_code": 0, "duration_seconds": 0, "log_path": ""}],
+ "pool": [""]}
 ```
+
+`worktree` (v1.25.0) is the unit's worktree, absent for a unit in the main tree. `pool` (v1.25.0)
+lists the ids of the rolling pool's units, absent when the pool is empty.
 
 `setups` (v1.24.0) holds one row per `worktree_setup_cmd` run, `exit_code` null on a timeout or a
 signal, and is absent when no setup ran. A setup is not a unit attempt: it has no `seq`, and
@@ -423,8 +435,10 @@ which `totals.wall_clock_seconds` and `run_max_wall_clock_seconds` measure.
 
 A row is appended before its child is spawned (`exit_code`, `duration_seconds`, `spend_usd` null) and
 updated in place when the child exits; both writes are atomic (temp + rename) because concurrent
-siblings write rows in the same iteration. **The file is observability, not truth** — no decision,
-the driver's or a hook's, reads it back, and a new run restarts the accrued totals at zero. `seq`
+siblings write rows in the same iteration. **The file is observability, not truth** — no decision
+of the driver's reads it back, and a new run restarts the accrued totals at zero. Outside readers
+(`tp resume`, `tp run --dry-run`, `tp export`, the dashboard) read its `pool` while the run lock is
+held, and only to say a pool is running, never to decide anything. `seq`
 counts unit *attempts*, so `totals.units` and `--status`'s `units_done` read the same number.
 
 Each unit's log is `$TP_RUN_DIR/<seq>-<kind>-<id>.jsonl`. A runner template that omits `{log_path}`
