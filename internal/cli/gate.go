@@ -228,7 +228,9 @@ func runQualityGateIn(taskFilePath, dir, failureRoot, hint string, taker gateTak
 		recordGateFailure(failureRoot, taskFilePath, &wf, res)
 	}
 	msg, defaultHint := gateFailureText(&wf, res, dir)
-	if hint == "" {
+	// A caller's hint replaces the one for a gate that ran red; a gate sh
+	// could not run keeps the fix-the-command hint whoever ran it.
+	if hint == "" || gateCouldNotRun(res) {
 		hint = defaultHint
 	}
 	errOut := map[string]any{
