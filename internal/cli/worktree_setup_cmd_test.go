@@ -136,3 +136,25 @@ func TestWorktreeSetupCmd_ImportRefusesItInTheDocument(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotContains(t, string(data), "worktree_setup_cmd", "nothing is written")
 }
+
+// tp config --resolved reports the command with the one layer it is read from.
+func TestWorktreeSetupCmd_ConfigResolvedReportsItFromTheProjectLayer(t *testing.T) {
+	t.Parallel()
+	dir := setupProject(t)
+	_, stderr, code := runTPEnv(t, dir, nil, "set", "--workflow", "--project", "worktree_setup_cmd=cp -cR ../cache .")
+	require.Equal(t, 0, code, "set: %s", stderr)
+
+	stdout, stderr, code := runTP(t, dir, "config", "--resolved")
+	require.Equal(t, 0, code, "config --resolved: %s", stderr)
+	var res struct {
+		Workflow map[string]struct {
+			Value  any    `json:"value"`
+			Source string `json:"source"`
+		} `json:"workflow"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &res))
+	got, ok := res.Workflow["worktree_setup_cmd"]
+	require.True(t, ok, "the field is listed: %s", stdout)
+	assert.Equal(t, "cp -cR ../cache .", got.Value)
+	assert.Equal(t, "project", got.Source)
+}
