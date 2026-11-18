@@ -206,6 +206,14 @@ func (d *driver) startUnit(p *pool, u NextUnit) {
 			return
 		}
 	}
+	// A setup can outlast a cap or meet the signal: both are read again
+	// right before the spawn, and a stop then releases the unit unspawned.
+	if !d.mayStart(p) {
+		if err := d.releaseUnit(tree); err != nil {
+			p.fail(err)
+		}
+		return
+	}
 	d.trees[u.ID] = tree
 	p.running[u.ID] = &poolSlot{tree: tree, unit: u}
 	d.spawnSlot(p, u.ID)
