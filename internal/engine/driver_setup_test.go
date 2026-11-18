@@ -227,3 +227,23 @@ func TestRunDriver_UnsetWorktreeSetupRecordsNothing(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, logs)
 }
+
+// TestRunDriver_WorktreeSetupRunsUnderTheGateTimeout: the driver bounds each
+// setup by gate_timeout_seconds, the bound the unit's own gate gets.
+func TestRunDriver_WorktreeSetupRunsUnderTheGateTimeout(t *testing.T) {
+	root, spec, taskFile, _ := setupBatchProject(t, "true")
+	t.Setenv(fakerunner.EnvDurable, "1")
+
+	var got []time.Duration
+	res, err := driveSetupBatch(t, root, spec, taskFile, func(o *DriverOptions) {
+		o.Workflow.GateTimeoutSeconds = 45
+		o.runSetup = func(ctx context.Context, command, dir string, env []string, timeout time.Duration, logPath string) (*int, string) {
+			got = append(got, timeout)
+			return runSetupCommand(ctx, command, dir, env, timeout, logPath)
+		}
+	})
+	require.NoError(t, err)
+	assert.Equal(t, StopConverged, res.StopReason)
+	assert.Equal(t, []time.Duration{45 * time.Second, 45 * time.Second}, got,
+		"each setup gets gate_timeout_seconds")
+}
