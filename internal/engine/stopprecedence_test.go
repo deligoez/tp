@@ -18,7 +18,7 @@ import (
 //
 // The vocabulary is recovered from the declarations rather than transcribed,
 // which is the whole point: a list this file happened to remember would let a
-// tenth reason ship unranked and quietly lose to every one of the nine, while a
+// new reason ship unranked and quietly lose to every one of the ten, while a
 // list checked against the declarations cannot. Every non-test file is parsed,
 // not just stopreason.go, so moving a constant to a neighbouring file does not
 // shrink the vocabulary the ordering is measured against.
@@ -68,18 +68,19 @@ func declaredStopReasons(t *testing.T) []StopReason {
 }
 
 // Section 3.4's precedence sentence, transcribed: the recorded reason is the
-// first of converged, driver-error, escalation, unit-failure, interrupted,
+// first of converged, driver-error, worktree-setup-failed, escalation, unit-failure, interrupted,
 // cap-budget, cap-wall-clock, cap-units, no-units.
 //
 // The transcription is the claim; the second half of this test is what makes it
 // exhaustive, by deriving the vocabulary from the package's own declarations.
 // The order therefore covers the whole vocabulary by construction rather than
-// by anyone remembering to extend it, which is what stops a tenth reason from
+// by anyone remembering to extend it, which is what stops a new reason from
 // entering the loop unordered.
 func TestStopPrecedence_RanksTheWholeVocabularyInSection34sOrder(t *testing.T) {
 	documented := []StopReason{
 		StopConverged,
 		StopDriverError,
+		StopWorktreeSetupFailed,
 		StopEscalation,
 		StopUnitFailure,
 		StopInterrupted,
@@ -103,7 +104,7 @@ func TestStopPrecedence_RanksTheWholeVocabularyInSection34sOrder(t *testing.T) {
 		assert.True(t, ranked[reason],
 			"%q has no precedence: decide where it sits among the others, then add it to stopPrecedence", reason)
 	}
-	assert.Len(t, stopPrecedence, 9, "section 3.4 names nine stop reasons")
+	assert.Len(t, stopPrecedence, 10, "section 3.4 names ten stop reasons")
 }
 
 // The rule itself, over every pair the vocabulary can form: whichever of two
@@ -111,7 +112,7 @@ func TestStopPrecedence_RanksTheWholeVocabularyInSection34sOrder(t *testing.T) {
 // both records, whichever order the caller happened to find them in.
 //
 // Driving it off stopPrecedence rather than off a hand-written list of pairs is
-// deliberate — a tenth reason is ranked against all nine the moment it is
+// deliberate — a new reason is ranked against all ten the moment it is
 // placed, and a pair nobody thought to write down cannot go untested.
 func TestHighestPrecedence_TheEarlierOfAnyTwoIsWhatIsRecorded(t *testing.T) {
 	for i, first := range stopPrecedence {

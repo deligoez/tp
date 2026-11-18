@@ -16,7 +16,7 @@ import (
 // §3.4's table, transcribed. A run stops for exactly one of these reasons and
 // records it verbatim, so the values are pinned here rather than derived: a
 // constant that drifts from the spec's spelling is a stop nobody can match on.
-func TestStopReason_IsSection34sNineValuesVerbatim(t *testing.T) {
+func TestStopReason_IsSection34sTenValuesVerbatim(t *testing.T) {
 	cases := []struct {
 		reason StopReason
 		want   string
@@ -30,24 +30,25 @@ func TestStopReason_IsSection34sNineValuesVerbatim(t *testing.T) {
 		{StopNoUnits, "no-units"},
 		{StopInterrupted, "interrupted"},
 		{StopDriverError, "driver-error"},
+		{StopWorktreeSetupFailed, "worktree-setup-failed"},
 	}
-	require.Len(t, cases, 9, "§3.4 names nine stop reasons")
+	require.Len(t, cases, 10, "§3.4 names ten stop reasons")
 
 	seen := make(map[string]bool, len(cases))
 	for _, tc := range cases {
 		assert.Equal(t, tc.want, string(tc.reason))
-		assert.True(t, tc.reason.Known(), "%s is one of the nine", tc.want)
+		assert.True(t, tc.reason.Known(), "%s is one of the ten", tc.want)
 		assert.False(t, seen[tc.want], "%s is declared once", tc.want)
 		seen[tc.want] = true
 	}
 }
 
-// The vocabulary is closed: anything that is not one of the nine — including
+// The vocabulary is closed: anything that is not one of the ten — including
 // the empty string capStop returns while a run is within every cap — is not a
 // stop reason.
 func TestStopReason_KnownRejectsEverythingElse(t *testing.T) {
 	for _, near := range []StopReason{"", "cap_units", "CONVERGED", "capunits", "cap-unit", "done", "converged "} {
-		assert.False(t, near.Known(), "%q is not one of §3.4's nine", string(near))
+		assert.False(t, near.Known(), "%q is not one of §3.4's ten", string(near))
 	}
 }
 

@@ -22,28 +22,29 @@ import (
 //
 // The table is the claim; TestRunExitCode_CoversEveryDeclaredStopReason is what
 // makes it exhaustive, by deriving the vocabulary from the engine package's own
-// declarations rather than from this list. A tenth reason therefore fails this
+// declarations rather than from this list. A new reason therefore fails this
 // package's tests until someone decides which side of the contract it falls on.
 var runExitCodeContract = map[engine.StopReason]int{
-	engine.StopConverged:    ExitSuccess,
-	engine.StopCapUnits:     ExitState,
-	engine.StopCapWallClock: ExitState,
-	engine.StopCapBudget:    ExitState,
-	engine.StopEscalation:   ExitState,
-	engine.StopUnitFailure:  ExitState,
-	engine.StopNoUnits:      ExitState,
-	engine.StopInterrupted:  ExitState,
-	engine.StopDriverError:  ExitState,
+	engine.StopConverged:           ExitSuccess,
+	engine.StopCapUnits:            ExitState,
+	engine.StopCapWallClock:        ExitState,
+	engine.StopCapBudget:           ExitState,
+	engine.StopEscalation:          ExitState,
+	engine.StopUnitFailure:         ExitState,
+	engine.StopNoUnits:             ExitState,
+	engine.StopInterrupted:         ExitState,
+	engine.StopDriverError:         ExitState,
+	engine.StopWorktreeSetupFailed: ExitState,
 }
 
 // declaredStopReasons reads every constant declared with type StopReason out of
 // the engine package's sources.
 //
-// The engine exports no enumerator over the nine — Known() answers membership
+// The engine exports no enumerator over the ten — Known() answers membership
 // one value at a time and cannot be walked — so the vocabulary is recovered
 // from the declarations themselves. That is the whole point of doing it this
 // way: a table listing the reasons this file happens to remember would let a
-// tenth reason ship unmapped and silently take the default branch, while a
+// new reason ship unmapped and silently take the default branch, while a
 // table checked against the declarations cannot.
 //
 // Every non-test file in the package is parsed, not just stopreason.go, so
@@ -116,9 +117,9 @@ func TestRunExitCode_CoversEveryDeclaredStopReason(t *testing.T) {
 		assert.True(t, seen[reason], "%q is mapped but the engine declares no such stop reason", reason)
 	}
 
-	// Last, so that a tenth reason reports as an unmapped reason first and a
+	// Last, so that a new reason reports as an unmapped reason first and a
 	// miscount second — the count alone would not say what to do about it.
-	assert.Len(t, declared, 9, "section 3.4 names nine stop reasons")
+	assert.Len(t, declared, 10, "section 3.4 names ten stop reasons")
 }
 
 // The mapping itself, over the whole vocabulary: exactly one reason exits 0.
