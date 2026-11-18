@@ -355,6 +355,8 @@ func applyField(task *model.Task, field, value string) error {
 		task.Touches = v
 	case "source_lines":
 		task.SourceLines = value
+	case "waiting":
+		task.Waiting = value
 	default:
 		return fmt.Errorf("unknown field: %s", field)
 	}

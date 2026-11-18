@@ -207,8 +207,20 @@ func TaskSchemaErrors(t *model.Task) []string {
 	if err := ValidTouches(t.Touches); err != nil {
 		msgs = append(msgs, fmt.Sprintf("task %s: %v", t.ID, err))
 	}
+	// waiting describes a claim in progress; a close or a reopen clears it.
+	if t.Waiting != "" && t.Status != model.StatusWIP {
+		msgs = append(msgs, fmt.Sprintf("task %s: waiting is set on a task that is %s; only a wip task waits", t.ID, t.Status))
+	}
+	// It is author text that tp resume's guidance line carries into every
+	// session's orientation, so it stays one short line.
+	if strings.ContainsAny(t.Waiting, "\r\n") || len(t.Waiting) > WaitingMaxBytes {
+		msgs = append(msgs, fmt.Sprintf("task %s: waiting must be one line of at most %d bytes", t.ID, WaitingMaxBytes))
+	}
 	return msgs
 }
+
+// WaitingMaxBytes caps a task's waiting text.
+const WaitingMaxBytes = 200
 
 var conjunctionRegex = regexp.MustCompile(`\band\b|,|\+`)
 

@@ -165,6 +165,7 @@ func runClose(cmd *cobra.Command, args []string) error {
 		now := time.Now().UTC()
 		task.Status = model.StatusDone
 		task.ClosedAt = &now
+		task.Waiting = ""
 		task.ClosedReason = &reason
 		switch {
 		case closeSkipGate != "":

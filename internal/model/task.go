@@ -36,7 +36,11 @@ type Task struct {
 	Touches         []string `json:"touches,omitempty"`
 	// Solo is managed by tp: a task whose side-by-side unit failed to
 	// integrate runs alone from then on (spec/backlog/parallel-implement.md).
-	Solo              bool       `json:"solo,omitempty"`
+	Solo bool `json:"solo,omitempty"`
+	// Waiting says what a wip task is waiting on (a background job, a
+	// person), so tp resume can tell a parked claim from an abandoned one.
+	// A close or a reopen clears it.
+	Waiting           string     `json:"waiting,omitempty"`
 	StartedAt         *time.Time `json:"started_at"`
 	DurationSource    string     `json:"duration_source,omitempty"`
 	ClosedAt          *time.Time `json:"closed_at"`
