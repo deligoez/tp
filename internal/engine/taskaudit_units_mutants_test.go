@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -183,7 +184,7 @@ func TestTaskAuditUnits_ADueTaskAuditDrainsAPool(t *testing.T) {
 		model.Task{ID: "o", Status: model.StatusOpen, EstimateMinutes: 5, Touches: []string{"o/"}})
 	units, _ := BuildNextUnitsRunning(root, taskFile, spec, PhaseImplement, tf, nil, nil, []string{"w"})
 	assert.Equal(t, []UnitKind{UnitTaskAuditRole}, unitKinds(units))
-	mixed := append(units, NextUnit{Kind: UnitImplement, ID: "o"})
+	mixed := append(slices.Clone(units), NextUnit{Kind: UnitImplement, ID: "o"})
 	assert.Empty(t, refillUnits(mixed, map[string]*poolSlot{"w": {}}), "the pool starts nothing beside a task audit")
 
 	implement := []NextUnit{{Kind: UnitImplement, ID: "w"}, {Kind: UnitImplement, ID: "o"}}
