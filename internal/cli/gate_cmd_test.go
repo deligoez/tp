@@ -89,3 +89,16 @@ func TestGate_ThenDoneOnTheMainTreeRunsOneGate(t *testing.T) {
 	assert.Equal(t, "ran\n", string(runs), "one full gate for tp gate and the close together")
 	assert.Contains(t, stderr, "gate reused from tp gate")
 }
+
+// TestGate_ATreeTheGateChangedIsNotRecorded: a gate whose command leaves the
+// checkout changed passed on a tree that no longer stands, so tp gate records
+// no pass for a close to reuse.
+func TestGate_ATreeTheGateChangedIsNotRecorded(t *testing.T) {
+	t.Parallel()
+	u := unitInRun(t, "")
+	gateConfig(t, u.root, "echo changed > gate-made-this", "")
+
+	stdout, stderr, code := runTPEnv(t, u.worktree, u.env, "gate")
+	require.Equal(t, 0, code, stderr)
+	assert.Contains(t, stdout, `"recorded": false`, "the tree after the gate is not the one it was read as")
+}
