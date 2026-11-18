@@ -7,13 +7,18 @@ A decision note (Decision track). It is built after rolling implement slots
 ## Operator decisions (2026-11-18)
 
 - **A cap on concurrent gates.** `tp run` limits how many quality gates run at once, so that eight
-  slots overlap on agent time rather than on test load. tp's own config sets it to **2**.
+  slots overlap on agent time rather than on test load. tp's own config sets it to **2**
+  (superseded on 2026-11-19, below).
 - **A full suite goes through `tp gate`.** A unit runs a full suite only through `tp gate`, which
   takes the same slot. The brief and CLAUDE.md tell units to run only targeted package tests
   directly. This is a behavioural rule, not a mechanical one: tp cannot fence an agent's own
   commands. The run measures how many test processes run outside the slots, at their peak.
 - **The first real run uses 8.** It is not staged through 4 first.
 - **tp's own `quality_gate` is unchanged.** It is not lowered to `-p 2 -parallel 4`.
+
+## Operator decisions (2026-11-19)
+
+- **tp's own config sets the cap to 4**, not 2. The 2026-11-18 line is superseded.
 
 ## Decision
 
@@ -35,14 +40,21 @@ A decision note (Decision track). It is built after rolling implement slots
 - **The main gate goes first.** Under the serial rule nothing refills while a main gate runs, so a
   main gate waiting behind unit gates would stall the whole pool. The driver therefore holds a
   "main waiting" lock file, a `flock` and not a plain marker, so a crashed driver leaves nothing
-  behind. A unit gate probes that lock without blocking before it takes a slot, and takes none while
-  the lock is held. The cap binds the total: at most N gates at once, the main gate included.
+  behind. The driver takes that lock before it tries a slot. A unit gate probes it without blocking,
+  takes a slot, then probes again: if the main gate is waiting it releases the slot and retries, so
+  a unit gate that raced the driver's lock never keeps the slot the main gate needs. The cap binds
+  the total: at most N gates at once, the main gate included.
+- **A killed slot holder.** The cap bounds slot holders. The driver kills no unit's process group,
+  and a gate's command runs in the holder's own group, so a holder killed from outside frees its
+  slot at once while the gate's test processes may run on. Those orphans are outside the cap, and
+  they are what the out-of-slot sampler counts.
 - **Time.** `gate_timeout_seconds` starts once a slot is taken. The wait is measured on its own, and
-  the run state records unit time, gate time and wait time as three separate numbers. Two clocks are
-  kept apart:
-  - the unit's and the attempt's timeouts have the wait subtracted, so a waiting unit is never
-    killed and never spends an attempt;
-  - the run's wall-clock cap counts the wait, since it is real time.
+  the run state records unit time, gate time and wait time as three separate numbers. The waiting
+  child writes its wait to a per-unit file under the run directory (`waiting_since`, then
+  `waited_seconds` and the gate's own seconds, each write atomic), and the driver copies it onto the
+  unit's row when the unit exits. The driver has no unit or attempt timeout to subtract the wait
+  from: an attempt ends only when its child exits, so a waiting unit is never killed and never
+  spends an attempt by waiting. The run's wall-clock cap counts the wait, since it is real time.
 - **Signals.** A signal during the wait makes the unit exit cleanly without asking to close, and
   without holding a slot.
 - **Fairness.** Slots are polled, not queued fairly. This is accepted and documented, and the
