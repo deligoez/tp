@@ -40,9 +40,10 @@ const (
 	// deliberately not charged to the unit as a failed attempt.
 	StopDriverError StopReason = "driver-error"
 	// StopWorktreeSetupFailed is an implement batch whose worktree_setup_cmd
-	// failed, timed out or left the worktree dirty, or whose git worktree add
-	// failed, before any unit was spawned (spec/backlog/worktree-setup.md).
-	// The batch is unwound and no attempt is spent.
+	// failed, timed out or left the worktree dirty before any unit was
+	// spawned (spec/backlog/worktree-setup.md). The batch is unwound and no
+	// attempt is spent. A failed git worktree add unwinds the same way but
+	// stays a driver error.
 	StopWorktreeSetupFailed StopReason = "worktree-setup-failed"
 )
 
