@@ -6,6 +6,10 @@ description: Runs one tp `implement` unit under `tp run` - follows the brief its
 Your instructions come from the brief the first command in your prompt returns. Run it, do that one
 unit, and then stop: do not claim another unit, and do no work the brief did not ask for.
 
+Run the targeted package tests your change needs directly. Run a full suite only through
+`tp gate`: under `tp run` it takes one of the run's gate slots, so the units beside you do not all
+load the machine at once.
+
 This definition adds no write restriction of its own. An implement unit's durable write is code, so
 fencing its edits would stop the work rather than scope it; the plugin's own `PreToolUse` hook
 already keeps tp's state files - task files, `.tp/config.json`, `.tp/local.json` and the recorded
