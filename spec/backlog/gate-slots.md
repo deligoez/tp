@@ -33,20 +33,28 @@ A decision note (Decision track). It is built after rolling implement slots
 
   A reused main gate (`gated_tree`) takes no slot.
 - **The main gate goes first.** Under the serial rule nothing refills while a main gate runs, so a
-  main gate waiting behind unit gates would stall the whole pool. The driver therefore sets a "main
-  waiting" mark, and while it is set no unit gate takes a new slot. The cap binds the total: at
-  most N gates at once, the main gate included.
+  main gate waiting behind unit gates would stall the whole pool. The driver therefore holds a
+  "main waiting" lock file, a `flock` and not a plain marker, so a crashed driver leaves nothing
+  behind. A unit gate probes that lock without blocking before it takes a slot, and takes none while
+  the lock is held. The cap binds the total: at most N gates at once, the main gate included.
 - **Time.** `gate_timeout_seconds` starts once a slot is taken. The wait is measured on its own, and
-  the run state records unit time, gate time and wait time as three separate numbers. A unit that is
-  waiting is never killed by a timeout and never spends an attempt; any clock that would count the
-  wait has the wait subtracted or is documented as a limit.
+  the run state records unit time, gate time and wait time as three separate numbers. Two clocks are
+  kept apart:
+  - the unit's and the attempt's timeouts have the wait subtracted, so a waiting unit is never
+    killed and never spends an attempt;
+  - the run's wall-clock cap counts the wait, since it is real time.
 - **Signals.** A signal during the wait makes the unit exit cleanly without asking to close, and
   without holding a slot.
 - **Fairness.** Slots are polled, not queued fairly. This is accepted and documented, and the
   longest wait is measured.
-- **`tp gate`.** It runs the resolved `quality_gate` from the project directory. Inside a run it
-  holds a slot; outside one it runs at once. It prints the gate's result, writes nothing and closes
-  nothing.
+- **`tp gate`.** It runs the resolved `quality_gate` from the project directory of the current
+  checkout. In a unit's worktree that is the worktree, the same directory rule as the unit's
+  `tp done` gate, never the main root. Inside a run it holds a slot; outside one it runs at once. It
+  prints the gate's result and closes nothing.
+- **Gating twice is avoided.** When `tp gate` passes on a clean tree inside a run, it records the
+  gated tree with v1.21.0's mechanism. A following `tp done` on the same tree, with the same gate
+  command and a clean worktree, does not run the gate again. That record is the only thing
+  `tp gate` writes. The measurement reports full gates per unit.
 
 ## What must be shown
 
@@ -54,14 +62,29 @@ A decision note (Decision track). It is built after rolling implement slots
 - A test: a reused main gate takes no slot.
 - A test: a child killed while it holds a slot frees the slot at once.
 - A test: a wait longer than `gate_timeout_seconds` neither kills the unit nor spends an attempt.
+- A test: with every slot full and the main gate waiting, the first slot to free goes to the main
+  gate, not to a waiting unit gate.
+- A test: when the process holding the "main waiting" lock is killed, a waiting unit gate takes a
+  slot.
+- A test: a unit that gets a signal while waiting exits without asking to close and without holding
+  a slot.
+- A test: `tp gate` in a worktree gates the worktree's code.
+- A test: `tp gate` and then `tp done` on the same clean tree run one full gate, not two.
 - **Measurement.** The expected numbers are written before the run, on rolling's fixture and against
   rolling's peak-gates baseline. At cap 2 against unlimited:
   - the peak of concurrent gates;
   - the wait, in total and at its longest;
   - the difference in wall time.
 
-  The first 8-slot run of the found-tasks implement phase also reports the peak number of test
-  processes outside the slots.
+  The first 8-slot run of the found-tasks implement phase also reports the test processes outside
+  the slots, by a method fixed before the run:
+  - a sampler records the running test binaries at a fixed interval;
+  - it leaves out the child processes of gates that hold a slot;
+  - it reports the peak and the median, and records the load average beside them;
+  - it writes each sample to disk as it is taken, not at the end.
+
+  Since the run goes straight to 8, the sampler is the only early warning. If the run crashes, its
+  samples are the evidence.
 
 ## Non-goals
 
