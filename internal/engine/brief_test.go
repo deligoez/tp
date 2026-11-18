@@ -104,6 +104,20 @@ func TestCloseRecipeText_GateVerbatim(t *testing.T) {
 	assert.Contains(t, got, "make check && ./bin/lint")
 }
 
+// TestCloseRecipeText_FullSuiteOnlyThroughTPGate: the main-tree unit gets the
+// worktree recipe's rule (spec/backlog/gate-slots.md), and is told the close
+// stands on a tp gate pass of the same committed tree.
+func TestCloseRecipeText_FullSuiteOnlyThroughTPGate(t *testing.T) {
+	got := CloseRecipeText(CommitStrategyHC, "go test ./...")
+	for _, want := range []string{
+		"run the targeted package tests your change needs directly",
+		"a full suite only through tp gate",
+		"not again on the committed tree tp gate just passed",
+	} {
+		assert.Contains(t, got, want)
+	}
+}
+
 func TestCloseRecipeText_EmptyGateRenderedHonestly(t *testing.T) {
 	got := CloseRecipeText(CommitStrategyBuiltin, "")
 	assert.Contains(t, got, "(none configured)")
