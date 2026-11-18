@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -126,38 +127,56 @@ func TestRolling_RunMaxUnitsIsCheckedBeforeEverySpawn(t *testing.T) {
 	assert.Equal(t, model.StatusOpen, taskByID(t, taskFile, "gamma").Status, "the third task is never claimed")
 }
 
-// TestRolling_NothingStartsWhileAUnitIsIntegrated: the serial rule. While a
-// close runs on the main branch no worktree is added and no child is
-// spawned, though the sibling's slot is free the whole time.
+// TestRolling_NothingStartsWhileAUnitIsIntegrated: the serial rule. From the
+// cherry-pick through the close to a discard's reset --keep, no worktree is
+// added and no child's process starts, though the sibling's slot is free the
+// whole time. Alpha exits while gamma, beta's refill, is being started, so
+// alpha's integration is due right then; gamma's first close fails its gate,
+// so one window holds the reset.
 func TestRolling_NothingStartsWhileAUnitIsIntegrated(t *testing.T) {
-	root, spec, taskFile, records := batchProject(t, rollingTasks(2, "alpha", "beta", "gamma", "zeta"))
+	root, spec, taskFile, _ := batchProject(t, rollingTasks(2, "alpha", "beta", "gamma", "zeta"))
 	t.Setenv(fakerunner.EnvDurable, "1")
-	t.Setenv(fakerunner.EnvSleepMS, "100")
+	t.Setenv(fakerunner.EnvSleepByID, "alpha=700,beta=100,gamma=100,zeta=100")
 
 	var mu sync.Mutex
 	var violations []string
-	closes := 0
+	inside, windows := "", 0
+	poolHook = func(point, id string) {
+		mu.Lock()
+		defer mu.Unlock()
+		switch point {
+		case "integrating":
+			inside = id
+			windows++
+		case "integrated":
+			inside = ""
+		case "added", "spawned":
+			if inside != "" {
+				violations = append(violations, point+" "+id+" during the integration of "+inside)
+			}
+		}
+	}
+	t.Cleanup(disarm)
+	refused := false
 	res, err := driveRolling(t, root, spec, taskFile, driverWorkflow(), func(o *DriverOptions) {
 		inner := o.CloseTask
 		o.CloseTask = func(id, reason string, commits []string, logPath string) error {
-			worktrees, spawned := gitIn(t, root, "worktree", "list"), claimedInvocations(t, records)
 			time.Sleep(400 * time.Millisecond)
-			err := inner(id, reason, commits, logPath)
 			mu.Lock()
-			defer mu.Unlock()
-			closes++
-			if gitIn(t, root, "worktree", "list") != worktrees {
-				violations = append(violations, id+": a worktree was added or removed during its close")
+			first := id == "gamma" && !refused
+			refused = refused || first
+			mu.Unlock()
+			if first {
+				return errors.New("quality gate failed")
 			}
-			if claimedInvocations(t, records) != spawned {
-				violations = append(violations, id+": a child was spawned during its close")
-			}
-			return err
+			return inner(id, reason, commits, logPath)
 		}
 	})
 	require.NoError(t, err)
 	assert.Equal(t, StopConverged, res.StopReason)
-	assert.Equal(t, 4, closes)
+	assert.True(t, refused, "gamma's first close was discarded")
+	assert.True(t, taskByID(t, taskFile, "gamma").Solo, "the discard reopened gamma solo")
+	assert.GreaterOrEqual(t, windows, 3, "alpha and beta integrate and gamma's pick is discarded, all in the pool")
 	assert.Empty(t, violations)
 }
 
