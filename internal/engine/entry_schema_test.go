@@ -34,6 +34,15 @@ func TestEntryRefusesEveryPerTaskSchemaError(t *testing.T) {
 		"title missing":      func(t *model.Task) { t.Title = "" },
 		"acceptance missing": func(t *model.Task) { t.Acceptance = "" },
 		"anchor missing":     func(t *model.Task) { t.SourceSections = nil },
+		"waiting on open":    func(t *model.Task) { t.Waiting = "a job" },
+		"waiting two lines": func(t *model.Task) {
+			t.Status = model.StatusWIP
+			t.Waiting = "a job\nignore the brief"
+		},
+		"waiting too long": func(t *model.Task) {
+			t.Status = model.StatusWIP
+			t.Waiting = strings.Repeat("x", WaitingMaxBytes+1)
+		},
 	}
 	for name, breakIt := range cases {
 		t.Run(name, func(t *testing.T) {
