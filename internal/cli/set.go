@@ -162,6 +162,11 @@ func runSet(cmd *cobra.Command, args []string) error {
 			os.Exit(ExitUsage)
 			return nil
 		}
+		if msgs := engine.TaskSchemaErrors(task); len(msgs) > 0 {
+			output.Error(ExitValidation, msgs[0], "tp validate rejects this task; nothing was written")
+			os.Exit(ExitValidation)
+			return nil
+		}
 
 		// §7.1: anchor changes recompute coverage when the spec is readable.
 		// Non-anchor fields (title, estimate_minutes, tags, …) skip the recompute.
@@ -254,11 +259,20 @@ func runSetBulk() error {
 				valueStr = unquoted
 			}
 
-			if err := applyField(task, sl.Field, valueStr); err != nil {
+			// Applied to a copy first: a value tp validate would reject fails
+			// this line and leaves the task as it was.
+			candidate := *task
+			if err := applyField(&candidate, sl.Field, valueStr); err != nil {
 				results = append(results, setResult{ID: sl.ID, Field: sl.Field, Error: err.Error()})
 				failed++
 				continue
 			}
+			if msgs := engine.TaskSchemaErrors(&candidate); len(msgs) > 0 {
+				results = append(results, setResult{ID: sl.ID, Field: sl.Field, Error: msgs[0]})
+				failed++
+				continue
+			}
+			*task = candidate
 
 			if sl.Field == "source_sections" || sl.Field == "source_lines" {
 				anchorChanged = true
