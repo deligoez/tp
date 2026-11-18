@@ -363,9 +363,10 @@ lifecycle phase and the single next action from durable state alone, and
 work, verbatim acceptance, and the close recipe for the effective `commit_strategy`.
 
 **`tp run` drives that loop unattended.** It reads the cycle, spawns one runner process per unit —
-the three role kinds concurrently, and with `run_max_parallel` above 1 a batch of implement units
-side by side in their own git worktrees (each prepared by the operator's `worktree_setup_cmd` when
-one is set), everything else alone — re-reads the state from disk, checks its
+the three role kinds concurrently, and with `run_max_parallel` above 1 a rolling pool of implement
+units side by side in their own git worktrees (each prepared by the operator's `worktree_setup_cmd`
+when one is set; each unit integrated as it exits and its slot refilled while the others run),
+everything else alone — re-reads the state from disk, checks its
 caps, and repeats. A unit's result is whatever it wrote to disk: tp reads a child's exit code and
 one spend number, never its prose. The run exits **0** only when the cycle converged and **4** on
 every other stop reason, so a caller never has to read the output to know what happened. Units run
