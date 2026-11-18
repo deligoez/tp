@@ -171,3 +171,21 @@ func TestTaskAuditUnits_EveryRoleWrittenLeavesTheRecord(t *testing.T) {
 	require.NotNil(t, seq)
 	assert.Equal(t, 1, *seq)
 }
+
+// TestTaskAuditUnits_ADueTaskAuditDrainsAPool: with a pool running, a full
+// task-audit batch is still what the oracle returns, alone, and a refill
+// starts nothing beside it (spec/backlog/rolling-implement.md §2).
+func TestTaskAuditUnits_ADueTaskAuditDrainsAPool(t *testing.T) {
+	t.Parallel()
+	root, taskFile, spec, tf := taskAuditUnitsRepo(t, TaskAuditBatchFiles)
+	tf.Tasks = append(tf.Tasks,
+		model.Task{ID: "w", Status: model.StatusWIP, EstimateMinutes: 5, Touches: []string{"w/"}},
+		model.Task{ID: "o", Status: model.StatusOpen, EstimateMinutes: 5, Touches: []string{"o/"}})
+	units, _ := BuildNextUnitsRunning(root, taskFile, spec, PhaseImplement, tf, nil, nil, []string{"w"})
+	assert.Equal(t, []UnitKind{UnitTaskAuditRole}, unitKinds(units))
+	mixed := append(units, NextUnit{Kind: UnitImplement, ID: "o"})
+	assert.Empty(t, refillUnits(mixed, map[string]*poolSlot{"w": {}}), "the pool starts nothing beside a task audit")
+
+	implement := []NextUnit{{Kind: UnitImplement, ID: "w"}, {Kind: UnitImplement, ID: "o"}}
+	assert.Equal(t, []NextUnit{{Kind: UnitImplement, ID: "o"}}, refillUnits(implement, map[string]*poolSlot{"w": {}}), "a running unit is not started twice")
+}
