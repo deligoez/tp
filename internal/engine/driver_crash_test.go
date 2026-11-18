@@ -39,6 +39,14 @@ func disarm() { poolHook = func(string, string) {} }
 // then waits for every child it spawned to exit.
 func driveUntilKilled(t *testing.T, records string, opts *DriverOptions) {
 	t.Helper()
+	killDriver(t, opts)
+	waitForChildren(t, records)
+}
+
+// killDriver runs the loop and requires it to die before it returns; the
+// children it spawned run on.
+func killDriver(t *testing.T, opts *DriverOptions) {
+	t.Helper()
 	returned := make(chan bool, 1)
 	go func() {
 		finished := false
@@ -52,7 +60,6 @@ func driveUntilKilled(t *testing.T, records string, opts *DriverOptions) {
 	case <-time.After(60 * time.Second):
 		t.Fatal("the driver neither died nor returned")
 	}
-	waitForChildren(t, records)
 }
 
 // waitForChildren waits until every child a driver spawned has exited.
@@ -149,6 +156,24 @@ func TestCrash_AHaltedPoolsRefusedPickGoesFirstOnTheNextRun(t *testing.T) {
 	waitForChildren(t, records)
 	assert.True(t, HasPendingClose(root, taskFile, "alpha"), "the halted pool left alpha's close unintegrated")
 	assertRecovered(t, root, spec, taskFile, "alpha", "beta")
+}
+
+// TestCrash_ARestartedRunWaitsForTheDeadRunsLiveChild: the driver dies while
+// alpha's child still runs, and a new run starts at once. Alpha's unit is
+// live: its worktree must stay and its task must not be handed out again, so
+// the new run waits for it and then integrates its close. Alpha is spawned
+// once.
+func TestCrash_ARestartedRunWaitsForTheDeadRunsLiveChild(t *testing.T) {
+	root, spec, taskFile, records := batchProject(t, rollingTasks(2, "alpha", "beta"))
+	t.Setenv(fakerunner.EnvDurable, "1")
+	t.Setenv(fakerunner.EnvSleepByID, "alpha=3000,beta=100")
+	killAt(t, "closed", "beta")
+
+	killDriver(t, rollingOptions(root, spec, taskFile, driverWorkflow()))
+	require.Greater(t, claimedInvocations(t, records), len(invocations(t, records)), "alpha still runs when the new run starts")
+	assertRecovered(t, root, spec, taskFile, "alpha", "beta")
+	assert.Equal(t, 1, countOf(spawnedIDs(invocations(t, records)), "alpha"), "alpha is never spawned a second time")
+	assert.Equal(t, 1, countOf(strings.Split(gitIn(t, root, "log", "--format=%s"), "\n"), "unit alpha"), "alpha's own unit commit is integrated")
 }
 
 // TestCrash_AfterACloseBeforeItsRequestIsDeleted: alpha is done on the main
