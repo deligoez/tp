@@ -63,7 +63,10 @@ func (d *driver) setupWorktree(command string, u batchUnit) error {
 		return driverErrorf(err, "read HEAD in the worktree of task %q", u.id)
 	}
 	start := time.Now()
-	exitCode, cause := run(context.Background(), command, u.worktree, env, timeout, logPath)
+	// The setup runs in the worktree's copy of the project directory, the
+	// one TP_MAIN_ROOT names in the main tree, so that in a repository whose
+	// project lives below the top level both mean the same relative paths.
+	exitCode, cause := run(context.Background(), command, projectDirIn(d.opts.Root, u.worktree), env, timeout, logPath)
 	elapsed := time.Since(start)
 	if cause == "" {
 		cause = movedHead(u.worktree, before, logPath)
