@@ -409,8 +409,13 @@ func removeUnitWorktree(root, worktree, branch string) {
 
 // reconcileUnits finishes what a crashed run left (§2.6): its pending closes
 // are integrated, then every unit worktree and branch is removed. A task whose
-// unit never asked to close stays wip, and the oracle resumes it alone.
+// unit never asked to close stays wip, and the oracle resumes it alone. A unit
+// the dead run left still running is waited for first; a signal during that
+// wait leaves everything as it is, for the checkpoint to stop on.
 func (d *driver) reconcileUnits() error {
+	if !d.awaitLiveUnits() {
+		return nil
+	}
 	if err := d.integratePending(); err != nil {
 		return err
 	}
