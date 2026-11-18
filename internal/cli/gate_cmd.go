@@ -36,6 +36,7 @@ Exit 0 when the gate passes, 4 when it fails, 2 when no quality_gate is set.`,
 func runGate() error {
 	taskFilePath, err := engine.DiscoverTaskFile(".", flagFile)
 	if err != nil {
+		// task-file-hint: no task file was found to read the gate from.
 		output.Error(ExitFile, err.Error())
 		os.Exit(ExitFile)
 	}
