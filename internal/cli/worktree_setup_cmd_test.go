@@ -22,3 +22,20 @@ func TestWorktreeSetupCmd_TaskLevelSetterRefusesIt(t *testing.T) {
 	assert.Contains(t, stdout+stderr, "--project", "the refusal names the layer that holds it")
 }
 
+// The project setter writes it to .tp/config.json, where the driver reads it.
+func TestWorktreeSetupCmd_ProjectSetterWritesIt(t *testing.T) {
+	t.Parallel()
+	dir := setupProject(t)
+
+	_, stderr, code := runTPEnv(t, dir, nil, "set", "--workflow", "--project", "worktree_setup_cmd=cp -cR ../cache .")
+	require.Equal(t, 0, code, "the operator sets it at the project layer: %s", stderr)
+
+	data, err := os.ReadFile(filepath.Join(dir, ".tp", "config.json"))
+	require.NoError(t, err)
+	var cfg struct {
+		Workflow map[string]any `json:"workflow"`
+	}
+	require.NoError(t, json.Unmarshal(data, &cfg))
+	assert.Equal(t, "cp -cR ../cache .", cfg.Workflow["worktree_setup_cmd"])
+}
+
