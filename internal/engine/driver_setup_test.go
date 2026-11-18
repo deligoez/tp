@@ -176,3 +176,20 @@ func TestRunDriver_AnUntrackedFileFailsTheWorktreeSetup(t *testing.T) {
 	assertBatchUnwound(t, root, taskFile, records)
 }
 
+// TestRunDriver_AFailedWorktreeAddUnwindsTheBatch: a git worktree add that
+// fails after an earlier one succeeded releases the batch the same way, with
+// no setup configured. A post-checkout hook refusing beta's checkout leaves
+// beta's own worktree and branch behind, which the unwind removes too.
+func TestRunDriver_AFailedWorktreeAddUnwindsTheBatch(t *testing.T) {
+	root, spec, taskFile, records := setupBatchProject(t, "")
+	hook := filepath.Join(root, ".git", "hooks", "post-checkout")
+	require.NoError(t, os.MkdirAll(filepath.Dir(hook), 0o750))
+	require.NoError(t, os.WriteFile(hook, []byte("#!/bin/sh\ncase \"$PWD\" in */beta) exit 1;; esac\nexit 0\n"), 0o700)) //nolint:gosec // a hook must be executable
+
+	res, err := driveSetupBatch(t, root, spec, taskFile)
+	var driverErr *DriverError
+	require.True(t, errors.As(err, &driverErr), "a failed add stays a driver error: %v", err)
+	assert.Equal(t, StopDriverError, res.StopReason)
+	assertBatchUnwound(t, root, taskFile, records)
+}
+
