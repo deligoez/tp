@@ -157,7 +157,7 @@ func TestDone_AWaitLongerThanTheGateTimeoutSpendsNothing(t *testing.T) {
 	pending, err := engine.ReadPendingCloses(u.root, u.taskFile)
 	require.NoError(t, err)
 	require.Len(t, pending, 1, "the close is asked for: the attempt is not spent")
-	gt, ok := engine.ReadGateTimes(u.runDir, 1)
+	gt, ok := engine.ReadGateTimes(engine.GateTimesPath(u.runDir, 1))
 	require.True(t, ok)
 	assert.GreaterOrEqual(t, gt.WaitedSeconds, 30.0, "the wait is recorded apart from the gate")
 	assert.Empty(t, gt.WaitingSince, "the wait is over")
@@ -173,7 +173,7 @@ func TestDone_ASignalWhileWaitingAsksForNoClose(t *testing.T) {
 
 	unit := startTP(t, u.worktree, u.env, "done", "t1", "implemented and verified", "--commit", u.sha)
 	require.Eventually(t, func() bool {
-		gt, ok := engine.ReadGateTimes(u.runDir, 1)
+		gt, ok := engine.ReadGateTimes(engine.GateTimesPath(u.runDir, 1))
 		return ok && gt.WaitingSince != ""
 	}, 10*time.Second, 20*time.Millisecond, "the unit waits for the slot")
 	require.NoError(t, unit.cmd.Process.Signal(syscall.SIGTERM))

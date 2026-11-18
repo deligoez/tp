@@ -20,8 +20,11 @@ type gateTaker struct {
 	// dir is the slot directory; "" takes no slot.
 	dir  string
 	main bool
-	// runDir and seq name the unit attempt whose gate times the wait and
-	// the gate add to; an empty runDir records none.
+	// times is the gate time file the wait and the gate add to; "" records
+	// none.
+	times string
+	// runDir and seq name the unit attempt this gate belongs to; an empty
+	// runDir is a gate outside a run.
 	runDir string
 	seq    int
 }
@@ -34,7 +37,7 @@ func unitGateTaker() gateTaker {
 	if runDir == "" || err != nil {
 		return gateTaker{}
 	}
-	return gateTaker{dir: engine.GateSlotsDir(runDir), runDir: runDir, seq: seq}
+	return gateTaker{dir: engine.GateSlotsDir(runDir), times: engine.GateTimesPath(runDir, seq), runDir: runDir, seq: seq}
 }
 
 // mainGateTaker is the main-branch gate of the driver's close, which alone
@@ -82,10 +85,10 @@ func (g gateTaker) take(capN int) (release func()) {
 	}
 }
 
-// addTimes records into the unit attempt's gate times. The record is the
-// run's observability, so a failed write never fails the gate.
+// addTimes records into the taker's gate time file. The record is the run's
+// observability, so a failed write never fails the gate.
 func (g gateTaker) addTimes(since time.Time, waited, gated time.Duration) {
-	if g.runDir != "" {
-		_ = engine.AddGateTimes(g.runDir, g.seq, since, waited, gated)
+	if g.times != "" {
+		_ = engine.AddGateTimes(g.times, since, waited, gated)
 	}
 }

@@ -22,9 +22,10 @@ func TestRecord_PutsAUnitsGateAndWaitTimeOnItsRow(t *testing.T) {
 	require.NoError(t, rec.StartUnit(&RunUnitRow{Seq: 2, Kind: UnitImplement, ID: "beta", Attempt: 1}))
 
 	runDir := RunDir(root, "r1")
-	require.NoError(t, AddGateTimes(runDir, 1, time.Now(), 0, 0))
-	require.NoError(t, AddGateTimes(runDir, 1, time.Time{}, 3*time.Second, 2*time.Second))
-	require.NoError(t, AddGateTimes(runDir, 1, time.Time{}, time.Second, 4*time.Second))
+	path := GateTimesPath(runDir, 1)
+	require.NoError(t, AddGateTimes(path, time.Now(), 0, 0))
+	require.NoError(t, AddGateTimes(path, time.Time{}, 3*time.Second, 2*time.Second))
+	require.NoError(t, AddGateTimes(path, time.Time{}, time.Second, 4*time.Second))
 
 	d := &driver{opts: &DriverOptions{Root: root, TaskFile: taskFile}, runID: "r1", rec: rec}
 	require.NoError(t, d.record([]*unitAttempt{

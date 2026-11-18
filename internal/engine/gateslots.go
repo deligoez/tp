@@ -113,26 +113,32 @@ func tryGateSlots(dir string, capN int, gate *flock.Flock) (*GateSlot, error) {
 // a close run by hand outside a run takes no slot.
 const EnvGateMainSlots = "TP_GATE_MAIN_SLOTS"
 
-// GateTimes is one unit attempt's time waiting for a slot and time in the
-// gate, summed over every close it asked for, kept under the run directory
-// for the driver to copy onto the attempt's row when the unit exits.
-// WaitingSince is set while a wait is in progress, so a unit killed mid-wait
-// still says since when it waited.
+// GateTimes is one gate taker's time waiting for a slot and time in the gate:
+// a unit attempt's, summed over every close it asked for, which the driver
+// copies onto the attempt's row when the unit exits; or a main-branch close's,
+// which the driver adds to the run's totals. WaitingSince is set while a wait
+// is in progress, so a taker killed mid-wait still says since when it waited.
 type GateTimes struct {
 	WaitingSince  string  `json:"waiting_since,omitempty"`
 	WaitedSeconds float64 `json:"waited_seconds"`
 	GateSeconds   float64 `json:"gate_seconds"`
 }
 
-// gateTimesPath is a unit attempt's gate time file, keyed by its seq so a
-// retry starts from zero.
-func gateTimesPath(runDir string, seq int) string {
+// GateTimesPath is a unit attempt's gate time file under its run directory,
+// keyed by its seq so a retry starts from zero.
+func GateTimesPath(runDir string, seq int) string {
 	return filepath.Join(runDir, fmt.Sprintf("gate-%d.json", seq))
 }
 
-// ReadGateTimes reads a unit attempt's gate times; false when it wrote none.
-func ReadGateTimes(runDir string, seq int) (GateTimes, bool) {
-	data, err := os.ReadFile(gateTimesPath(runDir, seq)) //nolint:gosec // under the run dir, keyed by the driver's own seq
+// MainGateTimesPath is the gate time file of the main-branch close of task
+// id, which the driver reads once the close has exited.
+func MainGateTimesPath(runDir, id string) string {
+	return filepath.Join(runDir, "gate-main-"+id+".json")
+}
+
+// ReadGateTimes reads a gate time file; false when none was written.
+func ReadGateTimes(path string) (GateTimes, bool) {
+	data, err := os.ReadFile(path) //nolint:gosec // a path under the run dir, built by GateTimesPath or MainGateTimesPath
 	if err != nil {
 		return GateTimes{}, false
 	}
@@ -143,10 +149,10 @@ func ReadGateTimes(runDir string, seq int) (GateTimes, bool) {
 	return gt, true
 }
 
-// AddGateTimes adds waited and gated to a unit attempt's gate times and sets
+// AddGateTimes adds waited and gated to the gate times at path and sets
 // WaitingSince to since, or clears it for a zero since. The write is atomic.
-func AddGateTimes(runDir string, seq int, since time.Time, waited, gated time.Duration) error {
-	gt, _ := ReadGateTimes(runDir, seq)
+func AddGateTimes(path string, since time.Time, waited, gated time.Duration) error {
+	gt, _ := ReadGateTimes(path)
 	gt.WaitingSince = ""
 	if !since.IsZero() {
 		gt.WaitingSince = since.UTC().Format(time.RFC3339Nano)
@@ -157,10 +163,10 @@ func AddGateTimes(runDir string, seq int, since time.Time, waited, gated time.Du
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(runDir, 0o750); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return err
 	}
-	return writeFileAtomic(gateTimesPath(runDir, seq), append(data, '\n'))
+	return writeFileAtomic(path, append(data, '\n'))
 }
 
 // lockWaitError is the error of a lock wait that ended without the lock.

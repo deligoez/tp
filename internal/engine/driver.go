@@ -604,7 +604,7 @@ func (d *driver) record(attempts []*unitAttempt) error {
 // finishRow writes an exited attempt's result onto its row, with the gate and
 // wait seconds its closes left under the run directory, if any.
 func (d *driver) finishRow(a *unitAttempt) error {
-	if gt, ok := ReadGateTimes(RunDir(d.opts.Root, d.runID), a.seq); ok {
+	if gt, ok := ReadGateTimes(GateTimesPath(RunDir(d.opts.Root, d.runID), a.seq)); ok {
 		if err := d.rec.RecordGateTimes(a.seq, gt); err != nil {
 			return err
 		}
