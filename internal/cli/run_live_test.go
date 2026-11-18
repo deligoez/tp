@@ -14,10 +14,11 @@ import (
 )
 
 // liveRunProject is runProject with three disjoint tasks under
-// run_max_parallel 2, seed claimed, and a run state whose one open row is
-// seed's: a run that started seed, in a worktree when worktree is non-empty,
-// and has not stopped.
-func liveRunProject(t *testing.T, worktree string) (dir, taskFile string) {
+// run_max_parallel 2, seed claimed, and a run state with seed's open row: a run
+// that started seed and has not stopped. With pooled set, seed runs in a
+// worktree and the run state names it in the pool; otherwise it runs in the
+// main tree, as every unit at run_max_parallel 1 does.
+func liveRunProject(t *testing.T, pooled bool) (dir, taskFile string) {
 	t.Helper()
 	dir = runProject(t)
 	taskFile = filepath.Join(dir, "spec.tasks.json")
@@ -38,9 +39,13 @@ func liveRunProject(t *testing.T, worktree string) (dir, taskFile string) {
 		}
 	}
 	require.NoError(t, model.WriteTaskFile(taskFile, tf))
-	st := engine.RunState{RunID: "live", Phase: engine.PhaseImplement, Units: []engine.RunUnitRow{
-		{Seq: 1, Kind: engine.UnitImplement, ID: "seed", Attempt: 1, LogPath: "x", Worktree: worktree},
-	}}
+	row := engine.RunUnitRow{Seq: 1, Kind: engine.UnitImplement, ID: "seed", Attempt: 1, LogPath: "x"}
+	st := engine.RunState{RunID: "live", Phase: engine.PhaseImplement}
+	if pooled {
+		row.Worktree = "/elsewhere/seed"
+		st.Pool = []string{"seed"}
+	}
+	st.Units = []engine.RunUnitRow{row}
 	raw, err := json.Marshal(st)
 	require.NoError(t, err)
 	path := engine.RunStatePath(dir, taskFile)
@@ -75,27 +80,51 @@ func decodeResume(t *testing.T, stdout string) map[string]any {
 	return out
 }
 
-// TestResume_NamesALivePoolAndFillsOnlyItsFreeSlots: while a run holds the
-// lock and its pool runs seed in a worktree, tp resume names seed in
-// running_units and offers only the one free slot, to grow; it does not offer
-// seed again as a wip task to resume (spec/backlog/rolling-implement.md §2).
-func TestResume_NamesALivePoolAndFillsOnlyItsFreeSlots(t *testing.T) {
+// TestResume_ALivePoolOffersNoUnitAndNoTaskToTake: while a run holds the
+// lock and its pool runs seed, tp resume names seed in running_units, lists no
+// unit even though a slot is free, since the pool takes it, and its
+// next_action carries no command that takes a task: following it must never
+// start seed a second time (spec/backlog/rolling-implement.md §2).
+func TestResume_ALivePoolOffersNoUnitAndNoTaskToTake(t *testing.T) {
 	t.Parallel()
-	dir, taskFile := liveRunProject(t, "/elsewhere/seed")
+	dir, taskFile := liveRunProject(t, true)
 	holdLock(t, taskFile)
 
 	stdout, stderr, code := runTP(t, dir, "resume")
 	require.Equal(t, 0, code, stderr)
 	out := decodeResume(t, stdout)
 	assert.Equal(t, []any{"seed"}, out["running_units"])
-	assert.Equal(t, []string{"implement grow"}, unitPairs(t, out["next_units"]))
+	assert.Empty(t, unitPairs(t, out["next_units"]), "the pool fills its own free slot")
+	action, ok := out["next_action"].(map[string]any)
+	require.True(t, ok, "next_action: %v", out["next_action"])
+	assert.Nil(t, action["command"], "no command that takes a task")
+	assert.Nil(t, action["brief_command"])
+	assert.Contains(t, action["summary"], "in progress")
+	assert.Equal(t, map[string]any{"running_units": []any{"seed"}}, action["payload"])
+}
+
+// TestResume_ALivePoolOutranksAPendingClose: a unit that asked to close and is
+// not yet integrated is the live run's to integrate; pointing at tp run would
+// send the reader into a lock the run holds.
+func TestResume_ALivePoolOutranksAPendingClose(t *testing.T) {
+	t.Parallel()
+	dir, taskFile := liveRunProject(t, true)
+	require.NoError(t, engine.WritePendingClose(dir, taskFile, &engine.PendingClose{ID: "seed", Commits: []string{"abc"}, Reason: "r"}))
+	holdLock(t, taskFile)
+
+	stdout, stderr, code := runTP(t, dir, "resume")
+	require.Equal(t, 0, code, stderr)
+	action, ok := decodeResume(t, stdout)["next_action"].(map[string]any)
+	require.True(t, ok)
+	assert.Nil(t, action["command"], "not tp run while a run holds the lock")
+	assert.Contains(t, action["summary"], "in progress")
 }
 
 // TestResume_ADeadRunsOpenRowsAreAbandoned: the same run state with nobody
 // holding the lock is a run that died; seed is the wip task to resume alone.
 func TestResume_ADeadRunsOpenRowsAreAbandoned(t *testing.T) {
 	t.Parallel()
-	dir, _ := liveRunProject(t, "/elsewhere/seed")
+	dir, _ := liveRunProject(t, true)
 
 	stdout, stderr, code := runTP(t, dir, "resume")
 	require.Equal(t, 0, code, stderr)
@@ -109,7 +138,7 @@ func TestResume_ADeadRunsOpenRowsAreAbandoned(t *testing.T) {
 // payload exactly what it is with no run at all.
 func TestResume_ACapOneRunsPayloadIsUnchanged(t *testing.T) {
 	t.Parallel()
-	dir, taskFile := liveRunProject(t, "")
+	dir, taskFile := liveRunProject(t, false)
 	before, stderr, code := runTP(t, dir, "resume")
 	require.Equal(t, 0, code, stderr)
 
@@ -124,7 +153,7 @@ func TestResume_ACapOneRunsPayloadIsUnchanged(t *testing.T) {
 // run is in progress.
 func TestRunDryRun_SaysALivePoolIsInProgress(t *testing.T) {
 	t.Parallel()
-	dir, taskFile := liveRunProject(t, "/elsewhere/seed")
+	dir, taskFile := liveRunProject(t, true)
 	holdLock(t, taskFile)
 
 	stdout, stderr, code := runTP(t, dir, "run", "--dry-run")
