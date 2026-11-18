@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -30,6 +31,20 @@ func TestPool_ADriverErrorAfterASetupFailureIsTheStop(t *testing.T) {
 	assert.Equal(t, StopDriverError, res.StopReason, "the integration's driver error outranks the setup failure")
 	require.NotNil(t, res.WorktreeSetup, "the setup failure is still named")
 	assert.Equal(t, "beta", res.WorktreeSetup.ID)
+}
+
+// TestPool_TwoEscalationsRecordTheLowestSeq: alpha (seq 1) and beta (seq 2)
+// both escalate, and beta exits first. The run records alpha's, the lowest
+// seq, not the first to arrive.
+func TestPool_TwoEscalationsRecordTheLowestSeq(t *testing.T) {
+	root, spec, taskFile, _ := batchProject(t, rollingTasks(2, "alpha", "beta"))
+	t.Setenv(fakerunner.EnvEscalateIDs, "alpha,beta")
+	t.Setenv(fakerunner.EnvSleepByID, "alpha=800,beta=100")
+
+	res, err := driveRolling(t, root, spec, taskFile, driverWorkflow())
+	require.NoError(t, err)
+	assert.Equal(t, StopEscalation, res.StopReason)
+	assert.Equal(t, filepath.Base(EscalationPath("", "1")), filepath.Base(res.EscalationPath), "alpha's record, seq 1, though beta's arrived first")
 }
 
 // TestPool_ASetupThatCrossesTheWallClockCapSpawnsNothing: alpha's setup is
