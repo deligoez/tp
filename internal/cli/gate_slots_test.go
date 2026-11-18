@@ -108,3 +108,47 @@ func TestDone_AReusedMainGateTakesNoSlot(t *testing.T) {
 	require.Equal(t, 0, code, gated.stderr.String())
 	assert.FileExists(t, filepath.Join(root, "gate-ran"))
 }
+
+// unitInRun is a claimed task's committed change in a unit's worktree, the
+// project capping its gates at one, and the environment tp run gives the
+// unit: its run directory and attempt seq. slots is where that run's slots are.
+func unitInRun(t *testing.T, extraConfig string) (root, worktree, taskFile, sha, slots string, env []string) {
+	t.Helper()
+	root, worktree, taskFile = pendingProject(t)
+	capGates(t, root, extraConfig)
+	require.NoError(t, os.WriteFile(filepath.Join(worktree, "a.go"), []byte("package a\n"), 0o600))
+	gitRun(t, worktree, "add", "a.go")
+	gitRun(t, worktree, "commit", "-q", "-m", "add a")
+	sha = gitRun(t, worktree, "rev-parse", "HEAD")
+	runDir := engine.RunDir(root, "01JTESTRUN0000000000000000")
+	env = []string{"TP_FILE=" + taskFile, engine.EnvRunDir + "=" + runDir, engine.EnvUnitSeq + "=1"}
+	return root, worktree, taskFile, sha, engine.GateSlotsDir(runDir), env
+}
+
+// TestDone_AWaitLongerThanTheGateTimeoutSpendsNothing: a unit that waits for
+// a slot longer than gate_timeout_seconds still gets its whole gate, since the
+// timeout starts once the slot is taken, and its close is asked for as if it
+// had never waited. The driver has no unit or attempt timeout, so nothing else
+// can kill it or spend its attempt meanwhile.
+func TestDone_AWaitLongerThanTheGateTimeoutSpendsNothing(t *testing.T) {
+	t.Parallel()
+	root, worktree, taskFile, sha, slots, env := unitInRun(t, `,"gate_timeout_seconds":30`)
+	held := holdSlots(t, slots, 1)
+	time.AfterFunc(32*time.Second, held[0].Release)
+
+	start := time.Now()
+	unit := startTP(t, worktree, env, "done", "t1", "implemented and verified", "--commit", sha)
+	code, ok := unit.exited(t, 60*time.Second)
+	require.True(t, ok, "the unit finishes once the slot is free")
+	require.Equal(t, 0, code, unit.stderr.String())
+	assert.GreaterOrEqual(t, time.Since(start), 30*time.Second, "the wait outlasted the gate timeout")
+	assert.FileExists(t, filepath.Join(worktree, "gate-ran"), "the gate ran to the end after the wait")
+
+	pending, err := engine.ReadPendingCloses(root, taskFile)
+	require.NoError(t, err)
+	require.Len(t, pending, 1, "the close is asked for: the attempt is not spent")
+	gt, ok := engine.ReadGateTimes(filepath.Dir(slots), 1)
+	require.True(t, ok)
+	assert.GreaterOrEqual(t, gt.WaitedSeconds, 30.0, "the wait is recorded apart from the gate")
+	assert.Empty(t, gt.WaitingSince, "the wait is over")
+}
