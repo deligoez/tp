@@ -175,3 +175,35 @@ func TestGateSlots_TheMainGateTakesTheFirstFreedSlot(t *testing.T) {
 	assert.Equal(t, "main", <-order, "the main gate gets the freed slot")
 	assert.Equal(t, "unit", <-order, "the unit gets the slot the main gate frees")
 }
+
+// TestGateSlots_AKilledMainWaiterLetsAUnitIn: the main gate's claim dies with
+// the process that made it, so a unit gate waiting behind it is not starved.
+func TestGateSlots_AKilledMainWaiterLetsAUnitIn(t *testing.T) {
+	t.Parallel()
+	dir := filepath.Join(t.TempDir(), "gate-slots")
+	blocker, err := acquireWithin(dir, 1, false, time.Second)
+	require.NoError(t, err)
+	cmd, _ := startSlotHelper(t, dir, 1, true)
+	require.Eventually(t, func() bool { return mainWaiting(dir) }, 5*time.Second, 10*time.Millisecond,
+		"the helper waits as the main gate")
+
+	got := make(chan error, 1)
+	go func() {
+		slot, err := acquireWithin(dir, 1, false, 10*time.Second)
+		if err == nil {
+			slot.Release()
+		}
+		got <- err
+	}()
+	time.Sleep(150 * time.Millisecond)
+	require.Empty(t, got, "the unit waits behind the held slot")
+
+	killHelper(t, cmd)
+	blocker.Release()
+	select {
+	case err := <-got:
+		require.NoError(t, err, "the unit gate takes the slot")
+	case <-time.After(2 * time.Second):
+		t.Fatal("the dead main waiter still holds the unit back")
+	}
+}
