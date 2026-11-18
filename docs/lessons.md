@@ -111,6 +111,14 @@ So `Lived: 0` next to `Not covered: 6` is honestly reachable, and the "stronger"
   reports live under `~/.cache/tp-mut`; and `scripts/mutation-baseline.json`, once classified
   survivors are written to it with `--update-baseline`, makes a later run report only new ones
   (checked: a baseline written from a run turns `--fail-on-escaped` from failing to exit 0).
+- **Since v1.25.0 the run mutates the changed lines only (`--git-diff-lines`), not the changed files
+  whole.** Survivors were only ever classified on changed lines, and the whole-file run spent most of
+  its time elsewhere: v1.24.0's 158 escapes held 13 on changed lines, and v1.25.0's 20 files dry-count
+  524 mutants whole and 77 on changed lines (`spec/1.25.0-measurements.md`). The trap: go-mutesting's
+  line filter shells out to `git diff`, which honours a global `diff.external` (`difft` here), parses
+  nothing, and admits **zero mutants at exit 0**, a clean pass that tested nothing. The script hands
+  the run a global git config carrying only the identity, runs in a `git clone` so the filter has
+  history, and stops with exit 3 when the dry count is zero.
 - **Force a commitment in the brief, or the round returns a reading it cannot use.** Six instances
   across two repositories, three of them this repo's own v0.36.0 audit, all recorded. The pattern is
   one sentence, and in every case the reading was already available to the role — what the sentence
