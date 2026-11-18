@@ -51,13 +51,15 @@ A decision note (Decision track). It is built after rolling implement slots
   and a gate's command runs in the holder's own group, so a holder killed from outside frees its
   slot at once while the gate's test processes may run on. Those orphans are outside the cap, and
   they are what the out-of-slot sampler counts.
-- **Time.** `gate_timeout_seconds` starts once a slot is taken. The wait is measured on its own, and
-  the run state records unit time, gate time and wait time as three separate numbers. The waiting
-  child writes its wait to a per-unit file under the run directory (`waiting_since`, then
-  `waited_seconds` and the gate's own seconds, each write atomic), and the driver copies it onto the
-  unit's row when the unit exits. The driver has no unit or attempt timeout to subtract the wait
-  from: an attempt ends only when its child exits, so a waiting unit is never killed and never
-  spends an attempt by waiting. The run's wall-clock cap counts the wait, since it is real time.
+- **Time.** The driver has no unit or attempt timeout: an attempt ends only when its child exits.
+  `gate_timeout_seconds` starts once a slot is taken, so a wait can neither kill a unit nor spend an
+  attempt. The run's wall-clock cap counts the wait, since it is real time. The wait is measured on
+  its own, and the run state records unit time (`duration_seconds`), gate time and wait time as
+  separate numbers. The waiting child writes its times to a file under the run directory
+  (`gate-<seq>.json` for a unit, `gate-main-<id>.json` for a main-branch close): `waiting_since`,
+  then `waited_seconds` and the gate's own seconds, each write atomic. The driver copies a unit's
+  file onto its row (`gate_seconds`, `wait_seconds`) when the unit exits, and a main gate's onto
+  the run's `main_gates` rows, whose waits the run totals sum and keep the longest of.
 - **Signals.** A signal during the wait makes the unit exit cleanly without asking to close, and
   without holding a slot.
 - **Fairness.** Slots are polled, not queued fairly. This is accepted and documented, and the
@@ -66,10 +68,12 @@ A decision note (Decision track). It is built after rolling implement slots
   checkout. In a unit's worktree that is the worktree, the same directory rule as the unit's
   `tp done` gate, never the main root. Inside a run it holds a slot; outside one it runs at once. It
   prints the gate's result and closes nothing.
-- **Gating twice is avoided.** When `tp gate` passes on a clean tree inside a run, it records the
-  gated tree with v1.21.0's mechanism. A following `tp done` on the same tree, with the same gate
-  command and a clean worktree, does not run the gate again. That record is the only thing
-  `tp gate` writes. The measurement reports full gates per unit.
+- **Gating twice is avoided.** When `tp gate` passes on a clean tree inside a run, it writes a pass
+  record, `gate-pass-<seq>.json` under the run directory, holding the tree and the gate command. A
+  following `tp done` in the unit's worktree on the same tree, with the same gate command and a
+  clean worktree, does not run the gate again; it still records the gated tree in its pending close,
+  so v1.21.0's main-branch reuse applies after it. Besides its wait accounting, the pass record is
+  the one thing `tp gate` writes. The measurement reports full gates per unit.
 
 ## What must be shown
 
