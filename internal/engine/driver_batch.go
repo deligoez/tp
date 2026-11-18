@@ -46,7 +46,6 @@ type unitTree struct {
 	id, worktree, branch string
 }
 
-
 // prompt is the instruction this attempt's child is spawned with: a unit in a
 // worktree runs the brief that names its task, any other its kind's brief.
 func (a *unitAttempt) prompt() string {
@@ -116,7 +115,6 @@ func WorktreeBase(root string) string {
 	sum := sha256.Sum256([]byte(CanonicalPath(root)))
 	return filepath.Join(os.TempDir(), "tp-worktrees", hex.EncodeToString(sum[:])[:16])
 }
-
 
 // integratePending integrates the cycle's pending closes one at a time.
 func (d *driver) integratePending() error {
