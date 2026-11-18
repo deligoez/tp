@@ -91,6 +91,8 @@ INCREMENTAL (1 task at a time):
 	runCmd.GroupID = "plan"
 	escalateCmd := newEscalateCmd()
 	escalateCmd.GroupID = "plan"
+	gateCmd := newGateCmd()
+	gateCmd.GroupID = "plan"
 
 	// State commands
 	claimCmd := newClaimCmd()
@@ -152,7 +154,7 @@ INCREMENTAL (1 task at a time):
 	useCmd := newUseCmd()
 	useCmd.GroupID = "data"
 
-	cmd.AddCommand(planCmd, doneCmd, nextCmd, briefCmd, commitCmd, resumeCmd, runCmd, escalateCmd)
+	cmd.AddCommand(planCmd, doneCmd, nextCmd, briefCmd, commitCmd, resumeCmd, runCmd, escalateCmd, gateCmd)
 	cmd.AddCommand(claimCmd, unclaimCmd, closeCmd, reopenCmd, removeCmd, setCmd, keepCmd)
 	cmd.AddCommand(listCmd, statusCmd, readyCmd, blockedCmd, showCmd, graphCmd, statsCmd, reportCmd, lintCmd, reviewCmd, auditCmd, groundCmd, validateCmd, epicCmd, dashboardCmd, exportCmd)
 	cmd.AddCommand(initCmd, addCmd, importCmd, useCmd)

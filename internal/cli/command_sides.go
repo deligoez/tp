@@ -43,6 +43,7 @@ var commandSides = map[string]string{
 	"tp close":                sideTree,
 	"tp commit":               sideTree,
 	"tp done":                 sideTree,
+	"tp gate":                 sideTree,
 	"tp import":               sideTree,
 	"tp review":               sideTree,
 	"tp review --perspective": sideTree,
