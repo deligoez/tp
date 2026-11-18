@@ -90,10 +90,16 @@ func (d *driver) runPool(res *ResumeResult, units []NextUnit) (iterationOutcome,
 	return p.out, p.err
 }
 
-// fail keeps the pool's first error and drains it.
+// fail keeps the pool's first error and drains it. A driver error outranks
+// one that is not (a worktree setup's failure), and joins it, so the stop is
+// driver-error and the setup is still named.
 func (p *pool) fail(err error) {
-	if p.err == nil {
+	var driverErr *DriverError
+	switch {
+	case p.err == nil:
 		p.err = err
+	case !errors.As(p.err, &driverErr) && errors.As(err, &driverErr):
+		p.err = errors.Join(err, p.err)
 	}
 	p.stopping = true
 }
