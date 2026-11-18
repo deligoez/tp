@@ -77,7 +77,15 @@ const (
 	// EnvEscalateIDs names units, comma-separated by TP_UNIT_ID, that write
 	// a valid escalation record instead of their durable write.
 	EnvEscalateIDs = "TP_FAKE_RUNNER_ESCALATE_IDS"
+	// EnvLeaveBehindIDs names units, comma-separated by TP_UNIT_ID, that
+	// leave a `sleep` of LeaveBehindSeconds running when they exit, holding
+	// every descriptor they inherited: a daemon the unit started.
+	EnvLeaveBehindIDs = "TP_FAKE_RUNNER_LEAVE_BEHIND_IDS"
 )
+
+// LeaveBehindSeconds is how long an EnvLeaveBehindIDs process outlives its
+// unit.
+const LeaveBehindSeconds = 8
 
 // Invocation is one spawn of the fake runner, as it recorded itself.
 //

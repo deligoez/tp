@@ -101,6 +101,14 @@ func run() int {
 		fmt.Fprintln(os.Stderr, err)
 		return exitSetup
 	}
+	if listed(fakerunner.EnvLeaveBehindIDs, id) {
+		// Started and never waited for: it outlives this process with the
+		// descriptors it inherited, as a daemon would.
+		if err := exec.Command("sleep", strconv.Itoa(fakerunner.LeaveBehindSeconds)).Start(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return exitSetup
+		}
+	}
 	return code
 }
 
