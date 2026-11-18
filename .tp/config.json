@@ -19,6 +19,7 @@
     ],
     "task_audit_roles": [
       "go-safety"
-    ]
+    ],
+    "run_max_parallel_gates": 4
   }
 }
