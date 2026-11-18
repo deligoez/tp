@@ -15,12 +15,14 @@ func newRunCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "run [spec]",
-		Short: "Drive the cycle unattended, one unit at a time",
+		Short: "Drive the cycle unattended",
 		Long: `The unattended driver. It takes the same optional spec argument and --file flag
 as tp resume and discovers the same way when neither is given, then executes one
 iteration at a time: read the cycle state, stop if it is releasable, take
-next_units, spawn a runner process per unit — units marked concurrent together,
-every other kind alone — re-read the state from disk, check caps, loop.
+next_units, spawn a runner process per unit — the role kinds together, and with
+run_max_parallel above 1 a batch of implement units side by side, each in its own
+git worktree; every other kind alone — re-read the state from disk, check caps,
+loop.
 
 A unit's result is whatever it wrote to disk. The driver reads a child's exit
 code and nothing else it said, and tp resume remains the single authority on

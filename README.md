@@ -197,7 +197,7 @@ tp done <id> <reason>          # Close with implicit claim + verification; runs 
 tp done --batch file.ndjson    # Batch close from NDJSON
 tp resume [spec]               # Report phase + the single next action from durable state (read-only; --epic <id>)
 tp brief [id]                  # The unit brief: identity, scope fence, prior work, close recipe
-tp run [spec]                  # Drive the whole cycle unattended, one unit at a time (--status, --dry-run)
+tp run [spec]                  # Drive the whole cycle unattended (--status, --dry-run)
 tp escalate --decision <name>  # Record an operator-only decision from inside a run and stop the unit
 ```
 
@@ -363,7 +363,8 @@ lifecycle phase and the single next action from durable state alone, and
 work, verbatim acceptance, and the close recipe for the effective `commit_strategy`.
 
 **`tp run` drives that loop unattended.** It reads the cycle, spawns one runner process per unit —
-the three role kinds concurrently, everything else alone — re-reads the state from disk, checks its
+the three role kinds concurrently, and with `run_max_parallel` above 1 a batch of implement units
+side by side in their own git worktrees, everything else alone — re-reads the state from disk, checks its
 caps, and repeats. A unit's result is whatever it wrote to disk: tp reads a child's exit code and
 one spend number, never its prose. The run exits **0** only when the cycle converged and **4** on
 every other stop reason, so a caller never has to read the output to know what happened. Units run
