@@ -52,6 +52,11 @@ type DriverOptions struct {
 	// only internal/cli does, so tp run supplies them.
 	ClaimTasks func(ids []string) error
 	ReopenSolo func(id string) error
+	// ReleaseTasks puts a batch that failed to start back to open: every
+	// named task still wip goes back, solo untouched, so a batch whose
+	// worktree add or setup failed spends nothing
+	// (spec/backlog/worktree-setup.md §1).
+	ReleaseTasks func(ids []string) error
 }
 
 // DriverResult is what one run ended as. It is the loop's own answer, not a
@@ -73,6 +78,16 @@ type DriverResult struct {
 	// about the notification and never about the run: nothing here changes
 	// StopReason.
 	Notify *NotifyOutcome
+	// WorktreeSetup names the task and log of the worktree setup the run
+	// stopped on (worktree-setup-failed), or is nil.
+	WorktreeSetup *WorktreeSetupFailure
+}
+
+// WorktreeSetupFailure is the batch-start failure a worktree-setup-failed run
+// stopped on: the task whose worktree setup failed and the log it wrote.
+type WorktreeSetupFailure struct {
+	ID      string `json:"id"`
+	LogPath string `json:"log_path"`
 }
 
 // driver is one run in flight: the options it was given, the identity it
