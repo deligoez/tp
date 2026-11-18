@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/gofrs/flock"
 
@@ -63,10 +64,10 @@ func RunLockPath(taskFile string) string {
 // Probing a flock means trying to take it, so this does take the lock for the
 // instant between TryLock and Unlock. That is not the run lock being held —
 // nothing runs inside it, and a --status that failed to take it reports rather
-// than refuses — but it does mean a tp run starting in that same instant could
-// see contention. The window is one syscall pair wide and the alternative,
-// writing a pid file beside the lock, would be the second source of truth §3.5
-// exists to avoid.
+// than refuses — and a tp run starting in that same instant waits it out
+// (runLockGrace) rather than seeing contention. The alternative, writing a pid
+// file beside the lock, would be the second source of truth §3.5 exists to
+// avoid.
 //
 // A missing .tp/locks directory or lock file reads as "not held": that is a
 // cycle no run has ever locked, which is exactly the absence the caller asks
@@ -92,9 +93,14 @@ func RunLockHeld(taskFile string) (bool, error) {
 	if !locked {
 		return true, nil
 	}
+	runLockProbed()
 	_ = fl.Unlock()
 	return false, nil
 }
+
+// runLockProbed runs while RunLockHeld holds the lock it probes; a test holds
+// the probe open there to start a run inside its window.
+var runLockProbed = func() {}
 
 // WithRunLock acquires the run-scoped lock for a cycle, runs fn — the whole run
 // — then releases. A second tp run over the same task file gets a
@@ -105,8 +111,9 @@ func RunLockHeld(taskFile string) (bool, error) {
 // unit writes the task file normally while its driver runs. A driver that held
 // the write lock for the run would deadlock the first child it spawned.
 //
-// Acquisition is a single TryLock, not the retry-with-backoff WithFileLock
-// does; see RunLockBusyError for why waiting out a run is not worth doing.
+// Acquisition retries only through runLockGrace, to wait out a probe, not the
+// retry-with-backoff WithFileLock does; see RunLockBusyError for why waiting
+// out a run is not worth doing.
 func WithRunLock(taskFile string, fn func() error) error {
 	lockPath := RunLockPath(taskFile)
 	if err := os.MkdirAll(filepath.Dir(lockPath), 0o755); err != nil {
@@ -123,7 +130,7 @@ func WithRunLock(taskFile string, fn func() error) error {
 	}
 
 	fl := flock.New(lockPath)
-	locked, err := fl.TryLock()
+	locked, err := tryRunLock(fl)
 	if err != nil {
 		return fmt.Errorf("acquire run lock: %w", err)
 	}
@@ -138,4 +145,22 @@ func WithRunLock(taskFile string, fn func() error) error {
 	defer func() { _ = fl.Unlock() }()
 
 	return fn()
+}
+
+// runLockGrace is how long a starting run waits for the run lock before it
+// reports the lock busy: long enough to wait out an outside reader's probe
+// (RunLockHeld holds the lock for one syscall pair, and tp resume probes while
+// a rolling pool runs), far too short to wait out a run.
+const runLockGrace = time.Second
+
+// tryRunLock takes the run lock, retrying through runLockGrace.
+func tryRunLock(fl *flock.Flock) (bool, error) {
+	deadline := time.Now().Add(runLockGrace)
+	for {
+		locked, err := fl.TryLock()
+		if err != nil || locked || time.Now().After(deadline) {
+			return locked, err
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 }
