@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/deligoez/tp/internal/engine"
@@ -45,15 +47,27 @@ func mainGateTaker() gateTaker {
 // once the gate has run: it frees the slot and adds the gate's time. With no
 // cap or no slot directory it waits for nothing. The gate's own timeout starts
 // after take returns, so the wait never counts against it.
+//
+// SIGINT or SIGTERM during the wait ends it: tp done exits before any gate
+// runs, holding no slot and asking for no close. The signals are caught for
+// the wait alone, so a signal during the gate acts as it always has.
 func (g gateTaker) take(capN int) (release func()) {
 	if g.dir == "" || capN <= 0 {
 		return func() {}
 	}
 	start := time.Now()
 	g.addTimes(start, 0, 0)
-	slot, err := engine.AcquireGateSlot(context.Background(), g.dir, capN, g.main)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	slot, err := engine.AcquireGateSlot(ctx, g.dir, capN, g.main)
+	interrupted := ctx.Err() != nil
+	stop()
 	waited := time.Since(start)
 	g.addTimes(time.Time{}, waited, 0)
+	if err != nil && interrupted {
+		output.Error(ExitState, "interrupted while waiting for a gate slot: no gate ran and no close was asked for",
+			"ask for the close again when the run resumes")
+		os.Exit(ExitState)
+	}
 	if err != nil {
 		output.Error(ExitFile, err.Error(), runtimeFailureHint)
 		os.Exit(ExitFile)
