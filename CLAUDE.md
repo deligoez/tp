@@ -104,7 +104,9 @@ items are in `spec/1.3.0-measurements.md`.
    and step 4 `gocognit` plus `golangci-lint` on PATH (`go install golang.org/x/tools/cmd/deadcode@latest`,
    `go install github.com/uudashr/gocognit/cmd/gocognit@latest`). The gate and CI are the same list
    (`TestCIRunsEveryStepOfTheProjectGate`). When step 1 reports round state changed, fix the test
-   with `relocatedSpec`, never `--no-state`.
+   with `relocatedSpec`, never `--no-state`. Inside `tp run`, a unit runs targeted package tests
+   directly and the full suite only through `tp gate`, which waits for one of the project's
+   `run_max_parallel_gates` slots (4 here, `.tp/config.json`).
 2. **Complexity is a ratchet.** `scripts/check-complexity.sh` fails on a new `gocognit` or `funlen`
    violation and equally on a stale entry in `scripts/baseline-complexity.txt` or
    `scripts/baseline-funlen.txt`, so the lists only shrink.
