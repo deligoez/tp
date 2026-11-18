@@ -2,6 +2,7 @@ package engine
 
 import (
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -68,4 +69,39 @@ func TestCloseTask_PutsTheMainGatesWaitInTheRunTotals(t *testing.T) {
 	assert.InDelta(t, 8.0, st.Totals.MainGateWaitSeconds, 1e-9, "the main gates' waits, summed")
 	assert.InDelta(t, 5.0, st.Totals.MainGateWaitMaxSeconds, 1e-9, "the longest single wait")
 	assert.Len(t, st.MainGates, 3, "gamma waited 0s, and still counts as a main gate")
+}
+
+// TestAddGateTimes_ConcurrentAddsLoseNothing: a unit's background tp gate and
+// its tp done can add to one time file at once; each add is read, summed and
+// written under the file's lock, so none overwrites another.
+func TestAddGateTimes_ConcurrentAddsLoseNothing(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "gate-1.json")
+	const adders = 40
+	var wg sync.WaitGroup
+	for range adders {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			assert.NoError(t, AddGateTimes(path, time.Time{}, 0, time.Second))
+		}()
+	}
+	wg.Wait()
+	gt, ok := ReadGateTimes(path)
+	require.True(t, ok)
+	assert.InDelta(t, float64(adders), gt.GateSeconds, 0.001, "every add is counted")
+}
+
+// TestReadGateTimes_AWaitCutShortCounts: a taker killed while it waited
+// (SIGKILL, which tp cannot catch) leaves waiting_since set; the driver reads
+// the file once the taker has exited, so that wait counts up to the read.
+func TestReadGateTimes_AWaitCutShortCounts(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "gate-main-t1.json")
+	require.NoError(t, AddGateTimes(path, time.Now().Add(-3*time.Second), 0, 0))
+
+	gt, ok := ReadGateTimes(path)
+	require.True(t, ok)
+	assert.GreaterOrEqual(t, gt.WaitedSeconds, 3.0, "the cut-short wait counts")
+	assert.Empty(t, gt.WaitingSince, "the read closes the open wait")
 }
