@@ -135,7 +135,7 @@ items are in `spec/1.3.0-measurements.md`.
     `tp review`/`tp audit` write round state even without `--record`, so probe in a `git clone`,
     never the repo; confirm a zero-match search with one that must match.
 11. **Mutation testing** runs before a release only, through `./scripts/mutation.sh` (go-mutesting
-    `--per-test`, the Go files changed since the last tag, a fresh copy, reports under
+    `--per-test`, the Go lines changed since the last tag, a fresh clone of HEAD, reports under
     `~/.cache/tp-mut`). One run at a time, nothing else heavy beside it; classify survivors from the
     run's `go-mutesting-agentic.json`, never by re-running the suite per mutant in parallel.
 12. **Plugin content**: any change under `skills/`, `agents/`, `hooks/` or `.claude-plugin/` after a
