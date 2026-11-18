@@ -35,6 +35,7 @@ func runSetProjectWorkflow(args []string) error {
 	var auditConvergeOn *string
 	var checksValue *[]model.Check
 	var taskAuditRoles *[]string
+	var worktreeSetupCmd *string
 	for _, arg := range args {
 		parts := strings.SplitN(arg, "=", 2)
 		if len(parts) != 2 {
@@ -56,6 +57,9 @@ func runSetProjectWorkflow(args []string) error {
 		case field == "quality_gate":
 			v := valueStr
 			qualityGate = &v
+		case field == engine.WorktreeSetupCmdField:
+			v := valueStr
+			worktreeSetupCmd = &v
 		case field == "commit_strategy":
 			switch valueStr {
 			case engine.CommitStrategyBuiltin, engine.CommitStrategyAuto, engine.CommitStrategyHC:
@@ -231,6 +235,10 @@ func runSetProjectWorkflow(args []string) error {
 		if taskAuditRoles != nil {
 			pc.Workflow.TaskAuditRoles = taskAuditRoles
 			updated["task_audit_roles"] = *taskAuditRoles
+		}
+		if worktreeSetupCmd != nil {
+			pc.Workflow.WorktreeSetupCmd = worktreeSetupCmd
+			updated[engine.WorktreeSetupCmdField] = *worktreeSetupCmd
 		}
 
 		if err := engine.WriteProjectConfig(tpDir, &pc); err != nil {
