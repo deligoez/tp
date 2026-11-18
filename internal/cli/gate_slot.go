@@ -49,7 +49,7 @@ func mainGateTaker() gateTaker {
 // cap or no slot directory it waits for nothing. The gate's own timeout starts
 // after take returns, so the wait never counts against it.
 //
-// ctx is the gate's signal context (gateSignals). SIGINT or SIGTERM during
+// ctx is the gate's signal context (gateSignals). A signal it catches during
 // the wait ends it: tp exits before any gate runs, holding no slot and asking
 // for no close. A signal that lands as the slot is taken frees it the same way,
 // so the gate never starts once a signal has been caught.

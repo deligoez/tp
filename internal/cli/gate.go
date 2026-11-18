@@ -101,12 +101,14 @@ func executeQualityGate(taskFilePath string) engine.RunResult {
 	return res
 }
 
-// gateSignals catches SIGINT and SIGTERM for a gate's span, the slot wait
-// included: a signal kills the gate's process group (RunGateCommand) instead
-// of leaving it to run on after tp, past the run's cap. SIGKILL cannot be
+// gateSignals catches SIGINT, SIGTERM, SIGHUP and SIGQUIT for a gate's span,
+// the slot wait included: a signal kills the gate's process group
+// (RunGateCommand) instead of leaving it to run on after tp, past the run's
+// cap. The gate leads its own group, so a hangup or group signal aimed at
+// tp's caller reaches tp alone, and tp passes it on. SIGKILL cannot be
 // caught, and leaves the gate's processes running.
 func gateSignals() (context.Context, context.CancelFunc) {
-	return signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	return signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
 }
 
 // exitIfInterrupted ends tp after a gate a signal stopped: its processes are
