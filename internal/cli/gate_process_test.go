@@ -23,6 +23,18 @@ func gateConfig(t *testing.T, root, gate, extra string) {
 		[]byte(`{"workflow":{"quality_gate":`+string(quoted)+`,"run_max_parallel_gates":1`+extra+`}}`), 0o600))
 }
 
+// projectGated is a project whose only gate is the project layer's, capped at
+// one slot: no task-level override hides it.
+func projectGated(t *testing.T, gate string) string {
+	t.Helper()
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Test Spec\n"), 0o600))
+	_, stderr, code := runTP(t, dir, "init", "spec.md")
+	require.Equal(t, 0, code, "init failed: %s", stderr)
+	gateConfig(t, dir, gate, "")
+	return dir
+}
+
 // TestGate_ABackgroundedChildDoesNotHoldTheSlot: a gate whose command exits
 // while a child it backgrounded keeps the output pipe open is done when the
 // command is, so its slot frees then and not when the child ends.
@@ -42,6 +54,21 @@ func TestGate_ABackgroundedChildDoesNotHoldTheSlot(t *testing.T) {
 	code, ok = next.exited(t, 10*time.Second)
 	require.True(t, ok, "the slot is free for the next gate: %s", next.stderr.String())
 	assert.Equal(t, 0, code, next.stderr.String())
+}
+
+// TestGate_ATPCallInsideAGateTakesNoSlotOfTheRun: the run's slot variables
+// stop at the gate, so a tp gate the gate's own command runs, in another
+// project, is a call by hand and does not wait for the slot its caller holds.
+func TestGate_ATPCallInsideAGateTakesNoSlotOfTheRun(t *testing.T) {
+	t.Parallel()
+	inner := projectGated(t, "true")
+	outer := projectGated(t, "cd "+inner+" && "+binaryPath+" --json gate")
+	runDir := engine.RunDir(outer, "01JTESTRUN0000000000000000")
+
+	gate := startTP(t, outer, []string{engine.EnvRunDir + "=" + runDir, engine.EnvUnitSeq + "=1"}, "gate")
+	code, ok := gate.exited(t, 20*time.Second)
+	require.True(t, ok, "the inner tp gate does not wait for the outer gate's slot")
+	assert.Equal(t, 0, code, gate.stderr.String())
 }
 
 // TestGate_ATimedOutGateFreesItsSlotAtTheTimeout: a gate killed at
