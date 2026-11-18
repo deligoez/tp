@@ -26,11 +26,18 @@ func (e *WorktreeSetupError) Error() string {
 
 // worktreeSetupCmd reads worktree_setup_cmd from the main tree's project layer
 // as the batch starts. No other layer is consulted: a task file's workflow
-// block cannot name a command the driver runs.
+// block cannot name a command the driver runs. A value that is not a string
+// is an error rather than the warning other fields get: read as unset, it
+// would start a batch the operator meant to prepare.
 func worktreeSetupCmd(root string) (string, error) {
-	pc, _, err := LoadProjectConfig(ProjectConfigDir(root))
+	pc, warnings, err := LoadProjectConfig(ProjectConfigDir(root))
 	if err != nil {
 		return "", driverErrorf(err, "read %s", WorktreeSetupCmdField)
+	}
+	for _, w := range warnings {
+		if strings.HasPrefix(w, "workflow."+WorktreeSetupCmdField+":") {
+			return "", driverErrorf(errors.New(w), "read %s from %s", WorktreeSetupCmdField, ProjectConfigDir(root))
+		}
 	}
 	if pc.Workflow.WorktreeSetupCmd == nil {
 		return "", nil
