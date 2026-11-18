@@ -160,3 +160,19 @@ func TestRunDriver_AFailingWorktreeSetupUnwindsTheBatch(t *testing.T) {
 	assert.Equal(t, StopWorktreeSetupFailed, *st.StopReason)
 }
 
+// TestRunDriver_AnUntrackedFileFailsTheWorktreeSetup: only ignored files may
+// be written; an untracked one would ride into the unit's commits.
+func TestRunDriver_AnUntrackedFileFailsTheWorktreeSetup(t *testing.T) {
+	root, spec, taskFile, records := setupBatchProject(t, `touch stray.txt`)
+
+	res, err := driveSetupBatch(t, root, spec, taskFile)
+	require.NoError(t, err)
+	assert.Equal(t, StopWorktreeSetupFailed, res.StopReason)
+	require.NotNil(t, res.WorktreeSetup)
+	assert.Equal(t, "alpha", res.WorktreeSetup.ID, "the first setup in batch order fails")
+	log, readErr := os.ReadFile(res.WorktreeSetup.LogPath)
+	require.NoError(t, readErr)
+	assert.Contains(t, string(log), "stray.txt", "the log names what dirtied the tree")
+	assertBatchUnwound(t, root, taskFile, records)
+}
+
