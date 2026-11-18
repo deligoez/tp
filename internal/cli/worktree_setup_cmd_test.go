@@ -52,6 +52,8 @@ func TestWorktreeSetupCmd_UnattendedFenceRefusesIt(t *testing.T) {
 		stdout, stderr, code := runTPEnv(t, dir, []string{unattendedOn}, args...)
 		require.Equal(t, 2, code, "%v must be refused: %s%s", args, stdout, stderr)
 		assert.Contains(t, stdout+stderr, "TP_UNATTENDED", "the refusal names the fence: %v", args)
+		assert.Contains(t, stdout+stderr, "tp escalate --decision other",
+			"the unit is pointed at the escalation the decision takes: %v", args)
 	}
 }
 
