@@ -800,7 +800,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp close <id> --skip-gate "why"` | Skip gate execution, recording `gate_skipped_reason` on the closed task (needs user approval) |
 | `tp reopen <id>` | done -> open (clears timestamps + SHAs) |
 | `tp remove <id>` | Remove task (--force cleans deps) |
-| `tp set <id> field=value` | Update field (managed fields protected) |
+| `tp set <id> field=value` | Update field (managed fields protected); `waiting=<text>` on a wip task names what it waits on, one line, cleared by every close |
 | `tp set --workflow field=value` | Update workflow fields: `quality_gate` (attended only; `quality_gate=` removes the task override), `review_clean_rounds`/`audit_clean_rounds`, `review_converge_on`, `audit_converge_on` (default `all`; a write that changes the resolved value to `blocking` is fenced under `TP_UNATTENDED`), `gate_timeout_seconds`, `review_max_rounds`/`audit_max_rounds`, `lock_timeout_seconds`, and the six run caps `run_max_units`, `run_max_wall_clock_seconds`, `run_max_budget_usd`, `run_max_unit_budget_usd`, `run_max_unit_retries`, `run_max_parallel` (v1.19.0: implement units per batch, see REFERENCE.md "Implement batches") |
 | `tp set --workflow task_audit_roles='["go-safety"]'` | Replace the code roles that audit each closed task's own files (v1.22.0; replace semantics; exit 2 on a non-array, a duplicate or `spec-coverage`; `--project` writes `.tp/config.json`) |
 | `tp set --workflow runner=…` / `notify_cmd` | **Not settable.** `runner` is `unknown workflow field` (exit 2) — hand-write it under `workflow` in `.tp/config.json` or a task file; `notify_cmd` is a top-level key of `.tp/local.json` only. Both name a command the driver executes |
