@@ -65,7 +65,7 @@ func (w *interrupts) signalled() bool {
 // on a signal: a worktree setup runs before any unit is spawned, so there is no
 // in-flight child to let finish. The arrival is put back on the channel before
 // the end function returns, so the loop's next signalled() still sees it.
-func (w *interrupts) context() (context.Context, func()) {
+func (w *interrupts) context() (ctx context.Context, end func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 	if w == nil {
 		return ctx, cancel
