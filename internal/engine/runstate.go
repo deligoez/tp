@@ -14,10 +14,12 @@ import (
 // because the run lock is per task file and two runs over different cycles in
 // one repository are permitted.
 //
-// It is observability, not truth: no decision, the driver's or a hook's, reads
-// it back. A driver that dies leaves it behind and the next tp run re-derives
-// everything it needs from the cycle state, which is why the accrued totals
-// restart at zero on a new run — the caps bound a run, not a cycle.
+// It is observability, not truth: no decision of the driver's reads it back;
+// outside readers take Pool, under a live run, only to say a pool is running
+// and offer no unit. A driver that dies leaves it behind and the next tp run
+// re-derives everything it needs from the cycle state, which is why the
+// accrued totals restart at zero on a new run — the caps bound a run, not a
+// cycle.
 type RunState struct {
 	RunID      string       `json:"run_id"`
 	StartedAt  string       `json:"started_at"`
@@ -34,8 +36,8 @@ type RunState struct {
 	// Pool names the tasks a rolling implement pool holds now, from the
 	// claim of each until its slot ends after integration or release
 	// (spec/backlog/rolling-implement.md §2). A reader outside the run takes
-	// these, under a live run, as running: the one place a decision outside
-	// the driver reads this file. Absent when the pool is empty.
+	// these, under a live run, as running, and offers no unit beside them.
+	// Absent when the pool is empty.
 	Pool []string `json:"pool,omitempty"`
 }
 
@@ -75,8 +77,7 @@ type RunUnitRow struct {
 	SpendUSD        *float64 `json:"spend_usd"`
 	LogPath         string   `json:"log_path"`
 	// Worktree is where a pooled implement unit runs, or "" for the main
-	// tree: an outside reader takes a row open with a worktree, under a live
-	// run, as a unit the pool is running (spec/backlog/rolling-implement.md §2).
+	// tree. It is observability only: which units a live pool runs is Pool's.
 	Worktree string `json:"worktree,omitempty"`
 }
 
