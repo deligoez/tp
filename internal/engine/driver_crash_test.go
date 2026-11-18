@@ -52,9 +52,15 @@ func driveUntilKilled(t *testing.T, records string, opts *DriverOptions) {
 	case <-time.After(60 * time.Second):
 		t.Fatal("the driver neither died nor returned")
 	}
+	waitForChildren(t, records)
+}
+
+// waitForChildren waits until every child a driver spawned has exited.
+func waitForChildren(t *testing.T, records string) {
+	t.Helper()
 	require.Eventually(t, func() bool {
 		return claimedInvocations(t, records) == len(invocations(t, records))
-	}, 30*time.Second, 20*time.Millisecond, "the dead driver's children exit")
+	}, 30*time.Second, 20*time.Millisecond, "the driver's children exit")
 }
 
 // assertRecovered: a fresh run converges with every task done once, and the
