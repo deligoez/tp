@@ -100,7 +100,9 @@ func TestDone_AReusedMainGateTakesNoSlot(t *testing.T) {
 	env = []string{"TP_FILE=" + taskFile, engine.EnvGateMainSlots + "=" + slots}
 	gated := startTP(t, root, env, "done", "t1", "implemented and verified", "--commit", picked)
 	_, ok = gated.exited(t, time.Second)
-	require.False(t, ok, "a gate that must run waits for the held slot: %s", gated.stderr.String())
+	// The child is still writing its output, so its buffers are read only
+	// once it has exited.
+	require.False(t, ok, "a gate that must run waits for the held slot")
 	assert.NoFileExists(t, filepath.Join(root, "gate-ran"), "and does not run while it waits")
 
 	held[0].Release()
