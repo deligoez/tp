@@ -117,21 +117,19 @@ func TestGate_AGateThatCannotRunGetsTheFixTheCommandHint(t *testing.T) {
 	assert.NotContains(t, stderr, "run tp gate again")
 }
 
-// TestGate_NoGateInsideARunPointsAtEscalate: tp set refuses a quality_gate
-// write under TP_UNATTENDED, so a unit that finds no gate is pointed at the
-// escalation a gate change takes, not at the write it would be refused.
-func TestGate_NoGateInsideARunPointsAtEscalate(t *testing.T) {
+// TestGate_NoGateConfiguredIsNothingToGate: a project with no quality_gate is
+// legal, so tp gate there passes with nothing run, inside a run and by hand,
+// and tells no unit to escalate.
+func TestGate_NoGateConfiguredIsNothingToGate(t *testing.T) {
 	t.Parallel()
 	root := projectGated(t, "")
-
-	_, stderr, code := runTPEnv(t, root, []string{engine.EnvUnattended + "=1"}, "gate")
-	require.Equal(t, 2, code, stderr)
-	assert.Contains(t, stderr, "tp escalate --decision "+engine.EscalateSkipGate)
-	assert.NotContains(t, stderr, "tp set --workflow")
-
-	_, stderr, code = runTPEnv(t, root, []string{engine.EnvUnattended + "=0"}, "gate")
-	require.Equal(t, 2, code, stderr)
-	assert.Contains(t, stderr, "tp set --workflow --project", "by hand the write is the fix")
+	for _, unattended := range []string{"1", "0"} {
+		stdout, stderr, code := runTPEnv(t, root, []string{engine.EnvUnattended + "=" + unattended}, "gate")
+		require.Equal(t, 0, code, "TP_UNATTENDED=%s: %s", unattended, stderr)
+		assert.Contains(t, stdout, `"gate_configured": false`)
+		assert.Contains(t, stdout, "no quality_gate configured; nothing to gate")
+		assert.NotContains(t, stdout+stderr, "escalate")
+	}
 }
 
 // TestGate_HelpListsEveryExit: tp gate --help names each exit REFERENCE
@@ -143,7 +141,7 @@ func TestGate_HelpListsEveryExit(t *testing.T) {
 	for _, want := range []string{
 		"Exit 0 when the gate passes",
 		"Exit 4 when it fails, times out or a signal ends it",
-		"Exit 2 when no quality_gate is set",
+		"Exit 0 also when no quality_gate is set",
 		"Exit 3 when no task file is found or it is another project's",
 	} {
 		assert.Contains(t, stdout, want)
