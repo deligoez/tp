@@ -137,3 +137,26 @@ func TestRunDriver_WorktreeSetupRunsInEachWorktreeWithItsEnvironment(t *testing.
 	}
 }
 
+// TestRunDriver_AFailingWorktreeSetupUnwindsTheBatch: a setup that exits
+// non-zero releases every claimed task, removes every worktree and branch,
+// spends no attempt, and stops the run with worktree-setup-failed naming the
+// task and its log.
+func TestRunDriver_AFailingWorktreeSetupUnwindsTheBatch(t *testing.T) {
+	root, spec, taskFile, records := setupBatchProject(t, `echo refusing; test "$TP_UNIT_ID" != beta`)
+
+	res, err := driveSetupBatch(t, root, spec, taskFile)
+	require.NoError(t, err, "a failed setup is a stop, not a driver error")
+	assert.Equal(t, StopWorktreeSetupFailed, res.StopReason)
+	require.NotNil(t, res.WorktreeSetup)
+	assert.Equal(t, "beta", res.WorktreeSetup.ID)
+	log, readErr := os.ReadFile(res.WorktreeSetup.LogPath)
+	require.NoError(t, readErr, "the stop names the setup's log")
+	assert.Contains(t, string(log), "refusing")
+
+	assertBatchUnwound(t, root, taskFile, records)
+	st, err := ReadRunState(root, taskFile)
+	require.NoError(t, err)
+	require.NotNil(t, st.StopReason)
+	assert.Equal(t, StopWorktreeSetupFailed, *st.StopReason)
+}
+
