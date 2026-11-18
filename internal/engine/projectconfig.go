@@ -92,7 +92,7 @@ var knownWorkflowKeys = map[string]bool{
 	"run_max_units": true, "run_max_wall_clock_seconds": true,
 	"run_max_budget_usd": true, "run_max_unit_budget_usd": true,
 	"run_max_unit_retries": true, "run_max_parallel": true, "runner": true,
-	"task_audit_roles": true,
+	"task_audit_roles": true, "worktree_setup_cmd": true,
 }
 
 // parseWorkflowOverride leniently parses a workflow object: an unknown key or a
@@ -132,6 +132,13 @@ func parseWorkflowOverride(raw json.RawMessage) (wo model.WorkflowOverride, warn
 				warnings = append(warnings, "workflow.quality_gate: expected a string, ignored")
 			} else {
 				wo.QualityGate = &s
+			}
+		case "worktree_setup_cmd":
+			var s string
+			if err := json.Unmarshal(v, &s); err != nil {
+				warnings = append(warnings, "workflow.worktree_setup_cmd: expected a string, ignored")
+			} else {
+				wo.WorktreeSetupCmd = &s
 			}
 		case "commit_strategy":
 			var s string
