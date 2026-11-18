@@ -92,6 +92,10 @@ func resolvedConfig(wf *model.Workflow, override *model.WorkflowOverride) map[st
 		"run_max_parallel":           vs(wf.RunMaxParallel, override.RunMaxParallel != nil, project.RunMaxParallel != nil),
 		"runner":                     vs(wf.Runner, override.Runner != nil, project.Runner != nil),
 		"notify_cmd":                 map[string]any{"value": wf.NotifyCmd, "source": notifySource},
+		// worktree_setup_cmd is read from the project layer alone, so it
+		// reports project or default and never override, whatever a task
+		// file holds (tp validate reports that value as an error).
+		engine.WorktreeSetupCmdField: worktreeSetupResolved(project.WorktreeSetupCmd),
 	}}
 	// active provenance: the resolved active file and its discovery-chain rank
 	// (cli/env/local/legacy/autodetect).
@@ -107,6 +111,15 @@ func resolvedConfig(wf *model.Workflow, override *model.WorkflowOverride) map[st
 		result["defaults"] = dmap
 	}
 	return result
+}
+
+// worktreeSetupResolved is worktree_setup_cmd's value and source for tp config
+// --resolved: the project layer's value, or "" from the default.
+func worktreeSetupResolved(project *string) map[string]any {
+	if project == nil {
+		return map[string]any{"value": "", "source": "default"}
+	}
+	return map[string]any{"value": *project, "source": "project"}
 }
 
 // surfaceConfigWarnings prints .tp/config.json and .tp/local.json validation
