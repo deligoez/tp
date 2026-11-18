@@ -299,6 +299,7 @@ func ResolveWorkflowLayers(taskOverride, project *model.WorkflowOverride) model.
 		RunMaxUnitBudgetUSD:    RunMaxUnitBudgetUSDDefault,
 		RunMaxUnitRetries:      RunMaxUnitRetriesDefault,
 		RunMaxParallel:         RunMaxParallelDefault,
+		RunMaxParallelGates:    RunMaxParallelGatesDefault,
 		Runner:                 DefaultRunner(),
 	}
 	return model.Workflow{
@@ -321,6 +322,7 @@ func ResolveWorkflowLayers(taskOverride, project *model.WorkflowOverride) model.
 		RunMaxUnitBudgetUSD:    pickFloat([]*float64{taskOverride.RunMaxUnitBudgetUSD, project.RunMaxUnitBudgetUSD}, def.RunMaxUnitBudgetUSD),
 		RunMaxUnitRetries:      pickInt([]*int{taskOverride.RunMaxUnitRetries, project.RunMaxUnitRetries}, def.RunMaxUnitRetries),
 		RunMaxParallel:         pickInt([]*int{taskOverride.RunMaxParallel, project.RunMaxParallel}, def.RunMaxParallel),
+		RunMaxParallelGates:    pickInt([]*int{taskOverride.RunMaxParallelGates, project.RunMaxParallelGates}, def.RunMaxParallelGates),
 		Runner:                 pickRaw([]json.RawMessage{taskOverride.Runner, project.Runner}, def.Runner),
 	}
 }

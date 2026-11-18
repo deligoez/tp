@@ -199,6 +199,8 @@ func runSetProjectWorkflow(args []string) error {
 				pc.Workflow.RunMaxUnitRetries = &v
 			case "run_max_parallel":
 				pc.Workflow.RunMaxParallel = &v
+			case "run_max_parallel_gates":
+				pc.Workflow.RunMaxParallelGates = &v
 			}
 			updated[field] = val
 		}

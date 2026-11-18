@@ -58,6 +58,7 @@ var (
 		"run_max_wall_clock_seconds": true,
 		"run_max_unit_retries":       true,
 		"run_max_parallel":           true,
+		"run_max_parallel_gates":     true,
 	}
 	// floatWorkflowFields are the editable workflow fields whose value is a
 	// decimal rather than an integer — §7's two budgets, in dollars.
@@ -566,6 +567,8 @@ func runSetWorkflow(args []string) error {
 				tf.Workflow.RunMaxUnitRetries = &v
 			case "run_max_parallel":
 				tf.Workflow.RunMaxParallel = &v
+			case "run_max_parallel_gates":
+				tf.Workflow.RunMaxParallelGates = &v
 			}
 			updated[field] = val
 		}
@@ -664,6 +667,8 @@ func workflowFieldRange(field string) (lo, hi int) {
 		return engine.RunMaxUnitRetriesMin, engine.RunMaxUnitRetriesMax
 	case "run_max_parallel":
 		return engine.RunMaxParallelMin, engine.RunMaxParallelMax
+	case "run_max_parallel_gates":
+		return engine.RunMaxParallelGatesMin, engine.RunMaxParallelGatesMax
 	default:
 		return 1, 10 // convergence fields
 	}

@@ -98,6 +98,7 @@ func computeCommonPolicy(overrides []model.WorkflowOverride) model.WorkflowOverr
 	common.RunMaxWallClockSeconds = commonPtr(overrides, func(o *model.WorkflowOverride) *int { return o.RunMaxWallClockSeconds })
 	common.RunMaxUnitRetries = commonPtr(overrides, func(o *model.WorkflowOverride) *int { return o.RunMaxUnitRetries })
 	common.RunMaxParallel = commonPtr(overrides, func(o *model.WorkflowOverride) *int { return o.RunMaxParallel })
+	common.RunMaxParallelGates = commonPtr(overrides, func(o *model.WorkflowOverride) *int { return o.RunMaxParallelGates })
 	// worktree_setup_cmd is deliberately NOT hoisted: the driver reads it
 	// from the project layer alone, and a hoist would let a value written
 	// into task files reach the command every pool worktree runs
@@ -177,6 +178,9 @@ func hoistedFields(common *model.WorkflowOverride) []string {
 	if common.RunMaxParallel != nil {
 		fields = append(fields, "run_max_parallel")
 	}
+	if common.RunMaxParallelGates != nil {
+		fields = append(fields, "run_max_parallel_gates")
+	}
 	if common.Runner != nil {
 		fields = append(fields, "runner")
 	}
@@ -239,6 +243,9 @@ func mergeCommon(dst, common *model.WorkflowOverride) {
 	}
 	if common.RunMaxParallel != nil {
 		dst.RunMaxParallel = common.RunMaxParallel
+	}
+	if common.RunMaxParallelGates != nil {
+		dst.RunMaxParallelGates = common.RunMaxParallelGates
 	}
 	if common.Runner != nil {
 		dst.Runner = common.Runner

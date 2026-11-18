@@ -38,6 +38,13 @@ const (
 	RunMaxParallelMin     = 1
 	RunMaxParallelMax     = 8
 
+	// run_max_parallel_gates caps how many quality gates a run holds at once,
+	// the main-branch gate included (spec/backlog/gate-slots.md). 0, the
+	// default, is unlimited: unit gates run side by side as before.
+	RunMaxParallelGatesDefault = 0
+	RunMaxParallelGatesMin     = 0
+	RunMaxParallelGatesMax     = 8
+
 	// RunnerDefault is the built-in template name the runner field resolves to
 	// when no layer sets it. The field's three shapes are told apart by the
 	// runner resolver, not by this layer.

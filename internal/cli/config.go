@@ -90,6 +90,7 @@ func resolvedConfig(wf *model.Workflow, override *model.WorkflowOverride) map[st
 		"run_max_unit_budget_usd":    vs(wf.RunMaxUnitBudgetUSD, override.RunMaxUnitBudgetUSD != nil, project.RunMaxUnitBudgetUSD != nil),
 		"run_max_unit_retries":       vs(wf.RunMaxUnitRetries, override.RunMaxUnitRetries != nil, project.RunMaxUnitRetries != nil),
 		"run_max_parallel":           vs(wf.RunMaxParallel, override.RunMaxParallel != nil, project.RunMaxParallel != nil),
+		"run_max_parallel_gates":     vs(wf.RunMaxParallelGates, override.RunMaxParallelGates != nil, project.RunMaxParallelGates != nil),
 		"runner":                     vs(wf.Runner, override.Runner != nil, project.Runner != nil),
 		"notify_cmd":                 map[string]any{"value": wf.NotifyCmd, "source": notifySource},
 		// worktree_setup_cmd is read from the project layer alone, so it

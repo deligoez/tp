@@ -95,6 +95,7 @@ type WorkflowOverride struct {
 	RunMaxUnitBudgetUSD    *float64        `json:"run_max_unit_budget_usd,omitempty"`
 	RunMaxUnitRetries      *int            `json:"run_max_unit_retries,omitempty"`
 	RunMaxParallel         *int            `json:"run_max_parallel,omitempty"`
+	RunMaxParallelGates    *int            `json:"run_max_parallel_gates,omitempty"`
 	Runner                 json.RawMessage `json:"runner,omitempty"`
 	// WorktreeSetupCmd is the command tp run runs in each new pool worktree.
 	// The driver reads it from the project layer alone, so a task file's
@@ -123,6 +124,7 @@ func (o *WorkflowOverride) IsEmpty() bool {
 		o.RunMaxUnitBudgetUSD == nil &&
 		o.RunMaxUnitRetries == nil &&
 		o.RunMaxParallel == nil &&
+		o.RunMaxParallelGates == nil &&
 		o.Runner == nil &&
 		o.WorktreeSetupCmd == nil
 }
