@@ -73,7 +73,7 @@ func runDonePending(root, taskFilePath string, taskIDs []string, reason string) 
 	// driver spends a pick and a main-branch gate on it; a red gate exits here
 	// and leaves its failure under the main tree's root for the retry's brief.
 	gated := runQualityGateIn(taskFilePath, engine.WorktreeDirFor(gateDir(taskFilePath), worktree), root,
-		"fix the failure in this worktree, commit the fix, and ask for the close again naming every commit")
+		"fix the failure in this worktree, commit the fix, and ask for the close again naming every commit", unitGateTaker())
 	record := &engine.PendingClose{ID: id, Reason: reason, Commits: ordered, Worktree: worktree}
 	if gated && gatedTree != "" {
 		record.GatedTree = gatedTree

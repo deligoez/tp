@@ -121,7 +121,10 @@ func closeTaskFunc(root, taskFile string) engine.CloseFunc {
 		defer log.Close()
 		cmd := exec.Command(self, args...) //nolint:gosec // tp's own binary, with tp's own arguments
 		cmd.Dir = root
-		cmd.Env = append(os.Environ(), engine.EnvTaskFile+"="+taskFile)
+		// The integrate log is under the run directory, and so are its gate
+		// slots: the close's gate takes the main gate's slot from there.
+		cmd.Env = append(os.Environ(), engine.EnvTaskFile+"="+taskFile,
+			engine.EnvGateMainSlots+"="+engine.GateSlotsDir(filepath.Dir(logPath)))
 		cmd.Stdout, cmd.Stderr = log, log
 		runErr := cmd.Run()
 		var exitErr *exec.ExitError

@@ -176,20 +176,23 @@ func runQualityGatePreFlock(taskFilePath string, recordFailure bool) bool {
 	if recordFailure {
 		failureRoot = "."
 	}
-	return runQualityGateIn(taskFilePath, gateDir(taskFilePath), failureRoot, "")
+	return runQualityGateIn(taskFilePath, gateDir(taskFilePath), failureRoot, "", mainGateTaker())
 }
 
 // runQualityGateIn is runQualityGatePreFlock with the directory the gate runs
 // in and the root its failure record goes under named by the caller: a unit's
 // worktree gates its own checkout and leaves the record under the main tree's
 // root, where the retry's brief reads it. An empty failureRoot writes no record;
-// a non-empty hint replaces the default one.
-func runQualityGateIn(taskFilePath, dir, failureRoot, hint string) bool {
+// a non-empty hint replaces the default one. Under tp run the gate first takes
+// the slot taker names, and frees it as soon as the command has exited.
+func runQualityGateIn(taskFilePath, dir, failureRoot, hint string, taker gateTaker) bool {
 	wf := engine.EffectiveWorkflowForTaskFile(taskFilePath)
 	if wf.QualityGate == "" {
 		return false
 	}
+	release := taker.take(wf.RunMaxParallelGates)
 	res := engine.RunCommand(wf.QualityGate, dir, time.Duration(wf.EffectiveGateTimeoutSeconds())*time.Second, gateOutputTailLines)
+	release()
 	if res.Passed {
 		return true
 	}
