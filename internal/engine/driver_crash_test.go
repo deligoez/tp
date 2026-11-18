@@ -110,6 +110,47 @@ func TestCrash_DuringAPick(t *testing.T) {
 	assert.Equal(t, 1, countOf(strings.Split(gitIn(t, root, "log", "--format=%s"), "\n"), "unit alpha"), "the landed pick is closed, not dropped")
 }
 
+// TestCrash_DuringAPickOfALaterID: the driver dies with beta picked and not
+// closed while alpha still runs; alpha's close then lands on disk too. The
+// next run must recover beta's interrupted pick before it picks alpha on top
+// of it, or beta's recorded start no longer matches what landed since.
+func TestCrash_DuringAPickOfALaterID(t *testing.T) {
+	root, spec, taskFile, records := batchProject(t, rollingTasks(2, "alpha", "beta"))
+	t.Setenv(fakerunner.EnvDurable, "1")
+	t.Setenv(fakerunner.EnvSleepByID, "alpha=1500,beta=100")
+	killAt(t, "picked", "beta")
+
+	driveUntilKilled(t, records, rollingOptions(root, spec, taskFile, driverWorkflow()))
+	assert.True(t, HasPendingClose(root, taskFile, "alpha"), "alpha asked to close after the driver died")
+	assertRecovered(t, root, spec, taskFile, "alpha", "beta")
+}
+
+// TestCrash_AHaltedPoolsRefusedPickGoesFirstOnTheNextRun: beta's close is
+// refused as a driver error, which halts the pool with beta's pick start
+// recorded, and alpha's close is left for the next run unintegrated. The next
+// run must pick beta first: alpha, picked first by id, would land under beta's
+// recorded start.
+func TestCrash_AHaltedPoolsRefusedPickGoesFirstOnTheNextRun(t *testing.T) {
+	root, spec, taskFile, records := batchProject(t, rollingTasks(2, "alpha", "beta"))
+	t.Setenv(fakerunner.EnvDurable, "1")
+	t.Setenv(fakerunner.EnvSleepByID, "alpha=1500,beta=100")
+	opts := rollingOptions(root, spec, taskFile, driverWorkflow())
+	closeTask := opts.CloseTask
+	opts.CloseTask = func(id, reason string, picked []string, logPath string) error {
+		if id == "beta" {
+			return &CloseRefusedError{ID: id, LogPath: logPath}
+		}
+		return closeTask(id, reason, picked, logPath)
+	}
+
+	res, err := RunDriver(opts)
+	require.Error(t, err)
+	assert.Equal(t, StopDriverError, res.StopReason)
+	waitForChildren(t, records)
+	assert.True(t, HasPendingClose(root, taskFile, "alpha"), "the halted pool left alpha's close unintegrated")
+	assertRecovered(t, root, spec, taskFile, "alpha", "beta")
+}
+
 // TestCrash_AfterACloseBeforeItsRequestIsDeleted: alpha is done on the main
 // branch and its request is still on disk. The next run drops the request.
 func TestCrash_AfterACloseBeforeItsRequestIsDeleted(t *testing.T) {
