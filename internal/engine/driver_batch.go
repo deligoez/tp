@@ -46,56 +46,6 @@ type unitTree struct {
 	id, worktree, branch string
 }
 
-// startBatch claims the batch's tasks and adds a worktree per unit, outside
-// the repository, on a branch from the main branch's HEAD (§2.3), running the
-// project's worktree_setup_cmd in each (spec/backlog/worktree-setup.md).
-func (d *driver) startBatch(units []NextUnit) (map[string]unitTree, error) {
-	ids := make([]string, len(units))
-	for i := range units {
-		ids[i] = units[i].ID
-	}
-	if d.opts.ClaimTasks == nil {
-		return nil, driverErrorf(fmt.Errorf("no claim function"), "claim the implement batch")
-	}
-	setup, err := worktreeSetupCmd(d.opts.Root)
-	if err != nil {
-		return nil, err
-	}
-	if err := d.opts.ClaimTasks(ids); err != nil {
-		return nil, driverErrorf(err, "claim the implement batch")
-	}
-	return d.addBatchWorktrees(ids, setup)
-}
-
-// addBatchWorktrees adds each unit's worktree and runs the setup there, one
-// after another in batch order, before any unit is spawned. A failed add or a
-// failed setup unwinds the whole batch.
-func (d *driver) addBatchWorktrees(ids []string, setup string) (map[string]unitTree, error) {
-	base := filepath.Join(WorktreeBase(d.opts.Root), cycleTag(d.opts.Root, d.opts.TaskFile))
-	out := make(map[string]unitTree, len(ids))
-	for _, id := range ids {
-		u := unitTree{
-			id:       id,
-			worktree: filepath.Join(base, d.runID, id),
-			branch:   unitBranch(d.opts.Root, d.opts.TaskFile, d.runID, id),
-		}
-		if _, err := gitOut(d.opts.Root, "worktree", "add", "-q", "-b", u.branch, u.worktree, "HEAD"); err != nil {
-			addErr := driverErrorf(err, "add the worktree for task %q", id)
-			return nil, errors.Join(addErr, d.unwindBatch(ids, out, &u))
-		}
-		out[id] = u
-		if setup == "" {
-			continue
-		}
-		if err := d.setupWorktree(setup, u); err != nil {
-			if unwindErr := d.unwindBatch(ids, out, nil); unwindErr != nil {
-				return nil, errors.Join(unwindErr, err)
-			}
-			return nil, err
-		}
-	}
-	return out, nil
-}
 
 // prompt is the instruction this attempt's child is spawned with: a unit in a
 // worktree runs the brief that names its task, any other its kind's brief.
@@ -167,28 +117,6 @@ func WorktreeBase(root string) string {
 	return filepath.Join(os.TempDir(), "tp-worktrees", hex.EncodeToString(sum[:])[:16])
 }
 
-// integrateBatch integrates every pending close of the cycle, in task order,
-// then removes the batch's worktrees and branches (§2.4). A close the pick or
-// the gate refuses restores the main branch, reopens its task and marks it
-// solo; that is the batch's answer, not a driver error.
-func (d *driver) integrateBatch(units map[string]unitTree) error {
-	if err := d.integratePending(); err != nil {
-		return err
-	}
-	for _, u := range sortedTrees(units) {
-		// A request left for the next run, or a unit that never finished,
-		// keeps its branch, so its commits stay referenced.
-		if keptUnitBranch(d.opts.Root, d.opts.TaskFile, u.branch) {
-			_, _ = gitOut(d.opts.Root, "worktree", "remove", "--force", u.worktree)
-			if !HasPendingClose(d.opts.Root, d.opts.TaskFile, u.id) {
-				output.Notice(fmt.Sprintf("task %s did not finish; its unit's work stays on branch %s until the task is done", u.id, u.branch))
-			}
-			continue
-		}
-		removeUnitWorktree(d.opts.Root, u.worktree, u.branch)
-	}
-	return nil
-}
 
 // integratePending integrates the cycle's pending closes one at a time.
 func (d *driver) integratePending() error {
@@ -226,8 +154,12 @@ func (d *driver) integrateOne(tf *model.TaskFile, p *PendingClose) error {
 		return pickErr
 	}
 	if pickErr == nil {
+		poolHook("picked", p.ID)
 		warnTouchesEscape(d.opts.Root, tf, p.ID, pre)
 		pickErr = d.closeTask(p, picked, logPath)
+	}
+	if pickErr == nil {
+		poolHook("closed", p.ID)
 	}
 	var refused *CloseRefusedError
 	if errors.As(pickErr, &refused) {
@@ -462,15 +394,6 @@ func touchesEscapes(root string, tf *model.TaskFile, id, pre string) []string {
 func removeUnitWorktree(root, worktree, branch string) {
 	_, _ = gitOut(root, "worktree", "remove", "--force", worktree)
 	_, _ = gitOut(root, "branch", "-D", branch)
-}
-
-func sortedTrees(units map[string]unitTree) []unitTree {
-	out := make([]unitTree, 0, len(units))
-	for _, u := range units {
-		out = append(out, u)
-	}
-	slices.SortFunc(out, func(a, b unitTree) int { return strings.Compare(a.id, b.id) })
-	return out
 }
 
 // reconcileUnits finishes what a crashed run left (§2.6): its pending closes

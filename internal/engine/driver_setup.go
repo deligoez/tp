@@ -193,34 +193,3 @@ func appendLog(logPath, text string) {
 	_, _ = f.WriteString(text)
 	_ = f.Close()
 }
-
-// unwindBatch takes back a batch that failed to start: every worktree and
-// tp-unit branch it added is removed — failed, the one whose add failed, may
-// have left both — and every claimed task goes back to open. No attempt was
-// spent, so nothing is marked solo. A worktree still on disk afterwards is
-// reported rather than left for the next run to trip over.
-func (d *driver) unwindBatch(ids []string, added map[string]unitTree, failed *unitTree) error {
-	units := sortedTrees(added)
-	if failed != nil {
-		units = append(units, *failed)
-	}
-	var left []string
-	for _, u := range units {
-		removeUnitWorktree(d.opts.Root, u.worktree, u.branch)
-		if _, err := os.Stat(u.worktree); err == nil {
-			left = append(left, u.worktree)
-		}
-	}
-	_, _ = gitOut(d.opts.Root, "worktree", "prune")
-	var errs []error
-	if len(left) > 0 {
-		errs = append(errs, driverErrorf(fmt.Errorf("still on disk: %s", strings.Join(left, ", ")),
-			"remove the implement batch's worktrees"))
-	}
-	if d.opts.ReleaseTasks == nil {
-		errs = append(errs, driverErrorf(errors.New("no release function"), "release the implement batch"))
-	} else if err := d.opts.ReleaseTasks(ids); err != nil {
-		errs = append(errs, driverErrorf(err, "release the implement batch"))
-	}
-	return errors.Join(errs...)
-}

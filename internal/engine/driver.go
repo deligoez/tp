@@ -110,9 +110,9 @@ type driver struct {
 	// what makes "no new unit is spawned" a property of the code rather
 	// than of how quickly the driver happens to notice.
 	sig *interrupts
-	// batch is the implement batch in flight, keyed by task id, or nil when
-	// the iteration runs no batch.
-	batch map[string]unitTree
+	// trees is the rolling implement pool's worktrees, keyed by task id, or
+	// nil when the iteration runs no pool.
+	trees map[string]unitTree
 }
 
 // RunDriver executes §3.1's loop and returns the reason it stopped.
@@ -287,11 +287,7 @@ func (d *driver) checkpoint(res *ResumeResult, prev *iterationOutcome) StopReaso
 // file does not exist yet — a cycle before decomposition has no task file, and
 // refusing to drive it would refuse the phase that creates one.
 func readCycle(o *DriverOptions) (ResumeResult, error) {
-	tf, err := model.ReadTaskFile(o.TaskFile)
-	if err != nil {
-		tf = &model.TaskFile{Spec: o.Spec, Tasks: []model.Task{}}
-	}
-	return AssembleResume(o.Root, o.TaskFile, o.Spec, tf)
+	return readCycleRunning(o, nil)
 }
 
 // DryRunUnits reports the units `tp run` would spawn next without spawning any
@@ -436,20 +432,10 @@ func (d *driver) runIteration(res *ResumeResult) (iterationOutcome, error) {
 	if !implementPool(units) {
 		return d.attemptUnits(res, units)
 	}
-	// An implement batch runs each unit in its own worktree, then integrates
-	// every unit that asked to close, whatever the iteration ended as: a
-	// sibling's escalation or failure does not discard finished work (§2.7).
-	batch, err := d.startBatch(units)
-	if err != nil {
-		return iterationOutcome{}, err
-	}
-	d.batch = batch
-	defer func() { d.batch = nil }()
-	out, err := d.attemptUnits(res, units)
-	if err != nil {
-		return out, err
-	}
-	return out, d.integrateBatch(batch)
+	// Two or more implement units start a rolling pool: each unit in its own
+	// worktree, integrated as it exits, whatever its siblings end as
+	// (spec/backlog/rolling-implement.md §2).
+	return d.runPool(res, units)
 }
 
 // attemptUnits spawns one iteration's units and retries the ones that failed.
@@ -508,7 +494,7 @@ func (d *driver) prepare(res *ResumeResult, units []NextUnit, attempt int) ([]*u
 			Seq:      d.seq,
 		}
 		a.target = d.unitTarget(&a.env)
-		if u, ok := d.batch[a.unit.ID]; ok {
+		if u, ok := d.trees[a.unit.ID]; ok {
 			a.dir = u.worktree
 			// Spawned in its worktree, a relative TP_FILE would name the
 			// worktree's own copy of the task file; the unit works the
