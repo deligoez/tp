@@ -69,11 +69,7 @@ func runDonePending(root, taskFilePath string, taskIDs []string, reason string) 
 	// the gate's pass a fact about the committed tree, which the main-branch
 	// close may then reuse (engine.ReusableGate).
 	gatedTree := engine.CleanTree(worktree)
-	// The unit gates its own checkout, so a red change is caught before the
-	// driver spends a pick and a main-branch gate on it; a red gate exits here
-	// and leaves its failure under the main tree's root for the retry's brief.
-	gated := runQualityGateIn(taskFilePath, engine.WorktreeDirFor(gateDir(taskFilePath), worktree), root,
-		"fix the failure in this worktree, commit the fix, and ask for the close again naming every commit", unitGateTaker())
+	gated := unitGate(taskFilePath, worktree, root, gatedTree)
 	record := &engine.PendingClose{ID: id, Reason: reason, Commits: ordered, Worktree: worktree}
 	if gated && gatedTree != "" {
 		record.GatedTree = gatedTree
@@ -86,6 +82,22 @@ func runDonePending(root, taskFilePath string, taskIDs []string, reason string) 
 	output.Success(fmt.Sprintf("pending close for %s: the driver integrates it", id))
 	printResultOrExit(map[string]any{"pending": true, "id": id, "commits": ordered})
 	return nil
+}
+
+// unitGate gates a unit's own checkout, so a red change is caught before the
+// driver spends a pick and a main-branch gate on it; a red gate exits here and
+// leaves its failure under the main tree's root for the retry's brief. A pass
+// tp gate recorded in this attempt for this same clean tree and gate command
+// stands in for the run.
+func unitGate(taskFilePath, worktree, root, gatedTree string) bool {
+	taker := unitGateTaker()
+	gateCmd := engine.EffectiveWorkflowForTaskFile(taskFilePath).QualityGate
+	if taker.runDir != "" && engine.GatePassCovers(taker.runDir, taker.seq, gatedTree, gateCmd) {
+		output.Notice(fmt.Sprintf("gate reused from tp gate: tree %s passed %q in this attempt", gatedTree, gateCmd))
+		return true
+	}
+	return runQualityGateIn(taskFilePath, engine.WorktreeDirFor(gateDir(taskFilePath), worktree), root,
+		"fix the failure in this worktree, commit the fix, and ask for the close again naming every commit", taker)
 }
 
 func exitUsage(msg, hint string) {

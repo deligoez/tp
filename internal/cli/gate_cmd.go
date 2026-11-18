@@ -50,8 +50,16 @@ func runGate() error {
 	// main tree it is that directory itself.
 	cwd, _ := os.Getwd()
 	dir := engine.WorktreeDirFor(gateDir(taskFilePath), cwd)
-	runQualityGateIn(taskFilePath, dir, "", gateRerunHint, unitGateTaker())
+	// The tree is read before the gate runs, as tp done reads it: only a
+	// clean checkout's pass is a fact about the committed tree.
+	tree := engine.CleanTree(cwd)
+	taker := unitGateTaker()
+	runQualityGateIn(taskFilePath, dir, "", gateRerunHint, taker)
+	recorded := false
+	if taker.runDir != "" && tree != "" {
+		recorded = engine.RecordGatePass(taker.runDir, taker.seq, tree, wf.QualityGate) == nil
+	}
 	output.Success("gate passed")
-	printResultOrExit(map[string]any{"passed": true, "gate_cmd": wf.QualityGate, "dir": dir})
+	printResultOrExit(map[string]any{"passed": true, "gate_cmd": wf.QualityGate, "dir": dir, "recorded": recorded})
 	return nil
 }
