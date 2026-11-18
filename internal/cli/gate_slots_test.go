@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -198,9 +199,11 @@ func TestDone_ASignalWhileWaitingAsksForNoClose(t *testing.T) {
 	held := holdSlots(t, u.slots, 1)
 
 	unit := startTP(t, u.worktree, u.env, "done", "t1", "implemented and verified", "--commit", u.sha)
+	// The raw file, not ReadGateTimes: that reader is for a taker that has
+	// exited, and closes the open wait it finds.
 	require.Eventually(t, func() bool {
-		gt, ok := engine.ReadGateTimes(engine.GateTimesPath(u.runDir, 1))
-		return ok && gt.WaitingSince != ""
+		data, err := os.ReadFile(engine.GateTimesPath(u.runDir, 1))
+		return err == nil && strings.Contains(string(data), `"waiting_since"`)
 	}, 10*time.Second, 20*time.Millisecond, "the unit waits for the slot")
 	require.NoError(t, unit.cmd.Process.Signal(syscall.SIGTERM))
 
