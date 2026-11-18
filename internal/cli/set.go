@@ -415,6 +415,14 @@ func runSetWorkflow(args []string) error {
 			refuseUnattendedCommandField(field)
 			return nil
 		}
+		// The driver reads worktree_setup_cmd from the project layer alone
+		// (spec/backlog/worktree-setup.md §1), so a task-layer value would
+		// be written and never run.
+		if field == engine.WorktreeSetupCmdField {
+			output.Error(ExitUsage, fmt.Sprintf("%s is read only from the project layer; set it with `tp set --workflow --project %s=<command>`", field, field))
+			os.Exit(ExitUsage)
+			return nil
+		}
 		if !editableWorkflowFields[field] && !floatWorkflowFields[field] {
 			output.Error(ExitUsage, fmt.Sprintf("unknown workflow field: %s", field))
 			os.Exit(ExitUsage)
