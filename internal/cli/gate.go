@@ -91,7 +91,7 @@ func gateDir(taskFilePath string) string {
 // the resolved timeout, returning the result without exiting.
 func executeQualityGate(taskFilePath string) engine.RunResult {
 	wf := engine.EffectiveWorkflowForTaskFile(taskFilePath)
-	return engine.RunCommand(wf.QualityGate, gateDir(taskFilePath), time.Duration(wf.EffectiveGateTimeoutSeconds())*time.Second, gateOutputTailLines)
+	return engine.RunGateCommand(wf.QualityGate, gateDir(taskFilePath), nil, time.Duration(wf.EffectiveGateTimeoutSeconds())*time.Second, gateOutputTailLines)
 }
 
 // gateFailureMessage renders the top-level error string for a failed gate run.
@@ -191,7 +191,7 @@ func runQualityGateIn(taskFilePath, dir, failureRoot, hint string, taker gateTak
 		return false
 	}
 	release := taker.take(wf.RunMaxParallelGates)
-	res := engine.RunCommand(wf.QualityGate, dir, time.Duration(wf.EffectiveGateTimeoutSeconds())*time.Second, gateOutputTailLines)
+	res := engine.RunGateCommand(wf.QualityGate, dir, nil, time.Duration(wf.EffectiveGateTimeoutSeconds())*time.Second, gateOutputTailLines)
 	release()
 	if res.Passed {
 		return true
