@@ -93,3 +93,58 @@ func TestRunCommand_DrivesAnImplementBatch(t *testing.T) {
 	assert.FileExists(t, filepath.Join(dir, "seed.txt"))
 	assert.FileExists(t, filepath.Join(dir, "grow.txt"))
 }
+
+// TestRunCommand_AFailedWorktreeSetupStopsTheRun: a worktree_setup_cmd that
+// fails stops tp run with worktree-setup-failed and exit 4, names the task and
+// the setup's log, spawns no unit and leaves both tasks open
+// (spec/backlog/worktree-setup.md §1).
+func TestRunCommand_AFailedWorktreeSetupStopsTheRun(t *testing.T) {
+	t.Parallel()
+	dir := runProject(t)
+	_, stderr, code := runTP(t, dir, "add",
+		`{"id":"grow","title":"Grow","estimate_minutes":5,"acceptance":"Seeded.","source_sections":["### 1.1 Seed"],"depends_on":[]}`)
+	require.Equal(t, 0, code, "add: %s", stderr)
+	for _, set := range [][]string{
+		{"set", "seed", `touches=["seed.txt"]`}, {"set", "grow", `touches=["grow.txt"]`},
+		{"set", "--workflow", "run_max_parallel=2"},
+		{"set", "--workflow", "--project", "worktree_setup_cmd=echo no cache here; exit 3"},
+	} {
+		_, stderr, code = runTP(t, dir, set...)
+		require.Equal(t, 0, code, "%v: %s", set, stderr)
+	}
+	initGitRepo(t, dir)
+
+	bin, err := fakerunner.Build(t.TempDir())
+	require.NoError(t, err)
+	records := filepath.Join(t.TempDir(), "records")
+	require.NoError(t, os.MkdirAll(records, 0o750))
+	stdout, stderr, code := runTPEnv(t, dir, []string{
+		engine.EnvRunnerSeam + "=" + bin,
+		fakerunner.EnvDir + "=" + records,
+		fakerunner.EnvDurable + "=1",
+	}, "run")
+	require.Equal(t, 4, code, "%s%s", stdout, stderr)
+
+	var out struct {
+		StopReason    string `json:"stop_reason"`
+		WorktreeSetup struct {
+			ID      string `json:"id"`
+			LogPath string `json:"log_path"`
+		} `json:"worktree_setup"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out), stdout)
+	assert.Equal(t, "worktree-setup-failed", out.StopReason)
+	assert.Contains(t, []string{"seed", "grow"}, out.WorktreeSetup.ID)
+	log, err := os.ReadFile(out.WorktreeSetup.LogPath)
+	require.NoError(t, err)
+	assert.Contains(t, string(log), "no cache here")
+
+	recs, err := fakerunner.Records(records)
+	require.NoError(t, err)
+	assert.Empty(t, recs, "no unit is spawned")
+	for _, id := range []string{"seed", "grow"} {
+		showOut, showErr, showCode := runTP(t, dir, "show", id)
+		require.Equal(t, 0, showCode, showErr)
+		assert.Contains(t, showOut, `"status": "open"`, "%s is released", id)
+	}
+}
