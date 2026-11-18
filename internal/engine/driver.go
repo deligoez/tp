@@ -594,11 +594,22 @@ func (d *driver) record(attempts []*unitAttempt) error {
 			continue
 		}
 		d.recordLastFailure(a)
-		if err := d.rec.FinishUnit(a.seq, a.exitCode, a.duration, a.spend()); err != nil && firstErr == nil {
+		if err := d.finishRow(a); err != nil && firstErr == nil {
 			firstErr = driverErrorf(err, "record the result of %s unit %q", a.unit.Kind, a.unit.ID)
 		}
 	}
 	return firstErr
+}
+
+// finishRow writes an exited attempt's result onto its row, with the gate and
+// wait seconds its closes left under the run directory, if any.
+func (d *driver) finishRow(a *unitAttempt) error {
+	if gt, ok := ReadGateTimes(RunDir(d.opts.Root, d.runID), a.seq); ok {
+		if err := d.rec.RecordGateTimes(a.seq, gt); err != nil {
+			return err
+		}
+	}
+	return d.rec.FinishUnit(a.seq, a.exitCode, a.duration, a.spend())
 }
 
 // recordLastFailure keeps §4.2's advisory record in step with what the child

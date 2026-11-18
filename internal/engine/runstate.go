@@ -87,6 +87,12 @@ type RunUnitRow struct {
 	// PID is the pooled unit's own child, recorded once it has started: half
 	// of what tells a dead run's unit still running (liveUnits).
 	PID int `json:"pid,omitempty"`
+	// GateSeconds and WaitSeconds split the attempt's duration: the time its
+	// worktree gates ran, and the time it waited for a gate slot
+	// (spec/backlog/gate-slots.md). Both are null for an attempt that ran no
+	// gate under a cap.
+	GateSeconds *float64 `json:"gate_seconds,omitempty"`
+	WaitSeconds *float64 `json:"wait_seconds,omitempty"`
 }
 
 // RunStatePath returns a cycle's run state file, .tp/run-<key>.json under the
@@ -200,6 +206,20 @@ func (r *RunRecorder) FinishUnit(seq, exitCode int, duration time.Duration, spen
 		amount := *spend
 		row.SpendUSD = &amount
 	}
+	return r.writeLocked()
+}
+
+// RecordGateTimes puts a unit attempt's gate and wait seconds on its row.
+func (r *RunRecorder) RecordGateTimes(seq int, gt GateTimes) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	row := r.rowLocked(seq)
+	if row == nil {
+		return fmt.Errorf("run state: no unit row with seq %d", seq)
+	}
+	gate, wait := gt.GateSeconds, gt.WaitedSeconds
+	row.GateSeconds, row.WaitSeconds = &gate, &wait
 	return r.writeLocked()
 }
 

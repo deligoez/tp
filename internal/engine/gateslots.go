@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -105,6 +106,61 @@ func tryGateSlots(dir string, capN int, gate *flock.Flock) (*GateSlot, error) {
 		}
 	}
 	return nil, nil
+}
+
+// EnvGateMainSlots names the slot directory the main-branch close takes the
+// main gate's slot from. The driver sets it on its own tp done child only, so
+// a close run by hand outside a run takes no slot.
+const EnvGateMainSlots = "TP_GATE_MAIN_SLOTS"
+
+// GateTimes is one unit attempt's time waiting for a slot and time in the
+// gate, summed over every close it asked for, kept under the run directory
+// for the driver to copy onto the attempt's row when the unit exits.
+// WaitingSince is set while a wait is in progress, so a unit killed mid-wait
+// still says since when it waited.
+type GateTimes struct {
+	WaitingSince  string  `json:"waiting_since,omitempty"`
+	WaitedSeconds float64 `json:"waited_seconds"`
+	GateSeconds   float64 `json:"gate_seconds"`
+}
+
+// gateTimesPath is a unit attempt's gate time file, keyed by its seq so a
+// retry starts from zero.
+func gateTimesPath(runDir string, seq int) string {
+	return filepath.Join(runDir, fmt.Sprintf("gate-%d.json", seq))
+}
+
+// ReadGateTimes reads a unit attempt's gate times; false when it wrote none.
+func ReadGateTimes(runDir string, seq int) (GateTimes, bool) {
+	data, err := os.ReadFile(gateTimesPath(runDir, seq)) //nolint:gosec // under the run dir, keyed by the driver's own seq
+	if err != nil {
+		return GateTimes{}, false
+	}
+	var gt GateTimes
+	if json.Unmarshal(data, &gt) != nil {
+		return GateTimes{}, false
+	}
+	return gt, true
+}
+
+// AddGateTimes adds waited and gated to a unit attempt's gate times and sets
+// WaitingSince to since, or clears it for a zero since. The write is atomic.
+func AddGateTimes(runDir string, seq int, since time.Time, waited, gated time.Duration) error {
+	gt, _ := ReadGateTimes(runDir, seq)
+	gt.WaitingSince = ""
+	if !since.IsZero() {
+		gt.WaitingSince = since.UTC().Format(time.RFC3339Nano)
+	}
+	gt.WaitedSeconds += waited.Seconds()
+	gt.GateSeconds += gated.Seconds()
+	data, err := json.MarshalIndent(&gt, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(runDir, 0o750); err != nil {
+		return err
+	}
+	return writeFileAtomic(gateTimesPath(runDir, seq), append(data, '\n'))
 }
 
 // lockWaitError is the error of a lock wait that ended without the lock.
