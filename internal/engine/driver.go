@@ -350,16 +350,24 @@ func (d *driver) stop(result *DriverResult, reason StopReason) DriverResult {
 // caller exits 2 on; giving it a stop reason would tell a driver's caller a run
 // had reached a state it never reached.
 func (d *driver) fail(result *DriverResult, err error) (DriverResult, error) {
-	var driverErr *DriverError
-	if errors.As(err, &driverErr) {
-		return d.stop(result, StopDriverError), err
-	}
-	// A batch whose worktree setup failed was unwound before any unit ran:
-	// a stop with its own reason, reported rather than raised.
+	// A batch whose worktree setup failed was unwound before any unit ran.
+	// A signal is what cut the setup short when one arrived, and the run
+	// stops as interrupted. Otherwise the failure is named on the result even
+	// when the unwind also failed and the stop is the driver error's.
 	var setupErr *WorktreeSetupError
-	if errors.As(err, &setupErr) {
+	isSetup := errors.As(err, &setupErr)
+	interrupted := isSetup && d.sig != nil && d.sig.signalled()
+	if isSetup && !interrupted {
 		result.WorktreeSetup = &WorktreeSetupFailure{ID: setupErr.ID, LogPath: setupErr.LogPath}
 		output.Notice(setupErr.Error())
+	}
+	var driverErr *DriverError
+	switch {
+	case errors.As(err, &driverErr):
+		return d.stop(result, StopDriverError), err
+	case interrupted:
+		return d.stop(result, StopInterrupted), nil
+	case isSetup:
 		return d.stop(result, StopWorktreeSetupFailed), nil
 	}
 	return *result, err

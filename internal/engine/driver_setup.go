@@ -62,11 +62,13 @@ func (d *driver) setupWorktree(command string, u batchUnit) error {
 	if err != nil {
 		return driverErrorf(err, "read HEAD in the worktree of task %q", u.id)
 	}
+	ctx, endWatch := d.sig.context()
+	defer endWatch()
 	start := time.Now()
 	// The setup runs in the worktree's copy of the project directory, the
 	// one TP_MAIN_ROOT names in the main tree, so that in a repository whose
 	// project lives below the top level both mean the same relative paths.
-	exitCode, cause := run(context.Background(), command, projectDirIn(d.opts.Root, u.worktree), env, timeout, logPath)
+	exitCode, cause := run(ctx, command, projectDirIn(d.opts.Root, u.worktree), env, timeout, logPath)
 	elapsed := time.Since(start)
 	if cause == "" {
 		cause = movedHead(u.worktree, before, logPath)
@@ -119,6 +121,9 @@ func runSetupCommand(parent context.Context, command, dir string, env []string, 
 	runErr := cmd.Run()
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return nil, fmt.Sprintf("timed out after %ds", int(timeout.Seconds()))
+	}
+	if errors.Is(ctx.Err(), context.Canceled) {
+		return nil, "was interrupted"
 	}
 	var exitErr *exec.ExitError
 	switch {

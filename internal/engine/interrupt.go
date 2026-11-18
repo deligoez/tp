@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"syscall"
@@ -57,4 +58,38 @@ func (w *interrupts) signalled() bool {
 	default:
 	}
 	return w.seen
+}
+
+// context returns a context cancelled when either signal arrives while it is
+// live, and the function that ends it. It is the one wait the driver cuts short
+// on a signal: a worktree setup runs before any unit is spawned, so there is no
+// in-flight child to let finish. The arrival is put back on the channel before
+// the end function returns, so the loop's next signalled() still sees it.
+func (w *interrupts) context() (context.Context, func()) {
+	ctx, cancel := context.WithCancel(context.Background())
+	if w == nil {
+		return ctx, cancel
+	}
+	if w.seen {
+		cancel()
+		return ctx, cancel
+	}
+	done, exited := make(chan struct{}), make(chan struct{})
+	go func() {
+		defer close(exited)
+		select {
+		case s := <-w.ch:
+			select {
+			case w.ch <- s:
+			default:
+			}
+			cancel()
+		case <-done:
+		}
+	}()
+	return ctx, func() {
+		close(done)
+		<-exited
+		cancel()
+	}
 }
