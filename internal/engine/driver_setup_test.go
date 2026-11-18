@@ -322,3 +322,41 @@ func TestRunDriver_WorktreeSetupRunsInTheProjectSubdirectory(t *testing.T) {
 		"the setup runs in the worktree's project directory: %s", lines[0])
 	assert.Equal(t, CanonicalPath(root), CanonicalPath(lines[1]), "TP_MAIN_ROOT is the project directory")
 }
+
+// TestRunDriver_ASignalDuringAWorktreeSetupStopsWithInterrupted: SIGINT or
+// SIGTERM while a setup runs cuts the setup short and stops the run with
+// interrupted, not worktree-setup-failed: the setup did not fail, the operator
+// stopped the run. The batch is unwound all the same.
+func TestRunDriver_ASignalDuringAWorktreeSetupStopsWithInterrupted(t *testing.T) {
+	for _, sig := range driverSignalCases {
+		t.Run(sig.String(), func(t *testing.T) {
+			guardSignal(t, sig)
+			probe := t.TempDir()
+			t.Setenv("TP_SETUP_PROBE", probe)
+			root, spec, taskFile, records := setupBatchProject(t, `touch "$TP_SETUP_PROBE/started"; sleep 30`)
+
+			type outcome struct {
+				res DriverResult
+				err error
+			}
+			done := make(chan outcome, 1)
+			start := time.Now()
+			go func() {
+				res, err := driveSetupBatch(t, root, spec, taskFile)
+				done <- outcome{res, err}
+			}()
+			require.Eventually(t, func() bool {
+				_, err := os.Stat(filepath.Join(probe, "started"))
+				return err == nil
+			}, 20*time.Second, 20*time.Millisecond, "the setup started")
+			signalSelf(t, sig)
+			o := <-done
+
+			require.NoError(t, o.err)
+			assert.Equal(t, StopInterrupted, o.res.StopReason)
+			assert.Nil(t, o.res.WorktreeSetup, "no setup failed")
+			assert.Less(t, time.Since(start), 20*time.Second, "the signal cut the setup short")
+			assertBatchUnwound(t, root, taskFile, records)
+		})
+	}
+}
