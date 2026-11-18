@@ -112,7 +112,7 @@ func TestCloseRecipeText_FullSuiteOnlyThroughTPGate(t *testing.T) {
 	for _, want := range []string{
 		"run the targeted package tests your change needs directly",
 		"a full suite only through tp gate",
-		"not again on the committed tree tp gate just passed",
+		"inside tp run, not again on the committed tree tp gate just passed",
 	} {
 		assert.Contains(t, got, want)
 	}
@@ -151,6 +151,7 @@ func TestWorktreeCloseRecipeText(t *testing.T) {
 		"touches: internal/x.go",
 		"run the targeted package tests your change needs directly",
 		"a full suite only through tp gate",
+		"inside tp run, not again on a clean tree tp gate just passed",
 		"quality_gate (tp done runs it in this worktree): go test ./...",
 		"the task file",
 		"One line per acceptance criterion",
