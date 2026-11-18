@@ -247,3 +247,20 @@ func TestRunDriver_WorktreeSetupRunsUnderTheGateTimeout(t *testing.T) {
 	assert.Equal(t, []time.Duration{45 * time.Second, 45 * time.Second}, got,
 		"each setup gets gate_timeout_seconds")
 }
+
+// TestRunDriver_AWorktreeSetupThatCommitsFails: a commit leaves the status
+// clean but moves HEAD, and the unit would then start from a tree the driver
+// never chose, so the setup fails and the batch is unwound.
+func TestRunDriver_AWorktreeSetupThatCommitsFails(t *testing.T) {
+	root, spec, taskFile, records := setupBatchProject(t,
+		`git -c user.name=setup -c user.email=setup@example.com commit -q --allow-empty -m setup`)
+
+	res, err := driveSetupBatch(t, root, spec, taskFile)
+	require.NoError(t, err)
+	assert.Equal(t, StopWorktreeSetupFailed, res.StopReason)
+	require.NotNil(t, res.WorktreeSetup)
+	log, readErr := os.ReadFile(res.WorktreeSetup.LogPath)
+	require.NoError(t, readErr)
+	assert.Contains(t, string(log), "HEAD", "the log names what moved")
+	assertBatchUnwound(t, root, taskFile, records)
+}
