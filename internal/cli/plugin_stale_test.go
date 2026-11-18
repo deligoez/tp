@@ -39,15 +39,15 @@ func TestPluginStaleNotice_SilentUnlessProvablyStale(t *testing.T) {
 	broken := pluginRootWith(t, `{not json`)
 	old := pluginRootWith(t, `{"name":"tp","version":"1.16.1"}`)
 	cases := map[string]struct{ binary, root string }{
-		"same version":       {"v1.23.0", current},
-		"plugin newer":       {"v1.23.0", newer},
-		"another plugin":     {"v1.23.0", other},
-		"unreadable":         {"v1.23.0", broken},
-		"no plugin root":     {"v1.23.0", ""},
-		"missing manifest":   {"v1.23.0", t.TempDir()},
-		"dev build":          {"dev", old},
-		"pseudo-version":     {"v1.23.1-0.20261118093420-104822c4904b", old},
-		"dirty build":        {"v1.23.0+dirty", old},
+		"same version":     {"v1.23.0", current},
+		"plugin newer":     {"v1.23.0", newer},
+		"another plugin":   {"v1.23.0", other},
+		"unreadable":       {"v1.23.0", broken},
+		"no plugin root":   {"v1.23.0", ""},
+		"missing manifest": {"v1.23.0", t.TempDir()},
+		"dev build":        {"dev", old},
+		"pseudo-version":   {"v1.23.1-0.20261118093420-104822c4904b", old},
+		"dirty build":      {"v1.23.0+dirty", old},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
