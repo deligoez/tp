@@ -313,6 +313,19 @@ func runSetBulk() error {
 }
 
 func applyField(task *model.Task, field, value string) error {
+	if dst := listField(task, field); dst != nil {
+		var v []string
+		if err := json.Unmarshal([]byte(value), &v); err != nil {
+			return fmt.Errorf("invalid JSON array: %s", value)
+		}
+		if field == "touches" {
+			if err := engine.ValidTouches(v); err != nil {
+				return err
+			}
+		}
+		*dst = v
+		return nil
+	}
 	switch field {
 	case "title":
 		task.Title = value
@@ -326,39 +339,27 @@ func applyField(task *model.Task, field, value string) error {
 			return fmt.Errorf("invalid integer: %s", value)
 		}
 		task.EstimateMinutes = v
-	case "tags":
-		var v []string
-		if err := json.Unmarshal([]byte(value), &v); err != nil {
-			return fmt.Errorf("invalid JSON array: %s", value)
-		}
-		task.Tags = v
-	case "depends_on":
-		var v []string
-		if err := json.Unmarshal([]byte(value), &v); err != nil {
-			return fmt.Errorf("invalid JSON array: %s", value)
-		}
-		task.DependsOn = v
-	case "source_sections":
-		var v []string
-		if err := json.Unmarshal([]byte(value), &v); err != nil {
-			return fmt.Errorf("invalid JSON array: %s", value)
-		}
-		task.SourceSections = v
-	case "touches":
-		var v []string
-		if err := json.Unmarshal([]byte(value), &v); err != nil {
-			return fmt.Errorf("invalid JSON array: %s", value)
-		}
-		if err := engine.ValidTouches(v); err != nil {
-			return err
-		}
-		task.Touches = v
 	case "source_lines":
 		task.SourceLines = value
 	case "waiting":
 		task.Waiting = value
 	default:
 		return fmt.Errorf("unknown field: %s", field)
+	}
+	return nil
+}
+
+// listField returns the task's JSON-array field tp set writes, or nil.
+func listField(task *model.Task, field string) *[]string {
+	switch field {
+	case "tags":
+		return &task.Tags
+	case "depends_on":
+		return &task.DependsOn
+	case "source_sections":
+		return &task.SourceSections
+	case "touches":
+		return &task.Touches
 	}
 	return nil
 }
