@@ -67,6 +67,10 @@ type RunUnitRow struct {
 	DurationSeconds *float64 `json:"duration_seconds"`
 	SpendUSD        *float64 `json:"spend_usd"`
 	LogPath         string   `json:"log_path"`
+	// Worktree is where a pooled implement unit runs, or "" for the main
+	// tree: an outside reader takes a row open with a worktree, under a live
+	// run, as a unit the pool is running (spec/backlog/rolling-implement.md §2).
+	Worktree string `json:"worktree,omitempty"`
 }
 
 // RunStatePath returns a cycle's run state file, .tp/run-<key>.json under the

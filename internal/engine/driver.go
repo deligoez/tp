@@ -543,7 +543,7 @@ func (d *driver) prepare(res *ResumeResult, units []NextUnit, attempt int) ([]*u
 			return nil, driverErrorf(err, "prepare %s unit %q", a.unit.Kind, a.unit.ID)
 		}
 		if err := d.rec.StartUnit(&RunUnitRow{
-			Seq: a.seq, Kind: a.unit.Kind, ID: a.unit.ID, Attempt: attempt, LogPath: a.logPath,
+			Seq: a.seq, Kind: a.unit.Kind, ID: a.unit.ID, Attempt: attempt, LogPath: a.logPath, Worktree: a.dir,
 		}); err != nil {
 			return nil, driverErrorf(err, "record the start of %s unit %q", a.unit.Kind, a.unit.ID)
 		}
