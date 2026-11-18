@@ -17,11 +17,14 @@ const runBufferSize = 64 * 1024
 
 // RunResult is the outcome of RunCommand.
 type RunResult struct {
-	Passed     bool
-	ExitCode   *int // process exit code; nil when the run timed out
-	TimedOut   bool
-	Message    string   // "timed out after <N>s" on timeout, start error otherwise
-	OutputTail []string // last tailLines lines of combined stdout+stderr
+	Passed   bool
+	ExitCode *int // process exit code; nil when the run timed out
+	TimedOut bool
+	// Interrupted: the caller's context ended the run (RunGateCommand), a
+	// signal to tp, before the command finished.
+	Interrupted bool
+	Message     string   // "timed out after <N>s" on timeout, start error otherwise
+	OutputTail  []string // last tailLines lines of combined stdout+stderr
 }
 
 // tailBuffer is a bounded io.Writer keeping the most recent max bytes.
@@ -87,9 +90,14 @@ const gateWaitDelay = time.Second
 // wait for a descendant that left the group and keeps the pipe open. So the
 // call returns when the gate is done, and the slot frees then, not when the
 // last descendant closes the pipe; nothing the gate started runs on outside
-// the cap. The command never sees the run's slot variables (gateEnv).
-func RunGateCommand(command, dir string, env []string, timeout time.Duration, tailLines int) RunResult {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+// the cap. The command never sees the run's slot variables (gateEnv). parent
+// ending (tp caught a signal) kills the group as the timeout does, and the
+// result says Interrupted.
+func RunGateCommand(parent context.Context, command, dir string, env []string, timeout time.Duration, tailLines int) RunResult {
+	if parent.Err() != nil {
+		return RunResult{Interrupted: true, Message: "interrupted before the gate started"}
+	}
+	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
 	cmd, buf := shellCommand(ctx, command, dir, gateEnv(env))
 	setupProcessGroup(cmd)
@@ -99,6 +107,9 @@ func RunGateCommand(command, dir string, env []string, timeout time.Duration, ta
 	if errors.Is(err, exec.ErrWaitDelay) {
 		// The command itself exited 0; only a descendant held the pipe.
 		err = nil
+	}
+	if parent.Err() != nil {
+		return RunResult{Interrupted: true, Message: "interrupted while the gate ran", OutputTail: buf.tail(tailLines)}
 	}
 	return commandResult(ctx, err, buf, timeout, tailLines)
 }
