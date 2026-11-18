@@ -116,7 +116,7 @@ items are in `spec/1.3.0-measurements.md`.
    implementing commit, for every tp call including review and audit; never the lagging PATH release.
 9. **Operator decisions are never the agent's own**: `--skip-gate`, `tp import --force`, raising
    `review_max_rounds`/`audit_max_rounds` (default 3; an explicit 0 is uncapped) or any `run_max_*`,
-   `audit_converge_on: blocking`, changing `quality_gate`, accepting a critical/high review finding
+   `audit_converge_on: blocking`, changing `quality_gate`, setting or changing `worktree_setup_cmd`, accepting a critical/high review finding
    or any audit finding without a change (`accept-finding`), `--force` over an unrecorded
    emission or `tp epic review --discard` (`discard-emission`), granting a stale epic review slice one round past its cap
    (`tp epic review <slice> --grant-round`, `grant-round`), and an epoch whose cut holds an unresolved
