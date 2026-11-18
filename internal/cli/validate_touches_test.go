@@ -22,4 +22,5 @@ func TestValidate_WarnsOnATaskWithoutTouchesUnderParallel(t *testing.T) {
 	stdout, stderr, code = runTP(t, dir, "validate")
 	require.Equal(t, 0, code, stderr)
 	assert.Contains(t, stdout, "1 open task has no touches, so it runs beside other tasks unscreened, and on a clash the later unit to integrate is discarded and rerun alone (run_max_parallel 2): seed")
+	assert.Contains(t, stdout, "worktree_setup_cmd", "the warning names the way past a worktree without ignored files")
 }

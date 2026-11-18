@@ -36,6 +36,7 @@ func TestRunDryRun_SaysABatchRunsInFreshCheckouts(t *testing.T) {
 	require.Equal(t, 0, code, stderr)
 	assert.Contains(t, stdout, `"brief_command": "tp brief grow"`)
 	assert.Contains(t, stderr, "fresh worktree of HEAD, without ignored files")
+	assert.Contains(t, stderr, "worktree_setup_cmd", "the notice names the way to prepare them")
 }
 
 // TestRunCommand_DrivesAnImplementBatch: under run_max_parallel 2, tp run
