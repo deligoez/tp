@@ -54,3 +54,27 @@ func TestWorktreeSetupCmd_UnattendedFenceRefusesIt(t *testing.T) {
 		assert.Contains(t, stdout+stderr, "TP_UNATTENDED", "the refusal names the fence: %v", args)
 	}
 }
+
+// tp config --extract never hoists worktree_setup_cmd: a value a unit wrote
+// into task files' workflow blocks must not reach the one layer the driver
+// reads it from, attended or not.
+func TestWorktreeSetupCmd_ConfigExtractDoesNotHoistIt(t *testing.T) {
+	t.Parallel()
+	for _, unattended := range []bool{false, true} {
+		dir, err := filepath.EvalSymlinks(t.TempDir())
+		require.NoError(t, err)
+		require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+		for _, base := range []string{"a", "b"} {
+			require.NoError(t, os.WriteFile(filepath.Join(dir, base+".md"), []byte("# S\n\n## 1. Setup\n\nDo it.\n"), 0o600))
+			require.NoError(t, os.WriteFile(filepath.Join(dir, base+".tasks.json"),
+				[]byte(`{"version":1,"spec":"`+base+`.md","tasks":[],"workflow":{"worktree_setup_cmd":"touch stray","gate_timeout_seconds":120}}`), 0o600))
+		}
+
+		_, stderr, code := runTPFence(t, dir, unattended, "config", "--extract")
+		require.Equal(t, 0, code, "config --extract (unattended %v): %s", unattended, stderr)
+		cfg, err := os.ReadFile(filepath.Join(dir, ".tp", "config.json"))
+		require.NoError(t, err)
+		assert.Contains(t, string(cfg), "gate_timeout_seconds", "the hoist ran")
+		assert.NotContains(t, string(cfg), "worktree_setup_cmd", "the command is not hoisted (unattended %v)", unattended)
+	}
+}
