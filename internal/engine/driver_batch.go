@@ -116,7 +116,9 @@ func WorktreeBase(root string) string {
 	return filepath.Join(os.TempDir(), "tp-worktrees", hex.EncodeToString(sum[:])[:16])
 }
 
-// integratePending integrates the cycle's pending closes one at a time.
+// integratePending integrates the cycle's pending closes one at a time. A
+// pick a dead driver left half done goes first, whatever its id: its recorded
+// start is HEAD only while nothing else has been picked since.
 func (d *driver) integratePending() error {
 	pending, err := ReadPendingCloses(d.opts.Root, d.opts.TaskFile)
 	if err != nil {
@@ -126,12 +128,23 @@ func (d *driver) integratePending() error {
 	if err != nil {
 		return driverErrorf(err, "read the task file")
 	}
+	slices.SortStableFunc(pending, func(a, b PendingClose) int {
+		return boolOrder(a.PickedOnto == "") - boolOrder(b.PickedOnto == "")
+	})
 	for i := range pending {
 		if err := d.integrateOne(tf, &pending[i]); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// boolOrder sorts false before true.
+func boolOrder(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }
 
 // integrateOne picks one unit's commits onto the main branch, gates and closes
