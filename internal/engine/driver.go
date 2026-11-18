@@ -113,6 +113,9 @@ type driver struct {
 	// trees is the rolling implement pool's worktrees, keyed by task id, or
 	// nil when the iteration runs no pool.
 	trees map[string]unitTree
+	// orphans are the units the previous, dead run left live (liveUnits),
+	// read from its run state before this run's replaces it.
+	orphans []liveUnit
 }
 
 // RunDriver executes §3.1's loop and returns the reason it stopped.
@@ -145,6 +148,11 @@ func RunDriver(o *DriverOptions) (DriverResult, error) {
 	if err := os.MkdirAll(RunDir(o.Root, runID), 0o750); err != nil {
 		return result, driverErrorf(err, "create run directory")
 	}
+	// The dead run's state is read before this run's replaces it: it is what
+	// names the units that run left live. An absent or unreadable one names
+	// none.
+	dead, _ := ReadRunState(o.Root, o.TaskFile) //nolint:errcheck // no state is no orphan
+	orphans := liveUnits(dead, o.TaskFile)
 	rec, err := NewRunRecorder(o.Root, o.TaskFile, runID, "")
 	if err != nil {
 		return result, driverErrorf(err, "create run state")
@@ -155,7 +163,7 @@ func RunDriver(o *DriverOptions) (DriverResult, error) {
 	// default disposition is the more honest answer.
 	sig := watchInterrupts()
 	defer sig.stop()
-	d := &driver{opts: o, runID: runID, rec: rec, sig: sig}
+	d := &driver{opts: o, runID: runID, rec: rec, sig: sig, orphans: orphans}
 	if err := d.reconcileUnits(); err != nil {
 		return d.fail(&result, err)
 	}

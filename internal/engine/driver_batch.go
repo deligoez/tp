@@ -413,10 +413,13 @@ func removeUnitWorktree(root, worktree, branch string) {
 // the dead run left still running is waited for first; a signal during that
 // wait leaves everything as it is, for the checkpoint to stop on.
 func (d *driver) reconcileUnits() error {
-	if !d.awaitLiveUnits() {
-		return nil
+	if waited, err := d.awaitLiveUnits(); err != nil || !waited {
+		return err
 	}
 	if err := d.integratePending(); err != nil {
+		return err
+	}
+	if err := d.leaveOrphans(); err != nil {
 		return err
 	}
 	list, err := gitOut(d.opts.Root, "worktree", "list", "--porcelain")

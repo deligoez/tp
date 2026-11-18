@@ -29,6 +29,13 @@ func lockUnitFile(path string) (*os.File, error) {
 	return f, nil
 }
 
+// processAlive reports whether pid names a running process. A process this
+// user may not signal (EPERM) exists, so it counts as alive.
+func processAlive(pid int) bool {
+	err := syscall.Kill(pid, 0)
+	return err == nil || errors.Is(err, syscall.EPERM)
+}
+
 // unitLockHeld reports whether some process holds a unit's lock. A file that
 // cannot be opened is a lock nobody holds.
 func unitLockHeld(path string) bool {
