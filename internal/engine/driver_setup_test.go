@@ -377,3 +377,30 @@ func TestRunDriver_ASetupFailureIsNamedWhenTheReleaseFailsToo(t *testing.T) {
 	assert.Equal(t, "alpha", res.WorktreeSetup.ID)
 	assert.FileExists(t, res.WorktreeSetup.LogPath)
 }
+
+// TestRunDriver_ATaskFileWorktreeSetupNeverRuns: the driver reads the command
+// from the project layer alone. A task file that names one, which tp validate
+// reports and tp import refuses, still runs nothing in any batch worktree.
+func TestRunDriver_ATaskFileWorktreeSetupNeverRuns(t *testing.T) {
+	probe := t.TempDir()
+	t.Setenv("TP_SETUP_PROBE", probe)
+	root, spec, taskFile, _ := setupBatchProject(t, "")
+	data, err := os.ReadFile(taskFile)
+	require.NoError(t, err)
+	var tf map[string]any
+	require.NoError(t, json.Unmarshal(data, &tf))
+	tf["workflow"].(map[string]any)["worktree_setup_cmd"] = `touch "$TP_SETUP_PROBE/ran"`
+	data, err = json.Marshal(tf)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(taskFile, data, 0o600))
+	gitIn(t, root, "commit", "-q", "-am", "a task-layer setup")
+	t.Setenv(fakerunner.EnvDurable, "1")
+
+	res, err := driveSetupBatch(t, root, spec, taskFile)
+	require.NoError(t, err)
+	assert.Equal(t, StopConverged, res.StopReason, "the batch ran")
+	assert.NoFileExists(t, filepath.Join(probe, "ran"), "the task-layer command never ran")
+	st, err := ReadRunState(root, taskFile)
+	require.NoError(t, err)
+	assert.Empty(t, st.Setups)
+}
