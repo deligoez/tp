@@ -22,12 +22,14 @@ func newRunCmd() *cobra.Command {
 as tp resume and discovers the same way when neither is given, then executes one
 iteration at a time: read the cycle state, stop if it is releasable, take
 next_units, spawn a runner process per unit — the role kinds together, and with
-run_max_parallel above 1 a batch of implement units side by side, each in its own
-git worktree; every other kind alone — re-read the state from disk, check caps,
-loop. The project layer's worktree_setup_cmd, when set, runs in each new batch
-worktree before its unit is spawned; a setup that fails, times out or leaves
-the worktree changed unwinds the batch and stops the run with
-worktree-setup-failed.
+run_max_parallel above 1 a pool of that many implement slots, each unit in its
+own git worktree; every other kind alone — re-read the state from disk, check caps,
+loop. The pool's slots roll: each unit is integrated on the main branch as soon
+as it exits and its slot refilled while the others run, and the caps are read
+before every spawn. The project layer's worktree_setup_cmd, when set, runs in
+each new pool worktree before its unit is spawned; a setup that fails, times out
+or leaves the worktree changed releases that unit, drains the pool and stops the
+run with worktree-setup-failed.
 
 A unit's result is whatever it wrote to disk. The driver reads a child's exit
 code and nothing else it said, and tp resume remains the single authority on
@@ -43,9 +45,10 @@ with it — is stripped.
 
 --dry-run reports the units the driver would execute next instead of driving
 them: the same reading of the cycle the loop opens each iteration with, and the
-same batch it would spawn, printed as tp resume's next_units. It spawns
+same units it would spawn, printed as tp resume's next_units. It spawns
 nothing, writes no run state and takes no run lock, so it is safe to point at a
-cycle another run is already driving.
+cycle another run is already driving; beside a live pool it lists no unit,
+names the pool's units under running_units and says so on stderr.
 
 A stop for any reason other than converged invokes the configured notify_cmd,
 exec'd without a shell and split on whitespace, carrying TP_STOP_REASON,
@@ -55,7 +58,7 @@ under notify; its own exit code changes nothing about the run.
 Output: {run_id, phase, stop_reason, units}
         notify: {cmd, exit_code, error} when a notify_cmd ran
         worktree_setup: {id, log_path} on worktree-setup-failed
-        --dry-run: {phase, round, next_units}`,
+        --dry-run: {phase, round, next_units, running_units}`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// The two read-only sub-modes are checked before the driving
