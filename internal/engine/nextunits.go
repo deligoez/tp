@@ -70,11 +70,11 @@ func BuildNextUnits(root, taskFilePath, specPath, phase string, tf *model.TaskFi
 		// Under run_max_parallel above 1 that task leads a batch of ready
 		// tasks with disjoint touches, each brief naming its own task
 		// (spec/backlog/parallel-implement.md §2.2).
-		ids := ImplementBatch(tf, implementMaxParallel(taskFilePath, tf))
+		ids := ImplementUnits(tf, implementMaxParallel(taskFilePath, tf))
 		for _, id := range ids {
 			units = append(units, newNextUnit(UnitImplement, id, target))
 		}
-		batchBriefs(units)
+		poolBriefs(units)
 	case PhaseDecompose:
 		units = append(units, newNextUnit(UnitDecompose, SpecBaseName(specPath), target))
 	case PhaseAudit:
@@ -298,7 +298,7 @@ func newNextUnit(kind UnitKind, id string, target UnitTarget) NextUnit {
 // An implement batch is the one exception: its units each run in a worktree of
 // their own, so no two of them write the same file.
 func soloIfNotConcurrent(units []NextUnit) []NextUnit {
-	if implementBatch(units) {
+	if implementPool(units) {
 		return units
 	}
 	for i := range units {

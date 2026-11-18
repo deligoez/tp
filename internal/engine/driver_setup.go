@@ -48,7 +48,7 @@ func worktreeSetupCmd(root string) (string, error) {
 // setupWorktree runs the setup command in one batch worktree, records its wall
 // time, and requires the worktree to be clean afterwards, untracked files
 // included, so only ignored files may have been written.
-func (d *driver) setupWorktree(command string, u batchUnit) error {
+func (d *driver) setupWorktree(command string, u unitTree) error {
 	logPath := filepath.Join(RunDir(d.opts.Root, d.runID), "setup-"+u.id+".log")
 	env := append(os.Environ(),
 		"TP_MAIN_ROOT="+d.opts.Root, EnvUnitID+"="+u.id, EnvUnattended+"=1")
@@ -199,8 +199,8 @@ func appendLog(logPath, text string) {
 // have left both — and every claimed task goes back to open. No attempt was
 // spent, so nothing is marked solo. A worktree still on disk afterwards is
 // reported rather than left for the next run to trip over.
-func (d *driver) unwindBatch(ids []string, added map[string]batchUnit, failed *batchUnit) error {
-	units := sortedBatch(added)
+func (d *driver) unwindBatch(ids []string, added map[string]unitTree, failed *unitTree) error {
+	units := sortedTrees(added)
 	if failed != nil {
 		units = append(units, *failed)
 	}

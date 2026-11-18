@@ -112,7 +112,7 @@ type driver struct {
 	sig *interrupts
 	// batch is the implement batch in flight, keyed by task id, or nil when
 	// the iteration runs no batch.
-	batch map[string]batchUnit
+	batch map[string]unitTree
 }
 
 // RunDriver executes §3.1's loop and returns the reason it stopped.
@@ -156,7 +156,7 @@ func RunDriver(o *DriverOptions) (DriverResult, error) {
 	sig := watchInterrupts()
 	defer sig.stop()
 	d := &driver{opts: o, runID: runID, rec: rec, sig: sig}
-	if err := d.reconcileBatches(); err != nil {
+	if err := d.reconcileUnits(); err != nil {
 		return d.fail(&result, err)
 	}
 
@@ -433,7 +433,7 @@ type iterationOutcome struct {
 // never got to use.
 func (d *driver) runIteration(res *ResumeResult) (iterationOutcome, error) {
 	units := concurrentBatch(res.NextUnits)
-	if !implementBatch(units) {
+	if !implementPool(units) {
 		return d.attemptUnits(res, units)
 	}
 	// An implement batch runs each unit in its own worktree, then integrates
@@ -655,7 +655,7 @@ func failureSummary(a *unitAttempt) string {
 // two writers of the same shared file from ever being spawned at once, which
 // is the failure no later check could undo.
 func concurrentBatch(units []NextUnit) []NextUnit {
-	if implementBatch(units) {
+	if implementPool(units) {
 		return units
 	}
 	for i := range units {

@@ -20,9 +20,9 @@ import (
 // finds one at start left it behind in a crash (spec/backlog/parallel-implement.md §2.6).
 const unitBranchPrefix = "tp-unit/"
 
-// BatchCheckoutNotice is what tp run --dry-run says before an implement
+// PoolCheckoutNotice is what tp run --dry-run says before an implement
 // batch: its units start from a fresh checkout and gate there (spec/backlog/parallel-implement.md §3).
-const BatchCheckoutNotice = "an implement batch runs each unit in a fresh worktree of HEAD, without ignored files (dependencies, .env, build output), and each unit runs the quality gate there before the driver gates it again on the main branch; if the units or the gate need those files, set worktree_setup_cmd at the project layer to prepare each worktree, or keep run_max_parallel at 1"
+const PoolCheckoutNotice = "an implement batch runs each unit in a fresh worktree of HEAD, without ignored files (dependencies, .env, build output), and each unit runs the quality gate there before the driver gates it again on the main branch; if the units or the gate need those files, set worktree_setup_cmd at the project layer to prepare each worktree, or keep run_max_parallel at 1"
 
 // CloseFunc closes a task on the main branch once its commits are picked
 // there: it runs the quality gate and records the close, as tp done does, and
@@ -41,15 +41,15 @@ func (e *CloseRefusedError) Error() string {
 	return fmt.Sprintf("tp done %s refused its own arguments (log: %s)", e.ID, e.LogPath)
 }
 
-// batchUnit is one unit of an implement batch: its worktree and branch.
-type batchUnit struct {
+// unitTree is one unit of an implement batch: its worktree and branch.
+type unitTree struct {
 	id, worktree, branch string
 }
 
 // startBatch claims the batch's tasks and adds a worktree per unit, outside
 // the repository, on a branch from the main branch's HEAD (§2.3), running the
 // project's worktree_setup_cmd in each (spec/backlog/worktree-setup.md).
-func (d *driver) startBatch(units []NextUnit) (map[string]batchUnit, error) {
+func (d *driver) startBatch(units []NextUnit) (map[string]unitTree, error) {
 	ids := make([]string, len(units))
 	for i := range units {
 		ids[i] = units[i].ID
@@ -70,11 +70,11 @@ func (d *driver) startBatch(units []NextUnit) (map[string]batchUnit, error) {
 // addBatchWorktrees adds each unit's worktree and runs the setup there, one
 // after another in batch order, before any unit is spawned. A failed add or a
 // failed setup unwinds the whole batch.
-func (d *driver) addBatchWorktrees(ids []string, setup string) (map[string]batchUnit, error) {
+func (d *driver) addBatchWorktrees(ids []string, setup string) (map[string]unitTree, error) {
 	base := filepath.Join(WorktreeBase(d.opts.Root), cycleTag(d.opts.Root, d.opts.TaskFile))
-	out := make(map[string]batchUnit, len(ids))
+	out := make(map[string]unitTree, len(ids))
 	for _, id := range ids {
-		u := batchUnit{
+		u := unitTree{
 			id:       id,
 			worktree: filepath.Join(base, d.runID, id),
 			branch:   unitBranch(d.opts.Root, d.opts.TaskFile, d.runID, id),
@@ -101,7 +101,7 @@ func (d *driver) addBatchWorktrees(ids []string, setup string) (map[string]batch
 // worktree runs the brief that names its task, any other its kind's brief.
 func (a *unitAttempt) prompt() string {
 	if a.dir != "" {
-		return briefPrompt(a.unit.Kind, BatchBriefCommand(a.unit.ID))
+		return briefPrompt(a.unit.Kind, PoolBriefCommand(a.unit.ID))
 	}
 	return UnitPrompt(a.unit.Kind, a.target)
 }
@@ -171,11 +171,11 @@ func WorktreeBase(root string) string {
 // then removes the batch's worktrees and branches (§2.4). A close the pick or
 // the gate refuses restores the main branch, reopens its task and marks it
 // solo; that is the batch's answer, not a driver error.
-func (d *driver) integrateBatch(units map[string]batchUnit) error {
+func (d *driver) integrateBatch(units map[string]unitTree) error {
 	if err := d.integratePending(); err != nil {
 		return err
 	}
-	for _, u := range sortedBatch(units) {
+	for _, u := range sortedTrees(units) {
 		// A request left for the next run, or a unit that never finished,
 		// keeps its branch, so its commits stay referenced.
 		if keptUnitBranch(d.opts.Root, d.opts.TaskFile, u.branch) {
@@ -464,19 +464,19 @@ func removeUnitWorktree(root, worktree, branch string) {
 	_, _ = gitOut(root, "branch", "-D", branch)
 }
 
-func sortedBatch(units map[string]batchUnit) []batchUnit {
-	out := make([]batchUnit, 0, len(units))
+func sortedTrees(units map[string]unitTree) []unitTree {
+	out := make([]unitTree, 0, len(units))
 	for _, u := range units {
 		out = append(out, u)
 	}
-	slices.SortFunc(out, func(a, b batchUnit) int { return strings.Compare(a.id, b.id) })
+	slices.SortFunc(out, func(a, b unitTree) int { return strings.Compare(a.id, b.id) })
 	return out
 }
 
-// reconcileBatches finishes what a crashed run left (§2.6): its pending closes
+// reconcileUnits finishes what a crashed run left (§2.6): its pending closes
 // are integrated, then every unit worktree and branch is removed. A task whose
 // unit never asked to close stays wip, and the oracle resumes it alone.
-func (d *driver) reconcileBatches() error {
+func (d *driver) reconcileUnits() error {
 	if err := d.integratePending(); err != nil {
 		return err
 	}

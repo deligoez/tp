@@ -24,9 +24,9 @@ func TestImplementBatch_TakesDisjointReadyTasksUpToTheCap(t *testing.T) {
 		batchTask("c", "internal/cli/"),
 		batchTask("d", "docs/"),
 	}}
-	assert.Equal(t, []string{"a", "c", "d"}, ImplementBatch(tf, 3))
-	assert.Equal(t, []string{"a", "c"}, ImplementBatch(tf, 2))
-	assert.Equal(t, []string{"a"}, ImplementBatch(tf, 1), "the default cap runs one at a time")
+	assert.Equal(t, []string{"a", "c", "d"}, ImplementUnits(tf, 3))
+	assert.Equal(t, []string{"a", "c"}, ImplementUnits(tf, 2))
+	assert.Equal(t, []string{"a"}, ImplementUnits(tf, 1), "the default cap runs one at a time")
 }
 
 // TestTouchesWarnings: under run_max_parallel above 1 each open task without
@@ -62,10 +62,10 @@ func TestTouchesWarnings_Boundaries(t *testing.T) {
 func TestImplementBatch_TouchesAreAHint(t *testing.T) {
 	t.Parallel()
 	noTouches := &model.TaskFile{Tasks: []model.Task{batchTask("a"), batchTask("c", "internal/cli/")}}
-	assert.Equal(t, []string{"a", "c"}, ImplementBatch(noTouches, 3))
+	assert.Equal(t, []string{"a", "c"}, ImplementUnits(noTouches, 3))
 
 	behind := &model.TaskFile{Tasks: []model.Task{batchTask("a", "x/"), batchTask("b"), batchTask("c", "x/y.go"), batchTask("d", "y/")}}
-	assert.Equal(t, []string{"a", "b", "d"}, ImplementBatch(behind, 3), "named touches still keep an overlapping task out")
+	assert.Equal(t, []string{"a", "b", "d"}, ImplementUnits(behind, 3), "named touches still keep an overlapping task out")
 }
 
 // TestImplementBatch_ASoloOrWIPOrUnsafeTaskRunsAlone: a task a failed
@@ -76,19 +76,19 @@ func TestImplementBatch_ASoloOrWIPOrUnsafeTaskRunsAlone(t *testing.T) {
 	solo := batchTask("a", "x/")
 	solo.Solo = true
 	soloFirst := &model.TaskFile{Tasks: []model.Task{solo, batchTask("c", "y/")}}
-	assert.Equal(t, []string{"a"}, ImplementBatch(soloFirst, 3))
+	assert.Equal(t, []string{"a"}, ImplementUnits(soloFirst, 3))
 	trailing := batchTask("z", "x/")
 	trailing.Solo = true
 	soloBehind := &model.TaskFile{Tasks: []model.Task{batchTask("c", "y/"), trailing}}
-	assert.Equal(t, []string{"c"}, ImplementBatch(soloBehind, 3), "a solo task never joins a batch")
+	assert.Equal(t, []string{"c"}, ImplementUnits(soloBehind, 3), "a solo task never joins a batch")
 
 	wip := batchTask("w", "x/")
 	wip.Status = model.StatusWIP
 	withWIP := &model.TaskFile{Tasks: []model.Task{batchTask("a", "y/"), wip}}
-	assert.Equal(t, []string{"w"}, ImplementBatch(withWIP, 3))
+	assert.Equal(t, []string{"w"}, ImplementUnits(withWIP, 3))
 
-	assert.Empty(t, ImplementBatch(&model.TaskFile{}, 3))
+	assert.Empty(t, ImplementUnits(&model.TaskFile{}, 3))
 
 	unsafe := &model.TaskFile{Tasks: []model.Task{batchTask("a", "x/"), batchTask("b/c", "y/"), batchTask("d..e", "z/"), batchTask("f.", "w/")}}
-	assert.Equal(t, []string{"a"}, ImplementBatch(unsafe, 3), "an id unsafe in a branch name or a path never joins a batch")
+	assert.Equal(t, []string{"a"}, ImplementUnits(unsafe, 3), "an id unsafe in a branch name or a path never joins a batch")
 }

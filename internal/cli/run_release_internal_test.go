@@ -23,8 +23,8 @@ func TestReleaseBatchFunc_PutsClaimedTasksBackToOpen(t *testing.T) {
  {"id":"b","title":"B","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"x","source_sections":["x"],"solo":true},
  {"id":"c","title":"C","status":"done","depends_on":[],"estimate_minutes":5,"acceptance":"x","source_sections":["x"],"closed_reason":"done"}]}`), 0o600))
 
-	require.NoError(t, claimBatchFunc(taskFile)([]string{"a", "b"}))
-	require.NoError(t, releaseBatchFunc(taskFile)([]string{"a", "b", "c"}))
+	require.NoError(t, claimTasksFunc(taskFile)([]string{"a", "b"}))
+	require.NoError(t, releaseTasksFunc(taskFile)([]string{"a", "b", "c"}))
 
 	tf, err := model.ReadTaskFile(taskFile)
 	require.NoError(t, err)

@@ -106,7 +106,7 @@ func AssembleResume(start, taskFilePath, specPath string, tf *model.TaskFile) (R
 	for i := range nextUnits {
 		nextUnits[i].BriefCommand = resumeBriefCommand(start, specPath, shown, &nextUnits[i])
 	}
-	batchBriefs(nextUnits)
+	poolBriefs(nextUnits)
 	if phase == PhaseImplement {
 		guidance = implementGuidance(guidance, tf, wf.RunMaxParallel, nextUnits)
 	}

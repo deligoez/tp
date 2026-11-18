@@ -94,9 +94,9 @@ func runRun(_ *cobra.Command, args []string) error {
 		Spec:         specPath,
 		Workflow:     engine.EffectiveWorkflowForTaskFile(taskFilePath),
 		CloseTask:    closeTaskFunc(root, taskFilePath),
-		ClaimTasks:   claimBatchFunc(taskFilePath),
+		ClaimTasks:   claimTasksFunc(taskFilePath),
 		ReopenSolo:   reopenSoloFunc(taskFilePath),
-		ReleaseTasks: releaseBatchFunc(taskFilePath),
+		ReleaseTasks: releaseTasksFunc(taskFilePath),
 	}
 
 	var result engine.DriverResult
@@ -200,7 +200,7 @@ func runRunDryRun(args []string) error {
 		return err
 	}
 	if len(units) > 1 && units[0].Kind == engine.UnitImplement {
-		output.Notice(engine.BatchCheckoutNotice)
+		output.Notice(engine.PoolCheckoutNotice)
 	}
 
 	// §4.1: the entries are tp resume's next_units, key for key, so an

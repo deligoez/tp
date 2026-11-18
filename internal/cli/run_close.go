@@ -12,10 +12,10 @@ import (
 	"github.com/deligoez/tp/internal/model"
 )
 
-// claimBatchFunc is how tp run claims an implement batch's tasks: open moves
+// claimTasksFunc is how tp run claims an implement batch's tasks: open moves
 // to wip under the task file's lock, and a task already wip (an interrupted
 // attempt) is left as it is.
-func claimBatchFunc(taskFile string) func(ids []string) error {
+func claimTasksFunc(taskFile string) func(ids []string) error {
 	return func(ids []string) error {
 		return engine.WithFileLock(taskFile, func() error {
 			tf, err := model.ReadTaskFile(taskFile)
@@ -40,11 +40,11 @@ func claimBatchFunc(taskFile string) func(ids []string) error {
 	}
 }
 
-// releaseBatchFunc is how tp run takes back a batch that failed to start, its
+// releaseTasksFunc is how tp run takes back a batch that failed to start, its
 // worktree add or setup refused (spec/backlog/worktree-setup.md §1): every
 // task still wip goes back to open as the claim found it. Solo is untouched,
 // since no attempt was spent.
-func releaseBatchFunc(taskFile string) func(ids []string) error {
+func releaseTasksFunc(taskFile string) func(ids []string) error {
 	return func(ids []string) error {
 		return engine.WithFileLock(taskFile, func() error {
 			tf, err := model.ReadTaskFile(taskFile)

@@ -155,7 +155,7 @@ func TestBuildNextUnits_ImplementAndDecomposeSubjects(t *testing.T) {
 }
 
 // TestBuildNextUnits_ImplementBatchUnderRunMaxParallel: with run_max_parallel
-// above 1, the implement phase returns the batch ImplementBatch picks, each
+// above 1, the implement phase returns the batch ImplementUnits picks, each
 // unit's brief naming its own task (spec/backlog/parallel-implement.md §2.2);
 // a batch of one keeps tp next's brief.
 func TestBuildNextUnits_ImplementBatchUnderRunMaxParallel(t *testing.T) {
