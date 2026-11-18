@@ -430,5 +430,13 @@ func validateConvergence(tf *model.TaskFile) []Finding {
 			findings = append(findings, Finding{Severity: "warning", Rule: "schema", Message: "workflow." + err.Error()})
 		}
 	}
+	// The driver reads worktree_setup_cmd from the project layer alone, so a
+	// task file's value is a command the operator believes runs and never
+	// does. It is an error, which tp import refuses as well, rather than a
+	// warning a unit could leave in place.
+	if tf.Workflow.WorktreeSetupCmd != nil {
+		findings = append(findings, Finding{Severity: "error", Rule: "schema",
+			Message: "workflow." + WorktreeSetupCmdField + " is read only from the project layer; move it to .tp/config.json"})
+	}
 	return findings
 }
