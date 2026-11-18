@@ -360,3 +360,20 @@ func TestRunDriver_ASignalDuringAWorktreeSetupStopsWithInterrupted(t *testing.T)
 		})
 	}
 }
+
+// TestRunDriver_ASetupFailureIsNamedWhenTheReleaseFailsToo: a failed setup
+// whose unwind cannot release the batch stops with driver-error, the more
+// urgent of the two, and the result still names the setup and its log.
+func TestRunDriver_ASetupFailureIsNamedWhenTheReleaseFailsToo(t *testing.T) {
+	root, spec, taskFile, _ := setupBatchProject(t, `exit 3`)
+
+	res, err := driveSetupBatch(t, root, spec, taskFile, func(o *DriverOptions) {
+		o.ReleaseTasks = func([]string) error { return errors.New("task file locked") }
+	})
+	var driverErr *DriverError
+	require.ErrorAs(t, err, &driverErr)
+	assert.Equal(t, StopDriverError, res.StopReason)
+	require.NotNil(t, res.WorktreeSetup, "the setup failure is named beside the driver error")
+	assert.Equal(t, "alpha", res.WorktreeSetup.ID)
+	assert.FileExists(t, res.WorktreeSetup.LogPath)
+}
