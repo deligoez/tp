@@ -12,13 +12,9 @@ import (
 	"github.com/deligoez/tp/internal/output"
 )
 
-func newRunCmd() *cobra.Command {
-	var statusMode, dryRunMode bool
-
-	cmd := &cobra.Command{
-		Use:   "run [spec]",
-		Short: "Drive the cycle unattended",
-		Long: `The unattended driver. It takes the same optional spec argument and --file flag
+// runLong is tp run's help text, kept outside newRunCmd so the command's
+// wiring stays readable as the text grows.
+const runLong = `The unattended driver. It takes the same optional spec argument and --file flag
 as tp resume and discovers the same way when neither is given, then executes one
 iteration at a time: read the cycle state, stop if it is releasable, take
 next_units, spawn a runner process per unit — the role kinds together, and with
@@ -58,8 +54,16 @@ under notify; its own exit code changes nothing about the run.
 Output: {run_id, phase, stop_reason, units}
         notify: {cmd, exit_code, error} when a notify_cmd ran
         worktree_setup: {id, log_path} on worktree-setup-failed
-        --dry-run: {phase, round, next_units, running_units}`,
-		Args: cobra.MaximumNArgs(1),
+        --dry-run: {phase, round, next_units, running_units}`
+
+func newRunCmd() *cobra.Command {
+	var statusMode, dryRunMode bool
+
+	cmd := &cobra.Command{
+		Use:   "run [spec]",
+		Short: "Drive the cycle unattended",
+		Long:  runLong,
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// The two read-only sub-modes are checked before the driving
 			// one, --status first. Neither spawns, writes or locks
