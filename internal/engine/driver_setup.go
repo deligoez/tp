@@ -12,10 +12,10 @@ import (
 	"time"
 )
 
-// WorktreeSetupError is a batch start that failed in a worktree's setup: the
+// WorktreeSetupError is a unit start that failed in its worktree's setup: the
 // command exited non-zero, timed out or left the worktree dirty
 // (spec/backlog/worktree-setup.md §1). The run stops on it with
-// worktree-setup-failed, after the batch is unwound.
+// worktree-setup-failed, after the unit is released and the pool drained.
 type WorktreeSetupError struct {
 	ID, LogPath, Cause string
 }
@@ -25,10 +25,10 @@ func (e *WorktreeSetupError) Error() string {
 }
 
 // worktreeSetupCmd reads worktree_setup_cmd from the main tree's project layer
-// as the batch starts. No other layer is consulted: a task file's workflow
+// as the pool starts. No other layer is consulted: a task file's workflow
 // block cannot name a command the driver runs. A value that is not a string
 // is an error rather than the warning other fields get: read as unset, it
-// would start a batch the operator meant to prepare.
+// would start a pool the operator meant to prepare.
 func worktreeSetupCmd(root string) (string, error) {
 	pc, warnings, err := LoadProjectConfig(ProjectConfigDir(root))
 	if err != nil {
@@ -45,7 +45,7 @@ func worktreeSetupCmd(root string) (string, error) {
 	return strings.TrimSpace(*pc.Workflow.WorktreeSetupCmd), nil
 }
 
-// setupWorktree runs the setup command in one batch worktree, records its wall
+// setupWorktree runs the setup command in one pool worktree, records its wall
 // time, and requires the worktree to be clean afterwards, untracked files
 // included, so only ignored files may have been written.
 func (d *driver) setupWorktree(command string, u unitTree) error {
@@ -138,8 +138,8 @@ func runSetupCommand(parent context.Context, command, dir string, env []string, 
 	}
 }
 
-// worktreeHead is what HEAD names in a batch worktree: its commit and the
-// branch it is on. A batch worktree is always on its unit's branch.
+// worktreeHead is what HEAD names in a pool worktree: its commit and the
+// branch it is on. A pool worktree is always on its unit's branch.
 func worktreeHead(worktree string) (string, error) {
 	commit, err := gitOut(worktree, "rev-parse", "HEAD")
 	if err != nil {

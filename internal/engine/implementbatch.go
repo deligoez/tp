@@ -95,7 +95,7 @@ func allImplement(units []NextUnit) bool {
 }
 
 // TouchesWarnings names each open task without touches when maxParallel is
-// above 1: such a task joins a batch unscreened, so a clash with a sibling
+// above 1: such a task joins a pool unscreened, so a clash with a sibling
 // discards the later unit to integrate and reruns it alone (tp validate's
 // touches rule).
 func TouchesWarnings(tf *model.TaskFile, maxParallel int) []Finding {
@@ -118,7 +118,7 @@ func TouchesWarnings(tf *model.TaskFile, maxParallel int) []Finding {
 		subject = "1 open task has no touches, so it runs"
 	}
 	return []Finding{{Severity: "warning", Rule: "touches", Message: fmt.Sprintf(
-		`%s beside other tasks unscreened, and on a clash the later unit to integrate is discarded and rerun alone (run_max_parallel %d): %s; set each with tp set <id> 'touches=["path/to/file.go","dir/**"]'; a batch worktree starts without ignored files, which the operator's worktree_setup_cmd can prepare`,
+		`%s beside other tasks unscreened, and on a clash the later unit to integrate is discarded and rerun alone (run_max_parallel %d): %s; set each with tp set <id> 'touches=["path/to/file.go","dir/**"]'; a pool worktree starts without ignored files, which the operator's worktree_setup_cmd can prepare`,
 		subject, maxParallel, strings.Join(ids, ", "))}}
 }
 
@@ -140,7 +140,7 @@ func poolable(t *model.Task) bool {
 	return !t.Solo && poolSafeID(t.ID)
 }
 
-// poolSafeIDRe is the id a batch can carry into a branch name, a worktree
+// poolSafeIDRe is the id a pool can carry into a branch name, a worktree
 // path and a pending close's file name unescaped.
 var poolSafeIDRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 
@@ -151,7 +151,7 @@ func poolSafeID(id string) bool {
 		!strings.HasSuffix(id, ".lock") && !strings.HasSuffix(id, ".")
 }
 
-// disjointFromAll reports whether t's touches overlap no batch member's;
+// disjointFromAll reports whether t's touches overlap no pool member's;
 // only touches both tasks name can be compared, so a task without them is
 // disjoint from every other.
 func disjointFromAll(t *model.Task, batch []*model.Task) bool {

@@ -100,7 +100,7 @@ func computeCommonPolicy(overrides []model.WorkflowOverride) model.WorkflowOverr
 	common.RunMaxParallel = commonPtr(overrides, func(o *model.WorkflowOverride) *int { return o.RunMaxParallel })
 	// worktree_setup_cmd is deliberately NOT hoisted: the driver reads it
 	// from the project layer alone, and a hoist would let a value written
-	// into task files reach the command every batch worktree runs
+	// into task files reach the command every pool worktree runs
 	// (spec/backlog/worktree-setup.md §1).
 	common.RunMaxBudgetUSD = commonPtr(overrides, func(o *model.WorkflowOverride) *float64 { return o.RunMaxBudgetUSD })
 	common.RunMaxUnitBudgetUSD = commonPtr(overrides, func(o *model.WorkflowOverride) *float64 { return o.RunMaxUnitBudgetUSD })

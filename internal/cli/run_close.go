@@ -12,7 +12,7 @@ import (
 	"github.com/deligoez/tp/internal/model"
 )
 
-// claimTasksFunc is how tp run claims an implement batch's tasks: open moves
+// claimTasksFunc is how tp run claims an implement pool's tasks: open moves
 // to wip under the task file's lock, and a task already wip (an interrupted
 // attempt) is left as it is.
 func claimTasksFunc(taskFile string) func(ids []string) error {

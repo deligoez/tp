@@ -30,7 +30,7 @@ func globsOverlap(a, b string) bool {
 }
 
 // TouchesOverlap reports whether two tasks' touches may name a common path. An
-// empty side overlaps everything; an implement batch, which treats touches as a
+// empty side overlaps everything; an implement pool, which treats touches as a
 // hint, skips empty sides before asking (disjointFromAll).
 func TouchesOverlap(a, b []string) bool {
 	if len(a) == 0 || len(b) == 0 {

@@ -40,7 +40,7 @@ func TestWorktreeSetupCmd_ProjectSetterWritesIt(t *testing.T) {
 }
 
 // §1: under TP_UNATTENDED a unit cannot set or change the command the driver
-// runs in every batch worktree, at either layer.
+// runs in every pool worktree, at either layer.
 func TestWorktreeSetupCmd_UnattendedFenceRefusesIt(t *testing.T) {
 	t.Parallel()
 	dir := setupProject(t)

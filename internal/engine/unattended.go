@@ -68,7 +68,7 @@ func FencedCommandField(field string) bool {
 	return field == "runner" || field == "notify_cmd" || field == WorktreeSetupCmdField
 }
 
-// WorktreeSetupCmdField is the command tp run runs in each new batch worktree
+// WorktreeSetupCmdField is the command tp run runs in each new pool worktree
 // (spec/backlog/worktree-setup.md). It is read from the project layer only.
 const WorktreeSetupCmdField = "worktree_setup_cmd"
 

@@ -40,7 +40,7 @@ func TestTouchesWarnings(t *testing.T) {
 	got := TouchesWarnings(tf, 3)
 	require.Len(t, got, 1, "one finding names every such task")
 	assert.Equal(t, Finding{Severity: "warning", Rule: "touches",
-		Message: `2 open tasks have no touches, so they run beside other tasks unscreened, and on a clash the later unit to integrate is discarded and rerun alone (run_max_parallel 3): a, c; set each with tp set <id> 'touches=["path/to/file.go","dir/**"]'; a batch worktree starts without ignored files, which the operator's worktree_setup_cmd can prepare`}, got[0])
+		Message: `2 open tasks have no touches, so they run beside other tasks unscreened, and on a clash the later unit to integrate is discarded and rerun alone (run_max_parallel 3): a, c; set each with tp set <id> 'touches=["path/to/file.go","dir/**"]'; a pool worktree starts without ignored files, which the operator's worktree_setup_cmd can prepare`}, got[0])
 }
 
 // TestTouchesWarnings_Boundaries: the rule starts at run_max_parallel 2, says

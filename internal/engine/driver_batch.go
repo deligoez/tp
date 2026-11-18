@@ -16,13 +16,13 @@ import (
 	"github.com/deligoez/tp/internal/output"
 )
 
-// unitBranchPrefix names the branches a batch's worktrees are on. A run that
+// unitBranchPrefix names the branches a pool's worktrees are on. A run that
 // finds one at start left it behind in a crash (spec/backlog/parallel-implement.md §2.6).
 const unitBranchPrefix = "tp-unit/"
 
 // PoolCheckoutNotice is what tp run --dry-run says before an implement
 // batch: its units start from a fresh checkout and gate there (spec/backlog/parallel-implement.md §3).
-const PoolCheckoutNotice = "an implement batch runs each unit in a fresh worktree of HEAD, without ignored files (dependencies, .env, build output), and each unit runs the quality gate there before the driver gates it again on the main branch; if the units or the gate need those files, set worktree_setup_cmd at the project layer to prepare each worktree, or keep run_max_parallel at 1"
+const PoolCheckoutNotice = "an implement pool runs each unit in a fresh worktree of HEAD, without ignored files (dependencies, .env, build output), and each unit runs the quality gate there before the driver gates it again on the main branch; if the units or the gate need those files, set worktree_setup_cmd at the project layer to prepare each worktree, or keep run_max_parallel at 1"
 
 // CloseFunc closes a task on the main branch once its commits are picked
 // there: it runs the quality gate and records the close, as tp done does, and
@@ -41,7 +41,7 @@ func (e *CloseRefusedError) Error() string {
 	return fmt.Sprintf("tp done %s refused its own arguments (log: %s)", e.ID, e.LogPath)
 }
 
-// unitTree is one unit of an implement batch: its worktree and branch.
+// unitTree is one unit of an implement pool: its worktree and branch.
 type unitTree struct {
 	id, worktree, branch string
 }
@@ -90,7 +90,7 @@ func keptUnitBranch(root, taskFile, branch string) bool {
 	return err == nil && task.Status != model.StatusDone
 }
 
-// CycleUnitBranches lists the unit branches the task file's batches left that
+// CycleUnitBranches lists the unit branches the task file's pools left that
 // still hold unfinished work: a pending request, or a task not yet done
 // (tp resume's unit_branches). A branch whose task is done is deleted by the
 // next tp run and not listed.
@@ -310,7 +310,7 @@ func (d *driver) deferUnit(p *PendingClose, pre string) error {
 // main branch, records why for the unit that redoes it, and reopens the task
 // to run alone.
 func (d *driver) discardUnit(id, pre string, cause error, logPath string) error {
-	// --keep, not --hard: the task file's uncommitted closes of the batch's
+	// --keep, not --hard: the task file's uncommitted closes of the pool's
 	// earlier units must survive, and a unit's commits never touch it
 	// (CheckUnitCommits).
 	if _, err := gitOut(d.opts.Root, "reset", "-q", "--keep", pre); err != nil {
@@ -403,7 +403,7 @@ func (d *driver) reconcileUnits() error {
 	}
 	list, err := gitOut(d.opts.Root, "worktree", "list", "--porcelain")
 	if err != nil {
-		return nil //nolint:nilerr // not a git tree: nothing a batch could have left
+		return nil //nolint:nilerr // not a git tree: nothing a pool could have left
 	}
 	own := unitBranchPrefix + cycleTag(d.opts.Root, d.opts.TaskFile) + "/"
 	var worktree string

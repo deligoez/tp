@@ -40,11 +40,11 @@ type ResumeResult struct {
 	LastFailure *LastFailure       `json:"last_failure"`
 	NextAction  NextAction         `json:"next_action"`
 	Blockers    []Blocker          `json:"blockers"`
-	// PendingCloses names the tasks whose batched unit asked to close and
+	// PendingCloses names the tasks whose pooled unit asked to close and
 	// no run has integrated yet: a crash leaves them, and the next tp run
 	// integrates them first (spec/backlog/parallel-implement.md §2.6).
 	PendingCloses []string `json:"pending_closes,omitempty"`
-	// UnitBranches names the branches an unfinished batched unit left: its
+	// UnitBranches names the branches an unfinished pooled unit left: its
 	// work, kept until its task is done (spec/backlog/parallel-implement.md).
 	UnitBranches []string `json:"unit_branches,omitempty"`
 	// RunningUnits names the implement units a live run's rolling pool runs

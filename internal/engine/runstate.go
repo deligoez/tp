@@ -25,7 +25,7 @@ type RunState struct {
 	StopReason *StopReason  `json:"stop_reason"`
 	Totals     RunTotals    `json:"totals"`
 	Units      []RunUnitRow `json:"units"`
-	// Setups are the worktree setups the run's implement batches ran
+	// Setups are the worktree setups the run's implement pools ran
 	// (spec/backlog/worktree-setup.md). They are not unit attempts: no seq,
 	// and neither the unit count nor the spend counts them. Their time is
 	// inside the run's elapsed time, so the wall clock and its cap do.
@@ -33,7 +33,7 @@ type RunState struct {
 	Setups []RunSetupRow `json:"setups,omitempty"`
 }
 
-// RunSetupRow is one worktree_setup_cmd run in one batch worktree. ExitCode is
+// RunSetupRow is one worktree_setup_cmd run in one pool worktree. ExitCode is
 // null when the command timed out, was interrupted or never started.
 type RunSetupRow struct {
 	ID              string  `json:"id"`

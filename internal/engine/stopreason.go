@@ -39,7 +39,7 @@ const (
 	// a runner that will not exec, a run directory it cannot write. It is
 	// deliberately not charged to the unit as a failed attempt.
 	StopDriverError StopReason = "driver-error"
-	// StopWorktreeSetupFailed is an implement batch whose worktree_setup_cmd
+	// StopWorktreeSetupFailed is an implement pool whose worktree_setup_cmd
 	// failed, timed out or left the worktree dirty before any unit was
 	// spawned (spec/backlog/worktree-setup.md). The batch is unwound and no
 	// attempt is spent. A failed git worktree add unwinds the same way but

@@ -31,9 +31,9 @@ const (
 	RunMaxUnitRetriesMin     = 0
 	RunMaxUnitRetriesMax     = 5
 
-	// run_max_parallel caps how many implement units one batch runs side by
-	// side (spec/backlog/parallel-implement.md §2.2); 1, the default, runs
-	// them one at a time as before.
+	// run_max_parallel caps how many implement units one rolling pool runs
+	// side by side (spec/backlog/rolling-implement.md §2); 1, the default,
+	// runs them one at a time as before.
 	RunMaxParallelDefault = 1
 	RunMaxParallelMin     = 1
 	RunMaxParallelMax     = 8

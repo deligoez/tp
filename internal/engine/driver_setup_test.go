@@ -116,7 +116,7 @@ func assertBatchUnwound(t *testing.T, root, taskFile, records string) {
 }
 
 // TestRunDriver_WorktreeSetupRunsInEachWorktreeWithItsEnvironment: the setup
-// runs once per batch worktree, there, with TP_MAIN_ROOT, TP_UNIT_ID and
+// runs once per pool worktree, there, with TP_MAIN_ROOT, TP_UNIT_ID and
 // TP_UNATTENDED=1 on top of the driver's environment, and may write ignored
 // files (spec/backlog/worktree-setup.md §1).
 func TestRunDriver_WorktreeSetupRunsInEachWorktreeWithItsEnvironment(t *testing.T) {
@@ -135,7 +135,7 @@ func TestRunDriver_WorktreeSetupRunsInEachWorktreeWithItsEnvironment(t *testing.
 		require.NoError(t, readErr, "the setup ran for %s", id)
 		lines := strings.Split(strings.TrimSpace(string(data)), "\n")
 		require.Len(t, lines, 4)
-		assert.True(t, strings.HasPrefix(CanonicalPath(lines[0]), CanonicalPath(WorktreeBase(root))), "the setup runs in the batch worktree: %s", lines[0])
+		assert.True(t, strings.HasPrefix(CanonicalPath(lines[0]), CanonicalPath(WorktreeBase(root))), "the setup runs in the pool worktree: %s", lines[0])
 		assert.Equal(t, id, filepath.Base(lines[0]))
 		assert.Equal(t, CanonicalPath(root), CanonicalPath(lines[1]), "TP_MAIN_ROOT is the main tree")
 		assert.Equal(t, id, lines[2], "TP_UNIT_ID is the task")
@@ -398,7 +398,7 @@ func TestRunDriver_ASetupFailureIsNamedWhenTheReleaseFailsToo(t *testing.T) {
 
 // TestRunDriver_ATaskFileWorktreeSetupNeverRuns: the driver reads the command
 // from the project layer alone. A task file that names one, which tp validate
-// reports and tp import refuses, still runs nothing in any batch worktree.
+// reports and tp import refuses, still runs nothing in any pool worktree.
 func TestRunDriver_ATaskFileWorktreeSetupNeverRuns(t *testing.T) {
 	probe := t.TempDir()
 	t.Setenv("TP_SETUP_PROBE", probe)

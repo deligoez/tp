@@ -96,7 +96,7 @@ type WorkflowOverride struct {
 	RunMaxUnitRetries      *int            `json:"run_max_unit_retries,omitempty"`
 	RunMaxParallel         *int            `json:"run_max_parallel,omitempty"`
 	Runner                 json.RawMessage `json:"runner,omitempty"`
-	// WorktreeSetupCmd is the command tp run runs in each new batch worktree.
+	// WorktreeSetupCmd is the command tp run runs in each new pool worktree.
 	// The driver reads it from the project layer alone, so a task file's
 	// workflow block carrying it changes nothing.
 	WorktreeSetupCmd *string `json:"worktree_setup_cmd,omitempty"`

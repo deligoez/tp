@@ -75,9 +75,9 @@ func BuildNextUnitsRunning(root, taskFilePath, specPath, phase string, tf *model
 		// when one exists, so a crashed unit is resumed rather than skipped.
 		// No ready task is the no-ready-task blocker's condition and returns
 		// nothing.
-		// Under run_max_parallel above 1 that task leads a batch of ready
-		// tasks with disjoint touches, each brief naming its own task
-		// (spec/backlog/parallel-implement.md §2.2).
+		// Under run_max_parallel above 1 the free slots of a rolling pool
+		// take ready tasks with touches disjoint from the running ones, each
+		// brief naming its own task (spec/backlog/rolling-implement.md §2).
 		ids := ImplementUnits(tf, implementMaxParallel(taskFilePath, tf), running)
 		for _, id := range ids {
 			units = append(units, newNextUnit(UnitImplement, id, target))
@@ -303,7 +303,7 @@ func newNextUnit(kind UnitKind, id string, target UnitTarget) NextUnit {
 // writes, and one place that can be read and tested is worth more than five
 // branches that each happen to be right today.
 //
-// An implement batch is the one exception: its units each run in a worktree of
+// An implement pool is the one exception: its units each run in a worktree of
 // their own, so no two of them write the same file.
 func soloIfNotConcurrent(units []NextUnit) []NextUnit {
 	if implementPool(units) {

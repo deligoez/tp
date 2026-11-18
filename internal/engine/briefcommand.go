@@ -44,7 +44,7 @@ func (k UnitKind) BriefCommand(t UnitTarget) string {
 	}
 }
 
-// PoolBriefCommand is a batched implement unit's brief
+// PoolBriefCommand is a pooled implement unit's brief
 // (spec/backlog/parallel-implement.md §2.2): the driver claims the task, so
 // the brief names it rather than asking tp next for one.
 func PoolBriefCommand(id string) string {

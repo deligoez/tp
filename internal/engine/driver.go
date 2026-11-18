@@ -43,17 +43,17 @@ type DriverOptions struct {
 	// Workflow is the effective workflow: §7's caps, the per-unit budget and
 	// the runner field.
 	Workflow model.Workflow
-	// CloseTask gates and closes a task once an implement batch's unit has
+	// CloseTask gates and closes a task once an implement pool's unit has
 	// been picked onto the main branch (spec/backlog/parallel-implement.md
-	// §2.4). Only a batch calls it.
+	// §2.4). Only a pool calls it.
 	CloseTask CloseFunc
-	// ClaimTasks claims a batch's tasks, and ReopenSolo reopens a task that
-	// failed to integrate and marks it solo. Both write the task file, which
-	// only internal/cli does, so tp run supplies them.
+	// ClaimTasks claims a pool unit's task as it starts, and ReopenSolo
+	// reopens a task that failed to integrate and marks it solo. Both write
+	// the task file, which only internal/cli does, so tp run supplies them.
 	ClaimTasks func(ids []string) error
 	ReopenSolo func(id string) error
-	// ReleaseTasks puts a batch that failed to start back to open: every
-	// named task still wip goes back, solo untouched, so a batch whose
+	// ReleaseTasks puts a unit that failed to start back to open: every
+	// named task still wip goes back, solo untouched, so a unit whose
 	// worktree add or setup failed spends nothing
 	// (spec/backlog/worktree-setup.md §1).
 	ReleaseTasks func(ids []string) error
@@ -86,7 +86,7 @@ type DriverResult struct {
 	WorktreeSetup *WorktreeSetupFailure
 }
 
-// WorktreeSetupFailure is the batch-start failure a worktree-setup-failed run
+// WorktreeSetupFailure is the unit-start failure a worktree-setup-failed run
 // stopped on: the task whose worktree setup failed and the log it wrote.
 type WorktreeSetupFailure struct {
 	ID      string `json:"id"`
@@ -346,10 +346,10 @@ func (d *driver) stop(result *DriverResult, reason StopReason) DriverResult {
 // caller exits 2 on; giving it a stop reason would tell a driver's caller a run
 // had reached a state it never reached.
 func (d *driver) fail(result *DriverResult, err error) (DriverResult, error) {
-	// A batch whose worktree setup failed was unwound before any unit ran.
-	// A signal is what cut the setup short when one arrived, and the run
-	// stops as interrupted. Otherwise the failure is named on the result even
-	// when the unwind also failed and the stop is the driver error's.
+	// A unit whose worktree setup failed was released before it ran. A
+	// signal is what cut the setup short when one arrived, and the run stops
+	// as interrupted. Otherwise the failure is named on the result even when
+	// the release also failed and the stop is the driver error's.
 	var setupErr *WorktreeSetupError
 	isSetup := errors.As(err, &setupErr)
 	interrupted := isSetup && d.sig != nil && d.sig.signalled()
@@ -384,7 +384,7 @@ type unitAttempt struct {
 	// escalationPath is the valid escalation record this attempt's unit
 	// wrote (§5.2), or "" when it wrote none the driver could read.
 	escalationPath string
-	// dir is where the child is spawned: a batched unit's worktree, or ""
+	// dir is where the child is spawned: a pooled unit's worktree, or ""
 	// for the repository root.
 	dir string
 }

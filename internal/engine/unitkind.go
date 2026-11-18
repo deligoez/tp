@@ -168,8 +168,8 @@ type UnitTarget struct {
 func (k UnitKind) DurableWrite(t UnitTarget) bool {
 	switch k {
 	case UnitImplement:
-		// A batched unit closes into a pending close the driver integrates
-		// (spec/backlog/parallel-implement.md §2.4); only a batched unit
+		// A pooled unit closes into a pending close the driver integrates
+		// (spec/backlog/parallel-implement.md §2.4); only a pooled unit
 		// writes one.
 		return taskIsDone(t.TaskFile, t.ID) ||
 			HasPendingClose(CanonicalProjectRoot(filepath.Dir(t.TaskFile)), t.TaskFile, t.ID)

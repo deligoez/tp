@@ -159,7 +159,7 @@ func TestCheckUnitCommits_FromAWorktreeSubdirectory(t *testing.T) {
 }
 
 // TestCheckUnitCommits_RefusesAWorktreeSetupCmdChange: a unit cannot change
-// the command the driver runs in every batch worktree by committing it to the
+// the command the driver runs in every pool worktree by committing it to the
 // project's config (spec/backlog/worktree-setup.md §1).
 func TestCheckUnitCommits_RefusesAWorktreeSetupCmdChange(t *testing.T) {
 	t.Parallel()
