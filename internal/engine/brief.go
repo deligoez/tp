@@ -98,8 +98,9 @@ func writeEvidenceContract(b *strings.Builder) {
 
 // WorktreeCloseRecipeText is the "How to close" section of a unit running in
 // a worktree beside others (spec/backlog/parallel-implement.md §2.4, §2.5):
-// it commits on its branch, runs only the tests its change needs, and asks
-// for the close; the driver integrates the commits and runs the gate.
+// it commits on its branch, runs targeted package tests directly and a full
+// suite only through tp gate (spec/backlog/gate-slots.md), and asks for the
+// close; the driver integrates the commits and runs the gate.
 func WorktreeCloseRecipeText(effectiveStrategy, qualityGate, id string, touches []string) string {
 	var b strings.Builder
 	b.WriteString("How to close this unit.\n\n")
@@ -114,7 +115,7 @@ func WorktreeCloseRecipeText(effectiveStrategy, qualityGate, id string, touches 
 		b.WriteString("Commit your change on this worktree's branch.")
 	}
 	b.WriteString(" Change no path only tp writes: the task file, the spec's .tp-review/ or .tp/.\n")
-	b.WriteString("2. While you work, run only the tests your change needs, never the whole suite: the units beside you are running theirs, and tp done runs the gate once at the end.\n")
+	b.WriteString("2. While you work, run the targeted package tests your change needs directly, and a full suite only through tp gate: when the run caps its gates, tp gate waits for a gate slot, so the units beside you are not all testing at once. tp done runs the gate once at the end, and not again on a clean tree tp gate just passed.\n")
 	if qualityGate != "" {
 		fmt.Fprintf(&b, "   quality_gate (tp done runs it in this worktree): %s\n", qualityGate)
 	}
