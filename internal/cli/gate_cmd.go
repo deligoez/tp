@@ -1,11 +1,15 @@
 package cli
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
+	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/deligoez/tp/internal/engine"
+	"github.com/deligoez/tp/internal/model"
 	"github.com/deligoez/tp/internal/output"
 )
 
@@ -57,8 +61,8 @@ func runGate() error {
 	cwd, _ := os.Getwd()
 	dir := engine.WorktreeDirFor(gateDir(taskFilePath), cwd)
 	// The tree is read before the gate runs, as tp done reads it: only a
-	// clean checkout's pass is a fact about the committed tree.
-	tree := engine.CleanTree(cwd)
+	// pass on a committed tree is a fact a close can stand on.
+	tree := gatePassTree(taskFilePath)
 	taker := unitGateTaker()
 	runQualityGateIn(taskFilePath, dir, "", gateRerunHint, taker)
 	recorded := false
@@ -68,4 +72,40 @@ func runGate() error {
 	output.Success("gate passed")
 	printResultOrExit(map[string]any{"passed": true, "gate_cmd": wf.QualityGate, "dir": dir, "recorded": recorded})
 	return nil
+}
+
+// gatePassTree is the tree a gate here gates, when its pass may stand for a
+// close of that tree: in a unit's worktree, a clean checkout's HEAD tree, as
+// the worktree close reads it; on the main tree, HEAD's tree while only tp's
+// own paths differ from it, as the main-branch close reads it. "" otherwise.
+func gatePassTree(taskFilePath string) string {
+	cwd, _ := os.Getwd()
+	if donePendingRoot(taskFilePath) != "" {
+		return engine.CleanTree(cwd)
+	}
+	tf, err := model.ReadTaskFile(taskFilePath)
+	if err != nil {
+		return ""
+	}
+	specPath, _ := engine.ResolveSpecPath(taskFilePath, tf.Spec)
+	return engine.MainGatedTree(engine.CanonicalProjectRoot(filepath.Dir(taskFilePath)), taskFilePath, specPath)
+}
+
+// gatePassTime is when this attempt's tp gate passed on the tree a main-tree
+// unit's close would gate, with the same gate command: the close stands on
+// that pass instead of running the gate again. Only a unit's own close inside
+// a run reads it; the driver's main-branch close has its own reuse.
+func gatePassTime(taskFilePath string) *time.Time {
+	taker := unitGateTaker()
+	if taker.runDir == "" || os.Getenv(engine.EnvGateMainSlots) != "" {
+		return nil
+	}
+	gateCmd := engine.EffectiveWorkflowForTaskFile(taskFilePath).QualityGate
+	tree := gatePassTree(taskFilePath)
+	at, ok := engine.GatePassCovers(taker.runDir, taker.seq, tree, gateCmd)
+	if !ok {
+		return nil
+	}
+	output.Notice(fmt.Sprintf("gate reused from tp gate: tree %s passed %q in this attempt", tree, gateCmd))
+	return &at
 }

@@ -182,6 +182,9 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 		reusedAt = reusedGateTime(taskFilePath, tfPre, taskID)
 	}
 	if doneSkipGate == "" && reusedAt == nil {
+		reusedAt = gatePassTime(taskFilePath)
+	}
+	if doneSkipGate == "" && reusedAt == nil {
 		gateRan = runQualityGatePreFlock(taskFilePath, true)
 	}
 
