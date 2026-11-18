@@ -393,11 +393,14 @@ reached for follow-up, so no loss attributed to these four was measured.
   would stop being the single source between resets. A claim exists precisely so that concurrent
   agents see each other. **It reopens** if a measured cost shows conflicts on the task file between
   trees under `tp run`'s own batch flow, which claims and closes only on the main branch.
-- **Folding a close into the task's last code commit.** *Impossible as asked.* A close records the
-  code commit's sha (`internal/cli/commit.go`, `followUpClosureCommitOrExit`). Writing that record
-  into the same commit would change the sha it records. What remains possible is a batch variant:
-  N closes in one `chore(tp)` commit. **It reopens** on a measured cost of the close commits
-  themselves. A read-only count of the requesting project's log for that night found 89 `chore(tp)`
+- **Folding a close into the task's last code commit.** *Already there, per commit strategy.*
+  Under `builtin`, `tp commit` and `tp done --auto-commit` amend the closure into the code commit
+  and record the pre-amend sha. A separate `chore(tp): record <id> closure` follows only when the
+  amend is unsafe (REFERENCE.md, "Close checkpoint"; `internal/cli/commit.go`,
+  `followUpClosureCommitOrExit`). Under `hc`, `tp done` makes no commit: the closed task file is
+  bookkeeping, and the agent's own next `hc` plan can carry it. A one-commit-per-close history
+  under `hc` is therefore the driver's choice, not tp's. **It reopens** on a measured cost of
+  the close commits themselves. A read-only count of the requesting project's log for that night found 89 `chore(tp)`
   commits out of 494, about 25 claims and 53 closes. No cost beyond the count was measured.
 - **A per-project brief preamble.** *Deferred.* Text prepended to every brief costs tokens on every
   unit (P3). The report names three rule slips but not what they cost, nor whether the rules were in
