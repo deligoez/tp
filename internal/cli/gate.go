@@ -1,11 +1,14 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/deligoez/tp/internal/engine"
@@ -91,7 +94,29 @@ func gateDir(taskFilePath string) string {
 // the resolved timeout, returning the result without exiting.
 func executeQualityGate(taskFilePath string) engine.RunResult {
 	wf := engine.EffectiveWorkflowForTaskFile(taskFilePath)
-	return engine.RunGateCommand(wf.QualityGate, gateDir(taskFilePath), nil, time.Duration(wf.EffectiveGateTimeoutSeconds())*time.Second, gateOutputTailLines)
+	ctx, stop := gateSignals()
+	res := engine.RunGateCommand(ctx, wf.QualityGate, gateDir(taskFilePath), nil, time.Duration(wf.EffectiveGateTimeoutSeconds())*time.Second, gateOutputTailLines)
+	stop()
+	exitIfInterrupted(res)
+	return res
+}
+
+// gateSignals catches SIGINT and SIGTERM for a gate's span, the slot wait
+// included: a signal kills the gate's process group (RunGateCommand) instead
+// of leaving it to run on after tp, past the run's cap. SIGKILL cannot be
+// caught, and leaves the gate's processes running.
+func gateSignals() (context.Context, context.CancelFunc) {
+	return signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+}
+
+// exitIfInterrupted ends tp after a gate a signal stopped: its processes are
+// gone and nothing closes.
+func exitIfInterrupted(res engine.RunResult) {
+	if res.Interrupted {
+		output.Error(ExitState, "interrupted while the gate ran: its processes were killed and no close was asked for",
+			"ask for the close again when the run resumes")
+		os.Exit(ExitState)
+	}
 }
 
 // gateFailureMessage renders the top-level error string for a failed gate run.
@@ -190,9 +215,12 @@ func runQualityGateIn(taskFilePath, dir, failureRoot, hint string, taker gateTak
 	if wf.QualityGate == "" {
 		return false
 	}
-	release := taker.take(wf.RunMaxParallelGates)
-	res := engine.RunGateCommand(wf.QualityGate, dir, nil, time.Duration(wf.EffectiveGateTimeoutSeconds())*time.Second, gateOutputTailLines)
+	ctx, stop := gateSignals()
+	release := taker.take(ctx, wf.RunMaxParallelGates)
+	res := engine.RunGateCommand(ctx, wf.QualityGate, dir, nil, time.Duration(wf.EffectiveGateTimeoutSeconds())*time.Second, gateOutputTailLines)
 	release()
+	stop()
+	exitIfInterrupted(res)
 	if res.Passed {
 		return true
 	}
