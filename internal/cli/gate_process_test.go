@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -69,6 +72,35 @@ func TestGate_ATPCallInsideAGateTakesNoSlotOfTheRun(t *testing.T) {
 	code, ok := gate.exited(t, 20*time.Second)
 	require.True(t, ok, "the inner tp gate does not wait for the outer gate's slot")
 	assert.Equal(t, 0, code, gate.stderr.String())
+}
+
+// TestGate_ASignalDuringTheGateEndsTheGatesProcesses: SIGTERM to tp while its
+// gate runs kills the gate's process group before tp exits, so no test
+// process the gate started runs on outside the cap.
+func TestGate_ASignalDuringTheGateEndsTheGatesProcesses(t *testing.T) {
+	t.Parallel()
+	u := unitInRun(t, "")
+	pidFile := filepath.Join(t.TempDir(), "pid")
+	gateConfig(t, u.root, "sleep 60 & echo $! > "+pidFile+"; wait", "")
+
+	gate := startTP(t, u.worktree, u.env, "gate")
+	var pid int
+	require.Eventually(t, func() bool {
+		data, err := os.ReadFile(pidFile) //nolint:gosec // the test's own temp file
+		if err != nil {
+			return false
+		}
+		pid, err = strconv.Atoi(strings.TrimSpace(string(data)))
+		return err == nil
+	}, 10*time.Second, 20*time.Millisecond, "the gate started its sleep")
+	t.Cleanup(func() { _ = syscall.Kill(pid, syscall.SIGKILL) })
+
+	require.NoError(t, gate.cmd.Process.Signal(syscall.SIGTERM))
+	code, ok := gate.exited(t, 10*time.Second)
+	require.True(t, ok, "tp exits on the signal")
+	assert.Equal(t, 4, code, gate.stderr.String())
+	assert.Eventually(t, func() bool { return syscall.Kill(pid, 0) != nil }, 5*time.Second, 20*time.Millisecond,
+		"the gate's sleep died with tp")
 }
 
 // TestGate_ATimedOutGateFreesItsSlotAtTheTimeout: a gate killed at
