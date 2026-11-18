@@ -390,6 +390,11 @@ type unitAttempt struct {
 	// dir is where the child is spawned: a pooled unit's worktree, or ""
 	// for the repository root.
 	dir string
+	// cmd, log and started are the started child, its driver-opened log
+	// and when it started, between start and wait.
+	cmd     *exec.Cmd
+	log     *os.File
+	started time.Time
 }
 
 // iterationOutcome is what one iteration ended as, in the terms §3.4's
@@ -718,6 +723,16 @@ func spawnAll(root string, attempts []*unitAttempt) {
 // the same kind of failure — the ground the child was to be spawned on, not
 // the child — and takes the same path.
 func (a *unitAttempt) spawn(root string, parent []string) {
+	if a.start(root, parent) {
+		a.wait()
+	}
+}
+
+// start starts the child and reports whether it did; a.err says why it did
+// not. A pool calls it on its loop's goroutine, so a child's process starts
+// only between two main-branch steps, never inside one (the serial rule), and
+// only the wait runs beside the loop.
+func (a *unitAttempt) start(root string, parent []string) bool {
 	cmd := exec.Command(a.runner.Cmd, a.runner.Args...) //nolint:gosec // the runner is the operator's own configured command
 	cmd.Dir = root
 	if a.dir != "" {
@@ -730,15 +745,28 @@ func (a *unitAttempt) spawn(root string, parent []string) {
 		log, err := os.OpenFile(a.logPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 		if err != nil {
 			a.err = driverErrorf(err, "open the log for %s unit %q", a.unit.Kind, a.unit.ID)
-			return
+			return false
 		}
-		defer log.Close()
+		a.log = log
 		cmd.Stdout, cmd.Stderr = log, log
 	}
 
-	start := time.Now()
-	err := a.run(cmd)
-	a.duration = time.Since(start)
+	a.started = time.Now()
+	if err := a.startLocked(cmd); err != nil {
+		a.closeLog()
+		a.err = driverErrorf(err, "spawn %s unit %q", a.unit.Kind, a.unit.ID)
+		return false
+	}
+	a.cmd = cmd
+	poolHook("spawned", a.unit.ID)
+	return true
+}
+
+// wait waits for a started child and reads what it left behind.
+func (a *unitAttempt) wait() {
+	err := a.cmd.Wait()
+	a.duration = time.Since(a.started)
+	a.closeLog()
 
 	var exitErr *exec.ExitError
 	switch {
@@ -753,14 +781,22 @@ func (a *unitAttempt) spawn(root string, parent []string) {
 	a.readEscalation()
 }
 
-// run starts the child and waits for it. A unit in a worktree is handed its
-// unit lock (unitlock.go) as an extra descriptor, and the driver's own copy is
-// closed once the child has it, so the lock is held for as long as the child
-// runs and no longer, whether or not this driver lives to see it exit. A lock
-// that cannot be taken fails the spawn as the driver's, as a log would.
-func (a *unitAttempt) run(cmd *exec.Cmd) error {
+// closeLog closes the log the driver opened for the child, if it opened one.
+func (a *unitAttempt) closeLog() {
+	if a.log != nil {
+		_ = a.log.Close()
+		a.log = nil
+	}
+}
+
+// startLocked starts the child. A unit in a worktree is handed its unit lock
+// (unitlock.go) as an extra descriptor, and the driver's own copy is closed
+// once the child has it, so the lock is held for as long as the child runs and
+// no longer, whether or not this driver lives to see it exit. A lock that
+// cannot be taken fails the spawn as the driver's, as a log would.
+func (a *unitAttempt) startLocked(cmd *exec.Cmd) error {
 	if a.lockPath == "" {
-		return cmd.Run()
+		return cmd.Start()
 	}
 	lock, err := lockUnitFile(a.lockPath)
 	if err != nil {
@@ -773,10 +809,7 @@ func (a *unitAttempt) run(cmd *exec.Cmd) error {
 	if lock != nil {
 		_ = lock.Close()
 	}
-	if err != nil {
-		return err
-	}
-	return cmd.Wait()
+	return err
 }
 
 // readEscalation keeps the escalation record this attempt's unit wrote, when it
