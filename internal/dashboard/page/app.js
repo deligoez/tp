@@ -626,12 +626,13 @@
 
   // row draws one list row; an epic's row names it with a link that
   // selects it.
-  const row = (id, title, meta, why, epic) => '<div class="row"><span class="id">' + (epic ? epicLink(id) : esc(id)) + '</span><span class="t">' + esc(title) +
+  // act, a Copy command, ends the title's line so it never takes one of its own.
+  const row = (id, title, meta, why, epic, act) => '<div class="row"><span class="id">' + (epic ? epicLink(id) : esc(id)) + '</span><span class="t">' + esc(title) + (act ? " " + act : "") +
     '</span><span class="m">' + esc(meta || "") + "</span>" + (why ? '<div class="why">' + why + "</div>" : "") + "</div>";
   const none = (text) => '<p class="empty">' + esc(text) + "</p>";
   // sliceRow is a row with no id: label is one phrase in the title column,
-  // meta beside it, why under both.
-  const sliceRow = (label, meta, why) => '<div class="row rwide"><span class="t">' + esc(label) + '</span><span class="m">' + esc(meta) + '</span><div class="why">' + why + "</div></div>";
+  // its Copy command act after it, meta beside both.
+  const sliceRow = (label, meta, act) => '<div class="row rwide"><span class="t">' + esc(label) + " " + act + '</span><span class="m">' + esc(meta) + "</span></div>";
   const titleOf = (v, id) => (v.epics[id] ? v.epics[id].title : "");
   const dependents = (v, id) => {
     const d = v.epics[id] && v.epics[id].downstream;
@@ -662,15 +663,14 @@
   // one is a Copy command button, the command in its tooltip and clipboard.
   // label, when given, is the button's accessible name, as when several sit
   // side by side and each must say which option it copies.
-  const copyCmd = (cmd, label) => '<button type="button" class="key copy" data-copy="' + esc(cmd) + '" title="' + esc(cmd) + '"' +
-    (label ? ' aria-label="' + esc(label) + '"' : "") + ">" + esc(t("copy.command")) + "</button>";
+  const copyCmd = (cmd, label) => '<button type="button" class="copy" data-copy="' + esc(cmd) + '" title="' + esc(label || t("copy.command")) + '" aria-label="' + esc(label || t("copy.command")) + '"></button>';
   // conditionRows are the conditions waiting on a decision. With owners
   // declared they are grouped by whose decision it is (tpPure.ownerGroups):
   // a line stating the distinct conditions, then one counted "waiting on
   // <owner>" heading per owner, a two-owner condition under each, the
   // unowned last (spec/backlog/epic-owner.md at edeebda0); without, one plain list.
   function conditionRows(v, done) {
-    const rows = (list) => list.map((id) => row(id, titleOf(v, id), t("op.condition"), done(id)));
+    const rows = (list) => list.map((id) => row(id, titleOf(v, id), t("op.condition"), "", false, done(id)));
     const owners = (v.g.graph && v.g.graph.owners) || [];
     const ids = v.plan.operator_conditions;
     if (!owners.length || !ids.length) return rows(ids);
@@ -695,14 +695,14 @@
     // its own Copy command button, "or" between them in plain words.
     (v.plan.operator_groups || []).forEach((c) => rest.push(row(c.epic, titleOf(v, c.epic), t("op.chooseOne", { n: c.any_of.length }),
       '<ul class="opts">' + c.any_of.map((m, i) => (i ? '<li class="or">' + esc(t("op.or")) + "</li>" : "") +
-        '<li class="opt">' + epicLink(m) + '<span class="ot">' + esc(titleOf(v, m)) + "</span>" + done(m, t("op.copyFor", { id: m })) + "</li>").join("") + "</ul>")));
+        '<li class="opt">' + epicLink(m) + '<span class="ot">' + esc(titleOf(v, m)) + " " + done(m, t("op.copyFor", { id: m })) + "</span></li>").join("") + "</ul>")));
     (v.g.milestones || []).forEach((m) => {
       const o = m.operator || {};
-      (o.gates || []).forEach((gate) => rest.push(row(gate.milestone, gate.threshold, t("op.gate"), copyCmd("tp epic gate " + gate.milestone + " --met" + evidence))));
-      (o.threshold_rewrites || []).forEach((r) => rest.push(row(r.milestone, r.threshold, t("op.threshold"), copyCmd(r.command))));
+      (o.gates || []).forEach((gate) => rest.push(row(gate.milestone, gate.threshold, t("op.gate"), "", false, copyCmd("tp epic gate " + gate.milestone + " --met" + evidence))));
+      (o.threshold_rewrites || []).forEach((r) => rest.push(row(r.milestone, r.threshold, t("op.threshold"), "", false, copyCmd(r.command))));
     });
-    (v.g.slices || []).filter((s) => s.grantable).forEach((s) => rest.push(sliceRow(t("op.sliceOf", { what: sliceTitle(s) }), roundText(s),
-      esc(t("op.staleAtCap")) + ": " + copyCmd("tp epic review " + tpPure.sliceArgs(s) + " --grant-round"))));
+    (v.g.slices || []).filter((s) => s.grantable).forEach((s) => rest.push(sliceRow(t("op.sliceOf", { what: sliceTitle(s) }), roundText(s) + " · " + t("op.staleAtCap"),
+      copyCmd("tp epic review " + tpPure.sliceArgs(s) + " --grant-round"))));
     rest.push(...escalationRows());
     return grouped && rest.length ? conds.concat(['<h3 class="ogroup">' + esc(t("op.other")) + ' <span class="num muted">' + esc(t.num(rest.length)) + "</span></h3>"], rest) : conds.concat(rest);
   }
@@ -2181,13 +2181,20 @@
     }
   }
 
-  // copyKey copies a command and says so on the key for a moment.
+  // copyKey copies a command: the live region says whether it did, and a
+  // copied key shows a check for a moment.
   function copyKey(b) {
-    const done = (text) => { b.textContent = text; setTimeout(() => { b.textContent = t("copy.command"); }, 1200); };
+    const done = (ok) => {
+      $("announce").textContent = "";
+      $("announce").textContent = ok ? t("copy.copied") : t("copy.failed");
+      if (!ok) return;
+      b.classList.add("done");
+      setTimeout(() => b.classList.remove("done"), 1500);
+    };
     try {
-      navigator.clipboard.writeText(b.dataset.copy).then(() => done(t("copy.copied")), () => done(t("copy.failed")));
+      navigator.clipboard.writeText(b.dataset.copy).then(() => done(true), () => done(false));
     } catch (err) {
-      done(t("copy.failed"));
+      done(false);
     }
   }
 
