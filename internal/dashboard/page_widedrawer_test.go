@@ -31,3 +31,26 @@ func TestPage_TheDrawerHeaderHoldsAWidenButtonBesideClose(t *testing.T) {
 		assert.JSONEq(t, `"`+want[1]+`"`, string(dict["drawer.narrow"]), lang)
 	}
 }
+
+// The choice is the viewer's, kept in localStorage behind try/catch, so a
+// blocked store still draws the page; toggling it neither redraws the drawer
+// nor moves focus, and Escape still closes the drawer.
+func TestPage_TheWideChoiceIsRememberedAndKeepsFocusAndEscape(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, s := range []string{
+		`try { return localStorage.getItem(WIDE_KEY); } catch (e) { return null; }`,
+		`try { localStorage.setItem(WIDE_KEY, on ? "wide" : "narrow"); } catch (e) { /* the choice lasts this load */ }`,
+		`$("dwide").addEventListener("click", () => setWide(!wide, true));`,
+		`if (ev.key === "Escape" && !viewMenuOpen() && !$("drawer").hidden && $("pop").hidden) selectEpic(null);`,
+	} {
+		assert.Contains(t, script, s)
+	}
+	start := strings.Index(script, "function setWide(")
+	if assert.Positive(t, start) {
+		body := script[start : start+strings.Index(script[start:], "\n  }\n")]
+		for _, s := range []string{"drawDrawer(", "selectEpic(", ".focus("} {
+			assert.NotContains(t, body, s, "toggling the width neither redraws nor moves focus")
+		}
+	}
+}
