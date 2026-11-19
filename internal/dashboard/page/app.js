@@ -267,10 +267,13 @@
   // without a graph.
   const totalsOf = (g) => (g && Array.isArray(g.epics) ? tpPure.epicTotals(g.epics, t) : "");
 
-  // The tab labels name what each tab holds, with its unit.
+  // The tab labels name what each tab holds, with its unit; below 600px
+  // the count is its number alone (style.css hides .cl and shows .cs), so a
+  // narrow tab never cuts it short.
+  const tabCount = (n, words) => '<span class="cl">' + esc(words) + '</span><span class="cs">' + esc(t.num(n)) + "</span>";
   panel(["epic-export", "export-list"], () => {
     const g = data("epic-export");
-    $("c-epics").textContent = g && Array.isArray(g.epics) ? t("count.epics", { n: g.epics.length }) : state.tab && !state.graph ? t("tabs.noGraph") : "";
+    $("c-epics").innerHTML = g && Array.isArray(g.epics) ? tabCount(g.epics.length, t("count.epics", { n: g.epics.length })) : state.tab && !state.graph ? esc(t("tabs.noGraph")) : "";
     // The tab counts every epic, the share and the Lifecycle work epics:
     // one sentence names the conditions between them wherever both show.
     const totals = totalsOf(g);
@@ -278,7 +281,7 @@
     $("totals").textContent = totals ? totals + "." : "";
     $("totals").hidden = !totals;
     const list = data("export-list");
-    $("c-specs").textContent = list && Array.isArray(list.files) ? t("count.taskFiles", { n: list.files.length }) : "";
+    $("c-specs").innerHTML = list && Array.isArray(list.files) ? tabCount(list.files.length, t("count.taskFiles", { n: list.files.length })) : "";
   });
 
   // With no graph the Epics tab says so and names the command that starts one.
