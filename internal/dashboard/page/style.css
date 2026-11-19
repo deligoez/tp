@@ -715,6 +715,7 @@ body.mapfs .gcard.fs .glegend .legend { max-height: none; overflow: visible; }
 .excerpt blockquote { margin: var(--sp-1) 0 0; padding: var(--sp-1) var(--sp-3); border-left: 2px solid var(--line-strong); color: var(--ink); }
 .secchip { display: inline-flex; align-items: center; gap: var(--sp-1); min-height: var(--ctl-sm); padding: 0 0 0 var(--sp-3); border: 1px solid var(--stroke-selected); border-radius: var(--r-2); background: var(--fill-brand-weak); font: var(--type-tiny); min-width: 0; overflow-wrap: anywhere; }
 .secchip .key { border: 0; background: none; }
+.secx::before { content: ""; width: 16px; height: 16px; background: currentColor; -webkit-mask: var(--ic-x) center / contain no-repeat; mask: var(--ic-x) center / contain no-repeat; }
 
 /* the Read view: the spec as long reading text, each paragraph under its anchor */
 .reader { padding: var(--sp-8) var(--sp-10) var(--sp-12) 96px; }

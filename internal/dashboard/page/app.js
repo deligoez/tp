@@ -2083,7 +2083,7 @@
     if (!sec) work.sec = null;
     work.secIds = sec ? new Set(tasksBySection(d)[work.sec] || []) : null;
     const chip = sec ? '<span class="secchip">' + esc(t("tasks.fromSection", { n: work.secIds.size })) + ' <button type="button" class="link" data-goto="' + esc(work.sec) + '">' + esc(sec.anchor + " " + secTitle(sec)) + "</button>" +
-      '<button type="button" class="key" data-secclear aria-label="' + esc(t("tasks.showAll")) + '">×</button></span>' : "";
+      '<button type="button" class="key secx" data-secclear aria-label="' + esc(t("tasks.showAll")) + '"></button></span>' : "";
     $("sv-tasks").innerHTML = '<section class="panel tpanel"><div class="toolbar"><h2>' + esc(t("spec.view.tasks")) + " " + info("tasks", t("spec.view.tasks")) + "</h2>" + chip + '<span class="spacer"></span>' +
       '<div class="seg" role="group" aria-label="' + esc(t("tasks.view")) + '">' + tview("steps", tk("tasks.steps")) + tview("board", tk("tasks.board")) + "</div></div>" +
       '<div class="stages' + (work.tview === "board" ? " board" : "") + '" id="stages">' + (tasks.length ? (work.tview === "board" ? boardHTML(d, ix) : stepsHTML(d, ix)) : none(t("progress.noTasks"))) + "</div>" +
