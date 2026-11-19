@@ -168,13 +168,17 @@ func TestPage_TheChainTextShowsDirectEdgesFirst(t *testing.T) {
 }
 
 // TestPage_TheNowListsKeepATitleColumnBesideTheDrawer is the drawer squeeze
-// the i18n pass saw: a now list narrower than its row needs stacks the
-// count under the title instead of crushing the title to one letter.
+// the i18n pass saw, and the long-title squeeze a large plan showed: the now
+// lists stack full width, one per row, and a list narrower than its rows
+// need puts the count under the title, then the title under the id, instead
+// of crushing the title to one letter.
 func TestPage_TheNowListsKeepATitleColumnBesideTheDrawer(t *testing.T) {
 	t.Parallel()
 	page, _ := pageText(t)
+	assert.Contains(t, page, ".now { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-6); }")
 	assert.Contains(t, page, ".now > .card { container-type: inline-size; }")
-	assert.Contains(t, page, "@container (max-width: 380px) { .row { grid-template-columns: auto minmax(0, 1fr); } .row .m { grid-column: 2; white-space: normal; } }")
+	assert.Contains(t, page, "@container (max-width: 560px) { .row { grid-template-columns: fit-content(40%) minmax(0, 1fr); } .row .m { grid-column: 2; white-space: normal; } }")
+	assert.Contains(t, page, "@container (max-width: 400px) { .row { grid-template-columns: minmax(0, 1fr); } .row .t, .row .m, .row .why { grid-column: 1; } }")
 	assert.NotContains(t, page, "#map-q", "R1-L6: no rule styles the retired map search")
 }
 

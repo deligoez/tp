@@ -537,12 +537,16 @@ func TestPage_TheTotalsSentenceSitsWhereBothCountsAppear(t *testing.T) {
 	assert.Equal(t, 1, strings.Count(script, "tpPure.epicTotals("), "the tab, the share and the Lifecycle read the sentence from one call")
 }
 
-// TestPage_ListTitlesWrap: a list row's title wraps instead of being cut to
-// a few letters and an ellipsis in a narrow card.
+// TestPage_ListTitlesWrap: a list row's title wraps at word boundaries in a
+// column the id cannot crush, never letter by letter: the id column is
+// capped and wraps between words, the title takes the rest.
 func TestPage_ListTitlesWrap(t *testing.T) {
 	t.Parallel()
 	page, _ := pageText(t)
-	assert.Contains(t, page, ".row .t { min-width: 0; overflow-wrap: anywhere; }")
+	assert.Contains(t, page, ".row { display: grid; grid-template-columns: fit-content(40%) minmax(0, 1fr) auto;")
+	assert.Contains(t, page, ".row .id { min-width: 0; overflow-wrap: break-word;")
+	assert.Contains(t, page, ".row .t { min-width: 0; }")
+	assert.NotContains(t, page, ".row .t { min-width: 0; overflow-wrap: anywhere; }", "a title never breaks inside a word")
 }
 
 // TestPure_AMilestoneCardReadsOneLine: a milestone card's one line is its
