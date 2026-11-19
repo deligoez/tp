@@ -42,9 +42,9 @@ func TestPage_AChooseOneDecisionNamesEachOption(t *testing.T) {
 	t.Parallel()
 	page, script := pageText(t)
 	assert.Contains(t, script, `'<ul class="opts">' + c.any_of.map((m, i) => (i ? '<li class="or">' + esc(t("op.or")) + "</li>" : "") +`)
-	assert.Contains(t, script, `'<li class="opt">' + epicLink(m) + '<span class="ot">' + esc(titleOf(v, m)) + " " + done(m, t("op.copyFor", { id: m })) + "</span></li>"`)
+	assert.Contains(t, script, `return '<li class="opt">' + epicLink(m) + (ot ? '<span class="ot" title="' + esc(ot) + '">' + esc(ot) + "</span>" : "") + done(m, t("op.copyFor", { id: m })) + "</li>";`)
 	assert.Contains(t, script, `aria-label="' + esc(label || t("copy.command")) + '"`)
-	assert.Contains(t, page, ".opts { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: grid; gap: var(--sp-2); }")
+	assert.Contains(t, page, ".opts { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); }")
 	assert.Contains(t, i18nText(t, "en"), `"op.copyFor": "Copy the command for {id}"`)
 	assert.Contains(t, i18nText(t, "tr"), `"op.copyFor": "{id} için komutu kopyala"`)
 }

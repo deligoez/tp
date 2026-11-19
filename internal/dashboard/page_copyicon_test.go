@@ -51,7 +51,7 @@ func TestPage_ACopyCommandSitsAtTheEndOfItsRowsLine(t *testing.T) {
 		`row(id, titleOf(v, id), t("op.condition"), "", false, done(id))`,
 		`row(gate.milestone, gate.threshold, t("op.gate"), "", false, copyCmd("tp epic gate " + gate.milestone + " --met" + evidence))`,
 		`row(r.milestone, r.threshold, t("op.threshold"), "", false, copyCmd(r.command))`,
-		`'<li class="opt">' + epicLink(m) + '<span class="ot">' + esc(titleOf(v, m)) + " " + done(m, t("op.copyFor", { id: m })) + "</span></li>"`,
+		`return '<li class="opt">' + epicLink(m) + (ot ? '<span class="ot" title="' + esc(ot) + '">' + esc(ot) + "</span>" : "") + done(m, t("op.copyFor", { id: m })) + "</li>";`,
 		`const sliceRow = (label, meta, act) => '<div class="row rwide"><span class="t">' + esc(label) + " " + act + '</span><span class="m">' + esc(meta) + "</span></div>";`,
 	} {
 		assert.Contains(t, script, s)
