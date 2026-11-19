@@ -1086,7 +1086,7 @@
     } else if (ev.key === "f" || ev.key === "F") fit();
     else if (ev.key === "k" || ev.key === "K") toggleCross();
     else if (ev.key === "l" || ev.key === "L") toggleLegend();
-    else if (ev.key === "Escape" && app.selected() && $("drawer").hidden && !$("gc-viewpop").matches(":popover-open")) app.selectEpic(null);
+    else if (ev.key === "Escape" && app.selected() && $("drawer").hidden && !app.viewMenuOpen()) app.selectEpic(null);
   });
   function countText() {
     return G.prepared ? countLine(G.prepared) : "";

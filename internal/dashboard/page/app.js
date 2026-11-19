@@ -1121,7 +1121,14 @@
   // The browser takes Esc in full screen, so a change of full screen closes
   // an open note, which would sit where the old layout put it.
   document.addEventListener("fullscreenchange", () => { closeInfo(); if (!document.fullscreenElement) setFullScreen(null); });
-  document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && !document.fullscreenElement && document.body.classList.contains("mapfs") && $("drawer").hidden) setFullScreen(null); });
+  // viewMenuOpen says whether the graph's View menu is open: document
+  // keydown handlers run before the browser closes it on Esc, so each Esc
+  // handler leaves that press to the menu.
+  function viewMenuOpen() {
+    const p = $("gc-viewpop");
+    return !!p && p.matches(":popover-open");
+  }
+  document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && !viewMenuOpen() && !document.fullscreenElement && document.body.classList.contains("mapfs") && $("drawer").hidden) setFullScreen(null); });
 
   // ---------- the selected epic: its chain, its drawer (§4, §11) ----------
   // Selecting an epic on the graph, in a now list or in the drawer draws its
@@ -1487,7 +1494,7 @@
 
   $("dclose").addEventListener("click", () => selectEpic(null));
   $("scrim").addEventListener("click", () => selectEpic(null));
-  document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && !$("drawer").hidden && $("pop").hidden) selectEpic(null); });
+  document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && !viewMenuOpen() && !$("drawer").hidden && $("pop").hidden) selectEpic(null); });
   document.addEventListener("click", (ev) => {
     const a = ev.target.closest && ev.target.closest("[data-epic]");
     if (a) {
@@ -2294,7 +2301,7 @@
   // graphParams and readGraphPlace, when it sets them, write and read the
   // card's own address keys.
   window.tpApp = {
-    data, panel, markOf, fold, selectEpic, syncURL,
+    data, panel, markOf, fold, selectEpic, syncURL, viewMenuOpen,
     tr: () => t,
     selected: () => mapView.selected,
     inStage: (e) => !mapView.stage || e.status === mapView.stage,
