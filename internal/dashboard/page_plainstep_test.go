@@ -55,7 +55,7 @@ func TestPage_NoEngineReasonTextShowsInPlainView(t *testing.T) {
 	for _, s := range []string{`'<span class="snext">' + esc(f.next_step`, `esc(b.code)`, `t("spec.waitsOp", { message: b.message })`, `": " + esc(b.message)`, `'<span class="sum">' + esc(na.summary`} {
 		assert.NotContains(t, script, s, "no engine reason text is drawn as visible text")
 	}
-	for _, s := range []string{`tpPure.blockerText(b.code, BLOCKER_TEXT, t)`, `tpPure.plainStep(f.next_step, t("specs.nextIn", { phase: word(STEP_LABEL, f.phase) }))`, `tpPure.blockerCommands(b)`} {
+	for _, s := range []string{`tpPure.blockerText(tpPure.blockerKey(b), BLOCKER_TEXT, t)`, `tpPure.plainStep(f.next_step, t("specs.nextIn", { phase: word(STEP_LABEL, f.phase) }))`, `tpPure.blockerCommands(b)`} {
 		assert.Contains(t, script, s)
 	}
 }
