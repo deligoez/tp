@@ -96,3 +96,12 @@ func TestPage_StepsWiresLieUnderTheCards(t *testing.T) {
 	assert.Contains(t, page, `.tcard[data-s="done"] { --c: var(--icon-success); background: linear-gradient(var(--fill-weak), var(--fill-weak)) var(--surface);`)
 	assert.Contains(t, script, `box.querySelectorAll(".step-h > *")`, "only a header's words are an obstacle")
 }
+
+// A done card keeps its tint under hover and press: the hover layer is
+// drawn over the done tint, not in place of it.
+func TestPage_ADoneCardKeepsItsTintOnHover(t *testing.T) {
+	t.Parallel()
+	page, _ := pageText(t)
+	assert.Contains(t, page, `.tcard[data-s="done"]:hover { background-image: linear-gradient(var(--fill-hover), var(--fill-hover)), linear-gradient(var(--fill-weak), var(--fill-weak)); }`)
+	assert.Contains(t, page, `.tcard[data-s="done"]:active { background-image: linear-gradient(var(--fill-press), var(--fill-press)), linear-gradient(var(--fill-weak), var(--fill-weak)); }`)
+}
