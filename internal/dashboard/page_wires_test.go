@@ -117,3 +117,14 @@ const off = pts.filter(([x, y]) => Math.min(Math.abs(x), Math.abs(y - 20)) > 6 +
 out({ first: pts[0], last: pts[pts.length - 1], many: pts.length > 4, off });`)
 	assert.JSONEq(t, `{"first":[0,0],"last":[40,20],"many":true,"off":0}`, got)
 }
+
+// The epic map routes a downward edge the way Steps routes a wire: around
+// every other node's box, through the gaps between rows and columns, its
+// corners rounded; an edge back up keeps its curve.
+func TestPage_TheEpicMapRoutesEdgesAroundNodes(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Contains(t, script, "function routeEdge(")
+	assert.Contains(t, script, "pure.wirePoints(pure.routeWire(boxes[l.s], boxes[l.d], obstacles), 6)")
+	assert.Contains(t, script, "links.forEach((l) => { l.path = routeEdge(nodes, boxes, l); });")
+}
