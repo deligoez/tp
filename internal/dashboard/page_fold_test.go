@@ -1,6 +1,7 @@
 package dashboard_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -35,4 +36,18 @@ func TestPure_AnAlarmOpensAFoldUntilTheViewerClosesIt(t *testing.T) {
   P.foldOpen({ dflt: false, alarm: true, touched: false }),
 ]);`)
 	assert.JSONEq(t, `[true, true, false]`, got)
+}
+
+// TestPage_EveryFoldIsAButtonThatNamesWhatItControls: each fold's heading
+// is a button carrying aria-expanded and aria-controls naming its body, so
+// the folded state is announced and the body found; the body is the card's
+// content, hidden while folded.
+func TestPage_EveryFoldIsAButtonThatNamesWhatItControls(t *testing.T) {
+	t.Parallel()
+	page, _ := pageText(t)
+	for _, id := range []string{"waiting", "band", "cfd", "matrix", "slices", "kpimore"} {
+		assert.Contains(t, page, `data-fold="`+id+`" aria-expanded="false" aria-controls="fold-`+id+`"`, "fold %s", id)
+		assert.Contains(t, page, `id="fold-`+id+`" class="fbody" hidden`, "fold %s", id)
+	}
+	assert.Equal(t, 6, strings.Count(page, `class="fold"`), "six folds")
 }
