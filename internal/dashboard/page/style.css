@@ -871,10 +871,9 @@ body.dopen:not([data-tab="epics"]):not([data-tab="work"]) { padding: 0; }
 .ehr > li > b { display: block; font: var(--type-tiny-bold); }
 .esub { color: var(--muted); font: var(--type-tiny); }
 @media (max-width: 767px) {
-  /* a phone keeps the bottom sheet, which takes its height from below */
+  /* a phone keeps the bottom sheet, which takes its height from below, over the same dimmed page */
   .drawer { top: auto; height: var(--drawer-h); width: 100%; border-left: 0; border-top: 1px solid var(--line); border-radius: var(--r-4) var(--r-4) 0 0; animation-name: sheet-in; }
   @keyframes sheet-in { from { transform: translateY(32px); opacity: 0; } }
-  .scrim { display: none; }
   body.dopen { padding-right: 0; padding-bottom: var(--drawer-h); }
   body.mapfs.dopen .card.fs { right: 0; bottom: var(--drawer-h); }
   .dbody { padding: var(--sp-4) var(--sp-4) var(--sp-8); gap: var(--sp-6); }
