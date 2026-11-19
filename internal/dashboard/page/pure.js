@@ -1228,11 +1228,23 @@
   // row head tall and sgap between two steps.
   P.TASK_GEO = { w: 248, h: 64, gx: 16, gy: 12, head: 36, sgap: 28 };
 
-  // taskCols is how many nodes a row holds on a canvas width pixels wide at
-  // zoom 0: as many as fit, at least one and at most eight.
-  P.taskCols = function (width, geo) {
-    const g = geo || P.TASK_GEO;
-    return Math.max(1, Math.min(8, Math.floor((width + g.gx) / (g.w + g.gx))));
+  // taskFitCols is how many nodes a row holds so the whole graph draws
+  // largest on a canvas width by height pixels, never past zoom 0 and never
+  // more than the widest step or eight; of columns that draw it as large,
+  // the most, so a step's tasks sit side by side rather than stacked.
+  P.taskFitCols = function (tasks, width, height, geo) {
+    const widest = Math.max(1, ...P.taskSteps(tasks).map((s) => s.length));
+    let best = 1;
+    let bestZoom = -Infinity;
+    for (let c = 1; c <= Math.min(8, widest); c++) {
+      const b = P.taskGraphLayout(tasks, c, geo).bounds;
+      const z = Math.min(0, Math.log2(Math.min(width / Math.max(1, b.x1 - b.x0), height / Math.max(1, b.y1 - b.y0))));
+      if (z >= bestZoom - 1e-9) {
+        best = c;
+        bestZoom = z;
+      }
+    }
+    return best;
   };
 
   // taskGraphLayout places each step's header and then its tasks in rows of
