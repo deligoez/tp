@@ -972,6 +972,63 @@
     if (i < 0) return null;
     return Math.min(i, P.OWNER_SLOTS);
   };
+  // routeWire routes a Steps wire from card a's bottom to card b's top, both
+  // { x, y, w, h }, around obstacles (every other card and step header) as
+  // points joined by straight legs. It turns only in the free bands: the gap
+  // under a's row and the gap over b's row. Between those it drops at b's
+  // centre, else at a's, else down the free gutter between two columns
+  // nearest b, so no leg crosses a card's content. opts.dx and opts.dy shift
+  // the gutter and the bands, so wires sharing one stay apart.
+  P.routeWire = function (a, b, obstacles, opts) {
+    const o = opts || {};
+    const dx = o.dx || 0;
+    const dy = o.dy || 0;
+    const obs = obstacles || [];
+    const p = { x: a.x + a.w / 2, y: a.y + a.h };
+    const q = { x: b.x + b.w / 2, y: b.y };
+    const below = obs.filter((r) => r.y >= p.y && r.y < q.y).map((r) => r.y);
+    const above = obs.filter((r) => r.y + r.h <= q.y && r.y + r.h > p.y).map((r) => r.y + r.h);
+    const bs = (p.y + (below.length ? Math.min(...below) : q.y)) / 2 + dy;
+    const bt = (q.y + (above.length ? Math.max(...above) : p.y)) / 2 + dy;
+    const clear = (x, y0, y1) => !obs.some((r) => x > r.x && x < r.x + r.w && y0 < r.y + r.h && y1 > r.y);
+    if (Math.abs(bt - bs) < 1 || clear(q.x, bs, q.y)) return [p, { x: p.x, y: bs }, { x: q.x, y: bs }, q];
+    if (clear(p.x, p.y, bt)) return [p, { x: p.x, y: bt }, { x: q.x, y: bt }, q];
+    const g = P.wireGutter(obs, q.x, bs, bt, clear) + dx;
+    return [p, { x: p.x, y: bs }, { x: g, y: bs }, { x: g, y: bt }, { x: q.x, y: bt }, q];
+  };
+  // wireGutter is the free vertical line nearest x between y0 and y1: the
+  // middle of a gap between two obstacles' columns, or just outside them all.
+  P.wireGutter = function (obs, x, y0, y1, clear) {
+    const lefts = obs.map((r) => r.x);
+    const rights = obs.map((r) => r.x + r.w);
+    const xs = [Math.min(...lefts) - 8, Math.max(...rights) + 8];
+    rights.forEach((r) => {
+      const next = lefts.filter((l) => l > r);
+      if (next.length) xs.push((r + Math.min(...next)) / 2);
+    });
+    const free = xs.filter((g) => clear(g, y0, y1)).sort((m, n) => Math.abs(m - x) - Math.abs(n - x));
+    return free.length ? free[0] : xs[0];
+  };
+  // wirePath is a route's SVG path: straight legs, each corner turned in a
+  // short curve of radius r, never more than half of either leg.
+  P.wirePath = function (pts, r) {
+    const num = (v) => Math.round(v * 10) / 10;
+    const at = (pt) => num(pt.x) + " " + num(pt.y);
+    let d = "M" + at(pts[0]);
+    for (let i = 1; i < pts.length - 1; i++) {
+      const prev = pts[i - 1];
+      const c = pts[i];
+      const next = pts[i + 1];
+      const lin = Math.hypot(c.x - prev.x, c.y - prev.y);
+      const lout = Math.hypot(next.x - c.x, next.y - c.y);
+      const k = Math.min(r, lin / 2, lout / 2);
+      if (k < 0.5) { d += "L" + at(c); continue; }
+      const s = { x: c.x - ((c.x - prev.x) / lin) * k, y: c.y - ((c.y - prev.y) / lin) * k };
+      const e = { x: c.x + ((next.x - c.x) / lout) * k, y: c.y + ((next.y - c.y) / lout) * k };
+      d += "L" + at(s) + "Q" + at(c) + " " + at(e);
+    }
+    return d + "L" + at(pts[pts.length - 1]);
+  };
   // ownerSelected says whether an epic whose owner list is owner passes the
   // map's owner selection sel: undefined keeps every epic, null the unowned
   // (ownerless), a handle the epics naming it while owners declares it.
