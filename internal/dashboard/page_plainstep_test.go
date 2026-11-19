@@ -45,3 +45,17 @@ func TestPure_EngineProseWithACommandIsNeverShown(t *testing.T) {
 ]);`)
 	assert.JSONEq(t, `["resume the in-progress task tax-calc", "fb", "fb", ["tp review a.md", "tp review a.md --record-inbox"], ["tp next"], []]`, got)
 }
+
+// The page draws no engine reason text as visible text: a blocker shows its
+// plain words, its message only in a tooltip, its commands behind Copy
+// command; a next step carrying a command shows the plain fallback.
+func TestPage_NoEngineReasonTextShowsInPlainView(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, s := range []string{`'<span class="snext">' + esc(f.next_step`, `esc(b.code)`, `t("spec.waitsOp", { message: b.message })`, `": " + esc(b.message)`, `'<span class="sum">' + esc(na.summary`} {
+		assert.NotContains(t, script, s, "no engine reason text is drawn as visible text")
+	}
+	for _, s := range []string{`tpPure.blockerText(b.code, BLOCKER_TEXT, t)`, `tpPure.plainStep(f.next_step, t("specs.nextIn", { phase: word(STEP_LABEL, f.phase) }))`, `tpPure.blockerCommands(b)`} {
+		assert.Contains(t, script, s)
+	}
+}
