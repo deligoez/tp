@@ -724,11 +724,11 @@ body.mapfs .gcard.fs .glegend .legend { max-height: none; overflow: visible; }
 .sec h2.sth .n { font: 400 14px/20px var(--mono); color: var(--muted); }
 .sec h2.sth .tc { margin-left: auto; min-height: var(--ctl-sm); padding: 0 var(--sp-3); color: var(--accent); background: var(--surface); border: 1px solid var(--stroke-brand-strong); border-radius: var(--r-2); font: var(--type-tiny-bold); }
 .sec h2.sth .tc:hover { background: var(--fill-brand-weak); }
-.blk { position: relative; font: var(--type-body); font-size: 18px; line-height: 30px; overflow-wrap: anywhere; }
+.blk { position: relative; font: var(--type-body); overflow-wrap: anywhere; }
 .blk p, .blk ul, .blk ol, .blk .scroll { margin: 0 0 var(--sp-4); }
 .blk ul, .blk ol { padding-left: 24px; }
 .blk h3.sub { font: var(--type-h4); margin: var(--sp-6) 0 var(--sp-2); }
-.blk pre { font: 400 14px/22px var(--mono); background: var(--fill-weak); color: var(--ink); border-radius: var(--r-2); padding: var(--sp-3) var(--sp-4); overflow-x: auto; margin: 0 0 var(--sp-4); overflow-wrap: normal; }
+.blk pre { font: 400 14px/20px var(--mono); background: var(--fill-weak); color: var(--ink); border-radius: var(--r-2); padding: var(--sp-3) var(--sp-4); overflow-x: auto; margin: 0 0 var(--sp-4); overflow-wrap: normal; }
 .blk table { border-collapse: collapse; font: var(--type-small); }
 .blk th { font: var(--type-tiny-bold); color: var(--muted); text-align: left; border-bottom: 1px solid var(--line-strong); padding: var(--sp-2) var(--sp-4) var(--sp-2) 0; }
 .blk td { border-bottom: 1px solid var(--line); padding: var(--sp-2) var(--sp-4) var(--sp-2) 0; vertical-align: top; }
