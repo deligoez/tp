@@ -41,6 +41,8 @@
   "graph.search": "Find an epic by id or title  /",
   "graph.searchLabel": "Find epics in the graph; Enter selects the next match",
   "graph.cross": "Cross edges",
+  "graph.view": "View",
+  "graph.viewChanged": { "one": "{n} setting changed", "other": "{n} settings changed" },
   "graph.crossTitle": "Show or hide every edge that is not a tree edge (K)",
   "graph.fit": "Fit",
   "graph.fitTitle": "Fit the whole graph (F)",

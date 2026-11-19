@@ -446,6 +446,19 @@ kbd { display: inline-block; min-width: 1.6em; padding: 0 var(--sp-1); border: 1
 .map { position: relative; height: min(70vh, 660px); background: var(--sunk); box-shadow: var(--shadow-sunken); cursor: grab; touch-action: none; overflow: hidden; }
 .map.drag { cursor: grabbing; }
 .gpick { display: inline-flex; align-items: center; gap: var(--sp-1); font: var(--type-tiny); color: var(--muted); }
+/* the View menu (DESIGN.md's dropdown menu): its button carries a neutral
+   badge count of the settings away from their default; the popover sits in
+   the top layer under the button, its controls stacked, labels whole */
+.vbtn { gap: var(--sp-2); }
+.vbtn::after { content: ""; width: 16px; height: 16px; background: currentColor; transform: rotate(90deg); -webkit-mask: var(--ic-chevron) center / contain no-repeat; mask: var(--ic-chevron) center / contain no-repeat; }
+.vbtn[aria-expanded="true"]::after { transform: rotate(-90deg); }
+.vcount { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 var(--sp-1); border-radius: 10px; background: var(--fill-strong); color: var(--text-inverse-strong); font: var(--type-tiny-bold); line-height: 1; }
+.vcount[hidden] { display: none; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.vpop { position: fixed; inset: auto; margin: 0; flex-direction: column; align-items: stretch; gap: var(--sp-2); min-width: 200px; padding: var(--sp-3); border: 1px solid var(--line); border-radius: var(--r-3); background: var(--overlay); color: var(--ink); box-shadow: var(--shadow-overlay); }
+.vpop:popover-open { display: flex; }
+.vpop .gpick { justify-content: space-between; }
+.vpop .chip { justify-content: flex-start; }
 .gcard #gc-q { min-height: var(--ctl-sm); min-width: 14rem; padding: 0 var(--sp-3); border: 1px solid var(--line-strong); border-radius: var(--r-2); background: var(--surface); color: var(--ink); font: var(--type-tiny); }
 .gcard #gc-q::placeholder { color: var(--muted); opacity: 1; }
 .gcard .toolbar { position: relative; }
@@ -529,9 +542,8 @@ body.mapfs .gcard.fs #gc-full { order: 10; flex-shrink: 0; }
 body.mapfs .gcard.fs #gc-q { flex: 0 1 16rem; min-width: 8rem; }
 body.mapfs .gcard.fs .toolbar.tight .seg { flex: 0 1 auto; min-width: 0; }
 body.mapfs .gcard.fs .toolbar.tight .seg button { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-@container (max-width: 1240px) { body.mapfs .gcard.fs .gpick > span { display: none; } }
-body.mapfs.dopen .gcard.fs .gcountfs, body.mapfs.dopen .gcard.fs .gpick > span { display: none; }
-body.mapfs .gcard.fs .toolbar.tight #gc-cross { flex: 0 1 auto; min-width: 4rem; overflow: hidden; text-overflow: ellipsis; }
+@container (max-width: 1240px) { body.mapfs .gcard.fs .toolbar > .gpick > span { display: none; } }
+body.mapfs.dopen .gcard.fs .gcountfs, body.mapfs.dopen .gcard.fs .toolbar > .gpick > span { display: none; }
 body.mapfs.dopen .gcard.fs .toolbar { left: calc((100% - var(--drawer-w)) / 2); max-width: calc(100% - var(--drawer-w) - 24px); }
 body.mapfs .gcard.fs .toolbar { position: absolute; top: var(--sp-3); left: 50%; transform: translateX(-50%); z-index: 3; flex-wrap: nowrap; width: max-content; max-width: calc(100% - 24px); overflow-x: auto; padding: var(--sp-2) var(--sp-3); border: 1px solid var(--line); border-radius: var(--r-3); background: var(--overlay); box-shadow: var(--shadow-overlay); }
 body.mapfs .gcard.fs .toolbar h2, body.mapfs .gcard.fs .toolbar .spacer, body.mapfs .gcard.fs .gcount, body.mapfs .gcard.fs .legend .help, body.mapfs .gcard.fs .chaintext { display: none; }

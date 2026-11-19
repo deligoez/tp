@@ -822,6 +822,12 @@
       $("gc-ocolour").setAttribute("aria-pressed", String(G.ownerColour));
     }
     $("gc-cross").setAttribute("aria-pressed", String(pure.crossShown(G)));
+    // The View button's badge counts the settings away from their default,
+    // so a filter the closed menu hides still shows on the toolbar.
+    const changed = pure.viewChanged(G, owned);
+    $("gc-viewn").hidden = changed === 0;
+    $("gc-viewn").firstChild.textContent = app.tr().num(changed);
+    $("gc-viewn").lastChild.textContent = t("graph.viewChanged", { n: changed });
     // The search's placeholder names what it finds in this mode.
     $("gc-q").placeholder = t(G.mode === "milestones" ? tk("graph.searchMilestone") : tk("graph.search"));
     if ($("gc-q").value !== G.q && document.activeElement !== $("gc-q")) $("gc-q").value = G.q;
@@ -912,6 +918,19 @@
     render();
   }
   $("gc-cross").addEventListener("click", toggleCross);
+  // The View menu is a popover in the browser's top layer, so the
+  // full-screen pill's scroll box never clips it; the browser closes it on
+  // Esc or a click outside and gives the focus back to its button. Opened,
+  // it sits under the button, kept inside the window.
+  $("gc-viewpop").addEventListener("toggle", (ev) => {
+    const open = ev.newState === "open";
+    $("gc-viewbtn").setAttribute("aria-expanded", String(open));
+    if (!open) return;
+    const r = $("gc-viewbtn").getBoundingClientRect();
+    const pop = $("gc-viewpop");
+    pop.style.top = (r.bottom + 4) + "px";
+    pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + "px";
+  });
 
   // ---------- the legend and keys card ----------
   // One card holds the legend and the keys: open on the page, collapsed in
@@ -1067,7 +1086,7 @@
     } else if (ev.key === "f" || ev.key === "F") fit();
     else if (ev.key === "k" || ev.key === "K") toggleCross();
     else if (ev.key === "l" || ev.key === "L") toggleLegend();
-    else if (ev.key === "Escape" && app.selected() && $("drawer").hidden) app.selectEpic(null);
+    else if (ev.key === "Escape" && app.selected() && $("drawer").hidden && !$("gc-viewpop").matches(":popover-open")) app.selectEpic(null);
   });
   function countText() {
     return G.prepared ? countLine(G.prepared) : "";

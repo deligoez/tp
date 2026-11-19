@@ -41,6 +41,8 @@
   "graph.search": "Epic ara: kimlik, başlık  /",
   "graph.searchLabel": "Haritada epic ara; Enter sonraki eşleşmeyi seçer",
   "graph.cross": "Çapraz bağımlılıklar",
+  "graph.view": "Görünüm",
+  "graph.viewChanged": "{n} ayar değişti",
   "graph.crossTitle": "Ana bağımlılık olmayan tüm bağımlılıkları göster ya da gizle (K)",
   "graph.fit": "Sığdır",
   "graph.fitTitle": "Haritanın tamamını sığdır (F)",
