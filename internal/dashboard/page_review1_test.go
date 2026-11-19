@@ -56,7 +56,8 @@ func TestPage_MonoIsForIdsAndEveryMeasureIsAToken(t *testing.T) {
 		".raxis text { fill: var(--muted); font: var(--type-tiny); }",
 		"/* Deviation (DESIGN.md: one body face): the \"tp\" wordmark is set in mono, the face of the command it names. */",
 		".seg { display: inline-flex; padding: var(--sp-1); gap: var(--sp-1);",
-		"min-height: var(--ctl-sm); padding: 0 var(--sp-3); border: 0; border-radius: var(--r-1);",
+		// a 24 px button in 4 px of padding: the control is 32 px, as tall as the toolbar's other controls
+		"min-height: var(--sp-6); padding: 0 var(--sp-3); border: 0; border-radius: var(--r-1);",
 		"padding: var(--sp-4) var(--sp-5) var(--sp-4) var(--sp-12);",
 		"border-radius: var(--r-pill); background: var(--fill-strong);",
 		"min-height: var(--sp-10); color: var(--muted); }",
