@@ -89,7 +89,12 @@
     slot.appendChild(host());
     words();
     TG.d = d;
+    // A pick made off the canvas, a drawer link or the list, is brought into
+    // view once the drawer it opens is laid out; one made on it already is.
+    const moved = !!sel && sel !== TG.sel && !TG.picked;
+    TG.picked = false;
     TG.sel = sel || null;
+    if (moved) requestAnimationFrame(() => reveal(sel));
     if (!app.hasWebGL2() || new URLSearchParams(location.search).has("nogl")) {
       say(t("graph.noGL"));
       return;
@@ -282,6 +287,30 @@
     render();
   }
   const camera = () => ({ target: [TG.tx, TG.ty, 0], zoom: TG.z });
+  // reveal brings card id into view (tpPure.revealShift): the page scrolls
+  // it between the window's top and, on a phone, the drawer's sheet, and the
+  // camera moves across to it clear of the drawer beside a wide screen. At a
+  // zoom where Steps fits the panel's width the across stays centred (sync),
+  // so a card under the side drawer there is shown by the page alone.
+  const REVEAL_PAD = 16;
+  function reveal(id) {
+    const c = TG.S && TG.S.at[id];
+    if (!c || !live()) return;
+    const s = Math.pow(2, TG.z);
+    const drawer = document.getElementById("drawer");
+    const d = drawer.getBoundingClientRect();
+    const sheet = !drawer.hidden && d.top > window.innerHeight / 3;
+    const side = !drawer.hidden && !sheet && d.left > window.innerWidth / 3;
+    const top = TG.spacer.getBoundingClientRect().top + c.y * s;
+    const dy = pure.revealShift(top, top + c.h * s, 0, sheet ? d.top : window.innerHeight, REVEAL_PAD);
+    if (dy) window.scrollBy(0, dy);
+    const box = TG.host.getBoundingClientRect();
+    const left = box.left + box.width / 2 + (c.x - TG.tx) * s;
+    const dx = pure.revealShift(left, left + c.w * s, box.left, side ? Math.min(box.right, d.left) : box.right, REVEAL_PAD);
+    TG.tx += dx / s;
+    sync();
+    render();
+  }
   // zoomAt zooms by dz about (px, py) from the canvas's centre
   // (tpPure.zoomCamera), the one path every zoom takes.
   function zoomAt(dz, px, py) {
@@ -440,8 +469,10 @@
         render();
       },
       onClick: (info) => {
+        TG.picked = true;
         if (info.object && info.layer && info.layer.id === "cards") app.pickTask(info.object.id);
         else if (TG.sel) app.pickTask(TG.sel);
+        TG.picked = false;
       },
       getCursor: ({ isDragging, isHovering }) => (isDragging ? "grabbing" : isHovering ? "pointer" : "grab"),
       getTooltip: tooltip,
