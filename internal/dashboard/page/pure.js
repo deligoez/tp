@@ -1070,6 +1070,11 @@
     out.push([z.x, z.y]);
     return out;
   };
+  // drawerWide says whether the drawer opens wide from the viewer's stored
+  // choice: only a stored "wide" does; nothing stored keeps it narrow.
+  P.drawerWide = function (stored) {
+    return stored === "wide";
+  };
   // TP_COMMAND matches a tp command written out: tp, a space, a word.
   const TP_COMMAND = /\btp [a-z]/;
   // blockerText is a blocker's code (tp resume, tp export --list) as plain

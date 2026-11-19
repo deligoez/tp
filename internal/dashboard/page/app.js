@@ -1446,13 +1446,14 @@
     $("drawer").setAttribute("aria-label", msd ? t("drawer.msLabel") : t("drawer.epicLabel"));
     $("dclose").setAttribute("aria-label", msd ? t("drawer.msClose") : t("drawer.epicClose"));
     $("dinfo").setAttribute("aria-label", msd ? t("drawer.msAbout") : t("drawer.epicAbout"));
+    setWide(wide, false);
     if (msd) {
       const dc = tpPure.describedCounts((g.graph && g.graph.epics) || [])[msd.milestone] || { described: 0, all: 0 };
       // Its epics as links and the way to its gate's closure on the graph.
       const members = (g.epics || []).filter((x) => x.milestone === msd.milestone).map((x) => x.id);
-      $("dbody").innerHTML = tpPure.milestoneHTML(msd, gateOf(g, msd.milestone), dc, words(THRESHOLD_LABEL), t) +
+      $("dbody").innerHTML = '<div class="dmain">' + tpPure.milestoneHTML(msd, gateOf(g, msd.milestone), dc, words(THRESHOLD_LABEL), t) +
         '<p><button type="button" class="key" data-closure="' + esc(msd.milestone) + '">' + esc(t("drawer.showClosure")) + "</button></p>" +
-        "<div><h4>" + esc(t("drawer.members", { n: members.length })) + '</h4><div class="wids">' + members.map(epicLink).join(" ") + "</div></div>";
+        "<div><h4>" + esc(t("drawer.members", { n: members.length })) + '</h4><div class="wids">' + members.map(epicLink).join(" ") + "</div></div></div>";
       return;
     }
     const ge = graphEpic(g, id) || {};
@@ -1494,16 +1495,18 @@
       ge.acceptance ? [t("drawer.f.acceptance"), '<div class="ddesc">' + tpPure.markdown(ge.acceptance) + "</div>", true] : null,
       ge.done ? [t("drawer.f.done"), stamp(ge.done.at) + (ge.done.evidence ? ": " + ge.done.evidence : "")] : null,
     ].filter(Boolean);
-    $("dbody").innerHTML = '<div><div class="dmeta"><code>' + esc(id) + "</code>" + (e.condition ? "<span>" + esc(t("drawer.condition")) + "</span>" : "") + (crit ? '<span class="critpill">' + esc(t("wait.critical")) + "</span>" : "") + "</div><h3>" + esc(e.title) + "</h3></div>" +
+    // The epic itself in a main column, what it links to in a side one: one
+    // column narrow, two side by side when the drawer is wide.
+    $("dbody").innerHTML = '<div class="dmain">' + '<div><div class="dmeta"><code>' + esc(id) + "</code>" + (e.condition ? "<span>" + esc(t("drawer.condition")) + "</span>" : "") + (crit ? '<span class="critpill">' + esc(t("wait.critical")) + "</span>" : "") + "</div><h3>" + esc(e.title) + "</h3></div>" +
       (e.condition ? '<div class="cmdline"><span class="sum">' + t.html("drawer.conditionNote_html", { id }) + "</span>" +
         copyCmd("tp epic done " + id + ' --evidence "<' + t("op.evidence") + '>"') + "</div>" : epicStepper(e, ge.claimed !== undefined ? ge : null)) +
       // The description reads first, above the fields and their Acceptance.
       (String(ge.description || "").trim() ? descHTML(ge.description) : "") +
-      "<dl>" + fields.map(([k, v, html]) => "<dt>" + esc(k) + "</dt><dd>" + (html ? v : esc(v)) + "</dd>").join("") + "</dl>" +
+      "<dl>" + fields.map(([k, v, html]) => "<dt>" + esc(k) + "</dt><dd>" + (html ? v : esc(v)) + "</dd>").join("") + "</dl></div>" + '<div class="dside">' +
       ((e.files || []).length ? "<div><h4>" + esc(t("drawer.specs")) + '</h4><ul class="elist">' + e.files.map(fileLine).join("") + "</ul></div>" : "") +
       "<div><h4>" + esc(t("drawer.dependsOn")) + "</h4>" + rows("deps", deps) + "</div>" +
       "<div><h4>" + esc(t("drawer.dependedOnBy")) + "</h4>" + rows("needs", needs) + "</div>" +
-      fold("history", "<summary><h4>" + esc(t("drawer.history")) + "</h4></summary>" + info("ehistory", t("drawer.history")) + epicHistoryHTML(id));
+      fold("history", "<summary><h4>" + esc(t("drawer.history")) + "</h4></summary>" + info("ehistory", t("drawer.history")) + epicHistoryHTML(id)) + "</div>";
   }
   INFO.ehistory = tk("info.ehistory");
 
@@ -1522,6 +1525,25 @@
   panel(["epic-export", "summary"], drawSelected);
 
   $("dclose").addEventListener("click", () => selectEpic(null));
+  // The drawer's width is the viewer's choice, Large over a modal so the
+  // plan stays beside it: kept in localStorage, its button named for what a
+  // press does. Toggling it neither redraws the drawer nor moves focus.
+  const WIDE_KEY = "tp.drawer.wide";
+  function storedWide() {
+    try { return localStorage.getItem(WIDE_KEY); } catch (e) { return null; }
+  }
+  let wide = tpPure.drawerWide(storedWide());
+  function setWide(on, store) {
+    wide = on;
+    $("drawer").classList.toggle("wide", on);
+    const label = on ? t("drawer.narrow") : t("drawer.widen");
+    $("dwide").setAttribute("aria-label", label);
+    $("dwide").title = label;
+    if (store) {
+      try { localStorage.setItem(WIDE_KEY, on ? "wide" : "narrow"); } catch (e) { /* the choice lasts this load */ }
+    }
+  }
+  $("dwide").addEventListener("click", () => setWide(!wide, true));
   $("scrim").addEventListener("click", () => selectEpic(null));
   document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && !viewMenuOpen() && !$("drawer").hidden && $("pop").hidden) selectEpic(null); });
   document.addEventListener("click", (ev) => {

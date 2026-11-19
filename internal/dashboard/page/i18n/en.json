@@ -352,6 +352,8 @@
   "drawer.epicLabel": "Epic detail",
   "drawer.msLabel": "Milestone detail",
   "drawer.epicClose": "Close the epic detail",
+  "drawer.widen": "Widen",
+  "drawer.narrow": "Narrow",
   "drawer.msClose": "Close the milestone detail",
   "drawer.epicAbout": "About the epic detail",
   "drawer.msAbout": "About the milestone detail",

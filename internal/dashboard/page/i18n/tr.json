@@ -352,6 +352,8 @@
   "drawer.epicLabel": "Epic ayrıntısı",
   "drawer.msLabel": "Milestone ayrıntısı",
   "drawer.epicClose": "Epic ayrıntısını kapat",
+  "drawer.widen": "Genişlet",
+  "drawer.narrow": "Daralt",
   "drawer.msClose": "Milestone ayrıntısını kapat",
   "drawer.epicAbout": "Epic ayrıntısı hakkında",
   "drawer.msAbout": "Milestone ayrıntısı hakkında",
