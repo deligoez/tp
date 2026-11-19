@@ -52,8 +52,8 @@ func tasksLayout(file string) (any, *dashboard.Error) {
 // it, its nodes listed by layer then column again.
 func tasksShelved(ids []string, out *dashboardLayout) {
 	f := engine.Forest{Places: make(map[string]engine.ForestPlace, len(out.Nodes)), Roles: make([]engine.EdgeRole, len(out.Edges))}
-	for _, n := range out.Nodes {
-		f.Places[n.ID] = engine.ForestPlace{Layer: n.Layer, Col: n.Col}
+	for i := range out.Nodes {
+		f.Places[out.Nodes[i].ID] = engine.ForestPlace{Layer: out.Nodes[i].Layer, Col: out.Nodes[i].Col}
 	}
 	edges := make([]engine.LayoutEdge, len(out.Edges))
 	for i, e := range out.Edges {
