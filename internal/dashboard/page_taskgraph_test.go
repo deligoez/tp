@@ -25,3 +25,17 @@ func TestPure_TaskGraphStepsMatchTheStepsPanel(t *testing.T) {
 	assert.JSONEq(t, `[["a","b","f"],["c","e"],["d"],["g"]]`, got)
 }
 
+// A step wraps after cols tasks, its rows stacked under its header, and no
+// two nodes overlap.
+func TestPure_TaskGraphLayoutWrapsAStepAndNeverOverlaps(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, taskFixture+`
+const L = P.taskGraphLayout(TS, 2, GEO);
+const at = {}; L.nodes.forEach((n) => { at[n.id] = n; });
+const overlap = L.nodes.some((p, i) => L.nodes.some((q, j) => j > i && p.x < q.x + q.w && q.x < p.x + p.w && p.y < q.y + q.h && q.y < p.y + p.h));
+out({ a: [at.a.x, at.a.y], b: [at.b.x, at.b.y], f: [at.f.x, at.f.y], c: [at.c.x, at.c.y], steps: L.steps.map((s) => s.y), overlap,
+  bounds: L.bounds });`)
+	assert.JSONEq(t, `{"a":[0,30],"b":[110,30],"f":[0,80],"c":[0,170],
+		"steps":[0,140,230,320],"overlap":false,"bounds":{"x0":0,"y0":0,"x1":210,"y1":390}}`, got)
+}
+
