@@ -2238,7 +2238,8 @@
       '<section class="panel tpanel"><div class="toolbar"><h2>' + esc(t("spec.view.tasks")) + " " + info("tasks", t("spec.view.tasks")) + "</h2>" + chip + '<span class="spacer"></span>' +
       '<div class="seg" role="group" aria-label="' + esc(t("tasks.view")) + '">' + tview("steps", tk("tasks.steps")) + tview("map", tk("tasks.map")) + tview("board", tk("tasks.board")) + "</div></div>" +
       '<div class="stages ' + (work.tview === "board" ? "board" : "graph") + '" id="stages">' + (tasks.length ? stagesHTML(d, ix) : none(t("progress.noTasks"))) + "</div>" +
-      '<div class="legend">' + ["ready", "wip", "waits_on_task", "waits_on_epic", "done"].map((s) => '<span><i class="lg" data-s="' + s + '"></i>' + esc(word(TASK_LABEL, s)) + "</span>").join("") + "</div></section>";
+      // The Map's card draws its own legend, the epic map's.
+      (work.tview === "map" ? "" : '<div class="legend">' + ["ready", "wip", "waits_on_task", "waits_on_epic", "done"].map((s) => '<span><i class="lg" data-s="' + s + '"></i>' + esc(word(TASK_LABEL, s)) + "</span>").join("") + "</div>") + "</section>";
     if (work.tview === "steps" && tasks.length && window.tpTaskGraph) window.tpTaskGraph.show(d, work.task);
     if (work.tview === "map" && tasks.length && window.tpTaskMap) window.tpTaskMap.show($("tm-slot"), d, work.task);
     if (focused) {
