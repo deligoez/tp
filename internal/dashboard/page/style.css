@@ -527,7 +527,7 @@ body.mapfs .gcard.fs .toolbar > *, body.mapfs .gcard.fs .toolbar .seg button { f
 /* the search keeps 16rem and gives way to 8rem first; Fit and Exit keep the
    end, whole. Words shorten only on a toolbar measured too wide (.tight, set by
    graph.js), so a toolbar with room keeps every word whole */
-body.mapfs .gcard.fs #gc-fit, body.mapfs .gcard.fs #gc-full { order: 10; flex-shrink: 0; }
+body.mapfs .gcard.fs #gc-full { order: 10; flex-shrink: 0; }
 body.mapfs .gcard.fs #gc-q { flex: 0 1 16rem; min-width: 8rem; }
 body.mapfs .gcard.fs .toolbar.tight .seg { flex: 0 1 auto; min-width: 0; }
 body.mapfs .gcard.fs .toolbar.tight .seg button { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }

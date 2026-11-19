@@ -959,7 +959,6 @@
   new ResizeObserver(fitPill).observe(pill);
   document.addEventListener("tp-fs", fitPill);
   showLegend(pure.legendOpen(storedLegend(), isFull()));
-  $("gc-fit").addEventListener("click", () => { if (G.prepared) fit(); });
   // The canvas's own + − Fit, bottom right, in the page and in full screen.
   $("gc-zfit").addEventListener("click", () => { if (G.prepared) fit(); });
   $("gc-zin").addEventListener("click", () => { if (G.vs) zoomBy(ZOOM_STEP); });
