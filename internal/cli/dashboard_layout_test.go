@@ -89,7 +89,7 @@ func TestDashboard_LayoutClampsTheNeighbourhoodDepth(t *testing.T) {
 // place alone (its milestone in the export, its group on its edges), the
 // scope's critical path marked and the group's edges marked. r2's
 // neighbourhood at depth 1: one step each way, r2 the centre, the graph's
-// critical path marked.
+// critical path marked. Every epic node names its title and state.
 func TestDashboard_LayoutGoldenViews(t *testing.T) {
 	t.Parallel()
 	srv := startDashboard(t, epicGraphDir(t, layoutGraph), freePort(t))
@@ -120,8 +120,28 @@ func TestDashboard_LayoutGoldenViews(t *testing.T) {
 	} {
 		status, body := getPage(t, strings.TrimSuffix(srv.url, "/")+"/api/layout?"+query)
 		require.Equal(t, http.StatusOK, status, body)
-		assert.JSONEq(t, want, body, query)
+		assert.JSONEq(t, want, withoutMapMarks(t, body), query)
 	}
+}
+
+// withoutMapMarks is a layout body without each node's status, hold and
+// downstream, which TestEpicLayout_EpicNodesCarryTheMapsStatusAndDownstream
+// pins against the page's own derivation, so the goldens pin the geometry.
+func withoutMapMarks(t *testing.T, body string) string {
+	t.Helper()
+	var out map[string]any
+	require.NoError(t, json.Unmarshal([]byte(body), &out), body)
+	nodes, _ := out["nodes"].([]any)
+	for _, n := range nodes {
+		if node, ok := n.(map[string]any); ok {
+			delete(node, "status")
+			delete(node, "hold")
+			delete(node, "downstream")
+		}
+	}
+	raw, err := json.Marshal(out)
+	require.NoError(t, err)
+	return string(raw)
 }
 
 // TestDashboard_MilestonesLayoutGroupsEachTrack: in the overview a
