@@ -2751,7 +2751,7 @@ task's `description`, sets every `snapshot_diff` to `null`, drops every `finding
 ```
 {version: 1, files: [{path, title, epic?, epic_state?, phase, tasks: {open, wip, done},
                       review: {round, state}, audit: {round, state}, next_step, escalations?,
-                      content_hash}]}
+                      content_hash, updated_at?}]}
 ```
 
 One row per `*.tasks.json` git sees, tracked or untracked and not ignored, bound or not; outside a
@@ -2760,7 +2760,10 @@ derived status (`null` with no graph); `phase` and `next_step` what `tp resume <
 `review`/`audit` `{round, state}` as `tp epic export`'s bound files carry them; `escalations` the file's
 escalate blockers; `content_hash` the lowercase hex SHA-256 of the task file's bytes followed by its
 spec's, which moves with an edit to the spec's text or a task's acceptance or description that no
-other field shows. `epic`, `epic_state` and `escalations` are omitted when empty. Rows run in phase
+other field shows; `updated_at` (v1.28.0) the RFC 3339 time the file was last worked on, the latest
+of its tasks' `started_at` and `closed_at` and its `bound_at` and `imported_at`, or with none of
+those the latest recorded review or audit round, never the file's mtime, which a checkout resets.
+`epic`, `epic_state`, `escalations` and `updated_at` are omitted when empty. Rows run in phase
 order (`review`, `decompose`, `implement`, `audit`, `release`), escalated rows first within a phase,
 then by path. A file that cannot be read keeps a `{path, error}` row, sorted last, and the rest are
 whole. `--list` ignores `--file` and `--compact`.
