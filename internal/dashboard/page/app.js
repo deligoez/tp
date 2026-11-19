@@ -185,6 +185,8 @@
     });
     // The Spec tab with nothing open draws its empty state, or its one spec.
     if (tab === "work" && !work.path) drawWork();
+    // The drawer shows only what belongs to the tab open (tpPure.drawerKind).
+    drawDrawer();
     syncURL();
   }
 
@@ -1396,6 +1398,8 @@
     if (!el || !el.closest) return null;
     const toggle = el.dataset ? tpPure.toggleKey(el.dataset) : null;
     if (toggle) return "toggle:" + toggle;
+    // A task on the Tasks view, found again after its redraw.
+    if (el.dataset && el.dataset.t && el.closest("#sv-tasks")) return "task:" + el.dataset.t;
     if (!el.dataset || !el.dataset.epic) return null;
     const wg = el.closest("[data-wg]");
     if (wg) return "wait:" + wg.dataset.wg + ":" + el.dataset.epic;
@@ -1432,6 +1436,13 @@
     else if (key) els.find((x) => focusKey(x) === key).focus({ preventScroll: true });
   }
 
+  // DRAWER_WORDS names the drawer for what it shows: its kind, its label,
+  // its close button and its info button.
+  const DRAWER_WORDS = {
+    epic: [tk("drawer.epic"), tk("drawer.epicLabel"), tk("drawer.epicClose"), tk("drawer.epicAbout")],
+    milestone: [tk("drawer.milestone"), tk("drawer.msLabel"), tk("drawer.msClose"), tk("drawer.msAbout")],
+    task: [tk("drawer.task"), tk("drawer.taskLabel"), tk("drawer.taskClose"), tk("drawer.taskAbout")],
+  };
   function drawDrawer() {
     const g = data("epic-export");
     const id = mapView.selected;
@@ -1440,8 +1451,11 @@
     // brings it back does not reopen the drawer and take focus.
     if (g) moveDrawer({ type: "present", milestones: (g.milestones || []).map((m) => m.milestone) });
     const msd = !e && msView.detail && g ? (g.milestones || []).find((m) => m.milestone === msView.detail) : null;
-    const open = (!!e || !!msd) && state.tab === "epics";
-    document.querySelectorAll("#msstate [data-ms]").forEach((b) => b.setAttribute("aria-expanded", String(open && tpPure.cardExpanded(drawerState(), b.dataset.ms))));
+    // The same drawer shows a task of the open spec (tpPure.drawerKind).
+    const task = work.data && work.task ? (work.data.tasks || []).find((x) => x.id === work.task) : null;
+    const kind = tpPure.drawerKind({ tab: state.tab, view: work.view, task: task && task.id, epic: e && id, milestone: msd && msd.milestone });
+    const open = !!kind;
+    document.querySelectorAll("#msstate [data-ms]").forEach((b) => b.setAttribute("aria-expanded", String(kind === "milestone" && tpPure.cardExpanded(drawerState(), b.dataset.ms))));
     $("drawer").hidden = !open;
     // The drawer covers the page; its backdrop dims the rest and closes it.
     $("scrim").hidden = !open;
@@ -1457,11 +1471,18 @@
     }
     if (!open && drawerReturn) returnFocus();
     if (!open) return;
-    $("dkind").textContent = msd ? t("drawer.milestone") : t("drawer.epic");
-    $("drawer").setAttribute("aria-label", msd ? t("drawer.msLabel") : t("drawer.epicLabel"));
-    $("dclose").setAttribute("aria-label", msd ? t("drawer.msClose") : t("drawer.epicClose"));
-    $("dinfo").setAttribute("aria-label", msd ? t("drawer.msAbout") : t("drawer.epicAbout"));
+    const labels = DRAWER_WORDS[kind];
+    $("dkind").textContent = t(labels[0]);
+    $("drawer").setAttribute("aria-label", t(labels[1]));
+    $("dclose").setAttribute("aria-label", t(labels[2]));
+    $("dinfo").setAttribute("aria-label", t(labels[3]));
+    $("dinfo").dataset.info = kind === "task" ? "tasks" : "drawer";
     setWide(wide, false);
+    if (kind === "task") {
+      const ix = taskIndex(work.data);
+      $("dbody").innerHTML = taskDetail(work.data, task, ix);
+      return;
+    }
     if (msd) {
       const dc = tpPure.describedCounts((g.graph && g.graph.epics) || [])[msd.milestone] || { described: 0, all: 0 };
       // Its epics as links and the way to its gate's closure on the graph.
@@ -1539,7 +1560,28 @@
   }
   panel(["epic-export", "summary"], drawSelected);
 
-  $("dclose").addEventListener("click", () => selectEpic(null));
+  // closeDrawer closes whatever the drawer shows: a task, or an epic or a
+  // milestone.
+  function closeDrawer() {
+    if (state.tab === "work" && work.task) {
+      work.task = null;
+      drawWork();
+    } else selectEpic(null);
+  }
+  $("dclose").addEventListener("click", closeDrawer);
+  // A task named in a task's drawer moves the drawer to it and picks it on
+  // the graph; its spec section opens the spec there.
+  $("dbody").addEventListener("click", (ev) => {
+    if (state.tab !== "work") return;
+    const g = ev.target.closest("[data-goto]");
+    const b = ev.target.closest("[data-t]");
+    if (g) gotoSection(g.dataset.goto);
+    else if (b) {
+      work.task = b.dataset.t;
+      drawWork();
+      $("dclose").focus({ preventScroll: true });
+    }
+  });
   // The drawer's width is the viewer's choice, Large over a modal so the
   // plan stays beside it: kept in localStorage, its button named for what a
   // press does. Toggling it neither redraws the drawer nor moves focus.
@@ -1559,8 +1601,8 @@
     }
   }
   $("dwide").addEventListener("click", () => setWide(!wide, true));
-  $("scrim").addEventListener("click", () => selectEpic(null));
-  document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && !viewMenuOpen() && !$("drawer").hidden && $("pop").hidden) selectEpic(null); });
+  $("scrim").addEventListener("click", closeDrawer);
+  document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && !viewMenuOpen() && !$("drawer").hidden && $("pop").hidden) closeDrawer(); });
   document.addEventListener("click", (ev) => {
     const a = ev.target.closest && ev.target.closest("[data-epic]");
     if (a) {
@@ -2038,12 +2080,14 @@
       '</code><span class="tm">' + esc(taskMeta(task, ix)) + "</span></button>";
   }
 
+  // stepsHTML is the Steps layout as HTML: the graph lays it out unseen and
+  // draws what it measures (taskgraph.js), so it is never shown itself.
   function stepsHTML(d, ix) {
-    return '<svg class="wires" id="wires" aria-hidden="true"></svg>' + stepsOf(d, ix).map((g, i) => '<div class="step"><div class="step-h"><b>' + esc(t("tasks.step", { n: i + 1 })) +
+    return stepsOf(d, ix).map((g, i) => '<div class="step"><div class="step-h"><b>' + esc(t("tasks.step", { n: i + 1 })) +
       "</b><span>" + esc(i ? t("tasks.afterStep", { n: i }) : t("tasks.noneBefore")) + '</span></div><div class="cards">' + g.map((task) => taskCard(task, ix)).join("") + "</div></div>").join("");
   }
 
-  // graphHTML is the Graph view's slot, which taskgraph.js fills with its
+  // graphHTML is the Steps view's slot, which taskgraph.js fills with its
   // canvas, and the tasks as a list for the keyboard and the screen reader,
   // visually hidden until it takes focus.
   function graphHTML(d) {
@@ -2060,10 +2104,9 @@
     }).join("");
   }
 
-  // stepsBoxes measures a laid-out Steps body, box: every card's box by id
-  // and the step headers' words, each { x, y, w, h } from box's top left, and
-  // the rect function that measured them. Steps routes its wires through
-  // these, and the Graph draws its cards on them.
+  // stepsBoxes measures a laid-out Steps body, box: every card's box by id,
+  // each { x, y, w, h } from box's top left, and the rect function that
+  // measured them. The graph (taskgraph.js) draws Steps on them.
   function stepsBoxes(box) {
     const br = box.getBoundingClientRect();
     const rect = (el) => {
@@ -2072,47 +2115,7 @@
     };
     const R = {};
     box.querySelectorAll(".tcard").forEach((el) => { R[el.dataset.t] = rect(el); });
-    // A step header is a full-width row, but only its words are in the way.
-    const heads = Array.from(box.querySelectorAll(".step-h > *")).map(rect);
-    return { R, heads, rect };
-  }
-
-  // drawWires joins each task in Steps to what it waits on, the picked task's
-  // own links drawn strong. Each wire is routed through the gaps between the
-  // cards (tpPure.routeWire), never across one, and wires that share a gap
-  // are spread a few pixels apart so each stays traceable.
-  function drawWires(d) {
-    const svg = $("wires");
-    const box = $("stages");
-    if (!svg || !box) return;
-    const W = box.scrollWidth;
-    const H = box.scrollHeight;
-    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
-    svg.setAttribute("width", W);
-    svg.setAttribute("height", H);
-    const { R, heads } = stepsBoxes(box);
-    const wires = [];
-    (d.tasks || []).forEach((task) => (task.depends_on || []).forEach((x) => {
-      if (!R[x] || !R[task.id]) return;
-      const obstacles = Object.keys(R).filter((k) => k !== x && k !== task.id).map((k) => R[k]).concat(heads);
-      wires.push({ from: x, to: task.id, obstacles, pts: tpPure.routeWire(R[x], R[task.id], obstacles) });
-    }));
-    const spread = (key) => {
-      const groups = {};
-      wires.forEach((w) => { const k = key(w); if (k !== null) (groups[k] = groups[k] || []).push(w); });
-      const at = new Map();
-      Object.values(groups).forEach((g) => g.forEach((w, i) => at.set(w, Math.max(-8, Math.min(8, (i - (g.length - 1) / 2) * 4)))));
-      return at;
-    };
-    const dys = spread((w) => Math.round(w.pts[1].y));
-    const dxs = spread((w) => (w.pts.length > 4 ? Math.round(w.pts[2].x) : null));
-    const out = wires.map((w) => {
-      const pts = tpPure.routeWire(R[w.from], R[w.to], w.obstacles, { dx: dxs.get(w) || 0, dy: dys.get(w) || 0 });
-      const on = work.task && (work.task === w.from || work.task === w.to);
-      return { on, html: '<path class="' + (on ? "on" : "") + '" d="' + tpPure.wirePath(pts, 6) + '"/>' };
-    });
-    // The picked task's wires go last, so they are drawn over the faint ones.
-    svg.innerHTML = out.filter((o) => !o.on).concat(out.filter((o) => o.on)).map((o) => o.html).join("");
+    return { R, rect };
   }
 
   // closedOverTime draws the running count of closed tasks per day, from the
@@ -2157,12 +2160,14 @@
     const noEst = left.filter((task) => !task.estimate_minutes).length;
     const wip = tasks.filter((task) => task.state === "wip").map((task) => '<li><button class="link" type="button" data-t="' + esc(task.id) + '">' + esc(task.title) + "</button><small>" + running(task) + "</small></li>").join("");
     const leftLine = left.length ? t("progress.left", { est: t.dur(est) }) + (noEst ? ", " + t("progress.noEstimate", { n: noEst }) : "") + "." : t("progress.allDone");
-    return '<div class="pv"><div class="pv-h"><h3>' + t.html("progress.head_html", { done: count(["done"]), n: tasks.length }) + "</h3>" + info("progress", t("progress.about")) + "</div>" +
+    // One row: the bar and its counts, the estimate and the tasks in
+    // progress, the closed-over-time chart; it stacks on a narrow screen.
+    return '<div class="pv"><div class="pv-main"><div class="pv-h"><h3>' + t.html("progress.head_html", { done: count(["done"]), n: tasks.length }) + "</h3>" + info("progress", t("progress.about")) + "</div>" +
       '<div class="pbar" role="img" aria-label="' + esc(order.map((s) => t.num(s[2]) + " " + s[1]).join(", ")) + '">' + order.map((s) => (s[2] ? '<i style="flex:' + s[2] + ";background:var(--" + color[s[0]] + ')"></i>' : "")).join("") + "</div>" +
-      '<div class="pkey">' + order.map((s) => '<span><i style="background:var(--' + color[s[0]] + ')"></i><b class="num">' + esc(t.num(s[2])) + "</b>&nbsp;" + esc(s[1]) + "</span>").join("") + "</div>" +
-      '<p class="note">' + esc(leftLine) + "</p>" +
-      (wip ? "<div><h4>" + esc(t("progress.inProgress")) + '</h4><ul class="wiplist">' + wip + "</ul></div>" : "") +
-      "<div><h4>" + esc(t("progress.closedOverTime")) + "</h4>" + closedOverTime(tasks) + "</div>" + '<p class="note">' + esc(t("progress.clickTask")) + "</p></div>";
+      '<div class="pkey">' + order.map((s) => '<span><i style="background:var(--' + color[s[0]] + ')"></i><b class="num">' + esc(t.num(s[2])) + "</b>&nbsp;" + esc(s[1]) + "</span>").join("") + "</div></div>" +
+      '<div class="pv-mid"><p class="note">' + esc(leftLine) + "</p>" +
+      (wip ? "<h4>" + esc(t("progress.inProgress")) + '</h4><ul class="wiplist">' + wip + "</ul>" : "") + "</div>" +
+      '<div class="pv-chart"><h4>' + esc(t("progress.closedOverTime")) + "</h4>" + closedOverTime(tasks) + "</div></div>";
   }
 
   // sectionOf finds the export's section for one of a task's source_sections.
@@ -2196,21 +2201,22 @@
       return '<figure class="excerpt"><figcaption>' + (sec ? '<button type="button" class="link" data-goto="' + esc(secKey(sec)) + '">' + esc(sec.anchor + " " + secTitle(sec)) + "</button>" : esc(String(s).replace(/^#+\s*/, ""))) + "</figcaption>" +
         (p ? "<blockquote>" + esc(p.text) + "</blockquote>" : "") + "</figure>";
     }).join("");
-    return '<div class="td-head"><div><span class="stat" style="color:var(--' + (TASK_COLOR[task.state] || "muted") + ')">' + (TASK_MARK[task.state] || "") + esc(word(TASK_LABEL, task.state)) + "</span>" +
-      "<h3>" + esc(task.title) + '</h3><code class="tid">' + esc(task.id) + '</code></div><button type="button" class="popx" data-tclose aria-label="' + esc(t("task.close")) + '"></button></div>' +
+    // The drawer's two columns, as an epic's: what the task is and must do,
+    // then what it hangs on and where it comes from, side by side when wide.
+    return '<div class="dmain"><div class="td-head"><div><span class="stat" style="color:var(--' + (TASK_COLOR[task.state] || "muted") + ')">' + (TASK_MARK[task.state] || "") + esc(word(TASK_LABEL, task.state)) + "</span>" +
+      "<h3>" + esc(task.title) + '</h3><code class="tid">' + esc(task.id) + "</code></div></div>" +
       "<dl>" + time + "</dl>" +
       (cmd ? '<div class="cmdline"><span class="sum">' + esc(task.state === "ready" ? t("task.nextClaim") : t("task.nextDone")) + "</span>" + copyCmd(cmd) + "</div>" : "") +
       (task.state === "waits_on_epic" ? '<p class="opnote">' + t.html("task.epicWaits_html", { epic: d.epic || "" }) + "</p>" : "") +
-      "<div><h4>" + esc(t("task.acceptance")) + '</h4><ul class="deps">' + acc.map((a) => '<li><span class="mk">–</span><span>' + esc(a) + "</span></li>").join("") + "</ul></div>" +
-      '<div class="two-col"><div><h4>' + esc(t("task.dependsOn")) + '</h4><ul class="deps">' + deps + "</ul></div><div><h4>" + esc(t("task.neededBy")) + '</h4><ul class="deps">' + needs + "</ul></div></div>" +
-      (src ? "<div><h4>" + esc(t("task.fromSpec")) + "</h4>" + src + "</div>" : "");
+      "<div><h4>" + esc(t("task.acceptance")) + '</h4><ul class="deps">' + acc.map((a) => '<li><span class="mk">–</span><span>' + esc(a) + "</span></li>").join("") + "</ul></div></div>" +
+      '<div class="dside"><div class="two-col"><div><h4>' + esc(t("task.dependsOn")) + '</h4><ul class="deps">' + deps + "</ul></div><div><h4>" + esc(t("task.neededBy")) + '</h4><ul class="deps">' + needs + "</ul></div></div>" +
+      (src ? "<div><h4>" + esc(t("task.fromSpec")) + "</h4>" + src + "</div>" : "") + "</div>";
   }
 
-  // stagesHTML is the Tasks view's body in the view picked: Steps, Graph or
-  // Board.
+  // stagesHTML is the Tasks view's body in the view picked: Board, or Steps,
+  // the graph.
   function stagesHTML(d, ix) {
-    if (work.tview === "board") return boardHTML(d, ix);
-    return work.tview === "graph" ? graphHTML(d) : stepsHTML(d, ix);
+    return work.tview === "board" ? boardHTML(d, ix) : graphHTML(d);
   }
 
   function drawTasks(d) {
@@ -2224,18 +2230,21 @@
     work.secIds = sec ? new Set(tasksBySection(d)[work.sec] || []) : null;
     const chip = sec ? '<span class="secchip">' + esc(t("tasks.fromSection", { n: work.secIds.size })) + ' <button type="button" class="link" data-goto="' + esc(work.sec) + '">' + esc(sec.anchor + " " + secTitle(sec)) + "</button>" +
       '<button type="button" class="key secx" data-secclear aria-label="' + esc(t("tasks.showAll")) + '"></button></span>' : "";
-    $("sv-tasks").innerHTML = '<section class="panel tpanel"><div class="toolbar"><h2>' + esc(t("spec.view.tasks")) + " " + info("tasks", t("spec.view.tasks")) + "</h2>" + chip + '<span class="spacer"></span>' +
-      '<div class="seg" role="group" aria-label="' + esc(t("tasks.view")) + '">' + tview("steps", tk("tasks.steps")) + tview("graph", tk("tasks.graph")) + tview("board", tk("tasks.board")) + "</div></div>" +
-      '<div class="stages' + (work.tview === "steps" ? "" : " " + work.tview) + '" id="stages">' + (tasks.length ? stagesHTML(d, ix) : none(t("progress.noTasks"))) + "</div>" +
-      '<div class="legend">' + ["ready", "wip", "waits_on_task", "waits_on_epic", "done"].map((s) => '<span><i class="lg" data-s="' + s + '"></i>' + esc(word(TASK_LABEL, s)) + "</span>").join("") + "</div></section>" +
-      '<aside class="panel tside" id="tside" aria-label="' + esc(t("tasks.side")) + '">' + (work.task ? taskDetail(d, ix.by[work.task], ix) : progressHTML(d)) + "</aside>";
-    if (work.tview === "steps") drawWires(d);
-    if (work.tview === "graph" && tasks.length && window.tpTaskGraph) window.tpTaskGraph.show(d, work.task);
+    // The summary is a strip above the panel, which takes the full width; a
+    // task's detail opens in the drawer (drawDrawer).
+    $("sv-tasks").innerHTML = '<section class="panel tstrip" aria-label="' + esc(t("tasks.summary")) + '">' + progressHTML(d) + "</section>" +
+      '<section class="panel tpanel"><div class="toolbar"><h2>' + esc(t("spec.view.tasks")) + " " + info("tasks", t("spec.view.tasks")) + "</h2>" + chip + '<span class="spacer"></span>' +
+      '<div class="seg" role="group" aria-label="' + esc(t("tasks.view")) + '">' + tview("steps", tk("tasks.steps")) + tview("board", tk("tasks.board")) + "</div></div>" +
+      '<div class="stages ' + (work.tview === "board" ? "board" : "graph") + '" id="stages">' + (tasks.length ? stagesHTML(d, ix) : none(t("progress.noTasks"))) + "</div>" +
+      '<div class="legend">' + ["ready", "wip", "waits_on_task", "waits_on_epic", "done"].map((s) => '<span><i class="lg" data-s="' + s + '"></i>' + esc(word(TASK_LABEL, s)) + "</span>").join("") + "</div></section>";
+    if (work.tview === "steps" && tasks.length && window.tpTaskGraph) window.tpTaskGraph.show(d, work.task);
     if (focused) {
       const id = CSS.escape(focused.dataset.t);
       const again = $("sv-tasks").querySelector('.tcard[data-t="' + id + '"], .tglist [data-t="' + id + '"]');
       if (again) again.focus();
     }
+    // After the focus above, so an opening drawer takes it to its close.
+    drawDrawer();
   }
 
   // copyKey copies a command: the live region says whether it did, and a
@@ -2267,12 +2276,12 @@
     }
     if (ev.target.closest("[data-secclear]")) work.sec = null;
     else if (v) work.tview = v.dataset.tview;
-    else if (ev.target.closest("[data-tclose]")) work.task = null;
-    else if (t) work.task = t.classList.contains("tcard") && work.task === t.dataset.t ? null : t.dataset.t;
-    else return;
+    else if (t) {
+      noteOpener();
+      work.task = t.classList.contains("tcard") && work.task === t.dataset.t ? null : t.dataset.t;
+    } else return;
     drawWork();
   });
-  window.addEventListener("resize", () => { if (work.data && work.view === "tasks" && work.tview === "steps") drawWires(work.data); });
 
   // The open spec follows tp: a pushed list re-reads its export, and a pushed
   // summary redraws its release impact.
@@ -2421,7 +2430,7 @@
     work.view = VIEWS.some(([v]) => v === view) ? view : work.data ? defaultView(work.data) : null;
     work.task = p.get("task");
     work.sec = /^\d+(?:\.\d+)*$/.test(p.get("sec") || "") ? p.get("sec") : null;
-    work.tview = ["board", "graph"].includes(p.get("tview")) ? p.get("tview") : "steps";
+    work.tview = tpPure.taskView(p.get("tview"));
     mapView.selected = p.get("epic");
     msView.detail = p.get("ms") || null;
     const stage = p.get("stage");
@@ -2456,6 +2465,7 @@
     // pickTask picks a task in the Tasks view, or clears it when it is the
     // picked one; taskWord names a task's state. taskgraph.js reads both.
     pickTask: (id) => {
+      noteOpener();
       work.task = id === work.task ? null : id;
       drawWork();
     },

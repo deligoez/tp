@@ -689,27 +689,23 @@ body.mapfs .gcard.fs .glegend .legend { max-height: none; overflow: visible; }
 .subnav button:active { background: var(--fill-press); }
 .subnav button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--stroke-selected); }
 
-/* the Tasks view: Steps or Board beside the progress and detail panel */
-.tasksview { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 400px); gap: var(--sp-6); align-items: start; }
-@media (max-width: 1023px) { .tasksview { grid-template-columns: minmax(0, 1fr); } .tside { position: static; max-height: none; } }
+/* the Tasks view: a summary strip over the full-width Steps or Board panel; a task's detail opens in the drawer */
+.tasksview { display: grid; gap: var(--sp-4); }
 .tpanel { padding: 0; }
-.tside { position: sticky; top: var(--sp-4); max-height: calc(100vh - var(--sp-8)); overflow: auto; display: grid; gap: var(--sp-6); align-content: start; }
-.tside h4 { font: var(--type-tiny-bold); color: var(--muted); margin: 0 0 var(--sp-2); }
-.tside h3 { font: var(--type-h4); margin-top: var(--sp-1); }
+.tstrip .pv { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); gap: var(--sp-4) var(--sp-8); align-items: start; }
+.pv-main, .pv-mid, .pv-chart { display: grid; gap: var(--sp-2); align-content: start; min-width: 0; }
+.tstrip h4 { font: var(--type-tiny-bold); color: var(--muted); margin: 0; }
+.tstrip .note { margin: 0; }
+.tstrip .burn { height: 48px; }
+@media (max-width: 899px) { .tstrip .pv { grid-template-columns: minmax(0, 1fr); } }
 .dbody dd { margin: 0; min-width: 0; overflow-wrap: anywhere; white-space: pre-line; text-wrap: pretty; }
-.tside dl, .dbody dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--sp-2) var(--sp-4); margin: 0; }
-.tside dt, .dbody dt { color: var(--muted); }
-.tside dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
-.tside dd.ev { white-space: pre-line; }
+.dbody dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--sp-2) var(--sp-4); margin: 0; }
+.dbody dt { color: var(--muted); }
 .stages { position: relative; padding: var(--sp-4) var(--sp-6) var(--sp-6); display: grid; gap: var(--sp-6); }
 .stages.board { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-3); align-items: start; }
 @media (max-width: 699px) { .stages.board { grid-template-columns: minmax(0, 1fr); } .stages { padding: var(--sp-3) var(--sp-4) var(--sp-4); } }
-/* wires run under the steps, so a card's opaque surface always covers them */
-.wires { position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none; overflow: visible; }
-.wires path { fill: none; stroke: var(--line-strong); stroke-width: 1.2; }
-.wires path.on { stroke: var(--fill-strong); stroke-width: 2; }
-.step { position: relative; z-index: 1; display: grid; gap: var(--sp-3); }
-/* the Graph view: Steps drawn by deck.gl (taskgraph.js). A spacer as tall as the drawing scrolls with the page while the canvas sticks to the window, so the page's
+.step { display: grid; gap: var(--sp-3); }
+/* the Steps view, drawn by deck.gl (taskgraph.js). A spacer as tall as the drawing scrolls with the page while the canvas sticks to the window, so the page's
    scroll is the graph's vertical pan; a vertical swipe stays the page's (pan-y). Steps is laid out unseen in .tgmeasure, at this width, and measured. */
 .stages.graph { display: block; padding: 0; }
 .tgraph { position: relative; }
@@ -724,7 +720,7 @@ body.mapfs .gcard.fs .glegend .legend { max-height: none; overflow: visible; }
 .tglist button[aria-pressed="true"] { background: var(--fill-selected); color: var(--text-inverse-strong); }
 .step-h { display: flex; align-items: baseline; gap: var(--sp-2); font: var(--type-tiny); color: var(--muted); }
 .step-h b { font: var(--type-tiny-bold); color: var(--ink); }
-/* the gaps between cards are where the wires run, wide enough for a few side by side */
+/* the gaps between cards are where the graph's edges run */
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: var(--sp-4) var(--sp-6); }
 .bcol { display: grid; gap: var(--sp-2); align-content: start; min-width: 0; background: var(--fill-weak); border-radius: var(--r-3); padding: var(--sp-3); }
 .bcol .step-h { justify-content: space-between; }
@@ -814,13 +810,13 @@ body.mapfs .gcard.fs .glegend .legend { max-height: none; overflow: visible; }
 .elist small { display: block; color: var(--muted); font: var(--type-tiny); }
 /* the drawer slides in from the right over a dimmed page, which keeps its width */
 :root { --drawer-w: min(480px, 100%); --drawer-h: 60vh; }
-body.dopen:not([data-tab="epics"]) { padding: 0; }
+body.dopen:not([data-tab="epics"]):not([data-tab="work"]) { padding: 0; }
 .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: var(--drawer-w); z-index: var(--z-modal); background: var(--overlay); border-left: 1px solid var(--line); display: flex; flex-direction: column; box-shadow: var(--shadow-overlay); animation: drawer-in var(--dur-short) var(--ease-out); }
 @keyframes drawer-in { from { transform: translateX(32px); opacity: 0; } }
-.drawer[hidden], body:not([data-tab="epics"]) .drawer { display: none; }
+.drawer[hidden], body:not([data-tab="epics"]):not([data-tab="work"]) .drawer { display: none; }
 .scrim { position: fixed; inset: 0; z-index: calc(var(--z-modal) - 1); background: var(--fill-overlay); animation: scrim-in var(--dur-short) var(--ease-out); }
 @keyframes scrim-in { from { opacity: 0; } }
-.scrim[hidden], body:not([data-tab="epics"]) .scrim { display: none; }
+.scrim[hidden], body:not([data-tab="epics"]):not([data-tab="work"]) .scrim { display: none; }
 .dhead { display: flex; gap: var(--sp-2); align-items: center; padding: var(--sp-3) var(--sp-4) var(--sp-3) var(--sp-6); border-bottom: 1px solid var(--line); min-height: 56px; }
 .dhead .k { font: var(--type-tiny-bold); color: var(--muted); }
 .dbody { overflow: auto; padding: var(--sp-6) var(--sp-6) var(--sp-12); display: grid; gap: var(--sp-8); align-content: start; }
