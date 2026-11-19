@@ -29,3 +29,19 @@ func TestPage_EveryBlockerCodeHasItsWords(t *testing.T) {
 		}
 	}
 }
+
+// plainStep keeps engine prose a person can read and swaps prose that
+// carries a tp command for the plain fallback; blockerCommands are the
+// commands an escalation names, the operator's first.
+func TestPure_EngineProseWithACommandIsNeverShown(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([
+  P.plainStep("resume the in-progress task tax-calc", "fb"),
+  P.plainStep("the spec changed; run: tp review spec/a.md, then tp review spec/a.md --record-inbox", "fb"),
+  P.plainStep("", "fb"),
+  P.blockerCommands({ data: { commands: ["tp x"], operator: { commands: ["tp review a.md", "tp review a.md --record-inbox"] } } }),
+  P.blockerCommands({ data: { commands: ["tp next"] } }),
+  P.blockerCommands({}),
+]);`)
+	assert.JSONEq(t, `["resume the in-progress task tax-calc", "fb", "fb", ["tp review a.md", "tp review a.md --record-inbox"], ["tp next"], []]`, got)
+}
