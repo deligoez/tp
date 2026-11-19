@@ -75,8 +75,8 @@ func TestPage_TheFullScreenPillShrinksItsSearchNotItsEnds(t *testing.T) {
 	t.Parallel()
 	page, _ := pageText(t)
 	for _, s := range []string{
-		"body.mapfs .gcard.fs #gc-full { order: 10; flex-shrink: 0; }",
-		"body.mapfs .gcard.fs #gc-q { flex: 0 1 16rem; min-width: 8rem; }",
+		"body.mapfs .gcard.fs #gc-full, body.mapfs .gcard.fs #tm-full { order: 10; flex-shrink: 0; }",
+		"body.mapfs .gcard.fs #gc-q, body.mapfs .gcard.fs #tm-q { flex: 0 1 16rem; min-width: 8rem; }",
 		"body.mapfs .gcard.fs .toolbar.tight .seg { flex: 0 1 auto; min-width: 0; }",
 		"body.mapfs .gcard.fs .toolbar.tight .seg button { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }",
 		"body.mapfs.dopen .gcard.fs .toolbar { left: calc((100% - var(--drawer-w)) / 2); max-width: calc(100% - var(--drawer-w) - 24px); }",
