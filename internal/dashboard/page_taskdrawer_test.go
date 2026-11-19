@@ -30,6 +30,22 @@ func TestPure_TheDrawerShowsATaskOnlyOnTheTasksView(t *testing.T) {
 	assert.JSONEq(t, `["epic","milestone","task",null,null,null]`, got)
 }
 
+// The Map draws its own legend, the epic map's, so the panel's state legend
+// shows under Steps and Board only; Steps brings a task picked off its canvas
+// into view, past a side drawer too, and leaves one picked on it where it is.
+func TestPage_TheMapKeepsOneLegendAndStepsRevealsAnOffCanvasPick(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Contains(t, script, `(work.tview === "map" ? "" : '<div class="legend">'`)
+	steps := string(served(t, "/taskgraph.js"))
+	for _, s := range []string{
+		"const moved = !!sel && sel !== TG.sel && !TG.picked;",
+		"const hi = (S.w * s <= cw ? S.w / 2 : S.w - cw / 2 / s) + more;",
+	} {
+		assert.Contains(t, steps, s)
+	}
+}
+
 // The Tasks view offers Steps, Map and Board, Steps drawn by the graph alone:
 // no HTML steps, no wires, no side column; the summary sits in a strip above
 // the panel and a task opens in the epic drawer.
