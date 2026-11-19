@@ -2,6 +2,7 @@ package dashboard_test
 
 import (
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -59,4 +60,15 @@ func TestPage_TheCommandsMovedOutOfViewAreOneClickAway(t *testing.T) {
 		assert.Contains(t, string(dict["info.slices"]), "tp epic review --milestone", lang)
 		assert.NotEmpty(t, dict["copy.command"], lang)
 	}
+}
+
+// TestPage_EveryCopyCommandButtonIsHandled: a Copy command button can be
+// drawn in any container (the drawer, the operator list, a task, the spec
+// head), so one document-level delegate copies every [data-copy] and no
+// container keeps a handler of its own that a new container would lack.
+func TestPage_EveryCopyCommandButtonIsHandled(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Contains(t, script, "document.addEventListener(\"click\", (ev) => {\n    const b = ev.target.closest && ev.target.closest(\"[data-copy]\");\n    if (b) copyKey(b);\n  });")
+	assert.Equal(t, 1, strings.Count(script, `closest("[data-copy]")`), "one delegate copies every button")
 }
