@@ -408,7 +408,7 @@
   "blocker.code.no-ready-task": "No task can start: every open task waits on another.",
   "blocker.code.unexplained-changes": "The working tree has changes no task explains.",
   "blocker.code.other": "Waits on the operator's decision.",
-  "specs.nextIn": "Next: the {phase} step",
+  "specs.nextIn": "{phase}",
   "op.specWaits": "spec decision",
   "spec.next_html": "Next",
   "spec.readFailed": "Could not read {path}",

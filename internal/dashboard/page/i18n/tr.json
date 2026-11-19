@@ -408,7 +408,7 @@
   "blocker.code.no-ready-task": "Başlanabilir görev yok: açık görevlerin hepsi başka bir görevi bekliyor.",
   "blocker.code.unexplained-changes": "Çalışma ağacında hiçbir görevin açıklamadığı değişiklikler var.",
   "blocker.code.other": "Operatörün kararını bekliyor.",
-  "specs.nextIn": "Sıradaki: {phase} adımı",
+  "specs.nextIn": "{phase}",
   "op.specWaits": "spec kararı",
   "spec.next_html": "Sıradaki adım",
   "spec.readFailed": "{path} okunamadı",
