@@ -176,7 +176,7 @@ p { margin: 0; }
 
 /* segmented control: neutral options, the chosen one in the selected fill */
 .seg { display: inline-flex; padding: var(--sp-1); gap: var(--sp-1); border-radius: var(--r-2); background: var(--fill-weak); box-shadow: var(--shadow-sunken); }
-.seg button { display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-1); min-height: var(--ctl-sm); padding: 0 var(--sp-3); border: 0; border-radius: var(--r-1); background: transparent; font: var(--type-tiny); color: var(--ink); white-space: nowrap; }
+.seg button { display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-1); min-height: var(--sp-6); padding: 0 var(--sp-3); border: 0; border-radius: var(--r-1); background: transparent; font: var(--type-tiny); color: var(--ink); white-space: nowrap; }
 .seg button:hover { background: var(--fill-hover); }
 .seg button:active { background: var(--fill-press); }
 .seg button:focus-visible { outline-offset: 0; }
