@@ -662,13 +662,15 @@ body.mapfs .gcard.fs .glegend .legend { max-height: none; overflow: visible; }
 .stages { position: relative; padding: var(--sp-4) var(--sp-6) var(--sp-6); display: grid; gap: var(--sp-6); }
 .stages.board { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-3); align-items: start; }
 @media (max-width: 699px) { .stages.board { grid-template-columns: minmax(0, 1fr); } .stages { padding: var(--sp-3) var(--sp-4) var(--sp-4); } }
-.wires { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+/* wires run under the steps, so a card's opaque surface always covers them */
+.wires { position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none; overflow: visible; }
 .wires path { fill: none; stroke: var(--line-strong); stroke-width: 1.2; }
 .wires path.on { stroke: var(--fill-strong); stroke-width: 2; }
-.step { position: relative; display: grid; gap: var(--sp-2); }
+.step { position: relative; z-index: 1; display: grid; gap: var(--sp-3); }
 .step-h { display: flex; align-items: baseline; gap: var(--sp-2); font: var(--type-tiny); color: var(--muted); }
 .step-h b { font: var(--type-tiny-bold); color: var(--ink); }
-.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: var(--sp-3); }
+/* the gaps between cards are where the wires run, wide enough for a few side by side */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: var(--sp-4) var(--sp-6); }
 .bcol { display: grid; gap: var(--sp-2); align-content: start; min-width: 0; background: var(--fill-weak); border-radius: var(--r-3); padding: var(--sp-3); }
 .bcol .step-h { justify-content: space-between; }
 .bcards { display: grid; gap: var(--sp-2); }
@@ -678,7 +680,7 @@ body.mapfs .gcard.fs .glegend .legend { max-height: none; overflow: visible; }
 .tcard[data-s="wip"] { --c: var(--icon-information); }
 .tcard[data-s="waits_on_task"] { --c: var(--icon-neutral); border-style: dashed; border-left-style: solid; box-shadow: none; }
 .tcard[data-s="waits_on_epic"] { --c: var(--icon-warning); border-style: dashed; border-left-style: solid; box-shadow: none; }
-.tcard[data-s="done"] { --c: var(--icon-success); background: var(--fill-weak); box-shadow: none; border-color: var(--line); }
+.tcard[data-s="done"] { --c: var(--icon-success); background: linear-gradient(var(--fill-weak), var(--fill-weak)) var(--surface); box-shadow: none; border-color: var(--line); }
 .tcard .tt { display: flex; gap: var(--sp-2); align-items: flex-start; font: var(--type-tiny-bold); }
 .tcard .tt .ic { margin-top: 2px; color: var(--c); }
 .tcard .tid { font: 400 14px/20px var(--mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
