@@ -10,8 +10,8 @@ import (
 // link's tview=graph lands on Steps, and anything else not Board does too.
 func TestPure_TaskViewMapsOldGraphLinksToSteps(t *testing.T) {
 	t.Parallel()
-	got := runPure(t, `out(["graph", "board", "steps", null, "wires"].map(P.taskView));`)
-	assert.JSONEq(t, `["steps","board","steps","steps","steps"]`, got)
+	got := runPure(t, `out(["graph", "board", "steps", null, "wires", "map"].map(P.taskView));`)
+	assert.JSONEq(t, `["steps","board","steps","steps","steps","map"]`, got)
 }
 
 // One drawer shows an epic, a milestone or a task: a task only while its
