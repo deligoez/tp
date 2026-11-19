@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"encoding/json"
+	"net/http"
 	"strings"
 	"testing"
 
@@ -9,6 +10,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestEpicLayout_PrintsTheEndpointsPayload: tp epic layout prints, for each
+// view, exactly what /api/layout serves for the same view, so a tool that
+// cannot run the dashboard draws the same map from one command.
+func TestEpicLayout_PrintsTheEndpointsPayload(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, layoutGraph)
+	srv := startDashboard(t, dir, freePort(t))
+	for query, args := range map[string][]string{
+		"view=plan":                          nil,
+		"view=plan&pack=tree":                {"--pack", "tree"},
+		"view=milestones":                    {"--view", "milestones"},
+		"view=scope&milestone=M2":            {"--view", "scope", "--milestone", "M2"},
+		"view=neighbourhood&epic=r2&depth=1": {"--view", "neighbourhood", "--epic", "r2", "--depth", "1"},
+		"view=neighbourhood&epic=r2":         {"--view", "neighbourhood", "--epic", "r2"},
+	} {
+		status, body := getPage(t, strings.TrimSuffix(srv.url, "/")+"/api/layout?"+query)
+		require.Equal(t, http.StatusOK, status, body)
+		stdout, stderr, code := runTP(t, dir, append([]string{"epic", "layout"}, args...)...)
+		require.Equal(t, 0, code, "%s stderr: %s", query, stderr)
+		assert.JSONEq(t, body, stdout, query)
+	}
+}
 
 // TestEpicLayout_RefusesWhatTheEndpointRefuses: the command shares the
 // endpoint's rules, one refusal class each: a view outside the closed set,
@@ -44,6 +67,7 @@ func TestEpicLayout_RefusesWhatTheEndpointRefuses(t *testing.T) {
 	_, stderr, code := runTP(t, t.TempDir(), "epic", "layout")
 	assert.Equal(t, 3, code, "stderr: %s", stderr)
 }
+
 // TestEpicLayout_EpicNodesCarryTheirTitleAndState: an epic node names its
 // title and its derived status, the vocabulary tp epic export's status
 // prints, so one call is enough to draw and colour the map; a milestone
