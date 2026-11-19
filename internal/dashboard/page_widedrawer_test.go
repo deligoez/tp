@@ -42,7 +42,7 @@ func TestPage_TheWideChoiceIsRememberedAndKeepsFocusAndEscape(t *testing.T) {
 		`try { return localStorage.getItem(WIDE_KEY); } catch (e) { return null; }`,
 		`try { localStorage.setItem(WIDE_KEY, on ? "wide" : "narrow"); } catch (e) { /* the choice lasts this load */ }`,
 		`$("dwide").addEventListener("click", () => setWide(!wide, true));`,
-		`if (ev.key === "Escape" && !viewMenuOpen() && !$("drawer").hidden && $("pop").hidden) selectEpic(null);`,
+		`if (ev.key === "Escape" && !viewMenuOpen() && !$("drawer").hidden && $("pop").hidden) closeDrawer();`,
 	} {
 		assert.Contains(t, script, s)
 	}

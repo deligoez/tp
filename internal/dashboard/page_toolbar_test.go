@@ -87,7 +87,7 @@ func TestPage_EscOnAnOpenViewMenuClosesOnlyTheMenu(t *testing.T) {
 	assert.Equal(t, 1, strings.Count(script, `:popover-open`), "one helper asks whether the menu is open")
 	for _, s := range []string{
 		`if (ev.key === "Escape" && !viewMenuOpen() && !document.fullscreenElement && document.body.classList.contains("mapfs")`,
-		`if (ev.key === "Escape" && !viewMenuOpen() && !$("drawer").hidden && $("pop").hidden) selectEpic(null);`,
+		`if (ev.key === "Escape" && !viewMenuOpen() && !$("drawer").hidden && $("pop").hidden) closeDrawer();`,
 		`$("drawer").hidden && !app.viewMenuOpen()) app.selectEpic(null);`,
 	} {
 		assert.Contains(t, script, s)

@@ -584,7 +584,7 @@ func TestPage_AMilestonesDetailReadsItsGateInFull(t *testing.T) {
 	page, script := pageText(t)
 	assert.Contains(t, page, `id="dkind"`)
 	assert.Contains(t, page, ".dbody dd { margin: 0; min-width: 0; overflow-wrap: anywhere; white-space: pre-line; text-wrap: pretty; }")
-	for _, s := range []string{"tpPure.milestoneHTML(msd, gateOf(g, msd.milestone), dc, words(THRESHOLD_LABEL), t)", "tpPure.thresholdLine(m, gateOf(g, m.milestone), words(THRESHOLD_LABEL), t)", `$("dkind").textContent = msd ? t("drawer.milestone") : t("drawer.epic");`} {
+	for _, s := range []string{"tpPure.milestoneHTML(msd, gateOf(g, msd.milestone), dc, words(THRESHOLD_LABEL), t)", "tpPure.thresholdLine(m, gateOf(g, m.milestone), words(THRESHOLD_LABEL), t)", `$("dkind").textContent = t(labels[0]);`, `milestone: [tk("drawer.milestone"), tk("drawer.msLabel"), tk("drawer.msClose"), tk("drawer.msAbout")],`} {
 		assert.Contains(t, script, s)
 	}
 	assert.NotContains(t, script, "function milestoneHTML(", "the detail is built in pure.js, where its escaping is tested")
@@ -597,8 +597,8 @@ func TestPage_TheDrawersLabelsNameWhatItShows(t *testing.T) {
 	t.Parallel()
 	page, script := pageText(t)
 	assert.Contains(t, page, `id="dinfo"`)
-	for _, s := range []string{`$("drawer").setAttribute("aria-label", msd ? t("drawer.msLabel") : t("drawer.epicLabel"));`, `$("dclose").setAttribute("aria-label", msd ? t("drawer.msClose") : t("drawer.epicClose"));`,
-		`$("dinfo").setAttribute("aria-label", msd ? t("drawer.msAbout") : t("drawer.epicAbout"));`, `"drawer.msLabel": "Milestone detail"`, `"drawer.msClose": "Close the milestone detail"`, `"drawer.msAbout": "About the milestone detail"`} {
+	for _, s := range []string{`$("drawer").setAttribute("aria-label", t(labels[1]));`, `$("dclose").setAttribute("aria-label", t(labels[2]));`,
+		`$("dinfo").setAttribute("aria-label", t(labels[3]));`, `milestone: [tk("drawer.milestone"), tk("drawer.msLabel"), tk("drawer.msClose"), tk("drawer.msAbout")],`, `"drawer.msLabel": "Milestone detail"`, `"drawer.msClose": "Close the milestone detail"`, `"drawer.msAbout": "About the milestone detail"`} {
 		assert.Contains(t, script, s)
 	}
 }

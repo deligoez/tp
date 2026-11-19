@@ -19,7 +19,7 @@ func TestPage_TheDrawerIsAnOverlayOverADimmedPage(t *testing.T) {
 	assert.Contains(t, page, "@keyframes drawer-in")
 	assert.NotContains(t, page, "body.dopen { padding-right: var(--drawer-w); }")
 	assert.Contains(t, page, "body.dopen { padding-right: 0; padding-bottom: var(--drawer-h); }")
-	for _, s := range []string{`$("scrim").hidden = !open;`, `$("scrim").addEventListener("click", () => selectEpic(null));`} {
+	for _, s := range []string{`$("scrim").hidden = !open;`, `$("scrim").addEventListener("click", closeDrawer);`} {
 		assert.Contains(t, script, s)
 	}
 }
