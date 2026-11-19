@@ -135,6 +135,29 @@
     m.hidden = !text;
   }
   const sayKey = (key) => say(t(key), key);
+  // deckFor loads deck.gl once for every canvas on the page, the map and the
+  // task graph (taskgraph.js): ready runs once it is loaded, at once when it
+  // already is, failed when it cannot load.
+  const deckLoad = { state: "idle", wait: [] };
+  function deckFor(ready, failed) {
+    if (deckLoad.state === "ready") return ready();
+    if (deckLoad.state === "failed") return failed();
+    deckLoad.wait.push([ready, failed]);
+    if (deckLoad.state === "loading") return undefined;
+    deckLoad.state = "loading";
+    const s = document.createElement("script");
+    s.src = DECK_SRC;
+    const settle = (state, i) => () => {
+      deckLoad.state = state;
+      deckLoad.wait.splice(0).forEach((w) => w[i]());
+    };
+    s.onload = settle("ready", 0);
+    s.onerror = settle("failed", 1);
+    document.head.appendChild(s);
+    return undefined;
+  }
+  app.deck = deckFor;
+  app.hasWebGL2 = hasWebGL2;
   function loadDeck() {
     if (G.deckState !== "idle") return;
     if (!hasWebGL2() || new URLSearchParams(location.search).has("nogl")) {
@@ -147,18 +170,14 @@
     sayKey(tk("graph.loading"));
     const t0 = performance.now();
     G.loadFrom = t0;
-    const s = document.createElement("script");
-    s.src = DECK_SRC;
-    s.onload = () => {
+    deckFor(() => {
       G.loadMs = Math.round(performance.now() - t0);
       G.deckState = "ready";
       draw();
-    };
-    s.onerror = () => {
+    }, () => {
       G.deckState = "failed";
       sayKey(tk("graph.failed"));
-    };
-    document.head.appendChild(s);
+    });
   }
 
   // The card loads deck.gl the first time it is on screen.
