@@ -194,9 +194,12 @@
   // taskMapLayout lays a spec's steps out in the shape the epic map reads
   // from /api/layout: steps is the tasks grouped by step, as the Steps view
   // groups them; each step is a band named label(k), its tasks cols to a
-  // layer in their order, wrapping onto the next layer, with one empty layer
-  // between two bands. Of a task's dependencies the first in the latest step
-  // is its tree edge, any other a cross edge.
+  // layer in their order, wrapping onto the next layer, with TASK_MAP_GAP
+  // empty layers between two bands, so a band's label finds room above it
+  // at the zoom a fit opens with (graph.js, bandLabels). Of a task's
+  // dependencies the first in the latest step is its tree edge, any other a
+  // cross edge.
+  const TASK_MAP_GAP = 2;
   P.taskMapLayout = function (steps, cols, label) {
     const at = {};
     const nodes = [];
@@ -213,7 +216,7 @@
       wide = Math.max(wide, Math.min(cols, ts.length));
       layer = from + Math.ceil(ts.length / cols);
       bands.push({ milestone: label(k), from_layer: from, to_layer: layer - 1 });
-      layer++;
+      layer += TASK_MAP_GAP;
     });
     const edges = [];
     steps.forEach((ts) => (ts || []).forEach((task) => {
@@ -222,7 +225,7 @@
       const tree = deps.find((x) => at[x] === last);
       deps.forEach((x) => edges.push({ from: x, to: task.id, role: x === tree ? "tree" : "cross" }));
     }));
-    return { view: "tasks", nodes, edges, bands, layers: Math.max(0, layer - 1), columns: wide };
+    return { view: "tasks", nodes, edges, bands, layers: Math.max(0, layer - TASK_MAP_GAP), columns: wide };
   };
 
   // cardExpanded says whether milestone id's card reads expanded: while its
