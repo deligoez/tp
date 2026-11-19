@@ -1828,7 +1828,7 @@
   // columns count what tp status counts as open, wip and done.
   const BOARD = [["ready", tk("board.ready"), ["ready"]], ["wip", tk("board.wip"), ["wip"]], ["waiting", tk("board.waiting"), ["waits_on_task", "waits_on_epic"]], ["done", tk("board.done"), ["done"]]];
   const TASK_LABEL = { ready: tk("task.state.ready"), wip: tk("task.state.wip"), waits_on_task: tk("task.state.waits_on_task"), waits_on_epic: tk("task.state.waits_on_epic"), done: tk("task.state.done") };
-  const TASK_COLOR = { ready: "ready", wip: "active", waits_on_task: "moot", waits_on_epic: "held", done: "done" };
+  const TASK_COLOR = { ready: "ready", wip: "active", waits_on_task: "waiting", waits_on_epic: "held", done: "done" };
   const WIP_MARK = '<svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 2.5a5.5 5.5 0 0 1 0 11z" fill="currentColor"/></svg>';
   const TASK_MARK = { done: CHECK, wip: WIP_MARK, waits_on_epic: PAUSE, waits_on_task: "", ready: "" };
   INFO.tasks = tk("info.tasks");
