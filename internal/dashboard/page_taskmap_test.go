@@ -18,6 +18,20 @@ const steps = [
 const L = P.taskMapLayout(steps, 2, (k) => "Step " + (k + 1));
 `
 
+// revealShift is how far a view moves to show the span lo..hi, pad inside
+// its view: not at all when it already shows, the least that brings it in
+// when it does not, and the span centred when it is wider than the view.
+func TestPure_RevealShiftMovesTheViewTheLeastThatShowsTheSpan(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([
+  P.revealShift(100, 140, 0, 800, 16),
+  P.revealShift(-60, -20, 0, 800, 16),
+  P.revealShift(900, 940, 0, 800, 16),
+  P.revealShift(0, 1000, 0, 800, 16),
+]);`)
+	assert.JSONEq(t, `[0, -76, 156, 100]`, got)
+}
+
 // The Map lays the steps out as the epic map's layout reads them: a band per
 // step, a step wider than the columns wrapping onto the next layer inside its
 // band, two empty layers between two bands, room for a band's label above
