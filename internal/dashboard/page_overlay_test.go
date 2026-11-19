@@ -1,6 +1,7 @@
 package dashboard_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -22,6 +23,17 @@ func TestPage_TheDrawerIsAnOverlayOverADimmedPage(t *testing.T) {
 	for _, s := range []string{`$("scrim").hidden = !open;`, `$("scrim").addEventListener("click", closeDrawer);`} {
 		assert.Contains(t, script, s)
 	}
+}
+
+// TestPage_APhonesBottomSheetDimsThePageToo: on a phone the drawer is a bottom
+// sheet, and the page above it is dimmed by the same backdrop, which closes
+// it on a tap, for an epic, a milestone and a task alike.
+func TestPage_APhonesBottomSheetDimsThePageToo(t *testing.T) {
+	t.Parallel()
+	page, _ := pageText(t)
+	phone := page[strings.Index(page, "@media (max-width: 767px) {\n  /* a phone keeps the bottom sheet, which takes its height from below, over the same dimmed page */"):]
+	phone = phone[:strings.Index(phone, "\n}\n")]
+	assert.NotContains(t, phone, ".scrim { display: none; }")
 }
 
 // TestPage_TheFirstFitInFullScreenRefitsAndANoteCloses is the review's H1,
