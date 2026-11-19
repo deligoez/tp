@@ -749,7 +749,7 @@ body.dopen:not([data-tab="epics"]) { padding: 0; }
 .stepper.e3 { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); }
 .stepper.e3 li { display: flex; align-items: center; gap: var(--sp-1); padding: 0; background: none; box-shadow: none; }
 .stepper.e3 li + li::before { content: ""; width: 16px; height: 1px; background: var(--line-strong); margin-right: var(--sp-1); }
-.stepper.e3 .sn { width: 20px; height: 20px; font-size: 12px; }
+.stepper.e3 .sn { width: 20px; height: 20px; font-size: 14px; line-height: 1; }
 .stepper.e3 .sl { font: var(--type-tiny); }
 .stepper.e3 li.todo .sl, .stepper.e3 li.skip .sl { color: var(--muted); }
 .stepper.e3 .sd { display: none; }
