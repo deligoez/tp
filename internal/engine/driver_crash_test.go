@@ -232,7 +232,9 @@ func TestCrash_DuringARefillAfterAWorktreeAdd(t *testing.T) {
 	killAt(t, "added", "gamma")
 
 	driveUntilKilled(t, records, rollingOptions(root, spec, taskFile, driverWorkflow()))
-	assert.Equal(t, []string{"alpha", "beta"}, spawnedIDs(invocations(t, records)), "gamma died before its spawn")
+	// Records come in the order the children claimed their slots, not the
+	// order they were spawned in, so two siblings may land either way round.
+	assert.ElementsMatch(t, []string{"alpha", "beta"}, spawnedIDs(invocations(t, records)), "gamma died before its spawn")
 	assert.Equal(t, model.StatusWIP, taskByID(t, taskFile, "gamma").Status)
 	assertRecovered(t, root, spec, taskFile, "alpha", "beta", "gamma")
 }
