@@ -182,7 +182,7 @@
   "op.copyFor": "Copy the command for {id}",
   "op.gate": "gate to measure",
   "op.threshold": "threshold to write",
-  "op.slice": "slice",
+  "op.sliceOf": "Review slice for {what}",
   "op.staleAtCap": "stale at its cap",
   "blocker.startable": "startable",
   "blocker.claimed": "claimed",

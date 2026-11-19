@@ -334,6 +334,11 @@ button.pcell[aria-pressed="true"] { background: var(--fill-brand-weak); border-c
    puts each row's count under its title, then its title under its id */
 @container (max-width: 560px) { .row { grid-template-columns: fit-content(40%) minmax(0, 1fr); } .row .m { grid-column: 2; white-space: normal; } }
 @container (max-width: 400px) { .row { grid-template-columns: minmax(0, 1fr); } .row .t, .row .m, .row .why { grid-column: 1; } }
+/* a row with no id (a review slice): its phrase on one line, its round beside
+   it, or under it on narrow widths */
+.row.rwide { grid-template-columns: minmax(0, 1fr) auto; }
+.row.rwide .why { grid-column: 1 / -1; }
+@container (max-width: 560px) { .row.rwide { grid-template-columns: minmax(0, 1fr); } .row.rwide .m, .row.rwide .why { grid-column: 1; } }
 .row .id.link, .row button.id { color: var(--accent); }
 
 /* links: brand text, underlined; hover toggles the underline */

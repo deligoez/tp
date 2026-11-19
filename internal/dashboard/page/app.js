@@ -627,6 +627,9 @@
   const row = (id, title, meta, why, epic) => '<div class="row"><span class="id">' + (epic ? epicLink(id) : esc(id)) + '</span><span class="t">' + esc(title) +
     '</span><span class="m">' + esc(meta || "") + "</span>" + (why ? '<div class="why">' + why + "</div>" : "") + "</div>";
   const none = (text) => '<p class="empty">' + esc(text) + "</p>";
+  // sliceRow is a row with no id: label is one phrase in the title column,
+  // meta beside it, why under both.
+  const sliceRow = (label, meta, why) => '<div class="row rwide"><span class="t">' + esc(label) + '</span><span class="m">' + esc(meta) + '</span><div class="why">' + why + "</div></div>";
   const titleOf = (v, id) => (v.epics[id] ? v.epics[id].title : "");
   const dependents = (v, id) => {
     const d = v.epics[id] && v.epics[id].downstream;
@@ -685,7 +688,7 @@
       (o.gates || []).forEach((gate) => rest.push(row(gate.milestone, gate.threshold, t("op.gate"), copyCmd("tp epic gate " + gate.milestone + " --met" + evidence))));
       (o.threshold_rewrites || []).forEach((r) => rest.push(row(r.milestone, r.threshold, t("op.threshold"), copyCmd(r.command))));
     });
-    (v.g.slices || []).filter((s) => s.grantable).forEach((s) => rest.push(row(t("op.slice"), sliceTitle(s), roundText(s),
+    (v.g.slices || []).filter((s) => s.grantable).forEach((s) => rest.push(sliceRow(t("op.sliceOf", { what: sliceTitle(s) }), roundText(s),
       esc(t("op.staleAtCap")) + ": " + copyCmd("tp epic review " + tpPure.sliceArgs(s) + " --grant-round"))));
     rest.push(...escalationRows());
     return grouped && rest.length ? conds.concat(['<h3 class="ogroup">' + esc(t("op.other")) + ' <span class="num muted">' + esc(t.num(rest.length)) + "</span></h3>"], rest) : conds.concat(rest);

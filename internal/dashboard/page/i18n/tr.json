@@ -182,7 +182,7 @@
   "op.copyFor": "{id} için komutu kopyala",
   "op.gate": "ölçülecek geçiş koşulu",
   "op.threshold": "yazılacak eşik",
-  "op.slice": "dilim",
+  "op.sliceOf": "{what} dilimi",
   "op.staleAtCap": "tur sınırında, güncel değil",
   "blocker.startable": "başlanabilir",
   "blocker.claimed": "üstlenildi",
