@@ -351,7 +351,9 @@ button.pcell[aria-pressed="true"] { background: var(--fill-brand-weak); border-c
 .row .id.link, .row button.id { color: var(--accent); }
 
 /* links: brand text, underlined; hover toggles the underline */
-.link { border: 0; background: none; padding: 0; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; text-align: left; }
+.link { position: relative; border: 0; background: none; padding: 0; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; text-align: left; }
+/* a press lands on at least 24 by 24 pixels (WCAG 2.5.8) while the text keeps its line */
+.link::after { content: ""; position: absolute; left: 50%; top: 50%; width: max(100%, 24px); height: max(100%, 24px); transform: translate(-50%, -50%); }
 .link:hover { text-decoration: none; }
 .link:focus-visible { border-radius: 2px; }
 .slink { border: 0; background: none; padding: 0; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; text-align: left; overflow-wrap: anywhere; }
