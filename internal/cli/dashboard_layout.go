@@ -93,18 +93,21 @@ type dashboardLayout struct {
 // epics, those done, the dependency edges into it from other milestones'
 // epics (an any-of member one each) and whether it is open.
 type layoutNode struct {
-	ID         string  `json:"id"`
-	Title      string  `json:"title,omitempty"`
-	State      string  `json:"state,omitempty"`
-	Layer      int     `json:"layer"`
-	Col        float64 `json:"col"`
-	Milestone  string  `json:"milestone,omitempty"`
-	Deferrable bool    `json:"deferrable,omitempty"`
-	Centre     bool    `json:"centre,omitempty"`
-	Epics      *int    `json:"epics,omitempty"`
-	Done       *int    `json:"done,omitempty"`
-	Inbound    *int    `json:"inbound,omitempty"`
-	Open       *bool   `json:"open,omitempty"`
+	ID         string                `json:"id"`
+	Title      string                `json:"title,omitempty"`
+	State      string                `json:"state,omitempty"`
+	Status     string                `json:"status,omitempty"`
+	Hold       string                `json:"hold,omitempty"`
+	Downstream *epicExportDownstream `json:"downstream,omitempty"`
+	Layer      int                   `json:"layer"`
+	Col        float64               `json:"col"`
+	Milestone  string                `json:"milestone,omitempty"`
+	Deferrable bool                  `json:"deferrable,omitempty"`
+	Centre     bool                  `json:"centre,omitempty"`
+	Epics      *int                  `json:"epics,omitempty"`
+	Done       *int                  `json:"done,omitempty"`
+	Inbound    *int                  `json:"inbound,omitempty"`
+	Open       *bool                 `json:"open,omitempty"`
 }
 
 // layoutEdge is one edge: from the dependency to its dependent, or from a
@@ -137,7 +140,7 @@ func epicLayout(q url.Values) (dashboardLayout, *dashboard.Error) {
 	if derr != nil {
 		return dashboardLayout{}, derr
 	}
-	g, states, _, rerr := readEpicStates()
+	g, states, bound, rerr := readEpicStates()
 	if rerr != nil {
 		return dashboardLayout{}, runErrorOf(rerr)
 	}
@@ -158,21 +161,63 @@ func epicLayout(q url.Values) (dashboardLayout, *dashboard.Error) {
 	default:
 		return milestonesLayout(g, states, lq.pack), nil
 	}
-	nameEpicNodes(&out, g, states)
+	nameEpicNodes(&out, g, states, bound)
 	return out, nil
 }
 
-// nameEpicNodes gives each epic node of out its title and derived status,
-// the vocabulary tp epic export's status prints.
-func nameEpicNodes(out *dashboardLayout, g *model.EpicGraph, states map[string]engine.EpicState) {
-	title := make(map[string]string, len(g.Epics))
-	for i := range g.Epics {
-		title[g.Epics[i].ID] = g.Epics[i].Title
+// nameEpicNodes gives each epic node of out its title, its lifecycle state
+// (tp epic export's status), the mark the dashboard's map colours it by
+// with the hold drawn over it, and the downstream the drawer shows, each
+// read from tp epic export's own epic items.
+func nameEpicNodes(out *dashboardLayout, g *model.EpicGraph, states map[string]engine.EpicState, bound map[string][]string) {
+	items := map[string]*epicExportEpic{}
+	epics := epicExportEpics(g, states, bound, nil)
+	for i := range epics {
+		items[epics[i].ID] = &epics[i]
 	}
+	gates := engine.MilestoneGates(g, states)
 	for i := range out.Nodes {
 		n := &out.Nodes[i]
-		n.Title, n.State = title[n.ID], states[n.ID].Status
+		e, ok := items[n.ID]
+		if !ok {
+			continue
+		}
+		gate, tracked := gates[e.Milestone]
+		n.Title, n.State, n.Downstream = e.Title, e.Status, e.Downstream
+		n.Status, n.Hold = epicMapMark(e, tracked && !gate.Open)
 	}
+}
+
+// epicMapMark is the mark the dashboard's map draws an epic of the export
+// in, closed saying its milestone is not open, and the hold drawn over it:
+// the page's tpPure.markState, which TestEpicLayout_EpicNodesCarryTheMapsStatusAndDownstream
+// runs against this. Past planned the mark is the status itself, held or
+// blocked kept as the hold of one not done; a planned epic's mark says what
+// holds it: moot, held by a condition, blocked, its milestone closed
+// (waiting), else ready.
+func epicMapMark(e *epicExportEpic, closed bool) (mark, hold string) {
+	if e.Status != "" && e.Status != engine.EpicStatusPlanned {
+		if e.Status != engine.EpicStatusDone {
+			switch {
+			case e.Held:
+				hold = "held"
+			case e.Blocked:
+				hold = "blocked"
+			}
+		}
+		return e.Status, hold
+	}
+	switch {
+	case e.Moot:
+		return "moot", ""
+	case e.Held:
+		return "held", ""
+	case e.Blocked:
+		return "blocked", ""
+	case closed:
+		return "waiting", ""
+	}
+	return "ready", ""
 }
 
 // dashboardLayoutQuery reads q under the endpoint's rules: view once and one
