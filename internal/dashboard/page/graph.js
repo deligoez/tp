@@ -874,6 +874,7 @@
   }
   $("gc-owner").addEventListener("change", (ev) => {
     G.ownerSel = pure.ownerSel(ev.target.value, ownersOf(app.data("epic-export")));
+    drawToolbar(app.data("epic-export") || {});
     render();
   });
   $("gc-ocolour").addEventListener("click", () => {
