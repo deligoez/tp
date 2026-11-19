@@ -47,3 +47,13 @@ func TestPure_TaskChainIsTransitiveBothWays(t *testing.T) {
 	assert.JSONEq(t, `[{"up":["a","c"],"down":["g"]},{"up":[],"down":["e","g"]},{"up":[],"down":[]}]`, got)
 }
 
+// An edge leaves its source's bottom and enters its target's top straight
+// down: the curve starts and ends on the two points with vertical tangents.
+func TestPure_TaskEdgeCurveHasVerticalTangents(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const c = P.vcurve(10, 0, 200, 100, 8);
+const steep = (p, q) => Math.abs(q[0] - p[0]) < Math.abs(q[1] - p[1]);
+out({ n: c.length, first: c[0], last: c[c.length - 1],   up: steep(c[0], c[1]), down: steep(c[c.length - 2], c[c.length - 1]) });`)
+	assert.JSONEq(t, `{"n":9,"first":[10,0],"last":[200,100],"up":true,"down":true}`, got)
+}
+
