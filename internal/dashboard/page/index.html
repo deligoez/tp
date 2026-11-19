@@ -33,14 +33,14 @@
       <p data-i18n-html="epics.none.body_html">This repository has no epic graph, so the plan is empty and the lifecycle below counts task files. An agent plans the epics; the graph appears here as soon as it exists, with no restart.</p>
     </section>
     <section class="kpis" id="kpis" aria-label="Plan figures" data-i18n-aria-label="kpi.label" data-src="summary epic-export" hidden></section>
+    <section class="card kpimore" id="kpimore" aria-label="More figures" data-i18n-aria-label="kpi.more" data-src="summary epic-export" hidden>
+      <h2 class="fh"><button type="button" class="fold" data-fold="kpimore" aria-expanded="false" aria-controls="fold-kpimore"><svg class="ti chev" aria-hidden="true" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg><span data-i18n="kpi.more">More figures</span> <span class="num muted" id="kpimore-n"></span></button><span class="fsum" id="fsum-kpimore"></span></h2>
+      <div id="fold-kpimore" class="fbody" hidden><div class="kpis" id="kpis2"></div></div>
+    </section>
     <section class="now" id="now" aria-label="What moves now in the plan" data-i18n-aria-label="now.label" data-src="summary epic-export" hidden>
       <div class="card"><h2 class="fh"><button type="button" class="fold" data-fold="ready" aria-expanded="true" aria-controls="fold-ready"><svg class="ti chev" aria-hidden="true" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg><span data-i18n="now.ready">Ready epics</span></button> <button class="info" type="button" data-info="ready" aria-label="About ready epics" data-i18n-aria-label="about.ready" aria-expanded="false">i</button><span class="fsum" id="fsum-ready"></span></h2><div id="fold-ready" class="fbody"><div class="list" id="now-ready"></div></div></div>
       <div class="card"><h2 class="fh"><button type="button" class="fold" data-fold="operator" aria-expanded="true" aria-controls="fold-operator"><svg class="ti chev" aria-hidden="true" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg><span data-i18n="now.operator">Operator decisions</span></button> <button class="info" type="button" data-info="operator" aria-label="About operator decisions" data-i18n-aria-label="about.operator" aria-expanded="false">i</button><span class="fsum" id="fsum-operator"></span></h2><div id="fold-operator" class="fbody"><div class="list" id="now-operator"></div></div></div>
       <div class="card"><h2><span data-i18n="now.most">Most waited-on epics</span> <button class="info" type="button" data-info="most" aria-label="About the most waited-on epics" data-i18n-aria-label="about.most" aria-expanded="false">i</button></h2><div class="list" id="now-most"></div></div>
-    </section>
-    <section class="card kpimore" id="kpimore" aria-label="More figures" data-i18n-aria-label="kpi.more" data-src="summary epic-export" hidden>
-      <h2 class="fh"><button type="button" class="fold" data-fold="kpimore" aria-expanded="false" aria-controls="fold-kpimore"><svg class="ti chev" aria-hidden="true" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg><span data-i18n="kpi.more">More figures</span></button><span class="fsum" id="fsum-kpimore"></span></h2>
-      <div id="fold-kpimore" class="fbody" hidden><div class="kpis" id="kpis2"></div></div>
     </section>
     <div id="epics-body" class="view" data-src="epic-export">
       <section class="card mapcard gcard" id="graphcard" aria-label="Graph" data-i18n-aria-label="graph.title" data-drawn-nodes="0" data-drawn-edges="0" hidden>

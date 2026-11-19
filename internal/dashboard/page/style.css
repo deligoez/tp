@@ -221,7 +221,7 @@ p { margin: 0; }
 .fbody { margin-top: var(--sp-6); }
 /* More figures holds figure cards, so it is a bare fold row, never a card around cards */
 .kpimore { background: none; border: 0; box-shadow: none; padding: 0; }
-.kpimore > h2.fh { margin: 0; }
+.kpimore > h2.fh { margin: 0; font: var(--type-label); }
 .kpimore .fbody { margin-top: var(--sp-2); }
 
 /* the (i) on a panel: an icon button with its own name, the note it opens floats over the page */

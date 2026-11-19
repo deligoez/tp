@@ -568,13 +568,16 @@
     if (loops > 0) sum.push(t("fold.loops", { n: loops }));
     if (lint.errors) sum.push(t("fold.lint", { n: lint.errors }));
     setFold("kpimore", { dflt: false, alarm: f.held > 0 || lint.errors > 0 || (f.stale_loops || 0) > 0, sum: sum.join(", ") });
-    $("kpis2").innerHTML = [
+    const more = [
       kpi("critical", esc(t.num(f.critical_path)), t("kpi.critical"), "crit"),
       kpi("held", esc(t.num(f.held)), t("kpi.held"), f.held ? "op" : ""),
       kpi("loops", esc(t.num(loops)) + (f.stale_loops ? "<small> " + esc(t("kpi.stale", { n: f.stale_loops })) + "</small>" : ""), t("kpi.loops")),
       kpi("lint", esc(t.num(lint.errors)) + "<small> / " + esc(t.num(lint.warnings)) + "</small>", t("kpi.lint"), lint.errors ? "warn" : ""),
       kpi("throughput", last ? esc(t.num(last.done)) + "<small> " + esc(t("kpi.inWeek", { week: tpPure.weekRange(last.week, t.locale) })) + "</small>" : "0", t("kpi.throughput")).replace("</div>", spark(weeks) + "</div>"),
-    ].join("");
+    ];
+    // The disclosure under the KPI row counts the tiles it opens in place.
+    $("kpis2").innerHTML = more.join("");
+    $("kpimore-n").textContent = "(" + t.num(more.length) + ")";
     fitAllRows();
   });
 
