@@ -57,3 +57,10 @@ out({ n: c.length, first: c[0], last: c[c.length - 1],   up: steep(c[0], c[1]), 
 	assert.JSONEq(t, `{"n":9,"first":[10,0],"last":[200,100],"up":true,"down":true}`, got)
 }
 
+// The graph lays out as many columns as fit the canvas at zoom 0, at least
+// one and at most eight.
+func TestPure_TaskGraphColumnsFitTheCanvas(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, taskFixture+`out([P.taskCols(50, GEO), P.taskCols(330, GEO), P.taskCols(5000, GEO)]);`)
+	assert.Equal(t, `[1,3,8]`, got)
+}
