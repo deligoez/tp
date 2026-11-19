@@ -675,8 +675,8 @@
       (o.gates || []).forEach((gate) => rest.push(row(gate.milestone, gate.threshold, t("op.gate"), copyCmd("tp epic gate " + gate.milestone + " --met" + evidence))));
       (o.threshold_rewrites || []).forEach((r) => rest.push(row(r.milestone, r.threshold, t("op.threshold"), copyCmd(r.command))));
     });
-    (v.g.slices || []).filter((s) => s.grantable).forEach((s) => rest.push(row(t("op.slice"), sliceLabel(s), roundText(s),
-      esc(t("op.staleAtCap")) + ": " + copyCmd("tp epic review " + sliceLabel(s) + " --grant-round"))));
+    (v.g.slices || []).filter((s) => s.grantable).forEach((s) => rest.push(row(t("op.slice"), sliceTitle(s), roundText(s),
+      esc(t("op.staleAtCap")) + ": " + copyCmd("tp epic review " + tpPure.sliceArgs(s) + " --grant-round"))));
     rest.push(...escalationRows());
     return grouped && rest.length ? conds.concat(['<h3 class="ogroup">' + esc(t("op.other")) + ' <span class="num muted">' + esc(t.num(rest.length)) + "</span></h3>"], rest) : conds.concat(rest);
   }
@@ -755,19 +755,11 @@
 
   INFO.slices = tk("info.slices");
 
-  // sliceLabel names a slice as tp epic review takes it.
-  function sliceLabel(s) {
-    const k = s.key;
-    if (!k) return s.dir;
-    if (k.kind === "epics") return "--epics " + (k.ids || []).join(",") + (k.name ? " --name " + k.name : "");
-    return "--" + k.kind + " " + k.value;
-  }
-
   // sliceTitle names a slice for reading: a set by its name, or as unnamed,
-  // and its size; any other slice as tp epic review takes it.
+  // and its size; any other slice in words (tpPure.sliceLabel).
   function sliceTitle(s) {
     const k = s.key;
-    if (!k || k.kind !== "epics") return sliceLabel(s);
+    if (!k || k.kind !== "epics") return tpPure.sliceLabel(s, t);
     return (k.name ? t("slice.set", { name: k.name }) : t("slice.unnamed")) + ", " + t("count.epics", { n: (k.ids || []).length });
   }
 
@@ -822,7 +814,7 @@
         const on = s.dir === hist.dir;
         return '<tr class="' + (on ? "on" : "") + '"><td class="k"><button type="button" class="slink" data-slice="' + esc(s.dir) + '" aria-pressed="' + on +
           '" title="' + esc(t("slices.showHistory")) + '">' + esc(sliceTitle(s)) + "</button>" +
-          (s.key && s.key.kind === "epics" ? '<small class="scmd">' + esc(sliceLabel(s)) + "</small>" : "") + '</td><td data-l="' + esc(col.round) + '">' + esc(roundText(s)) + '</td><td data-l="' + esc(col.state) + '"><span class="st" data-s="' + esc(s.state) + '"' + stale + ">" +
+          (s.key && s.key.kind === "epics" ? '<small class="scmd">' + esc((s.key.ids || []).join(", ")) + "</small>" : "") + '</td><td data-l="' + esc(col.round) + '">' + esc(roundText(s)) + '</td><td data-l="' + esc(col.state) + '"><span class="st" data-s="' + esc(s.state) + '"' + stale + ">" +
           esc(word(LOOP_LABEL, s.state)) + '</span></td><td class="n" data-l="' + esc(col.open) + '">' + open + '</td><td data-l="' + esc(col.curve) + '">' + curve(sum ? sum.rounds[s.dir] : null) + "</td></tr>";
       }).join("") + "</tbody></table>";
   });
@@ -964,7 +956,7 @@
     const s = selectedSlice();
     box.hidden = !s;
     if (!s) return;
-    const head = '<div class="hhead"><h3>' + esc(t("hist.title")) + " <code>" + esc(sliceLabel(s)) + "</code></h3>" + info("history", t("hist.about")) +
+    const head = '<div class="hhead"><h3>' + esc(t("hist.title")) + " " + esc(sliceTitle(s)) + "</h3>" + info("history", t("hist.about")) +
       '<span class="spacer"></span><button type="button" class="chip" data-hclose>' + esc(t("hist.close")) + "</button></div>";
     if (hist.error) {
       box.innerHTML = head + '<div class="banner"><b>' + esc(t("hist.failed")) + "</b><span>" + esc(hist.error.error) + "</span>" +
@@ -1318,7 +1310,7 @@
     const h = epicHist.data;
     const known = (x) => (((data("epic-export") || {}).epics) || []).some((e) => e.id === x);
     if (!(h.slices || []).length) return none(h.message || t("ehist.none"));
-    return h.slices.map((s) => '<div class="ehs"><h5><code>' + esc(sliceLabel({ key: s.key, dir: s.state_dir })) + "</code></h5><ol class=\"ehr\">" + (s.rounds || []).map((r) => "<li><b>" + esc(t("hist.round", { n: r.round })) + "</b>" +
+    return h.slices.map((s) => '<div class="ehs"><h5>' + esc(sliceTitle({ key: s.key, dir: s.state_dir })) + "</h5><ol class=\"ehr\">" + (s.rounds || []).map((r) => "<li><b>" + esc(t("hist.round", { n: r.round })) + "</b>" +
       (r.hashes_only ? '<span class="muted sm">' + esc(t("ehist.hashesOnly")) + "</span>"
         : (r.edges || []).length ? '<ul class="elist">' + r.edges.map((x) => "<li>" + esc(t("chain.dependsOn")) + " " + (known(x.to) ? epicLink(x.to) : esc(x.to)) + whyHTML(x.why) + "</li>").join("") + "</ul>"
           : '<span class="muted sm">' + esc(t("ehist.noDependency")) + "</span>") + "</li>").join("") + "</ol></div>").join("");
