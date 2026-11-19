@@ -2043,6 +2043,15 @@
       "</b><span>" + esc(i ? t("tasks.afterStep", { n: i }) : t("tasks.noneBefore")) + '</span></div><div class="cards">' + g.map((task) => taskCard(task, ix)).join("") + "</div></div>").join("");
   }
 
+  // graphHTML is the Graph view's slot, which taskgraph.js fills with its
+  // canvas, and the tasks as a list for the keyboard and the screen reader,
+  // visually hidden until it takes focus.
+  function graphHTML(d) {
+    const item = (task) => '<li><button type="button" data-t="' + esc(task.id) + '" aria-pressed="' + (task.id === work.task) + '">' + esc(task.title) + " (" + esc(task.id) + "), " +
+      esc(word(TASK_LABEL, task.state)) + ((task.depends_on || []).length ? ", " + esc(t("task.after", { ids: task.depends_on.join(", ") })) : "") + "</button></li>";
+    return '<div id="tg-slot"></div><ul class="tglist" aria-label="' + esc(t("tasks.graphList")) + '">' + (d.tasks || []).map(item).join("") + "</ul>";
+  }
+
   function boardHTML(d, ix) {
     return BOARD.map(([key, label, states]) => {
       const ts = (d.tasks || []).filter((task) => states.includes(task.state));
@@ -2188,6 +2197,13 @@
       (src ? "<div><h4>" + esc(t("task.fromSpec")) + "</h4>" + src + "</div>" : "");
   }
 
+  // stagesHTML is the Tasks view's body in the view picked: Steps, Graph or
+  // Board.
+  function stagesHTML(d, ix) {
+    if (work.tview === "board") return boardHTML(d, ix);
+    return work.tview === "graph" ? graphHTML(d) : stepsHTML(d, ix);
+  }
+
   function drawTasks(d) {
     const ix = taskIndex(d);
     if (work.task && !ix.by[work.task]) work.task = null;
@@ -2200,13 +2216,15 @@
     const chip = sec ? '<span class="secchip">' + esc(t("tasks.fromSection", { n: work.secIds.size })) + ' <button type="button" class="link" data-goto="' + esc(work.sec) + '">' + esc(sec.anchor + " " + secTitle(sec)) + "</button>" +
       '<button type="button" class="key secx" data-secclear aria-label="' + esc(t("tasks.showAll")) + '"></button></span>' : "";
     $("sv-tasks").innerHTML = '<section class="panel tpanel"><div class="toolbar"><h2>' + esc(t("spec.view.tasks")) + " " + info("tasks", t("spec.view.tasks")) + "</h2>" + chip + '<span class="spacer"></span>' +
-      '<div class="seg" role="group" aria-label="' + esc(t("tasks.view")) + '">' + tview("steps", tk("tasks.steps")) + tview("board", tk("tasks.board")) + "</div></div>" +
-      '<div class="stages' + (work.tview === "board" ? " board" : "") + '" id="stages">' + (tasks.length ? (work.tview === "board" ? boardHTML(d, ix) : stepsHTML(d, ix)) : none(t("progress.noTasks"))) + "</div>" +
+      '<div class="seg" role="group" aria-label="' + esc(t("tasks.view")) + '">' + tview("steps", tk("tasks.steps")) + tview("graph", tk("tasks.graph")) + tview("board", tk("tasks.board")) + "</div></div>" +
+      '<div class="stages' + (work.tview === "steps" ? "" : " " + work.tview) + '" id="stages">' + (tasks.length ? stagesHTML(d, ix) : none(t("progress.noTasks"))) + "</div>" +
       '<div class="legend">' + ["ready", "wip", "waits_on_task", "waits_on_epic", "done"].map((s) => '<span><i class="lg" data-s="' + s + '"></i>' + esc(word(TASK_LABEL, s)) + "</span>").join("") + "</div></section>" +
       '<aside class="panel tside" id="tside" aria-label="' + esc(t("tasks.side")) + '">' + (work.task ? taskDetail(d, ix.by[work.task], ix) : progressHTML(d)) + "</aside>";
     if (work.tview === "steps") drawWires(d);
+    if (work.tview === "graph" && tasks.length && window.tpTaskGraph) window.tpTaskGraph.show(d, work.task);
     if (focused) {
-      const again = $("sv-tasks").querySelector('.tcard[data-t="' + CSS.escape(focused.dataset.t) + '"]');
+      const id = CSS.escape(focused.dataset.t);
+      const again = $("sv-tasks").querySelector('.tcard[data-t="' + id + '"], .tglist [data-t="' + id + '"]');
       if (again) again.focus();
     }
   }
@@ -2394,7 +2412,7 @@
     work.view = VIEWS.some(([v]) => v === view) ? view : work.data ? defaultView(work.data) : null;
     work.task = p.get("task");
     work.sec = /^\d+(?:\.\d+)*$/.test(p.get("sec") || "") ? p.get("sec") : null;
-    work.tview = p.get("tview") === "board" ? "board" : "steps";
+    work.tview = ["board", "graph"].includes(p.get("tview")) ? p.get("tview") : "steps";
     mapView.selected = p.get("epic");
     msView.detail = p.get("ms") || null;
     const stage = p.get("stage");
@@ -2426,6 +2444,13 @@
     stage: () => mapView.stage,
     markText: (m) => tpPure.markText(m, words(MARK_LABEL)),
     markWord: (k) => word(MARK_LABEL, k),
+    // pickTask picks a task in the Tasks view, or clears it when it is the
+    // picked one; taskWord names a task's state. taskgraph.js reads both.
+    pickTask: (id) => {
+      work.task = id === work.task ? null : id;
+      drawWork();
+    },
+    taskWord: (s) => word(TASK_LABEL, s),
     onSelect: null,
     graphNote: null,
     graphParams: null,
