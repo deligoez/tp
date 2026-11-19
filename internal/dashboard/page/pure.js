@@ -1070,6 +1070,11 @@
     out.push([z.x, z.y]);
     return out;
   };
+  // onlySpec is the path of a project's one task file, which the Spec tab
+  // opens when nothing is open; none or several give null.
+  P.onlySpec = function (files) {
+    return files && files.length === 1 ? files[0].path : null;
+  };
   // drawerWide says whether the drawer opens wide from the viewer's stored
   // choice: only a stored "wide" does; nothing stored keeps it narrow.
   P.drawerWide = function (stored) {

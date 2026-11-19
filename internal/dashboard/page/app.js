@@ -183,6 +183,8 @@
       $("tab-" + t).setAttribute("aria-selected", String(t === tab));
       $("view-" + t).hidden = t !== tab;
     });
+    // The Spec tab with nothing open draws its empty state, or its one spec.
+    if (tab === "work" && !work.path) drawWork();
     syncURL();
   }
 
@@ -1777,6 +1779,13 @@
     $("c-work").innerHTML = work.path ? '<span class="cl">' + esc(work.path || "") + '</span><span class="cs">' + esc(tpPure.pathTail(work.path || "")) + "</span>" : "";
     $("tab-work").title = work.path || "";
     if (!work.path) {
+      // A project with one spec opens it; with more, the Specs tab is a link.
+      const only = tpPure.onlySpec((data("export-list") || {}).files);
+      if (only && state.tab === "work") {
+        openSpec(only);
+        return;
+      }
+      $("work-none").innerHTML = t.html("spec.none_html");
       syncURL();
       return;
     }
@@ -2227,6 +2236,7 @@
     const b = ev.target.closest && ev.target.closest("[data-copy]");
     if (b) copyKey(b);
   });
+  $("work-none").addEventListener("click", (ev) => { if (ev.target.closest("[data-go-specs]")) openSpecs(); });
   function openSpecs() {
     setTab("specs");
     $("specs-q").focus();

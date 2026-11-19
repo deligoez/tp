@@ -72,7 +72,7 @@
   "specs.filter": "Başlık, yol ya da epic'e göre süz",
   "specs.filterLabel": "Spec'leri süz",
   "specs.phase": "Aşama",
-  "spec.none": "Okumak ve görevleri üzerinde çalışmak için Spec'ler sekmesinden bir spec seçin.",
+  "spec.none_html": "Okumak ve görevleri üzerinde çalışmak için <button type=\"button\" class=\"link\" data-go-specs>Spec'ler sekmesinden</button> bir spec seçin.",
   "spec.head": "Bu spec",
   "spec.views": "Spec görünümü",
   "spec.read": "Spec",

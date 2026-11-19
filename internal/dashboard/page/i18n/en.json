@@ -72,7 +72,7 @@
   "specs.filter": "Filter by title, path or epic",
   "specs.filterLabel": "Filter specs",
   "specs.phase": "Phase",
-  "spec.none": "Pick a spec on the Specs tab to read it and work its tasks.",
+  "spec.none_html": "Pick a spec on the <button type=\"button\" class=\"link\" data-go-specs>Specs tab</button> to read it and work its tasks.",
   "spec.head": "This spec",
   "spec.views": "Spec view",
   "spec.read": "The spec",
