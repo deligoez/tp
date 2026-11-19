@@ -757,8 +757,15 @@ func TestPage_TheClosureHeaderSaysHowManyAreDescribed(t *testing.T) {
 func TestPage_MarksDescribedEpicsAndCountsThemPerMilestone(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
-	for _, s := range []string{"tpPure.describedCounts(", `ctx.described.has(n.id) ? " ¶" : ""`, " described"} {
+	for _, s := range []string{"tpPure.describedCounts(", " described",
+		`(G.prepared.described.has(n.id) ? "<br>" + escape(t("graph.hasDescription")) : "")`} {
 		assert.Contains(t, script, s)
+	}
+	// A bare ¶ after the id said nothing on its own; the tooltip says it.
+	assert.Contains(t, script, `out.label = n.id + (owner.length > 1 ? " +" + (owner.length - 1) : "");`)
+	assert.NotContains(t, script, `" ¶"`)
+	for lang, want := range map[string]string{"en": `"has a description"`, "tr": `"açıklaması var"`} {
+		assert.Equal(t, want, string(dictionary(t, lang)["graph.hasDescription"]), lang)
 	}
 }
 
