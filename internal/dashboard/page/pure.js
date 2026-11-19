@@ -707,14 +707,21 @@
   P.GRAPH_TOKENS = ["--sunk", "--surface", "--ink", "--muted", "--line", "--accent", "--crit", "--g-back", "--g-anc", "--g-desc", "--color-paper-3"]
     .concat(P.GRAPH_MARKS.map((m) => m[1]), P.OWNER_TOKENS);
 
-  // parseColour reads "#rrggbb" or "rgb(r, g, b)" as [r, g, b], grey for
-  // anything else.
-  const parseColour = (v) => {
+  // parseColour reads "#rrggbb", "rgb(r, g, b)" or "rgba(r, g, b, a)" as
+  // [r, g, b], grey for anything else. A colour with alpha is composited
+  // over under ([r, g, b], white when absent): DESIGN.md's greys are
+  // semi-transparent, and read opaque they would draw far too dark.
+  const parseColour = (v, under) => {
     const s = String(v || "").trim();
     if (/^#[0-9a-f]{6}$/i.test(s)) return [1, 3, 5].map((i) => parseInt(s.slice(i, i + 2), 16));
     const m = /rgba?\(([^)]+)\)/.exec(s);
-    return m ? m[1].split(",").slice(0, 3).map((x) => Math.round(Number(x))) : [128, 128, 128];
+    if (!m) return [128, 128, 128];
+    const ch = m[1].split(",").map((x) => Number(x));
+    const a = ch.length > 3 ? ch[3] : 1;
+    const bg = under || [255, 255, 255];
+    return ch.slice(0, 3).map((x, i) => Math.round(x * a + bg[i] * (1 - a)));
   };
+  P.parseColour = parseColour;
 
   // graphPalette is the graph's colours from the page's tokens (name to
   // value): every status hue and edge colour nudged until it reads at 3:1
@@ -722,8 +729,9 @@
   // reads on it at 4.5:1, tree edges in the ink and the canvas's own
   // colours as they are.
   P.graphPalette = function (tok) {
-    const rgb = (name) => parseColour(tok[name]);
-    const page = rgb("--sunk");
+    // every token is composited over the canvas, the graph's own page
+    const page = parseColour(tok["--sunk"]);
+    const rgb = (name) => parseColour(tok[name], page);
     const surface = rgb("--surface");
     const ink = rgb("--ink");
     const line = (name) => P.nudgeContrast(rgb(name), page, 3);
