@@ -687,6 +687,8 @@ body.mapfs .gcard.fs .glegend .legend { max-height: none; overflow: visible; }
 .tcard .tm { font: var(--type-tiny); color: var(--muted); }
 .tcard:hover { background-image: linear-gradient(var(--fill-hover), var(--fill-hover)); }
 .tcard:active { background-image: linear-gradient(var(--fill-press), var(--fill-press)); }
+.tcard[data-s="done"]:hover { background-image: linear-gradient(var(--fill-hover), var(--fill-hover)), linear-gradient(var(--fill-weak), var(--fill-weak)); }
+.tcard[data-s="done"]:active { background-image: linear-gradient(var(--fill-press), var(--fill-press)), linear-gradient(var(--fill-weak), var(--fill-weak)); }
 .tcard[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--stroke-selected); }
 .tcard.dim { opacity: 0.4; }
 .pv { display: grid; gap: var(--sp-3); }
