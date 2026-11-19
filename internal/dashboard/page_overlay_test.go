@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestPage_TheDrawerIsAnOverlayOverADimmedPage is the operator's 1.17.1
@@ -31,8 +32,9 @@ func TestPage_TheDrawerIsAnOverlayOverADimmedPage(t *testing.T) {
 func TestPage_APhonesBottomSheetDimsThePageToo(t *testing.T) {
 	t.Parallel()
 	page, _ := pageText(t)
-	phone := page[strings.Index(page, "@media (max-width: 767px) {\n  /* a phone keeps the bottom sheet, which takes its height from below, over the same dimmed page */"):]
-	phone = phone[:strings.Index(phone, "\n}\n")]
+	_, phone, found := strings.Cut(page, "@media (max-width: 767px) {\n  /* a phone keeps the bottom sheet, which takes its height from below, over the same dimmed page */")
+	require.True(t, found, "the phone's media block is where the test reads it")
+	phone, _, _ = strings.Cut(phone, "\n}\n")
 	assert.NotContains(t, phone, ".scrim { display: none; }")
 }
 
