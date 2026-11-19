@@ -15,7 +15,55 @@
   const pure = window.tpPure;
   if (!app || !pure) return;
   const DECK_SRC = "vendor/deckgl-9.3.12.min.js";
-  const $ = (id) => document.getElementById(id);
+
+  // ---------- loading deck.gl, once and lazily ----------
+  function hasWebGL2() {
+    try {
+      return !!document.createElement("canvas").getContext("webgl2");
+    } catch (_) {
+      return false;
+    }
+  }
+  // deckFor loads deck.gl once for every canvas on the page, the maps and the
+  // task graph (taskgraph.js): ready runs once it is loaded, at once when it
+  // already is, failed when it cannot load.
+  const deckLoad = { state: "idle", wait: [] };
+  function deckFor(ready, failed) {
+    if (deckLoad.state === "ready") return ready();
+    if (deckLoad.state === "failed") return failed();
+    deckLoad.wait.push([ready, failed]);
+    if (deckLoad.state === "loading") return undefined;
+    deckLoad.state = "loading";
+    const s = document.createElement("script");
+    s.src = DECK_SRC;
+    const settle = (state, i) => () => {
+      deckLoad.state = state;
+      deckLoad.wait.splice(0).forEach((w) => w[i]());
+    };
+    s.onload = settle("ready", 0);
+    s.onerror = settle("failed", 1);
+    document.head.appendChild(s);
+    return undefined;
+  }
+  app.deck = deckFor;
+  app.hasWebGL2 = hasWebGL2;
+
+  // makeCard builds one map card, its state, its drawing, its camera and its
+  // controls, over cfg: the epic map on the Epics tab, or a spec's tasks on
+  // the Tasks view's Map (makeTaskMap), one renderer for both. cfg.root holds
+  // the card's elements, each the epic card's gc- id under cfg.prefix, and
+  // cfg.card is the card. What differs is cfg's: cfg.app is the page as the
+  // card sees it (the task map's answers selected, selectEpic, data and the
+  // mark words for tasks), cfg.layout lays the drawing out in the page
+  // instead of fetching /api/layout, and cfg.shown says whether the card is
+  // on screen for the keys. Its body keeps the indentation it had as the
+  // file's own, so the card's code reads as it did before it was shared.
+  function makeCard(cfg) {
+  const app = cfg.app;
+  const epics = cfg.kind === "epics";
+  // $ is a card element by its gc- id, under this card's prefix, or any
+  // other element of the page by its id.
+  const $ = (id) => (id.startsWith("gc-") ? cfg.root.querySelector("#" + cfg.prefix + id.slice(3)) : document.getElementById(id));
   // escape is s safe to place in HTML.
   const escape = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
@@ -33,18 +81,20 @@
   // and the renderer's load time stay in the card's data-* attributes.
   function countLine(P) {
     const L = P.L;
-    const nodes = L.view === "milestones" ? t("graph.countMilestones", { n: P.nodes.length }) : t("count.epics", { n: P.nodes.length });
+    const nodes = t(L.view === "milestones" ? tk("graph.countMilestones") : L.view === "tasks" ? tk("graph.countTasks") : tk("count.epics"), { n: P.nodes.length });
     const line = t("graph.count", { nodes, edges: P.links.length });
     if (L.view === "scope") return line + " " + t("graph.inClosure", { ms: L.milestone });
     if (L.view === "neighbourhood") return line + " " + t("graph.within", { depth: L.depth, epic: L.epic });
     return line;
   }
-  // The card's info popover ends with how many of a gate closure's epics
-  // are described.
-  app.graphNote = () => {
-    const P = G.prepared;
-    return P && P.L.view === "scope" ? pure.closureDescribed(P.L.nodes, P.described, app.tr()) : "";
-  };
+  // The epic card's info popover ends with how many of a gate closure's
+  // epics are described.
+  if (epics) {
+    app.graphNote = () => {
+      const P = G.prepared;
+      return P && P.L.view === "scope" ? pure.closureDescribed(P.L.nodes, P.described, app.tr()) : "";
+    };
+  }
 
   // World geometry, one unit a screen pixel at zoom 0: an epic is a box of
   // w by h, one column col wide, one layer row tall, its id in lines of at
@@ -81,16 +131,17 @@
     // and ownerColour the colour-by-owner switch (spec/backlog/epic-owner.md at edeebda0).
     ownerSel: undefined, ownerColour: false,
   };
-  window.tpGraph = G;
 
-  // ---------- the address: the card's place (tpPure.graphParams) ----------
+  // ---------- the address: the epic card's place (tpPure.graphParams) ----------
   function readPlace(get) {
     Object.assign(G, pure.graphPlace(get));
     $("gc-q").value = G.q;
   }
-  readPlace((k) => new URLSearchParams(location.hash.slice(1)).get(k));
-  app.graphParams = () => pure.graphParams(G);
-  app.readGraphPlace = (p) => readPlace((k) => p.get(k));
+  if (epics) {
+    readPlace((k) => new URLSearchParams(location.hash.slice(1)).get(k));
+    app.graphParams = () => pure.graphParams(G);
+    app.readGraphPlace = (p) => readPlace((k) => p.get(k));
+  }
 
   // ---------- colours, read from the page's tokens ----------
   // readColors reads every token the palette needs and builds the graph's
@@ -118,14 +169,7 @@
     return first === undefined ? pure.OWNER_SLOTS + 1 : pure.ownerSlot(P.owners, first);
   }
 
-  // ---------- loading deck.gl, once and lazily ----------
-  function hasWebGL2() {
-    try {
-      return !!document.createElement("canvas").getContext("webgl2");
-    } catch (_) {
-      return false;
-    }
-  }
+  // ---------- loading deck.gl, the first time the card shows ----------
   // say shows text in the card's message, or hides it for none; a message
   // said by its key keeps the key, so a change of language words it again.
   function say(text, key) {
@@ -135,29 +179,6 @@
     m.hidden = !text;
   }
   const sayKey = (key) => say(t(key), key);
-  // deckFor loads deck.gl once for every canvas on the page, the map and the
-  // task graph (taskgraph.js): ready runs once it is loaded, at once when it
-  // already is, failed when it cannot load.
-  const deckLoad = { state: "idle", wait: [] };
-  function deckFor(ready, failed) {
-    if (deckLoad.state === "ready") return ready();
-    if (deckLoad.state === "failed") return failed();
-    deckLoad.wait.push([ready, failed]);
-    if (deckLoad.state === "loading") return undefined;
-    deckLoad.state = "loading";
-    const s = document.createElement("script");
-    s.src = DECK_SRC;
-    const settle = (state, i) => () => {
-      deckLoad.state = state;
-      deckLoad.wait.splice(0).forEach((w) => w[i]());
-    };
-    s.onload = settle("ready", 0);
-    s.onerror = settle("failed", 1);
-    document.head.appendChild(s);
-    return undefined;
-  }
-  app.deck = deckFor;
-  app.hasWebGL2 = hasWebGL2;
   function loadDeck() {
     if (G.deckState !== "idle") return;
     if (!hasWebGL2() || new URLSearchParams(location.search).has("nogl")) {
@@ -181,7 +202,7 @@
   }
 
   // The card loads deck.gl the first time it is on screen.
-  const card = $("graphcard");
+  const card = cfg.card;
   new IntersectionObserver((entries) => {
     G.visible = entries.some((e) => e.isIntersecting);
     if (G.visible) {
@@ -248,6 +269,10 @@
       out.mark = n.open ? (n.epics && n.done === n.epics ? "done" : "ready") : "waiting";
       out.label = milestoneLabel(n);
       out.title = milestoneTitle(n);
+    } else if (L.view === "tasks") {
+      // A task comes laid out with its mark and title (tpPure.taskMapLayout).
+      out.mark = n.mark;
+      out.title = n.title;
     } else {
       const e = ctx.epics[n.id] || { id: n.id, status: "planned" };
       out.ms = e.milestone || out.ms;
@@ -849,7 +874,7 @@
     $("gc-viewn").firstChild.textContent = app.tr().num(changed);
     $("gc-viewn").lastChild.textContent = t("graph.viewChanged", { n: changed });
     // The search's placeholder names what it finds in this mode.
-    $("gc-q").placeholder = t(G.mode === "milestones" ? tk("graph.searchMilestone") : tk("graph.search"));
+    $("gc-q").placeholder = t(cfg.searchKey || (G.mode === "milestones" ? tk("graph.searchMilestone") : tk("graph.search")));
     if ($("gc-q").value !== G.q && document.activeElement !== $("gc-q")) $("gc-q").value = G.q;
   }
   function drawLegend() {
@@ -878,7 +903,7 @@
       '</b></span><span><i class="ln" style="background:' + rgb(c.desc) + '"></i>' + escape(t("graph.waitedOn")) + " <b>" + escape(t("graph.near", { n: P.desc.size, near: pure.withinTwo(P.desc) })) + "</b></span>" +
       '<button type="button" data-lwhole aria-pressed="' + G.whole + '">' + escape(t("graph.whole")) + "</button>" : "";
     $("gc-legend").innerHTML = owned + marks + '<span class="lhead"></span>' + edges + sel +
-      '<span class="help">' + escape((P.L.view === "milestones" ? t("graph.help.milestones") : t("graph.help.epics")) + " " + t("graph.help.input")) + "</span>";
+      '<span class="help">' + escape(t(P.L.view === "milestones" ? tk("graph.help.milestones") : P.L.view === "tasks" ? tk("graph.help.tasks") : tk("graph.help.epics")) + " " + t("graph.help.input")) + "</span>";
   }
   // ownerRows are the owner legend's swatches (tpPure.ownerLegend): each
   // owner with an epic drawn, counted by membership, then "other" for the
@@ -1080,7 +1105,7 @@
   // laid out or not, ahead of the page's own "/" for the Specs filter, so
   // it listens in the capture phase; a hidden tab's input is never focused.
   const typing = (t) => t && (t.tagName === "INPUT" || t.tagName === "SELECT" || t.tagName === "TEXTAREA" || t.isContentEditable);
-  const cardShown = () => !card.hidden && !$("view-epics").hidden;
+  const cardShown = cfg.shown || (() => !card.hidden && !$("view-epics").hidden);
   document.addEventListener("keydown", (ev) => {
     if (ev.key !== "/" || ev.metaKey || ev.ctrlKey || ev.altKey || typing(ev.target) || !cardShown() || card.classList.contains("nogl")) return;
     ev.preventDefault();
@@ -1133,7 +1158,7 @@
     if (G.msgKey) sayKey(G.msgKey);
     drawToolbar(g);
     if (!G.visible || G.deckState !== "ready") return;
-    const key = query(g);
+    const key = cfg.layout ? cfg.layoutKey(g) : query(g);
     if (!key) {
       clearCanvas();
       sayKey(tk("graph.pickEpic"));
@@ -1141,7 +1166,9 @@
     }
     if (key !== G.key || G.seen !== g) {
       G.seen = g;
-      fetchLayout(key);
+      // The task map lays its drawing out here, the epic map fetches it.
+      if (cfg.layout) Object.assign(G, { key, data: cfg.layout(g), dataKey: key, error: null });
+      else fetchLayout(key);
     }
     if (G.error) {
       clearCanvas();
@@ -1178,5 +1205,10 @@
   }
   app.panel(["epic-export", "summary"], draw);
   // api lets a scripted browser drive the camera for screenshots and checks.
-  G.api = { goTo, fitView, draw, render, flyTo, pan, zoomBy };
+  G.api = { goTo, fitView, draw, render, flyTo, pan, zoomBy, fit };
+  return G;
+  }
+
+  // The epic map, on the Epics tab.
+  window.tpGraph = makeCard({ kind: "epics", app, root: document, prefix: "gc-", card: document.getElementById("graphcard") });
 })();
