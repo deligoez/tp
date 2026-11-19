@@ -354,6 +354,17 @@
     return s.showCross !== false;
   };
 
+  // viewChanged counts the View menu's settings away from their default,
+  // the badge on its button: an owner chosen and colour by owner (only
+  // while owned, the graph declaring owners in an epic mode) and cross
+  // edges hidden.
+  P.viewChanged = function (s, owned) {
+    let n = P.crossShown(s) ? 0 : 1;
+    if (owned && s.ownerSel !== undefined) n++;
+    if (owned && s.ownerColour) n++;
+    return n;
+  };
+
   // stepMatch is the match Enter moves to among n, from idx (-1 for none
   // yet): the next, wrapping to the first, or with back the previous,
   // wrapping to the last; -1 when there is none.
