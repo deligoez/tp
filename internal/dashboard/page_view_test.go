@@ -388,7 +388,7 @@ func TestPage_TheGraphDrawsByLabelSizeWithItsOwnZoomAndKeys(t *testing.T) {
 	} {
 		assert.Contains(t, script, s)
 	}
-	for _, s := range []string{`<div class="gzoom" role="group"`, `id="gc-zin"`, `id="gc-zout"`, `id="gc-zfit"`, `data-info="keys"`, `id="gc-nfs"`, ".gcanvas { overscroll-behavior-x: none; }"} {
+	for _, s := range []string{`<div class="gzoom" role="group"`, `id="gc-zin"`, `id="gc-zout"`, `id="gc-zfit"`, `id="gc-nfs"`, ".gcanvas { overscroll-behavior-x: none; }"} {
 		assert.Contains(t, page, s)
 	}
 	for _, s := range []string{"graph.loadedIn", "{layers} layers", "MIN_TEXT_PX"} {

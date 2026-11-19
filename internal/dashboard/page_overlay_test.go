@@ -53,7 +53,7 @@ func TestPage_AMissedGestureEndNeverSticks(t *testing.T) {
 }
 
 // TestPage_TheFullScreenPillShrinksItsSearchNotItsEnds is the review's H2:
-// Fit and Exit keep their place at the pill's end and never shrink; the
+// Exit keeps its place at the pill's end and never shrinks; the
 // search gives way down to 8rem first; the mode switch and the cross-edge
 // toggle shorten their words only on a pill measured too wide (.tight, set by
 // graph.js through tpPure.pillTight), so a pill with room keeps every word
@@ -63,7 +63,7 @@ func TestPage_TheFullScreenPillShrinksItsSearchNotItsEnds(t *testing.T) {
 	t.Parallel()
 	page, _ := pageText(t)
 	for _, s := range []string{
-		"body.mapfs .gcard.fs #gc-fit, body.mapfs .gcard.fs #gc-full { order: 10; flex-shrink: 0; }",
+		"body.mapfs .gcard.fs #gc-full { order: 10; flex-shrink: 0; }",
 		"body.mapfs .gcard.fs #gc-q { flex: 0 1 16rem; min-width: 8rem; }",
 		"body.mapfs .gcard.fs .toolbar.tight .seg { flex: 0 1 auto; min-width: 0; }",
 		"body.mapfs .gcard.fs .toolbar.tight .seg button { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }",
