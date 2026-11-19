@@ -598,6 +598,19 @@
   // box in CSS pixels by the factor it raises dpr, so it does not refit and
   // the graph zooms with the page; refitting kept the drawing's size while
   // the labels in pixels grew. The first size always fits.
+  // revealShift is how far a view over viewLo..viewHi moves, in the same
+  // units, to show the span lo..hi at least pad inside it: 0 when it shows
+  // already, the least move that brings it in when it does not, and the
+  // span centred when it is wider than the view's room.
+  P.revealShift = function (lo, hi, viewLo, viewHi, pad) {
+    const from = viewLo + pad;
+    const to = viewHi - pad;
+    if (hi - lo > to - from) return (lo + hi) / 2 - (viewLo + viewHi) / 2;
+    if (lo < from) return lo - from;
+    if (hi > to) return hi - to;
+    return 0;
+  };
+
   P.resizeRefits = function (prev, next) {
     if (!prev) return true;
     const tol = Math.max(prev.dpr, next.dpr);
