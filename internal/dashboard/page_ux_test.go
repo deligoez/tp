@@ -483,7 +483,7 @@ func TestPage_TheKPIRowFitsItsColumnsOnRenderAndResize(t *testing.T) {
 	for _, s := range []string{"tpPure.balancedColumns(", "tpPure.cardSpans(", `["#kpis", 140]`, `rowsSeen.observe($(id))`} {
 		assert.Contains(t, script, s)
 	}
-	assert.Contains(t, script, "].join(\"\");\n    fitAllRows();", "the row is fitted as soon as it is drawn")
+	assert.Contains(t, script, "$(\"kpimore-n\").textContent = \"(\" + t.num(more.length) + \")\";\n    fitAllRows();", "the row is fitted as soon as it is drawn")
 	assert.Contains(t, page, ".kpis[data-cols], .pcells[data-cols], .mscells[data-cols] { grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); }")
 	assert.NotContains(t, page, ".lone")
 }
