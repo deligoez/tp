@@ -39,3 +39,21 @@ func TestPage_ACopiedCommandShowsACheckAndIsAnnounced(t *testing.T) {
 		assert.Contains(t, script, s)
 	}
 }
+
+// A Copy command sits at the end of its row's text line, never on a line of
+// its own: a condition's, a gate's and a threshold's in the row's title, a
+// choose-one option's after its title, a slice's after its label.
+func TestPage_ACopyCommandSitsAtTheEndOfItsRowsLine(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, s := range []string{
+		`const row = (id, title, meta, why, epic, act) => '<div class="row"><span class="id">' + (epic ? epicLink(id) : esc(id)) + '</span><span class="t">' + esc(title) + (act ? " " + act : "") +`,
+		`row(id, titleOf(v, id), t("op.condition"), "", false, done(id))`,
+		`row(gate.milestone, gate.threshold, t("op.gate"), "", false, copyCmd("tp epic gate " + gate.milestone + " --met" + evidence))`,
+		`row(r.milestone, r.threshold, t("op.threshold"), "", false, copyCmd(r.command))`,
+		`'<li class="opt">' + epicLink(m) + '<span class="ot">' + esc(titleOf(v, m)) + " " + done(m, t("op.copyFor", { id: m })) + "</span></li>"`,
+		`const sliceRow = (label, meta, act) => '<div class="row rwide"><span class="t">' + esc(label) + " " + act + '</span><span class="m">' + esc(meta) + "</span></div>";`,
+	} {
+		assert.Contains(t, script, s)
+	}
+}
