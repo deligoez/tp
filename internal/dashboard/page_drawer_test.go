@@ -18,3 +18,13 @@ func TestPage_TheDrawerDrawsTheDescriptionAboveAcceptance(t *testing.T) {
 		assert.Less(t, desc, fields, "the description comes before the fields, Acceptance among them")
 	}
 }
+
+// An epic's Acceptance is markdown, drawn by the renderer its description
+// uses: code spans, emphasis, and everything else escaped.
+func TestPage_TheDrawerDrawsAcceptanceAsMarkdown(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Contains(t, script, `ge.acceptance ? [t("drawer.f.acceptance"), '<div class="ddesc">' + tpPure.markdown(ge.acceptance) + "</div>", true] : null,`)
+	got := runPure(t, "out(P.markdown(\"`amount` is *rounded* <b>once</b>\"));")
+	assert.JSONEq(t, `"<p><code>amount</code> is <i>rounded</i> &lt;b&gt;once&lt;/b&gt;</p>"`, got)
+}
