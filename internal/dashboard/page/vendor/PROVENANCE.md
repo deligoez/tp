@@ -44,3 +44,13 @@ rm -rf "$TMP"
 
 An upgrade renames the file, so `graph.js`'s `DECK_SRC`, the tests' file name
 and `deckSHA256` change with it.
+
+# Icons
+
+The page's icons are Feather outlines (feathericons.com, `feather-icons@4.29.2`),
+copied by hand as path data rather than vendored as files: `info`, `help-circle`,
+`x`, `plus`, `minus` and `chevron-right` as CSS masks in `style.css` (`--ic-*`),
+and `monitor`, `sun` and `moon` inline in `index.html`'s theme control. Feather
+is MIT-licensed, Copyright (c) 2013-2017 Cole Bemis; the notice travels with
+these sources in this note. Every icon keeps Feather's 24-unit grid and 2-unit
+stroke, as DESIGN.md's icon rules ask.
