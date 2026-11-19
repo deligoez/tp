@@ -84,3 +84,15 @@ func TestPure_AWirePathRoundsEveryCorner(t *testing.T) {
 	assert.Equal(t, 2, strings.Count(d, "Q"), "one curve per corner: %s", d)
 	assert.True(t, strings.HasSuffix(d, "L40 60"), d)
 }
+
+// The wires are drawn under the steps, so a card's surface covers any wire
+// that reaches it, and a done card's tinted surface is opaque, not a
+// see-through tint over the wires.
+func TestPage_StepsWiresLieUnderTheCards(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	assert.Contains(t, page, ".wires { position: absolute; left: 0; top: 0; z-index: 0;")
+	assert.Contains(t, page, ".step { position: relative; z-index: 1;")
+	assert.Contains(t, page, `.tcard[data-s="done"] { --c: var(--icon-success); background: linear-gradient(var(--fill-weak), var(--fill-weak)) var(--surface);`)
+	assert.Contains(t, script, `box.querySelectorAll(".step-h > *")`, "only a header's words are an obstacle")
+}
