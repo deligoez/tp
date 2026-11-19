@@ -1221,73 +1221,7 @@
   };
 
   // ---------- the task graph (the Tasks view's Graph, drawn with deck.gl) ----------
-  // taskSteps is the Steps panel's grouping as ids: each task one step below
-  // the last task it waits on, in the export's order within a step. A
-  // dependency outside the file is not waited on here, and a cycle stops at
-  // the task that closes it.
-  P.taskSteps = function (tasks) {
-    const by = {};
-    (tasks || []).forEach((t) => { by[t.id] = t; });
-    const depth = {};
-    const of = (id, trail) => {
-      if (depth[id] !== undefined) return depth[id];
-      if (trail.has(id)) return 0;
-      trail.add(id);
-      const ds = (by[id].depends_on || []).filter((x) => by[x]);
-      depth[id] = ds.length ? 1 + Math.max(...ds.map((x) => of(x, trail))) : 0;
-      return depth[id];
-    };
-    const steps = [];
-    (tasks || []).forEach((t) => { const k = of(t.id, new Set()); (steps[k] = steps[k] || []).push(t.id); });
-    return steps.filter(Boolean);
-  };
-
-  // TASK_GEO is the task graph's world geometry, one unit a screen pixel at
-  // zoom 0: a node of w by h, gaps of gx across and gy down, a step's header
-  // row head tall and sgap between two steps.
-  P.TASK_GEO = { w: 248, h: 64, gx: 16, gy: 12, head: 36, sgap: 28 };
-
-  // taskFitCols is how many nodes a row holds so the whole graph draws
-  // largest on a canvas width by height pixels, never past zoom 0 and never
-  // more than the widest step or eight; of columns that draw it as large,
-  // the most, so a step's tasks sit side by side rather than stacked.
-  P.taskFitCols = function (tasks, width, height, geo) {
-    const widest = Math.max(1, ...P.taskSteps(tasks).map((s) => s.length));
-    let best = 1;
-    let bestZoom = -Infinity;
-    for (let c = 1; c <= Math.min(8, widest); c++) {
-      const b = P.taskGraphLayout(tasks, c, geo).bounds;
-      const z = Math.min(0, Math.log2(Math.min(width / Math.max(1, b.x1 - b.x0), height / Math.max(1, b.y1 - b.y0))));
-      if (z >= bestZoom - 1e-9) {
-        best = c;
-        bestZoom = z;
-      }
-    }
-    return best;
-  };
-
-  // taskGraphLayout places each step's header and then its tasks in rows of
-  // at most cols, left to right in the export's order: nodes with their
-  // top-left corner, each step's top and the drawing's bounds.
-  P.taskGraphLayout = function (tasks, cols, geo) {
-    const g = geo || P.TASK_GEO;
-    const nodes = [];
-    const steps = [];
-    let y = 0;
-    let x1 = 0;
-    P.taskSteps(tasks).forEach((ids, k) => {
-      steps.push({ n: k + 1, y });
-      const top = y + g.head;
-      ids.forEach((id, i) => {
-        const x = (i % cols) * (g.w + g.gx);
-        nodes.push({ id, step: k, x, y: top + Math.floor(i / cols) * (g.h + g.gy), w: g.w, h: g.h });
-        x1 = Math.max(x1, x + g.w);
-      });
-      const rows = Math.ceil(ids.length / cols);
-      y = top + rows * g.h + (rows - 1) * g.gy + g.sgap;
-    });
-    return { nodes, steps, bounds: { x0: 0, y0: 0, x1, y1: Math.max(0, y - g.sgap) } };
-  };
+  // Its layout is the Steps panel's own, measured off the page (taskgraph.js).
 
   // taskChain is a task's chain: every task it waits on however far up, and
   // every task that waits on it however far down, each sorted; the task
