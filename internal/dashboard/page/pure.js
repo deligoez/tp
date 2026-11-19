@@ -185,7 +185,44 @@
   // taskView is the Tasks view an address names: Board, or else Steps, the
   // graph, which an old link's tview=graph meant.
   P.taskView = function (v) {
-    return v === "board" ? "board" : "steps";
+    return v === "board" || v === "map" ? v : "steps";
+  };
+
+  // TASK_MAP_MARK is the epic map's mark for each task state, so the Map
+  // draws a task in the colour the epic map draws an epic in that state.
+  P.TASK_MAP_MARK = { done: "done", wip: "in_progress", ready: "ready", waits_on_task: "waiting", waits_on_epic: "held" };
+  // taskMapLayout lays a spec's steps out in the shape the epic map reads
+  // from /api/layout: steps is the tasks grouped by step, as the Steps view
+  // groups them; each step is a band named label(k), its tasks cols to a
+  // layer in their order, wrapping onto the next layer, with one empty layer
+  // between two bands. Of a task's dependencies the first in the latest step
+  // is its tree edge, any other a cross edge.
+  P.taskMapLayout = function (steps, cols, label) {
+    const at = {};
+    const nodes = [];
+    const bands = [];
+    let layer = 0;
+    let wide = 0;
+    steps.forEach((ts, k) => {
+      if (!ts || !ts.length) return;
+      const from = layer;
+      ts.forEach((task, i) => {
+        at[task.id] = k;
+        nodes.push({ id: task.id, layer: from + Math.floor(i / cols), col: i % cols, milestone: label(k), mark: P.TASK_MAP_MARK[task.state] || "ready", title: task.title || "" });
+      });
+      wide = Math.max(wide, Math.min(cols, ts.length));
+      layer = from + Math.ceil(ts.length / cols);
+      bands.push({ milestone: label(k), from_layer: from, to_layer: layer - 1 });
+      layer++;
+    });
+    const edges = [];
+    steps.forEach((ts) => (ts || []).forEach((task) => {
+      const deps = (task.depends_on || []).filter((x) => at[x] !== undefined);
+      const last = Math.max(...deps.map((x) => at[x]));
+      const tree = deps.find((x) => at[x] === last);
+      deps.forEach((x) => edges.push({ from: x, to: task.id, role: x === tree ? "tree" : "cross" }));
+    }));
+    return { view: "tasks", nodes, edges, bands, layers: Math.max(0, layer - 1), columns: wide };
   };
 
   // cardExpanded says whether milestone id's card reads expanded: while its
