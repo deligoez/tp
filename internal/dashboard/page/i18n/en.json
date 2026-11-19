@@ -519,6 +519,8 @@
   "tasks.view": "Task view",
   "tasks.steps": "Steps",
   "tasks.board": "Board",
+  "tasks.graph": "Graph",
+  "tasks.graphList": "The tasks, each with what it waits on",
   "tasks.side": "Task detail and progress",
   "tasks.step": "Step {n}",
   "tasks.afterStep": "after step {n}",

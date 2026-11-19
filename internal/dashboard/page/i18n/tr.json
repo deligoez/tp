@@ -519,6 +519,8 @@
   "tasks.view": "Görev görünümü",
   "tasks.steps": "Adımlar",
   "tasks.board": "Pano",
+  "tasks.graph": "Grafik",
+  "tasks.graphList": "Görevler ve her birinin beklediği",
   "tasks.side": "Görev ayrıntısı ve ilerleme",
   "tasks.step": "{n}. adım",
   "tasks.afterStep": "{n}. adımdan sonra",
