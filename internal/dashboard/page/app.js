@@ -1490,7 +1490,8 @@
       [t("drawer.f.downstream"), down ? t("drawer.downstream", { n: down.dependents, open: down.dependents_open, chain: down.longest_chain }) : t("drawer.noDownstream")],
       ge.estimate_minutes ? [t("drawer.f.estimate"), t.dur(ge.estimate_minutes)] : null,
       (ge.tags || []).length ? [t("drawer.f.tags"), ge.tags.map((x) => '<span class="dtag">' + esc(x) + "</span>").join(" "), true] : null,
-      ge.acceptance ? [t("drawer.f.acceptance"), ge.acceptance] : null,
+      // Acceptance is markdown, drawn as the description is.
+      ge.acceptance ? [t("drawer.f.acceptance"), '<div class="ddesc">' + tpPure.markdown(ge.acceptance) + "</div>", true] : null,
       ge.done ? [t("drawer.f.done"), stamp(ge.done.at) + (ge.done.evidence ? ": " + ge.done.evidence : "")] : null,
     ].filter(Boolean);
     $("dbody").innerHTML = '<div><div class="dmeta"><code>' + esc(id) + "</code>" + (e.condition ? "<span>" + esc(t("drawer.condition")) + "</span>" : "") + (crit ? '<span class="critpill">' + esc(t("wait.critical")) + "</span>" : "") + "</div><h3>" + esc(e.title) + "</h3></div>" +
