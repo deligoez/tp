@@ -422,6 +422,7 @@
     most: tk("info.most"),
     since: tk("info.since"),
     cfd: tk("info.cfd"),
+    nograph: tk("info.nograph"),
   };
 
   // The ⓘ buttons open one note at a time beside themselves: a heading
@@ -637,8 +638,9 @@
   // the actionable conditions, the any-of groups as their choices, the gates
   // awaiting --met, each placeholder threshold once as its rewrite, the
   // slices that may take --grant-round, and the bound specs' escalations.
-  // Each command carries a Copy button (1.17.1).
-  const copyCmd = (cmd) => "<code>" + esc(cmd) + '</code> <button type="button" class="key copy" data-copy="' + esc(cmd) + '">' + esc(t("copy.copy")) + "</button>";
+  // Agents run tp, so a person never reads a command in plain view: each
+  // one is a Copy command button, the command in its tooltip and clipboard.
+  const copyCmd = (cmd) => '<button type="button" class="key copy" data-copy="' + esc(cmd) + '" title="' + esc(cmd) + '">' + esc(t("copy.command")) + "</button>";
   // conditionRows are the conditions waiting on a decision. With owners
   // declared they are grouped by whose decision it is (tpPure.ownerGroups):
   // a line stating the distinct conditions, then one counted "waiting on
@@ -857,7 +859,7 @@
       const res = await fetch("/api/history?" + p.toString(), { cache: "no-store" });
       return await res.json();
     } catch (err) {
-      return { error: t("err.fetch", { what: "tp epic review --history", message: err.message }), hint: t("err.stillRunning") };
+      return { error: t("err.fetch", { what: t("src.sliceHistory"), message: err.message }), hint: t("err.stillRunning") };
     }
   }
 
@@ -1322,7 +1324,7 @@
       const res = await fetch("/api/epic-history?epic=" + encodeURIComponent(id), { cache: "no-store" });
       body = await res.json();
     } catch (err) {
-      body = { error: t("err.fetch", { what: "tp epic review --history --of-epic", message: err.message }), hint: t("err.stillRunning") };
+      body = { error: t("err.fetch", { what: t("src.epicHistory"), message: err.message }), hint: t("err.stillRunning") };
     }
     if (seq !== epicHist.seq) return;
     Object.assign(epicHist, isError(body) ? { id, error: body } : { id, data: body, error: null });
@@ -1458,7 +1460,8 @@
       ge.done ? [t("drawer.f.done"), stamp(ge.done.at) + (ge.done.evidence ? ": " + ge.done.evidence : "")] : null,
     ].filter(Boolean);
     $("dbody").innerHTML = '<div><div class="dmeta"><code>' + esc(id) + "</code>" + (e.condition ? "<span>" + esc(t("drawer.condition")) + "</span>" : "") + (crit ? '<span class="critpill">' + esc(t("wait.critical")) + "</span>" : "") + "</div><h3>" + esc(e.title) + "</h3></div>" +
-      (e.condition ? '<p class="impact">' + t.html("drawer.conditionNote_html", { id }) + "</p>" : epicStepper(e, ge.claimed !== undefined ? ge : null)) +
+      (e.condition ? '<div class="cmdline"><span class="sum">' + t.html("drawer.conditionNote_html", { id }) + "</span>" +
+        copyCmd("tp epic done " + id + ' --evidence "<' + t("op.evidence") + '>"') + "</div>" : epicStepper(e, ge.claimed !== undefined ? ge : null)) +
       "<dl>" + fields.map(([k, v, html]) => "<dt>" + esc(k) + "</dt><dd>" + (html ? v : esc(v)) + "</dd>").join("") + "</dl>" +
       (String(ge.description || "").trim() ? descHTML(ge.description) : "") +
       ((e.files || []).length ? "<div><h4>" + esc(t("drawer.specs")) + '</h4><ul class="elist">' + e.files.map(fileLine).join("") + "</ul></div>" : "") +
@@ -1539,7 +1542,7 @@
       ? epicLink(f.epic) + (f.epic_state ? '<span class="sm muted">' + esc(word(STAGE_LABEL, f.epic_state)) + "</span>" : "")
       : '<span class="muted">' + esc(t("specs.noEpic")) + "</span>";
     const next = ops.map((b) => '<span class="stat" title="' + esc(b.message) + '">' + PAUSE + esc(b.code) + "</span>").join("") +
-      (f.error ? '<span class="snext err">' + esc(f.error) + "</span>" : '<code class="snext">' + esc(f.next_step || "") + "</code>");
+      (f.error ? '<span class="snext err">' + esc(f.error) + "</span>" : '<span class="snext">' + esc(f.next_step || "") + "</span>");
     return '<tr class="srow' + (f.path === state.spec ? " on" : "") + '" tabindex="0" data-path="' + esc(f.path) + '">' +
       '<td class="sname"><span class="pt">' + (ops.length ? '<span class="mk" title="' + esc(t("specs.waitsOp")) + '">' + PAUSE + "</span>" : "") +
       "<span>" + esc(f.title || f.path) + "</span></span><code>" + esc(f.path) + "</code></td>" +
@@ -1614,7 +1617,7 @@
       const res = await fetch("/api/export?file=" + encodeURIComponent(path), { cache: "no-store" });
       body = await res.json();
     } catch (err) {
-      body = { error: t("err.fetch", { what: "tp export --file " + path, message: err.message }), hint: t("err.stillRunning") };
+      body = { error: t("err.fetch", { what: t("src.spec", { path }), message: err.message }), hint: t("err.stillRunning") };
     }
     if (seq !== work.seq) return;
     if (isError(body)) {
@@ -1700,9 +1703,8 @@
       '<div class="loophead"><h2>' + esc(t("spec.loop")) + "</h2>" + info("loop", t("spec.loop")) + "</div>" + stepper(d, f) +
       '<p class="impact">' + impactText(d) + "</p>" +
       escalations(d).map((b) => '<div class="opnote"><span class="mk">' + PAUSE + "</span><div><b>" + esc(b.code) + "</b> " + esc(t("spec.waitsOp", { message: b.message })) + "</div></div>").join("") +
-      '<div class="cmdline"><span class="lab">' + t.html("spec.next_html") + "</span>" +
-      (cmd ? "<code>" + esc(cmd) + '</code><button type="button" class="key" data-copy="' + esc(cmd) + '">' + esc(t("copy.copy")) + "</button>" : "") +
-      '<span class="sum">' + esc(na.summary || "") + "</span></div>";
+      '<div class="cmdline"><span class="lab">' + t.html("spec.next_html") + '</span><span class="sum">' + esc(na.summary || "") + "</span>" +
+      (cmd ? copyCmd(cmd) : "") + "</div>";
   }
 
   function drawWork() {
@@ -2060,7 +2062,7 @@
     return '<div class="td-head"><div><span class="stat" style="color:var(--' + (TASK_COLOR[task.state] || "muted") + ')">' + (TASK_MARK[task.state] || "") + esc(word(TASK_LABEL, task.state)) + "</span>" +
       "<h3>" + esc(task.title) + '</h3><code class="tid">' + esc(task.id) + '</code></div><button type="button" class="key" data-tclose aria-label="' + esc(t("task.close")) + '">×</button></div>' +
       "<dl>" + time + "</dl>" +
-      (cmd ? '<div class="cmdline"><code>' + esc(cmd) + '</code><button type="button" class="key" data-copy="' + esc(cmd) + '">' + esc(t("copy.copy")) + "</button></div>" : "") +
+      (cmd ? '<div class="cmdline"><span class="sum">' + esc(task.state === "ready" ? t("task.nextClaim") : t("task.nextDone")) + "</span>" + copyCmd(cmd) + "</div>" : "") +
       (task.state === "waits_on_epic" ? '<p class="opnote">' + t.html("task.epicWaits_html", { epic: d.epic || "" }) + "</p>" : "") +
       "<div><h4>" + esc(t("task.acceptance")) + '</h4><ul class="deps">' + acc.map((a) => '<li><span class="mk">–</span><span>' + esc(a) + "</span></li>").join("") + "</ul></div>" +
       '<div class="two-col"><div><h4>' + esc(t("task.dependsOn")) + '</h4><ul class="deps">' + deps + "</ul></div><div><h4>" + esc(t("task.neededBy")) + '</h4><ul class="deps">' + needs + "</ul></div></div>" +
@@ -2092,7 +2094,7 @@
 
   // copyKey copies a command and says so on the key for a moment.
   function copyKey(b) {
-    const done = (text) => { b.textContent = text; setTimeout(() => { b.textContent = t("copy.copy"); }, 1200); };
+    const done = (text) => { b.textContent = text; setTimeout(() => { b.textContent = t("copy.command"); }, 1200); };
     try {
       navigator.clipboard.writeText(b.dataset.copy).then(() => done(t("copy.copied")), () => done(t("copy.failed")));
     } catch (err) {

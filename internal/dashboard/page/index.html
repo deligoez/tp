@@ -29,8 +29,8 @@
   <!-- Epics: the plan -->
   <section id="view-epics" class="view" role="tabpanel" aria-labelledby="tab-epics" hidden>
     <section class="card nograph" id="epics-none" aria-label="No epic graph" data-i18n-aria-label="epics.none.title" hidden>
-      <h2 data-i18n="epics.none.title">No epic graph</h2>
-      <p data-i18n-html="epics.none.body_html">This repository has no epic graph, so the plan is empty and the lifecycle below counts task files. Start one with <code>tp epic</code>: <code>tp epic set milestones='[["M1"]]'</code>, then <code>tp epic add</code> for each epic. The graph appears here as soon as tp writes <code>.tp/epics.json</code>, with no restart.</p>
+      <h2><span data-i18n="epics.none.title">No epic graph</span> <button class="info" type="button" data-info="nograph" aria-label="About starting an epic graph" data-i18n-aria-label="about.nograph" aria-expanded="false">i</button></h2>
+      <p data-i18n-html="epics.none.body_html">This repository has no epic graph, so the plan is empty and the lifecycle below counts task files. An agent plans the epics; the graph appears here as soon as it exists, with no restart.</p>
     </section>
     <section class="kpis" id="kpis" aria-label="Plan figures" data-i18n-aria-label="kpi.label" data-src="summary epic-export" hidden></section>
     <section class="now" id="now" aria-label="What moves now in the plan" data-i18n-aria-label="now.label" data-src="summary epic-export" hidden>
