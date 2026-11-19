@@ -2105,14 +2105,11 @@
   }
 
   $("sv-tasks").addEventListener("click", (ev) => {
+    // A Copy command button is the document delegate's, not a card press.
+    if (ev.target.closest(".copy")) return;
     const v = ev.target.closest("[data-tview]");
     const t = ev.target.closest("[data-t]");
-    const c = ev.target.closest("[data-copy]");
     const g = ev.target.closest("[data-goto]");
-    if (c) {
-      copyKey(c);
-      return;
-    }
     if (g) {
       gotoSection(g.dataset.goto);
       return;
@@ -2144,16 +2141,12 @@
     drawWork();
   });
   $("spechead").addEventListener("click", (ev) => {
-    if (ev.target.closest("#crumb-specs")) {
-      setTab("specs");
-      return;
-    }
-    const b = ev.target.closest("[data-copy]");
-    if (b) copyKey(b);
+    if (ev.target.closest("#crumb-specs")) setTab("specs");
   });
-  // The operator decisions list copies each settling command.
-  $("now-operator").addEventListener("click", (ev) => {
-    const b = ev.target.closest("[data-copy]");
+  // One delegate copies every Copy command button, wherever it is drawn:
+  // the drawer, the operator list, a task, the spec head.
+  document.addEventListener("click", (ev) => {
+    const b = ev.target.closest && ev.target.closest("[data-copy]");
     if (b) copyKey(b);
   });
   function openSpecs() {
