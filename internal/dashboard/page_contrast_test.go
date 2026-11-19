@@ -152,6 +152,20 @@ out({ raw, near });`)
 	}
 }
 
+// TestPure_ASemiTransparentTokenIsBlendedOntoWhatItSitsOn: DESIGN.md's greys
+// are semi-transparent, so parseColour composites a colour's alpha over the
+// colour under it (white when none is named) instead of reading it opaque.
+func TestPure_ASemiTransparentTokenIsBlendedOntoWhatItSitsOn(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([
+  P.parseColour("rgba(0, 6, 38, 0.9)"),
+  P.parseColour("rgba(255, 255, 255, 0.78)", [18, 19, 26]),
+  P.parseColour("#4C64D9", [0, 0, 0]),
+  P.parseColour("rgb(1, 2, 3)"),
+]);`)
+	assert.JSONEq(t, `[[25, 31, 60], [203, 203, 205], [76, 100, 217], [1, 2, 3]]`, got)
+}
+
 // TestPure_ColourDifferenceIsCIE76: deltaE is the Euclidean distance of two
 // colours in CIELAB, 0 for the same colour and about 100 from black to
 // white.
