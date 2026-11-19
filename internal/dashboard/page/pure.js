@@ -361,6 +361,8 @@
   // phaseChipShown says whether the Specs view shows the filter chip v
   // counting n specs while chosen is the phase picked: All always, any
   // other while it counts one or is the one chosen.
+  // pathTail is a path's file name: the Spec tab's label at phone width.
+  P.pathTail = function (p) { return String(p || "").split("/").pop(); };
   P.phaseChipShown = function (v, n, chosen) {
     return v === "all" || n > 0 || v === chosen;
   };
