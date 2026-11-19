@@ -308,22 +308,26 @@ button.pcell[aria-pressed="true"] { background: var(--fill-brand-weak); border-c
   .pcells { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
 }
 
-/* now lists: rows that open an epic */
-.now { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: var(--sp-6); }
-/* a now list narrower than its rows need, as beside an open drawer, puts
-   each row's count under its title so the title keeps a readable column */
+/* now lists: rows that open an epic. Each list is a full-width section, one
+   per row, so a long title keeps a readable column beside its id */
+.now { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-6); }
 .now > .card { container-type: inline-size; }
-@container (max-width: 380px) { .row { grid-template-columns: auto minmax(0, 1fr); } .row .m { grid-column: 2; white-space: normal; } }
 .list { display: grid; gap: 0; }
-.row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--sp-1) var(--sp-3); align-items: baseline; padding: var(--sp-2) var(--sp-2); margin: 0 calc(-1 * var(--sp-2)); border-radius: var(--r-2); }
+/* id, title and count on one line: the id column is capped and wraps between
+   words, the title takes the rest and never breaks inside a word */
+.row { display: grid; grid-template-columns: fit-content(40%) minmax(0, 1fr) auto; gap: var(--sp-1) var(--sp-3); align-items: baseline; padding: var(--sp-2) var(--sp-2); margin: 0 calc(-1 * var(--sp-2)); border-radius: var(--r-2); }
 .row + .row { border-top: 1px solid var(--line); }
 .list .ogroup { display: flex; align-items: baseline; gap: var(--sp-2); margin: var(--sp-4) 0 var(--sp-1); font: var(--type-label); }
 .list .ogroup:first-of-type { margin-top: 0; }
 .list .ohead { margin: 0; }
-.row .id { font: 400 14px/20px var(--mono); color: var(--muted); }
-.row .t { min-width: 0; overflow-wrap: anywhere; }
+.row .id { min-width: 0; overflow-wrap: break-word; font: 400 14px/20px var(--mono); color: var(--muted); }
+.row .t { min-width: 0; }
 .row .m { font: var(--type-tiny); color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.row .why { grid-column: 2 / 4; font: var(--type-tiny); color: var(--muted); overflow-wrap: anywhere; }
+.row .why { grid-column: 2 / -1; font: var(--type-tiny); color: var(--muted); overflow-wrap: anywhere; }
+/* a list narrower than its rows need, as beside an open drawer or on a phone,
+   puts each row's count under its title, then its title under its id */
+@container (max-width: 560px) { .row { grid-template-columns: fit-content(40%) minmax(0, 1fr); } .row .m { grid-column: 2; white-space: normal; } }
+@container (max-width: 400px) { .row { grid-template-columns: minmax(0, 1fr); } .row .t, .row .m, .row .why { grid-column: 1; } }
 .row .id.link, .row button.id { color: var(--accent); }
 
 /* links: brand text, underlined; hover toggles the underline */
