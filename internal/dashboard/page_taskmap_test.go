@@ -20,14 +20,15 @@ const L = P.taskMapLayout(steps, 2, (k) => "Step " + (k + 1));
 
 // The Map lays the steps out as the epic map's layout reads them: a band per
 // step, a step wider than the columns wrapping onto the next layer inside its
-// band, one empty layer between two bands, each node's column in its row.
+// band, two empty layers between two bands, room for a band's label above
+// it, each node's column in its row.
 func TestPure_TheTaskMapPutsEachStepInItsOwnBand(t *testing.T) {
 	t.Parallel()
 	got := runPure(t, taskSteps+`out({ view: L.view, layers: L.layers, columns: L.columns,
   nodes: L.nodes.map((n) => [n.id, n.layer, n.col, n.milestone]), bands: L.bands });`)
-	assert.JSONEq(t, `{"view":"tasks","layers":6,"columns":2,
-  "nodes":[["a",0,0,"Step 1"],["b",0,1,"Step 1"],["c",1,0,"Step 1"],["d",3,0,"Step 2"],["e",3,1,"Step 2"],["f",5,0,"Step 3"]],
-  "bands":[{"milestone":"Step 1","from_layer":0,"to_layer":1},{"milestone":"Step 2","from_layer":3,"to_layer":3},{"milestone":"Step 3","from_layer":5,"to_layer":5}]}`, got)
+	assert.JSONEq(t, `{"view":"tasks","layers":8,"columns":2,
+  "nodes":[["a",0,0,"Step 1"],["b",0,1,"Step 1"],["c",1,0,"Step 1"],["d",4,0,"Step 2"],["e",4,1,"Step 2"],["f",7,0,"Step 3"]],
+  "bands":[{"milestone":"Step 1","from_layer":0,"to_layer":1},{"milestone":"Step 2","from_layer":4,"to_layer":4},{"milestone":"Step 3","from_layer":7,"to_layer":7}]}`, got)
 }
 
 // A task's mark is the epic map's word for its state, so the map draws a task
