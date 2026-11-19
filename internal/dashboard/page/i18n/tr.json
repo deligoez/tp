@@ -163,6 +163,8 @@
   "fold.loops": "{n} inceleme döngüsü tur bekliyor",
   "fold.lint": "{n} lint hatası",
   "fold.done": "{n} iş epic'inden {done} tanesi bitti",
+  "fold.ready": "{n} epic başlayabilir",
+  "fold.decisions": "{n} karar bekliyor",
   "fold.slices": "{n} dilim incelendi",
   "fold.noSlices": "henüz incelenen dilim yok",
   "fold.milestones": "{n} kilometre taşı",

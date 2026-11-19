@@ -785,6 +785,11 @@
     if (!v) return;
     $("now-ready").innerHTML = nowList("now-ready", v.plan.ready.map((id) => row(id, titleOf(v, id), dependents(v, id), "", true)), t("list.noReady"));
     $("now-operator").innerHTML = operatorRows(v).join("") || none(t("list.noOperator"));
+    // Both open by default; a decision waiting keeps Operator decisions open
+    // as an alarm, as a held epic does More figures.
+    const queue = v.plan.figures.operator_queue + escalationRows().length;
+    setFold("ready", { dflt: true, sum: t("fold.ready", { n: v.plan.ready.length }) });
+    setFold("operator", { dflt: true, alarm: queue > 0, sum: t("fold.decisions", { n: queue }) });
     $("now-waiting").innerHTML = waitingHTML(v);
     setFold("waiting", { dflt: false, sum: t("wait.blocked", { n: v.plan.figures.blocked }) });
     $("now-most").innerHTML = nowList("now-most", v.plan.most_waited_on.slice(0, 10).map((id) => row(id, titleOf(v, id), dependents(v, id), "", true)), t("list.noMost"));

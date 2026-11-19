@@ -163,6 +163,8 @@
   "fold.loops": { "one": "{n} review loop needs a round", "other": "{n} review loops need a round" },
   "fold.lint": { "one": "{n} lint error", "other": "{n} lint errors" },
   "fold.done": "{done} of {n} work epics done",
+  "fold.ready": { "one": "{n} epic can start", "other": "{n} epics can start" },
+  "fold.decisions": { "one": "{n} decision waits", "other": "{n} decisions wait" },
   "fold.slices": { "one": "{n} slice reviewed", "other": "{n} slices reviewed" },
   "fold.noSlices": "no slice reviewed yet",
   "fold.milestones": { "one": "{n} milestone", "other": "{n} milestones" },
