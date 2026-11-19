@@ -105,3 +105,15 @@ func TestPage_ADoneCardKeepsItsTintOnHover(t *testing.T) {
 	assert.Contains(t, page, `.tcard[data-s="done"]:hover { background-image: linear-gradient(var(--fill-hover), var(--fill-hover)), linear-gradient(var(--fill-weak), var(--fill-weak)); }`)
 	assert.Contains(t, page, `.tcard[data-s="done"]:active { background-image: linear-gradient(var(--fill-press), var(--fill-press)), linear-gradient(var(--fill-weak), var(--fill-weak)); }`)
 }
+
+// wirePoints is a route as the points deck.gl draws a path through: the
+// route's ends kept, each corner a few points on a short curve, and no point
+// further than the radius from the straight route.
+func TestPure_WirePointsRoundACornerAndKeepTheEnds(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `
+const pts = P.wirePoints([{ x: 0, y: 0 }, { x: 0, y: 20 }, { x: 40, y: 20 }], 6);
+const off = pts.filter(([x, y]) => Math.min(Math.abs(x), Math.abs(y - 20)) > 6 + 1e-9).length;
+out({ first: pts[0], last: pts[pts.length - 1], many: pts.length > 4, off });`)
+	assert.JSONEq(t, `{"first":[0,0],"last":[40,20],"many":true,"off":0}`, got)
+}
