@@ -191,41 +191,16 @@
   // TASK_MAP_MARK is the epic map's mark for each task state, so the Map
   // draws a task in the colour the epic map draws an epic in that state.
   P.TASK_MAP_MARK = { done: "done", wip: "in_progress", ready: "ready", waits_on_task: "waiting", waits_on_epic: "held" };
-  // taskMapLayout lays a spec's steps out in the shape the epic map reads
-  // from /api/layout: steps is the tasks grouped by step, as the Steps view
-  // groups them; each step is a band named label(k), its tasks cols to a
-  // layer in their order, wrapping onto the next layer, with TASK_MAP_GAP
-  // empty layers between two bands, so a band's label finds room above it
-  // at the zoom a fit opens with (graph.js, bandLabels). Of a task's
-  // dependencies the first in the latest step is its tree edge, any other a
-  // cross edge.
-  const TASK_MAP_GAP = 2;
-  P.taskMapLayout = function (steps, cols, label) {
-    const at = {};
-    const nodes = [];
-    const bands = [];
-    let layer = 0;
-    let wide = 0;
-    steps.forEach((ts, k) => {
-      if (!ts || !ts.length) return;
-      const from = layer;
-      ts.forEach((task, i) => {
-        at[task.id] = k;
-        nodes.push({ id: task.id, layer: from + Math.floor(i / cols), col: i % cols, milestone: label(k), mark: P.TASK_MAP_MARK[task.state] || "ready", title: task.title || "" });
-      });
-      wide = Math.max(wide, Math.min(cols, ts.length));
-      layer = from + Math.ceil(ts.length / cols);
-      bands.push({ milestone: label(k), from_layer: from, to_layer: layer - 1 });
-      layer += TASK_MAP_GAP;
-    });
-    const edges = [];
+  // taskMapMarks is each task's mark and title by id, over steps, the tasks
+  // grouped as the Steps view groups them, for the Map, whose places come
+  // from /api/layout?view=tasks: the epic map's mark for its state, ready
+  // for a state it has none for.
+  P.taskMapMarks = function (steps) {
+    const out = {};
     steps.forEach((ts) => (ts || []).forEach((task) => {
-      const deps = (task.depends_on || []).filter((x) => at[x] !== undefined);
-      const last = Math.max(...deps.map((x) => at[x]));
-      const tree = deps.find((x) => at[x] === last);
-      deps.forEach((x) => edges.push({ from: x, to: task.id, role: x === tree ? "tree" : "cross" }));
+      out[task.id] = { mark: P.TASK_MAP_MARK[task.state] || "ready", title: task.title || "" };
     }));
-    return { view: "tasks", nodes, edges, bands, layers: Math.max(0, layer - TASK_MAP_GAP), columns: wide };
+    return out;
   };
 
   // cardExpanded says whether milestone id's card reads expanded: while its

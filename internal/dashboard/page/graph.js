@@ -56,8 +56,8 @@
   // the card's elements, each the epic card's gc- id under cfg.prefix, and
   // cfg.card is the card. What differs is cfg's: cfg.app is the page as the
   // card sees it (the task map's answers selected, selectEpic, data and the
-  // mark words for tasks), cfg.layout lays the drawing out in the page
-  // instead of fetching /api/layout, and cfg.shown says whether the card is
+  // mark words for tasks), cfg.query is the /api/layout query the card
+  // fetches in place of the epic map's views, and cfg.shown says whether the card is
   // on screen for the keys. Its body keeps the indentation it had as the
   // file's own, so the card's code reads as it did before it was shared.
   function makeCard(cfg) {
@@ -271,9 +271,10 @@
       out.label = milestoneLabel(n);
       out.title = milestoneTitle(n);
     } else if (L.view === "tasks") {
-      // A task comes laid out with its mark and title (tpPure.taskMapLayout).
-      out.mark = n.mark;
-      out.title = n.title;
+      // A task's mark and title are the spec's (tpPure.taskMapMarks).
+      const task = app.taskMark(n.id);
+      out.mark = task.mark;
+      out.title = task.title;
     } else {
       const e = ctx.epics[n.id] || { id: n.id, status: "planned" };
       out.ms = e.milestone || out.ms;
@@ -1171,7 +1172,7 @@
     if (G.msgKey) sayKey(G.msgKey);
     drawToolbar(g);
     if (!G.visible || G.deckState !== "ready") return;
-    const key = cfg.layout ? cfg.layoutKey(g) : query(g);
+    const key = cfg.query ? cfg.query(g) : query(g);
     if (!key) {
       clearCanvas();
       sayKey(tk("graph.pickEpic"));
@@ -1179,9 +1180,7 @@
     }
     if (key !== G.key || G.seen !== g) {
       G.seen = g;
-      // The task map lays its drawing out here, the epic map fetches it.
-      if (cfg.layout) Object.assign(G, { key, data: cfg.layout(g), dataKey: key, error: null });
-      else fetchLayout(key);
+      fetchLayout(key);
     }
     if (G.error) {
       clearCanvas();
@@ -1226,8 +1225,9 @@
   window.tpGraph = makeCard({ kind: "epics", app, root: document, prefix: "gc-", card: document.getElementById("graphcard") });
 
   // ---------- the task map: the Tasks view's Map ----------
-  // makeTaskMap is the same card over the open spec's tasks, a band per step
-  // (tpPure.taskMapLayout). The card waits at home (#tm-home) and the Tasks
+  // makeTaskMap is the same card over the open spec's tasks, laid out by the
+  // server with the forest the Plan uses (/api/layout?view=tasks): layers by
+  // dependency depth, a chain down one column. The card waits at home (#tm-home) and the Tasks
   // view moves it into its slot each time it draws the Map (show), and home
   // again before it redraws (park), so its canvas and camera live on. face
   // is the page as this card sees it: the spec for data, the picked task for
@@ -1235,7 +1235,7 @@
   function makeTaskMap() {
     const card = document.getElementById("taskmap");
     if (!card) return null;
-    const S = { d: null, draw: null, sel: undefined, centre: null, focused: null };
+    const S = { d: null, draw: null, sel: undefined, centre: null, focused: null, marks: {}, marksOf: null };
     const STATE_OF = {};
     Object.entries(pure.TASK_MAP_MARK).forEach(([state, mark]) => { STATE_OF[mark] = state; });
     const word = (mark) => app.taskWord(STATE_OF[mark] || "ready");
@@ -1255,15 +1255,18 @@
       },
       markWord: word,
       markText: (m) => word(m.mark),
+      taskMark: (id) => {
+        if (S.marksOf !== S.d) S.marks = pure.taskMapMarks(app.taskSteps(S.d));
+        S.marksOf = S.d;
+        return S.marks[id] || { mark: "ready", title: "" };
+      },
     };
-    // The columns follow the canvas's width, and the step label the page's
-    // language, so either lays the map out again.
-    const columns = () => Math.max(2, Math.floor((card.querySelector("#tm-canvas").clientWidth - 48) / GEO_TASK_COL));
-    const stepLabel = (k) => app.tr()("tasks.step", { n: k + 1 });
     const M = makeCard({ kind: "tasks", app: face, root: card, prefix: "tm-", card, searchKey: tk("graph.searchTask"),
       shown: () => card.isConnected && card.getClientRects().length > 0,
-      layoutKey: () => "tasks|" + columns() + "|" + stepLabel(0),
-      layout: (d) => pure.taskMapLayout(app.taskSteps(d), columns(), stepLabel) });
+      query: () => {
+        const file = app.taskFile();
+        return file ? new URLSearchParams({ view: "tasks", file }).toString() : null;
+      } });
     const home = document.getElementById("tm-home");
     // clearSheet scrolls the page so the canvas's centre, where a pick made
     // off the canvas is centred, sits above a phone's drawer sheet
@@ -1304,8 +1307,6 @@
       G: M,
     };
   }
-  // GEO_TASK_COL is a task's column on the map, an epic's (GEO.epic.col).
-  const GEO_TASK_COL = 172;
   // SHEET_ROOM is how far above and below the canvas's centre stays clear
   // of a phone's drawer sheet: a task's box and a step of its chain.
   const SHEET_ROOM = 60;

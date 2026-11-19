@@ -2475,9 +2475,10 @@
     },
     taskWord: (s) => word(TASK_LABEL, s),
     // The Map (graph.js, makeTaskMap) reads the picked task and picks one
-    // without the toggle, keeping focus in its search when asked, and lays
-    // the spec's steps out itself.
+    // without the toggle, keeping focus in its search when asked, and has
+    // the open spec's task file laid out by /api/layout.
     pickedTask: () => work.task,
+    taskFile: () => work.path,
     selectTask: (id, keepFocus) => {
       noteOpener();
       work.task = id;
