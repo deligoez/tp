@@ -1201,6 +1201,102 @@
     return sel === null ? "u" : "h:" + sel;
   };
 
+  // ---------- the task graph (the Tasks view's Graph, drawn with deck.gl) ----------
+  // taskSteps is the Steps panel's grouping as ids: each task one step below
+  // the last task it waits on, in the export's order within a step. A
+  // dependency outside the file is not waited on here, and a cycle stops at
+  // the task that closes it.
+  P.taskSteps = function (tasks) {
+    const by = {};
+    (tasks || []).forEach((t) => { by[t.id] = t; });
+    const depth = {};
+    const of = (id, trail) => {
+      if (depth[id] !== undefined) return depth[id];
+      if (trail.has(id)) return 0;
+      trail.add(id);
+      const ds = (by[id].depends_on || []).filter((x) => by[x]);
+      depth[id] = ds.length ? 1 + Math.max(...ds.map((x) => of(x, trail))) : 0;
+      return depth[id];
+    };
+    const steps = [];
+    (tasks || []).forEach((t) => { const k = of(t.id, new Set()); (steps[k] = steps[k] || []).push(t.id); });
+    return steps.filter(Boolean);
+  };
+
+  // TASK_GEO is the task graph's world geometry, one unit a screen pixel at
+  // zoom 0: a node of w by h, gaps of gx across and gy down, a step's header
+  // row head tall and sgap between two steps.
+  P.TASK_GEO = { w: 248, h: 64, gx: 16, gy: 12, head: 36, sgap: 28 };
+
+  // taskCols is how many nodes a row holds on a canvas width pixels wide at
+  // zoom 0: as many as fit, at least one and at most eight.
+  P.taskCols = function (width, geo) {
+    const g = geo || P.TASK_GEO;
+    return Math.max(1, Math.min(8, Math.floor((width + g.gx) / (g.w + g.gx))));
+  };
+
+  // taskGraphLayout places each step's header and then its tasks in rows of
+  // at most cols, left to right in the export's order: nodes with their
+  // top-left corner, each step's top and the drawing's bounds.
+  P.taskGraphLayout = function (tasks, cols, geo) {
+    const g = geo || P.TASK_GEO;
+    const nodes = [];
+    const steps = [];
+    let y = 0;
+    let x1 = 0;
+    P.taskSteps(tasks).forEach((ids, k) => {
+      steps.push({ n: k + 1, y });
+      const top = y + g.head;
+      ids.forEach((id, i) => {
+        const x = (i % cols) * (g.w + g.gx);
+        nodes.push({ id, step: k, x, y: top + Math.floor(i / cols) * (g.h + g.gy), w: g.w, h: g.h });
+        x1 = Math.max(x1, x + g.w);
+      });
+      const rows = Math.ceil(ids.length / cols);
+      y = top + rows * g.h + (rows - 1) * g.gy + g.sgap;
+    });
+    return { nodes, steps, bounds: { x0: 0, y0: 0, x1, y1: Math.max(0, y - g.sgap) } };
+  };
+
+  // taskChain is a task's chain: every task it waits on however far up, and
+  // every task that waits on it however far down, each sorted; the task
+  // itself is in neither.
+  P.taskChain = function (tasks, id) {
+    const up = {};
+    const down = {};
+    (tasks || []).forEach((t) => {
+      up[t.id] = (t.depends_on || []).slice();
+      (t.depends_on || []).forEach((x) => { (down[x] = down[x] || []).push(t.id); });
+    });
+    const walk = (next) => {
+      const seen = new Set();
+      const todo = (next[id] || []).slice();
+      while (todo.length) {
+        const k = todo.pop();
+        if (seen.has(k) || k === id || !up[k]) continue;
+        seen.add(k);
+        (next[k] || []).forEach((x) => todo.push(x));
+      }
+      return [...seen].sort();
+    };
+    return { up: walk(up), down: walk(down) };
+  };
+
+  // vcurve is an edge from (x0, y0) down to (x1, y1) as n + 1 points of a
+  // cubic whose tangents are vertical at both ends, so it leaves a node's
+  // bottom and enters the next one's top straight.
+  P.vcurve = function (x0, y0, x1, y1, n) {
+    const dy = Math.max(24, y1 - y0) * 0.5;
+    const out = [];
+    for (let i = 0; i <= n; i++) {
+      const t = i / n;
+      const u = 1 - t;
+      out.push([u * u * u * x0 + 3 * u * u * t * x0 + 3 * u * t * t * x1 + t * t * t * x1,
+        u * u * u * y0 + 3 * u * u * t * (y0 + dy) + 3 * u * t * t * (y1 - dy) + t * t * t * y1]);
+    }
+    return out;
+  };
+
   if (typeof module === "object" && module.exports) module.exports = P;
   else root.tpPure = P;
 })(this);
