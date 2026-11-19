@@ -284,7 +284,8 @@ p { margin: 0; }
 .pcell .pl { font: var(--type-small); }
 .pcell .ph { font: var(--type-tiny); color: var(--muted); }
 button.pcell { text-align: left; }
-button.pcell:hover { background: var(--fill-press); }
+button.pcell:hover { background-image: linear-gradient(var(--fill-hover), var(--fill-hover)); }
+button.pcell:active { background-image: linear-gradient(var(--fill-press), var(--fill-press)); }
 button.pcell[aria-pressed="true"] { background: var(--fill-brand-weak); border-color: var(--stroke-selected); }
 .totals { margin-top: var(--sp-4); color: var(--muted); }
 .msstate { margin-top: var(--sp-4); }
@@ -350,6 +351,7 @@ button.pcell[aria-pressed="true"] { background: var(--fill-brand-weak); border-c
 .wsh::before { content: ""; width: 16px; height: 16px; background: var(--muted); -webkit-mask: var(--ic-chevron) center / contain no-repeat; mask: var(--ic-chevron) center / contain no-repeat; transform: rotate(90deg); transition: transform var(--dur-micro) var(--ease-out); }
 .wsh[aria-expanded="false"]::before { transform: none; }
 .wsh:hover { background: var(--fill-hover); }
+.wsh:active { background: var(--fill-press); }
 .wsh b { font: var(--type-label); }
 .wids { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); margin-top: var(--sp-1); font: 400 14px/20px var(--mono); }
 .wall { margin-top: var(--sp-3); }
@@ -478,6 +480,8 @@ kbd { display: inline-block; min-width: 1.6em; padding: 0 var(--sp-1); border: 1
 .chaintext { padding: var(--sp-4) var(--sp-6); border-top: 1px solid var(--line); }
 .chaintext summary, .dmore summary, .chaintext .deeper summary { display: flex; align-items: center; gap: var(--sp-2); min-height: var(--ctl-sm); cursor: pointer; list-style: none; font: var(--type-label); color: var(--ink); }
 .chaintext summary::-webkit-details-marker, .dmore summary::-webkit-details-marker { display: none; }
+.chaintext summary:hover, .dmore summary:hover { background: var(--fill-hover); }
+.chaintext summary:active, .dmore summary:active { background: var(--fill-press); }
 .chaintext summary::before, .dmore summary::before { content: ""; width: 16px; height: 16px; flex: none; background: var(--muted); -webkit-mask: var(--ic-chevron) center / contain no-repeat; mask: var(--ic-chevron) center / contain no-repeat; transition: transform var(--dur-micro) var(--ease-out); }
 .chaintext[open] > summary::before, .dmore[open] > summary::before { transform: rotate(90deg); }
 .chaintext[open] summary { margin-bottom: var(--sp-3); }
@@ -493,6 +497,7 @@ kbd { display: inline-block; min-width: 1.6em; padding: 0 var(--sp-1); border: 1
 .legend .lg[data-s="done"] { border-color: var(--done); background: var(--fill-success-weak); }
 .gcard .legend button { display: inline-flex; align-items: center; gap: var(--sp-2); min-height: 24px; padding: 0 var(--sp-1); border: 0; border-radius: var(--r-1); background: none; color: var(--ink); }
 .gcard .legend button:hover { background: var(--fill-hover); }
+.gcard .legend button:active { background: var(--fill-press); }
 .gcard .legend button[aria-pressed="false"] { color: var(--muted); text-decoration: line-through; }
 .gcard .legend button[aria-pressed="false"] i { opacity: 0.35; }
 .gcard .legend b { font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -522,6 +527,7 @@ kbd { display: inline-block; min-width: 1.6em; padding: 0 var(--sp-1); border: 1
 .lgtoggle::before { content: ""; width: 16px; height: 16px; background: var(--muted); -webkit-mask: var(--ic-chevron) center / contain no-repeat; mask: var(--ic-chevron) center / contain no-repeat; transition: transform var(--dur-micro) var(--ease-out); }
 .glegend:not(.closed) .lgtoggle::before { transform: rotate(90deg); }
 .lgtoggle:hover { background: var(--fill-hover); }
+.lgtoggle:active { background: var(--fill-press); }
 .glegend.closed .legend { display: none; }
 /* full screen: the marked card fills the window, beside the drawer when it is open */
 body.mapfs { overflow: hidden; }
@@ -638,6 +644,7 @@ body.mapfs .gcard.fs .glegend .legend { max-height: none; overflow: visible; }
 .subnav button { display: flex; align-items: baseline; gap: var(--sp-2); min-height: var(--ctl-md); margin-bottom: -1px; padding: var(--sp-3) var(--sp-4); border: 0; border-bottom: 2px solid transparent; background: none; font: var(--type-label); color: var(--ink); }
 .subnav button span { font: var(--type-tiny); color: var(--muted); }
 .subnav button:hover { background: var(--fill-hover); }
+.subnav button:active { background: var(--fill-press); }
 .subnav button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--stroke-selected); }
 
 /* the Tasks view: Steps or Board beside the progress and detail panel */
@@ -724,6 +731,7 @@ body.mapfs .gcard.fs .glegend .legend { max-height: none; overflow: visible; }
 .sec h2.sth .n { font: 400 14px/20px var(--mono); color: var(--muted); }
 .sec h2.sth .tc { margin-left: auto; min-height: var(--ctl-sm); padding: 0 var(--sp-3); color: var(--accent); background: var(--surface); border: 1px solid var(--stroke-brand-strong); border-radius: var(--r-2); font: var(--type-tiny-bold); }
 .sec h2.sth .tc:hover { background: var(--fill-brand-weak); }
+.sec h2.sth .tc:active { background-image: linear-gradient(var(--fill-press), var(--fill-press)); }
 .blk { position: relative; font: var(--type-body); overflow-wrap: anywhere; }
 .blk p, .blk ul, .blk ol, .blk .scroll { margin: 0 0 var(--sp-4); }
 .blk ul, .blk ol { padding-left: 24px; }
