@@ -172,6 +172,22 @@
     return st;
   };
 
+  // drawerKind is what the one drawer shows for the page's place st: a task
+  // while its spec's Tasks view is open, an epic or else a milestone on the
+  // Epics tab, otherwise nothing.
+  P.drawerKind = function (st) {
+    if (st.tab === "work") return st.view === "tasks" && st.task ? "task" : null;
+    if (st.tab !== "epics") return null;
+    if (st.epic) return "epic";
+    return st.milestone ? "milestone" : null;
+  };
+
+  // taskView is the Tasks view an address names: Board, or else Steps, the
+  // graph, which an old link's tview=graph meant.
+  P.taskView = function (v) {
+    return v === "board" ? "board" : "steps";
+  };
+
   // cardExpanded says whether milestone id's card reads expanded: while its
   // milestone is the one the drawer shows.
   P.cardExpanded = function (st, id) {
