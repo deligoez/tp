@@ -630,10 +630,9 @@ body.mapfs .gcard.fs .glegend .legend { max-height: none; overflow: visible; }
 .opnote { display: flex; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); border: 1px solid var(--stroke-warning-weak); border-radius: var(--r-2); background: var(--fill-warning-weak); }
 .opnote .mk { margin-top: var(--sp-1); }
 .cmdline { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-3); min-height: var(--ctl-md); padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-4); border-radius: var(--r-2); background: var(--fill-weak); box-shadow: var(--shadow-sunken); }
-.cmdline > code { color: var(--ink); font-size: 14px; overflow-wrap: anywhere; }
 .cmdline .lab { color: var(--muted); font: var(--type-tiny); }
 .cmdline .key { margin-left: auto; }
-.cmdline .sum { flex-basis: 100%; font: var(--type-tiny); }
+.cmdline .sum { flex: 1 1 20ch; color: var(--ink); font: var(--type-small); }
 .subnav { display: flex; flex-wrap: wrap; gap: 0 var(--sp-2); border-bottom: 1px solid var(--line); }
 .subnav button { display: flex; align-items: baseline; gap: var(--sp-2); min-height: var(--ctl-md); margin-bottom: -1px; padding: var(--sp-3) var(--sp-4); border: 0; border-bottom: 2px solid transparent; background: none; font: var(--type-label); color: var(--ink); }
 .subnav button span { font: var(--type-tiny); color: var(--muted); }
