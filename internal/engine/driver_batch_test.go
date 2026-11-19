@@ -475,6 +475,9 @@ func TestRunDriver_ImplementBatchConflictReopensSolo(t *testing.T) {
 	root, spec, taskFile, records := batchProject(t, twoBatchableTasks)
 	t.Setenv(fakerunner.EnvDurable, "1")
 	t.Setenv(fakerunner.EnvFile, "shared.txt")
+	// Each unit integrates as it exits, so the first pick is whichever exits
+	// first: alpha is made to exit first, or the two land either way round.
+	t.Setenv(fakerunner.EnvSleepByID, "alpha=100,beta=600")
 	closer := &fakeCloser{closed: map[string][]string{}}
 
 	res := driveBatch(t, root, spec, taskFile, closer)
