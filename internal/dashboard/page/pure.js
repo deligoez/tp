@@ -1075,6 +1075,27 @@
   P.blockerText = function (code, table, t) {
     return t(table[code] || "blocker.code.other");
   };
+  // BLOCKER_STEP is the loop step each escalation stops, as
+  // internal/engine/resumeblockers.go raises it: no-ready-task (implement
+  // with no ready task) and epic-blocked (implement, no wip task) stop
+  // implement; review-carried-blocking and review-budget-exhausted stand in
+  // review only, audit-budget-exhausted in audit only. spec-stale stands in
+  // implement and audit but refuses only a new review round, so it is the
+  // review loop's: implementation goes on.
+  const BLOCKER_STEP = { "no-ready-task": "implement", "epic-blocked": "implement", "review-carried-blocking": "review",
+    "review-budget-exhausted": "review", "audit-budget-exhausted": "audit", "spec-stale": "review" };
+  // blockerStep is the step a blocker's code stops; a code this page does
+  // not know stops the step it stands in, phase.
+  P.blockerStep = function (code, phase) {
+    return BLOCKER_STEP[code] || phase;
+  };
+  // blockerKey is the text key of a blocker: spec-stale at the review cap,
+  // where the next round is the operator's raise-review-cap, reads as its
+  // own; every other blocker as its code.
+  P.blockerKey = function (b) {
+    const op = (b && b.data && b.data.operator) || {};
+    return b.code === "spec-stale" && op.decision === "raise-review-cap" ? "spec-stale-at-cap" : b.code;
+  };
   // plainStep is engine prose a person may read as it is, or fallback when
   // it is empty or carries a tp command (CLAUDE.md rule 14): a command sits
   // behind a Copy command button or a tooltip, never in plain view.

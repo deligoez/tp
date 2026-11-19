@@ -649,13 +649,14 @@
   // blockerHTML is an escalation in plain words (tpPure.blockerText), the
   // engine's message only in its tooltip and its commands behind Copy
   // command, so no command shows in plain view.
-  const BLOCKER_TEXT = { "spec-stale": tk("blocker.code.spec-stale"), "review-budget-exhausted": tk("blocker.code.review-budget-exhausted"),
+  const BLOCKER_TEXT = { "spec-stale": tk("blocker.code.spec-stale"), "spec-stale-at-cap": tk("blocker.code.spec-stale-at-cap"),
+    "review-budget-exhausted": tk("blocker.code.review-budget-exhausted"),
     "audit-budget-exhausted": tk("blocker.code.audit-budget-exhausted"), "review-carried-blocking": tk("blocker.code.review-carried-blocking"),
     "epic-blocked": tk("blocker.code.epic-blocked"), "no-ready-task": tk("blocker.code.no-ready-task"),
     "unexplained-changes": tk("blocker.code.unexplained-changes"), other: tk("blocker.code.other") };
   const blockerHTML = (b) => {
     const cmds = tpPure.blockerCommands(b);
-    return '<span title="' + esc(b.message || "") + '">' + esc(tpPure.blockerText(b.code, BLOCKER_TEXT, t)) + "</span>" + (cmds.length ? " " + copyCmd(cmds.join("\n")) : "");
+    return '<span title="' + esc(b.message || "") + '">' + esc(tpPure.blockerText(tpPure.blockerKey(b), BLOCKER_TEXT, t)) + "</span>" + (cmds.length ? " " + copyCmd(cmds.join("\n")) : "");
   };
 
   // operatorRows is §7's list, each row with the command that settles it:
@@ -1586,6 +1587,8 @@
   const specsView = { phase: "all", q: "" };
   const STAGE_LABEL = Object.fromEntries(STAGES);
   const PAUSE = '<svg class="ic" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 4v8M10 4v8"/></svg>';
+  // WARN marks a blocker about another step than the one running.
+  const WARN = '<svg class="ic" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5l6 11H2z"/><path d="M8 6.5v3M8 11.5v.01"/></svg>';
   const waitsOp = (f) => !!(f.escalations && f.escalations.length);
   INFO.specs = tk("info.specs");
 
@@ -1616,7 +1619,8 @@
     // The next step in plain words: an escalation's, or the engine's own
     // when it carries no command, else the phase it is in; the engine's
     // sentence stays in the tooltip.
-    const next = ops.length ? ops.map((b) => '<span class="stat" title="' + esc(b.message) + '">' + PAUSE + esc(tpPure.blockerText(b.code, BLOCKER_TEXT, t)) + "</span>").join("")
+    const next = ops.length ? ops.map((b) => '<span class="stat" title="' + esc(b.message) + '">' + (tpPure.blockerStep(b.code, f.phase) === f.phase ? PAUSE : WARN) +
+      esc(tpPure.blockerText(tpPure.blockerKey(b), BLOCKER_TEXT, t)) + "</span>").join("")
       : f.error ? '<span class="snext err">' + esc(f.error) + "</span>"
         : '<span class="snext" title="' + esc(f.next_step || "") + '">' + esc(tpPure.plainStep(f.next_step, t("specs.nextIn", { phase: word(STEP_LABEL, f.phase) }))) + "</span>";
     return '<tr class="srow' + (f.path === state.spec ? " on" : "") + '" tabindex="0" data-path="' + esc(f.path) + '">' +
@@ -1740,15 +1744,21 @@
 
   // stepper marks the phase tp resume reports; ground, which tp resume never
   // reports, and review are skipped, not ticked, when they have no round.
+  // Each escalation holds the step it stops (tpPure.blockerStep): the
+  // current step pauses only for its own, and one about another step, as
+  // spec-stale is about review while implement runs, rings that step gold.
   function stepper(d, f) {
     const lines = stepLines(d, f);
-    const cur = d.resume.phase === "release" ? STEPS.length : STEPS.indexOf(d.resume.phase);
-    const paused = escalations(d).length > 0;
+    const phase = d.resume.phase;
+    const cur = phase === "release" ? STEPS.length : STEPS.indexOf(phase);
+    const held = new Set(escalations(d).map((b) => tpPure.blockerStep(b.code, phase)));
     return '<ol class="stepper">' + STEPS.map((p, i) => {
       let st = i < cur ? "done" : i === cur ? "cur" : "todo";
       if ((p === "ground" || p === "review") && st === "done" && !((d.loops[p] || {}).rounds || []).length) st = "skip";
-      const mark = st === "done" ? CHECK : st === "cur" && paused ? PAUSE : String(i + 1);
-      return '<li class="' + st + (st === "cur" && paused ? " op" : "") + '"' + (st === "cur" ? ' aria-current="step"' : "") + '><span class="sn">' + mark +
+      const paused = st === "cur" && held.has(p);
+      const warn = st !== "cur" && held.has(p);
+      const mark = st === "done" ? CHECK : paused ? PAUSE : String(i + 1);
+      return '<li class="' + st + (paused ? " op" : warn ? " warn" : "") + '"' + (st === "cur" ? ' aria-current="step"' : "") + '><span class="sn">' + mark +
         '</span><span class="sl">' + esc(word(STEP_LABEL, p)) + '</span><span class="sd">' + esc(lines[p]) + "</span></li>";
     }).join("") + "</ol>";
   }
@@ -1769,6 +1779,14 @@
     return t.html("impact.completes_html", { epic: d.epic }).replace("{parts}", parts.join(" " + esc(t("impact.and")) + " "));
   }
 
+  // opNote is an escalation under the stepper: a pause for the running
+  // step's own, or a warning that names the step it is about.
+  function opNote(b, phase) {
+    const step = tpPure.blockerStep(b.code, phase);
+    if (step === phase) return '<div class="opnote"><span class="mk">' + PAUSE + "</span><div>" + blockerHTML(b) + "</div></div>";
+    return '<div class="opnote warn"><span class="mk">' + WARN + "</span><div><strong>" + esc(word(STEP_LABEL, step)) + "</strong> " + blockerHTML(b) + "</div></div>";
+  }
+
   function specHead(d, f) {
     const na = d.resume.next_action || {};
     const cmd = na.command || na.brief_command;
@@ -1778,7 +1796,7 @@
     return '<div class="sh-row"><h1>' + esc((f && f.title) || d.spec) + "</h1>" + epic + "</div>" +
       '<div class="loophead"><h2>' + esc(t("spec.loop")) + "</h2>" + info("loop", t("spec.loop")) + "</div>" + stepper(d, f) +
       '<p class="impact">' + impactText(d) + "</p>" +
-      escalations(d).map((b) => '<div class="opnote"><span class="mk">' + PAUSE + "</span><div>" + blockerHTML(b) + "</div></div>").join("") +
+      escalations(d).map((b) => opNote(b, d.resume.phase)).join("") +
       '<div class="cmdline"><span class="lab">' + t.html("spec.next_html") + '</span><span class="sum" title="' + esc(na.summary || "") + '">' +
       esc(tpPure.plainStep(na.summary, t("specs.nextIn", { phase: word(STEP_LABEL, d.resume.phase) }))) + "</span>" +
       (cmd ? copyCmd(cmd) : "") + "</div>";

@@ -669,6 +669,8 @@ body.mapfs .gcard.fs .glegend .legend { max-height: none; overflow: visible; }
 .stepper li.cur .sn { background: var(--fill-strong); border-color: var(--fill-strong); color: var(--text-inverse-strong); }
 .stepper li.cur.op { box-shadow: inset 0 0 0 2px var(--fill-warning-strong); }
 .stepper li.cur.op .sn { background: var(--fill-warning-strong); border-color: var(--fill-warning-strong); }
+/* a past step a blocker is about (spec-stale on review) rings gold */
+.stepper li.warn { box-shadow: inset 0 0 0 2px var(--fill-warning-strong); }
 .stepper li.todo, .stepper li.skip { background: none; box-shadow: inset 0 0 0 1px var(--line); }
 .stepper li.todo .sl, .stepper li.skip .sl { color: var(--muted); font-weight: 400; }
 @media (max-width: 899px) { .stepper { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

@@ -399,6 +399,7 @@
   "spec.noEpic": "bound to no epic",
   "spec.loop": "The loop",
   "blocker.code.spec-stale": "The spec changed since its last review; it needs another review round.",
+  "blocker.code.spec-stale-at-cap": "The spec changed after review reached its round cap. Implementation can continue; a new review round needs your decision to raise the cap.",
   "blocker.code.review-budget-exhausted": "Review reached its round cap; raising the cap is the operator's decision.",
   "blocker.code.audit-budget-exhausted": "Audit reached its round cap; raising the cap is the operator's decision.",
   "blocker.code.review-carried-blocking": "A blocking review finding is still open; the operator decides how to settle it.",

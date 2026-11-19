@@ -399,6 +399,7 @@
   "spec.noEpic": "hiçbir epic'e bağlı değil",
   "spec.loop": "Döngü",
   "blocker.code.spec-stale": "Spec son incelemeden sonra değişti; yeni bir inceleme turu gerekiyor.",
+  "blocker.code.spec-stale-at-cap": "Spec, inceleme tur sınırına ulaştıktan sonra değişti. Uygulama sürebilir; yeni bir inceleme turu için sınırı yükseltme kararı sizin.",
   "blocker.code.review-budget-exhausted": "İnceleme tur sınırına ulaştı; sınırı yükseltmek operatörün kararı.",
   "blocker.code.audit-budget-exhausted": "Denetim tur sınırına ulaştı; sınırı yükseltmek operatörün kararı.",
   "blocker.code.review-carried-blocking": "Engelleyici bir inceleme bulgusu hâlâ açık; nasıl kapanacağına operatör karar verir.",
