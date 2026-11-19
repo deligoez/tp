@@ -358,6 +358,13 @@
   // the badge on its button: an owner chosen and colour by owner (only
   // while owned, the graph declaring owners in an epic mode) and cross
   // edges hidden.
+  // phaseChipShown says whether the Specs view shows the filter chip v
+  // counting n specs while chosen is the phase picked: All always, any
+  // other while it counts one or is the one chosen.
+  P.phaseChipShown = function (v, n, chosen) {
+    return v === "all" || n > 0 || v === chosen;
+  };
+
   P.viewChanged = function (s, owned) {
     let n = P.crossShown(s) ? 0 : 1;
     if (owned && s.ownerSel !== undefined) n++;
