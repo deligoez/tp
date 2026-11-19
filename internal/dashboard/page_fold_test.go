@@ -22,3 +22,17 @@ func TestPure_AFoldOpensOnItsDefaultUntilTheViewerChooses(t *testing.T) {
 ]);`)
 	assert.JSONEq(t, `[false, true, true, false, false, true, false]`, got)
 }
+
+// TestPure_AnAlarmOpensAFoldUntilTheViewerClosesIt: a fold whose content
+// carries an alarm (a held epic, a lint error) opens even over a stored
+// "closed", so an alarm is never folded away by an earlier visit; a press
+// on this page still closes it.
+func TestPure_AnAlarmOpensAFoldUntilTheViewerClosesIt(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([
+  P.foldOpen({ dflt: false, alarm: true }),
+  P.foldOpen({ dflt: false, stored: "closed", alarm: true }),
+  P.foldOpen({ dflt: false, alarm: true, touched: false }),
+]);`)
+	assert.JSONEq(t, `[true, true, false]`, got)
+}
