@@ -311,8 +311,7 @@
     const preds = nodes.map(() => []);
     const succs = nodes.map(() => []);
     links.forEach((l, k) => { succs[l.s].push(k); preds[l.d].push(k); });
-    const boxes = nodes.map((n) => ({ x: n.x - n.w / 2, y: n.y, w: n.w, h: n.h }));
-    links.forEach((l) => { l.path = routeEdge(nodes, boxes, l); });
+    links.forEach((l) => { l.path = curve(nodes[l.s], nodes[l.d], l.role === "back"); });
     const bands = bandRegions(L, nodes, geo);
     const bounds = nodes.length ? {
       x0: Math.min(...nodes.map((n) => n.x), ...bands.map((b) => b.x0)) - geo.w / 2 - 20, x1: Math.max(...nodes.map((n) => n.x)) + geo.w / 2 + 40,
@@ -331,18 +330,6 @@
   // curve is an edge's path: a cubic from the bottom of its dependency to
   // the top of its dependent, or for a back edge from the top round to the
   // bottom, as flat [x, y] pairs.
-  // routeEdge is link l's path. An edge down to a lower row is routed like a
-  // Steps wire (tpPure.routeWire): around every other node's box in boxes,
-  // through the gaps between rows and columns, its corners rounded, so it
-  // never runs under a node it does not join. A back edge, or one between
-  // nodes that overlap in height, keeps its curve.
-  function routeEdge(nodes, boxes, l) {
-    const s = nodes[l.s];
-    const d = nodes[l.d];
-    if (l.role === "back" || d.y < s.y + s.h) return curve(s, d, l.role === "back");
-    const obstacles = boxes.filter((r, i) => i !== l.s && i !== l.d && r.y < d.y + d.h && r.y + r.h > s.y);
-    return pure.wirePoints(pure.routeWire(boxes[l.s], boxes[l.d], obstacles), 6);
-  }
   function curve(s, d, back) {
     let x0, y0, x1, y1, c0x, c0y, c1x, c1y;
     if (back) {

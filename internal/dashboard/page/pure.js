@@ -1027,12 +1027,12 @@
     const beside = obs.filter((r) => y0 < r.y + r.h && y1 > r.y).flatMap((r) => [r.x, r.x + r.w]).map((e) => Math.abs(e - g));
     return { x: g, room: Math.min(8, ...beside) };
   };
-  // wireCorners turns each inner point of a route into a corner { s, c, e }:
-  // the curve starts at s on the leg in, bends towards c and ends at e on the
-  // leg out, r or less from c and never past half of either leg; a corner
-  // too tight to bend is { c } alone.
-  function wireCorners(pts, r) {
-    const out = [];
+  // wirePath is a route's SVG path: straight legs, each corner turned in a
+  // short curve of radius r, never more than half of either leg.
+  P.wirePath = function (pts, r) {
+    const num = (v) => Math.round(v * 10) / 10;
+    const at = (pt) => num(pt.x) + " " + num(pt.y);
+    let d = "M" + at(pts[0]);
     for (let i = 1; i < pts.length - 1; i++) {
       const prev = pts[i - 1];
       const c = pts[i];
@@ -1040,35 +1040,12 @@
       const lin = Math.hypot(c.x - prev.x, c.y - prev.y);
       const lout = Math.hypot(next.x - c.x, next.y - c.y);
       const k = Math.min(r, lin / 2, lout / 2);
-      if (k < 0.5) { out.push({ c }); continue; }
-      out.push({ c, s: { x: c.x - ((c.x - prev.x) / lin) * k, y: c.y - ((c.y - prev.y) / lin) * k },
-        e: { x: c.x + ((next.x - c.x) / lout) * k, y: c.y + ((next.y - c.y) / lout) * k } });
+      if (k < 0.5) { d += "L" + at(c); continue; }
+      const s = { x: c.x - ((c.x - prev.x) / lin) * k, y: c.y - ((c.y - prev.y) / lin) * k };
+      const e = { x: c.x + ((next.x - c.x) / lout) * k, y: c.y + ((next.y - c.y) / lout) * k };
+      d += "L" + at(s) + "Q" + at(c) + " " + at(e);
     }
-    return out;
-  }
-  // wirePath is a route's SVG path: straight legs, each corner turned in a
-  // short curve of radius r (wireCorners).
-  P.wirePath = function (pts, r) {
-    const num = (v) => Math.round(v * 10) / 10;
-    const at = (pt) => num(pt.x) + " " + num(pt.y);
-    return "M" + at(pts[0]) + wireCorners(pts, r).map((k) => (k.s ? "L" + at(k.s) + "Q" + at(k.c) + " " + at(k.e) : "L" + at(k.c))).join("") +
-      "L" + at(pts[pts.length - 1]);
-  };
-  // wirePoints is the same route as the [x, y] points a canvas path runs
-  // through, each corner's curve sampled in a few steps.
-  P.wirePoints = function (pts, r) {
-    const out = [[pts[0].x, pts[0].y]];
-    wireCorners(pts, r).forEach((k) => {
-      if (!k.s) { out.push([k.c.x, k.c.y]); return; }
-      for (let i = 0; i <= 4; i++) {
-        const t = i / 4;
-        const u = 1 - t;
-        out.push([u * u * k.s.x + 2 * u * t * k.c.x + t * t * k.e.x, u * u * k.s.y + 2 * u * t * k.c.y + t * t * k.e.y]);
-      }
-    });
-    const z = pts[pts.length - 1];
-    out.push([z.x, z.y]);
-    return out;
+    return d + "L" + at(pts[pts.length - 1]);
   };
   // onlySpec is the path of a project's one task file, which the Spec tab
   // opens when nothing is open; none or several give null.
