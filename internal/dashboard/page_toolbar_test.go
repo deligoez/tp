@@ -60,3 +60,18 @@ func TestPure_TheViewButtonCountsTheSettingsAwayFromTheirDefault(t *testing.T) {
 ]);`)
 	assert.JSONEq(t, `[0, 1, 1, 2, 3, 1]`, got)
 }
+
+// TestPure_ASpecsPhaseChipWithNothingInItHidesUnlessChosen: the Specs
+// view's filter row shows All always, and any other chip only while it
+// counts a spec or is the one chosen, so an address that picks an empty
+// phase still shows what filters the list.
+func TestPure_ASpecsPhaseChipWithNothingInItHidesUnlessChosen(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([
+  P.phaseChipShown("all", 0, "op"), P.phaseChipShown("op", 0, "all"), P.phaseChipShown("op", 0, "op"),
+  P.phaseChipShown("review", 2, "all"), P.phaseChipShown("audit", 0, "review"),
+]);`)
+	assert.JSONEq(t, `[true, false, true, true, false]`, got)
+	_, script := pageText(t)
+	assert.Contains(t, script, "tpPure.phaseChipShown(v, n, specsView.phase)")
+}
