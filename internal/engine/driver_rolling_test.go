@@ -123,7 +123,9 @@ func TestRolling_RunMaxUnitsIsCheckedBeforeEverySpawn(t *testing.T) {
 	res, err := driveRolling(t, root, spec, taskFile, wf)
 	require.NoError(t, err)
 	assert.Equal(t, StopCapUnits, res.StopReason)
-	assert.Equal(t, []string{"alpha", "beta"}, spawnedIDs(invocations(t, records)), "run_max_units is never overshot")
+	// Records come in the order the children claimed their slots, not the
+	// order they were spawned in, so two siblings may land either way round.
+	assert.ElementsMatch(t, []string{"alpha", "beta"}, spawnedIDs(invocations(t, records)), "run_max_units is never overshot")
 	assert.Equal(t, model.StatusOpen, taskByID(t, taskFile, "gamma").Status, "the third task is never claimed")
 }
 
