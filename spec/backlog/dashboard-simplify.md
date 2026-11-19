@@ -145,3 +145,29 @@ viewport. More figures is counted as a panel after, the folded row it is.
 
 The View menu's three controls are not counted while the menu is closed. The stripped binary is
 14,062,994 bytes after pass 2, the same as before it: the page grew by less than the segment padding.
+
+## Review round 1
+
+Two reviewers read pass 2: design conformance against `DESIGN.md`, and behaviour regression. Every
+finding was fixed; none was declined. Each fix has its own commit and a test seen red first, except
+the pure CSS ones, whose test pins the new rule.
+
+| Finding | Fix | Test |
+|---|---|---|
+| High: the drawer's Copy command did nothing | One document-level `[data-copy]` delegate copies every Copy command button; the task list ignores a press on one | `TestPage_EveryCopyCommandButtonIsHandled` |
+| Esc on the open View menu also left full screen or closed the drawer | `viewMenuOpen()` in `app.js`, exported on `tpApp`; all three Esc handlers ask it first | `TestPage_EscOnAnOpenViewMenuClosesOnlyTheMenu` |
+| Choosing an owner left the View badge stale | The owner picker redraws the toolbar, as Colour by owner and Cross edges already did | `TestPage_EveryViewControlRefreshesTheBadge` |
+| A fold closed before an alarm arrived stayed closed | A press stores the alarm it saw; an alarm that arrives later reopens the fold (`tpPure.foldOpen`) | `TestPure_AnAlarmThatArrivesAfterAPressReopensTheFold` |
+| M1: slice labels showed tp flags in plain view | `tpPure.sliceLabel` names a slice in words (EN and TR); `tpPure.sliceArgs` keeps the flag form for the grant-round Copy command only | `TestPure_ASliceLabelIsPlainWordsAndOnlyItsCommandCarriesFlags` |
+| M2: reading prose at 18/30 | `.blk` is `--type-body`; a code block 14/20 | `TestPage_ReadingTextAndTheGraphTooltipUseTheTypeScale` |
+| M3: the graph tooltip used its own type, radius and padding | `--type-tiny`, `--r-2`, `--sp-2 --sp-3`; the id line in mono at `--text-inverse-weak` | same |
+| M4: controls without hover or press | Hover and press on the chain and More summaries, figure cells (hover moved off press), wait groups, legend buttons, the legend toggle, the sub-tabs and the section Tasks button | `TestPage_EveryControlNamedInReviewHasHoverAndPress` |
+| L1: mono beyond ids, paths and commands | Tab counts and chart axes use the body face. The "tp" wordmark stays mono, recorded as a deviation next to its rule | `TestPage_MonoIsForIdsAndEveryMeasureIsAToken` |
+| L2: measures off the tokens | Segmented control `--sp-1` padding and gap, `--r-1` buttons at `--ctl-sm`; banner `--sp-12` inset; badge `--r-pill`; graph count `--sp-10`; matrix `--sp-1` spacing and `--ctl-sm` cells | same |
+| L3: a list row had a hover but is not a control | `.row:hover` removed | same |
+| L4: the tab count ellipsised at 390px | Below 600px a count is its number alone (the `.cl`/`.cs` pair the Spec tab already used) | `TestPage_ATabCountIsANumberOnAPhone` |
+| L5: stale data faded and greyed | `.stale` keeps its colours; the banner alone says the data is stale | `TestPage_MonoIsForIdsAndEveryMeasureIsAToken` |
+| The task panel closed with a typed "×" | It is a `.popx` button and draws the `--ic-x` mask | `TestPage_TheTaskPanelClosesWithTheXIcon` |
+
+Reshot at 1440 and 390px in both languages and themes after the fixes. The segmented controls
+grew 8px with the token padding and the 32px button.
