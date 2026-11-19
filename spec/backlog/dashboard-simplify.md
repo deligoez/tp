@@ -64,19 +64,61 @@ glance (opening the page to see whether anything needs them) or digging (followi
 No server, API or payload change; no panel removed; the Specs and Spec tabs keep their structure (one
 panel each, already one screen at the fixture's size); EN and TR stay in step.
 
-## Proposed removals (operator decision, not made)
+## Pass 2 (operator-approved)
 
-- The Graph toolbar's own **Fit** button, which repeats the **Fit** in the canvas's zoom group.
-- The Graph toolbar's **?** keyboard-shortcuts button, whose keys the open legend already lists.
+The operator approved the proposed removals and next steps of pass 1, and added one rule. All of it
+is built:
 
-## Proposed next steps (not built)
+1. **The Graph toolbar's duplicate Fit and its ? shortcuts button are gone.** The canvas zoom group's
+   Fit and the F key stay; the open legend lists the keys.
+2. **One View menu** (`DESIGN.md`'s Dropdown menu) holds the owner selector, Colour by owner and
+   Cross edges. It is a `popover="auto"` in the browser's top layer, so the full-screen pill's
+   scrolling cannot clip it, and the browser gives it Esc and light dismiss; the button carries
+   `aria-haspopup`, `aria-controls` and `aria-expanded`. A neutral badge counts the settings away
+   from their default (`tpPure.viewChanged`), with its plural spelled out for screen readers. K still
+   toggles cross edges.
+3. **A Specs phase chip that counts no spec hides unless it is the one chosen**
+   (`tpPure.phaseChipShown`); All always shows.
+4. **At phone width the Spec tab shows the open spec's file name** (`tpPure.pathTail`), ellipsised
+   inside its third of the row, the full path in its tooltip. Before, the path ran past the row.
+5. **No tp command in plain view.** Agents run tp, so the page says what happens in plain words; a
+   command still useful to a person is one click away, behind a **Copy command** button (the command
+   in its tooltip and clipboard) or in an ⓘ note. Every place changed:
 
-- **A "View" menu in the Graph toolbar** (`DESIGN.md`'s Dropdown menu, "for secondary actions")
-  holding the owner selector, Colour by owner and Cross edges; the mode switch, the search and Full
-  screen stay in the bar. Not built here because the full-screen toolbar's layout rules and their
-  tests are written around each control sitting in the bar.
-- **Phase chips with a count of 0** on the Specs tab drawn only while pressed, since the table's
-  group headings already carry every phase's count.
+   | Place | Before | Now |
+   |---|---|---|
+   | Spec view, next step | "Next, as `tp resume` says" + the command in a code span | "Next" + the plain summary; Copy command |
+   | Task detail, ready or in progress | `tp claim <id>` / `tp done <id> "<evidence>"` in a code span | "Next: claim this task" / "Next: close this task with its evidence"; Copy command |
+   | Operator decisions (conditions, any-of groups, gates, threshold rewrites, grantable slices) | each command in a code span beside Copy | Copy command only |
+   | Epic drawer, a condition | "... records it with `tp epic done {id} --evidence`" | "... marks it done with evidence"; Copy command |
+   | Epics tab, no graph | `tp epic`, `tp epic set milestones=...`, `tp epic add`, `.tp/epics.json` | "An agent plans the epics ..."; the commands in a new ⓘ note (`info.nograph`) |
+   | Plan review, nothing reviewed | "`tp epic review --milestone <m>` starts one" | "No slice of the plan has been reviewed yet."; the command moved into its ⓘ note (`info.slices`) |
+   | Task view, epic waits | "so `tp next` starts none of this file's tasks yet" | "so none of this file's tasks can start yet" |
+   | Specs table, next step column | a code span | plain text |
+   | Source labels (status line) | "The epic graph (tp epic export)", "The task file list (tp export --list)" | "The epic graph", "The task file list" |
+   | Spec reading and its error | "Reading {path} with tp export.", "tp export could not read {path}" | "Reading {path}.", "Could not read {path}" |
+   | Fetch errors (slice history, epic history, a spec) | the tp command as the subject | "The slice's history", "The epic's history", "The spec {path}" |
+   | History, slice without a key | "its next tp epic review emission records it" | "its next review round records it" |
+
+   The ⓘ notes keep their `tp ...` source references: they are the one place a reader asks where a
+   figure comes from. `TestPage_NoTpCommandShowsInPlainView` pins the visible keys in both languages;
+   `TestPage_TheCommandsMovedOutOfViewAreOneClickAway` pins where each moved one went.
+
+### Before you finish (`DESIGN.md`), pass 2
+
+- One primary button: none added; View, Copy command and the chips are secondary.
+- Brand colour only on interactive elements: the View badge is neutral (`--fill-strong`), not brand.
+- Contrast: the badge uses `--text-inverse-strong` on `--fill-strong`; the contrast tests pass for
+  every theme.
+- Not colour alone: the badge carries a number and a spoken plural.
+- Tokens only: every new rule uses the spacing, radius, shadow and type tokens.
+- Grouping: the View menu's controls sit closer to each other than the menu sits to the bar.
+- Text: sentence case; the plain next steps read as one short line.
+- Targets: View and Copy command are `--ctl-md` keys; menu items keep the chip size.
+- States: the View button and Copy command reuse `.key`'s hover, press and focus-visible.
+- Buttons say what they do: "Copy" became "Copy command".
+- Small screen and long content: shot at 390px in both languages and themes; the tab row fits (358 of 358px) and the Spec
+  tab ellipsises a long file name.
 
 ## Counts
 
@@ -85,11 +127,21 @@ are top-level cards; folded counts those drawn folded; controls are visible butt
 links and summaries; words are the page's visible text; screens are the page height over the
 viewport. More figures is counted as a panel after, the folded row it is.
 
-| Epics tab | Before | After |
+| Epics tab | Before | Pass 1 | Pass 2 |
+|---|---|---|---|
+| Figure cards | 9 | 4 | 4 |
+| Panels (folded) | 9 (0) | 10 (5) | 10 (5) |
+| Controls | 72 | 60 | 56 |
+| Words | 550 | 298 | 274 |
+| Words on the first screen | 153 | 156 | 150 |
+| Screens to the bottom | 4.2 | 2.8 | 2.8 |
+
+| Other views, pass 1 → pass 2 | Controls | Words |
 |---|---|---|
-| Figure cards | 9 | 4 |
-| Panels (folded) | 9 (0) | 10 (5) |
-| Controls | 72 | 60 |
-| Words | 550 | 298 |
-| Words on the first screen | 153 | 156 |
-| Screens to the bottom | 4.2 | 2.8 |
+| Specs | 20 → 16 | 108 → 99 |
+| Spec, read | 23 → 23 | 188 → 183 |
+| Spec, tasks | 23 → 23 | 218 → 213 |
+| Spec, history | 15 → 15 | 116 → 111 |
+
+The View menu's three controls are not counted while the menu is closed. The stripped binary is
+14,062,994 bytes after pass 2, the same as before it: the page grew by less than the segment padding.
