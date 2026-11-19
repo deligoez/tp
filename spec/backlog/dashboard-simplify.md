@@ -67,18 +67,29 @@ panel each, already one screen at the fixture's size); EN and TR stay in step.
 ## Proposed removals (operator decision, not made)
 
 - The Graph toolbar's own **Fit** button, which repeats the **Fit** in the canvas's zoom group.
+- The Graph toolbar's **?** keyboard-shortcuts button, whose keys the open legend already lists.
+
+## Proposed next steps (not built)
+
+- **A "View" menu in the Graph toolbar** (`DESIGN.md`'s Dropdown menu, "for secondary actions")
+  holding the owner selector, Colour by owner and Cross edges; the mode switch, the search and Full
+  screen stay in the bar. Not built here because the full-screen toolbar's layout rules and their
+  tests are written around each control sitting in the bar.
+- **Phase chips with a count of 0** on the Specs tab drawn only while pressed, since the table's
+  group headings already carry every phase's count.
 
 ## Counts
 
 Measured by `measure.js` in the page at 1440×900, English, light, on the synthetic fixture. Panels
-are top-level cards; controls are visible buttons, inputs, selects, links and summaries; words are the
-page's visible text; screens are the page height over the viewport.
+are top-level cards; folded counts those drawn folded; controls are visible buttons, inputs, selects,
+links and summaries; words are the page's visible text; screens are the page height over the
+viewport. More figures is counted as a panel after, the folded row it is.
 
 | Epics tab | Before | After |
 |---|---|---|
-| Figure cards | 9 | |
-| Panels | 9 | |
-| Controls | 72 | |
-| Words | 550 | |
-| Words on the first screen | 153 | |
-| Screens to the bottom | 4.2 | |
+| Figure cards | 9 | 4 |
+| Panels (folded) | 9 (0) | 10 (5) |
+| Controls | 72 | 60 |
+| Words | 550 | 298 |
+| Words on the first screen | 153 | 156 |
+| Screens to the bottom | 4.2 | 2.8 |
