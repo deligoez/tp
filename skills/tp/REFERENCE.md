@@ -2763,6 +2763,8 @@ whole. `--list` ignores `--file` and `--compact`.
 
 Serves the embedded page and its data on `127.0.0.1:<port>` (7377 unless `--port`), prints the URL —
 the bare URL in a TTY, `{url}` when piped or under `--json` — and serves until `SIGINT` or `SIGTERM`.
+When 7377 is taken and `--port` was not passed, it serves on a free port the system picks instead,
+says so on stderr, and the printed URL names that port; a port named with `--port` is never swapped.
 It writes nothing to the repository and loads nothing remote. The page's brand and tab title read
 `tp <project> dashboard` (v1.21.2), `<project>` being the name of the repository root's directory, or
 of the working directory outside git, so two dashboards open side by side tell apart.
@@ -2956,7 +2958,7 @@ contract:
 |---------|---|---|---|---|
 | `tp export` | printed | — | usage | no task file (the hint names `--file` and `tp init`), or one that cannot be read (the hint names the file and `tp validate`) |
 | `tp export --list` | printed, `files: []` with no task file; a malformed file keeps its row | — | usage | — |
-| `tp dashboard` | interrupted after serving | the port cannot be bound: taken (address in use), or another listen error reported as itself; the message names the port | `--port` outside 1-65535; `TP_UNATTENDED` | neither a graph file nor a task file (the hint names `tp epic set` and `tp init`) |
+| `tp dashboard` | interrupted after serving | the port cannot be bound: a `--port` port taken (address in use), or another listen error reported as itself; the message names the port | `--port` outside 1-65535; `TP_UNATTENDED` | neither a graph file nor a task file (the hint names `tp epic set` and `tp init`) |
 
 `tp export` and `--list` run under `TP_UNATTENDED`, since they write nothing; `tp dashboard` does not,
 since it serves until interrupted.
