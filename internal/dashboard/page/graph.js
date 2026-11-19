@@ -1258,13 +1258,25 @@
     };
     // The columns follow the canvas's width, and the step label the page's
     // language, so either lays the map out again.
-    const columns = () => Math.max(3, Math.floor((card.querySelector("#tm-canvas").clientWidth - 48) / GEO_TASK_COL));
+    const columns = () => Math.max(2, Math.floor((card.querySelector("#tm-canvas").clientWidth - 48) / GEO_TASK_COL));
     const stepLabel = (k) => app.tr()("tasks.step", { n: k + 1 });
     const M = makeCard({ kind: "tasks", app: face, root: card, prefix: "tm-", card, searchKey: tk("graph.searchTask"),
       shown: () => card.isConnected && card.getClientRects().length > 0,
       layoutKey: () => "tasks|" + columns() + "|" + stepLabel(0),
       layout: (d) => pure.taskMapLayout(app.taskSteps(d), columns(), stepLabel) });
     const home = document.getElementById("tm-home");
+    // clearSheet scrolls the page so the canvas's centre, where a pick made
+    // off the canvas is centred, sits above a phone's drawer sheet
+    // (tpPure.revealShift); beside a wide screen's drawer the centre shows.
+    function clearSheet() {
+      const drawer = document.getElementById("drawer");
+      const d = drawer.getBoundingClientRect();
+      if (drawer.hidden || d.top <= window.innerHeight / 3) return;
+      const r = card.querySelector("#tm-canvas").getBoundingClientRect();
+      const y = r.top + r.height / 2;
+      const dy = pure.revealShift(y - SHEET_ROOM, y + SHEET_ROOM, 0, d.top, 0);
+      if (dy) window.scrollBy(0, dy);
+    }
     return {
       // show puts the card in slot over spec d, the picked task sel shown and,
       // when it changed off the canvas, centred.
@@ -1282,6 +1294,7 @@
         S.sel = id;
         S.centre = null;
         if (face.onSelect) face.onSelect(id, centre);
+        if (id && centre) requestAnimationFrame(clearSheet);
       },
       park() {
         if (card.parentNode === home) return;
@@ -1293,5 +1306,8 @@
   }
   // GEO_TASK_COL is a task's column on the map, an epic's (GEO.epic.col).
   const GEO_TASK_COL = 172;
+  // SHEET_ROOM is how far above and below the canvas's centre stays clear
+  // of a phone's drawer sheet: a task's box and a step of its chain.
+  const SHEET_ROOM = 60;
   window.tpTaskMap = makeTaskMap();
 })();
