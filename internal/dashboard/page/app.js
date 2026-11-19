@@ -1551,7 +1551,9 @@
     const list = data("export-list");
     const files = (list && list.files) || [];
     const groups = PHASES.concat([["", tk("specs.unreadable")]]);
-    const chip = (v, label, n) => '<button type="button" class="chip" data-phase="' + v + '" aria-pressed="' + (specsView.phase === v) + '">' +
+    // A chip that counts no spec hides unless it is the one chosen.
+    const chip = (v, label, n) => !tpPure.phaseChipShown(v, n, specsView.phase) ? "" :
+      '<button type="button" class="chip" data-phase="' + v + '" aria-pressed="' + (specsView.phase === v) + '">' +
       esc(label) + ' <span class="num muted">' + esc(t.num(n)) + "</span></button>";
     $("phasechips").innerHTML = chip("all", t("specs.all"), files.length) + chip("op", t("now.operator"), files.filter(waitsOp).length) +
       PHASES.map(([p, label]) => chip(p, t(label), files.filter((f) => f.phase === p).length)).join("");
