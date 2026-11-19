@@ -243,7 +243,7 @@
       // colour.
       const owner = (ctx.owners.length && ctx.titles[n.id] && ctx.titles[n.id].owner) || [];
       out.owner = owner;
-      out.label = n.id + (ctx.described.has(n.id) ? " ¶" : "") + (owner.length > 1 ? " +" + (owner.length - 1) : "");
+      out.label = n.id + (owner.length > 1 ? " +" + (owner.length - 1) : "");
     }
     // The id whole in its fixed-width box: wrapped at punctuation marks, and
     // drawn smaller in more lines when two would not hold it (tpPure.fitId);
@@ -289,11 +289,11 @@
   }
   function prepare(L, g) {
     const geo = L.view === "milestones" ? GEO.milestone : GEO.epic;
-    // described is the graph's epics with a description, each marked ¶
-    // after its id.
+    // described is the graph's epics with a description, which the
+    // tooltip names and the closure view counts.
     const described = new Set(((g.graph && g.graph.epics) || []).filter((e) => String(e.description || "").trim()).map((e) => e.id));
     const owners = L.view === "milestones" ? [] : ownersOf(g);
-    const ctx = { geo, epics: {}, reports: {}, titles: {}, described, owners };
+    const ctx = { geo, epics: {}, reports: {}, titles: {}, owners };
     (g.epics || []).forEach((e) => { ctx.epics[e.id] = e; });
     (g.milestones || []).forEach((m) => { ctx.reports[m.milestone] = m; });
     ((g.graph && g.graph.epics) || []).forEach((e) => { ctx.titles[e.id] = e; });
@@ -722,7 +722,8 @@
     const lines = G.prepared.L.view === "milestones"
       ? "<b>" + escape(n.id) + "</b><br>" + escape(n.title)
       : '<span style="color:var(--text-inverse-weak);font-family:var(--mono)">' + escape(n.id) + (n.ms ? " · " + escape(n.ms) : "") + (n.cond ? " · " + escape(t("drawer.condition")) : "") + "</span><br>" +
-        escape(n.title) + "<br>" + escape(app.markText({ mark: n.mark, hold: n.hold })) + (n.deferrable ? ", " + escape(t("graph.deferrable")) : "");
+        escape(n.title) + "<br>" + escape(app.markText({ mark: n.mark, hold: n.hold })) + (n.deferrable ? ", " + escape(t("graph.deferrable")) : "") +
+        (G.prepared.described.has(n.id) ? "<br>" + escape(t("graph.hasDescription")) : "");
     const c = G.colors;
     return { html: lines, style: { background: "rgb(" + c.ink + ")", color: "rgb(" + c.surface + ")", borderRadius: "var(--r-2)", maxWidth: "320px", font: "var(--type-tiny)", padding: "var(--sp-2) var(--sp-3)" } };
   }

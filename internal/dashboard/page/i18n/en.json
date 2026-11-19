@@ -103,6 +103,7 @@
   "wait.showAll": "Show all {n} blockers in {name}",
   "wait.showLargest": "Show the largest {n}",
   "graph.closureDescribed": "{done} of {n} in the closure described",
+  "graph.hasDescription": "has a description",
   "source.epicExport": "The epic graph",
   "source.exportList": "The task file list",
   "src.sliceHistory": "The slice's history",

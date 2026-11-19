@@ -103,6 +103,7 @@
   "wait.showAll": "{name}: {n} engelin tümünü göster",
   "wait.showLargest": "En büyük {n} tanesini göster",
   "graph.closureDescribed": "Geçiş kapsamındaki {n} epic'ten {done} tanesinin açıklaması var.",
+  "graph.hasDescription": "açıklaması var",
   "source.epicExport": "Epic grafı",
   "source.exportList": "Görev dosyası listesi",
   "src.sliceHistory": "Dilimin geçmişi",
