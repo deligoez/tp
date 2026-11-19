@@ -75,3 +75,36 @@ func TestPure_ASpecsPhaseChipWithNothingInItHidesUnlessChosen(t *testing.T) {
 	_, script := pageText(t)
 	assert.Contains(t, script, "tpPure.phaseChipShown(v, n, specsView.phase)")
 }
+
+// TestPage_EscOnAnOpenViewMenuClosesOnlyTheMenu: document keydown handlers
+// run before the browser closes a popover on Esc, so every Esc handler that
+// leaves full screen, closes the drawer or clears the selection first asks
+// viewMenuOpen and leaves the press to the menu.
+func TestPage_EscOnAnOpenViewMenuClosesOnlyTheMenu(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Contains(t, script, "function viewMenuOpen() {\n    const p = $(\"gc-viewpop\");\n    return !!p && p.matches(\":popover-open\");\n  }")
+	assert.Equal(t, 1, strings.Count(script, `:popover-open`), "one helper asks whether the menu is open")
+	for _, s := range []string{
+		`if (ev.key === "Escape" && !viewMenuOpen() && !document.fullscreenElement && document.body.classList.contains("mapfs")`,
+		`if (ev.key === "Escape" && !viewMenuOpen() && !$("drawer").hidden && $("pop").hidden) selectEpic(null);`,
+		`$("drawer").hidden && !app.viewMenuOpen()) app.selectEpic(null);`,
+	} {
+		assert.Contains(t, script, s)
+	}
+}
+
+// TestPage_EveryViewControlRefreshesTheBadge: the View button's badge
+// counts the settings the closed menu hides, so the owner picker, Colour by
+// owner and Cross edges each redraw the toolbar that draws it.
+func TestPage_EveryViewControlRefreshesTheBadge(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, s := range []string{
+		"G.ownerSel = pure.ownerSel(ev.target.value, ownersOf(app.data(\"epic-export\")));\n    drawToolbar(app.data(\"epic-export\") || {});",
+		"G.ownerColour = !G.ownerColour;\n    drawToolbar(app.data(\"epic-export\") || {});",
+		"G.showCross = !G.showCross;\n    app.syncURL();\n    drawToolbar(app.data(\"epic-export\") || {});",
+	} {
+		assert.Contains(t, script, s)
+	}
+}
