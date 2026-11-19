@@ -506,6 +506,7 @@
   }
   function applyFold(id) {
     const o = foldOpts[id] || {};
+    folds[id] = tpPure.foldPress(folds[id], o.alarm);
     const open = tpPure.foldOpen({ dflt: o.dflt, alarm: o.alarm, stored: foldStored(id), touched: folds[id] });
     document.querySelector('[data-fold="' + id + '"]').setAttribute("aria-expanded", String(open));
     $("fold-" + id).hidden = !open;
