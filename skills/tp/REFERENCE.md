@@ -2688,6 +2688,12 @@ relative to the directory the command ran in, symlinks resolved on both sides, s
 or without `--history`; 3 for a slice with no state directory; 4 for a `--from`/`--to` round the slice
 did not record. It runs under `TP_UNATTENDED`: it writes nothing.
 
+`tp epic layout` (v1.28.0) exits as `/api/layout` answers (**Layout** below): 2 for a `--view`
+outside the set, a flag the view does not take, a scope without `--milestone` or a neighbourhood
+without `--epic`, a `--depth` that is not an integer or a `--pack` other than `rows` or `tree`; 3
+with no graph file or an unreadable bound task file; 4 for a milestone no track lists or an epic
+the graph does not hold. It writes nothing and runs under `TP_UNATTENDED`.
+
 ## Task Export and the Dashboard (v1.8.0)
 
 ### The task file's two times
@@ -2862,8 +2868,10 @@ The answer is `{view, milestone?, epic?, depth?, layers, packing, columns, bands
 layers; `packing` the `pack` used and `columns` the width in columns; `bands`, for `plan` and
 `scope`, `[{milestone, with?, from_layer, to_layer}]`, each milestone a run of consecutive layers,
 `with` listing the milestones that share the run (below). `nodes` lists each node by layer, then
-column: `{id, layer, col}`, `layer` a small integer from 0, `col` a column from 0, fractional
-under `pack=tree`, plus, in `plan` the epic's `milestone`, in `scope` `deferrable`
+column: `{id, title?, state?, layer, col}`, `layer` a small integer from 0, `col` a column from 0,
+fractional under `pack=tree`, `title` and `state` on an epic node (v1.28.0) its title and its
+derived status, `tp epic export`'s `status` vocabulary (`planned`, `claimed`, `specced`,
+`in_progress`, `done`), and never on a milestone node, plus, in `plan` the epic's `milestone`, in `scope` `deferrable`
 (`tp epic scope`'s closure mark; an epic's milestone is in `tp epic export`, its any-of group on
 its edges), in `neighbourhood` the epic's `milestone`, which the view has no band for, and
 `centre: true` on the epic asked for; for a milestone, `epics` and `done` (its work epics and those
@@ -2873,6 +2881,10 @@ dependent (in `milestones`, from a milestone to one that opens after it), `criti
 edge between two consecutive epics of the critical path drawn (the scope's own, or the graph's in
 `plan` and `neighbourhood`), `any_of` naming the group of an edge from an any-of member, and `role`
 its place in the forest below: `tree`, `cross` or `back`.
+
+`tp epic layout` prints the same answer without a server, each query parameter a flag of the same
+name (`--view`, default `plan`, `--milestone`, `--epic`, `--depth`, `--pack`): one function derives
+both, so the command's JSON and the endpoint's body are equal for one graph.
 
 A node's layer is its dependency depth: its longest path over the view's edges. In `plan` and
 `scope` each band's layers come from the longest path among that band's own epics; a band starts

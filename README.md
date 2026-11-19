@@ -246,6 +246,7 @@ tp audit spec.md --task-audit  # Audit closed tasks' own files in batches of ten
 tp validate                    # Task file + coverage + atomicity (--strict, --project)
 tp epic lint                   # Lint the epic graph in .tp/epics.json (exit 1 on an error, 3 with no file)
 tp epic export                 # The plan as versioned JSON: critical path, graph, derived status, bound files' loops, review slices (--md: tables)
+tp epic layout                 # One view of the epic map laid out, the dashboard's /api/layout payload (--view, --milestone, --epic, --depth, --pack)
 tp epic add '<json>'           # Add an epic (--stdin, --bulk); a write adding a lint error exits 1, writes nothing
 tp epic set <id> field=value   # Set an epic field, milestones|opens_after|gates|tag_checks=<json> whole, or gates.<m>.<field>=<value>
 tp epic remove <id>            # Remove an epic; one depended on needs --force, a tag_checks provider is refused
