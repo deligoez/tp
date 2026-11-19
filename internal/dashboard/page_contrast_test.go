@@ -106,7 +106,7 @@ out(pairs);`)
 		}
 	}
 	assert.Contains(t, css, ".tab .c { font: var(--type-tiny); color: var(--muted);")
-	assert.Contains(t, css, ".gcard #gc-q::placeholder { color: var(--muted); opacity: 1; }")
+	assert.Contains(t, css, ".gcard #gc-q::placeholder, .gcard #tm-q::placeholder { color: var(--muted); opacity: 1; }")
 	assert.Contains(t, css, "color: var(--muted); font-size: 0; }", "the (i) icon is drawn in the muted colour")
 	assert.Contains(t, css, `.gcard .legend button[aria-pressed="false"] { color: var(--muted); text-decoration: line-through; }`)
 }

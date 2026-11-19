@@ -483,7 +483,7 @@ func TestPage_TheKPIRowFitsItsColumnsOnRenderAndResize(t *testing.T) {
 	for _, s := range []string{"tpPure.balancedColumns(", "tpPure.cardSpans(", `["#kpis", 140]`, `rowsSeen.observe($(id))`} {
 		assert.Contains(t, script, s)
 	}
-	assert.Contains(t, script, "].join(\"\");\n    fitAllRows();", "the row is fitted as soon as it is drawn")
+	assert.Contains(t, script, "$(\"kpimore-n\").textContent = \"(\" + t.num(more.length) + \")\";\n    fitAllRows();", "the row is fitted as soon as it is drawn")
 	assert.Contains(t, page, ".kpis[data-cols], .pcells[data-cols], .mscells[data-cols] { grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); }")
 	assert.NotContains(t, page, ".lone")
 }
@@ -537,12 +537,16 @@ func TestPage_TheTotalsSentenceSitsWhereBothCountsAppear(t *testing.T) {
 	assert.Equal(t, 1, strings.Count(script, "tpPure.epicTotals("), "the tab, the share and the Lifecycle read the sentence from one call")
 }
 
-// TestPage_ListTitlesWrap: a list row's title wraps instead of being cut to
-// a few letters and an ellipsis in a narrow card.
+// TestPage_ListTitlesWrap: a list row's title wraps at word boundaries in a
+// column the id cannot crush, never letter by letter: the id column is
+// capped and wraps between words, the title takes the rest.
 func TestPage_ListTitlesWrap(t *testing.T) {
 	t.Parallel()
 	page, _ := pageText(t)
-	assert.Contains(t, page, ".row .t { min-width: 0; overflow-wrap: anywhere; }")
+	assert.Contains(t, page, ".row { display: grid; grid-template-columns: fit-content(40%) minmax(0, 1fr) auto;")
+	assert.Contains(t, page, ".row .id { min-width: 0; overflow-wrap: break-word;")
+	assert.Contains(t, page, ".row .t { min-width: 0; }")
+	assert.NotContains(t, page, ".row .t { min-width: 0; overflow-wrap: anywhere; }", "a title never breaks inside a word")
 }
 
 // TestPure_AMilestoneCardReadsOneLine: a milestone card's one line is its
@@ -580,7 +584,7 @@ func TestPage_AMilestonesDetailReadsItsGateInFull(t *testing.T) {
 	page, script := pageText(t)
 	assert.Contains(t, page, `id="dkind"`)
 	assert.Contains(t, page, ".dbody dd { margin: 0; min-width: 0; overflow-wrap: anywhere; white-space: pre-line; text-wrap: pretty; }")
-	for _, s := range []string{"tpPure.milestoneHTML(msd, gateOf(g, msd.milestone), dc, words(THRESHOLD_LABEL), t)", "tpPure.thresholdLine(m, gateOf(g, m.milestone), words(THRESHOLD_LABEL), t)", `$("dkind").textContent = msd ? t("drawer.milestone") : t("drawer.epic");`} {
+	for _, s := range []string{"tpPure.milestoneHTML(msd, gateOf(g, msd.milestone), dc, words(THRESHOLD_LABEL), t)", "tpPure.thresholdLine(m, gateOf(g, m.milestone), words(THRESHOLD_LABEL), t)", `$("dkind").textContent = t(labels[0]);`, `milestone: [tk("drawer.milestone"), tk("drawer.msLabel"), tk("drawer.msClose"), tk("drawer.msAbout")],`} {
 		assert.Contains(t, script, s)
 	}
 	assert.NotContains(t, script, "function milestoneHTML(", "the detail is built in pure.js, where its escaping is tested")
@@ -593,8 +597,8 @@ func TestPage_TheDrawersLabelsNameWhatItShows(t *testing.T) {
 	t.Parallel()
 	page, script := pageText(t)
 	assert.Contains(t, page, `id="dinfo"`)
-	for _, s := range []string{`$("drawer").setAttribute("aria-label", msd ? t("drawer.msLabel") : t("drawer.epicLabel"));`, `$("dclose").setAttribute("aria-label", msd ? t("drawer.msClose") : t("drawer.epicClose"));`,
-		`$("dinfo").setAttribute("aria-label", msd ? t("drawer.msAbout") : t("drawer.epicAbout"));`, `"drawer.msLabel": "Milestone detail"`, `"drawer.msClose": "Close the milestone detail"`, `"drawer.msAbout": "About the milestone detail"`} {
+	for _, s := range []string{`$("drawer").setAttribute("aria-label", t(labels[1]));`, `$("dclose").setAttribute("aria-label", t(labels[2]));`,
+		`$("dinfo").setAttribute("aria-label", t(labels[3]));`, `milestone: [tk("drawer.milestone"), tk("drawer.msLabel"), tk("drawer.msClose"), tk("drawer.msAbout")],`, `"drawer.msLabel": "Milestone detail"`, `"drawer.msClose": "Close the milestone detail"`, `"drawer.msAbout": "About the milestone detail"`} {
 		assert.Contains(t, script, s)
 	}
 }
@@ -753,8 +757,15 @@ func TestPage_TheClosureHeaderSaysHowManyAreDescribed(t *testing.T) {
 func TestPage_MarksDescribedEpicsAndCountsThemPerMilestone(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
-	for _, s := range []string{"tpPure.describedCounts(", `ctx.described.has(n.id) ? " ¶" : ""`, " described"} {
+	for _, s := range []string{"tpPure.describedCounts(", " described",
+		`(G.prepared.described.has(n.id) ? "<br>" + escape(t("graph.hasDescription")) : "")`} {
 		assert.Contains(t, script, s)
+	}
+	// A bare ¶ after the id said nothing on its own; the tooltip says it.
+	assert.Contains(t, script, `out.label = n.id + (owner.length > 1 ? " +" + (owner.length - 1) : "");`)
+	assert.NotContains(t, script, `" ¶"`)
+	for lang, want := range map[string]string{"en": `"has a description"`, "tr": `"açıklaması var"`} {
+		assert.Equal(t, want, string(dictionary(t, lang)["graph.hasDescription"]), lang)
 	}
 }
 

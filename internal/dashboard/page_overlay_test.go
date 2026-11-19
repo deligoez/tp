@@ -1,9 +1,11 @@
 package dashboard_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestPage_TheDrawerIsAnOverlayOverADimmedPage is the operator's 1.17.1
@@ -19,9 +21,21 @@ func TestPage_TheDrawerIsAnOverlayOverADimmedPage(t *testing.T) {
 	assert.Contains(t, page, "@keyframes drawer-in")
 	assert.NotContains(t, page, "body.dopen { padding-right: var(--drawer-w); }")
 	assert.Contains(t, page, "body.dopen { padding-right: 0; padding-bottom: var(--drawer-h); }")
-	for _, s := range []string{`$("scrim").hidden = !open;`, `$("scrim").addEventListener("click", () => selectEpic(null));`} {
+	for _, s := range []string{`$("scrim").hidden = !open;`, `$("scrim").addEventListener("click", closeDrawer);`} {
 		assert.Contains(t, script, s)
 	}
+}
+
+// TestPage_APhonesBottomSheetDimsThePageToo: on a phone the drawer is a bottom
+// sheet, and the page above it is dimmed by the same backdrop, which closes
+// it on a tap, for an epic, a milestone and a task alike.
+func TestPage_APhonesBottomSheetDimsThePageToo(t *testing.T) {
+	t.Parallel()
+	page, _ := pageText(t)
+	_, phone, found := strings.Cut(page, "@media (max-width: 767px) {\n  /* a phone keeps the bottom sheet, which takes its height from below, over the same dimmed page */")
+	require.True(t, found, "the phone's media block is where the test reads it")
+	phone, _, _ = strings.Cut(phone, "\n}\n")
+	assert.NotContains(t, phone, ".scrim { display: none; }")
 }
 
 // TestPage_TheFirstFitInFullScreenRefitsAndANoteCloses is the review's H1,
@@ -63,8 +77,8 @@ func TestPage_TheFullScreenPillShrinksItsSearchNotItsEnds(t *testing.T) {
 	t.Parallel()
 	page, _ := pageText(t)
 	for _, s := range []string{
-		"body.mapfs .gcard.fs #gc-full { order: 10; flex-shrink: 0; }",
-		"body.mapfs .gcard.fs #gc-q { flex: 0 1 16rem; min-width: 8rem; }",
+		"body.mapfs .gcard.fs #gc-full, body.mapfs .gcard.fs #tm-full { order: 10; flex-shrink: 0; }",
+		"body.mapfs .gcard.fs #gc-q, body.mapfs .gcard.fs #tm-q { flex: 0 1 16rem; min-width: 8rem; }",
 		"body.mapfs .gcard.fs .toolbar.tight .seg { flex: 0 1 auto; min-width: 0; }",
 		"body.mapfs .gcard.fs .toolbar.tight .seg button { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }",
 		"body.mapfs.dopen .gcard.fs .toolbar { left: calc((100% - var(--drawer-w)) / 2); max-width: calc(100% - var(--drawer-w) - 24px); }",

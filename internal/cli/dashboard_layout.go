@@ -21,6 +21,7 @@ const (
 	layoutViewMilestones    = "milestones"
 	layoutViewScope         = "scope"
 	layoutViewNeighbourhood = "neighbourhood"
+	layoutViewTasks         = "tasks"
 )
 
 // layoutPackParam is the parameter every view takes beside its own: how the
@@ -32,6 +33,7 @@ var layoutViewParams = map[string][]string{
 	layoutViewMilestones:    {},
 	layoutViewScope:         {"milestone"},
 	layoutViewNeighbourhood: {"epic", "depth"},
+	layoutViewTasks:         {"file"},
 }
 
 // The neighbourhood's depth: its default, and the bounds it is clamped to.
@@ -42,7 +44,7 @@ const (
 )
 
 // dashboardLayoutHint answers a /api/layout query the endpoint refuses.
-const dashboardLayoutHint = "name one view: ?view=plan, ?view=milestones, ?view=scope&milestone=<m>, or ?view=neighbourhood&epic=<id>[&depth=<n>], depth clamped to 1-4, each with an optional &pack=rows|tree"
+const dashboardLayoutHint = "name one view: ?view=plan, ?view=milestones, ?view=scope&milestone=<m>, ?view=neighbourhood&epic=<id>[&depth=<n>], depth clamped to 1-4, or ?view=tasks&file=<task file>, each with an optional &pack=rows|tree"
 
 // dashboardLayoutAbsentHint answers a milestone or epic the graph does not
 // hold.
@@ -124,6 +126,9 @@ func (dashboardAPI) Layout(q url.Values) (any, *dashboard.Error) {
 	if derr != nil {
 		return nil, derr
 	}
+	if lq.view == layoutViewTasks {
+		return tasksLayout(q.Get("file"))
+	}
 	g, states, _, rerr := readEpicStates()
 	if rerr != nil {
 		return nil, runErrorOf(rerr)
@@ -156,7 +161,7 @@ func dashboardLayoutQuery(q url.Values) (layoutQuery, *dashboard.Error) {
 	view := q.Get("view")
 	params, known := layoutViewParams[view]
 	if len(q["view"]) != 1 || !known {
-		return bad("/api/layout takes view once: plan, milestones, scope or neighbourhood")
+		return bad("/api/layout takes view once: plan, milestones, scope, neighbourhood or tasks")
 	}
 	if msg := layoutParamsFault(q, view, params); msg != "" {
 		return bad(msg)

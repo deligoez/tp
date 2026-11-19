@@ -183,6 +183,10 @@
       $("tab-" + t).setAttribute("aria-selected", String(t === tab));
       $("view-" + t).hidden = t !== tab;
     });
+    // The Spec tab with nothing open draws its empty state, or its one spec.
+    if (tab === "work" && !work.path) drawWork();
+    // The drawer shows only what belongs to the tab open (tpPure.drawerKind).
+    drawDrawer();
     syncURL();
   }
 
@@ -566,13 +570,16 @@
     if (loops > 0) sum.push(t("fold.loops", { n: loops }));
     if (lint.errors) sum.push(t("fold.lint", { n: lint.errors }));
     setFold("kpimore", { dflt: false, alarm: f.held > 0 || lint.errors > 0 || (f.stale_loops || 0) > 0, sum: sum.join(", ") });
-    $("kpis2").innerHTML = [
+    const more = [
       kpi("critical", esc(t.num(f.critical_path)), t("kpi.critical"), "crit"),
       kpi("held", esc(t.num(f.held)), t("kpi.held"), f.held ? "op" : ""),
       kpi("loops", esc(t.num(loops)) + (f.stale_loops ? "<small> " + esc(t("kpi.stale", { n: f.stale_loops })) + "</small>" : ""), t("kpi.loops")),
       kpi("lint", esc(t.num(lint.errors)) + "<small> / " + esc(t.num(lint.warnings)) + "</small>", t("kpi.lint"), lint.errors ? "warn" : ""),
       kpi("throughput", last ? esc(t.num(last.done)) + "<small> " + esc(t("kpi.inWeek", { week: tpPure.weekRange(last.week, t.locale) })) + "</small>" : "0", t("kpi.throughput")).replace("</div>", spark(weeks) + "</div>"),
-    ].join("");
+    ];
+    // The disclosure under the KPI row counts the tiles it opens in place.
+    $("kpis2").innerHTML = more.join("");
+    $("kpimore-n").textContent = "(" + t.num(more.length) + ")";
     fitAllRows();
   });
 
@@ -624,9 +631,13 @@
 
   // row draws one list row; an epic's row names it with a link that
   // selects it.
-  const row = (id, title, meta, why, epic) => '<div class="row"><span class="id">' + (epic ? epicLink(id) : esc(id)) + '</span><span class="t">' + esc(title) +
-    '</span><span class="m">' + esc(meta || "") + "</span>" + (why ? '<span class="why">' + why + "</span>" : "") + "</div>";
+  // act, a Copy command, ends the title's line so it never takes one of its own.
+  const row = (id, title, meta, why, epic, act) => '<div class="row"><span class="id">' + (epic ? epicLink(id) : esc(id)) + '</span><span class="t">' + esc(title) + (act ? " " + act : "") +
+    '</span><span class="m">' + esc(meta || "") + "</span>" + (why ? '<div class="why">' + why + "</div>" : "") + "</div>";
   const none = (text) => '<p class="empty">' + esc(text) + "</p>";
+  // sliceRow is a row with no id: label is one phrase in the title column,
+  // its Copy command act after it, meta beside both.
+  const sliceRow = (label, meta, act) => '<div class="row rwide"><span class="t">' + esc(label) + " " + act + '</span><span class="m">' + esc(meta) + "</span></div>";
   const titleOf = (v, id) => (v.epics[id] ? v.epics[id].title : "");
   const dependents = (v, id) => {
     const d = v.epics[id] && v.epics[id].downstream;
@@ -636,7 +647,19 @@
   // escalationRows are the escalations tp export --list names on the task
   // files bound to an epic, one row each (§7).
   const escalationRows = () => ((data("export-list") || {}).files || []).filter((f) => f.epic).flatMap((f) =>
-    (f.escalations || []).map((b) => row(f.epic, f.title || f.path, b.code, "<code>" + esc(f.path) + "</code>: " + esc(b.message))));
+    (f.escalations || []).map((b) => row(f.epic, f.title || f.path, t("op.specWaits"), blockerHTML(b), true)));
+  // blockerHTML is an escalation in plain words (tpPure.blockerText), the
+  // engine's message only in its tooltip and its commands behind Copy
+  // command, so no command shows in plain view.
+  const BLOCKER_TEXT = { "spec-stale": tk("blocker.code.spec-stale"), "spec-stale-at-cap": tk("blocker.code.spec-stale-at-cap"),
+    "review-budget-exhausted": tk("blocker.code.review-budget-exhausted"),
+    "audit-budget-exhausted": tk("blocker.code.audit-budget-exhausted"), "review-carried-blocking": tk("blocker.code.review-carried-blocking"),
+    "epic-blocked": tk("blocker.code.epic-blocked"), "no-ready-task": tk("blocker.code.no-ready-task"),
+    "unexplained-changes": tk("blocker.code.unexplained-changes"), other: tk("blocker.code.other") };
+  const blockerHTML = (b) => {
+    const cmds = tpPure.blockerCommands(b);
+    return '<span title="' + esc(b.message || "") + '">' + esc(tpPure.blockerText(tpPure.blockerKey(b), BLOCKER_TEXT, t)) + "</span>" + (cmds.length ? " " + copyCmd(cmds.join("\n")) : "");
+  };
 
   // operatorRows is §7's list, each row with the command that settles it:
   // the actionable conditions, the any-of groups as their choices, the gates
@@ -644,14 +667,16 @@
   // slices that may take --grant-round, and the bound specs' escalations.
   // Agents run tp, so a person never reads a command in plain view: each
   // one is a Copy command button, the command in its tooltip and clipboard.
-  const copyCmd = (cmd) => '<button type="button" class="key copy" data-copy="' + esc(cmd) + '" title="' + esc(cmd) + '">' + esc(t("copy.command")) + "</button>";
+  // label, when given, is the button's accessible name, as when several sit
+  // side by side and each must say which option it copies.
+  const copyCmd = (cmd, label) => '<button type="button" class="copy" data-copy="' + esc(cmd) + '" title="' + esc(label || t("copy.command")) + '" aria-label="' + esc(label || t("copy.command")) + '"></button>';
   // conditionRows are the conditions waiting on a decision. With owners
   // declared they are grouped by whose decision it is (tpPure.ownerGroups):
   // a line stating the distinct conditions, then one counted "waiting on
   // <owner>" heading per owner, a two-owner condition under each, the
   // unowned last (spec/backlog/epic-owner.md at edeebda0); without, one plain list.
   function conditionRows(v, done) {
-    const rows = (list) => list.map((id) => row(id, titleOf(v, id), t("op.condition"), done(id)));
+    const rows = (list) => list.map((id) => row(id, titleOf(v, id), t("op.condition"), "", false, done(id)));
     const owners = (v.g.graph && v.g.graph.owners) || [];
     const ids = v.plan.operator_conditions;
     if (!owners.length || !ids.length) return rows(ids);
@@ -668,19 +693,26 @@
   // heading so none reads as the last owner's.
   function operatorRows(v) {
     const evidence = ' --evidence "<' + t("op.evidence") + '>"';
-    const done = (id) => copyCmd("tp epic done " + id + evidence);
+    const done = (id, label) => copyCmd("tp epic done " + id + evidence, label);
     const grouped = ownerGrouped(v);
     const conds = conditionRows(v, done);
     const rest = [];
+    // A choose-one group runs its options inline, "or" a quiet word between
+    // them: each its id, its title when that says more (tpPure.optionTitle),
+    // and its own Copy command.
+    const option = (m) => {
+      const ot = tpPure.optionTitle(m, titleOf(v, m));
+      return '<li class="opt">' + epicLink(m) + (ot ? '<span class="ot" title="' + esc(ot) + '">' + esc(ot) + "</span>" : "") + done(m, t("op.copyFor", { id: m })) + "</li>";
+    };
     (v.plan.operator_groups || []).forEach((c) => rest.push(row(c.epic, titleOf(v, c.epic), t("op.chooseOne", { n: c.any_of.length }),
-      c.any_of.map(done).join(" " + esc(t("op.or")) + " "))));
+      '<ul class="opts">' + c.any_of.map((m, i) => (i ? '<li class="or">' + esc(t("op.or")) + "</li>" : "") + option(m)).join("") + "</ul>")));
     (v.g.milestones || []).forEach((m) => {
       const o = m.operator || {};
-      (o.gates || []).forEach((gate) => rest.push(row(gate.milestone, gate.threshold, t("op.gate"), copyCmd("tp epic gate " + gate.milestone + " --met" + evidence))));
-      (o.threshold_rewrites || []).forEach((r) => rest.push(row(r.milestone, r.threshold, t("op.threshold"), copyCmd(r.command))));
+      (o.gates || []).forEach((gate) => rest.push(row(gate.milestone, gate.threshold, t("op.gate"), "", false, copyCmd("tp epic gate " + gate.milestone + " --met" + evidence))));
+      (o.threshold_rewrites || []).forEach((r) => rest.push(row(r.milestone, r.threshold, t("op.threshold"), "", false, copyCmd(r.command))));
     });
-    (v.g.slices || []).filter((s) => s.grantable).forEach((s) => rest.push(row(t("op.slice"), sliceTitle(s), roundText(s),
-      esc(t("op.staleAtCap")) + ": " + copyCmd("tp epic review " + tpPure.sliceArgs(s) + " --grant-round"))));
+    (v.g.slices || []).filter((s) => s.grantable).forEach((s) => rest.push(sliceRow(t("op.sliceOf", { what: sliceTitle(s) }), roundText(s) + " · " + t("op.staleAtCap"),
+      copyCmd("tp epic review " + tpPure.sliceArgs(s) + " --grant-round"))));
     rest.push(...escalationRows());
     return grouped && rest.length ? conds.concat(['<h3 class="ogroup">' + esc(t("op.other")) + ' <span class="num muted">' + esc(t.num(rest.length)) + "</span></h3>"], rest) : conds.concat(rest);
   }
@@ -743,6 +775,17 @@
     refocus(key);
   });
 
+  // nowList is a now list's rows: the first NOW_SHOWN, then the rest behind
+  // a "Show all N" disclosure kept open across redraws (dfolds), or the
+  // empty text. Operator decisions are not folded: each row is a decision
+  // to act on, and their owner headings would split a count.
+  const NOW_SHOWN = 5;
+  function nowList(key, rows, empty) {
+    if (!rows.length) return none(empty);
+    const [shown, rest] = tpPure.foldAt(rows, NOW_SHOWN);
+    return shown.join("") + (rest.length ? '<details class="dmore nmore" data-dfold="' + key + '"' + (dfolds.has(key) ? " open" : "") + "><summary>" +
+      esc(t("list.showAll", { n: rows.length })) + "</summary>" + rest.join("") + "</details>" : "");
+  }
   // The now lists (§4): what can start, what waits on the operator, what
   // waits on other work, and what the most work waits on.
   panel(["summary", "epic-export"], () => {
@@ -750,11 +793,16 @@
     $("now").hidden = !v;
     $("waitcard").hidden = !v;
     if (!v) return;
-    $("now-ready").innerHTML = v.plan.ready.map((id) => row(id, titleOf(v, id), dependents(v, id), "", true)).join("") || none(t("list.noReady"));
+    $("now-ready").innerHTML = nowList("now-ready", v.plan.ready.map((id) => row(id, titleOf(v, id), dependents(v, id), "", true)), t("list.noReady"));
     $("now-operator").innerHTML = operatorRows(v).join("") || none(t("list.noOperator"));
+    // Both open by default; a decision waiting keeps Operator decisions open
+    // as an alarm, as a held epic does More figures.
+    const queue = v.plan.figures.operator_queue + escalationRows().length;
+    setFold("ready", { dflt: true, sum: t("fold.ready", { n: v.plan.ready.length }) });
+    setFold("operator", { dflt: true, alarm: queue > 0, sum: t("fold.decisions", { n: queue }) });
     $("now-waiting").innerHTML = waitingHTML(v);
     setFold("waiting", { dflt: false, sum: t("wait.blocked", { n: v.plan.figures.blocked }) });
-    $("now-most").innerHTML = v.plan.most_waited_on.slice(0, 10).map((id) => row(id, titleOf(v, id), dependents(v, id), "", true)).join("") || none(t("list.noMost"));
+    $("now-most").innerHTML = nowList("now-most", v.plan.most_waited_on.slice(0, 10).map((id) => row(id, titleOf(v, id), dependents(v, id), "", true)), t("list.noMost"));
   });
 
   INFO.slices = tk("info.slices");
@@ -1350,6 +1398,8 @@
     if (!el || !el.closest) return null;
     const toggle = el.dataset ? tpPure.toggleKey(el.dataset) : null;
     if (toggle) return "toggle:" + toggle;
+    // A task on the Tasks view, found again after its redraw.
+    if (el.dataset && el.dataset.t && el.closest("#sv-tasks")) return "task:" + el.dataset.t;
     if (!el.dataset || !el.dataset.epic) return null;
     const wg = el.closest("[data-wg]");
     if (wg) return "wait:" + wg.dataset.wg + ":" + el.dataset.epic;
@@ -1386,6 +1436,13 @@
     else if (key) els.find((x) => focusKey(x) === key).focus({ preventScroll: true });
   }
 
+  // DRAWER_WORDS names the drawer for what it shows: its kind, its label,
+  // its close button and its info button.
+  const DRAWER_WORDS = {
+    epic: [tk("drawer.epic"), tk("drawer.epicLabel"), tk("drawer.epicClose"), tk("drawer.epicAbout")],
+    milestone: [tk("drawer.milestone"), tk("drawer.msLabel"), tk("drawer.msClose"), tk("drawer.msAbout")],
+    task: [tk("drawer.task"), tk("drawer.taskLabel"), tk("drawer.taskClose"), tk("drawer.taskAbout")],
+  };
   function drawDrawer() {
     const g = data("epic-export");
     const id = mapView.selected;
@@ -1394,8 +1451,11 @@
     // brings it back does not reopen the drawer and take focus.
     if (g) moveDrawer({ type: "present", milestones: (g.milestones || []).map((m) => m.milestone) });
     const msd = !e && msView.detail && g ? (g.milestones || []).find((m) => m.milestone === msView.detail) : null;
-    const open = (!!e || !!msd) && state.tab === "epics";
-    document.querySelectorAll("#msstate [data-ms]").forEach((b) => b.setAttribute("aria-expanded", String(open && tpPure.cardExpanded(drawerState(), b.dataset.ms))));
+    // The same drawer shows a task of the open spec (tpPure.drawerKind).
+    const task = work.data && work.task ? (work.data.tasks || []).find((x) => x.id === work.task) : null;
+    const kind = tpPure.drawerKind({ tab: state.tab, view: work.view, task: task && task.id, epic: e && id, milestone: msd && msd.milestone });
+    const open = !!kind;
+    document.querySelectorAll("#msstate [data-ms]").forEach((b) => b.setAttribute("aria-expanded", String(kind === "milestone" && tpPure.cardExpanded(drawerState(), b.dataset.ms))));
     $("drawer").hidden = !open;
     // The drawer covers the page; its backdrop dims the rest and closes it.
     $("scrim").hidden = !open;
@@ -1411,17 +1471,25 @@
     }
     if (!open && drawerReturn) returnFocus();
     if (!open) return;
-    $("dkind").textContent = msd ? t("drawer.milestone") : t("drawer.epic");
-    $("drawer").setAttribute("aria-label", msd ? t("drawer.msLabel") : t("drawer.epicLabel"));
-    $("dclose").setAttribute("aria-label", msd ? t("drawer.msClose") : t("drawer.epicClose"));
-    $("dinfo").setAttribute("aria-label", msd ? t("drawer.msAbout") : t("drawer.epicAbout"));
+    const labels = DRAWER_WORDS[kind];
+    $("dkind").textContent = t(labels[0]);
+    $("drawer").setAttribute("aria-label", t(labels[1]));
+    $("dclose").setAttribute("aria-label", t(labels[2]));
+    $("dinfo").setAttribute("aria-label", t(labels[3]));
+    $("dinfo").dataset.info = kind === "task" ? "tasks" : "drawer";
+    setWide(wide, false);
+    if (kind === "task") {
+      const ix = taskIndex(work.data);
+      $("dbody").innerHTML = taskDetail(work.data, task, ix);
+      return;
+    }
     if (msd) {
       const dc = tpPure.describedCounts((g.graph && g.graph.epics) || [])[msd.milestone] || { described: 0, all: 0 };
       // Its epics as links and the way to its gate's closure on the graph.
       const members = (g.epics || []).filter((x) => x.milestone === msd.milestone).map((x) => x.id);
-      $("dbody").innerHTML = tpPure.milestoneHTML(msd, gateOf(g, msd.milestone), dc, words(THRESHOLD_LABEL), t) +
+      $("dbody").innerHTML = '<div class="dmain">' + tpPure.milestoneHTML(msd, gateOf(g, msd.milestone), dc, words(THRESHOLD_LABEL), t) +
         '<p><button type="button" class="key" data-closure="' + esc(msd.milestone) + '">' + esc(t("drawer.showClosure")) + "</button></p>" +
-        "<div><h4>" + esc(t("drawer.members", { n: members.length })) + '</h4><div class="wids">' + members.map(epicLink).join(" ") + "</div></div>";
+        "<div><h4>" + esc(t("drawer.members", { n: members.length })) + '</h4><div class="wids">' + members.map(epicLink).join(" ") + "</div></div></div>";
       return;
     }
     const ge = graphEpic(g, id) || {};
@@ -1459,18 +1527,22 @@
       [t("drawer.f.downstream"), down ? t("drawer.downstream", { n: down.dependents, open: down.dependents_open, chain: down.longest_chain }) : t("drawer.noDownstream")],
       ge.estimate_minutes ? [t("drawer.f.estimate"), t.dur(ge.estimate_minutes)] : null,
       (ge.tags || []).length ? [t("drawer.f.tags"), ge.tags.map((x) => '<span class="dtag">' + esc(x) + "</span>").join(" "), true] : null,
-      ge.acceptance ? [t("drawer.f.acceptance"), ge.acceptance] : null,
+      // Acceptance is markdown, drawn as the description is.
+      ge.acceptance ? [t("drawer.f.acceptance"), '<div class="ddesc">' + tpPure.markdown(ge.acceptance) + "</div>", true] : null,
       ge.done ? [t("drawer.f.done"), stamp(ge.done.at) + (ge.done.evidence ? ": " + ge.done.evidence : "")] : null,
     ].filter(Boolean);
-    $("dbody").innerHTML = '<div><div class="dmeta"><code>' + esc(id) + "</code>" + (e.condition ? "<span>" + esc(t("drawer.condition")) + "</span>" : "") + (crit ? '<span class="critpill">' + esc(t("wait.critical")) + "</span>" : "") + "</div><h3>" + esc(e.title) + "</h3></div>" +
+    // The epic itself in a main column, what it links to in a side one: one
+    // column narrow, two side by side when the drawer is wide.
+    $("dbody").innerHTML = '<div class="dmain">' + '<div><div class="dmeta"><code>' + esc(id) + "</code>" + (e.condition ? "<span>" + esc(t("drawer.condition")) + "</span>" : "") + (crit ? '<span class="critpill">' + esc(t("wait.critical")) + "</span>" : "") + "</div><h3>" + esc(e.title) + "</h3></div>" +
       (e.condition ? '<div class="cmdline"><span class="sum">' + t.html("drawer.conditionNote_html", { id }) + "</span>" +
         copyCmd("tp epic done " + id + ' --evidence "<' + t("op.evidence") + '>"') + "</div>" : epicStepper(e, ge.claimed !== undefined ? ge : null)) +
-      "<dl>" + fields.map(([k, v, html]) => "<dt>" + esc(k) + "</dt><dd>" + (html ? v : esc(v)) + "</dd>").join("") + "</dl>" +
+      // The description reads first, above the fields and their Acceptance.
       (String(ge.description || "").trim() ? descHTML(ge.description) : "") +
+      "<dl>" + fields.map(([k, v, html]) => "<dt>" + esc(k) + "</dt><dd>" + (html ? v : esc(v)) + "</dd>").join("") + "</dl></div>" + '<div class="dside">' +
       ((e.files || []).length ? "<div><h4>" + esc(t("drawer.specs")) + '</h4><ul class="elist">' + e.files.map(fileLine).join("") + "</ul></div>" : "") +
       "<div><h4>" + esc(t("drawer.dependsOn")) + "</h4>" + rows("deps", deps) + "</div>" +
       "<div><h4>" + esc(t("drawer.dependedOnBy")) + "</h4>" + rows("needs", needs) + "</div>" +
-      fold("history", "<summary><h4>" + esc(t("drawer.history")) + "</h4></summary>" + info("ehistory", t("drawer.history")) + epicHistoryHTML(id));
+      fold("history", "<summary><h4>" + esc(t("drawer.history")) + "</h4></summary>" + info("ehistory", t("drawer.history")) + epicHistoryHTML(id)) + "</div>";
   }
   INFO.ehistory = tk("info.ehistory");
 
@@ -1488,9 +1560,49 @@
   }
   panel(["epic-export", "summary"], drawSelected);
 
-  $("dclose").addEventListener("click", () => selectEpic(null));
-  $("scrim").addEventListener("click", () => selectEpic(null));
-  document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && !viewMenuOpen() && !$("drawer").hidden && $("pop").hidden) selectEpic(null); });
+  // closeDrawer closes whatever the drawer shows: a task, or an epic or a
+  // milestone.
+  function closeDrawer() {
+    if (state.tab === "work" && work.task) {
+      work.task = null;
+      drawWork();
+    } else selectEpic(null);
+  }
+  $("dclose").addEventListener("click", closeDrawer);
+  // A task named in a task's drawer moves the drawer to it and picks it on
+  // the graph; its spec section opens the spec there.
+  $("dbody").addEventListener("click", (ev) => {
+    if (state.tab !== "work") return;
+    const g = ev.target.closest("[data-goto]");
+    const b = ev.target.closest("[data-t]");
+    if (g) gotoSection(g.dataset.goto);
+    else if (b) {
+      work.task = b.dataset.t;
+      drawWork();
+      $("dclose").focus({ preventScroll: true });
+    }
+  });
+  // The drawer's width is the viewer's choice, Large over a modal so the
+  // plan stays beside it: kept in localStorage, its button named for what a
+  // press does. Toggling it neither redraws the drawer nor moves focus.
+  const WIDE_KEY = "tp.drawer.wide";
+  function storedWide() {
+    try { return localStorage.getItem(WIDE_KEY); } catch (e) { return null; }
+  }
+  let wide = tpPure.drawerWide(storedWide());
+  function setWide(on, store) {
+    wide = on;
+    $("drawer").classList.toggle("wide", on);
+    const label = on ? t("drawer.narrow") : t("drawer.widen");
+    $("dwide").setAttribute("aria-label", label);
+    $("dwide").title = label;
+    if (store) {
+      try { localStorage.setItem(WIDE_KEY, on ? "wide" : "narrow"); } catch (e) { /* the choice lasts this load */ }
+    }
+  }
+  $("dwide").addEventListener("click", () => setWide(!wide, true));
+  $("scrim").addEventListener("click", closeDrawer);
+  document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && !viewMenuOpen() && !$("drawer").hidden && $("pop").hidden) closeDrawer(); });
   document.addEventListener("click", (ev) => {
     const a = ev.target.closest && ev.target.closest("[data-epic]");
     if (a) {
@@ -1517,6 +1629,8 @@
   const specsView = { phase: "all", q: "" };
   const STAGE_LABEL = Object.fromEntries(STAGES);
   const PAUSE = '<svg class="ic" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 4v8M10 4v8"/></svg>';
+  // WARN marks a blocker about another step than the one running.
+  const WARN = '<svg class="ic" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5l6 11H2z"/><path d="M8 6.5v3M8 11.5v.01"/></svg>';
   const waitsOp = (f) => !!(f.escalations && f.escalations.length);
   INFO.specs = tk("info.specs");
 
@@ -1544,8 +1658,13 @@
     const epic = f.epic
       ? epicLink(f.epic) + (f.epic_state ? '<span class="sm muted">' + esc(word(STAGE_LABEL, f.epic_state)) + "</span>" : "")
       : '<span class="muted">' + esc(t("specs.noEpic")) + "</span>";
-    const next = ops.map((b) => '<span class="stat" title="' + esc(b.message) + '">' + PAUSE + esc(b.code) + "</span>").join("") +
-      (f.error ? '<span class="snext err">' + esc(f.error) + "</span>" : '<span class="snext">' + esc(f.next_step || "") + "</span>");
+    // The next step in plain words: an escalation's, or the engine's own
+    // when it carries no command, else the phase it is in; the engine's
+    // sentence stays in the tooltip.
+    const next = ops.length ? ops.map((b) => '<span class="stat" title="' + esc(b.message) + '">' + (tpPure.blockerStep(b.code, f.phase) === f.phase ? PAUSE : WARN) +
+      esc(tpPure.blockerText(tpPure.blockerKey(b), BLOCKER_TEXT, t)) + "</span>").join("")
+      : f.error ? '<span class="snext err">' + esc(f.error) + "</span>"
+        : '<span class="snext" title="' + esc(f.next_step || "") + '">' + esc(tpPure.plainStep(f.next_step, t("specs.nextIn", { phase: word(STEP_LABEL, f.phase) }))) + "</span>";
     return '<tr class="srow' + (f.path === state.spec ? " on" : "") + '" tabindex="0" data-path="' + esc(f.path) + '">' +
       '<td class="sname"><span class="pt">' + (ops.length ? '<span class="mk" title="' + esc(t("specs.waitsOp")) + '">' + PAUSE + "</span>" : "") +
       "<span>" + esc(f.title || f.path) + "</span></span><code>" + esc(f.path) + "</code></td>" +
@@ -1667,15 +1786,21 @@
 
   // stepper marks the phase tp resume reports; ground, which tp resume never
   // reports, and review are skipped, not ticked, when they have no round.
+  // Each escalation holds the step it stops (tpPure.blockerStep): the
+  // current step pauses only for its own, and one about another step, as
+  // spec-stale is about review while implement runs, rings that step gold.
   function stepper(d, f) {
     const lines = stepLines(d, f);
-    const cur = d.resume.phase === "release" ? STEPS.length : STEPS.indexOf(d.resume.phase);
-    const paused = escalations(d).length > 0;
+    const phase = d.resume.phase;
+    const cur = phase === "release" ? STEPS.length : STEPS.indexOf(phase);
+    const held = new Set(escalations(d).map((b) => tpPure.blockerStep(b.code, phase)));
     return '<ol class="stepper">' + STEPS.map((p, i) => {
       let st = i < cur ? "done" : i === cur ? "cur" : "todo";
       if ((p === "ground" || p === "review") && st === "done" && !((d.loops[p] || {}).rounds || []).length) st = "skip";
-      const mark = st === "done" ? CHECK : st === "cur" && paused ? PAUSE : String(i + 1);
-      return '<li class="' + st + (st === "cur" && paused ? " op" : "") + '"' + (st === "cur" ? ' aria-current="step"' : "") + '><span class="sn">' + mark +
+      const paused = st === "cur" && held.has(p);
+      const warn = st !== "cur" && held.has(p);
+      const mark = st === "done" ? CHECK : paused ? PAUSE : String(i + 1);
+      return '<li class="' + st + (paused ? " op" : warn ? " warn" : "") + '"' + (st === "cur" ? ' aria-current="step"' : "") + '><span class="sn">' + mark +
         '</span><span class="sl">' + esc(word(STEP_LABEL, p)) + '</span><span class="sd">' + esc(lines[p]) + "</span></li>";
     }).join("") + "</ol>";
   }
@@ -1696,6 +1821,14 @@
     return t.html("impact.completes_html", { epic: d.epic }).replace("{parts}", parts.join(" " + esc(t("impact.and")) + " "));
   }
 
+  // opNote is an escalation under the stepper: a pause for the running
+  // step's own, or a warning that names the step it is about.
+  function opNote(b, phase) {
+    const step = tpPure.blockerStep(b.code, phase);
+    if (step === phase) return '<div class="opnote"><span class="mk">' + PAUSE + "</span><div>" + blockerHTML(b) + "</div></div>";
+    return '<div class="opnote warn"><span class="mk">' + WARN + "</span><div><strong>" + esc(word(STEP_LABEL, step)) + "</strong> " + blockerHTML(b) + "</div></div>";
+  }
+
   function specHead(d, f) {
     const na = d.resume.next_action || {};
     const cmd = na.command || na.brief_command;
@@ -1705,8 +1838,9 @@
     return '<div class="sh-row"><h1>' + esc((f && f.title) || d.spec) + "</h1>" + epic + "</div>" +
       '<div class="loophead"><h2>' + esc(t("spec.loop")) + "</h2>" + info("loop", t("spec.loop")) + "</div>" + stepper(d, f) +
       '<p class="impact">' + impactText(d) + "</p>" +
-      escalations(d).map((b) => '<div class="opnote"><span class="mk">' + PAUSE + "</span><div><b>" + esc(b.code) + "</b> " + esc(t("spec.waitsOp", { message: b.message })) + "</div></div>").join("") +
-      '<div class="cmdline"><span class="lab">' + t.html("spec.next_html") + '</span><span class="sum">' + esc(na.summary || "") + "</span>" +
+      escalations(d).map((b) => opNote(b, d.resume.phase)).join("") +
+      '<div class="cmdline"><span class="lab">' + t.html("spec.next_html") + '</span><span class="sum" title="' + esc(na.summary || "") + '">' +
+      esc(tpPure.plainStep(na.summary, t("specs.nextIn", { phase: word(STEP_LABEL, d.resume.phase) }))) + "</span>" +
       (cmd ? copyCmd(cmd) : "") + "</div>";
   }
 
@@ -1717,6 +1851,13 @@
     $("c-work").innerHTML = work.path ? '<span class="cl">' + esc(work.path || "") + '</span><span class="cs">' + esc(tpPure.pathTail(work.path || "")) + "</span>" : "";
     $("tab-work").title = work.path || "";
     if (!work.path) {
+      // A project with one spec opens it; with more, the Specs tab is a link.
+      const only = tpPure.onlySpec((data("export-list") || {}).files);
+      if (only && state.tab === "work") {
+        openSpec(only);
+        return;
+      }
+      $("work-none").innerHTML = t.html("spec.none_html");
       syncURL();
       return;
     }
@@ -1939,9 +2080,20 @@
       '</code><span class="tm">' + esc(taskMeta(task, ix)) + "</span></button>";
   }
 
+  // stepsHTML is the Steps layout as HTML: the graph lays it out unseen and
+  // draws what it measures (taskgraph.js), so it is never shown itself.
   function stepsHTML(d, ix) {
-    return '<svg class="wires" id="wires" aria-hidden="true"></svg>' + stepsOf(d, ix).map((g, i) => '<div class="step"><div class="step-h"><b>' + esc(t("tasks.step", { n: i + 1 })) +
+    return stepsOf(d, ix).map((g, i) => '<div class="step"><div class="step-h"><b>' + esc(t("tasks.step", { n: i + 1 })) +
       "</b><span>" + esc(i ? t("tasks.afterStep", { n: i }) : t("tasks.noneBefore")) + '</span></div><div class="cards">' + g.map((task) => taskCard(task, ix)).join("") + "</div></div>").join("");
+  }
+
+  // graphHTML is the Steps or Map view's slot, which taskgraph.js or the
+  // task map (graph.js) fills with its canvas, and the tasks as a list for
+  // the keyboard and the screen reader, visually hidden until it takes focus.
+  function graphHTML(d, slot) {
+    const item = (task) => '<li><button type="button" data-t="' + esc(task.id) + '" aria-pressed="' + (task.id === work.task) + '">' + esc(task.title) + " (" + esc(task.id) + "), " +
+      esc(word(TASK_LABEL, task.state)) + ((task.depends_on || []).length ? ", " + esc(t("task.after", { ids: task.depends_on.join(", ") })) : "") + "</button></li>";
+    return '<div id="' + slot + '"></div><ul class="tglist" aria-label="' + esc(t("tasks.graphList")) + '">' + (d.tasks || []).map(item).join("") + "</ul>";
   }
 
   function boardHTML(d, ix) {
@@ -1952,35 +2104,18 @@
     }).join("");
   }
 
-  // drawWires joins each task in Steps to what it waits on, the picked task's
-  // own links drawn strong.
-  function drawWires(d) {
-    const svg = $("wires");
-    const box = $("stages");
-    if (!svg || !box) return;
+  // stepsBoxes measures a laid-out Steps body, box: every card's box by id,
+  // each { x, y, w, h } from box's top left, and the rect function that
+  // measured them. The graph (taskgraph.js) draws Steps on them.
+  function stepsBoxes(box) {
     const br = box.getBoundingClientRect();
-    const W = box.scrollWidth;
-    const H = box.scrollHeight;
-    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
-    svg.setAttribute("width", W);
-    svg.setAttribute("height", H);
-    const R = {};
-    box.querySelectorAll(".tcard").forEach((el) => {
+    const rect = (el) => {
       const r = el.getBoundingClientRect();
-      R[el.dataset.t] = { x: r.left - br.left + box.scrollLeft, y: r.top - br.top + box.scrollTop, w: r.width, h: r.height };
-    });
-    const out = [];
-    (d.tasks || []).forEach((task) => (task.depends_on || []).forEach((x) => {
-      const a = R[x];
-      const b = R[task.id];
-      if (!a || !b) return;
-      const on = work.task && (work.task === x || work.task === task.id);
-      const p = { x: a.x + a.w / 2, y: a.y + a.h };
-      const q = { x: b.x + b.w / 2, y: b.y };
-      const dy = Math.max(12, (q.y - p.y) / 2);
-      out.push('<path class="' + (on ? "on" : "") + '" d="M' + p.x + " " + p.y + "C" + p.x + " " + (p.y + dy) + " " + q.x + " " + (q.y - dy) + " " + q.x + " " + q.y + '"/>');
-    }));
-    svg.innerHTML = out.join("");
+      return { x: r.left - br.left + box.scrollLeft, y: r.top - br.top + box.scrollTop, w: r.width, h: r.height };
+    };
+    const R = {};
+    box.querySelectorAll(".tcard").forEach((el) => { R[el.dataset.t] = rect(el); });
+    return { R, rect };
   }
 
   // closedOverTime draws the running count of closed tasks per day, from the
@@ -2025,12 +2160,14 @@
     const noEst = left.filter((task) => !task.estimate_minutes).length;
     const wip = tasks.filter((task) => task.state === "wip").map((task) => '<li><button class="link" type="button" data-t="' + esc(task.id) + '">' + esc(task.title) + "</button><small>" + running(task) + "</small></li>").join("");
     const leftLine = left.length ? t("progress.left", { est: t.dur(est) }) + (noEst ? ", " + t("progress.noEstimate", { n: noEst }) : "") + "." : t("progress.allDone");
-    return '<div class="pv"><div class="pv-h"><h3>' + t.html("progress.head_html", { done: count(["done"]), n: tasks.length }) + "</h3>" + info("progress", t("progress.about")) + "</div>" +
+    // One row: the bar and its counts, the estimate and the tasks in
+    // progress, the closed-over-time chart; it stacks on a narrow screen.
+    return '<div class="pv"><div class="pv-main"><div class="pv-h"><h3>' + t.html("progress.head_html", { done: count(["done"]), n: tasks.length }) + "</h3>" + info("progress", t("progress.about")) + "</div>" +
       '<div class="pbar" role="img" aria-label="' + esc(order.map((s) => t.num(s[2]) + " " + s[1]).join(", ")) + '">' + order.map((s) => (s[2] ? '<i style="flex:' + s[2] + ";background:var(--" + color[s[0]] + ')"></i>' : "")).join("") + "</div>" +
-      '<div class="pkey">' + order.map((s) => '<span><i style="background:var(--' + color[s[0]] + ')"></i><b class="num">' + esc(t.num(s[2])) + "</b>&nbsp;" + esc(s[1]) + "</span>").join("") + "</div>" +
-      '<p class="note">' + esc(leftLine) + "</p>" +
-      (wip ? "<div><h4>" + esc(t("progress.inProgress")) + '</h4><ul class="wiplist">' + wip + "</ul></div>" : "") +
-      "<div><h4>" + esc(t("progress.closedOverTime")) + "</h4>" + closedOverTime(tasks) + "</div>" + '<p class="note">' + esc(t("progress.clickTask")) + "</p></div>";
+      '<div class="pkey">' + order.map((s) => '<span><i style="background:var(--' + color[s[0]] + ')"></i><b class="num">' + esc(t.num(s[2])) + "</b>&nbsp;" + esc(s[1]) + "</span>").join("") + "</div></div>" +
+      '<div class="pv-mid"><p class="note">' + esc(leftLine) + "</p>" +
+      (wip ? "<h4>" + esc(t("progress.inProgress")) + '</h4><ul class="wiplist">' + wip + "</ul>" : "") + "</div>" +
+      '<div class="pv-chart"><h4>' + esc(t("progress.closedOverTime")) + "</h4>" + closedOverTime(tasks) + "</div></div>";
   }
 
   // sectionOf finds the export's section for one of a task's source_sections.
@@ -2064,14 +2201,22 @@
       return '<figure class="excerpt"><figcaption>' + (sec ? '<button type="button" class="link" data-goto="' + esc(secKey(sec)) + '">' + esc(sec.anchor + " " + secTitle(sec)) + "</button>" : esc(String(s).replace(/^#+\s*/, ""))) + "</figcaption>" +
         (p ? "<blockquote>" + esc(p.text) + "</blockquote>" : "") + "</figure>";
     }).join("");
-    return '<div class="td-head"><div><span class="stat" style="color:var(--' + (TASK_COLOR[task.state] || "muted") + ')">' + (TASK_MARK[task.state] || "") + esc(word(TASK_LABEL, task.state)) + "</span>" +
-      "<h3>" + esc(task.title) + '</h3><code class="tid">' + esc(task.id) + '</code></div><button type="button" class="popx" data-tclose aria-label="' + esc(t("task.close")) + '"></button></div>' +
+    // The drawer's two columns, as an epic's: what the task is and must do,
+    // then what it hangs on and where it comes from, side by side when wide.
+    return '<div class="dmain"><div class="td-head"><div><span class="stat" style="color:var(--' + (TASK_COLOR[task.state] || "muted") + ')">' + (TASK_MARK[task.state] || "") + esc(word(TASK_LABEL, task.state)) + "</span>" +
+      "<h3>" + esc(task.title) + '</h3><code class="tid">' + esc(task.id) + "</code></div></div>" +
       "<dl>" + time + "</dl>" +
       (cmd ? '<div class="cmdline"><span class="sum">' + esc(task.state === "ready" ? t("task.nextClaim") : t("task.nextDone")) + "</span>" + copyCmd(cmd) + "</div>" : "") +
       (task.state === "waits_on_epic" ? '<p class="opnote">' + t.html("task.epicWaits_html", { epic: d.epic || "" }) + "</p>" : "") +
-      "<div><h4>" + esc(t("task.acceptance")) + '</h4><ul class="deps">' + acc.map((a) => '<li><span class="mk">–</span><span>' + esc(a) + "</span></li>").join("") + "</ul></div>" +
-      '<div class="two-col"><div><h4>' + esc(t("task.dependsOn")) + '</h4><ul class="deps">' + deps + "</ul></div><div><h4>" + esc(t("task.neededBy")) + '</h4><ul class="deps">' + needs + "</ul></div></div>" +
-      (src ? "<div><h4>" + esc(t("task.fromSpec")) + "</h4>" + src + "</div>" : "");
+      "<div><h4>" + esc(t("task.acceptance")) + '</h4><ul class="deps">' + acc.map((a) => '<li><span class="mk">–</span><span>' + esc(a) + "</span></li>").join("") + "</ul></div></div>" +
+      '<div class="dside"><div class="two-col"><div><h4>' + esc(t("task.dependsOn")) + '</h4><ul class="deps">' + deps + "</ul></div><div><h4>" + esc(t("task.neededBy")) + '</h4><ul class="deps">' + needs + "</ul></div></div>" +
+      (src ? "<div><h4>" + esc(t("task.fromSpec")) + "</h4>" + src + "</div>" : "") + "</div>";
+  }
+
+  // stagesHTML is the Tasks view's body in the view picked: Board, Steps,
+  // the graph, or Map, the epic map's card over the tasks.
+  function stagesHTML(d, ix) {
+    return work.tview === "board" ? boardHTML(d, ix) : graphHTML(d, work.tview === "map" ? "tm-slot" : "tg-slot");
   }
 
   function drawTasks(d) {
@@ -2085,25 +2230,41 @@
     work.secIds = sec ? new Set(tasksBySection(d)[work.sec] || []) : null;
     const chip = sec ? '<span class="secchip">' + esc(t("tasks.fromSection", { n: work.secIds.size })) + ' <button type="button" class="link" data-goto="' + esc(work.sec) + '">' + esc(sec.anchor + " " + secTitle(sec)) + "</button>" +
       '<button type="button" class="key secx" data-secclear aria-label="' + esc(t("tasks.showAll")) + '"></button></span>' : "";
-    $("sv-tasks").innerHTML = '<section class="panel tpanel"><div class="toolbar"><h2>' + esc(t("spec.view.tasks")) + " " + info("tasks", t("spec.view.tasks")) + "</h2>" + chip + '<span class="spacer"></span>' +
-      '<div class="seg" role="group" aria-label="' + esc(t("tasks.view")) + '">' + tview("steps", tk("tasks.steps")) + tview("board", tk("tasks.board")) + "</div></div>" +
-      '<div class="stages' + (work.tview === "board" ? " board" : "") + '" id="stages">' + (tasks.length ? (work.tview === "board" ? boardHTML(d, ix) : stepsHTML(d, ix)) : none(t("progress.noTasks"))) + "</div>" +
-      '<div class="legend">' + ["ready", "wip", "waits_on_task", "waits_on_epic", "done"].map((s) => '<span><i class="lg" data-s="' + s + '"></i>' + esc(word(TASK_LABEL, s)) + "</span>").join("") + "</div></section>" +
-      '<aside class="panel tside" id="tside" aria-label="' + esc(t("tasks.side")) + '">' + (work.task ? taskDetail(d, ix.by[work.task], ix) : progressHTML(d)) + "</aside>";
-    if (work.tview === "steps") drawWires(d);
+    // The summary is a strip above the panel, which takes the full width; a
+    // task's detail opens in the drawer (drawDrawer). The Map's card goes
+    // home first, so the redraw does not take its canvas with it.
+    if (window.tpTaskMap) window.tpTaskMap.park();
+    $("sv-tasks").innerHTML = '<section class="panel tstrip" aria-label="' + esc(t("tasks.summary")) + '">' + progressHTML(d) + "</section>" +
+      '<section class="panel tpanel"><div class="toolbar"><h2>' + esc(t("spec.view.tasks")) + " " + info("tasks", t("spec.view.tasks")) + "</h2>" + chip + '<span class="spacer"></span>' +
+      '<div class="seg" role="group" aria-label="' + esc(t("tasks.view")) + '">' + tview("steps", tk("tasks.steps")) + tview("map", tk("tasks.map")) + tview("board", tk("tasks.board")) + "</div></div>" +
+      '<div class="stages ' + (work.tview === "board" ? "board" : "graph") + '" id="stages">' + (tasks.length ? stagesHTML(d, ix) : none(t("progress.noTasks"))) + "</div>" +
+      // The Map's card draws its own legend, the epic map's.
+      (work.tview === "map" ? "" : '<div class="legend">' + ["ready", "wip", "waits_on_task", "waits_on_epic", "done"].map((s) => '<span><i class="lg" data-s="' + s + '"></i>' + esc(word(TASK_LABEL, s)) + "</span>").join("") + "</div>") + "</section>";
+    if (work.tview === "steps" && tasks.length && window.tpTaskGraph) window.tpTaskGraph.show(d, work.task);
+    if (work.tview === "map" && tasks.length && window.tpTaskMap) window.tpTaskMap.show($("tm-slot"), d, work.task);
     if (focused) {
-      const again = $("sv-tasks").querySelector('.tcard[data-t="' + CSS.escape(focused.dataset.t) + '"]');
+      const id = CSS.escape(focused.dataset.t);
+      const again = $("sv-tasks").querySelector('.tcard[data-t="' + id + '"], .tglist [data-t="' + id + '"]');
       if (again) again.focus();
     }
+    // After the focus above, so an opening drawer takes it to its close.
+    drawDrawer();
   }
 
-  // copyKey copies a command and says so on the key for a moment.
+  // copyKey copies a command: the live region says whether it did, and a
+  // copied key shows a check for a moment.
   function copyKey(b) {
-    const done = (text) => { b.textContent = text; setTimeout(() => { b.textContent = t("copy.command"); }, 1200); };
+    const done = (ok) => {
+      $("announce").textContent = "";
+      $("announce").textContent = ok ? t("copy.copied") : t("copy.failed");
+      if (!ok) return;
+      b.classList.add("done");
+      setTimeout(() => b.classList.remove("done"), 1500);
+    };
     try {
-      navigator.clipboard.writeText(b.dataset.copy).then(() => done(t("copy.copied")), () => done(t("copy.failed")));
+      navigator.clipboard.writeText(b.dataset.copy).then(() => done(true), () => done(false));
     } catch (err) {
-      done(t("copy.failed"));
+      done(false);
     }
   }
 
@@ -2119,12 +2280,12 @@
     }
     if (ev.target.closest("[data-secclear]")) work.sec = null;
     else if (v) work.tview = v.dataset.tview;
-    else if (ev.target.closest("[data-tclose]")) work.task = null;
-    else if (t) work.task = t.classList.contains("tcard") && work.task === t.dataset.t ? null : t.dataset.t;
-    else return;
+    else if (t) {
+      noteOpener();
+      work.task = t.classList.contains("tcard") && work.task === t.dataset.t ? null : t.dataset.t;
+    } else return;
     drawWork();
   });
-  window.addEventListener("resize", () => { if (work.data && work.view === "tasks" && work.tview === "steps") drawWires(work.data); });
 
   // The open spec follows tp: a pushed list re-reads its export, and a pushed
   // summary redraws its release impact.
@@ -2152,6 +2313,7 @@
     const b = ev.target.closest && ev.target.closest("[data-copy]");
     if (b) copyKey(b);
   });
+  $("work-none").addEventListener("click", (ev) => { if (ev.target.closest("[data-go-specs]")) openSpecs(); });
   function openSpecs() {
     setTab("specs");
     $("specs-q").focus();
@@ -2272,7 +2434,7 @@
     work.view = VIEWS.some(([v]) => v === view) ? view : work.data ? defaultView(work.data) : null;
     work.task = p.get("task");
     work.sec = /^\d+(?:\.\d+)*$/.test(p.get("sec") || "") ? p.get("sec") : null;
-    work.tview = p.get("tview") === "board" ? "board" : "steps";
+    work.tview = tpPure.taskView(p.get("tview"));
     mapView.selected = p.get("epic");
     msView.detail = p.get("ms") || null;
     const stage = p.get("stage");
@@ -2304,6 +2466,31 @@
     stage: () => mapView.stage,
     markText: (m) => tpPure.markText(m, words(MARK_LABEL)),
     markWord: (k) => word(MARK_LABEL, k),
+    // pickTask picks a task in the Tasks view, or clears it when it is the
+    // picked one; taskWord names a task's state. taskgraph.js reads both.
+    pickTask: (id) => {
+      noteOpener();
+      work.task = id === work.task ? null : id;
+      drawWork();
+    },
+    taskWord: (s) => word(TASK_LABEL, s),
+    // The Map (graph.js, makeTaskMap) reads the picked task and picks one
+    // without the toggle, keeping focus in its search when asked, and has
+    // the open spec's task file laid out by /api/layout.
+    pickedTask: () => work.task,
+    taskFile: () => work.path,
+    selectTask: (id, keepFocus) => {
+      noteOpener();
+      work.task = id;
+      keepFocusOnce = !!keepFocus;
+      drawWork();
+      keepFocusOnce = false;
+    },
+    taskSteps: (d) => stepsOf(d, taskIndex(d)),
+    // The Graph draws the Steps layout itself: its markup, laid out and
+    // measured (stepsBoxes).
+    stepsMarkup: (d) => stepsHTML(d, taskIndex(d)),
+    stepsBoxes,
     onSelect: null,
     graphNote: null,
     graphParams: null,

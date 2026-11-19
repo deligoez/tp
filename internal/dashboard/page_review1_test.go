@@ -84,11 +84,13 @@ func TestPage_ATabCountIsANumberOnAPhone(t *testing.T) {
 	assert.Contains(t, page, ".tab .c .cl { display: none; }", "a phone hides the words")
 }
 
-// TestPage_TheTaskPanelClosesWithTheXIcon: the task panel's close button
-// draws the same --ic-x mask as every other close, not a typed glyph.
+// TestPage_TheTaskPanelClosesWithTheXIcon: a task's detail is the drawer's,
+// closed by the drawer's own button, which draws the same --ic-x mask as
+// every other close, not a typed glyph.
 func TestPage_TheTaskPanelClosesWithTheXIcon(t *testing.T) {
 	t.Parallel()
 	page, script := pageText(t)
-	assert.Contains(t, script, `<button type="button" class="popx" data-tclose aria-label="' + esc(t("task.close")) + '"></button>`)
+	assert.NotContains(t, script, "data-tclose")
+	assert.Contains(t, script, `$("dclose").addEventListener("click", closeDrawer);`)
 	assert.Contains(t, page, ".popx, #dclose {")
 }

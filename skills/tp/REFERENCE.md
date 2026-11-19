@@ -2778,7 +2778,7 @@ of the working directory outside git, so two dashboards open side by side tell a
 | `/api/export?file=<path>`, `<path>` a `tp export --list` row's `path` | `tp export --file <path>`'s JSON, uncompacted |
 | `/api/history?milestone=<m>` (or `epic=`, `epics=`, with `name=`, and `from=`/`to=`) | that slice's `tp epic review --history` JSON |
 | `/api/epic-history?epic=<id>` | `tp epic review --history --of-epic <id>`'s JSON |
-| `/api/layout?view=<plan\|milestones\|scope\|neighbourhood>[&pack=rows\|tree]` (v1.13.0, `plan` and `pack` v1.17.0) | one view of the graph laid out as a forest packed into columns (**Layout** below) |
+| `/api/layout?view=<plan\|milestones\|scope\|neighbourhood\|tasks>[&pack=rows\|tree]` (v1.13.0, `plan` and `pack` v1.17.0, `tasks` unreleased) | one view of the graph laid out as a forest packed into columns (**Layout** below) |
 
 A GET answer is byte-equal to the command's stdout. An error answers tp's `{error, code, hint}`:
 HTTP 400 for code 2, 404 for codes 3 and 4. No response carries a CORS header.
@@ -2848,6 +2848,7 @@ only its own parameters, and every view takes an optional `pack=rows|tree` (defa
 | `?view=milestones` | every tracked milestone, an edge from each milestone it opens after |
 | `?view=scope&milestone=<m>` | `tp epic scope <m>`'s closure, banded by milestone, its critical path marked |
 | `?view=neighbourhood&epic=<id>[&depth=<n>]` | the epic, what it depends on and what depends on it, `depth` steps each way (default 2) |
+| `?view=tasks&file=<task file>` | one task file's tasks, done ones too, with no bands: each tree of the forest laid out narrow, a node's childless dependents stacked in one column, and the trees stacked about √n columns wide so the picture reads down the page, the tasks no edge touches in a grid below; `pack` is accepted and the trees are always tree-packed; `file` is a path exactly as `tp export --list` prints it, any other answering 404 with code 4, as `/api/export` does; it needs no epic graph |
 
 The refusals, each tp's `{error, code, hint}`: no `view` or one outside the set, `view` given twice,
 a parameter the view does not take, a parameter given twice, a missing or empty `milestone` or

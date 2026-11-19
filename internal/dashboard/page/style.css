@@ -124,6 +124,11 @@
   /* Feather icons (MIT), drawn as masks in the text colour */
   --ic-info: url("data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 16v-4M12 8h.01'/%3E%3C/svg%3E");
   --ic-x: url("data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 6 6 18M6 6l12 12'/%3E%3C/svg%3E");
+  --ic-widen: url("data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 12h7M3 12l3-3M3 12l3 3M21 12h-7M21 12l-3-3M21 12l-3 3'/%3E%3C/svg%3E");
+  --ic-narrow: url("data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 12h7M10 12l-3-3M10 12l-3 3M21 12h-7M14 12l3-3M14 12l3 3'/%3E%3C/svg%3E");
+  /* Feather copy and check */
+  --ic-copy: url("data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='9' width='13' height='13' rx='2' ry='2'/%3E%3Cpath d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'/%3E%3C/svg%3E");
+  --ic-check: url("data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E");
   --ic-plus: url("data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E");
   --ic-minus: url("data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14'/%3E%3C/svg%3E");
   --ic-chevron: url("data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E");
@@ -216,7 +221,7 @@ p { margin: 0; }
 .fbody { margin-top: var(--sp-6); }
 /* More figures holds figure cards, so it is a bare fold row, never a card around cards */
 .kpimore { background: none; border: 0; box-shadow: none; padding: 0; }
-.kpimore > h2.fh { margin: 0; }
+.kpimore > h2.fh { margin: 0; font: var(--type-label); }
 .kpimore .fbody { margin-top: var(--sp-2); }
 
 /* the (i) on a panel: an icon button with its own name, the note it opens floats over the page */
@@ -235,6 +240,23 @@ p { margin: 0; }
 .popx::before, #dclose::before { content: ""; width: 20px; height: 20px; background: currentColor; -webkit-mask: var(--ic-x) center / contain no-repeat; mask: var(--ic-x) center / contain no-repeat; }
 .popx:hover, #dclose:hover { background: var(--fill-hover); color: var(--ink); }
 .popx:active, #dclose:active { background: var(--fill-press); }
+/* the Widen button looks as Close does, beside it */
+#dwide { display: inline-grid; place-items: center; width: var(--ctl-sm); height: var(--ctl-sm); padding: 0; flex: none; border: 0; border-radius: var(--r-2); background: transparent; color: var(--muted); font-size: 0; }
+#dwide:hover { background: var(--fill-hover); color: var(--ink); }
+#dwide:active { background: var(--fill-press); }
+/* Copy command: a 24px icon key (DESIGN.md's small-control minimum) that ends a
+   line of text; its negative margin keeps the line its own height. */
+.copy { display: inline-grid; place-items: center; width: 24px; height: 24px; margin: -4px 0; padding: 0; border: 0; border-radius: var(--r-1); background: transparent; color: var(--muted); vertical-align: middle; }
+.copy::before { content: ""; width: 16px; height: 16px; background: currentColor; -webkit-mask: var(--ic-copy) center / contain no-repeat; mask: var(--ic-copy) center / contain no-repeat; }
+.copy.done::before { -webkit-mask-image: var(--ic-check); mask-image: var(--ic-check); }
+.copy.done { color: var(--text-success); }
+.copy:hover { background: var(--fill-hover); color: var(--ink); }
+.copy:active { background: var(--fill-press); }
+/* text only a screen reader reads */
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* Widen shows two arrows apart, Narrow two arrows together */
+#dwide::before { content: ""; width: 20px; height: 20px; background: currentColor; -webkit-mask: var(--ic-widen) center / contain no-repeat; mask: var(--ic-widen) center / contain no-repeat; }
+.drawer.wide #dwide::before { -webkit-mask-image: var(--ic-narrow); mask-image: var(--ic-narrow); }
 .pop ul { margin: 0; padding-left: 1.2em; display: grid; gap: var(--sp-2); }
 .pop li::marker { color: var(--muted); }
 .pop code { font-size: 0.875em; }
@@ -308,26 +330,44 @@ button.pcell[aria-pressed="true"] { background: var(--fill-brand-weak); border-c
   .pcells { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
 }
 
-/* now lists: rows that open an epic */
-.now { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: var(--sp-6); }
-/* a now list narrower than its rows need, as beside an open drawer, puts
-   each row's count under its title so the title keeps a readable column */
+/* now lists: rows that open an epic. Each list is a full-width section, one
+   per row, so a long title keeps a readable column beside its id */
+.now { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-6); }
 .now > .card { container-type: inline-size; }
-@container (max-width: 380px) { .row { grid-template-columns: auto minmax(0, 1fr); } .row .m { grid-column: 2; white-space: normal; } }
 .list { display: grid; gap: 0; }
-.row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--sp-1) var(--sp-3); align-items: baseline; padding: var(--sp-2) var(--sp-2); margin: 0 calc(-1 * var(--sp-2)); border-radius: var(--r-2); }
+/* id, title and count on one line: the id column is capped and wraps between
+   words, the title takes the rest and never breaks inside a word */
+.row { display: grid; grid-template-columns: fit-content(40%) minmax(0, 1fr) auto; gap: var(--sp-1) var(--sp-3); align-items: baseline; padding: var(--sp-2) var(--sp-2); margin: 0 calc(-1 * var(--sp-2)); border-radius: var(--r-2); }
 .row + .row { border-top: 1px solid var(--line); }
 .list .ogroup { display: flex; align-items: baseline; gap: var(--sp-2); margin: var(--sp-4) 0 var(--sp-1); font: var(--type-label); }
 .list .ogroup:first-of-type { margin-top: 0; }
 .list .ohead { margin: 0; }
-.row .id { font: 400 14px/20px var(--mono); color: var(--muted); }
-.row .t { min-width: 0; overflow-wrap: anywhere; }
+.row .id { min-width: 0; overflow-wrap: break-word; font: 400 14px/20px var(--mono); color: var(--muted); }
+.row .t { min-width: 0; }
 .row .m { font: var(--type-tiny); color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.row .why { grid-column: 2 / 4; font: var(--type-tiny); color: var(--muted); overflow-wrap: anywhere; }
+.row .why { grid-column: 2 / -1; font: var(--type-tiny); color: var(--muted); overflow-wrap: anywhere; }
+/* a choose-one decision's options: each condition beside its own button, 8px
+   between targets, "or" between options, the row's own padding between groups */
+/* a choose-one group's options run inline and wrap, "or" quiet between them */
+.opts { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); }
+.opts .opt { display: inline-flex; align-items: center; gap: var(--sp-2); min-width: 0; max-width: 100%; font: var(--type-small); color: var(--ink); }
+.opts .ot { min-width: 0; max-width: 18ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.opts .or { font: var(--type-tiny); color: var(--muted); }
+/* a list narrower than its rows need, as beside an open drawer or on a phone,
+   puts each row's count under its title, then its title under its id */
+@container (max-width: 560px) { .row { grid-template-columns: fit-content(40%) minmax(0, 1fr); } .row .m { grid-column: 2; white-space: normal; } }
+@container (max-width: 400px) { .row { grid-template-columns: minmax(0, 1fr); } .row .t, .row .m, .row .why { grid-column: 1; } }
+/* a row with no id (a review slice): its phrase on one line, its round beside
+   it, or under it on narrow widths */
+.row.rwide { grid-template-columns: minmax(0, 1fr) auto; }
+.row.rwide .why { grid-column: 1 / -1; }
+@container (max-width: 560px) { .row.rwide { grid-template-columns: minmax(0, 1fr); } .row.rwide .m, .row.rwide .why { grid-column: 1; } }
 .row .id.link, .row button.id { color: var(--accent); }
 
 /* links: brand text, underlined; hover toggles the underline */
-.link { border: 0; background: none; padding: 0; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; text-align: left; }
+.link { position: relative; border: 0; background: none; padding: 0; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; text-align: left; }
+/* a press lands on at least 24 by 24 pixels (WCAG 2.5.8) while the text keeps its line */
+.link::after { content: ""; position: absolute; left: 50%; top: 50%; width: max(100%, 24px); height: max(100%, 24px); transform: translate(-50%, -50%); }
 .link:hover { text-decoration: none; }
 .link:focus-visible { border-radius: 2px; }
 .slink { border: 0; background: none; padding: 0; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; text-align: left; overflow-wrap: anywhere; }
@@ -462,8 +502,8 @@ kbd { display: inline-block; min-width: 1.6em; padding: 0 var(--sp-1); border: 1
 .vpop:popover-open { display: flex; }
 .vpop .gpick { justify-content: space-between; }
 .vpop .chip { justify-content: flex-start; }
-.gcard #gc-q { min-height: var(--ctl-sm); min-width: 14rem; padding: 0 var(--sp-3); border: 1px solid var(--line-strong); border-radius: var(--r-2); background: var(--surface); color: var(--ink); font: var(--type-tiny); }
-.gcard #gc-q::placeholder { color: var(--muted); opacity: 1; }
+.gcard #gc-q, .gcard #tm-q { min-height: var(--ctl-sm); min-width: 14rem; padding: 0 var(--sp-3); border: 1px solid var(--line-strong); border-radius: var(--r-2); background: var(--surface); color: var(--ink); font: var(--type-tiny); }
+.gcard #gc-q::placeholder, .gcard #tm-q::placeholder { color: var(--muted); opacity: 1; }
 .gcard .toolbar { position: relative; }
 .gcount { margin: 0; padding: var(--sp-2) var(--sp-6); border-bottom: 1px solid var(--line); min-height: var(--sp-10); color: var(--muted); }
 .gcanvas { height: min(78vh, 820px); cursor: default; }
@@ -474,9 +514,9 @@ kbd { display: inline-block; min-width: 1.6em; padding: 0 var(--sp-1); border: 1
 .gmsg { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; padding: var(--sp-4); text-align: center; color: var(--muted); }
 .gzoom { position: absolute; right: var(--sp-4); bottom: var(--sp-4); z-index: 2; display: flex; gap: var(--sp-2); }
 .gzoom .key { box-shadow: var(--shadow-raised); }
-#gc-zin, #gc-zout { font-size: 0; }
-#gc-zin::before, #gc-zout::before { content: ""; width: 16px; height: 16px; background: currentColor; -webkit-mask: var(--ic-plus) center / contain no-repeat; mask: var(--ic-plus) center / contain no-repeat; }
-#gc-zout::before { -webkit-mask-image: var(--ic-minus); mask-image: var(--ic-minus); }
+#gc-zin, #gc-zout, #tm-zin, #tm-zout { font-size: 0; }
+#gc-zin::before, #gc-zout::before, #tm-zin::before, #tm-zout::before { content: ""; width: 16px; height: 16px; background: currentColor; -webkit-mask: var(--ic-plus) center / contain no-repeat; mask: var(--ic-plus) center / contain no-repeat; }
+#gc-zout::before, #tm-zout::before { -webkit-mask-image: var(--ic-minus); mask-image: var(--ic-minus); }
 .chaintext { padding: var(--sp-4) var(--sp-6); border-top: 1px solid var(--line); }
 .chaintext summary, .dmore summary, .chaintext .deeper summary { display: flex; align-items: center; gap: var(--sp-2); min-height: var(--ctl-sm); cursor: pointer; list-style: none; font: var(--type-label); color: var(--ink); }
 .chaintext summary::-webkit-details-marker, .dmore summary::-webkit-details-marker { display: none; }
@@ -516,7 +556,7 @@ kbd { display: inline-block; min-width: 1.6em; padding: 0 var(--sp-1); border: 1
 @container (min-width: 1040px) { .gcard .toolbar { column-gap: var(--sp-2); } }
 /* on one line the controls keep their words whole and the search gives way */
 .gcard .toolbar > *, .gcard .toolbar .seg button { flex: none; white-space: nowrap; }
-.gcard .toolbar #gc-q { flex: 1 1 12rem; min-width: 10rem; }
+.gcard .toolbar #gc-q, .gcard .toolbar #tm-q { flex: 1 1 12rem; min-width: 10rem; }
 /* without WebGL2 the card shows its message alone */
 .gcard.nogl .toolbar > :not(h2), .gcard.nogl .legend, .gcard.nogl .gcount { display: none; }
 .gcard.nogl .glegend { display: none; }
@@ -545,8 +585,8 @@ body.mapfs .gcard.fs .toolbar > *, body.mapfs .gcard.fs .toolbar .seg button { f
 /* the search keeps 16rem and gives way to 8rem first; Fit and Exit keep the
    end, whole. Words shorten only on a toolbar measured too wide (.tight, set by
    graph.js), so a toolbar with room keeps every word whole */
-body.mapfs .gcard.fs #gc-full { order: 10; flex-shrink: 0; }
-body.mapfs .gcard.fs #gc-q { flex: 0 1 16rem; min-width: 8rem; }
+body.mapfs .gcard.fs #gc-full, body.mapfs .gcard.fs #tm-full { order: 10; flex-shrink: 0; }
+body.mapfs .gcard.fs #gc-q, body.mapfs .gcard.fs #tm-q { flex: 0 1 16rem; min-width: 8rem; }
 body.mapfs .gcard.fs .toolbar.tight .seg { flex: 0 1 auto; min-width: 0; }
 body.mapfs .gcard.fs .toolbar.tight .seg button { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 @container (max-width: 1240px) { body.mapfs .gcard.fs .toolbar > .gpick > span { display: none; } }
@@ -560,7 +600,7 @@ body.mapfs .gcard.fs .glegend .legend { max-height: none; overflow: visible; }
 @media (max-width: 639px) {
   .gcanvas { height: 62vh; }
   .toolbar { padding: var(--sp-3) var(--sp-4); }
-  .gcard #gc-q { min-width: 0; flex: 1 1 100%; }
+  .gcard #gc-q, .gcard #tm-q { min-width: 0; flex: 1 1 100%; }
   .gcard .toolbar .seg { flex: 1 1 100%; flex-wrap: wrap; }
   .gcard .toolbar .seg button { flex: 1 1 40%; padding: 0 var(--sp-2); }
   .legend, .lgtoggle, .chaintext, .gcount { padding-inline: var(--sp-4); }
@@ -629,6 +669,8 @@ body.mapfs .gcard.fs .glegend .legend { max-height: none; overflow: visible; }
 .stepper li.cur .sn { background: var(--fill-strong); border-color: var(--fill-strong); color: var(--text-inverse-strong); }
 .stepper li.cur.op { box-shadow: inset 0 0 0 2px var(--fill-warning-strong); }
 .stepper li.cur.op .sn { background: var(--fill-warning-strong); border-color: var(--fill-warning-strong); }
+/* a past step a blocker is about (spec-stale on review) rings gold */
+.stepper li.warn { box-shadow: inset 0 0 0 2px var(--fill-warning-strong); }
 .stepper li.todo, .stepper li.skip { background: none; box-shadow: inset 0 0 0 1px var(--line); }
 .stepper li.todo .sl, .stepper li.skip .sl { color: var(--muted); font-weight: 400; }
 @media (max-width: 899px) { .stepper { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
@@ -647,28 +689,41 @@ body.mapfs .gcard.fs .glegend .legend { max-height: none; overflow: visible; }
 .subnav button:active { background: var(--fill-press); }
 .subnav button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--stroke-selected); }
 
-/* the Tasks view: Steps or Board beside the progress and detail panel */
-.tasksview { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 400px); gap: var(--sp-6); align-items: start; }
-@media (max-width: 1023px) { .tasksview { grid-template-columns: minmax(0, 1fr); } .tside { position: static; max-height: none; } }
+/* the Tasks view: a summary strip over the full-width Steps or Board panel; a task's detail opens in the drawer */
+.tasksview { display: grid; gap: var(--sp-4); }
 .tpanel { padding: 0; }
-.tside { position: sticky; top: var(--sp-4); max-height: calc(100vh - var(--sp-8)); overflow: auto; display: grid; gap: var(--sp-6); align-content: start; }
-.tside h4 { font: var(--type-tiny-bold); color: var(--muted); margin: 0 0 var(--sp-2); }
-.tside h3 { font: var(--type-h4); margin-top: var(--sp-1); }
+.tstrip .pv { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); gap: var(--sp-4) var(--sp-8); align-items: start; }
+.pv-main, .pv-mid, .pv-chart { display: grid; gap: var(--sp-2); align-content: start; min-width: 0; }
+.tstrip h4 { font: var(--type-tiny-bold); color: var(--muted); margin: 0; }
+.tstrip .note { margin: 0; }
+.tstrip .burn { height: 48px; }
+@media (max-width: 899px) { .tstrip .pv { grid-template-columns: minmax(0, 1fr); } }
 .dbody dd { margin: 0; min-width: 0; overflow-wrap: anywhere; white-space: pre-line; text-wrap: pretty; }
-.tside dl, .dbody dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--sp-2) var(--sp-4); margin: 0; }
-.tside dt, .dbody dt { color: var(--muted); }
-.tside dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
-.tside dd.ev { white-space: pre-line; }
+.dbody dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--sp-2) var(--sp-4); margin: 0; }
+.dbody dt { color: var(--muted); }
 .stages { position: relative; padding: var(--sp-4) var(--sp-6) var(--sp-6); display: grid; gap: var(--sp-6); }
 .stages.board { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-3); align-items: start; }
 @media (max-width: 699px) { .stages.board { grid-template-columns: minmax(0, 1fr); } .stages { padding: var(--sp-3) var(--sp-4) var(--sp-4); } }
-.wires { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
-.wires path { fill: none; stroke: var(--line-strong); stroke-width: 1.2; }
-.wires path.on { stroke: var(--fill-strong); stroke-width: 2; }
-.step { position: relative; display: grid; gap: var(--sp-2); }
+.step { display: grid; gap: var(--sp-3); }
+/* the Steps view, drawn by deck.gl (taskgraph.js). A spacer as tall as the drawing scrolls with the page while the canvas sticks to the window, so the page's
+   scroll is the graph's vertical pan; a vertical swipe stays the page's (pan-y). Steps is laid out unseen in .tgmeasure, at this width, and measured. */
+.stages.graph { display: block; padding: 0; }
+.tgraph { position: relative; }
+.tgspacer { position: relative; }
+.tgcanvas { position: sticky; top: 0; overflow: hidden; cursor: grab; touch-action: pan-y; overscroll-behavior-x: none; }
+.tgcanvas canvas { outline: none; }
+.tgmeasure { position: absolute; left: 0; top: 0; width: 100%; visibility: hidden; pointer-events: none; }
+/* the Map view: the epic map's card (graph.js, makeTaskMap) inside the Tasks panel, which draws its edge and corners */
+.tpanel .tmcard { border: 0; border-radius: 0; box-shadow: none; }
+.tglist { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); margin: 0; padding: 0; list-style: none; }
+.tglist:focus-within { position: static; width: auto; height: auto; overflow: visible; clip-path: none; display: grid; gap: var(--sp-1); margin-top: var(--sp-3); }
+.tglist button { width: 100%; min-height: var(--sp-6); padding: var(--sp-1) var(--sp-2); border: 0; border-radius: var(--r-1); background: transparent; color: var(--ink); font: var(--type-tiny); text-align: left; }
+.tglist button:hover { background: var(--fill-hover); }
+.tglist button[aria-pressed="true"] { background: var(--fill-selected); color: var(--text-inverse-strong); }
 .step-h { display: flex; align-items: baseline; gap: var(--sp-2); font: var(--type-tiny); color: var(--muted); }
 .step-h b { font: var(--type-tiny-bold); color: var(--ink); }
-.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: var(--sp-3); }
+/* the gaps between cards are where the graph's edges run */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: var(--sp-4) var(--sp-6); }
 .bcol { display: grid; gap: var(--sp-2); align-content: start; min-width: 0; background: var(--fill-weak); border-radius: var(--r-3); padding: var(--sp-3); }
 .bcol .step-h { justify-content: space-between; }
 .bcards { display: grid; gap: var(--sp-2); }
@@ -678,13 +733,15 @@ body.mapfs .gcard.fs .glegend .legend { max-height: none; overflow: visible; }
 .tcard[data-s="wip"] { --c: var(--icon-information); }
 .tcard[data-s="waits_on_task"] { --c: var(--icon-neutral); border-style: dashed; border-left-style: solid; box-shadow: none; }
 .tcard[data-s="waits_on_epic"] { --c: var(--icon-warning); border-style: dashed; border-left-style: solid; box-shadow: none; }
-.tcard[data-s="done"] { --c: var(--icon-success); background: var(--fill-weak); box-shadow: none; border-color: var(--line); }
+.tcard[data-s="done"] { --c: var(--icon-success); background: linear-gradient(var(--fill-weak), var(--fill-weak)) var(--surface); box-shadow: none; border-color: var(--line); }
 .tcard .tt { display: flex; gap: var(--sp-2); align-items: flex-start; font: var(--type-tiny-bold); }
 .tcard .tt .ic { margin-top: 2px; color: var(--c); }
 .tcard .tid { font: 400 14px/20px var(--mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tcard .tm { font: var(--type-tiny); color: var(--muted); }
 .tcard:hover { background-image: linear-gradient(var(--fill-hover), var(--fill-hover)); }
 .tcard:active { background-image: linear-gradient(var(--fill-press), var(--fill-press)); }
+.tcard[data-s="done"]:hover { background-image: linear-gradient(var(--fill-hover), var(--fill-hover)), linear-gradient(var(--fill-weak), var(--fill-weak)); }
+.tcard[data-s="done"]:active { background-image: linear-gradient(var(--fill-press), var(--fill-press)), linear-gradient(var(--fill-weak), var(--fill-weak)); }
 .tcard[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--stroke-selected); }
 .tcard.dim { opacity: 0.4; }
 .pv { display: grid; gap: var(--sp-3); }
@@ -755,16 +812,24 @@ body.mapfs .gcard.fs .glegend .legend { max-height: none; overflow: visible; }
 .elist small { display: block; color: var(--muted); font: var(--type-tiny); }
 /* the drawer slides in from the right over a dimmed page, which keeps its width */
 :root { --drawer-w: min(480px, 100%); --drawer-h: 60vh; }
-body.dopen:not([data-tab="epics"]) { padding: 0; }
+body.dopen:not([data-tab="epics"]):not([data-tab="work"]) { padding: 0; }
 .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: var(--drawer-w); z-index: var(--z-modal); background: var(--overlay); border-left: 1px solid var(--line); display: flex; flex-direction: column; box-shadow: var(--shadow-overlay); animation: drawer-in var(--dur-short) var(--ease-out); }
 @keyframes drawer-in { from { transform: translateX(32px); opacity: 0; } }
-.drawer[hidden], body:not([data-tab="epics"]) .drawer { display: none; }
+.drawer[hidden], body:not([data-tab="epics"]):not([data-tab="work"]) .drawer { display: none; }
 .scrim { position: fixed; inset: 0; z-index: calc(var(--z-modal) - 1); background: var(--fill-overlay); animation: scrim-in var(--dur-short) var(--ease-out); }
 @keyframes scrim-in { from { opacity: 0; } }
-.scrim[hidden], body:not([data-tab="epics"]) .scrim { display: none; }
+.scrim[hidden], body:not([data-tab="epics"]):not([data-tab="work"]) .scrim { display: none; }
 .dhead { display: flex; gap: var(--sp-2); align-items: center; padding: var(--sp-3) var(--sp-4) var(--sp-3) var(--sp-6); border-bottom: 1px solid var(--line); min-height: 56px; }
 .dhead .k { font: var(--type-tiny-bold); color: var(--muted); }
 .dbody { overflow: auto; padding: var(--sp-6) var(--sp-6) var(--sp-12); display: grid; gap: var(--sp-8); align-content: start; }
+.dmain, .dside { display: grid; gap: var(--sp-8); align-content: start; min-width: 0; }
+/* Large: most of the viewport, the description, fields and Acceptance in a
+   40rem column in the body type (about 60 to 65 characters a line), the
+   specs, dependencies and history beside them. */
+.drawer.wide { width: min(1200px, calc(100vw - var(--sp-16))); }
+.drawer.wide .dbody { grid-template-columns: minmax(0, 40rem) minmax(0, 1fr); column-gap: var(--sp-12); }
+.drawer.wide .ddesc { font: var(--type-body); }
+@media (max-width: 900px) { #dwide { display: none; } .drawer.wide { width: var(--drawer-w); } .drawer.wide .dbody { grid-template-columns: minmax(0, 1fr); } }
 .dbody h3 { font: var(--type-h4); text-wrap: balance; margin-top: var(--sp-1); }
 .dbody h4 { display: flex; align-items: center; gap: var(--sp-2); font: var(--type-label); margin: 0 0 var(--sp-3); }
 .dbody h5 { font: var(--type-tiny-bold); color: var(--muted); margin: 0 0 var(--sp-1); overflow-wrap: anywhere; }
@@ -808,10 +873,9 @@ body.dopen:not([data-tab="epics"]) { padding: 0; }
 .ehr > li > b { display: block; font: var(--type-tiny-bold); }
 .esub { color: var(--muted); font: var(--type-tiny); }
 @media (max-width: 767px) {
-  /* a phone keeps the bottom sheet, which takes its height from below */
+  /* a phone keeps the bottom sheet, which takes its height from below, over the same dimmed page */
   .drawer { top: auto; height: var(--drawer-h); width: 100%; border-left: 0; border-top: 1px solid var(--line); border-radius: var(--r-4) var(--r-4) 0 0; animation-name: sheet-in; }
   @keyframes sheet-in { from { transform: translateY(32px); opacity: 0; } }
-  .scrim { display: none; }
   body.dopen { padding-right: 0; padding-bottom: var(--drawer-h); }
   body.mapfs.dopen .card.fs { right: 0; bottom: var(--drawer-h); }
   .dbody { padding: var(--sp-4) var(--sp-4) var(--sp-8); gap: var(--sp-6); }

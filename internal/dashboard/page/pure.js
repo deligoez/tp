@@ -172,6 +172,37 @@
     return st;
   };
 
+  // drawerKind is what the one drawer shows for the page's place st: a task
+  // while its spec's Tasks view is open, an epic or else a milestone on the
+  // Epics tab, otherwise nothing.
+  P.drawerKind = function (st) {
+    if (st.tab === "work") return st.view === "tasks" && st.task ? "task" : null;
+    if (st.tab !== "epics") return null;
+    if (st.epic) return "epic";
+    return st.milestone ? "milestone" : null;
+  };
+
+  // taskView is the Tasks view an address names: Board, or else Steps, the
+  // graph, which an old link's tview=graph meant.
+  P.taskView = function (v) {
+    return v === "board" || v === "map" ? v : "steps";
+  };
+
+  // TASK_MAP_MARK is the epic map's mark for each task state, so the Map
+  // draws a task in the colour the epic map draws an epic in that state.
+  P.TASK_MAP_MARK = { done: "done", wip: "in_progress", ready: "ready", waits_on_task: "waiting", waits_on_epic: "held" };
+  // taskMapMarks is each task's mark and title by id, over steps, the tasks
+  // grouped as the Steps view groups them, for the Map, whose places come
+  // from /api/layout?view=tasks: the epic map's mark for its state, ready
+  // for a state it has none for.
+  P.taskMapMarks = function (steps) {
+    const out = {};
+    steps.forEach((ts) => (ts || []).forEach((task) => {
+      out[task.id] = { mark: P.TASK_MAP_MARK[task.state] || "ready", title: task.title || "" };
+    }));
+    return out;
+  };
+
   // cardExpanded says whether milestone id's card reads expanded: while its
   // milestone is the one the drawer shows.
   P.cardExpanded = function (st, id) {
@@ -542,6 +573,19 @@
   // box in CSS pixels by the factor it raises dpr, so it does not refit and
   // the graph zooms with the page; refitting kept the drawing's size while
   // the labels in pixels grew. The first size always fits.
+  // revealShift is how far a view over viewLo..viewHi moves, in the same
+  // units, to show the span lo..hi at least pad inside it: 0 when it shows
+  // already, the least move that brings it in when it does not, and the
+  // span centred when it is wider than the view's room.
+  P.revealShift = function (lo, hi, viewLo, viewHi, pad) {
+    const from = viewLo + pad;
+    const to = viewHi - pad;
+    if (hi - lo > to - from) return (lo + hi) / 2 - (viewLo + viewHi) / 2;
+    if (lo < from) return lo - from;
+    if (hi > to) return hi - to;
+    return 0;
+  };
+
   P.resizeRefits = function (prev, next) {
     if (!prev) return true;
     const tol = Math.max(prev.dpr, next.dpr);
@@ -557,6 +601,25 @@
     const z = Array.isArray(vs.zoom) ? vs.zoom[0] : vs.zoom;
     const t = vs.target || [0, 0, 0];
     return { target: [t[0], t[1], t[2] || 0], zoom: z, minZoom: -8, maxZoom: 3 };
+  };
+
+  // zoomCamera is camera vs (as cameraOf takes it) zoomed by dz about the
+  // screen point (px, py) from the canvas's centre, so the world point under
+  // it stays there; the one path every zoom takes, pinch, wheel and keys.
+  P.zoomCamera = function (vs, dz, px, py) {
+    const v = P.cameraOf(vs);
+    const z = Math.min(v.maxZoom, Math.max(v.minZoom, v.zoom + dz));
+    const s0 = Math.pow(2, v.zoom);
+    const s1 = Math.pow(2, z);
+    const wx = v.target[0] + px / s0;
+    const wy = v.target[1] + py / s0;
+    return P.cameraOf({ zoom: z, target: [wx - px / s1, wy - py / s1, 0] });
+  };
+
+  // onScreen is how many screen pixels size world units draw at under camera
+  // vs: cards and their text alike, by the one zoom cameraOf leaves.
+  P.onScreen = function (vs, size) {
+    return size * Math.pow(2, P.cameraOf(vs).zoom);
   };
 
   // pillTight says whether the full-screen toolbar, measured with its words
@@ -972,6 +1035,68 @@
     if (i < 0) return null;
     return Math.min(i, P.OWNER_SLOTS);
   };
+  // idWords is a text's letters and digits only, lower case with Turkish
+  // casing and its marks dropped: "L1 Tetiği" and "l1-tetigi" read the same.
+  const idWords = (s) => String(s || "").toLocaleLowerCase("tr").normalize("NFD").replace(/\p{M}/gu, "").replace(/ı/g, "i").replace(/[^a-z0-9]/g, "");
+  // optionTitle is a choose-one option's title when it says more than its
+  // id, else "": an empty title, or one that is the id's words again.
+  P.optionTitle = function (id, title) {
+    const w = idWords(title);
+    return w && w !== idWords(id) ? title : "";
+  };
+  // onlySpec is the path of a project's one task file, which the Spec tab
+  // opens when nothing is open; none or several give null.
+  P.onlySpec = function (files) {
+    return files && files.length === 1 ? files[0].path : null;
+  };
+  // drawerWide says whether the drawer opens wide from the viewer's stored
+  // choice: only a stored "wide" does; nothing stored keeps it narrow.
+  P.drawerWide = function (stored) {
+    return stored === "wide";
+  };
+  // TP_COMMAND matches a tp command written out: tp, a space, a word.
+  const TP_COMMAND = /\btp [a-z]/;
+  // blockerText is a blocker's code (tp resume, tp export --list) as plain
+  // words in t's language through table, each code's key; a code the table
+  // lacks reads as the generic "waits on the operator". The code itself is
+  // never what a person reads.
+  P.blockerText = function (code, table, t) {
+    return t(table[code] || "blocker.code.other");
+  };
+  // BLOCKER_STEP is the loop step each escalation stops, as
+  // internal/engine/resumeblockers.go raises it: no-ready-task (implement
+  // with no ready task) and epic-blocked (implement, no wip task) stop
+  // implement; review-carried-blocking and review-budget-exhausted stand in
+  // review only, audit-budget-exhausted in audit only. spec-stale stands in
+  // implement and audit but refuses only a new review round, so it is the
+  // review loop's: implementation goes on.
+  const BLOCKER_STEP = { "no-ready-task": "implement", "epic-blocked": "implement", "review-carried-blocking": "review",
+    "review-budget-exhausted": "review", "audit-budget-exhausted": "audit", "spec-stale": "review" };
+  // blockerStep is the step a blocker's code stops; a code this page does
+  // not know stops the step it stands in, phase.
+  P.blockerStep = function (code, phase) {
+    return BLOCKER_STEP[code] || phase;
+  };
+  // blockerKey is the text key of a blocker: spec-stale at the review cap,
+  // where the next round is the operator's raise-review-cap, reads as its
+  // own; every other blocker as its code.
+  P.blockerKey = function (b) {
+    const op = (b && b.data && b.data.operator) || {};
+    return b.code === "spec-stale" && op.decision === "raise-review-cap" ? "spec-stale-at-cap" : b.code;
+  };
+  // plainStep is engine prose a person may read as it is, or fallback when
+  // it is empty or carries a tp command (CLAUDE.md rule 14): a command sits
+  // behind a Copy command button or a tooltip, never in plain view.
+  P.plainStep = function (text, fallback) {
+    return text && !TP_COMMAND.test(text) ? text : fallback;
+  };
+  // blockerCommands are the commands an escalation names: the operator's,
+  // when the decision is theirs, else the agent's; none when it names none.
+  P.blockerCommands = function (b) {
+    const d = (b && b.data) || {};
+    const op = (d.operator && d.operator.commands) || [];
+    return op.length ? op : d.commands || [];
+  };
   // ownerSelected says whether an epic whose owner list is owner passes the
   // map's owner selection sel: undefined keeps every epic, null the unowned
   // (ownerless), a handle the epics naming it while owners declares it.
@@ -1062,6 +1187,48 @@
   P.ownerSelKey = function (sel) {
     if (sel === undefined) return "a";
     return sel === null ? "u" : "h:" + sel;
+  };
+
+  // ---------- the task graph (the Tasks view's Graph, drawn with deck.gl) ----------
+  // Its layout is the Steps panel's own, measured off the page (taskgraph.js).
+
+  // taskChain is a task's chain: every task it waits on however far up, and
+  // every task that waits on it however far down, each sorted; the task
+  // itself is in neither.
+  P.taskChain = function (tasks, id) {
+    const up = {};
+    const down = {};
+    (tasks || []).forEach((t) => {
+      up[t.id] = (t.depends_on || []).slice();
+      (t.depends_on || []).forEach((x) => { (down[x] = down[x] || []).push(t.id); });
+    });
+    const walk = (next) => {
+      const seen = new Set();
+      const todo = (next[id] || []).slice();
+      while (todo.length) {
+        const k = todo.pop();
+        if (seen.has(k) || k === id || !up[k]) continue;
+        seen.add(k);
+        (next[k] || []).forEach((x) => todo.push(x));
+      }
+      return [...seen].sort();
+    };
+    return { up: walk(up), down: walk(down) };
+  };
+
+  // vcurve is an edge from (x0, y0) down to (x1, y1) as n + 1 points of a
+  // cubic whose tangents are vertical at both ends, so it leaves a node's
+  // bottom and enters the next one's top straight.
+  P.vcurve = function (x0, y0, x1, y1, n) {
+    const dy = Math.max(24, y1 - y0) * 0.5;
+    const out = [];
+    for (let i = 0; i <= n; i++) {
+      const t = i / n;
+      const u = 1 - t;
+      out.push([u * u * u * x0 + 3 * u * u * t * x0 + 3 * u * t * t * x1 + t * t * t * x1,
+        u * u * u * y0 + 3 * u * u * t * (y0 + dy) + 3 * u * t * t * (y1 - dy) + t * t * t * y1]);
+    }
+    return out;
   };
 
   if (typeof module === "object" && module.exports) module.exports = P;
