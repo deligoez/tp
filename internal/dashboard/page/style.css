@@ -502,8 +502,8 @@ kbd { display: inline-block; min-width: 1.6em; padding: 0 var(--sp-1); border: 1
 .vpop:popover-open { display: flex; }
 .vpop .gpick { justify-content: space-between; }
 .vpop .chip { justify-content: flex-start; }
-.gcard #gc-q { min-height: var(--ctl-sm); min-width: 14rem; padding: 0 var(--sp-3); border: 1px solid var(--line-strong); border-radius: var(--r-2); background: var(--surface); color: var(--ink); font: var(--type-tiny); }
-.gcard #gc-q::placeholder { color: var(--muted); opacity: 1; }
+.gcard #gc-q, .gcard #tm-q { min-height: var(--ctl-sm); min-width: 14rem; padding: 0 var(--sp-3); border: 1px solid var(--line-strong); border-radius: var(--r-2); background: var(--surface); color: var(--ink); font: var(--type-tiny); }
+.gcard #gc-q::placeholder, .gcard #tm-q::placeholder { color: var(--muted); opacity: 1; }
 .gcard .toolbar { position: relative; }
 .gcount { margin: 0; padding: var(--sp-2) var(--sp-6); border-bottom: 1px solid var(--line); min-height: var(--sp-10); color: var(--muted); }
 .gcanvas { height: min(78vh, 820px); cursor: default; }
@@ -556,7 +556,7 @@ kbd { display: inline-block; min-width: 1.6em; padding: 0 var(--sp-1); border: 1
 @container (min-width: 1040px) { .gcard .toolbar { column-gap: var(--sp-2); } }
 /* on one line the controls keep their words whole and the search gives way */
 .gcard .toolbar > *, .gcard .toolbar .seg button { flex: none; white-space: nowrap; }
-.gcard .toolbar #gc-q { flex: 1 1 12rem; min-width: 10rem; }
+.gcard .toolbar #gc-q, .gcard .toolbar #tm-q { flex: 1 1 12rem; min-width: 10rem; }
 /* without WebGL2 the card shows its message alone */
 .gcard.nogl .toolbar > :not(h2), .gcard.nogl .legend, .gcard.nogl .gcount { display: none; }
 .gcard.nogl .glegend { display: none; }
@@ -585,8 +585,8 @@ body.mapfs .gcard.fs .toolbar > *, body.mapfs .gcard.fs .toolbar .seg button { f
 /* the search keeps 16rem and gives way to 8rem first; Fit and Exit keep the
    end, whole. Words shorten only on a toolbar measured too wide (.tight, set by
    graph.js), so a toolbar with room keeps every word whole */
-body.mapfs .gcard.fs #gc-full { order: 10; flex-shrink: 0; }
-body.mapfs .gcard.fs #gc-q { flex: 0 1 16rem; min-width: 8rem; }
+body.mapfs .gcard.fs #gc-full, body.mapfs .gcard.fs #tm-full { order: 10; flex-shrink: 0; }
+body.mapfs .gcard.fs #gc-q, body.mapfs .gcard.fs #tm-q { flex: 0 1 16rem; min-width: 8rem; }
 body.mapfs .gcard.fs .toolbar.tight .seg { flex: 0 1 auto; min-width: 0; }
 body.mapfs .gcard.fs .toolbar.tight .seg button { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 @container (max-width: 1240px) { body.mapfs .gcard.fs .toolbar > .gpick > span { display: none; } }
@@ -600,7 +600,7 @@ body.mapfs .gcard.fs .glegend .legend { max-height: none; overflow: visible; }
 @media (max-width: 639px) {
   .gcanvas { height: 62vh; }
   .toolbar { padding: var(--sp-3) var(--sp-4); }
-  .gcard #gc-q { min-width: 0; flex: 1 1 100%; }
+  .gcard #gc-q, .gcard #tm-q { min-width: 0; flex: 1 1 100%; }
   .gcard .toolbar .seg { flex: 1 1 100%; flex-wrap: wrap; }
   .gcard .toolbar .seg button { flex: 1 1 40%; padding: 0 var(--sp-2); }
   .legend, .lgtoggle, .chaintext, .gcount { padding-inline: var(--sp-4); }
@@ -713,6 +713,8 @@ body.mapfs .gcard.fs .glegend .legend { max-height: none; overflow: visible; }
 .tgcanvas { position: sticky; top: 0; overflow: hidden; cursor: grab; touch-action: pan-y; overscroll-behavior-x: none; }
 .tgcanvas canvas { outline: none; }
 .tgmeasure { position: absolute; left: 0; top: 0; width: 100%; visibility: hidden; pointer-events: none; }
+/* the Map view: the epic map's card (graph.js, makeTaskMap) inside the Tasks panel, which draws its edge and corners */
+.tpanel .tmcard { border: 0; border-radius: 0; box-shadow: none; }
 .tglist { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); margin: 0; padding: 0; list-style: none; }
 .tglist:focus-within { position: static; width: auto; height: auto; overflow: visible; clip-path: none; display: grid; gap: var(--sp-1); margin-top: var(--sp-3); }
 .tglist button { width: 100%; min-height: var(--sp-6); padding: var(--sp-1) var(--sp-2); border: 0; border-radius: var(--r-1); background: transparent; color: var(--ink); font: var(--type-tiny); text-align: left; }

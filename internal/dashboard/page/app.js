@@ -2087,13 +2087,13 @@
       "</b><span>" + esc(i ? t("tasks.afterStep", { n: i }) : t("tasks.noneBefore")) + '</span></div><div class="cards">' + g.map((task) => taskCard(task, ix)).join("") + "</div></div>").join("");
   }
 
-  // graphHTML is the Steps view's slot, which taskgraph.js fills with its
-  // canvas, and the tasks as a list for the keyboard and the screen reader,
-  // visually hidden until it takes focus.
-  function graphHTML(d) {
+  // graphHTML is the Steps or Map view's slot, which taskgraph.js or the
+  // task map (graph.js) fills with its canvas, and the tasks as a list for
+  // the keyboard and the screen reader, visually hidden until it takes focus.
+  function graphHTML(d, slot) {
     const item = (task) => '<li><button type="button" data-t="' + esc(task.id) + '" aria-pressed="' + (task.id === work.task) + '">' + esc(task.title) + " (" + esc(task.id) + "), " +
       esc(word(TASK_LABEL, task.state)) + ((task.depends_on || []).length ? ", " + esc(t("task.after", { ids: task.depends_on.join(", ") })) : "") + "</button></li>";
-    return '<div id="tg-slot"></div><ul class="tglist" aria-label="' + esc(t("tasks.graphList")) + '">' + (d.tasks || []).map(item).join("") + "</ul>";
+    return '<div id="' + slot + '"></div><ul class="tglist" aria-label="' + esc(t("tasks.graphList")) + '">' + (d.tasks || []).map(item).join("") + "</ul>";
   }
 
   function boardHTML(d, ix) {
@@ -2213,10 +2213,10 @@
       (src ? "<div><h4>" + esc(t("task.fromSpec")) + "</h4>" + src + "</div>" : "") + "</div>";
   }
 
-  // stagesHTML is the Tasks view's body in the view picked: Board, or Steps,
-  // the graph.
+  // stagesHTML is the Tasks view's body in the view picked: Board, Steps,
+  // the graph, or Map, the epic map's card over the tasks.
   function stagesHTML(d, ix) {
-    return work.tview === "board" ? boardHTML(d, ix) : graphHTML(d);
+    return work.tview === "board" ? boardHTML(d, ix) : graphHTML(d, work.tview === "map" ? "tm-slot" : "tg-slot");
   }
 
   function drawTasks(d) {
@@ -2231,13 +2231,16 @@
     const chip = sec ? '<span class="secchip">' + esc(t("tasks.fromSection", { n: work.secIds.size })) + ' <button type="button" class="link" data-goto="' + esc(work.sec) + '">' + esc(sec.anchor + " " + secTitle(sec)) + "</button>" +
       '<button type="button" class="key secx" data-secclear aria-label="' + esc(t("tasks.showAll")) + '"></button></span>' : "";
     // The summary is a strip above the panel, which takes the full width; a
-    // task's detail opens in the drawer (drawDrawer).
+    // task's detail opens in the drawer (drawDrawer). The Map's card goes
+    // home first, so the redraw does not take its canvas with it.
+    if (window.tpTaskMap) window.tpTaskMap.park();
     $("sv-tasks").innerHTML = '<section class="panel tstrip" aria-label="' + esc(t("tasks.summary")) + '">' + progressHTML(d) + "</section>" +
       '<section class="panel tpanel"><div class="toolbar"><h2>' + esc(t("spec.view.tasks")) + " " + info("tasks", t("spec.view.tasks")) + "</h2>" + chip + '<span class="spacer"></span>' +
-      '<div class="seg" role="group" aria-label="' + esc(t("tasks.view")) + '">' + tview("steps", tk("tasks.steps")) + tview("board", tk("tasks.board")) + "</div></div>" +
+      '<div class="seg" role="group" aria-label="' + esc(t("tasks.view")) + '">' + tview("steps", tk("tasks.steps")) + tview("map", tk("tasks.map")) + tview("board", tk("tasks.board")) + "</div></div>" +
       '<div class="stages ' + (work.tview === "board" ? "board" : "graph") + '" id="stages">' + (tasks.length ? stagesHTML(d, ix) : none(t("progress.noTasks"))) + "</div>" +
       '<div class="legend">' + ["ready", "wip", "waits_on_task", "waits_on_epic", "done"].map((s) => '<span><i class="lg" data-s="' + s + '"></i>' + esc(word(TASK_LABEL, s)) + "</span>").join("") + "</div></section>";
     if (work.tview === "steps" && tasks.length && window.tpTaskGraph) window.tpTaskGraph.show(d, work.task);
+    if (work.tview === "map" && tasks.length && window.tpTaskMap) window.tpTaskMap.show($("tm-slot"), d, work.task);
     if (focused) {
       const id = CSS.escape(focused.dataset.t);
       const again = $("sv-tasks").querySelector('.tcard[data-t="' + id + '"], .tglist [data-t="' + id + '"]');
@@ -2470,6 +2473,18 @@
       drawWork();
     },
     taskWord: (s) => word(TASK_LABEL, s),
+    // The Map (graph.js, makeTaskMap) reads the picked task and picks one
+    // without the toggle, keeping focus in its search when asked, and lays
+    // the spec's steps out itself.
+    pickedTask: () => work.task,
+    selectTask: (id, keepFocus) => {
+      noteOpener();
+      work.task = id;
+      keepFocusOnce = !!keepFocus;
+      drawWork();
+      keepFocusOnce = false;
+    },
+    taskSteps: (d) => stepsOf(d, taskIndex(d)),
     // The Graph draws the Steps layout itself: its markup, laid out and
     // measured (stepsBoxes).
     stepsMarkup: (d) => stepsHTML(d, taskIndex(d)),

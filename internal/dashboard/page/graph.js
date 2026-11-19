@@ -15,6 +15,8 @@
   const pure = window.tpPure;
   if (!app || !pure) return;
   const DECK_SRC = "vendor/deckgl-9.3.12.min.js";
+  // tk marks a string as a key of i18n/<lang>.json, worded where it is drawn.
+  const tk = (key) => key;
 
   // ---------- loading deck.gl, once and lazily ----------
   function hasWebGL2() {
@@ -71,7 +73,6 @@
   // card writes is a key of i18n/<lang>.json; tk marks a key a table holds.
   // EDGE_TEXT is each edge class's legend key.
   const t = (key, params) => app.tr()(key, params);
-  const tk = (key) => key;
   const EDGE_TEXT = { tree: tk("graph.edge.tree"), cross: tk("graph.edge.cross"), back: tk("graph.edge.back"), critical: tk("graph.edge.critical"), any: tk("graph.edge.any") };
   const milestoneLabel = (n) => n.id + "  " + n.done + "/" + n.epics;
   const milestoneTitle = (n) => t("graph.msTitle", { state: n.open ? t("ms.open") : t("ms.closed"), done: n.done, n: n.epics, in: n.inbound });
@@ -844,6 +845,23 @@
 
   // ---------- the toolbar and legend ----------
   function drawToolbar(g) {
+    // The task map has no modes, pickers or owners: its View menu holds
+    // Cross edges alone.
+    const owned = epics ? drawPickers(g) : false;
+    $("gc-cross").setAttribute("aria-pressed", String(pure.crossShown(G)));
+    // The View button's badge counts the settings away from their default,
+    // so a filter the closed menu hides still shows on the toolbar.
+    const changed = pure.viewChanged(G, owned);
+    $("gc-viewn").hidden = changed === 0;
+    $("gc-viewn").firstChild.textContent = app.tr().num(changed);
+    $("gc-viewn").lastChild.textContent = t("graph.viewChanged", { n: changed });
+    // The search's placeholder names what it finds in this mode.
+    $("gc-q").placeholder = t(cfg.searchKey || (G.mode === "milestones" ? tk("graph.searchMilestone") : tk("graph.search")));
+    if ($("gc-q").value !== G.q && document.activeElement !== $("gc-q")) $("gc-q").value = G.q;
+  }
+  // drawPickers draws the epic map's mode buttons, milestone and depth
+  // pickers and owner controls, and says whether the owner controls show.
+  function drawPickers(g) {
     card.querySelectorAll("[data-gmode]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.gmode === G.mode)));
     $("gc-ms-pick").hidden = G.mode !== "scope";
     $("gc-depth-pick").hidden = G.mode !== "neighbourhood";
@@ -866,16 +884,7 @@
       $("gc-owner").innerHTML = pure.ownerOptionsHTML(ownersOf(g), G.ownerSel, app.tr());
       $("gc-ocolour").setAttribute("aria-pressed", String(G.ownerColour));
     }
-    $("gc-cross").setAttribute("aria-pressed", String(pure.crossShown(G)));
-    // The View button's badge counts the settings away from their default,
-    // so a filter the closed menu hides still shows on the toolbar.
-    const changed = pure.viewChanged(G, owned);
-    $("gc-viewn").hidden = changed === 0;
-    $("gc-viewn").firstChild.textContent = app.tr().num(changed);
-    $("gc-viewn").lastChild.textContent = t("graph.viewChanged", { n: changed });
-    // The search's placeholder names what it finds in this mode.
-    $("gc-q").placeholder = t(cfg.searchKey || (G.mode === "milestones" ? tk("graph.searchMilestone") : tk("graph.search")));
-    if ($("gc-q").value !== G.q && document.activeElement !== $("gc-q")) $("gc-q").value = G.q;
+    return owned;
   }
   function drawLegend() {
     const P = G.prepared;
@@ -917,12 +926,12 @@
       (lg.other ? sw(pure.OWNER_SLOTS, t("graph.legend.other", { n: lg.other.owners }), lg.other.n) : "") +
       (lg.unowned ? sw(pure.OWNER_SLOTS + 1, t("graph.owner.unowned"), lg.unowned) : "");
   }
-  $("gc-owner").addEventListener("change", (ev) => {
+  if (epics) $("gc-owner").addEventListener("change", (ev) => {
     G.ownerSel = pure.ownerSel(ev.target.value, ownersOf(app.data("epic-export")));
     drawToolbar(app.data("epic-export") || {});
     render();
   });
-  $("gc-ocolour").addEventListener("click", () => {
+  if (epics) $("gc-ocolour").addEventListener("click", () => {
     G.ownerColour = !G.ownerColour;
     drawToolbar(app.data("epic-export") || {});
     drawLegend();
@@ -952,8 +961,10 @@
     const b = ev.target.closest("[data-gmode]");
     if (b) setPlace({ mode: b.dataset.gmode });
   });
-  $("gc-ms").addEventListener("change", (ev) => setPlace({ mode: "scope", milestone: ev.target.value }));
-  $("gc-depth").addEventListener("change", (ev) => setPlace({ depth: Number(ev.target.value) }));
+  if (epics) {
+    $("gc-ms").addEventListener("change", (ev) => setPlace({ mode: "scope", milestone: ev.target.value }));
+    $("gc-depth").addEventListener("change", (ev) => setPlace({ depth: Number(ev.target.value) }));
+  }
   // toggleCross shows or hides the plain cross edges in every mode, drawn
   // until hidden, the hidden state kept in the address (cross=0).
   function toggleCross() {
@@ -1009,6 +1020,8 @@
   new ResizeObserver(() => {
     const box = $("gc-canvas");
     const next = { w: box.clientWidth, h: box.clientHeight, dpr: window.devicePixelRatio || 1 };
+    // A card put away (the task map off its view) has no size to fit to.
+    if (!next.w || !next.h) return;
     const refit = pure.resizeRefits(boxSize, next);
     boxSize = next;
     if (refit && G.prepared && G.deck && G.atFit) fit();
@@ -1211,4 +1224,74 @@
 
   // The epic map, on the Epics tab.
   window.tpGraph = makeCard({ kind: "epics", app, root: document, prefix: "gc-", card: document.getElementById("graphcard") });
+
+  // ---------- the task map: the Tasks view's Map ----------
+  // makeTaskMap is the same card over the open spec's tasks, a band per step
+  // (tpPure.taskMapLayout). The card waits at home (#tm-home) and the Tasks
+  // view moves it into its slot each time it draws the Map (show), and home
+  // again before it redraws (park), so its canvas and camera live on. face
+  // is the page as this card sees it: the spec for data, the picked task for
+  // the selection, the task words for the marks.
+  function makeTaskMap() {
+    const card = document.getElementById("taskmap");
+    if (!card) return null;
+    const S = { d: null, draw: null, sel: undefined, centre: null, focused: null };
+    const STATE_OF = {};
+    Object.entries(pure.TASK_MAP_MARK).forEach(([state, mark]) => { STATE_OF[mark] = state; });
+    const word = (mark) => app.taskWord(STATE_OF[mark] || "ready");
+    const face = {
+      data: () => S.d,
+      panel: (_, draw) => { S.draw = draw; },
+      fold: app.fold, syncURL: app.syncURL, viewMenuOpen: app.viewMenuOpen, tr: app.tr,
+      // Tasks have no lifecycle stage to filter by.
+      stage: () => null,
+      inStage: () => true,
+      selected: () => app.pickedTask(),
+      // A pick on the canvas or by the search is already in view; one made
+      // anywhere else is centred when the Map next draws (show).
+      selectEpic: (id, centre, keepFocus) => {
+        S.centre = { id: id || null, centre: !!centre };
+        app.selectTask(id || null, !!keepFocus);
+      },
+      markWord: word,
+      markText: (m) => word(m.mark),
+    };
+    // The columns follow the canvas's width, and the step label the page's
+    // language, so either lays the map out again.
+    const columns = () => Math.max(3, Math.floor((card.querySelector("#tm-canvas").clientWidth - 48) / GEO_TASK_COL));
+    const stepLabel = (k) => app.tr()("tasks.step", { n: k + 1 });
+    const M = makeCard({ kind: "tasks", app: face, root: card, prefix: "tm-", card, searchKey: tk("graph.searchTask"),
+      shown: () => card.isConnected && card.getClientRects().length > 0,
+      layoutKey: () => "tasks|" + columns() + "|" + stepLabel(0),
+      layout: (d) => pure.taskMapLayout(app.taskSteps(d), columns(), stepLabel) });
+    const home = document.getElementById("tm-home");
+    return {
+      // show puts the card in slot over spec d, the picked task sel shown and,
+      // when it changed off the canvas, centred.
+      show(slot, d, sel) {
+        slot.appendChild(card);
+        S.d = d;
+        if (S.draw) S.draw();
+        // Moving the card took the focus off what held it in the card, the
+        // search above all, so Enter there steps on to the next match.
+        if (S.focused) S.focused.focus({ preventScroll: true });
+        S.focused = null;
+        const id = sel || null;
+        if (id === S.sel) return;
+        const centre = S.centre && S.centre.id === id ? S.centre.centre : true;
+        S.sel = id;
+        S.centre = null;
+        if (face.onSelect) face.onSelect(id, centre);
+      },
+      park() {
+        if (card.parentNode === home) return;
+        S.focused = card.contains(document.activeElement) ? document.activeElement : null;
+        home.appendChild(card);
+      },
+      G: M,
+    };
+  }
+  // GEO_TASK_COL is a task's column on the map, an epic's (GEO.epic.col).
+  const GEO_TASK_COL = 172;
+  window.tpTaskMap = makeTaskMap();
 })();

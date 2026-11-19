@@ -114,6 +114,24 @@
       <nav class="subnav" id="subnav" role="tablist" aria-label="Spec view" data-i18n-aria-label="spec.views"></nav>
       <article class="panel reader" id="sv-read" role="tabpanel" aria-label="The spec" data-i18n-aria-label="spec.read" hidden></article>
       <section class="tasksview" id="sv-tasks" role="tabpanel" aria-label="Tasks" data-i18n-aria-label="spec.view.tasks" hidden></section>
+      <!-- The Tasks view's Map (graph.js, makeTaskMap) waits here while another view shows. -->
+      <div id="tm-home" hidden>
+        <section class="card mapcard gcard tmcard" id="taskmap" aria-label="Map" data-i18n-aria-label="tasks.map" data-drawn-nodes="0" data-drawn-edges="0">
+          <div class="toolbar">
+            <input type="search" id="tm-q" placeholder="Find a task by id or title  /" aria-label="Find tasks on the map; Enter selects the next match" data-i18n-aria-label="graph.searchTaskLabel" autocomplete="off">
+            <button type="button" class="key vbtn" id="tm-viewbtn" popovertarget="tm-viewpop" aria-haspopup="true" aria-controls="tm-viewpop" aria-expanded="false"><span data-i18n="graph.view">View</span><span class="vcount" id="tm-viewn" hidden><span aria-hidden="true"></span><span class="vh"></span></span></button>
+            <div class="vpop" id="tm-viewpop" popover="auto" role="group" aria-labelledby="tm-viewbtn">
+              <button class="chip" type="button" id="tm-cross" aria-pressed="true" title="Show or hide every edge that is not a tree edge (K)" data-i18n-title="graph.crossTitle" data-i18n="graph.cross">Cross edges</button>
+            </div>
+            <span class="spacer"></span>
+            <span class="gcountfs sm muted num" id="tm-nfs" aria-hidden="true"></span>
+            <button type="button" class="key" id="tm-full" data-fs="taskmap" aria-pressed="false">Full screen</button>
+          </div>
+          <p class="gcount sm muted num" id="tm-n" aria-live="polite"></p>
+          <div class="map gcanvas" id="tm-canvas" tabindex="0" role="application" aria-roledescription="graph canvas" data-i18n-aria-roledescription="graph.canvasRole" aria-label="Map canvas: the arrow keys pan, + and − zoom, F fits, K shows or hides cross edges. Tasks are reached through the search and the list of tasks." data-i18n-aria-label="graph.taskCanvasLabel"><p class="gmsg" id="tm-msg">The map loads when it scrolls into view.</p><div class="gzoom" role="group" aria-label="Zoom" data-i18n-aria-label="graph.zoomLabel"><button type="button" class="key" id="tm-zin" aria-label="Zoom in" data-i18n-aria-label="graph.zoomIn">+</button><button type="button" class="key" id="tm-zout" aria-label="Zoom out" data-i18n-aria-label="graph.zoomOut">−</button><button type="button" class="key" id="tm-zfit" title="Fit the whole map (F)" data-i18n-title="graph.fitTitle" data-i18n="graph.fit">Fit</button></div></div>
+          <section class="glegend" id="tm-legendcard"><button type="button" class="lgtoggle" id="tm-lg" aria-expanded="true" aria-controls="tm-legend"><span data-i18n="graph.legendCard">Legend and keys</span> <kbd>L</kbd></button><div class="legend" id="tm-legend"></div></section>
+        </section>
+      </div>
       <section class="panel" id="sv-history" role="tabpanel" aria-label="History" data-i18n-aria-label="spec.view.history" hidden></section>
     </div>
   </section>
