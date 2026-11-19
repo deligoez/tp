@@ -721,10 +721,10 @@
     const n = object;
     const lines = G.prepared.L.view === "milestones"
       ? "<b>" + escape(n.id) + "</b><br>" + escape(n.title)
-      : '<span style="opacity:.7;font-family:ui-monospace,monospace;font-size:11px">' + escape(n.id) + (n.ms ? " · " + escape(n.ms) : "") + (n.cond ? " · " + escape(t("drawer.condition")) : "") + "</span><br>" +
+      : '<span style="color:var(--text-inverse-weak);font-family:var(--mono)">' + escape(n.id) + (n.ms ? " · " + escape(n.ms) : "") + (n.cond ? " · " + escape(t("drawer.condition")) : "") + "</span><br>" +
         escape(n.title) + "<br>" + escape(app.markText({ mark: n.mark, hold: n.hold })) + (n.deferrable ? ", " + escape(t("graph.deferrable")) : "");
     const c = G.colors;
-    return { html: lines, style: { background: "rgb(" + c.ink + ")", color: "rgb(" + c.surface + ")", borderRadius: "6px", maxWidth: "320px", fontSize: "13px", padding: "6px 10px", lineHeight: "1.4" } };
+    return { html: lines, style: { background: "rgb(" + c.ink + ")", color: "rgb(" + c.surface + ")", borderRadius: "var(--r-2)", maxWidth: "320px", font: "var(--type-tiny)", padding: "var(--sp-2) var(--sp-3)" } };
   }
   function ensureDeck() {
     if (G.deck) return;
