@@ -38,6 +38,22 @@ func TestPure_AnAlarmOpensAFoldUntilTheViewerClosesIt(t *testing.T) {
 	assert.JSONEq(t, `[true, true, false]`, got)
 }
 
+// TestPure_AnAlarmThatArrivesAfterAPressReopensTheFold: a press remembers
+// whether an alarm was showing when it was made. An alarm that arrives
+// later (a live push brings a held epic) reopens a fold the viewer closed
+// while all was quiet; an alarm the viewer already closed stays closed, and
+// a press with no alarm showing keeps its own choice.
+func TestPure_AnAlarmThatArrivesAfterAPressReopensTheFold(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([
+  P.foldOpen({ dflt: false, alarm: true, touched: { open: false, alarm: false } }),
+  P.foldOpen({ dflt: false, alarm: true, touched: { open: false, alarm: true } }),
+  P.foldOpen({ dflt: false, alarm: false, touched: { open: true, alarm: false } }),
+  P.foldOpen({ dflt: true, alarm: false, touched: { open: false, alarm: true } }),
+]);`)
+	assert.JSONEq(t, `[true, false, true, false]`, got)
+}
+
 // TestPage_EveryFoldIsAButtonThatNamesWhatItControls: each fold's heading
 // is a button carrying aria-expanded and aria-controls naming its body, so
 // the folded state is announced and the body found; the body is the card's
