@@ -21,7 +21,8 @@ import (
 
 // dashboardDefaultPort is the port tp dashboard binds unless --port names
 // another: a fixed port keeps a bookmark and a shared link working
-// (spec/1.8.0.md §1).
+// (spec/1.8.0.md §1). When it is taken and --port was not passed, the
+// dashboard serves on a free port instead (listenDashboard).
 const dashboardDefaultPort = 7377
 
 // dashboardNoSourceHint answers a repository holding neither a graph nor a
@@ -37,7 +38,7 @@ func newDashboardCmd() *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE:  runDashboard,
 	}
-	cmd.Flags().IntVar(&dashboardPort, "port", dashboardDefaultPort, "the loopback port to bind")
+	cmd.Flags().IntVar(&dashboardPort, "port", dashboardDefaultPort, "the loopback port to bind; unset, a taken default falls back to a free port")
 	return cmd
 }
 
@@ -58,20 +59,35 @@ func runDashboard(cmd *cobra.Command, _ []string) error {
 		output.Error(ExitFile, "nothing to show: no epic graph and no task file in this repository", dashboardNoSourceHint)
 		os.Exit(ExitFile)
 	}
-	addr := net.JoinHostPort(dashboard.Host, strconv.Itoa(dashboardPort))
-	ln, err := (&net.ListenConfig{}).Listen(cmd.Context(), "tcp", addr)
+	ln, fellBack, err := listenDashboard(cmd.Context(), dashboardPort, cmd.Flags().Changed("port"))
 	if err != nil {
 		msg, hint := dashboard.ListenFailure(dashboardPort, err)
 		output.Error(ExitValidation, msg, hint)
 		os.Exit(ExitValidation)
 	}
-	url := "http://" + addr + "/"
+	if fellBack {
+		output.Notice(fmt.Sprintf("port %d is taken; serving on a free port instead (--port pins one)", dashboardPort))
+	}
+	url := "http://" + ln.Addr().String() + "/"
 	if output.IsJSON() {
 		printResultOrExit(map[string]string{"url": url})
 	} else {
 		fmt.Println(url)
 	}
 	return serveDashboard(cmd.Context(), ln)
+}
+
+// listenDashboard binds 127.0.0.1 on port. A port the caller did not choose
+// that is taken falls back to a free port the system picks, and fellBack says
+// so; a chosen port is bound as asked or fails as itself.
+func listenDashboard(ctx context.Context, port int, chosen bool) (ln net.Listener, fellBack bool, err error) {
+	lc := &net.ListenConfig{}
+	ln, err = lc.Listen(ctx, "tcp", net.JoinHostPort(dashboard.Host, strconv.Itoa(port)))
+	if err == nil || chosen || !errors.Is(err, syscall.EADDRINUSE) {
+		return ln, false, err
+	}
+	ln, err = lc.Listen(ctx, "tcp", net.JoinHostPort(dashboard.Host, "0"))
+	return ln, err == nil, err
 }
 
 // serveDashboard serves the dashboard on ln until the process is interrupted
