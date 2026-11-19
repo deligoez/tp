@@ -691,11 +691,15 @@
     const grouped = ownerGrouped(v);
     const conds = conditionRows(v, done);
     const rest = [];
-    // A choose-one group lists its options, each condition named beside
-    // its own Copy command button, "or" between them in plain words.
+    // A choose-one group runs its options inline, "or" a quiet word between
+    // them: each its id, its title when that says more (tpPure.optionTitle),
+    // and its own Copy command.
+    const option = (m) => {
+      const ot = tpPure.optionTitle(m, titleOf(v, m));
+      return '<li class="opt">' + epicLink(m) + (ot ? '<span class="ot" title="' + esc(ot) + '">' + esc(ot) + "</span>" : "") + done(m, t("op.copyFor", { id: m })) + "</li>";
+    };
     (v.plan.operator_groups || []).forEach((c) => rest.push(row(c.epic, titleOf(v, c.epic), t("op.chooseOne", { n: c.any_of.length }),
-      '<ul class="opts">' + c.any_of.map((m, i) => (i ? '<li class="or">' + esc(t("op.or")) + "</li>" : "") +
-        '<li class="opt">' + epicLink(m) + '<span class="ot">' + esc(titleOf(v, m)) + " " + done(m, t("op.copyFor", { id: m })) + "</span></li>").join("") + "</ul>")));
+      '<ul class="opts">' + c.any_of.map((m, i) => (i ? '<li class="or">' + esc(t("op.or")) + "</li>" : "") + option(m)).join("") + "</ul>")));
     (v.g.milestones || []).forEach((m) => {
       const o = m.operator || {};
       (o.gates || []).forEach((gate) => rest.push(row(gate.milestone, gate.threshold, t("op.gate"), "", false, copyCmd("tp epic gate " + gate.milestone + " --met" + evidence))));

@@ -1047,6 +1047,15 @@
     }
     return d + "L" + at(pts[pts.length - 1]);
   };
+  // idWords is a text's letters and digits only, lower case with Turkish
+  // casing and its marks dropped: "L1 Tetiği" and "l1-tetigi" read the same.
+  const idWords = (s) => String(s || "").toLocaleLowerCase("tr").normalize("NFD").replace(/\p{M}/gu, "").replace(/ı/g, "i").replace(/[^a-z0-9]/g, "");
+  // optionTitle is a choose-one option's title when it says more than its
+  // id, else "": an empty title, or one that is the id's words again.
+  P.optionTitle = function (id, title) {
+    const w = idWords(title);
+    return w && w !== idWords(id) ? title : "";
+  };
   // onlySpec is the path of a project's one task file, which the Spec tab
   // opens when nothing is open; none or several give null.
   P.onlySpec = function (files) {
