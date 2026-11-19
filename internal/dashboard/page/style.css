@@ -514,9 +514,9 @@ kbd { display: inline-block; min-width: 1.6em; padding: 0 var(--sp-1); border: 1
 .gmsg { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; padding: var(--sp-4); text-align: center; color: var(--muted); }
 .gzoom { position: absolute; right: var(--sp-4); bottom: var(--sp-4); z-index: 2; display: flex; gap: var(--sp-2); }
 .gzoom .key { box-shadow: var(--shadow-raised); }
-#gc-zin, #gc-zout { font-size: 0; }
-#gc-zin::before, #gc-zout::before { content: ""; width: 16px; height: 16px; background: currentColor; -webkit-mask: var(--ic-plus) center / contain no-repeat; mask: var(--ic-plus) center / contain no-repeat; }
-#gc-zout::before { -webkit-mask-image: var(--ic-minus); mask-image: var(--ic-minus); }
+#gc-zin, #gc-zout, #tm-zin, #tm-zout { font-size: 0; }
+#gc-zin::before, #gc-zout::before, #tm-zin::before, #tm-zout::before { content: ""; width: 16px; height: 16px; background: currentColor; -webkit-mask: var(--ic-plus) center / contain no-repeat; mask: var(--ic-plus) center / contain no-repeat; }
+#gc-zout::before, #tm-zout::before { -webkit-mask-image: var(--ic-minus); mask-image: var(--ic-minus); }
 .chaintext { padding: var(--sp-4) var(--sp-6); border-top: 1px solid var(--line); }
 .chaintext summary, .dmore summary, .chaintext .deeper summary { display: flex; align-items: center; gap: var(--sp-2); min-height: var(--ctl-sm); cursor: pointer; list-style: none; font: var(--type-label); color: var(--ink); }
 .chaintext summary::-webkit-details-marker, .dmore summary::-webkit-details-marker { display: none; }
