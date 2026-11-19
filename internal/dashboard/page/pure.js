@@ -559,6 +559,25 @@
     return { target: [t[0], t[1], t[2] || 0], zoom: z, minZoom: -8, maxZoom: 3 };
   };
 
+  // zoomCamera is camera vs (as cameraOf takes it) zoomed by dz about the
+  // screen point (px, py) from the canvas's centre, so the world point under
+  // it stays there; the one path every zoom takes, pinch, wheel and keys.
+  P.zoomCamera = function (vs, dz, px, py) {
+    const v = P.cameraOf(vs);
+    const z = Math.min(v.maxZoom, Math.max(v.minZoom, v.zoom + dz));
+    const s0 = Math.pow(2, v.zoom);
+    const s1 = Math.pow(2, z);
+    const wx = v.target[0] + px / s0;
+    const wy = v.target[1] + py / s0;
+    return P.cameraOf({ zoom: z, target: [wx - px / s1, wy - py / s1, 0] });
+  };
+
+  // onScreen is how many screen pixels size world units draw at under camera
+  // vs: cards and their text alike, by the one zoom cameraOf leaves.
+  P.onScreen = function (vs, size) {
+    return size * Math.pow(2, P.cameraOf(vs).zoom);
+  };
+
   // pillTight says whether the full-screen toolbar, measured with its words
   // whole (scrollWidth against clientWidth), overflows the room it has; only
   // then do the mode switch and the cross-edge toggle shorten their words.
