@@ -162,6 +162,7 @@ p { margin: 0; }
 /* header: the product on the left, the connection and the two settings on the right */
 .top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3) var(--sp-6); }
 .brand { display: flex; align-items: baseline; gap: var(--sp-2); font: var(--type-h4); }
+/* Deviation (DESIGN.md: one body face): the "tp" wordmark is set in mono, the face of the command it names. */
 .brand .tp { font: 600 20px/28px var(--mono); }
 .brand .project { overflow-wrap: anywhere; }
 .live { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3) var(--sp-4); color: var(--muted); font: var(--type-tiny); }
@@ -187,7 +188,7 @@ p { margin: 0; }
 .tab { display: flex; align-items: baseline; gap: var(--sp-2); min-height: var(--ctl-md); margin-bottom: -1px; padding: var(--sp-3) var(--sp-4); border: 0; border-bottom: 2px solid transparent; background: none; color: var(--muted); min-width: 0; }
 .tab b { font: var(--type-label); color: var(--ink); }
 .tab span { font: var(--type-tiny); }
-.tab .c { font-family: var(--mono); font-size: 14px; color: var(--muted); max-width: 32ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tab .c { font: var(--type-tiny); color: var(--muted); max-width: 32ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tab:hover { background: var(--fill-hover); }
 .tab:active { background: var(--fill-press); }
 .tab[aria-selected="true"] { border-bottom-color: var(--stroke-selected); }
@@ -394,7 +395,7 @@ button.pcell[aria-pressed="true"] { background: var(--fill-brand-weak); border-c
 /* lifecycle over time */
 .cfdcard > h2 { margin-bottom: var(--sp-4); }
 .cfd { display: block; width: 100%; height: auto; }
-.cfd text { fill: var(--muted); font: 400 14px var(--mono); }
+.cfd text { fill: var(--muted); font: var(--type-tiny); }
 .cfd .ax { stroke: var(--line); }
 .cfdkey { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-5); margin-top: var(--sp-4); font: var(--type-tiny); color: var(--muted); }
 .cfdkey span { display: inline-flex; align-items: center; gap: var(--sp-2); }
@@ -427,7 +428,7 @@ button.pcell[aria-pressed="true"] { background: var(--fill-brand-weak); border-c
 .sev[data-sev="medium"] { color: var(--held); }
 #sv-history { display: grid; gap: var(--sp-6); }
 .raxis { width: 100%; max-width: 720px; height: auto; }
-.raxis text { fill: var(--muted); font: 400 14px var(--mono); }
+.raxis text { fill: var(--muted); font: var(--type-tiny); }
 .raxis .ax { stroke: var(--line); }
 .raxis circle { stroke: var(--icon-error); stroke-width: 2; fill: var(--surface); }
 .raxis circle.clean { stroke: var(--icon-success); fill: var(--icon-success); }
