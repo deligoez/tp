@@ -81,16 +81,18 @@ func TestPage_EveryColourPairReadsAgainstItsBackground(t *testing.T) {
 		tok, err := json.Marshal(themeTokens(t, css, over))
 		require.NoError(t, err)
 		got := runPure(t, `const tok = `+string(tok)+`;
-const hex = (v) => [1, 3, 5].map((i) => parseInt(v.slice(i, i + 2), 16));
 const pal = P.graphPalette(tok);
+const bg = P.parseColour(tok["--bg"]), card = P.parseColour(tok["--surface"]);
 const r = (a, b) => Math.round(P.contrast(a, b) * 100) / 100;
 const pairs = [];
 Object.keys(pal.fill).forEach((k) => pairs.push(["text", "ink on the " + k + " fill", r(pal.ink, pal.fill[k])]));
 Object.keys(pal.mark).forEach((k) => pairs.push(["line", k + " border on the canvas", r(pal.mark[k], pal.page)]));
 ["muted", "crit", "back", "anc", "desc", "tree"].forEach((k) => pairs.push(["line", k + " edges on the canvas", r(pal[k], pal.page)]));
-pairs.push(["text", "muted text on the page (tab counts)", r(hex(tok["--muted"]), hex(tok["--bg"]))]);
-pairs.push(["text", "muted text on a card (placeholders, legend items off)", r(hex(tok["--muted"]), hex(tok["--surface"]))]);
-pairs.push(["line", "the (i) ring on a card", r(hex(tok["--muted"]), hex(tok["--surface"]))]);
+pairs.push(["text", "muted text on the page (tab counts)", r(P.parseColour(tok["--muted"], bg), bg)]);
+pairs.push(["text", "muted text on a card (placeholders, legend items off)", r(P.parseColour(tok["--muted"], card), card)]);
+pairs.push(["line", "the (i) icon on a card", r(P.parseColour(tok["--muted"], card), card)]);
+pairs.push(["line", "a control's border on a card", r(P.parseColour(tok["--line-strong"], card), card)]);
+pairs.push(["text", "a link on a card", r(P.parseColour(tok["--accent"], card), card)]);
 out(pairs);`)
 		var pairs [][]any
 		require.NoError(t, json.Unmarshal([]byte(got), &pairs))
@@ -103,9 +105,9 @@ out(pairs);`)
 			assert.GreaterOrEqual(t, p[2].(float64), floor, "theme %q: %s", over, p[1])
 		}
 	}
-	assert.Contains(t, css, ".tab .c { font-family: var(--mono); font-size: var(--text-xs); color: var(--muted);")
+	assert.Contains(t, css, ".tab .c { font-family: var(--mono); font-size: 14px; color: var(--muted);")
 	assert.Contains(t, css, ".gcard #gc-q::placeholder { color: var(--muted); opacity: 1; }")
-	assert.Contains(t, css, "border: 1px solid var(--muted); display: inline-grid;")
+	assert.Contains(t, css, "color: var(--muted); font-size: 0; }", "the (i) icon is drawn in the muted colour")
 	assert.Contains(t, css, `.gcard .legend button[aria-pressed="false"] { color: var(--muted); text-decoration: line-through; }`)
 }
 
@@ -133,9 +135,8 @@ func TestPage_TheStatusHuesReadBeforeTheNudgeAndStayApart(t *testing.T) {
 		tok, err := json.Marshal(themeTokens(t, css, over))
 		require.NoError(t, err)
 		got := runPure(t, `const tok = `+string(tok)+`;
-const hex = (v) => [1, 3, 5].map((i) => parseInt(v.slice(i, i + 2), 16));
 const pal = P.graphPalette(tok);
-const raw = P.GRAPH_MARKS.map(([k, name]) => [k, Math.round(P.contrast(hex(tok[name]), pal.page) * 100) / 100]);
+const raw = P.GRAPH_MARKS.map(([k, name]) => [k, Math.round(P.contrast(P.parseColour(tok[name], pal.page), pal.page) * 100) / 100]);
 const keys = Object.keys(pal.mark);
 let near = [99, ""];
 keys.forEach((a, i) => keys.slice(i + 1).forEach((b) => { const d = P.deltaE(pal.mark[a], pal.mark[b]); if (d < near[0]) near = [Math.round(d * 10) / 10, a + "/" + b]; }));
