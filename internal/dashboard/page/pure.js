@@ -836,6 +836,15 @@
     return "--" + k.kind + " " + k.value;
   };
 
+  // foldPress is the press a fold keeps while its alarm is now on or off: a
+  // press made while an alarm showed is dropped once that alarm clears, so
+  // an alarm that comes back later in the same load counts as new and
+  // reopens the fold; any other press is kept as it is.
+  P.foldPress = function (touched, alarm) {
+    if (touched && typeof touched === "object" && touched.alarm && !alarm) return undefined;
+    return touched;
+  };
+
   // foldKey is where a fold's stored choice is kept.
   P.foldKey = function (id) {
     return "tp-dashboard-fold-" + id;
