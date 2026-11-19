@@ -2064,7 +2064,7 @@
         (p ? "<blockquote>" + esc(p.text) + "</blockquote>" : "") + "</figure>";
     }).join("");
     return '<div class="td-head"><div><span class="stat" style="color:var(--' + (TASK_COLOR[task.state] || "muted") + ')">' + (TASK_MARK[task.state] || "") + esc(word(TASK_LABEL, task.state)) + "</span>" +
-      "<h3>" + esc(task.title) + '</h3><code class="tid">' + esc(task.id) + '</code></div><button type="button" class="key" data-tclose aria-label="' + esc(t("task.close")) + '">×</button></div>' +
+      "<h3>" + esc(task.title) + '</h3><code class="tid">' + esc(task.id) + '</code></div><button type="button" class="popx" data-tclose aria-label="' + esc(t("task.close")) + '"></button></div>' +
       "<dl>" + time + "</dl>" +
       (cmd ? '<div class="cmdline"><span class="sum">' + esc(task.state === "ready" ? t("task.nextClaim") : t("task.nextDone")) + "</span>" + copyCmd(cmd) + "</div>" : "") +
       (task.state === "waits_on_epic" ? '<p class="opnote">' + t.html("task.epicWaits_html", { epic: d.epic || "" }) + "</p>" : "") +
