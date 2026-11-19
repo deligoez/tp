@@ -565,7 +565,8 @@ body.mapfs .gcard.fs .glegend .legend { max-height: none; overflow: visible; }
 .meter { width: 96px; height: 8px; border-radius: var(--r-1); background: var(--fill-weak); box-shadow: var(--shadow-sunken); overflow: hidden; }
 .meter i { display: block; height: 100%; background: var(--icon-success); }
 .lc { display: flex; align-items: center; gap: var(--sp-2); color: var(--muted); font: var(--type-tiny); min-height: 24px; }
-.lc > span:first-child { width: 48px; }
+/* the loop's name holds a column that fits the longer Turkish words too */
+.lc > span:first-child { flex: none; min-width: 64px; }
 .stat { display: inline-flex; align-items: center; gap: var(--sp-1); font: var(--type-tiny-bold); color: var(--held); white-space: nowrap; }
 .mk { display: inline-flex; color: var(--held); }
 .snextc .stat { display: flex; margin-bottom: var(--sp-1); }
