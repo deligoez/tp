@@ -2871,10 +2871,17 @@ The answer is `{view, milestone?, epic?, depth?, layers, packing, columns, bands
 layers; `packing` the `pack` used and `columns` the width in columns; `bands`, for `plan` and
 `scope`, `[{milestone, with?, from_layer, to_layer}]`, each milestone a run of consecutive layers,
 `with` listing the milestones that share the run (below). `nodes` lists each node by layer, then
-column: `{id, title?, state?, layer, col}`, `layer` a small integer from 0, `col` a column from 0,
-fractional under `pack=tree`, `title` and `state` on an epic node (v1.28.0) its title and its
-derived status, `tp epic export`'s `status` vocabulary (`planned`, `claimed`, `specced`,
-`in_progress`, `done`), and never on a milestone node, plus, in `plan` the epic's `milestone`, in `scope` `deferrable`
+column: `{id, title?, state?, status?, hold?, downstream?, layer, col}`, `layer` a small integer from
+0, `col` a column from 0, fractional under `pack=tree`. On an epic node, and never on a milestone
+node (v1.28.0): `title`; `state` its lifecycle, `tp epic export`'s `status` (`planned`, `claimed`,
+`specced`, `in_progress`, `done`); `status` the mark the dashboard's map colours it by, derived from
+the export's fields as the page derives it: past `planned` the lifecycle itself (`claimed`,
+`specced`, `in_progress`, `done`), and for a planned epic `moot`, `held` (an undone condition among
+its dependencies), `blocked` (an undone dependency), `waiting` (its milestone not open) or `ready`,
+in that order; `hold` `held` or `blocked` on an epic past planned and not done that is also held or
+blocked, which the map draws over its mark; `downstream` the export's
+`{longest_chain, dependents, dependents_open}`, the counts the drawer shows, absent where the export
+leaves it out. Plus, in `plan` the epic's `milestone`, in `scope` `deferrable`
 (`tp epic scope`'s closure mark; an epic's milestone is in `tp epic export`, its any-of group on
 its edges), in `neighbourhood` the epic's `milestone`, which the view has no band for, and
 `centre: true` on the epic asked for; for a milestone, `epics` and `done` (its work epics and those
