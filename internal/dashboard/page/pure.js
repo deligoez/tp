@@ -815,6 +815,27 @@
     return !!f.dflt;
   };
 
+  // sliceLabel names a review slice in words for the page: a milestone, an
+  // epic, a named set or a set of epics by id; a slice with no key is named
+  // by its directory. t is the page's translator.
+  P.sliceLabel = function (s, t) {
+    const k = s.key;
+    if (!k) return s.dir;
+    if (k.kind === "epics") return k.name ? t("slice.set", { name: k.name }) : t("slice.epics", { ids: (k.ids || []).join(", ") });
+    if (k.kind === "milestone") return t("slice.milestone", { name: k.value });
+    if (k.kind === "epic") return t("slice.epic", { id: k.value });
+    return k.kind + " " + k.value;
+  };
+
+  // sliceArgs is the slice as tp epic review takes it, for a Copy command
+  // only: the page never shows the flag form as text.
+  P.sliceArgs = function (s) {
+    const k = s.key;
+    if (!k) return s.dir;
+    if (k.kind === "epics") return "--epics " + (k.ids || []).join(",") + (k.name ? " --name " + k.name : "");
+    return "--" + k.kind + " " + k.value;
+  };
+
   // foldKey is where a fold's stored choice is kept.
   P.foldKey = function (id) {
     return "tp-dashboard-fold-" + id;
