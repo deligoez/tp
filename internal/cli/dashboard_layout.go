@@ -127,7 +127,7 @@ func (dashboardAPI) Layout(q url.Values) (any, *dashboard.Error) {
 		return nil, derr
 	}
 	if lq.view == layoutViewTasks {
-		return tasksLayout(q.Get("file"), lq.pack)
+		return tasksLayout(q.Get("file"))
 	}
 	g, states, _, rerr := readEpicStates()
 	if rerr != nil {
@@ -420,37 +420,6 @@ func planLayout(g *model.EpicGraph, states map[string]engine.EpicState, pack eng
 		out.Nodes[i].Milestone = bandOf[out.Nodes[i].ID]
 	}
 	return out
-}
-
-// tasksLayout is one task file's tasks, every one whatever its status, laid
-// out by the forest the plan uses, layered by dependency depth with no
-// bands, an edge from each dependency the file holds to its dependent. file
-// is taken only when it is exactly a path tp export --list lists, as
-// /api/export takes it, so the query never picks a filesystem path.
-func tasksLayout(file string, pack engine.ForestPacking) (any, *dashboard.Error) {
-	open, _, listed := engine.ListedTaskFile(".", file)
-	if !listed {
-		return nil, dashboard.NewError(ExitState, fmt.Sprintf("task file %q is not one tp export --list lists", layoutEcho(file)), dashboardUnlistedHint)
-	}
-	tf, err := model.ReadTaskFile(open)
-	if err != nil {
-		return nil, dashboard.NewError(ExitFile, err.Error(), dashboardUnlistedHint)
-	}
-	in := make(map[string]bool, len(tf.Tasks))
-	ids := make([]string, 0, len(tf.Tasks))
-	for i := range tf.Tasks {
-		in[tf.Tasks[i].ID] = true
-		ids = append(ids, tf.Tasks[i].ID)
-	}
-	var edges []layoutEdge
-	for i := range tf.Tasks {
-		for _, d := range tf.Tasks[i].DependsOn {
-			if in[d] {
-				edges = append(edges, layoutEdge{From: d, To: tf.Tasks[i].ID})
-			}
-		}
-	}
-	return layoutOf(layoutViewTasks, ids, edges, nil, nil, nil, nil, nil, pack), nil
 }
 
 // trackGroups maps each epic to the track its milestone is first listed in,
