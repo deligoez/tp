@@ -171,3 +171,17 @@ the pure CSS ones, whose test pins the new rule.
 
 Reshot at 1440 and 390px in both languages and themes after the fixes. The segmented controls
 grew 8px with the token padding and the 32px button.
+
+## Review round 2
+
+Round 2 read only the round-1 fixes and was the last round: the decision track caps review at two.
+The design reviewer confirmed every round-1 finding fixed from the diff and the reshot screenshots.
+The behaviour reviewer verified its round-1 findings in a browser on a fresh fixture (the drawer's
+Copy command, Esc on the View menu in full screen and beside the drawer, the owner badge) and the
+fold alarm by reading the code. Neither found anything high or medium; the three lows are fixed.
+
+| Finding | Fix | Test |
+|---|---|---|
+| Low: the segmented control stood 40px beside the toolbar's 32px controls | Its buttons are `--sp-6` (24px) inside the `--sp-1` padding, so the control is 32px and each target keeps the 24px small-control floor | `TestPage_MonoIsForIdsAndEveryMeasureIsAToken` |
+| Low: the section chip cleared with a typed "×" | A `.secx` button that draws the `--ic-x` mask at 16px, its accessible name kept | `TestPage_TheSectionChipClearsWithTheXIcon` |
+| Low: a press made during an alarm outlived the alarm, so the alarm coming back in the same load left the fold closed | `tpPure.foldPress` drops that press once the alarm clears; `applyFold` applies it before deciding | `TestPure_AnAlarmThatClearsForgetsThePressMadeDuringIt` |
