@@ -170,6 +170,7 @@
   "list.noReady": "No epic can start now.",
   "list.noOperator": "Nothing waits on the operator.",
   "list.noMost": "No epic is waited on.",
+  "list.showAll": "Show all {n}",
   "op.evidence": "text or URL",
   "op.condition": "condition",
   "op.toDecide": { "one": "{n} condition to decide", "other": "{n} conditions to decide" },

@@ -743,6 +743,17 @@
     refocus(key);
   });
 
+  // nowList is a now list's rows: the first NOW_SHOWN, then the rest behind
+  // a "Show all N" disclosure kept open across redraws (dfolds), or the
+  // empty text. Operator decisions are not folded: each row is a decision
+  // to act on, and their owner headings would split a count.
+  const NOW_SHOWN = 5;
+  function nowList(key, rows, empty) {
+    if (!rows.length) return none(empty);
+    const [shown, rest] = tpPure.foldAt(rows, NOW_SHOWN);
+    return shown.join("") + (rest.length ? '<details class="dmore nmore" data-dfold="' + key + '"' + (dfolds.has(key) ? " open" : "") + "><summary>" +
+      esc(t("list.showAll", { n: rows.length })) + "</summary>" + rest.join("") + "</details>" : "");
+  }
   // The now lists (§4): what can start, what waits on the operator, what
   // waits on other work, and what the most work waits on.
   panel(["summary", "epic-export"], () => {
@@ -750,11 +761,11 @@
     $("now").hidden = !v;
     $("waitcard").hidden = !v;
     if (!v) return;
-    $("now-ready").innerHTML = v.plan.ready.map((id) => row(id, titleOf(v, id), dependents(v, id), "", true)).join("") || none(t("list.noReady"));
+    $("now-ready").innerHTML = nowList("now-ready", v.plan.ready.map((id) => row(id, titleOf(v, id), dependents(v, id), "", true)), t("list.noReady"));
     $("now-operator").innerHTML = operatorRows(v).join("") || none(t("list.noOperator"));
     $("now-waiting").innerHTML = waitingHTML(v);
     setFold("waiting", { dflt: false, sum: t("wait.blocked", { n: v.plan.figures.blocked }) });
-    $("now-most").innerHTML = v.plan.most_waited_on.slice(0, 10).map((id) => row(id, titleOf(v, id), dependents(v, id), "", true)).join("") || none(t("list.noMost"));
+    $("now-most").innerHTML = nowList("now-most", v.plan.most_waited_on.slice(0, 10).map((id) => row(id, titleOf(v, id), dependents(v, id), "", true)), t("list.noMost"));
   });
 
   INFO.slices = tk("info.slices");

@@ -170,6 +170,7 @@
   "list.noReady": "Şu an başlanabilir epic yok.",
   "list.noOperator": "Operatörü bekleyen bir şey yok.",
   "list.noMost": "Beklenen epic yok.",
+  "list.showAll": "Tümünü göster ({n})",
   "op.evidence": "metin ya da URL",
   "op.condition": "koşul",
   "op.toDecide": "Karar bekleyen {n} koşul",
