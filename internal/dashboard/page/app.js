@@ -639,7 +639,18 @@
   // escalationRows are the escalations tp export --list names on the task
   // files bound to an epic, one row each (§7).
   const escalationRows = () => ((data("export-list") || {}).files || []).filter((f) => f.epic).flatMap((f) =>
-    (f.escalations || []).map((b) => row(f.epic, f.title || f.path, b.code, "<code>" + esc(f.path) + "</code>: " + esc(b.message))));
+    (f.escalations || []).map((b) => row(f.epic, f.title || f.path, t("op.specWaits"), blockerHTML(b), true)));
+  // blockerHTML is an escalation in plain words (tpPure.blockerText), the
+  // engine's message only in its tooltip and its commands behind Copy
+  // command, so no command shows in plain view.
+  const BLOCKER_TEXT = { "spec-stale": tk("blocker.code.spec-stale"), "review-budget-exhausted": tk("blocker.code.review-budget-exhausted"),
+    "audit-budget-exhausted": tk("blocker.code.audit-budget-exhausted"), "review-carried-blocking": tk("blocker.code.review-carried-blocking"),
+    "epic-blocked": tk("blocker.code.epic-blocked"), "no-ready-task": tk("blocker.code.no-ready-task"),
+    "unexplained-changes": tk("blocker.code.unexplained-changes"), other: tk("blocker.code.other") };
+  const blockerHTML = (b) => {
+    const cmds = tpPure.blockerCommands(b);
+    return '<span title="' + esc(b.message || "") + '">' + esc(tpPure.blockerText(b.code, BLOCKER_TEXT, t)) + "</span>" + (cmds.length ? " " + copyCmd(cmds.join("\n")) : "");
+  };
 
   // operatorRows is §7's list, each row with the command that settles it:
   // the actionable conditions, the any-of groups as their choices, the gates
@@ -1564,8 +1575,12 @@
     const epic = f.epic
       ? epicLink(f.epic) + (f.epic_state ? '<span class="sm muted">' + esc(word(STAGE_LABEL, f.epic_state)) + "</span>" : "")
       : '<span class="muted">' + esc(t("specs.noEpic")) + "</span>";
-    const next = ops.map((b) => '<span class="stat" title="' + esc(b.message) + '">' + PAUSE + esc(b.code) + "</span>").join("") +
-      (f.error ? '<span class="snext err">' + esc(f.error) + "</span>" : '<span class="snext">' + esc(f.next_step || "") + "</span>");
+    // The next step in plain words: an escalation's, or the engine's own
+    // when it carries no command, else the phase it is in; the engine's
+    // sentence stays in the tooltip.
+    const next = ops.length ? ops.map((b) => '<span class="stat" title="' + esc(b.message) + '">' + PAUSE + esc(tpPure.blockerText(b.code, BLOCKER_TEXT, t)) + "</span>").join("")
+      : f.error ? '<span class="snext err">' + esc(f.error) + "</span>"
+        : '<span class="snext" title="' + esc(f.next_step || "") + '">' + esc(tpPure.plainStep(f.next_step, t("specs.nextIn", { phase: word(STEP_LABEL, f.phase) }))) + "</span>";
     return '<tr class="srow' + (f.path === state.spec ? " on" : "") + '" tabindex="0" data-path="' + esc(f.path) + '">' +
       '<td class="sname"><span class="pt">' + (ops.length ? '<span class="mk" title="' + esc(t("specs.waitsOp")) + '">' + PAUSE + "</span>" : "") +
       "<span>" + esc(f.title || f.path) + "</span></span><code>" + esc(f.path) + "</code></td>" +
@@ -1725,8 +1740,9 @@
     return '<div class="sh-row"><h1>' + esc((f && f.title) || d.spec) + "</h1>" + epic + "</div>" +
       '<div class="loophead"><h2>' + esc(t("spec.loop")) + "</h2>" + info("loop", t("spec.loop")) + "</div>" + stepper(d, f) +
       '<p class="impact">' + impactText(d) + "</p>" +
-      escalations(d).map((b) => '<div class="opnote"><span class="mk">' + PAUSE + "</span><div><b>" + esc(b.code) + "</b> " + esc(t("spec.waitsOp", { message: b.message })) + "</div></div>").join("") +
-      '<div class="cmdline"><span class="lab">' + t.html("spec.next_html") + '</span><span class="sum">' + esc(na.summary || "") + "</span>" +
+      escalations(d).map((b) => '<div class="opnote"><span class="mk">' + PAUSE + "</span><div>" + blockerHTML(b) + "</div></div>").join("") +
+      '<div class="cmdline"><span class="lab">' + t.html("spec.next_html") + '</span><span class="sum" title="' + esc(na.summary || "") + '">' +
+      esc(tpPure.plainStep(na.summary, t("specs.nextIn", { phase: word(STEP_LABEL, d.resume.phase) }))) + "</span>" +
       (cmd ? copyCmd(cmd) : "") + "</div>";
   }
 

@@ -1070,6 +1070,28 @@
     out.push([z.x, z.y]);
     return out;
   };
+  // TP_COMMAND matches a tp command written out: tp, a space, a word.
+  const TP_COMMAND = /\btp [a-z]/;
+  // blockerText is a blocker's code (tp resume, tp export --list) as plain
+  // words in t's language through table, each code's key; a code the table
+  // lacks reads as the generic "waits on the operator". The code itself is
+  // never what a person reads.
+  P.blockerText = function (code, table, t) {
+    return t(table[code] || "blocker.code.other");
+  };
+  // plainStep is engine prose a person may read as it is, or fallback when
+  // it is empty or carries a tp command (CLAUDE.md rule 14): a command sits
+  // behind a Copy command button or a tooltip, never in plain view.
+  P.plainStep = function (text, fallback) {
+    return text && !TP_COMMAND.test(text) ? text : fallback;
+  };
+  // blockerCommands are the commands an escalation names: the operator's,
+  // when the decision is theirs, else the agent's; none when it names none.
+  P.blockerCommands = function (b) {
+    const d = (b && b.data) || {};
+    const op = (d.operator && d.operator.commands) || [];
+    return op.length ? op : d.commands || [];
+  };
   // ownerSelected says whether an epic whose owner list is owner passes the
   // map's owner selection sel: undefined keeps every epic, null the unowned
   // (ownerless), a handle the epics naming it while owners declares it.
