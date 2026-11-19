@@ -72,3 +72,35 @@ func TestPage_EveryCopyCommandButtonIsHandled(t *testing.T) {
 	assert.Contains(t, script, "document.addEventListener(\"click\", (ev) => {\n    const b = ev.target.closest && ev.target.closest(\"[data-copy]\");\n    if (b) copyKey(b);\n  });")
 	assert.Equal(t, 1, strings.Count(script, `closest("[data-copy]")`), "one delegate copies every button")
 }
+
+// TestPure_ASliceLabelIsPlainWordsAndOnlyItsCommandCarriesFlags: a review
+// slice is named in words on the page ("milestone M1", "epics a, b"); the
+// flag form tp epic review takes lives only in the Copy command a slice
+// that can take another round offers.
+func TestPure_ASliceLabelIsPlainWordsAndOnlyItsCommandCarriesFlags(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const tr = (k, p) => k + " " + JSON.stringify(p || {});
+const ss = [
+  { key: { kind: "milestone", value: "M1" }, dir: "m-M1" },
+  { key: { kind: "epic", value: "billing" }, dir: "e-billing" },
+  { key: { kind: "epics", ids: ["a", "b"], name: "x" }, dir: "s-x" },
+  { key: { kind: "epics", ids: ["a", "b"] }, dir: "s-ab" },
+  { dir: "legacy-dir" },
+];
+out({ labels: ss.map((s) => P.sliceLabel(s, tr)), args: ss.map((s) => P.sliceArgs(s)) });`)
+	assert.JSONEq(t, `{
+  "labels": ["slice.milestone {\"name\":\"M1\"}", "slice.epic {\"id\":\"billing\"}", "slice.set {\"name\":\"x\"}", "slice.epics {\"ids\":\"a, b\"}", "legacy-dir"],
+  "args": ["--milestone M1", "--epic billing", "--epics a,b --name x", "--epics a,b", "legacy-dir"]
+}`, got)
+	_, script := pageText(t)
+	assert.NotContains(t, script, "function sliceLabel(", "the page names slices through tpPure only")
+	assert.Contains(t, script, `copyCmd("tp epic review " + tpPure.sliceArgs(s) + " --grant-round")`)
+	for _, lang := range []string{"en", "tr"} {
+		dict := dictionary(t, lang)
+		for _, k := range []string{"slice.milestone", "slice.epic", "slice.epics"} {
+			if assert.Contains(t, dict, k, lang) {
+				assert.NotContains(t, string(dict[k]), "--", "%s %s", lang, k)
+			}
+		}
+	}
+}
