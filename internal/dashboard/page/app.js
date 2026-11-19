@@ -1496,8 +1496,9 @@
     $("dbody").innerHTML = '<div><div class="dmeta"><code>' + esc(id) + "</code>" + (e.condition ? "<span>" + esc(t("drawer.condition")) + "</span>" : "") + (crit ? '<span class="critpill">' + esc(t("wait.critical")) + "</span>" : "") + "</div><h3>" + esc(e.title) + "</h3></div>" +
       (e.condition ? '<div class="cmdline"><span class="sum">' + t.html("drawer.conditionNote_html", { id }) + "</span>" +
         copyCmd("tp epic done " + id + ' --evidence "<' + t("op.evidence") + '>"') + "</div>" : epicStepper(e, ge.claimed !== undefined ? ge : null)) +
-      "<dl>" + fields.map(([k, v, html]) => "<dt>" + esc(k) + "</dt><dd>" + (html ? v : esc(v)) + "</dd>").join("") + "</dl>" +
+      // The description reads first, above the fields and their Acceptance.
       (String(ge.description || "").trim() ? descHTML(ge.description) : "") +
+      "<dl>" + fields.map(([k, v, html]) => "<dt>" + esc(k) + "</dt><dd>" + (html ? v : esc(v)) + "</dd>").join("") + "</dl>" +
       ((e.files || []).length ? "<div><h4>" + esc(t("drawer.specs")) + '</h4><ul class="elist">' + e.files.map(fileLine).join("") + "</ul></div>" : "") +
       "<div><h4>" + esc(t("drawer.dependsOn")) + "</h4>" + rows("deps", deps) + "</div>" +
       "<div><h4>" + esc(t("drawer.dependedOnBy")) + "</h4>" + rows("needs", needs) + "</div>" +
