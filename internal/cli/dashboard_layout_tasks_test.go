@@ -32,7 +32,9 @@ func taskLayoutRepo(t *testing.T) string {
 // TestDashboard_LayoutLaysATaskFileOutAsAForest: view=tasks lays a listed
 // task file out with the forest the epic map uses, layered by dependency
 // depth with no step bands, a chain kept in one column, every task drawn
-// whatever its status, and it needs no epic graph.
+// whatever its status, and it needs no epic graph. The trees are shelved
+// taller than wide (engine.ShelveForest), so a task no edge touches waits
+// under them rather than beside them.
 func TestDashboard_LayoutLaysATaskFileOutAsAForest(t *testing.T) {
 	t.Parallel()
 	dir := taskLayoutRepo(t)
@@ -53,7 +55,7 @@ func TestDashboard_LayoutLaysATaskFileOutAsAForest(t *testing.T) {
 		}
 		require.NoError(t, json.Unmarshal([]byte(body), &got))
 		assert.Equal(t, "tasks", got.View)
-		assert.Equal(t, 3, got.Layers)
+		assert.Equal(t, 5, got.Layers)
 		assert.Empty(t, got.Bands)
 		place := map[string][2]float64{}
 		for _, n := range got.Nodes {
@@ -63,10 +65,9 @@ func TestDashboard_LayoutLaysATaskFileOutAsAForest(t *testing.T) {
 		assert.InDelta(t, 0.0, place["a"][0], 0)
 		assert.InDelta(t, 1.0, place["b"][0], 0)
 		assert.InDelta(t, 2.0, place["c"][0], 0)
-		assert.InDelta(t, 0.0, place["d"][0], 0)
+		assert.InDelta(t, 4.0, place["d"][0], 0, "the lone task waits under the tree")
 		assert.InDelta(t, 1.0, place["e"][0], 0)
 		assert.InDelta(t, place["b"][1], place["c"][1], 0, "the chain b → c keeps its column")
-		assert.NotEqual(t, place["a"][1], place["d"][1], "two roots share no column")
 		assert.Len(t, got.Edges, 3)
 	}
 }
