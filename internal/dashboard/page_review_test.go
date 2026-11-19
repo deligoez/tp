@@ -40,7 +40,7 @@ func TestPage_TheToolbarHasNoPackingControl(t *testing.T) {
 func TestPage_TheNeighbourhoodKeepsItsCentreAndTheSearchWorksUnprepared(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
-	for _, s := range []string{"const sel = app.selected() || G.centre || firstReady(g);", "G.centre = id;", "function exportMatches(", "const cardShown = () => !card.hidden && !$(\"view-epics\").hidden;"} {
+	for _, s := range []string{"const sel = app.selected() || G.centre || firstReady(g);", "G.centre = id;", "function exportMatches(", "const cardShown = cfg.shown || (() => !card.hidden && !$(\"view-epics\").hidden);"} {
 		assert.Contains(t, script, s)
 	}
 	assert.NotContains(t, script, "!!G.prepared && !$(\"view-epics\").hidden")
