@@ -54,6 +54,25 @@ func TestPure_AnAlarmThatArrivesAfterAPressReopensTheFold(t *testing.T) {
 	assert.JSONEq(t, `[true, false, true, false]`, got)
 }
 
+// TestPure_AnAlarmThatClearsForgetsThePressMadeDuringIt: a press made while
+// an alarm showed is dropped once that alarm clears, so an alarm that comes
+// back later in the same load counts as new and reopens the fold; a press
+// made while quiet, or one whose alarm still shows, is kept.
+func TestPure_AnAlarmThatClearsForgetsThePressMadeDuringIt(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const during = { open: false, alarm: true };
+const kept = P.foldPress(during, true);
+const cleared = P.foldPress(during, false);
+out([
+  kept === during,
+  cleared === undefined,
+  P.foldPress({ open: false, alarm: false }, false).open === false,
+  P.foldPress(undefined, true) === undefined,
+  P.foldOpen({ dflt: false, stored: "closed", alarm: true, touched: P.foldPress(cleared, true) }),
+]);`)
+	assert.JSONEq(t, `[true, true, true, true, true]`, got)
+}
+
 // TestPage_EveryFoldIsAButtonThatNamesWhatItControls: each fold's heading
 // is a button carrying aria-expanded and aria-controls naming its body, so
 // the folded state is announced and the body found; the body is the card's
