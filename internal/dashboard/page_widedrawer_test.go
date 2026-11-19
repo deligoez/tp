@@ -54,3 +54,21 @@ func TestPage_TheWideChoiceIsRememberedAndKeepsFocusAndEscape(t *testing.T) {
 		}
 	}
 }
+
+// A wide drawer takes most of the viewport and keeps its prose to a
+// readable measure in the body type: a main column of 40rem beside the
+// lists; a narrow viewport has no Widen button, the drawer being its width.
+func TestPage_AWideDrawerKeepsItsProseToAReadableMeasure(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	for _, s := range []string{
+		`.drawer.wide { width: min(1200px, calc(100vw - var(--sp-16))); }`,
+		`.drawer.wide .dbody { grid-template-columns: minmax(0, 40rem) minmax(0, 1fr); column-gap: var(--sp-12); }`,
+		`.drawer.wide .ddesc { font: var(--type-body); }`,
+		`@media (max-width: 900px) { #dwide { display: none; } .drawer.wide { width: var(--drawer-w); } .drawer.wide .dbody { grid-template-columns: minmax(0, 1fr); } }`,
+	} {
+		assert.Contains(t, page, s)
+	}
+	assert.Contains(t, script, `'<div class="dmain">'`)
+	assert.Contains(t, script, `'<div class="dside">'`)
+}
