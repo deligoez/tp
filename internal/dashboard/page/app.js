@@ -303,6 +303,10 @@
     const phases = band.phases || {};
     $("band").innerHTML = (byEpics ? lane(t("band.lane.epics"), STAGES.map(([k, label]) => cell("data-stage", k, label, stages[k] || 0, mapView.stage === k)).join("")) : "") +
       lane(byEpics ? t("band.lane.epicPhases") : t("band.lane.filePhases"), PHASES.map(([k, label]) => cell("data-phase", k, label, phases[k] || 0)).join(""));
+    // Without a graph the Lifecycle is the tab's content, so it opens; a
+    // stage filter it holds opens it too, so the filter is never out of view.
+    const f = sum.plan && sum.plan.figures;
+    setFold("band", { dflt: !state.graph, alarm: !!mapView.stage, sum: f ? t("fold.done", { done: f.done, n: f.work }) : "" });
     fitAllRows();
   });
   $("band").addEventListener("click", (ev) => {
@@ -365,6 +369,7 @@
     const sum = data("summary");
     $("cfdcard").hidden = !state.graph || !sum;
     if ($("cfdcard").hidden) return;
+    setFold("cfd", { dflt: false });
     const days = sum.series || [];
     if (!days.length) {
       $("cfd").innerHTML = none(t("cfd.none"));
@@ -486,6 +491,37 @@
   const kpi = (key, value, label, cls, title) => '<div class="card kpi' + (cls ? " " + cls : "") + '"' + (title ? ' title="' + esc(title) + '"' : "") + ">" + info(key, label) +
     '<span class="v">' + value + '</span><span class="l">' + esc(label) + "</span></div>";
 
+  // Folds (spec/backlog/dashboard-simplify.md): a card the operator digs
+  // into rather than glances at is drawn folded, its heading, ⓘ and a
+  // one-line summary still showing. folds holds this page's presses and
+  // foldOpts each fold's last default, alarm and summary, so a press redraws
+  // it; tpPure.foldOpen decides between them and the stored choice.
+  const folds = {};
+  const foldOpts = {};
+  function foldStored(id) {
+    try { return localStorage.getItem(tpPure.foldKey(id)); } catch (e) { return null; }
+  }
+  function applyFold(id) {
+    const o = foldOpts[id] || {};
+    const open = tpPure.foldOpen({ dflt: o.dflt, alarm: o.alarm, stored: foldStored(id), touched: folds[id] });
+    document.querySelector('[data-fold="' + id + '"]').setAttribute("aria-expanded", String(open));
+    $("fold-" + id).hidden = !open;
+    $("fsum-" + id).textContent = open ? "" : o.sum || "";
+  }
+  function setFold(id, opts) {
+    foldOpts[id] = opts;
+    applyFold(id);
+  }
+  document.addEventListener("click", (ev) => {
+    const btn = ev.target.closest && ev.target.closest(".fold");
+    if (!btn) return;
+    const id = btn.dataset.fold;
+    const open = btn.getAttribute("aria-expanded") !== "true";
+    folds[id] = open;
+    try { localStorage.setItem(tpPure.foldKey(id), open ? "open" : "closed"); } catch (e) { /* the choice lasts this load */ }
+    applyFold(id);
+  });
+
   // The plan as the page reads it: the summary's plan and the export's
   // epics by id, or null while either is missing.
   function planView() {
@@ -501,6 +537,7 @@
   panel(["summary", "epic-export"], () => {
     const v = planView();
     $("kpis").hidden = !v;
+    $("kpimore").hidden = !v;
     if (!v) return;
     const f = v.plan.figures;
     const lint = v.g.lint || { errors: 0, warnings: 0 };
@@ -510,14 +547,25 @@
     // carries (§7), so the figure counts the rows the list draws.
     const queue = f.operator_queue + escalationRows().length;
     const totals = totalsOf(v.g);
+    // Four headline figures answer "is the plan moving, does anything need
+    // me"; the plan's health figures sit in the More figures fold, which an
+    // alarm among them (a held epic, a lint error, a stale loop) opens.
     $("kpis").innerHTML = [
       kpi("share", esc(t.pct(f.share_done)) + "<small> " + esc(t("kpi.shareOf", { done: f.done, n: f.work })) + "</small>", t("kpi.share"), "", totals),
       kpi("ready", esc(t.num(f.ready)), t("kpi.ready")),
-      kpi("critical", esc(t.num(f.critical_path)), t("kpi.critical"), "crit"),
       kpi("blocked", esc(t.num(f.blocked)), t("kpi.blocked"), f.blocked ? "warn" : ""),
-      kpi("held", esc(t.num(f.held)), t("kpi.held"), f.held ? "op" : ""),
       kpi("operator", esc(t.num(queue)), t("kpi.operator"), queue ? "op" : ""),
-      kpi("loops", esc(t.num(f.open_loops - (f.stale_loops || 0))) + (f.stale_loops ? "<small> " + esc(t("kpi.stale", { n: f.stale_loops })) + "</small>" : ""), t("kpi.loops")),
+    ].join("");
+    const loops = f.open_loops - (f.stale_loops || 0);
+    const sum = [t("fold.critical", { n: f.critical_path })];
+    if (f.held) sum.push(t("fold.held", { n: f.held }));
+    if (loops > 0) sum.push(t("fold.loops", { n: loops }));
+    if (lint.errors) sum.push(t("fold.lint", { n: lint.errors }));
+    setFold("kpimore", { dflt: false, alarm: f.held > 0 || lint.errors > 0 || (f.stale_loops || 0) > 0, sum: sum.join(", ") });
+    $("kpis2").innerHTML = [
+      kpi("critical", esc(t.num(f.critical_path)), t("kpi.critical"), "crit"),
+      kpi("held", esc(t.num(f.held)), t("kpi.held"), f.held ? "op" : ""),
+      kpi("loops", esc(t.num(loops)) + (f.stale_loops ? "<small> " + esc(t("kpi.stale", { n: f.stale_loops })) + "</small>" : ""), t("kpi.loops")),
       kpi("lint", esc(t.num(lint.errors)) + "<small> / " + esc(t.num(lint.warnings)) + "</small>", t("kpi.lint"), lint.errors ? "warn" : ""),
       kpi("throughput", last ? esc(t.num(last.done)) + "<small> " + esc(t("kpi.inWeek", { week: tpPure.weekRange(last.week, t.locale) })) + "</small>" : "0", t("kpi.throughput")).replace("</div>", spark(weeks) + "</div>"),
     ].join("");
@@ -551,12 +599,13 @@
   }
   // The grids that spread their cards so, each with its narrowest card: the
   // KPI row, the Lifecycle's stage and phase cells, its milestone cards.
-  const ROWS = [["#kpis", 140], ["#band .pcells", 120], ["#msstate .mscells", 170]];
+  const ROWS = [["#kpis", 140], ["#kpis2", 140], ["#band .pcells", 120], ["#msstate .mscells", 170]];
   function fitAllRows() {
     ROWS.forEach(([sel, min]) => document.querySelectorAll(sel).forEach((box) => fitRows(box, min)));
   }
   const rowsSeen = new ResizeObserver(fitAllRows);
   ["kpis", "band", "msstate"].forEach((id) => rowsSeen.observe($(id)));
+  rowsSeen.observe($("kpis2"));
 
   // spark draws the weekly throughput as bars, scaled to the busiest week.
   function spark(weeks) {
@@ -699,6 +748,7 @@
     $("now-ready").innerHTML = v.plan.ready.map((id) => row(id, titleOf(v, id), dependents(v, id), "", true)).join("") || none(t("list.noReady"));
     $("now-operator").innerHTML = operatorRows(v).join("") || none(t("list.noOperator"));
     $("now-waiting").innerHTML = waitingHTML(v);
+    setFold("waiting", { dflt: false, sum: t("wait.blocked", { n: v.plan.figures.blocked }) });
     $("now-most").innerHTML = v.plan.most_waited_on.slice(0, 10).map((id) => row(id, titleOf(v, id), dependents(v, id), "", true)).join("") || none(t("list.noMost"));
   });
 
@@ -757,6 +807,8 @@
     if (bound) $("view-epics").appendChild(box);
     else $("kpis").after(box);
     const slices = g.slices || [];
+    // A planning-stage project's work, so open; folded once an epic is bound.
+    setFold("slices", { dflt: !bound, alarm: !!hist.dir, sum: slices.length ? t("fold.slices", { n: slices.length }) : t("fold.noSlices") });
     if (!slices.length) {
       $("slices").innerHTML = '<p class="empty">' + t.html("slices.none_html") + "</p>";
       return;
@@ -1201,6 +1253,7 @@
     card.hidden = !g || !sum || !sum.matrix;
     if (card.hidden) return;
     const order = [].concat(...((g.graph && g.graph.milestones) || []));
+    setFold("matrix", { dflt: false, sum: t("fold.milestones", { n: order.length }) });
     const rep = {};
     (g.milestones || []).forEach((m) => { rep[m.milestone] = m; });
     const cell = {};

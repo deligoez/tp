@@ -33,12 +33,14 @@
       <p data-i18n-html="epics.none.body_html">This repository has no epic graph, so the plan is empty and the lifecycle below counts task files. Start one with <code>tp epic</code>: <code>tp epic set milestones='[["M1"]]'</code>, then <code>tp epic add</code> for each epic. The graph appears here as soon as tp writes <code>.tp/epics.json</code>, with no restart.</p>
     </section>
     <section class="kpis" id="kpis" aria-label="Plan figures" data-i18n-aria-label="kpi.label" data-src="summary epic-export" hidden></section>
-    <section class="card pipecard" aria-label="Lifecycle" data-i18n-aria-label="band.title" data-src="summary"><h2><span data-i18n="band.title">Lifecycle</span> <button class="info" type="button" data-info="band" aria-label="About the lifecycle" data-i18n-aria-label="about.band" aria-expanded="false">i</button></h2><div id="band"></div><p class="sm muted totals" id="totals" data-src="epic-export" hidden></p><div class="plane msstate" id="msstate" data-src="epic-export" hidden></div></section>
-    <section class="card cfdcard" id="cfdcard" aria-label="Lifecycle over time" data-i18n-aria-label="cfd.title" data-src="summary" hidden><h2><span data-i18n="cfd.title">Lifecycle over time</span> <button class="info" type="button" data-info="cfd" aria-label="About lifecycle over time" data-i18n-aria-label="about.cfd" aria-expanded="false">i</button></h2><div id="cfd"></div></section>
     <section class="now" id="now" aria-label="What moves now in the plan" data-i18n-aria-label="now.label" data-src="summary epic-export" hidden>
       <div class="card"><h2><span data-i18n="now.ready">Ready epics</span> <button class="info" type="button" data-info="ready" aria-label="About ready epics" data-i18n-aria-label="about.ready" aria-expanded="false">i</button></h2><div class="list" id="now-ready"></div></div>
       <div class="card"><h2><span data-i18n="now.operator">Operator decisions</span> <button class="info" type="button" data-info="operator" aria-label="About operator decisions" data-i18n-aria-label="about.operator" aria-expanded="false">i</button></h2><div class="list" id="now-operator"></div></div>
       <div class="card"><h2><span data-i18n="now.most">Most waited-on epics</span> <button class="info" type="button" data-info="most" aria-label="About the most waited-on epics" data-i18n-aria-label="about.most" aria-expanded="false">i</button></h2><div class="list" id="now-most"></div></div>
+    </section>
+    <section class="card kpimore" id="kpimore" aria-label="More figures" data-i18n-aria-label="kpi.more" data-src="summary epic-export" hidden>
+      <h2 class="fh"><button type="button" class="fold" data-fold="kpimore" aria-expanded="false" aria-controls="fold-kpimore"><svg class="ti chev" aria-hidden="true" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg><span data-i18n="kpi.more">More figures</span></button><span class="fsum" id="fsum-kpimore"></span></h2>
+      <div id="fold-kpimore" class="fbody" hidden><div class="kpis" id="kpis2"></div></div>
     </section>
     <div id="epics-body" class="view" data-src="epic-export">
       <section class="card mapcard gcard" id="graphcard" aria-label="Graph" data-i18n-aria-label="graph.title" data-drawn-nodes="0" data-drawn-edges="0" hidden>
@@ -68,18 +70,26 @@
         <details class="chaintext" id="chaintext"><summary data-i18n="chain.summary">The selected epic's chain as text</summary><div id="chain"></div></details>
       </section>
       <section class="card" id="waitcard" aria-label="Waiting epics" data-i18n-aria-label="wait.title" data-src="summary epic-export" hidden>
-        <h2><span data-i18n="wait.title">Waiting epics</span> <button class="info" type="button" data-info="waiting" aria-label="About waiting epics" data-i18n-aria-label="about.waiting" aria-expanded="false">i</button></h2>
-        <div id="now-waiting"></div>
+        <h2 class="fh"><button type="button" class="fold" data-fold="waiting" aria-expanded="false" aria-controls="fold-waiting"><svg class="ti chev" aria-hidden="true" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg><span data-i18n="wait.title">Waiting epics</span></button> <button class="info" type="button" data-info="waiting" aria-label="About waiting epics" data-i18n-aria-label="about.waiting" aria-expanded="false">i</button><span class="fsum" id="fsum-waiting"></span></h2>
+        <div id="fold-waiting" class="fbody" hidden><div id="now-waiting"></div></div>
       </section>
       <section class="card" id="matrixcard" aria-label="Milestone matrix" data-i18n-aria-label="matrix.title" data-src="summary" hidden>
-        <h2><span data-i18n="matrix.title">Milestone matrix</span> <button class="info" type="button" data-info="matrix" aria-label="About the milestone matrix" data-i18n-aria-label="about.matrix" aria-expanded="false">i</button></h2>
-        <div class="scroll" id="matrix"></div>
+        <h2 class="fh"><button type="button" class="fold" data-fold="matrix" aria-expanded="false" aria-controls="fold-matrix"><svg class="ti chev" aria-hidden="true" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg><span data-i18n="matrix.title">Milestone matrix</span></button> <button class="info" type="button" data-info="matrix" aria-label="About the milestone matrix" data-i18n-aria-label="about.matrix" aria-expanded="false">i</button><span class="fsum" id="fsum-matrix"></span></h2>
+        <div id="fold-matrix" class="fbody" hidden><div class="scroll" id="matrix"></div></div>
       </section>
     </div>
+    <section class="card pipecard" aria-label="Lifecycle" data-i18n-aria-label="band.title" data-src="summary">
+      <h2 class="fh"><button type="button" class="fold" data-fold="band" aria-expanded="false" aria-controls="fold-band"><svg class="ti chev" aria-hidden="true" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg><span data-i18n="band.title">Lifecycle</span></button> <button class="info" type="button" data-info="band" aria-label="About the lifecycle" data-i18n-aria-label="about.band" aria-expanded="false">i</button><span class="fsum" id="fsum-band"></span></h2>
+      <div id="fold-band" class="fbody" hidden><div id="band"></div><p class="sm muted totals" id="totals" data-src="epic-export" hidden></p><div class="plane msstate" id="msstate" data-src="epic-export" hidden></div></div>
+    </section>
+    <section class="card cfdcard" id="cfdcard" aria-label="Lifecycle over time" data-i18n-aria-label="cfd.title" data-src="summary" hidden>
+      <h2 class="fh"><button type="button" class="fold" data-fold="cfd" aria-expanded="false" aria-controls="fold-cfd"><svg class="ti chev" aria-hidden="true" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg><span data-i18n="cfd.title">Lifecycle over time</span></button> <button class="info" type="button" data-info="cfd" aria-label="About lifecycle over time" data-i18n-aria-label="about.cfd" aria-expanded="false">i</button><span class="fsum" id="fsum-cfd"></span></h2>
+      <div id="fold-cfd" class="fbody" hidden><div id="cfd"></div></div>
+    </section>
     <section class="card" id="plan-review" aria-label="Plan review" data-i18n-aria-label="slices.title" data-src="epic-export summary" hidden>
-      <h2><span data-i18n="slices.title">Plan review</span> <button class="info" type="button" data-info="slices" aria-label="About plan review" data-i18n-aria-label="about.slices" aria-expanded="false">i</button></h2>
-      <div class="scroll" id="slices"></div>
-      <section class="hist" id="slice-history" aria-label="Graph history of the picked slice" data-i18n-aria-label="hist.label" aria-live="polite" hidden></section>
+      <h2 class="fh"><button type="button" class="fold" data-fold="slices" aria-expanded="false" aria-controls="fold-slices"><svg class="ti chev" aria-hidden="true" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg><span data-i18n="slices.title">Plan review</span></button> <button class="info" type="button" data-info="slices" aria-label="About plan review" data-i18n-aria-label="about.slices" aria-expanded="false">i</button><span class="fsum" id="fsum-slices"></span></h2>
+      <div id="fold-slices" class="fbody" hidden><div class="scroll" id="slices"></div>
+      <section class="hist" id="slice-history" aria-label="Graph history of the picked slice" data-i18n-aria-label="hist.label" aria-live="polite" hidden></section></div>
     </section>
   </section>
 

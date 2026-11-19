@@ -204,6 +204,20 @@ p { margin: 0; }
 .nograph code { overflow-wrap: anywhere; }
 .nograph h2 + p { margin-top: var(--sp-2); }
 
+/* a fold (DESIGN.md's Accordion): the heading is the button, the (i) and a one-line summary sit beside it */
+.card > h2.fh { flex-wrap: wrap; margin: calc(var(--sp-2) * -1) 0; }
+.fold { display: inline-flex; align-items: center; gap: var(--sp-2); min-height: var(--ctl-md); margin-left: calc(var(--sp-2) * -1); padding: 0 var(--sp-2); border: 0; border-radius: var(--r-2); background: none; color: var(--ink); font: inherit; text-align: left; }
+.fold:hover { background: var(--fill-hover); }
+.fold:active { background: var(--fill-press); }
+.fold .chev { width: 20px; height: 20px; flex: none; color: var(--muted); transition: transform var(--dur-micro) var(--ease-out); }
+.fold[aria-expanded="true"] .chev { transform: rotate(90deg); }
+.fsum { font: var(--type-small); color: var(--muted); }
+.fbody { margin-top: var(--sp-6); }
+/* More figures holds figure cards, so it is a bare fold row, never a card around cards */
+.kpimore { background: none; border: 0; box-shadow: none; padding: 0; }
+.kpimore > h2.fh { margin: 0; }
+.kpimore .fbody { margin-top: var(--sp-2); }
+
 /* the (i) on a panel: an icon button with its own name, the note it opens floats over the page */
 .info { position: relative; display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0; flex: none; border: 0; border-radius: 50%; background: transparent; color: var(--muted); font-size: 0; }
 .info::before { content: ""; width: 20px; height: 20px; background: currentColor; -webkit-mask: var(--ic-info) center / contain no-repeat; mask: var(--ic-info) center / contain no-repeat; }
