@@ -84,5 +84,5 @@ func TestPage_EveryFoldIsAButtonThatNamesWhatItControls(t *testing.T) {
 		assert.Contains(t, page, `data-fold="`+id+`" aria-expanded="false" aria-controls="fold-`+id+`"`, "fold %s", id)
 		assert.Contains(t, page, `id="fold-`+id+`" class="fbody" hidden`, "fold %s", id)
 	}
-	assert.Equal(t, 6, strings.Count(page, `class="fold"`), "six folds")
+	assert.Equal(t, 8, strings.Count(page, `class="fold"`), "six folds drawn closed and the two now lists drawn open")
 }
