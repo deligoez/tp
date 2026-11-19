@@ -797,12 +797,18 @@
   };
 
   // foldOpen says whether a fold (a card the Epics tab draws folded until
-  // asked) is open. A press on this page (touched, true or false) wins;
-  // then an alarm its content carries, so a held epic or a lint error is
-  // never folded away by an earlier visit's choice; then that stored choice
-  // ("open" or "closed"); then the fold's own default.
+  // asked) is open. A press on this page wins: touched is the press, either
+  // a bare open/closed or {open, alarm}, the latter remembering whether an
+  // alarm was showing when it was made, so an alarm that arrives after a
+  // quiet press still opens the fold. Then an alarm its content carries, so
+  // a held epic or a lint error is never folded away by an earlier visit's
+  // choice; then that stored choice ("open" or "closed"); then the default.
   P.foldOpen = function (f) {
     if (f.touched === true || f.touched === false) return f.touched;
+    if (f.touched && typeof f.touched === "object") {
+      if (f.alarm && !f.touched.alarm) return true;
+      return !!f.touched.open;
+    }
     if (f.alarm) return true;
     if (f.stored === "open") return true;
     if (f.stored === "closed") return false;
