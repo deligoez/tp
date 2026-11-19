@@ -48,3 +48,19 @@ func TestPage_AChooseOneDecisionNamesEachOption(t *testing.T) {
 	assert.Contains(t, i18nText(t, "en"), `"op.copyFor": "Copy the command for {id}"`)
 	assert.Contains(t, i18nText(t, "tr"), `"op.copyFor": "{id} için komutu kopyala"`)
 }
+
+// A slice row says which slice in one phrase each language orders itself
+// ("K milestone'u dilimi", "Review slice for milestone K"), in the title
+// column on one line, its round under it on narrow widths, never an id
+// cell beside a title that a narrow column breaks mid-word.
+func TestPage_ASliceRowNamesItsSliceInOnePhrase(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	assert.Contains(t, script, `sliceRow(t("op.sliceOf", { what: sliceTitle(s) }), roundText(s),`)
+	assert.Contains(t, script, `const sliceRow = (label, meta, why) => '<div class="row rwide"><span class="t">' + esc(label) + '</span><span class="m">' + esc(meta) + '</span><div class="why">' + why + "</div></div>";`)
+	assert.NotContains(t, script, `row(t("op.slice"), sliceTitle(s)`)
+	assert.Contains(t, page, ".row.rwide { grid-template-columns: minmax(0, 1fr) auto; }")
+	assert.Contains(t, page, "@container (max-width: 560px) { .row.rwide { grid-template-columns: minmax(0, 1fr); } .row.rwide .m, .row.rwide .why { grid-column: 1; } }")
+	assert.Contains(t, i18nText(t, "en"), `"op.sliceOf": "Review slice for {what}"`)
+	assert.Contains(t, i18nText(t, "tr"), `"op.sliceOf": "{what} dilimi"`)
+}
