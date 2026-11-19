@@ -83,6 +83,12 @@ func epicFileState(path string) (EpicFileState, error) {
 	if err != nil {
 		return EpicFileState{}, fmt.Errorf("bound task file %s: %w", path, err)
 	}
+	return epicFileStateOf(path, specPath, tf, &loops)
+}
+
+// epicFileStateOf is epicFileState over the task file tf at path and the
+// loops already read for it.
+func epicFileStateOf(path, specPath string, tf *model.TaskFile, loops *resumeLoops) (EpicFileState, error) {
 	ground, err := epicGroundLoop(specPath)
 	if err != nil {
 		return EpicFileState{}, fmt.Errorf("bound task file %s: ground state of %s: %w", path, specPath, err)

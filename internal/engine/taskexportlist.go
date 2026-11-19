@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"time"
 
 	"github.com/deligoez/tp/internal/model"
 )
@@ -24,8 +25,9 @@ type TaskFileList struct {
 // derived status, the phase tp resume reports, its tasks counted by status,
 // its review and audit loops, the next step tp resume names, the escalate
 // blockers that stop it, and a hash of the task file's and its spec's bytes
-// that moves with an edit no other field shows. A file that cannot be read
-// carries its path and Error alone.
+// that moves with an edit no other field shows, and when the file was last
+// worked on (taskFileUpdatedAt). A file that cannot be read carries its path
+// and Error alone.
 type TaskFileRow struct {
 	Path        string         `json:"path"`
 	Title       string         `json:"title,omitempty"`
@@ -38,6 +40,7 @@ type TaskFileRow struct {
 	NextStep    string         `json:"next_step,omitempty"`
 	Escalations []Blocker      `json:"escalations,omitempty"`
 	ContentHash string         `json:"content_hash,omitempty"`
+	UpdatedAt   *time.Time     `json:"updated_at,omitempty"`
 	Error       string         `json:"error,omitempty"`
 
 	readable bool
@@ -58,8 +61,11 @@ func TaskFileListOf(start string) TaskFileList {
 		return list
 	}
 	bound := map[string][]string{}
+	// Every row's resume reads one tree: git status runs once for the list,
+	// and no row reads the unit branches a row does not print.
+	reads := resumeReads{changes: WorktreeChanges(start), noUnitBranches: true}
 	for _, path := range repoTaskFiles(root) {
-		row, tf := taskFileRow(start, repoRelativeTo(root, path), path)
+		row, tf := taskFileRow(start, repoRelativeTo(root, path), path, reads)
 		if row.readable && tf.Epic != "" {
 			bound[tf.Epic] = append(bound[tf.Epic], path)
 		}
@@ -107,8 +113,8 @@ func openFrom(start, root, shown string) string {
 }
 
 // taskFileRow reads the row of the task file at path, shown as the list
-// prints it, and returns the file it read.
-func taskFileRow(start, shown, path string) (TaskFileRow, *model.TaskFile) {
+// prints it, its resume over what reads holds, and returns the file it read.
+func taskFileRow(start, shown, path string, reads resumeReads) (TaskFileRow, *model.TaskFile) {
 	row := TaskFileRow{Path: shown}
 	tf, err := model.ReadTaskFile(path)
 	if err != nil {
@@ -116,12 +122,19 @@ func taskFileRow(start, shown, path string) (TaskFileRow, *model.TaskFile) {
 		return row, nil
 	}
 	specPath, _ := ResolveSpecPath(path, tf.Spec)
-	st, err := epicFileState(path)
+	// The loops are read once, for the row's state and its resume alike.
+	loops, err := readResumeLoops(path, specPath, tf)
+	if err != nil {
+		row.Error = fmt.Errorf("bound task file %s: %w", path, err).Error()
+		return row, nil
+	}
+	st, err := epicFileStateOf(path, specPath, tf, &loops)
 	if err != nil {
 		row.Error = err.Error()
 		return row, nil
 	}
-	resume, err := AssembleResumeLive(start, path, specPath, tf)
+	reads.loops = &loops
+	resume, err := assembleResumeLive(start, path, specPath, tf, reads)
 	if err != nil {
 		row.Error = err.Error()
 		return row, nil
@@ -134,6 +147,7 @@ func taskFileRow(start, shown, path string) (TaskFileRow, *model.TaskFile) {
 	row.Phase, row.Tasks, row.Review, row.Audit = resume.Phase, st.Tasks, &st.Review, &st.Audit
 	row.NextStep = resume.NextAction.Summary
 	row.ContentHash = contentHash(path, specPath)
+	row.UpdatedAt = taskFileUpdatedAt(tf, specPath)
 	row.Escalations = []Blocker{}
 	for _, b := range resume.Blockers {
 		if b.Class == ClassEscalate {
@@ -154,6 +168,40 @@ func contentHash(taskPath, specPath string) string {
 		}
 	}
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+// taskFileUpdatedAt is the latest time tf records: its tasks' started_at and
+// closed_at and its own bound_at and imported_at. With none, it is the latest
+// review or audit round the spec's state records; with neither, nil. The
+// file's mtime is never read, since a checkout resets it.
+func taskFileUpdatedAt(tf *model.TaskFile, specPath string) *time.Time {
+	var latest *time.Time
+	later := func(at *time.Time) {
+		if at != nil && (latest == nil || at.After(*latest)) {
+			latest = at
+		}
+	}
+	later(tf.BoundAt)
+	later(tf.ImportedAt)
+	for i := range tf.Tasks {
+		later(tf.Tasks[i].StartedAt)
+		later(tf.Tasks[i].ClosedAt)
+	}
+	if latest != nil {
+		return latest
+	}
+	st, err := LoadReviewState(specPath)
+	if err != nil || st == nil {
+		return nil
+	}
+	for _, rounds := range [][]ReviewRound{st.ReviewRounds, st.AuditRounds} {
+		for i := range rounds {
+			if at, err := time.Parse(time.RFC3339, rounds[i].RecordedAt); err == nil {
+				later(&at)
+			}
+		}
+	}
+	return latest
 }
 
 // specTitle is the spec's first heading, "" when it has none or cannot be

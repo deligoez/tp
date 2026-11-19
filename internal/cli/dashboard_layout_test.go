@@ -89,7 +89,7 @@ func TestDashboard_LayoutClampsTheNeighbourhoodDepth(t *testing.T) {
 // place alone (its milestone in the export, its group on its edges), the
 // scope's critical path marked and the group's edges marked. r2's
 // neighbourhood at depth 1: one step each way, r2 the centre, the graph's
-// critical path marked.
+// critical path marked. Every epic node names its title and state.
 func TestDashboard_LayoutGoldenViews(t *testing.T) {
 	t.Parallel()
 	srv := startDashboard(t, epicGraphDir(t, layoutGraph), freePort(t))
@@ -101,27 +101,47 @@ func TestDashboard_LayoutGoldenViews(t *testing.T) {
 			"edges": [{"from": "M1", "to": "M2", "role": "tree"}]}`,
 		"view=scope&milestone=M2": `{"view": "scope", "milestone": "M2", "layers": 5, "packing": "rows", "columns": 2,
 			"bands": [{"milestone": "M1", "from_layer": 0, "to_layer": 1}, {"milestone": "T1", "from_layer": 2, "to_layer": 2}, {"milestone": "M2", "from_layer": 3, "to_layer": 4}],
-			"nodes": [{"id": "r1", "layer": 0, "col": 0}, {"id": "r2", "layer": 1, "col": 0},
-				{"id": "t1", "layer": 2, "col": 1},
-				{"id": "s1", "layer": 3, "col": 0}, {"id": "s2", "layer": 4, "col": 0}],
+			"nodes": [{"id": "r1", "title": "R1", "state": "planned", "layer": 0, "col": 0}, {"id": "r2", "title": "R2", "state": "planned", "layer": 1, "col": 0},
+				{"id": "t1", "title": "T1", "state": "planned", "layer": 2, "col": 1},
+				{"id": "s1", "title": "S1", "state": "planned", "layer": 3, "col": 0}, {"id": "s2", "title": "S2", "state": "planned", "layer": 4, "col": 0}],
 			"edges": [{"from": "r1", "to": "r2", "critical": true, "role": "tree"}, {"from": "r2", "to": "s1", "critical": true, "role": "tree"}, {"from": "s1", "to": "s2", "critical": true, "role": "tree"},
 				{"from": "r1", "to": "s2", "any_of": ["r1", "t1"], "role": "cross"}, {"from": "t1", "to": "s2", "any_of": ["r1", "t1"], "role": "cross"}, {"from": "r1", "to": "t1", "role": "cross"}]}`,
 		"view=plan&pack=tree": `{"view": "plan", "layers": 5, "packing": "tree", "columns": 5,
 			"bands": [{"milestone": "M1", "from_layer": 0, "to_layer": 1}, {"milestone": "T1", "from_layer": 2, "to_layer": 2}, {"milestone": "M2", "from_layer": 3, "to_layer": 4}],
-			"nodes": [{"id": "r1", "layer": 0, "col": 0, "milestone": "M1"}, {"id": "r2", "layer": 1, "col": 0, "milestone": "M1"},
-				{"id": "t1", "layer": 2, "col": 4, "milestone": "T1"},
-				{"id": "s1", "layer": 3, "col": 0, "milestone": "M2"}, {"id": "s2", "layer": 4, "col": 0, "milestone": "M2"}],
+			"nodes": [{"id": "r1", "title": "R1", "state": "planned", "layer": 0, "col": 0, "milestone": "M1"}, {"id": "r2", "title": "R2", "state": "planned", "layer": 1, "col": 0, "milestone": "M1"},
+				{"id": "t1", "title": "T1", "state": "planned", "layer": 2, "col": 4, "milestone": "T1"},
+				{"id": "s1", "title": "S1", "state": "planned", "layer": 3, "col": 0, "milestone": "M2"}, {"id": "s2", "title": "S2", "state": "planned", "layer": 4, "col": 0, "milestone": "M2"}],
 			"edges": [{"from": "r1", "to": "r2", "critical": true, "role": "tree"}, {"from": "r2", "to": "s1", "critical": true, "role": "tree"}, {"from": "s1", "to": "s2", "critical": true, "role": "tree"},
 				{"from": "r1", "to": "s2", "any_of": ["r1", "t1"], "role": "cross"}, {"from": "t1", "to": "s2", "any_of": ["r1", "t1"], "role": "cross"}, {"from": "r1", "to": "t1", "role": "cross"}]}`,
 		"view=neighbourhood&epic=r2&depth=1": `{"view": "neighbourhood", "epic": "r2", "depth": 1, "layers": 3, "packing": "rows", "columns": 1,
-			"nodes": [{"id": "r1", "layer": 0, "col": 0, "milestone": "M1"}, {"id": "r2", "layer": 1, "col": 0, "milestone": "M1", "centre": true},
-				{"id": "s1", "layer": 2, "col": 0, "milestone": "M2"}],
+			"nodes": [{"id": "r1", "title": "R1", "state": "planned", "layer": 0, "col": 0, "milestone": "M1"}, {"id": "r2", "title": "R2", "state": "planned", "layer": 1, "col": 0, "milestone": "M1", "centre": true},
+				{"id": "s1", "title": "S1", "state": "planned", "layer": 2, "col": 0, "milestone": "M2"}],
 			"edges": [{"from": "r1", "to": "r2", "critical": true, "role": "tree"}, {"from": "r2", "to": "s1", "critical": true, "role": "tree"}]}`,
 	} {
 		status, body := getPage(t, strings.TrimSuffix(srv.url, "/")+"/api/layout?"+query)
 		require.Equal(t, http.StatusOK, status, body)
-		assert.JSONEq(t, want, body, query)
+		assert.JSONEq(t, want, withoutMapMarks(t, body), query)
 	}
+}
+
+// withoutMapMarks is a layout body without each node's status, hold and
+// downstream, which TestEpicLayout_EpicNodesCarryTheMapsStatusAndDownstream
+// pins against the page's own derivation, so the goldens pin the geometry.
+func withoutMapMarks(t *testing.T, body string) string {
+	t.Helper()
+	var out map[string]any
+	require.NoError(t, json.Unmarshal([]byte(body), &out), body)
+	nodes, _ := out["nodes"].([]any)
+	for _, n := range nodes {
+		if node, ok := n.(map[string]any); ok {
+			delete(node, "status")
+			delete(node, "hold")
+			delete(node, "downstream")
+		}
+	}
+	raw, err := json.Marshal(out)
+	require.NoError(t, err)
+	return string(raw)
 }
 
 // TestDashboard_MilestonesLayoutGroupsEachTrack: in the overview a

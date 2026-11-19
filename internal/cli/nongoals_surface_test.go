@@ -70,6 +70,7 @@ epic apply: dry-run if-revision
 epic claim: by if-revision release
 epic done: evidence if-revision undo
 epic export: md
+epic layout: view milestone epic depth pack
 epic gate: evidence if-revision met
 epic import: force if-revision
 epic link: any-of if-revision

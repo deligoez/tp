@@ -99,6 +99,7 @@ var commandSides = map[string]string{
 	"tp epic done":          sideNone,
 	"tp epic export":        sideNone,
 	"tp epic gate":          sideNone,
+	"tp epic layout":        sideNone,
 	"tp epic import":        sideNone,
 	"tp epic link":          sideNone,
 	"tp epic lint":          sideNone,

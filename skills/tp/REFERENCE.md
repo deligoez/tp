@@ -2688,6 +2688,12 @@ relative to the directory the command ran in, symlinks resolved on both sides, s
 or without `--history`; 3 for a slice with no state directory; 4 for a `--from`/`--to` round the slice
 did not record. It runs under `TP_UNATTENDED`: it writes nothing.
 
+`tp epic layout` (v1.28.0) exits as `/api/layout` answers (**Layout** below): 2 for a `--view`
+outside the set, a flag the view does not take, a scope without `--milestone` or a neighbourhood
+without `--epic`, a `--depth` that is not an integer or a `--pack` other than `rows` or `tree`; 3
+with no graph file or an unreadable bound task file; 4 for a milestone no track lists or an epic
+the graph does not hold. It writes nothing and runs under `TP_UNATTENDED`.
+
 ## Task Export and the Dashboard (v1.8.0)
 
 ### The task file's two times
@@ -2745,7 +2751,7 @@ task's `description`, sets every `snapshot_diff` to `null`, drops every `finding
 ```
 {version: 1, files: [{path, title, epic?, epic_state?, phase, tasks: {open, wip, done},
                       review: {round, state}, audit: {round, state}, next_step, escalations?,
-                      content_hash}]}
+                      content_hash, updated_at?}]}
 ```
 
 One row per `*.tasks.json` git sees, tracked or untracked and not ignored, bound or not; outside a
@@ -2754,7 +2760,10 @@ derived status (`null` with no graph); `phase` and `next_step` what `tp resume <
 `review`/`audit` `{round, state}` as `tp epic export`'s bound files carry them; `escalations` the file's
 escalate blockers; `content_hash` the lowercase hex SHA-256 of the task file's bytes followed by its
 spec's, which moves with an edit to the spec's text or a task's acceptance or description that no
-other field shows. `epic`, `epic_state` and `escalations` are omitted when empty. Rows run in phase
+other field shows; `updated_at` (v1.28.0) the RFC 3339 time the file was last worked on, the latest
+of its tasks' `started_at` and `closed_at` and its `bound_at` and `imported_at`, or with none of
+those the latest recorded review or audit round, never the file's mtime, which a checkout resets.
+`epic`, `epic_state`, `escalations` and `updated_at` are omitted when empty. Rows run in phase
 order (`review`, `decompose`, `implement`, `audit`, `release`), escalated rows first within a phase,
 then by path. A file that cannot be read keeps a `{path, error}` row, sorted last, and the rest are
 whole. `--list` ignores `--file` and `--compact`.
@@ -2863,8 +2872,17 @@ The answer is `{view, milestone?, epic?, depth?, layers, packing, columns, bands
 layers; `packing` the `pack` used and `columns` the width in columns; `bands`, for `plan` and
 `scope`, `[{milestone, with?, from_layer, to_layer}]`, each milestone a run of consecutive layers,
 `with` listing the milestones that share the run (below). `nodes` lists each node by layer, then
-column: `{id, layer, col}`, `layer` a small integer from 0, `col` a column from 0, fractional
-under `pack=tree`, plus, in `plan` the epic's `milestone`, in `scope` `deferrable`
+column: `{id, title?, state?, status?, hold?, downstream?, layer, col}`, `layer` a small integer from
+0, `col` a column from 0, fractional under `pack=tree`. On an epic node, and never on a milestone
+node (v1.28.0): `title`; `state` its lifecycle, `tp epic export`'s `status` (`planned`, `claimed`,
+`specced`, `in_progress`, `done`); `status` the mark the dashboard's map colours it by, derived from
+the export's fields as the page derives it: past `planned` the lifecycle itself (`claimed`,
+`specced`, `in_progress`, `done`), and for a planned epic `moot`, `held` (an undone condition among
+its dependencies), `blocked` (an undone dependency), `waiting` (its milestone not open) or `ready`,
+in that order; `hold` `held` or `blocked` on an epic past planned and not done that is also held or
+blocked, which the map draws over its mark; `downstream` the export's
+`{longest_chain, dependents, dependents_open}`, the counts the drawer shows, absent where the export
+leaves it out. Plus, in `plan` the epic's `milestone`, in `scope` `deferrable`
 (`tp epic scope`'s closure mark; an epic's milestone is in `tp epic export`, its any-of group on
 its edges), in `neighbourhood` the epic's `milestone`, which the view has no band for, and
 `centre: true` on the epic asked for; for a milestone, `epics` and `done` (its work epics and those
@@ -2874,6 +2892,10 @@ dependent (in `milestones`, from a milestone to one that opens after it), `criti
 edge between two consecutive epics of the critical path drawn (the scope's own, or the graph's in
 `plan` and `neighbourhood`), `any_of` naming the group of an edge from an any-of member, and `role`
 its place in the forest below: `tree`, `cross` or `back`.
+
+`tp epic layout` prints the same answer without a server, each query parameter a flag of the same
+name (`--view`, default `plan`, `--milestone`, `--epic`, `--depth`, `--pack`): one function derives
+both, so the command's JSON and the endpoint's body are equal for one graph.
 
 A node's layer is its dependency depth: its longest path over the view's edges. In `plan` and
 `scope` each band's layers come from the longest path among that band's own epics; a band starts
