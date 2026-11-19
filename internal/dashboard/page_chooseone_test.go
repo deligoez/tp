@@ -37,7 +37,7 @@ func TestPage_ChooseOneOptionsRunInline(t *testing.T) {
 	for _, s := range []string{
 		`.opts { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); }`,
 		`.opts .opt { display: inline-flex; align-items: center; gap: var(--sp-2); min-width: 0; max-width: 100%; font: var(--type-small); color: var(--ink); }`,
-		`.opts .ot { min-width: 0; max-width: 32ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }`,
+		`.opts .ot { min-width: 0; max-width: 18ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }`,
 	} {
 		assert.Contains(t, page, s)
 	}
