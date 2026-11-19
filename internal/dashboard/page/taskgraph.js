@@ -269,7 +269,22 @@
     const off = Math.max(0, Math.min(total - TG.ch, -TG.spacer.getBoundingClientRect().top));
     TG.ty = (off + TG.ch / 2) / s;
     const cw = TG.host.clientWidth;
-    TG.tx = S.w * s <= cw ? S.w / 2 : Math.max(cw / 2 / s, Math.min(S.w - cw / 2 / s, TG.tx));
+    // Beside a side drawer that covers the panel's right, the across may
+    // move that far further, so a card under it can be brought out (reveal);
+    // closed, the drawer gives the room back and the across returns.
+    const more = drawerOver() / s;
+    const lo = S.w * s <= cw ? S.w / 2 : cw / 2 / s;
+    const hi = (S.w * s <= cw ? S.w / 2 : S.w - cw / 2 / s) + more;
+    TG.tx = Math.max(lo, Math.min(hi, TG.tx));
+  }
+  // drawerOver is how many pixels of the panel's right a side drawer
+  // covers, 0 with none or with a phone's bottom sheet.
+  function drawerOver() {
+    const drawer = document.getElementById("drawer");
+    if (drawer.hidden) return 0;
+    const d = drawer.getBoundingClientRect();
+    if (d.top > window.innerHeight / 3) return 0;
+    return Math.max(0, TG.host.getBoundingClientRect().right - d.left);
   }
   // place puts the camera at vs, as tpPure.cameraOf leaves it: its zoom and
   // its across at once, its vertical by scrolling the page.
