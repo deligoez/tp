@@ -100,6 +100,24 @@ reason, as rule 14 asks. Line numbers refer to `DESIGN.md`.
      "If no action is most important, use no primary button").
    - Graph modes, language and theme use segmented controls (L492), and the views use tabs.
 
+## Deviations from DESIGN.md, as built
+
+- **A mono face** (`--mono`, the system's own) for ids, paths and commands only. DESIGN.md names
+  one family; an id read in a proportional face loses its separators.
+- **Graph-only state tints.** `--g-specced`, `--g-claimed`, `--g-waiting` and `--moot` are
+  semi-transparent information, warning and text-weak values, not DESIGN.md tokens: nine node
+  states need nine fills at least ΔE 12 apart, more than the semantic set holds
+  (`TestPage_TheStatusHuesReadBeforeTheNudgeAndStayApart`). They draw only on the canvas and its
+  legend; as text a waiting task takes `--waiting` (text-weak), which reads at 4.5:1.
+- **Owner colours** (`--own-0` … `--own-7`, `--own-other`, `--own-none`) are unchanged hex values
+  and appear only on the graph canvas and its legend.
+- **Inter is named, not embedded** (operator decision); the system face stands in where it is not
+  installed.
+- **The KPI grid** lets a figure card narrow to 128 px, under DESIGN.md's comfortable card width
+  (`TestPage_TheKPIRowReadsEvenlyAtDesktopWidth`).
+- **The canvas sits on `background-sunken`**, which is pure black in dark mode, as DESIGN.md defines
+  it; the graph's tints are composited onto it (`P.parseColour`).
+
 ## Alternatives
 
 - **Reskin only:** swap the token values and keep the markup. This is the cheapest option, and every
