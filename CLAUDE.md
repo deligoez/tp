@@ -158,7 +158,9 @@ items are in `spec/1.3.0-measurements.md`.
     committing. tp's mapping: the brand colour is DESIGN.md's own blue (`text-brand`,
     `fill-brand-strong`, as listed), and the font stack is `Inter, system-ui, sans-serif` with no
     embedded font. A deviation is written next to the code that needs it, with its reason; DESIGN.md
-    itself stays a verbatim copy of the upstream file.
+    itself stays a verbatim copy of the upstream file. A UI never shows a tp command or flag in plain
+    view: agents run tp and a person rarely needs the syntax, so the visible text says the step in
+    plain words and the command sits behind a copy button, a tooltip or an info note.
 
 ## Release
 
