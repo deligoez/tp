@@ -179,6 +179,7 @@
   "op.other": "Diğer kararlar",
   "op.chooseOne": "{n} koşuldan birini seç",
   "op.or": "ya da",
+  "op.copyFor": "{id} için komutu kopyala",
   "op.gate": "ölçülecek geçiş koşulu",
   "op.threshold": "yazılacak eşik",
   "op.slice": "dilim",

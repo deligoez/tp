@@ -324,6 +324,12 @@ button.pcell[aria-pressed="true"] { background: var(--fill-brand-weak); border-c
 .row .t { min-width: 0; }
 .row .m { font: var(--type-tiny); color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .row .why { grid-column: 2 / -1; font: var(--type-tiny); color: var(--muted); overflow-wrap: anywhere; }
+/* a choose-one decision's options: each condition beside its own button, 8px
+   between targets, "or" between options, the row's own padding between groups */
+.opts { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: grid; gap: var(--sp-2); }
+.opts .opt { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); font: var(--type-small); color: var(--ink); overflow-wrap: normal; }
+.opts .ot { flex: 1 1 16em; min-width: 0; }
+.opts .or { font: var(--type-tiny); color: var(--muted); }
 /* a list narrower than its rows need, as beside an open drawer or on a phone,
    puts each row's count under its title, then its title under its id */
 @container (max-width: 560px) { .row { grid-template-columns: fit-content(40%) minmax(0, 1fr); } .row .m { grid-column: 2; white-space: normal; } }

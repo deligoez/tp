@@ -625,7 +625,7 @@
   // row draws one list row; an epic's row names it with a link that
   // selects it.
   const row = (id, title, meta, why, epic) => '<div class="row"><span class="id">' + (epic ? epicLink(id) : esc(id)) + '</span><span class="t">' + esc(title) +
-    '</span><span class="m">' + esc(meta || "") + "</span>" + (why ? '<span class="why">' + why + "</span>" : "") + "</div>";
+    '</span><span class="m">' + esc(meta || "") + "</span>" + (why ? '<div class="why">' + why + "</div>" : "") + "</div>";
   const none = (text) => '<p class="empty">' + esc(text) + "</p>";
   const titleOf = (v, id) => (v.epics[id] ? v.epics[id].title : "");
   const dependents = (v, id) => {
@@ -644,7 +644,10 @@
   // slices that may take --grant-round, and the bound specs' escalations.
   // Agents run tp, so a person never reads a command in plain view: each
   // one is a Copy command button, the command in its tooltip and clipboard.
-  const copyCmd = (cmd) => '<button type="button" class="key copy" data-copy="' + esc(cmd) + '" title="' + esc(cmd) + '">' + esc(t("copy.command")) + "</button>";
+  // label, when given, is the button's accessible name, as when several sit
+  // side by side and each must say which option it copies.
+  const copyCmd = (cmd, label) => '<button type="button" class="key copy" data-copy="' + esc(cmd) + '" title="' + esc(cmd) + '"' +
+    (label ? ' aria-label="' + esc(label) + '"' : "") + ">" + esc(t("copy.command")) + "</button>";
   // conditionRows are the conditions waiting on a decision. With owners
   // declared they are grouped by whose decision it is (tpPure.ownerGroups):
   // a line stating the distinct conditions, then one counted "waiting on
@@ -668,12 +671,15 @@
   // heading so none reads as the last owner's.
   function operatorRows(v) {
     const evidence = ' --evidence "<' + t("op.evidence") + '>"';
-    const done = (id) => copyCmd("tp epic done " + id + evidence);
+    const done = (id, label) => copyCmd("tp epic done " + id + evidence, label);
     const grouped = ownerGrouped(v);
     const conds = conditionRows(v, done);
     const rest = [];
+    // A choose-one group lists its options, each condition named beside
+    // its own Copy command button, "or" between them in plain words.
     (v.plan.operator_groups || []).forEach((c) => rest.push(row(c.epic, titleOf(v, c.epic), t("op.chooseOne", { n: c.any_of.length }),
-      c.any_of.map(done).join(" " + esc(t("op.or")) + " "))));
+      '<ul class="opts">' + c.any_of.map((m, i) => (i ? '<li class="or">' + esc(t("op.or")) + "</li>" : "") +
+        '<li class="opt">' + epicLink(m) + '<span class="ot">' + esc(titleOf(v, m)) + "</span>" + done(m, t("op.copyFor", { id: m })) + "</li>").join("") + "</ul>")));
     (v.g.milestones || []).forEach((m) => {
       const o = m.operator || {};
       (o.gates || []).forEach((gate) => rest.push(row(gate.milestone, gate.threshold, t("op.gate"), copyCmd("tp epic gate " + gate.milestone + " --met" + evidence))));

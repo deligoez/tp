@@ -179,6 +179,7 @@
   "op.other": "Other decisions",
   "op.chooseOne": { "one": "choose one of {n} condition", "other": "choose one of {n} conditions" },
   "op.or": "or",
+  "op.copyFor": "Copy the command for {id}",
   "op.gate": "gate to measure",
   "op.threshold": "threshold to write",
   "op.slice": "slice",
