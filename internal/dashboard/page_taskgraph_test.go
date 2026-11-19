@@ -39,3 +39,11 @@ out({ a: [at.a.x, at.a.y], b: [at.b.x, at.b.y], f: [at.f.x, at.f.y], c: [at.c.x,
 		"steps":[0,140,230,320],"overlap":false,"bounds":{"x0":0,"y0":0,"x1":210,"y1":390}}`, got)
 }
 
+// A task's chain is everything it waits on, however far up, and everything
+// that waits on it, however far down; the task itself is in neither.
+func TestPure_TaskChainIsTransitiveBothWays(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, taskFixture+`out([P.taskChain(TS, "d"), P.taskChain(TS, "b"), P.taskChain(TS, "zz")]);`)
+	assert.JSONEq(t, `[{"up":["a","c"],"down":["g"]},{"up":[],"down":["e","g"]},{"up":[],"down":[]}]`, got)
+}
+
