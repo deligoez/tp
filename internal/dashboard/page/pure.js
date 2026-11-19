@@ -776,6 +776,24 @@
     return fullscreen ? "tp-dashboard-legend-fs" : "tp-dashboard-legend";
   };
 
+  // foldOpen says whether a fold (a card the Epics tab draws folded until
+  // asked) is open. A press on this page (touched, true or false) wins;
+  // then an alarm its content carries, so a held epic or a lint error is
+  // never folded away by an earlier visit's choice; then that stored choice
+  // ("open" or "closed"); then the fold's own default.
+  P.foldOpen = function (f) {
+    if (f.touched === true || f.touched === false) return f.touched;
+    if (f.alarm) return true;
+    if (f.stored === "open") return true;
+    if (f.stored === "closed") return false;
+    return !!f.dflt;
+  };
+
+  // foldKey is where a fold's stored choice is kept.
+  P.foldKey = function (id) {
+    return "tp-dashboard-fold-" + id;
+  };
+
   // focusAfterClose picks where focus goes back when the drawer closes:
   // "same" while the element that opened it is still on the page, else the
   // first key saved at opening that one of candidates, the keys of the
