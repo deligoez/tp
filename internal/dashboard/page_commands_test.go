@@ -34,7 +34,8 @@ func TestPage_NoTpCommandShowsInPlainView(t *testing.T) {
 		}
 	}
 	_, script := pageText(t)
-	assert.Contains(t, script, `const copyCmd = (cmd) => '<button type="button" class="key copy" data-copy="' + esc(cmd) + '" title="' + esc(cmd) + '">' + esc(t("copy.command")) + "</button>";`)
+	assert.Contains(t, script, `const copyCmd = (cmd, label) => '<button type="button" class="key copy" data-copy="' + esc(cmd) + '" title="' + esc(cmd) + '"' +`)
+	assert.Contains(t, script, `(label ? ' aria-label="' + esc(label) + '"' : "") + ">" + esc(t("copy.command")) + "</button>";`)
 	for _, s := range []string{`"<code>" + esc(cmd)`, `'<code class="snext">'`, `what: "tp `} {
 		assert.NotContains(t, script, s, "no command is drawn as visible text")
 	}

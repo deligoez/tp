@@ -432,7 +432,7 @@ func TestPage_TheAuditsPageItemsAreInPlace(t *testing.T) {
 		`data-closure="`, `t("drawer.members", { n: members.length })`,
 		"app.showClosure = (ms) =>", "function noteOpener() {", `(p === "ground" || p === "review") && st === "done"`,
 		"? epicLink(f.epic) + (f.epic_state", `esc(t("spec.epicLabel")) + " " + epicLink(d.epic)`, `if (state.tab !== "epics") {`,
-		"const done = (id) => copyCmd(", "tpPure.weekRange(last.week, t.locale)",
+		"const done = (id, label) => copyCmd(", "tpPure.weekRange(last.week, t.locale)",
 	} {
 		assert.Contains(t, script, s)
 	}
