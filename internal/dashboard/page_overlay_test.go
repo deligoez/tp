@@ -54,8 +54,8 @@ func TestPage_AMissedGestureEndNeverSticks(t *testing.T) {
 
 // TestPage_TheFullScreenPillShrinksItsSearchNotItsEnds is the review's H2:
 // Exit keeps its place at the pill's end and never shrinks; the
-// search gives way down to 8rem first; the mode switch and the cross-edge
-// toggle shorten their words only on a pill measured too wide (.tight, set by
+// search gives way down to 8rem first; the mode switch shortens its words
+// only on a pill measured too wide (.tight, set by
 // graph.js through tpPure.pillTight), so a pill with room keeps every word
 // whole; beside the drawer the pill stays in the part of the screen the
 // drawer leaves.
@@ -67,7 +67,6 @@ func TestPage_TheFullScreenPillShrinksItsSearchNotItsEnds(t *testing.T) {
 		"body.mapfs .gcard.fs #gc-q { flex: 0 1 16rem; min-width: 8rem; }",
 		"body.mapfs .gcard.fs .toolbar.tight .seg { flex: 0 1 auto; min-width: 0; }",
 		"body.mapfs .gcard.fs .toolbar.tight .seg button { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }",
-		"body.mapfs .gcard.fs .toolbar.tight #gc-cross { flex: 0 1 auto; min-width: 4rem; overflow: hidden; text-overflow: ellipsis; }",
 		"body.mapfs.dopen .gcard.fs .toolbar { left: calc((100% - var(--drawer-w)) / 2); max-width: calc(100% - var(--drawer-w) - 24px); }",
 		`pill.classList.toggle("tight", pure.pillTight(pill.scrollWidth, pill.clientWidth))`,
 		"new ResizeObserver(fitPill).observe(pill);",
@@ -101,16 +100,16 @@ func TestPage_TheTurkishLightThemeIsAydinlik(t *testing.T) {
 	}
 }
 
-// TestPage_ANarrowPillDropsItsPickersWordsAndShortensCrossEdges: the
-// screenshot run's overflow check found the Turkish Neighbourhood pill 74
-// pixels too wide beside the drawer at 1440 × 900. The overlay drawer no
-// longer narrows the card, so beside it (and in a narrow card) the count
-// and the pickers' words give way and the cross-edge toggle shortens its
-// own, keeping Fit and Exit left of the drawer.
-func TestPage_ANarrowPillDropsItsPickersWordsAndShortensCrossEdges(t *testing.T) {
+// TestPage_ANarrowPillDropsItsPickersWords: the screenshot run's overflow
+// check found the Turkish Neighbourhood pill 74 pixels too wide beside the
+// drawer at 1440 × 900. The overlay drawer no longer narrows the card, so
+// beside it (and in a narrow card) the count and the pill's own pickers'
+// words give way, keeping Exit left of the drawer; the cross-edge toggle
+// lives in the View menu since the simplify pass, so the pill no longer
+// shortens it.
+func TestPage_ANarrowPillDropsItsPickersWords(t *testing.T) {
 	t.Parallel()
 	page, _ := pageText(t)
-	assert.Contains(t, page, "@container (max-width: 1240px) { body.mapfs .gcard.fs .gpick > span { display: none; } }")
-	assert.Contains(t, page, "body.mapfs.dopen .gcard.fs .gcountfs, body.mapfs.dopen .gcard.fs .gpick > span { display: none; }")
-	assert.Contains(t, page, "body.mapfs .gcard.fs .toolbar.tight #gc-cross { flex: 0 1 auto; min-width: 4rem; overflow: hidden; text-overflow: ellipsis; }")
+	assert.Contains(t, page, "@container (max-width: 1240px) { body.mapfs .gcard.fs .toolbar > .gpick > span { display: none; } }")
+	assert.Contains(t, page, "body.mapfs.dopen .gcard.fs .gcountfs, body.mapfs.dopen .gcard.fs .toolbar > .gpick > span { display: none; }")
 }
