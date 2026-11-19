@@ -33,3 +33,18 @@ func TestPage_ALongNowListFoldsPastFiveRows(t *testing.T) {
 	assert.Contains(t, i18nText(t, "en"), `"list.showAll": "Show all {n}"`)
 	assert.Contains(t, i18nText(t, "tr"), `"list.showAll": "Tümünü göster ({n})"`)
 }
+
+// A choose-one decision lists its options, each with the condition it is
+// (its id and title) beside its own Copy command button, "or" between them
+// in plain words; each button's accessible name names its option, and the
+// list keeps DESIGN.md's 8px between targets.
+func TestPage_AChooseOneDecisionNamesEachOption(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	assert.Contains(t, script, `'<ul class="opts">' + c.any_of.map((m, i) => (i ? '<li class="or">' + esc(t("op.or")) + "</li>" : "") +`)
+	assert.Contains(t, script, `'<li class="opt">' + epicLink(m) + '<span class="ot">' + esc(titleOf(v, m)) + "</span>" + done(m, t("op.copyFor", { id: m })) + "</li>"`)
+	assert.Contains(t, script, `(label ? ' aria-label="' + esc(label) + '"' : "")`)
+	assert.Contains(t, page, ".opts { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: grid; gap: var(--sp-2); }")
+	assert.Contains(t, i18nText(t, "en"), `"op.copyFor": "Copy the command for {id}"`)
+	assert.Contains(t, i18nText(t, "tr"), `"op.copyFor": "{id} için komutu kopyala"`)
+}
