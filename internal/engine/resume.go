@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -78,7 +79,12 @@ func AssembleResume(start, taskFilePath, specPath string, tf *model.TaskFile) (R
 // holds. The driver never reads its cycle through this: it holds the run lock
 // and would see its own pool as live.
 func AssembleResumeLive(start, taskFilePath, specPath string, tf *model.TaskFile) (ResumeResult, error) {
-	res, err := AssembleResume(start, taskFilePath, specPath, tf)
+	return assembleResumeLive(start, taskFilePath, specPath, tf, resumeReads{})
+}
+
+// assembleResumeLive is AssembleResumeLive over what reads already holds.
+func assembleResumeLive(start, taskFilePath, specPath string, tf *model.TaskFile, reads resumeReads) (ResumeResult, error) {
+	res, err := assembleResume(start, taskFilePath, specPath, tf, nil, reads)
 	if err != nil {
 		return res, err
 	}
@@ -104,11 +110,35 @@ func livePoolAction(taskFilePath string, running []string) NextAction {
 // pool runs now left out of next_units (spec/backlog/rolling-implement.md
 // §2); running is nil outside a pool.
 func AssembleResumeRunning(start, taskFilePath, specPath string, tf *model.TaskFile, running []string) (ResumeResult, error) {
+	return assembleResume(start, taskFilePath, specPath, tf, running, resumeReads{})
+}
+
+// resumeReads is what a reader assembling many resumes over one tree has
+// read once for all of them, and what it does not print.
+type resumeReads struct {
+	// changes is WorktreeChanges(start), read by the caller; nil reads it.
+	// Each resume classifies its own copy.
+	changes []string
+	// noUnitBranches leaves UnitBranches unread, one git call a reader that
+	// prints no unit branch does not need.
+	noUnitBranches bool
+	// loops is readResumeLoops' answer for the one task file assembled, when
+	// the caller has read it; nil reads it.
+	loops *resumeLoops
+}
+
+// resumeTree classifies the working tree's changes, read already when
+// shared is not nil, into the unexplained changes, the kept entries and tp's
+// own bookkeeping, each sorted.
+func resumeTree(start, taskFilePath, specPath string, tf *model.TaskFile, shared []string) (changes []string, kept []model.KeepEntry, bookkeeping []BookkeepingEntry) {
 	// Working-tree classification against the keep-list (§4.5). A malformed keep
 	// pattern leaves every change unexplained rather than silently swallowing it.
-	raw := WorktreeChanges(start)
-	changes := raw
-	kept := []model.KeepEntry{}
+	raw := slices.Clone(shared)
+	if shared == nil {
+		raw = WorktreeChanges(start)
+	}
+	changes = raw
+	kept = []model.KeepEntry{}
 	if classified, err := ClassifyPaths(LoadKeepList(start), raw); err == nil {
 		changes = classified.Changes
 		kept = classified.Kept
@@ -118,14 +148,23 @@ func AssembleResumeRunning(start, taskFilePath, specPath string, tf *model.TaskF
 	// unexplained-changes blocker. Classified after the keep-list so an
 	// explicitly keep-listed tp-owned file stays in kept and is not
 	// double-reported.
-	bookkeeping, remaining := DeriveBookkeeping(start, taskFilePath, specPath, changes, tf)
-	changes = remaining
+	bookkeeping, changes = DeriveBookkeeping(start, taskFilePath, specPath, changes, tf)
 	sort.Strings(changes)
 	sort.Slice(kept, func(i, j int) bool { return kept[i].Path < kept[j].Path })
+	return changes, kept, bookkeeping
+}
 
-	loops, err := readResumeLoops(taskFilePath, specPath, tf)
-	if err != nil {
-		return ResumeResult{}, err
+// assembleResume is AssembleResumeRunning over what reads already holds.
+func assembleResume(start, taskFilePath, specPath string, tf *model.TaskFile, running []string, reads resumeReads) (ResumeResult, error) {
+	changes, kept, bookkeeping := resumeTree(start, taskFilePath, specPath, tf, reads.changes)
+
+	loops := reads.loops
+	if loops == nil {
+		read, err := readResumeLoops(taskFilePath, specPath, tf)
+		if err != nil {
+			return ResumeResult{}, err
+		}
+		loops = &read
 	}
 	phase, wf := loops.phase, &loops.wf
 
@@ -137,7 +176,7 @@ func AssembleResumeRunning(start, taskFilePath, specPath string, tf *model.TaskF
 	// Every path the result prints names the spec relative to the repository
 	// root; specPath itself stays what the reads below resolve.
 	shown := repoRelative(start, specPath)
-	blockers, epicNotice, err := resumeBlockers(taskFilePath, shown, changes, tf, &loops)
+	blockers, epicNotice, err := resumeBlockers(taskFilePath, shown, changes, tf, loops)
 	if err != nil {
 		return ResumeResult{}, err
 	}
@@ -170,9 +209,11 @@ func AssembleResumeRunning(start, taskFilePath, specPath string, tf *model.TaskF
 		NextAction:    renderNextAction(BuildNextAction(phase, specPath, shown, tf, loops.st, len(wf.Checks) > 0), nextUnits, blockers),
 		Blockers:      blockers,
 		PendingCloses: pendingCloseIDs(taskFilePath),
-		UnitBranches:  CycleUnitBranches(CanonicalProjectRoot(filepath.Dir(taskFilePath)), taskFilePath),
 		RunningUnits:  running,
 		EpicNotice:    epicNotice,
+	}
+	if !reads.noUnitBranches {
+		res.UnitBranches = CycleUnitBranches(CanonicalProjectRoot(filepath.Dir(taskFilePath)), taskFilePath)
 	}
 	if len(res.PendingCloses) > 0 {
 		res.NextAction = pendingCloseAction(res.PendingCloses)

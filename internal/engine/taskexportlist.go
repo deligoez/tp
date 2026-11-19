@@ -61,8 +61,11 @@ func TaskFileListOf(start string) TaskFileList {
 		return list
 	}
 	bound := map[string][]string{}
+	// Every row's resume reads one tree: git status runs once for the list,
+	// and no row reads the unit branches a row does not print.
+	reads := resumeReads{changes: WorktreeChanges(start), noUnitBranches: true}
 	for _, path := range repoTaskFiles(root) {
-		row, tf := taskFileRow(start, repoRelativeTo(root, path), path)
+		row, tf := taskFileRow(start, repoRelativeTo(root, path), path, reads)
 		if row.readable && tf.Epic != "" {
 			bound[tf.Epic] = append(bound[tf.Epic], path)
 		}
@@ -110,8 +113,8 @@ func openFrom(start, root, shown string) string {
 }
 
 // taskFileRow reads the row of the task file at path, shown as the list
-// prints it, and returns the file it read.
-func taskFileRow(start, shown, path string) (TaskFileRow, *model.TaskFile) {
+// prints it, its resume over what reads holds, and returns the file it read.
+func taskFileRow(start, shown, path string, reads resumeReads) (TaskFileRow, *model.TaskFile) {
 	row := TaskFileRow{Path: shown}
 	tf, err := model.ReadTaskFile(path)
 	if err != nil {
@@ -119,12 +122,19 @@ func taskFileRow(start, shown, path string) (TaskFileRow, *model.TaskFile) {
 		return row, nil
 	}
 	specPath, _ := ResolveSpecPath(path, tf.Spec)
-	st, err := epicFileState(path)
+	// The loops are read once, for the row's state and its resume alike.
+	loops, err := readResumeLoops(path, specPath, tf)
+	if err != nil {
+		row.Error = fmt.Errorf("bound task file %s: %w", path, err).Error()
+		return row, nil
+	}
+	st, err := epicFileStateOf(path, specPath, tf, &loops)
 	if err != nil {
 		row.Error = err.Error()
 		return row, nil
 	}
-	resume, err := AssembleResumeLive(start, path, specPath, tf)
+	reads.loops = &loops
+	resume, err := assembleResumeLive(start, path, specPath, tf, reads)
 	if err != nil {
 		row.Error = err.Error()
 		return row, nil

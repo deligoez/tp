@@ -46,6 +46,6 @@ func TestTaskExport_ALivePoolReachesTheExportAndTheList(t *testing.T) {
 	assert.Empty(t, exp.Resume.NextUnits, "the pool starts what comes next")
 	assert.Nil(t, exp.Resume.NextAction.Command, "no command that takes a task")
 
-	row, _ := taskFileRow(root, "tasks.json", taskFile)
+	row, _ := taskFileRow(root, "tasks.json", taskFile, resumeReads{})
 	assert.Contains(t, row.NextStep, "in progress")
 }
