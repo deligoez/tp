@@ -81,7 +81,10 @@ its first round delete or narrow; they do not add requirements.
 Open work is `BUGS.md` (the fix track, and entries awaiting an operator decision); the decision
 candidates in `spec/backlog/` are worked through. A shipped decision note leaves for
 `spec/backlog/ARCHIVE.md`, one row each naming the release and the sha to read it at; what the release
-measured stays in `spec/<version>-measurements.md`. v1.27.0 rebuilds the dashboard page on `DESIGN.md`
+measured stays in `spec/<version>-measurements.md`. v1.28.0 draws a spec's tasks with deck.gl (Steps and
+a shelved Map beside Board), opens task detail in the epic drawer, and adds `tp epic layout` and
+`tp export --list`'s `updated_at` for clients that read tp without the dashboard
+(`spec/1.28.0-measurements.md`). v1.27.0 rebuilds the dashboard page on `DESIGN.md`
 and simplifies its Epics view (folds, four KPIs, a View menu, no tp command in plain view), and
 `tp dashboard` falls back to a free port when 7377 is taken and `--port` was not passed
 (`spec/1.27.0-measurements.md`). v1.26.0 caps concurrent quality gates under
