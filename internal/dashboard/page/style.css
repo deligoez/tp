@@ -123,7 +123,6 @@
 
   /* Feather icons (MIT), drawn as masks in the text colour */
   --ic-info: url("data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 16v-4M12 8h.01'/%3E%3C/svg%3E");
-  --ic-help: url("data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01'/%3E%3C/svg%3E");
   --ic-x: url("data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 6 6 18M6 6l12 12'/%3E%3C/svg%3E");
   --ic-plus: url("data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E");
   --ic-minus: url("data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14'/%3E%3C/svg%3E");
@@ -221,7 +220,6 @@ p { margin: 0; }
 /* the (i) on a panel: an icon button with its own name, the note it opens floats over the page */
 .info { position: relative; display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0; flex: none; border: 0; border-radius: 50%; background: transparent; color: var(--muted); font-size: 0; }
 .info::before { content: ""; width: 20px; height: 20px; background: currentColor; -webkit-mask: var(--ic-info) center / contain no-repeat; mask: var(--ic-info) center / contain no-repeat; }
-.info.gkeys::before { -webkit-mask-image: var(--ic-help); mask-image: var(--ic-help); }
 .info::after { content: ""; position: absolute; inset: -12px; }
 .info:hover { color: var(--ink); background: var(--fill-hover); }
 .info:active { background: var(--fill-press); }
