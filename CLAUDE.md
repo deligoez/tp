@@ -149,6 +149,13 @@ items are in `spec/1.3.0-measurements.md`.
 13. **An audit ships on spec conformance**: `spec-coverage` clean two rounds running
     (`spec_coverage_clean_rounds`) and no FAIL in any round; record out-of-surface findings with
     justification and ship, never over an open spec-scoped finding (SKILL.md, Workflow D).
+14. **Every UI follows `DESIGN.md`** (Practical UI): the dashboard page and anything else a person
+    looks at. Read it before designing or changing a screen, build from its semantic tokens, type
+    scale, spacing, radii and shadows only, and walk its "Before you finish, check" list before
+    committing. tp's mapping: the brand colour is DESIGN.md's own blue (`text-brand`,
+    `fill-brand-strong`, as listed), and the font stack is `Inter, system-ui, sans-serif` with no
+    embedded font. A deviation is written next to the code that needs it, with its reason; DESIGN.md
+    itself stays a verbatim copy of the upstream file.
 
 ## Release
 
@@ -206,3 +213,4 @@ follows is only what is a convention of *this codebase*:
 - `docs/lessons.md` — the measurements and history this file used to carry. Read on demand; nothing
   in it is a rule.
 - `docs/qa.md` — the manual QA recipe and checklist.
+- `DESIGN.md` — the design system every UI follows (rule 14).
