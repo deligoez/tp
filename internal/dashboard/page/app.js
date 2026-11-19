@@ -517,7 +517,7 @@
     if (!btn) return;
     const id = btn.dataset.fold;
     const open = btn.getAttribute("aria-expanded") !== "true";
-    folds[id] = open;
+    folds[id] = { open, alarm: !!(foldOpts[id] || {}).alarm };
     try { localStorage.setItem(tpPure.foldKey(id), open ? "open" : "closed"); } catch (e) { /* the choice lasts this load */ }
     applyFold(id);
   });
