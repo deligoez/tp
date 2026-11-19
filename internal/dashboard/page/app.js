@@ -2060,20 +2060,12 @@
     }).join("");
   }
 
-  // drawWires joins each task in Steps to what it waits on, the picked task's
-  // own links drawn strong. Each wire is routed through the gaps between the
-  // cards (tpPure.routeWire), never across one, and wires that share a gap
-  // are spread a few pixels apart so each stays traceable.
-  function drawWires(d) {
-    const svg = $("wires");
-    const box = $("stages");
-    if (!svg || !box) return;
+  // stepsBoxes measures a laid-out Steps body, box: every card's box by id
+  // and the step headers' words, each { x, y, w, h } from box's top left, and
+  // the rect function that measured them. Steps routes its wires through
+  // these, and the Graph draws its cards on them.
+  function stepsBoxes(box) {
     const br = box.getBoundingClientRect();
-    const W = box.scrollWidth;
-    const H = box.scrollHeight;
-    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
-    svg.setAttribute("width", W);
-    svg.setAttribute("height", H);
     const rect = (el) => {
       const r = el.getBoundingClientRect();
       return { x: r.left - br.left + box.scrollLeft, y: r.top - br.top + box.scrollTop, w: r.width, h: r.height };
@@ -2082,6 +2074,23 @@
     box.querySelectorAll(".tcard").forEach((el) => { R[el.dataset.t] = rect(el); });
     // A step header is a full-width row, but only its words are in the way.
     const heads = Array.from(box.querySelectorAll(".step-h > *")).map(rect);
+    return { R, heads, rect };
+  }
+
+  // drawWires joins each task in Steps to what it waits on, the picked task's
+  // own links drawn strong. Each wire is routed through the gaps between the
+  // cards (tpPure.routeWire), never across one, and wires that share a gap
+  // are spread a few pixels apart so each stays traceable.
+  function drawWires(d) {
+    const svg = $("wires");
+    const box = $("stages");
+    if (!svg || !box) return;
+    const W = box.scrollWidth;
+    const H = box.scrollHeight;
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    svg.setAttribute("width", W);
+    svg.setAttribute("height", H);
+    const { R, heads } = stepsBoxes(box);
     const wires = [];
     (d.tasks || []).forEach((task) => (task.depends_on || []).forEach((x) => {
       if (!R[x] || !R[task.id]) return;
@@ -2451,6 +2460,10 @@
       drawWork();
     },
     taskWord: (s) => word(TASK_LABEL, s),
+    // The Graph draws the Steps layout itself: its markup, laid out and
+    // measured (stepsBoxes).
+    stepsMarkup: (d) => stepsHTML(d, taskIndex(d)),
+    stepsBoxes,
     onSelect: null,
     graphNote: null,
     graphParams: null,
