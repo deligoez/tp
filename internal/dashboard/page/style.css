@@ -192,7 +192,8 @@ p { margin: 0; }
 .tab:active { background: var(--fill-press); }
 .tab[aria-selected="true"] { border-bottom-color: var(--stroke-selected); }
 .tab[aria-selected="true"] b { color: var(--accent); }
-@media (max-width: 599px) { .tab { flex: 1 1 0; flex-direction: column; gap: 0; padding: var(--sp-2) var(--sp-3); } .tab span:not(.c) { display: none; } }
+.tab .c .cs { display: none; }
+@media (max-width: 599px) { .tab { flex: 1 1 0; min-width: 0; flex-direction: column; gap: 0; padding: var(--sp-2) var(--sp-3); } .tab > span:not(.c), .tab .c .cl { display: none; } .tab .c { max-width: 100%; } .tab .c .cs { display: inline; } }
 
 /* containers: a raised card on the base surface; groups inside use space and dividers, never a card */
 .panel, .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-4); box-shadow: var(--shadow-raised); padding: var(--sp-6); min-width: 0; }

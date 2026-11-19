@@ -1710,7 +1710,9 @@
   function drawWork() {
     $("work-none").hidden = !!work.path;
     $("work-body").hidden = !work.path;
-    $("c-work").textContent = work.path || "";
+    // The full path, and its file name for a phone-width tab row.
+    $("c-work").innerHTML = work.path ? '<span class="cl">' + esc(work.path || "") + '</span><span class="cs">' + esc(tpPure.pathTail(work.path || "")) + "</span>" : "";
+    $("tab-work").title = work.path || "";
     if (!work.path) {
       syncURL();
       return;
