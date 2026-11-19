@@ -2,6 +2,7 @@ package engine
 
 import (
 	"cmp"
+	"maps"
 	"math"
 	"slices"
 )
@@ -139,9 +140,7 @@ func compactTrees(ids []string, edges []LayoutEdge, f Forest, trees []shelfTree,
 		for _, v := range t.nodes {
 			if !hasParent[ids[v]] {
 				b := compactBlock(ids[v], kids, limit)
-				for id, p := range b.places {
-					rel[id] = p
-				}
+				maps.Copy(rel, b.places)
 				t.maxCol, t.maxLay = b.width-1, b.height-1
 			}
 		}
