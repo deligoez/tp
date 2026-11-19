@@ -482,6 +482,10 @@ kbd { display: inline-block; min-width: 1.6em; padding: 0 var(--sp-1); border: 1
 /* the toolbar keeps one line where the card is wide enough, its count line below it */
 .gcard { container-type: inline-size; }
 @container (min-width: 1040px) { .gcard .toolbar { flex-wrap: nowrap; } }
+@container (min-width: 1040px) { .gcard .toolbar { column-gap: var(--sp-2); } }
+/* on one line the controls keep their words whole and the search gives way */
+.gcard .toolbar > *, .gcard .toolbar .seg button { flex: none; white-space: nowrap; }
+.gcard .toolbar #gc-q { flex: 1 1 12rem; min-width: 10rem; }
 /* without WebGL2 the card shows its message alone */
 .gcard.nogl .toolbar > :not(h2), .gcard.nogl .legend, .gcard.nogl .gcount { display: none; }
 .gcard.nogl .glegend { display: none; }
