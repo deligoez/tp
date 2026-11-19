@@ -20,3 +20,25 @@ func TestPage_ReadingTextAndTheGraphTooltipUseTheTypeScale(t *testing.T) {
 		assert.NotContains(t, script, s)
 	}
 }
+
+// TestPage_EveryControlNamedInReviewHasHoverAndPress: DESIGN.md asks for
+// distinct hover and press states on every interactive element, laid over
+// the resting fill so its colour never changes.
+func TestPage_EveryControlNamedInReviewHasHoverAndPress(t *testing.T) {
+	t.Parallel()
+	page, _ := pageText(t)
+	for _, s := range []string{
+		".chaintext summary:hover, .dmore summary:hover { background: var(--fill-hover); }",
+		".chaintext summary:active, .dmore summary:active { background: var(--fill-press); }",
+		"button.pcell:hover { background-image: linear-gradient(var(--fill-hover), var(--fill-hover)); }",
+		"button.pcell:active { background-image: linear-gradient(var(--fill-press), var(--fill-press)); }",
+		".wsh:active { background: var(--fill-press); }",
+		".gcard .legend button:active { background: var(--fill-press); }",
+		".lgtoggle:active { background: var(--fill-press); }",
+		".subnav button:active { background: var(--fill-press); }",
+		".sec h2.sth .tc:active { background-image: linear-gradient(var(--fill-press), var(--fill-press)); }",
+	} {
+		assert.Contains(t, page, s)
+	}
+	assert.NotContains(t, page, "button.pcell:hover { background: var(--fill-press); }")
+}
