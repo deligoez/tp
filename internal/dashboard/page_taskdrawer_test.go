@@ -30,15 +30,18 @@ func TestPure_TheDrawerShowsATaskOnlyOnTheTasksView(t *testing.T) {
 	assert.JSONEq(t, `["epic","milestone","task",null,null,null]`, got)
 }
 
-// The Tasks view offers Steps and Board, Steps drawn by the graph alone: no
-// HTML steps, no wires, no side column; the summary sits in a strip above the
-// panel and a task opens in the epic drawer.
+// The Tasks view offers Steps, Map and Board, Steps drawn by the graph alone:
+// no HTML steps, no wires, no side column; the summary sits in a strip above
+// the panel and a task opens in the epic drawer.
 func TestPage_TheTasksViewIsTheGraphUnderASummaryStrip(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
-	assert.Contains(t, script, `tview("steps", tk("tasks.steps")) + tview("board", tk("tasks.board"))`)
+	assert.Contains(t, script, `tview("steps", tk("tasks.steps")) + tview("map", tk("tasks.map")) + tview("board", tk("tasks.board"))`)
 	assert.Contains(t, script, `$("sv-tasks").innerHTML = '<section class="panel tstrip"`)
 	assert.Contains(t, script, `$("dbody").innerHTML = taskDetail(`)
+	// The Map is the epic map's card over the spec's tasks, not a third
+	// renderer.
+	assert.Contains(t, script, `makeCard({ kind: "tasks", app: face,`)
 	for _, gone := range []string{`tview("graph"`, `id="tside"`, "function drawWires(", "P.routeWire = function", "P.wirePath = function", `class="wires"`} {
 		assert.NotContains(t, script, gone)
 	}
