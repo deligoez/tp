@@ -40,7 +40,19 @@ func disarm() { poolHook = func(string, string) {} }
 func driveUntilKilled(t *testing.T, records string, opts *DriverOptions) {
 	t.Helper()
 	killDriver(t, opts)
+	waitForUnits(t, opts)
 	waitForChildren(t, records)
+}
+
+// waitForUnits waits until no unit the run state names is alive. A unit the
+// driver spawned just before it died may not have claimed its record slot
+// yet, so the slot counts alone can agree at zero while it still runs.
+func waitForUnits(t *testing.T, opts *DriverOptions) {
+	t.Helper()
+	require.Eventually(t, func() bool {
+		st, err := ReadRunState(opts.Root, opts.TaskFile)
+		return err != nil || len(liveUnits(st, opts.TaskFile)) == 0
+	}, 30*time.Second, 20*time.Millisecond, "the run's units exit")
 }
 
 // killDriver runs the loop and requires it to die before it returns; the
