@@ -10,6 +10,12 @@ fix needs a design choice leaves this file for a decision note.
 
 ## Fix track
 
+- **The engine's crash and rolling tests race their own records.** `go test -count=10 -run
+  'TestCrash_|TestRolling_RunMaxUnitsIsCheckedBeforeEverySpawn$' ./internal/engine/` failed 7 of 80
+  runs on main at `8a208c62` (load 6 to 14): two siblings' records arrive in slot-claim order, not
+  spawn order, so `[alpha beta]` reads `[beta alpha]`; and `TestCrash_DuringAWorktreeSetup` failed 5
+  of 5 alone, since the driver can die before alpha claims its slot and the slot counts then agree at
+  zero while alpha still runs.
 ## Decided elsewhere, not a fix
 
 - **An auto-detected file list beyond 10 is cut per code role, and an inline spec excerpt stops at
