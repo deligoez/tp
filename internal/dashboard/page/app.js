@@ -1953,7 +1953,9 @@
   }
 
   // drawWires joins each task in Steps to what it waits on, the picked task's
-  // own links drawn strong.
+  // own links drawn strong. Each wire is routed through the gaps between the
+  // cards (tpPure.routeWire), never across one, and wires that share a gap
+  // are spread a few pixels apart so each stays traceable.
   function drawWires(d) {
     const svg = $("wires");
     const box = $("stages");
@@ -1964,23 +1966,36 @@
     svg.setAttribute("viewBox", "0 0 " + W + " " + H);
     svg.setAttribute("width", W);
     svg.setAttribute("height", H);
-    const R = {};
-    box.querySelectorAll(".tcard").forEach((el) => {
+    const rect = (el) => {
       const r = el.getBoundingClientRect();
-      R[el.dataset.t] = { x: r.left - br.left + box.scrollLeft, y: r.top - br.top + box.scrollTop, w: r.width, h: r.height };
-    });
-    const out = [];
+      return { x: r.left - br.left + box.scrollLeft, y: r.top - br.top + box.scrollTop, w: r.width, h: r.height };
+    };
+    const R = {};
+    box.querySelectorAll(".tcard").forEach((el) => { R[el.dataset.t] = rect(el); });
+    // A step header is a full-width row, but only its words are in the way.
+    const heads = Array.from(box.querySelectorAll(".step-h > *")).map(rect);
+    const wires = [];
     (d.tasks || []).forEach((task) => (task.depends_on || []).forEach((x) => {
-      const a = R[x];
-      const b = R[task.id];
-      if (!a || !b) return;
-      const on = work.task && (work.task === x || work.task === task.id);
-      const p = { x: a.x + a.w / 2, y: a.y + a.h };
-      const q = { x: b.x + b.w / 2, y: b.y };
-      const dy = Math.max(12, (q.y - p.y) / 2);
-      out.push('<path class="' + (on ? "on" : "") + '" d="M' + p.x + " " + p.y + "C" + p.x + " " + (p.y + dy) + " " + q.x + " " + (q.y - dy) + " " + q.x + " " + q.y + '"/>');
+      if (!R[x] || !R[task.id]) return;
+      const obstacles = Object.keys(R).filter((k) => k !== x && k !== task.id).map((k) => R[k]).concat(heads);
+      wires.push({ from: x, to: task.id, obstacles, pts: tpPure.routeWire(R[x], R[task.id], obstacles) });
     }));
-    svg.innerHTML = out.join("");
+    const spread = (key) => {
+      const groups = {};
+      wires.forEach((w) => { const k = key(w); if (k !== null) (groups[k] = groups[k] || []).push(w); });
+      const at = new Map();
+      Object.values(groups).forEach((g) => g.forEach((w, i) => at.set(w, Math.max(-8, Math.min(8, (i - (g.length - 1) / 2) * 4)))));
+      return at;
+    };
+    const dys = spread((w) => Math.round(w.pts[1].y));
+    const dxs = spread((w) => (w.pts.length > 4 ? Math.round(w.pts[2].x) : null));
+    const out = wires.map((w) => {
+      const pts = tpPure.routeWire(R[w.from], R[w.to], w.obstacles, { dx: dxs.get(w) || 0, dy: dys.get(w) || 0 });
+      const on = work.task && (work.task === w.from || work.task === w.to);
+      return { on, html: '<path class="' + (on ? "on" : "") + '" d="' + tpPure.wirePath(pts, 6) + '"/>' };
+    });
+    // The picked task's wires go last, so they are drawn over the faint ones.
+    svg.innerHTML = out.filter((o) => !o.on).concat(out.filter((o) => o.on)).map((o) => o.html).join("");
   }
 
   // closedOverTime draws the running count of closed tasks per day, from the
