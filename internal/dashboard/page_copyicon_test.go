@@ -23,3 +23,19 @@ func TestPage_ACopyCommandButtonIsAnIconWithANameAndNoText(t *testing.T) {
 		assert.Contains(t, page, s)
 	}
 }
+
+// A copied command turns its icon into a check for a moment and says so
+// through a polite live region, so a screen reader hears it too.
+func TestPage_ACopiedCommandShowsACheckAndIsAnnounced(t *testing.T) {
+	t.Parallel()
+	page, script := pageText(t)
+	assert.Contains(t, page, `<p id="announce" class="vh" aria-live="polite"></p>`)
+	assert.Contains(t, page, `.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }`)
+	for _, s := range []string{
+		`$("announce").textContent = ok ? t("copy.copied") : t("copy.failed");`,
+		`b.classList.add("done");`,
+		`setTimeout(() => b.classList.remove("done"), 1500);`,
+	} {
+		assert.Contains(t, script, s)
+	}
+}
