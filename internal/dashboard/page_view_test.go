@@ -206,7 +206,7 @@ func TestPure_TheLegendCardStartsCollapsedInFullScreenAndKeepsTheChoice(t *testi
 
 // TestPage_FullScreenFloatsTheToolbarAndTheLegendOverTheCanvas: in full
 // screen the canvas takes the card's whole height; the toolbar floats over
-// it as one pill-shaped line without the card's title, the count line and
+// it as one line on the overlay surface without the card's title, the count line and
 // the long help hide, and the legend and keys float as one collapsible card
 // at the bottom left that L opens and closes, its state kept in this
 // browser behind a try.
@@ -215,9 +215,9 @@ func TestPage_FullScreenFloatsTheToolbarAndTheLegendOverTheCanvas(t *testing.T) 
 	page, script := pageText(t)
 	for _, s := range []string{
 		`<section class="glegend" id="gc-legendcard">`, `id="gc-lg" aria-expanded="true" aria-controls="gc-legend"`,
-		"body.mapfs .gcard.fs .toolbar { position: absolute;", "border-radius: 999px;", "flex-wrap: nowrap;",
+		"body.mapfs .gcard.fs .toolbar { position: absolute;", "background: var(--overlay); box-shadow: var(--shadow-overlay); }", "flex-wrap: nowrap;",
 		"body.mapfs .gcard.fs .toolbar h2, body.mapfs .gcard.fs .toolbar .spacer, body.mapfs .gcard.fs .gcount, body.mapfs .gcard.fs .legend .help, body.mapfs .gcard.fs .chaintext { display: none; }",
-		"body.mapfs .gcard.fs .glegend { position: absolute; left: 12px; bottom: 12px;",
+		"body.mapfs .gcard.fs .glegend { position: absolute; left: var(--sp-3); bottom: var(--sp-3);",
 		".glegend.closed .legend { display: none; }",
 	} {
 		assert.Contains(t, page, s)
@@ -425,7 +425,7 @@ func TestPure_AnISOWeekReadsAsItsDates(t *testing.T) {
 func TestPage_TheAuditsPageItemsAreInPlace(t *testing.T) {
 	t.Parallel()
 	page, script := pageText(t)
-	for _, s := range []string{`<svg class="ti" aria-hidden="true"`, ".kpi .v small { white-space: nowrap; }", ".kpi .v { padding-right: 30px; }"} {
+	for _, s := range []string{`<svg class="ti" aria-hidden="true"`, ".kpi .v small { font: var(--type-tiny); color: var(--muted); white-space: nowrap; }", "padding-right: var(--sp-8); }"} {
 		assert.Contains(t, page, s)
 	}
 	for _, s := range []string{
@@ -449,8 +449,8 @@ func TestPage_TheAuditsPageItemsAreInPlace(t *testing.T) {
 func TestPage_TheEpicDrawerIsQuiet(t *testing.T) {
 	t.Parallel()
 	page, script := pageText(t)
-	for _, s := range []string{".stepper.e3 .sd { display: none; }", ".stepper.e3 li + li::before {", ".drows .dwhy { font-size: var(--text-xs); line-height: 1.4; max-height: 2.8em; overflow: hidden; }",
-		".ddesc { font: 400 var(--text-sm)/1.6 var(--font-body); color: var(--ink-2); background: none; border: 0;",
+	for _, s := range []string{".stepper.e3 .sd { display: none; }", ".stepper.e3 li + li::before {", ".drows .dwhy { max-height: 40px; overflow: hidden; }",
+		".dwhy { display: block; color: var(--muted); font: var(--type-tiny); }", ".ddesc { font: var(--type-small); color: var(--ink); overflow-wrap: anywhere; }",
 		".drows .link { text-decoration: none; }", ".drows .link:hover, .drows .link:focus-visible { text-decoration: underline; }", ".drows li.dn, .drows li.dn .link { color: var(--muted); }"} {
 		assert.Contains(t, page, s)
 	}
@@ -470,15 +470,15 @@ func TestPage_TheEpicDrawerIsQuiet(t *testing.T) {
 
 // TestPage_TheDrawersFinishReviewIsApplied is the Hallmark finish review of
 // the epic drawer: dependency rows sit further apart and name their epic in
-// the mono face the drawer's own id uses; a description's headings sit below
-// the section label in tone; the current step is outlined, not filled; a
-// field's value breaks without a stub line; and the history's fold takes no
-// extra space above it.
+// the mono face the drawer's own id uses; a description's headings are the
+// label style, no larger than the section's; the current step is outlined,
+// not filled; a field's value breaks without a stub line; and the history's
+// fold takes no extra space above it.
 func TestPage_TheDrawersFinishReviewIsApplied(t *testing.T) {
 	t.Parallel()
 	page, _ := pageText(t)
-	for _, s := range []string{".drows { gap: var(--space-sm); }", ".drows .link { font-family: var(--mono); }",
-		".ddesc h3.sub { font: 600 var(--text-sm)/1.4 var(--font-display); color: var(--ink-2);", ".stepper.e3 li.cur .sn { background: none; color: var(--accent); }",
+	for _, s := range []string{".drows { gap: var(--sp-3); }", ".drows .link { font-family: var(--mono); font-size: 14px; }",
+		".ddesc h3.sub { font: var(--type-label);", ".stepper.e3 li.cur .sn { background: none; color: var(--ink); border: 2px solid var(--fill-strong); }",
 		".dbody dd { margin: 0; min-width: 0; overflow-wrap: anywhere; white-space: pre-line; text-wrap: pretty; }", ".dbody > .dmore > summary { margin-top: 0; }"} {
 		assert.Contains(t, page, s)
 	}

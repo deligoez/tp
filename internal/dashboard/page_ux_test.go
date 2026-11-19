@@ -438,13 +438,14 @@ func TestPage_TheLoopsFigureSplitsStaleFromNeedingARound(t *testing.T) {
 }
 
 // TestPage_TheKPIRowReadsEvenlyAtDesktopWidth: the nine KPI cards are an
-// auto-fit grid whose cards may narrow to 140 px, so at 1440 px (a 1408 px
-// row, 8 px gaps: 149 px each) all nine share one row instead of eight and
-// a ninth wrapping alone, as they did at a 160 px minimum (1.14.1).
+// auto-fit grid whose cards may narrow to 128 px, so at 1440 px (a 1344 px
+// row inside the 48 px margins, 12 px gaps: 138 px each) all nine share one
+// row instead of eight and a ninth wrapping alone, as they did at a 160 px
+// minimum (1.14.1).
 func TestPage_TheKPIRowReadsEvenlyAtDesktopWidth(t *testing.T) {
 	t.Parallel()
 	page, _ := pageText(t)
-	assert.Contains(t, page, ".kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));")
+	assert.Contains(t, page, ".kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 128px), 1fr)); gap: var(--sp-3); }")
 	assert.NotContains(t, page, "minmax(160px, 1fr)")
 }
 
@@ -560,8 +561,8 @@ func TestPure_AMilestoneCardReadsOneLine(t *testing.T) {
 func TestPage_AMilestoneCardIsOneLineThatOpensItsDetail(t *testing.T) {
 	t.Parallel()
 	page, script := pageText(t)
-	assert.Contains(t, page, ".mscells { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: var(--space-xs); align-items: start; }")
-	assert.Contains(t, page, ".ms .line { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }")
+	assert.Contains(t, page, ".mscells { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--sp-2); align-items: start; }")
+	assert.Contains(t, page, ".ms .line { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }")
 	for _, s := range []string{`'<button type="button" class="ms" data-ms="'`, "tpPure.msLine(", `' title="' + esc(line.text) + '">'`, "openMilestone(b.dataset.ms)"} {
 		assert.Contains(t, script, s)
 	}
