@@ -94,6 +94,8 @@ type dashboardLayout struct {
 // epics (an any-of member one each) and whether it is open.
 type layoutNode struct {
 	ID         string  `json:"id"`
+	Title      string  `json:"title,omitempty"`
+	State      string  `json:"state,omitempty"`
 	Layer      int     `json:"layer"`
 	Col        float64 `json:"col"`
 	Milestone  string  `json:"milestone,omitempty"`
@@ -117,32 +119,59 @@ type layoutEdge struct {
 	Role     engine.EdgeRole `json:"role"`
 }
 
-// Layout answers /api/layout: the view the query names, laid out by
-// engine.ForestLayout over the graph and its derived states.
+// Layout answers /api/layout: epicLayout's payload or refusal for q.
 func (dashboardAPI) Layout(q url.Values) (any, *dashboard.Error) {
-	lq, derr := dashboardLayoutQuery(q)
+	out, derr := epicLayout(q)
 	if derr != nil {
 		return nil, derr
 	}
+	return out, nil
+}
+
+// epicLayout is the view q names, laid out by engine.ForestLayout over the
+// graph and its derived states, each epic node carrying its title and
+// status. /api/layout and tp epic layout both answer through it, so the two
+// cannot drift.
+func epicLayout(q url.Values) (dashboardLayout, *dashboard.Error) {
+	lq, derr := dashboardLayoutQuery(q)
+	if derr != nil {
+		return dashboardLayout{}, derr
+	}
 	g, states, _, rerr := readEpicStates()
 	if rerr != nil {
-		return nil, runErrorOf(rerr)
+		return dashboardLayout{}, runErrorOf(rerr)
 	}
+	var out dashboardLayout
 	switch lq.view {
 	case layoutViewScope:
 		if _, tracked := engine.MilestoneGates(g, states)[lq.milestone]; !tracked {
-			return nil, dashboard.NewError(ExitState, fmt.Sprintf("milestone %q is not one a track lists", layoutEcho(lq.milestone)), dashboardLayoutAbsentHint)
+			return dashboardLayout{}, dashboard.NewError(ExitState, fmt.Sprintf("milestone %q is not one a track lists", layoutEcho(lq.milestone)), dashboardLayoutAbsentHint)
 		}
-		return scopeLayout(g, states, lq.milestone, lq.pack), nil
+		out = scopeLayout(g, states, lq.milestone, lq.pack)
 	case layoutViewNeighbourhood:
 		if !slices.ContainsFunc(g.Epics, func(e model.Epic) bool { return e.ID == lq.epic }) {
-			return nil, dashboard.NewError(ExitState, fmt.Sprintf("epic %q is not in the graph", layoutEcho(lq.epic)), dashboardLayoutAbsentHint)
+			return dashboardLayout{}, dashboard.NewError(ExitState, fmt.Sprintf("epic %q is not in the graph", layoutEcho(lq.epic)), dashboardLayoutAbsentHint)
 		}
-		return neighbourhoodLayout(g, states, lq.epic, lq.depth, lq.pack), nil
+		out = neighbourhoodLayout(g, states, lq.epic, lq.depth, lq.pack)
 	case layoutViewPlan:
-		return planLayout(g, states, lq.pack), nil
+		out = planLayout(g, states, lq.pack)
 	default:
 		return milestonesLayout(g, states, lq.pack), nil
+	}
+	nameEpicNodes(&out, g, states)
+	return out, nil
+}
+
+// nameEpicNodes gives each epic node of out its title and derived status,
+// the vocabulary tp epic export's status prints.
+func nameEpicNodes(out *dashboardLayout, g *model.EpicGraph, states map[string]engine.EpicState) {
+	title := make(map[string]string, len(g.Epics))
+	for i := range g.Epics {
+		title[g.Epics[i].ID] = g.Epics[i].Title
+	}
+	for i := range out.Nodes {
+		n := &out.Nodes[i]
+		n.Title, n.State = title[n.ID], states[n.ID].Status
 	}
 }
 
