@@ -129,6 +129,7 @@ func TestClaimSpawnRefuses(t *testing.T) {
 		{"unknown id", []string{"claim", "nope", "--spawn", "toolu_B3"}, 4},
 		{"spawn shape", []string{"claim", "t3", "--spawn", "toolu;rm"}, 2},
 		{"session shape", []string{"claim", "t1", "--spawn", "toolu_A3", "--session", "a b"}, 2},
+		{"empty session", []string{"claim", "t1", "--spawn", "toolu_A3", "--session", ""}, 2},
 		{"one id only", []string{"claim", "t1", "t3", "--spawn", "toolu_B3"}, 2},
 		{"session needs spawn", []string{"claim", "t1", "--session", "s"}, 2},
 		{"takeover needs spawn", []string{"claim", "t1", "--takeover"}, 2},
