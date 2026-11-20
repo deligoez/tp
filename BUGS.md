@@ -8,18 +8,6 @@ fix needs a design choice leaves this file for a decision note.
 
 ## Needs an operator decision
 
-- **A coordinator cannot pause the pool hook short of holding every ready task.** From the v1.29.0
-  review: a session told to stop spawning is asked once per turn while slots are free, and its only
-  quiet answer is `tp set <id> waiting=...` per task, written to the shared task file and visible to
-  every reader, `tp run` included. A per-session pause or cap kept out of the task file (under
-  `.git/`, or a `tp pool` flag) is new surface.
-- **A resumed session may not own its claims.** From the same review, not measured: if
-  `claude --resume` gives a new `session_id`, the old session's claims are no session's, and the
-  coordinator is asked nothing until it spawns again. Measure the id across a resume first.
-- **A live agent spawned without a marker holds no pool slot.** `background_tasks` lists every
-  running subagent, reviewers included, so counting each as a slot would count work that is not an
-  implement unit; the marker is the way in (`spec/1.29.0-measurements.md`, *Left for later*).
-
 ## Fix track
 
 ## Decided elsewhere, not a fix
