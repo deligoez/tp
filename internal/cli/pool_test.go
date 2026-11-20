@@ -268,6 +268,9 @@ func TestPoolStopHookStaysSilent(t *testing.T) {
 		"inside a unit":  {payload: poolStopPayload(t, dir, false), withTP: true, env: []string{"TP_UNIT_KIND=implement"}},
 		"no tp on PATH":  {payload: poolStopPayload(t, dir, false), withTP: false},
 		"not a claimant": {payload: func() map[string]any { p := poolStopPayload(t, dir, false); p["session_id"] = "sessX"; return p }(), withTP: true},
+		// A harness that sends no background_tasks says nothing of which
+		// agents live, so no claim may be called lost.
+		"no background_tasks": {payload: func() map[string]any { p := poolStopPayload(t, dir, false); delete(p, "background_tasks"); return p }(), withTP: true},
 	}
 	for name, c := range cases {
 		stdout, _, code := hookRun(t, poolHook, c.withTP, c.payload, c.env...)
