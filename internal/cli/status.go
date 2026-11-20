@@ -16,6 +16,7 @@ type statusResult struct {
 	WIP             int `json:"wip"`
 	Done            int `json:"done"`
 	Blocked         int `json:"blocked"`
+	Held            int `json:"held"`
 	Ready           int `json:"ready"`
 	ProgressPercent int `json:"progress_percent"`
 }
@@ -58,21 +59,16 @@ func runStatus(_ *cobra.Command, _ []string) error {
 		}
 	}
 
-	// Compute blocked and ready
+	// Compute blocked, held and ready
 	for i := range tf.Tasks {
-		if tf.Tasks[i].Status != model.StatusOpen {
-			continue
-		}
-		allDone := true
-		for _, dep := range tf.Tasks[i].DependsOn {
-			if !done[dep] {
-				allDone = false
-				break
-			}
-		}
-		if allDone {
+		t := &tf.Tasks[i]
+		switch {
+		case t.Status != model.StatusOpen:
+		case t.Held():
+			result.Held++
+		case t.Startable(done):
 			result.Ready++
-		} else {
+		default:
 			result.Blocked++
 		}
 	}
