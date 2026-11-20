@@ -75,6 +75,7 @@ func runReopen(_ *cobra.Command, args []string) error {
 		task.CommitFiles = nil
 		task.CommitFilesTotal = 0
 		task.DurationSource = ""
+		task.ClaimedBy = nil
 		task.GateSkippedReason = nil
 		task.TaskAuditOwed = nil
 		tf.UpdatedAt = time.Now().UTC()
