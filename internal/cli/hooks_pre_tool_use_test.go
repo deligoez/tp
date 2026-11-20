@@ -52,6 +52,23 @@ var (
 	shellTools = []string{"Bash", "BashOutput", "KillShell", "Read", "Glob", "Grep", "Task"}
 )
 
+// writeDenyGroups is the manifest's PreToolUse groups that run the write-deny
+// hook. The Agent matcher's claim hook (spec/backlog/agent-bound-claims.md) is
+// a group of its own and no part of the fence.
+func writeDenyGroups(t *testing.T, manifest *pluginHooksManifest) []pluginHookGroup {
+	t.Helper()
+	var out []pluginHookGroup
+	for _, g := range manifest.Hooks["PreToolUse"] {
+		for _, h := range g.Hooks {
+			if h.Command == "${CLAUDE_PLUGIN_ROOT}/"+preToolUseHookPath {
+				out = append(out, g)
+				break
+			}
+		}
+	}
+	return out
+}
+
 // TestPreToolUseHookIsRegisteredForTheWriteTools guards §6.2's second row and
 // the half of test 25 that lives in the manifest: the matcher covers the four
 // editing tools and no shell tool, so the fence is enforcement for a
@@ -63,8 +80,8 @@ func TestPreToolUseHookIsRegisteredForTheWriteTools(t *testing.T) {
 	raw := readRepoDoc(t, pluginHooksManifestPath)
 	require.NoError(t, json.Unmarshal([]byte(raw), &manifest), "%s must be valid JSON", pluginHooksManifestPath)
 
-	groups := manifest.Hooks["PreToolUse"]
-	require.Len(t, groups, 1, "one PreToolUse group: one fence, one matcher")
+	groups := writeDenyGroups(t, &manifest)
+	require.Len(t, groups, 1, "one PreToolUse group holds the fence: one fence, one matcher")
 
 	require.Len(t, groups[0].Hooks, 1)
 	entry := groups[0].Hooks[0]
