@@ -148,3 +148,73 @@ func TestClaimSpawnRefuses(t *testing.T) {
 	assert.Equal(t, started, taskState(t, dir, "t1")["started_at"], "a takeover keeps the start")
 }
 
+// TestClaimsCountsACloseInAnotherWorktree: the coordinator claims on the main
+// tree and the agent closes in its own worktree, so a close or a waiting in
+// any worktree's copy accounts for the claim.
+func TestClaimsCountsACloseInAnotherWorktree(t *testing.T) {
+	t.Parallel()
+	dir := claimsRepo(t)
+	_, _, code := runTP(t, dir, "claim", "t1", "--spawn", "toolu_W1")
+	require.Equal(t, 0, code)
+	_, _, code = runTP(t, dir, "claim", "t2", "--spawn", "toolu_W1")
+	require.Equal(t, 0, code)
+	gitIn(t, dir, "commit", "-q", "-am", "claim")
+	wt := filepath.Join(t.TempDir(), "wt")
+	gitIn(t, dir, "worktree", "add", "-q", wt)
+
+	unaccounted := func() []any {
+		stdout, stderr, code := runTP(t, dir, "claims", "--spawn", "toolu_W1")
+		require.Equal(t, 0, code, stderr)
+		var out map[string]any
+		require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+		list, _ := out["unaccounted"].([]any)
+		return list
+	}
+	assert.ElementsMatch(t, []any{"t1", "t2"}, unaccounted())
+
+	_, stderr, code := runTP(t, wt, "done", "t1", "--gate-passed", "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	_, stderr, code = runTP(t, dir, "set", "t2", "waiting=a long run")
+	require.Equal(t, 0, code, stderr)
+	assert.Empty(t, unaccounted(), "done in the worktree and waiting on main both account")
+
+	stdout, _, code := runTP(t, dir, "claims", "--spawn", "toolu_none")
+	require.Equal(t, 0, code)
+	assert.Contains(t, stdout, `"unaccounted":[]`)
+}
+
+// hookRun runs one shipped plugin hook with tp on PATH (or not) and the
+// payload on stdin.
+func hookRun(t *testing.T, rel string, withTP bool, payload map[string]any, extraEnv ...string) (stdout, stderr string, code int) {
+	t.Helper()
+	raw, err := json.Marshal(payload)
+	require.NoError(t, err)
+	path := "/usr/bin:/bin"
+	if withTP {
+		path = filepath.Dir(binaryPath) + ":" + path
+	}
+	cmd := exec.Command(filepath.Join(repoRootDir(t), filepath.FromSlash(rel))) //nolint:gosec // a fixed path inside the repo under test
+	cmd.Env = append([]string{"PATH=" + path, "NO_COLOR=1", "TP_HC=0"}, extraEnv...)
+	cmd.Dir = t.TempDir()
+	cmd.Stdin = bytes.NewReader(raw)
+	var out, errb strings.Builder
+	cmd.Stdout, cmd.Stderr = &out, &errb
+	if runErr := cmd.Run(); runErr != nil {
+		var exitErr *exec.ExitError
+		require.True(t, errors.As(runErr, &exitErr), "the hook must exit rather than fail to start: %v", runErr)
+		code = exitErr.ExitCode()
+	}
+	return out.String(), errb.String(), code
+}
+
+func spawnPayload(dir, toolUseID, prompt string) map[string]any {
+	return map[string]any{
+		"session_id":      "sess-h",
+		"cwd":             dir,
+		"hook_event_name": "PreToolUse",
+		"tool_name":       "Agent",
+		"tool_use_id":     toolUseID,
+		"tool_input":      map[string]any{"description": "unit", "prompt": prompt},
+	}
+}
+
