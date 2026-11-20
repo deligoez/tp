@@ -26,9 +26,9 @@ func TestPure_RevealShiftMovesTheViewTheLeastThatShowsTheSpan(t *testing.T) {
 func TestPure_ATaskOnTheMapCarriesTheEpicMapsMarkForItsState(t *testing.T) {
 	t.Parallel()
 	got := runPure(t, `const mk = (id, state) => ({ id, state, title: "Title " + id });
-const M = P.taskMapMarks([[mk("a", "done"), mk("c", "ready")], [mk("d", "wip"), mk("e", "waits_on_epic")], [mk("f", "waits_on_task"), mk("g", "odd")]]);
+const M = P.taskMapMarks([[mk("a", "done"), mk("c", "ready")], [mk("d", "wip"), mk("e", "waits_on_epic")], [mk("f", "waits_on_task"), mk("g", "odd"), mk("h", "held")]]);
 out(Object.keys(M).sort().map((id) => [id, M[id].mark, M[id].title]));`)
-	assert.JSONEq(t, `[["a","done","Title a"],["c","ready","Title c"],["d","in_progress","Title d"],["e","held","Title e"],["f","waiting","Title f"],["g","ready","Title g"]]`, got)
+	assert.JSONEq(t, `[["a","done","Title a"],["c","ready","Title c"],["d","in_progress","Title d"],["e","held","Title e"],["f","waiting","Title f"],["g","ready","Title g"],["h","held","Title h"]]`, got)
 }
 
 // The Map is laid out by the server, by the forest the epic map's Plan uses
