@@ -1,5 +1,5 @@
 {
-  "description": "tp session hooks: preflight and orient at SessionStart, hold the unit scope fence on writes, claim a brief's task when an agent is spawned with it, refuse a sub-agent's stop while a task it claimed is neither done nor waiting, and refuse a role unit's stop before it has written its findings",
+  "description": "tp session hooks: preflight and orient at SessionStart, hold the unit scope fence on writes, claim a brief's task when an agent is spawned with it, refuse a sub-agent's stop while a task it claimed is neither done nor waiting, refuse a role unit's stop before it has written its findings, and ask a coordinator whose turn ends with free parallel slots to fill them",
   "hooks": {
     "SessionStart": [
       {
@@ -41,6 +41,11 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/stop-role-incomplete.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/stop-fill-pool.sh",
             "timeout": 10
           }
         ]
