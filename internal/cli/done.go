@@ -135,9 +135,6 @@ func runDone(cmd *cobra.Command, args []string) error {
 	if root := donePendingRoot(taskFilePath); root != "" {
 		return runDonePending(root, taskFilePath, taskIDs, reason)
 	}
-	if len(taskIDs) == 1 {
-		taskFilePath = closeOnClaimHolder(taskFilePath, taskIDs[0])
-	}
 	enterTree(taskFilePath, "tp done")
 
 	if resolveEffectiveStrategy(taskFilePath) == engine.CommitStrategyHC {
