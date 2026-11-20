@@ -119,6 +119,28 @@ func TestAgentClaimHookClaimsFromAPastedJSONBrief(t *testing.T) {
 	assert.Equal(t, "wip", taskState(t, dir, "t1")["status"])
 }
 
+// TestAgentClaimHookIgnoresAJSONMarkerQuotedInASentence: only a field of a
+// pasted brief claims, never a sentence that quotes one.
+func TestAgentClaimHookIgnoresAJSONMarkerQuotedInASentence(t *testing.T) {
+	t.Parallel()
+	dir := claimsRepo(t)
+	prompt := "Review the brief format.\nThe brief has \"marker\": \"tp-task: t2 spec.tasks.json\" as its first key.\n"
+	_, stderr, code := hookRun(t, agentClaimHook, true, spawnPayload(dir, "toolu_prose", prompt))
+	require.Equal(t, 0, code, stderr)
+	assert.Equal(t, "open", taskState(t, dir, "t2")["status"])
+}
+
+// TestAgentClaimHookReadsAMarkerWithTrailingSpaceOnce: the same marker,
+// once with a trailing space, is one task, not two.
+func TestAgentClaimHookReadsAMarkerWithTrailingSpaceOnce(t *testing.T) {
+	t.Parallel()
+	dir := claimsRepo(t)
+	prompt := "tp-task: t1 spec.tasks.json \nbrief\ntp-task: t1 spec.tasks.json\n"
+	_, stderr, code := hookRun(t, agentClaimHook, true, spawnPayload(dir, "toolu_sp", prompt))
+	require.Equal(t, 0, code, stderr)
+	assert.Equal(t, "wip", taskState(t, dir, "t1")["status"])
+}
+
 func TestAgentClaimHookRefusesASpawnWithTwoMarkersClaimingNothing(t *testing.T) {
 	t.Parallel()
 	dir := claimsRepo(t)
