@@ -18,8 +18,9 @@ func newClaimsCmd() *cobra.Command {
 		Use:   "claims --spawn <tool_use_id>",
 		Short: "Tasks an Agent spawn claimed, and whether each is done or waiting",
 		Long: `List the tasks claimed for one Agent spawn in any task file of the
-repository, reading every worktree's copy: a task is accounted for when it is
-done, or has waiting set, in any copy. Prints one line of JSON; the plugin's
+repository, reading every worktree's copy: a task is accounted for when some
+copy has it done, or wip with waiting set (waiting on an open copy is a hold,
+not a parked claim). Prints one line of JSON; the plugin's
 SubagentStop hook reads its unaccounted ids.`,
 		Args: cobra.NoArgs,
 		RunE: runClaims,
