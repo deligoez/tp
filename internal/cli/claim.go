@@ -28,13 +28,13 @@ func newClaimCmd() *cobra.Command {
 	return cmd
 }
 
-func runClaim(_ *cobra.Command, args []string) error {
+func runClaim(cmd *cobra.Command, args []string) error {
 	if !claimAllReady && len(args) == 0 {
 		output.Error(ExitUsage, "task ID required (or use --all-ready)")
 		os.Exit(ExitUsage)
 		return nil
 	}
-	refuseBadSpawnFlags(args)
+	refuseBadSpawnFlags(cmd, args)
 
 	taskFilePath, err := discoverWriteTarget()
 	if err != nil {

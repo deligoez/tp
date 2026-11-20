@@ -5,6 +5,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/deligoez/tp/internal/engine"
 	"github.com/deligoez/tp/internal/model"
 	"github.com/deligoez/tp/internal/output"
@@ -20,13 +22,14 @@ var (
 // before any file is read: --session and --takeover need --spawn, --spawn
 // takes one id, and each value has the claim-token shape, checked here at the
 // sink where it is written into the task file.
-func refuseBadSpawnFlags(args []string) {
+func refuseBadSpawnFlags(cmd *cobra.Command, args []string) {
+	sessionSet := cmd.Flags().Changed("session")
 	usage := func(msg string) {
 		output.Error(ExitUsage, msg)
 		os.Exit(ExitUsage)
 	}
 	if claimSpawn == "" {
-		if claimSession != "" || claimTakeover {
+		if sessionSet || claimTakeover {
 			usage("--session and --takeover need --spawn")
 		}
 		return
@@ -37,7 +40,9 @@ func refuseBadSpawnFlags(args []string) {
 	if !engine.ValidClaimToken(claimSpawn) {
 		usage(fmt.Sprintf("--spawn %q: want 1-128 of A-Z a-z 0-9 _ -", claimSpawn))
 	}
-	if claimSession != "" && !engine.ValidClaimToken(claimSession) {
+	// An empty --session is refused like any bad value: no session is
+	// spelled by leaving the flag out.
+	if sessionSet && !engine.ValidClaimToken(claimSession) {
 		usage(fmt.Sprintf("--session %q: want 1-128 of A-Z a-z 0-9 _ -", claimSession))
 	}
 }
