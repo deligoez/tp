@@ -488,6 +488,9 @@ type BriefTask struct {
 // prior_work carry the unit and its prior-work selection. The assembled text
 // brief (the default output) is built from these same parts by Text.
 type Brief struct {
+	// Marker is the `tp-task: <id> <task file>` line the plugin's spawn hook
+	// claims from (spec/backlog/agent-bound-claims.md); "" outside git.
+	Marker    string           `json:"marker,omitempty"`
 	Identity  string           `json:"identity"`
 	Task      BriefTask        `json:"task"`
 	PriorWork *PriorWorkResult `json:"prior_work"`
@@ -566,6 +569,11 @@ func compactPriorWork(prior *PriorWorkResult) *PriorWorkResult {
 // always present.
 func (b *Brief) Text() string {
 	var s strings.Builder
+
+	// The marker leads, on its own line, so a pasted brief carries it.
+	if b.Marker != "" {
+		s.WriteString(b.Marker + "\n\n")
+	}
 
 	// §4.1 Identity (§4.2): what this unit is, and the one-unit-then-stop rule.
 	s.WriteString("## Identity\n\n")

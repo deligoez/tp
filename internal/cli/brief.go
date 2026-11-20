@@ -110,6 +110,7 @@ func printBrief(tf *model.TaskFile, task *model.Task, taskFilePath, specPath str
 	// v0.35.0 §4.2: the cycle's last failure, when one is present, so the unit
 	// about to start reads it before it walks into the same wall.
 	b.LastFailure = engine.ReadLastFailure(failureRoot, taskFilePath)
+	b.Marker = engine.TaskMarker(taskFilePath, task.ID)
 
 	if output.IsJSON() {
 		return output.JSON(b)
