@@ -313,3 +313,18 @@ func TestSubagentStopHookBlocksAnUnaccountedClaimOnce(t *testing.T) {
 	assert.Empty(t, stdout, "a closed claim lets the agent stop")
 }
 
+func TestSubagentStopHookPassesWithoutMetaOrClaims(t *testing.T) {
+	t.Parallel()
+	dir := claimsRepo(t)
+	_, _, code := runTP(t, dir, "claim", "t1", "--spawn", "toolu_S2")
+	require.Equal(t, 0, code)
+
+	stdout, _, code := hookRun(t, agentStopHook, true, stopPayload(dir, agentTranscript(t, "toolu_S2", false), false))
+	assert.Equal(t, 0, code)
+	assert.Empty(t, stdout, "no meta.json: not a spawn tp can link")
+
+	stdout, _, code = hookRun(t, agentStopHook, true, stopPayload(dir, agentTranscript(t, "toolu_other", true), false))
+	assert.Equal(t, 0, code)
+	assert.Empty(t, stdout, "a spawn that claimed nothing stops freely")
+}
+
