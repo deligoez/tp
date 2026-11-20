@@ -57,11 +57,14 @@ func runPool(_ *cobra.Command, _ []string) error {
 }
 
 // poolFromStopHook is --stop-hook: a payload it cannot read, a second stop
-// (stop_hook_active) or a pool with nothing to ask prints nothing, since
-// this hook only nudges and must never wedge a session.
+// (stop_hook_active), a payload with no background_tasks (it says nothing of
+// which agents live, so no claim may be called lost) or a pool with nothing
+// to ask prints nothing, since this hook only nudges and must never wedge a
+// session.
 func poolFromStopHook(in io.Reader, out io.Writer) {
 	var payload engine.StopPayload
-	if json.NewDecoder(in).Decode(&payload) != nil || payload.StopHookActive || payload.Cwd == "" {
+	if json.NewDecoder(in).Decode(&payload) != nil || payload.StopHookActive || payload.Cwd == "" ||
+		payload.BackgroundTasks == nil {
 		return
 	}
 	live, unresolved := payload.LiveSpawns()
@@ -69,9 +72,7 @@ func poolFromStopHook(in io.Reader, out io.Writer) {
 	if !p.Ask {
 		return
 	}
-	raw, err := json.Marshal(map[string]string{"decision": "block", "reason": p.Reason})
-	if err != nil {
-		return
-	}
-	_, _ = fmt.Fprintln(out, string(raw))
+	enc := json.NewEncoder(out)
+	enc.SetEscapeHTML(false)
+	_ = enc.Encode(map[string]string{"decision": "block", "reason": p.Reason})
 }
