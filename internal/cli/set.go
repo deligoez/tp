@@ -143,6 +143,12 @@ func runSet(cmd *cobra.Command, args []string) error {
 		os.Exit(ExitFile)
 		return nil
 	}
+	if field == "waiting" {
+		if holder := engine.ClaimHolderCopy(taskFilePath, args[0]); holder != "" {
+			output.Notice(fmt.Sprintf("task %s is claimed in %s: waiting is written there, beside the claim", args[0], holder))
+			taskFilePath = holder
+		}
+	}
 
 	return engine.WithFileLock(taskFilePath, func() error {
 		tf, err := model.ReadTaskFile(taskFilePath)
