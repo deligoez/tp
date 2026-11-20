@@ -78,3 +78,19 @@ func TestBriefCarriesItsTaskMarker(t *testing.T) {
 	assert.Equal(t, "tp-task: t1 spec.tasks.json", brief["marker"], "the path is relative to the repository root, not the working directory")
 }
 
+func TestClaimSpawnClaimsAnOpenTaskForTheSpawn(t *testing.T) {
+	t.Parallel()
+	dir := claimsRepo(t)
+
+	_, stderr, code := runTPEnv(t, dir, []string{"CLAUDE_CODE_SESSION_ID=not-read"}, "claim", "t1", "--spawn", "toolu_A1", "--session", "sess-1")
+	require.Equal(t, 0, code, stderr)
+	task := taskState(t, dir, "t1")
+	assert.Equal(t, "wip", task["status"])
+	assert.Equal(t, "claimed", task["duration_source"])
+	assert.Equal(t, map[string]any{"session": "sess-1", "spawn": "toolu_A1"}, task["claimed_by"])
+
+	_, stderr, code = runTPEnv(t, dir, []string{"CLAUDE_CODE_SESSION_ID=not-read"}, "claim", "t2", "--spawn", "toolu_A1")
+	require.Equal(t, 0, code, stderr)
+	assert.Equal(t, map[string]any{"spawn": "toolu_A1"}, claimedBy(t, dir, "t2"), "no --session, no session: tp never reads it from the environment")
+}
+
