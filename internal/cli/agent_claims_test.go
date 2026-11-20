@@ -328,3 +328,24 @@ func TestSubagentStopHookPassesWithoutMetaOrClaims(t *testing.T) {
 	assert.Empty(t, stdout, "a spawn that claimed nothing stops freely")
 }
 
+// TestAgentClaimHooksStandAsideInsideATpRunUnit: a tp run unit is the
+// driver's to account for, so neither hook claims or blocks there, whatever
+// the payload says.
+func TestAgentClaimHooksStandAsideInsideATpRunUnit(t *testing.T) {
+	t.Parallel()
+	dir := claimsRepo(t)
+	_, _, code := runTP(t, dir, "claim", "t2", "--spawn", "toolu_U1")
+	require.Equal(t, 0, code)
+	unit := "TP_UNIT_KIND=implement"
+
+	_, stderr, code := hookRun(t, agentClaimHook, true, spawnPayload(dir, "toolu_U1", "tp-task: t3 spec.tasks.json"), unit)
+	assert.Equal(t, 0, code, "a blocked marker inside a unit is not refused: %s", stderr)
+	_, _, code = hookRun(t, agentClaimHook, true, spawnPayload(dir, "toolu_U1", "tp-task: t1 spec.tasks.json"), unit)
+	assert.Equal(t, 0, code)
+	assert.Equal(t, "open", taskState(t, dir, "t1")["status"], "nothing is claimed inside a unit")
+
+	stdout, _, code := hookRun(t, agentStopHook, true, stopPayload(dir, agentTranscript(t, "toolu_U1", true), false), unit)
+	assert.Equal(t, 0, code)
+	assert.Empty(t, stdout, "no block inside a unit")
+}
+
