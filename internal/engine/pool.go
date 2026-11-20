@@ -57,8 +57,14 @@ type PoolInput struct {
 	Unresolved int
 }
 
-// otherCopies is what the repository's other worktrees say about one task.
-type otherCopies struct{ done, waiting bool }
+// otherCopies is what the repository's other worktrees say about one task:
+// whether any copy has it done, and the spawns whose claim a copy carries done
+// or waiting. A copy speaks for a claim only when it carries that claim's
+// spawn; one cut before the claim says nothing of it.
+type otherCopies struct {
+	done             bool
+	doneBy, parkedBy map[string]bool
+}
 
 // PoolOf computes the pool of in.Session in the repository holding in.Start.
 func PoolOf(in PoolInput) Pool {
@@ -99,14 +105,22 @@ func (p *Pool) addFile(home, path string, live map[string]bool, others map[claim
 	}
 	rel := repoRelativeTo(home, path)
 	claimed := false
+	var busy []string
 	for i := range tf.Tasks {
 		task := &tf.Tasks[i]
+		if task.Status == model.StatusWIP {
+			busy = append(busy, task.ID)
+		}
 		if task.ClaimedBy == nil || task.ClaimedBy.Session != p.Session {
 			continue
 		}
 		claimed = true
-		if task.Status == model.StatusWIP {
+		switch {
+		case task.Status == model.StatusWIP:
 			p.classify(task, rel, live, others[claimKey{file: rel, id: task.ID}])
+		case task.Status == model.StatusDone && live[task.ClaimedBy.Spawn]:
+			// Closed, and its agent is still finishing: the slot is not free yet.
+			p.Running = append(p.Running, PoolTask{ID: task.ID, File: rel})
 		}
 	}
 	if !claimed {
@@ -120,23 +134,32 @@ func (p *Pool) addFile(home, path string, live map[string]bool, others map[claim
 	if block, blockErr := EpicBlockFor(tf, path); blockErr != nil || (block != nil && block.Blocks()) {
 		return
 	}
-	for _, t := range ReadyTasks(tf) {
-		p.Ready = append(p.Ready, PoolTask{ID: t.ID, File: rel})
+	// tp run's own pick: touches disjoint from every wip task's, and a solo
+	// task only once nothing runs, so the hook never asks for what the driver
+	// would refuse. Its bound is widened past the wip tasks, since an orphan
+	// holds no slot; the free count bounds the ask. A task another worktree
+	// closed is not offered again.
+	for _, id := range ImplementUnits(tf, limit+len(busy), busy) {
+		if !others[claimKey{file: rel, id: id}].done {
+			p.Ready = append(p.Ready, PoolTask{ID: id, File: rel})
+		}
 	}
 }
 
-// classify puts one wip task the session claimed in its class. A close in
-// another worktree wins, then a live spawn, then waiting in any copy.
+// classify puts one wip task the session claimed in its class: a live spawn
+// first, then a close or a park another worktree's copy made for this same
+// spawn, then waiting here.
 func (p *Pool) classify(task *model.Task, rel string, live map[string]bool, other otherCopies) {
 	pt := PoolTask{ID: task.ID, File: rel, Waiting: task.Waiting}
+	spawn := task.ClaimedBy.Spawn
 	switch {
-	case other.done:
-		p.Unmerged = append(p.Unmerged, pt)
-	case task.ClaimedBy.Spawn != "" && live[task.ClaimedBy.Spawn]:
+	case spawn != "" && live[spawn]:
 		p.Running = append(p.Running, pt)
-	case task.Waiting != "" || other.waiting:
+	case spawn != "" && other.doneBy[spawn]:
+		p.Unmerged = append(p.Unmerged, pt)
+	case task.Waiting != "" || (spawn != "" && other.parkedBy[spawn]):
 		p.Parked = append(p.Parked, pt)
-	case task.ClaimedBy.Spawn == "":
+	case spawn == "":
 		p.Respawn = append(p.Respawn, pt)
 	default:
 		p.Orphans = append(p.Orphans, pt)
@@ -162,14 +185,26 @@ func otherWorktreeCopies(home string) map[claimKey]otherCopies {
 			rel := repoRelativeTo(tree, path)
 			for i := range tf.Tasks {
 				k := claimKey{file: rel, id: tf.Tasks[i].ID}
-				c := out[k]
-				c.done = c.done || tf.Tasks[i].Status == model.StatusDone
-				c.waiting = c.waiting || tf.Tasks[i].Waiting != ""
-				out[k] = c
+				out[k] = out[k].with(&tf.Tasks[i])
 			}
 		}
 	}
 	return out
+}
+
+// with folds one more copy of the task into c.
+func (c otherCopies) with(t *model.Task) otherCopies {
+	c.done = c.done || t.Status == model.StatusDone
+	if t.ClaimedBy == nil || t.ClaimedBy.Spawn == "" {
+		return c
+	}
+	if c.doneBy == nil {
+		c.doneBy, c.parkedBy = map[string]bool{}, map[string]bool{}
+	}
+	spawn := t.ClaimedBy.Spawn
+	c.doneBy[spawn] = c.doneBy[spawn] || t.Status == model.StatusDone
+	c.parkedBy[spawn] = c.parkedBy[spawn] || (t.Status == model.StatusWIP && t.Waiting != "")
+	return c
 }
 
 // samePath reports whether a and b name the same directory once symlinks
