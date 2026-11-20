@@ -94,3 +94,20 @@ func TestClaimSpawnClaimsAnOpenTaskForTheSpawn(t *testing.T) {
 	assert.Equal(t, map[string]any{"spawn": "toolu_A1"}, claimedBy(t, dir, "t2"), "no --session, no session: tp never reads it from the environment")
 }
 
+func TestClaimSpawnRebindsAWipTaskAndKeepsItsStart(t *testing.T) {
+	t.Parallel()
+	dir := claimsRepo(t)
+	_, _, code := runTP(t, dir, "claim", "t1")
+	require.Equal(t, 0, code)
+	started := taskState(t, dir, "t1")["started_at"]
+
+	_, stderr, code := runTP(t, dir, "claim", "t1", "--spawn", "toolu_A2")
+	require.Equal(t, 0, code, stderr)
+	task := taskState(t, dir, "t1")
+	assert.Equal(t, started, task["started_at"], "a rebind keeps the coordinator's claim time")
+	assert.Equal(t, "toolu_A2", claimedBy(t, dir, "t1")["spawn"])
+
+	_, stderr, code = runTP(t, dir, "claim", "t1", "--spawn", "toolu_A2")
+	assert.Equal(t, 0, code, "the same spawn may claim again: %s", stderr)
+}
+
