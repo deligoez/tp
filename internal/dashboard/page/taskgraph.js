@@ -27,7 +27,7 @@
   const ZOOM_STEP = 0.5;
   const GESTURE_IDLE_MS = 500;
   const CURVE_STEPS = 12;
-  const MARK = { done: "✓", wip: "◐", waits_on_epic: "‖" };
+  const MARK = { done: "✓", wip: "◐", waits_on_epic: "‖", held: "‖" };
   const SANS = "Inter, system-ui, sans-serif";
   const MONO = "ui-monospace, SFMono-Regular, Menlo, monospace";
   const TG = {
