@@ -56,8 +56,8 @@ Measured in a scratch repository with `claude -p` and a logging hook:
    `toolUseId` from the agent's `meta.json` and asks `tp claims --spawn <id>` for the tasks claimed
    by that spawn.
    - A task counts as accounted for when a copy of its task file that carries this spawn's claim has
-     it done, or wip with `waiting` set. An agent in its own worktree writes its close and its park
-     to the copy holding the claim, so its branch carries no task-file change to merge.
+     it done, or wip with `waiting` set. An agent in its own worktree writes its park to the copy
+     holding the claim.
    - If any task is unaccounted, the hook blocks the stop once, naming `tp done <id> ...` and
      `tp set <id> waiting="<what>"`.
    - With `stop_hook_active` set, the stop passes.
