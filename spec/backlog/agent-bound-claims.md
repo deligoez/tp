@@ -41,21 +41,23 @@ Measured in a scratch repository with `claude -p` and a logging hook:
 
 1. **The brief carries the task.** `tp brief <id>` prints, on its own line, the marker
    `tp-task: <id> <task file>`, where the task file is relative to the repository root.
-2. **The spawn claims it.** The plugin's `PreToolUse` hook with matcher `Agent` reads the markers in
-   `tool_input.prompt` and runs `tp claim <id> --file <task file> --spawn <tool_use_id>` for each,
-   passing values as argv after checking each against the id and path shapes.
+2. **The spawn claims it.** The plugin's `PreToolUse` hook with matcher `Agent` reads the marker in
+   `tool_input.prompt` (a marker line, or the `marker` field of a brief's JSON pasted whole) and runs
+   `tp claim <id> --file <task file> --spawn <tool_use_id>`, passing values as argv after checking
+   each against the id and path shapes. A spawn carries one task; two markers refuse the spawn.
    - **An open task** is claimed now: `started_at` is the spawn, `duration_source` is `claimed`, and
      `claimed_by` is `{session, spawn}`.
    - **A wip task** keeps its `started_at`, and `claimed_by` moves to this spawn. This covers a
      coordinator that claimed before spawning.
-   - **A refusal** (done, blocked, held by another spawn whose agent has not finished, unknown id, a
-     lock timeout) exits 2 and the spawn does not happen.
+   - **A refusal** (done, blocked, held by another spawn, unknown id, a lock timeout) exits 2 and the
+     spawn does not happen. A holder that is gone is freed with `tp claim <id> --takeover`.
    - **A prompt without a marker** passes untouched.
 3. **The agent cannot stop with an unexplained claim.** The plugin's `SubagentStop` hook reads
    `toolUseId` from the agent's `meta.json` and asks `tp claims --spawn <id>` for the tasks claimed
    by that spawn.
-   - A task counts as accounted for when it is done or has `waiting` set in any worktree's copy of
-     its task file, so a close in another worktree counts before it merges.
+   - A task counts as accounted for when a copy of its task file that carries this spawn's claim has
+     it done, or wip with `waiting` set. An agent in its own worktree writes its close and its park
+     to the copy holding the claim, so its branch carries no task-file change to merge.
    - If any task is unaccounted, the hook blocks the stop once, naming `tp done <id> ...` and
      `tp set <id> waiting="<what>"`.
    - With `stop_hook_active` set, the stop passes.
