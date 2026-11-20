@@ -166,11 +166,14 @@ func TestPoolNamesATakenOverClaimForRespawn(t *testing.T) {
 	assert.Contains(t, p.Reason, "Claim t1 has no agent")
 }
 
+// TestPoolReadsOtherWorktreeCopies: a worktree cut after the claims were
+// committed carries them, so its agent closes and parks on its own copy.
 func TestPoolReadsOtherWorktreeCopies(t *testing.T) {
 	t.Parallel()
 	dir := poolRepo(t)
 	spawnClaim(t, dir, "t1", "toolu_A", "sessC")
 	spawnClaim(t, dir, "t2", "toolu_B", "sessC")
+	gitIn(t, dir, "commit", "-q", "-am", "claims")
 	wt := filepath.Join(t.TempDir(), "wt")
 	gitIn(t, dir, "worktree", "add", "-q", wt)
 	_, stderr, code := runTP(t, wt, "done", "t1", "--gate-passed", "--", "t1 acceptance criteria met")
