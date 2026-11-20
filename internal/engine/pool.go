@@ -223,11 +223,15 @@ func samePath(a, b string) bool {
 // claims to spawn again, and how to record a gate that keeps a task back.
 func poolReason(p *Pool) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%d of %d parallel slots are free (run_max_parallel).", p.Free, p.Cap)
+	fmt.Fprintf(&b, "%d of %d parallel slots are free (run_max_parallel). Run these from the repository root.", p.Free, p.Cap)
 	if n := min(p.Free, len(p.Ready)); n > 0 {
-		b.WriteString(" Start each of these in its own background subagent, its prompt being the brief:")
-		for _, t := range p.Ready[:n] {
-			fmt.Fprintf(&b, " `tp brief %s --file %s`;", t.ID, t.File)
+		b.WriteString(" Start each of these in its own background subagent, its prompt holding the brief's output, whose tp-task marker claims the task:")
+		for i, t := range p.Ready[:n] {
+			sep := ","
+			if i == n-1 {
+				sep = "."
+			}
+			fmt.Fprintf(&b, " `tp brief %s --file %s`%s", t.ID, t.File, sep)
 		}
 	}
 	for _, t := range p.Respawn {
@@ -236,6 +240,6 @@ func poolReason(p *Pool) string {
 	for _, t := range p.Orphans {
 		fmt.Fprintf(&b, " Claim %s lost its agent: free it with `tp claim %s --takeover --file %s`, then spawn one with its brief.", t.ID, t.ID, t.File)
 	}
-	b.WriteString(" If a task must not start yet for a reason that is not a task, record the reason with `tp set <id> waiting=\"<why>\"`, which holds it out of the ready set; then end the turn.")
+	b.WriteString(" If a task must not start yet for a reason that is not a task, record it with `tp set <id> waiting=\"<why>\" --file <task file>`, which holds it out of the ready set; then end the turn.")
 	return b.String()
 }
