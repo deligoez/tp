@@ -205,6 +205,25 @@ func TestClaimsCountsACloseInAnotherWorktree(t *testing.T) {
 	assert.Contains(t, stdout, `"unaccounted":[]`)
 }
 
+// TestClaimsDoesNotCountAStaleHoldInAnotherWorktree: a hold is waiting on an
+// open task. A worktree cut while t1 was held keeps that hold after the main
+// tree claims t1, and it must not pass for the claimed agent's parking.
+func TestClaimsDoesNotCountAStaleHoldInAnotherWorktree(t *testing.T) {
+	t.Parallel()
+	dir := claimsRepo(t)
+	_, stderr, code := runTP(t, dir, "set", "t1", "waiting=the release tag")
+	require.Equal(t, 0, code, stderr)
+	gitIn(t, dir, "commit", "-q", "-am", "hold")
+	wt := filepath.Join(t.TempDir(), "wt")
+	gitIn(t, dir, "worktree", "add", "-q", wt)
+
+	_, stderr, code = runTP(t, dir, "claim", "t1", "--spawn", "toolu_H1")
+	require.Equal(t, 0, code, stderr)
+	stdout, stderr, code := runTP(t, dir, "claims", "--spawn", "toolu_H1")
+	require.Equal(t, 0, code, stderr)
+	assert.Contains(t, stdout, `"unaccounted":["t1"]`, "the worktree's open, held copy is not the agent parking its claim")
+}
+
 // hookRun runs one shipped plugin hook with tp on PATH (or not) and the
 // payload on stdin.
 func hookRun(t *testing.T, rel string, withTP bool, payload map[string]any, extraEnv ...string) (stdout, stderr string, code int) {
