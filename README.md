@@ -222,9 +222,10 @@ tp keep <path> "<reason>"      # Keep-list a deliberately-uncommitted file (--re
 ### Query
 ```bash
 tp list                        # All tasks (--status, --tag, --ids, --compact)
-tp ready                       # Tasks with all deps satisfied (--first, --count, --ids)
+tp ready                       # Tasks with all deps satisfied and not held (--first, --count, --ids)
 tp show <id>                   # Full details + spec_excerpt + blocks
-tp claims --spawn <id>         # An agent spawn's claimed tasks, and which are neither done nor waiting
+tp claims --spawn <id>         # An agent spawn's claimed tasks, and which are neither done nor parked
+tp pool --session <id>         # A coordinator's parallel slots: live, parked and orphaned claims, ready tasks
 tp status                      # Progress summary (open/wip/done counts)
 tp blocked                     # Tasks waiting on unsatisfied deps
 tp graph                       # Dependency tree (--tag, --from)
