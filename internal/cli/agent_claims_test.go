@@ -297,9 +297,11 @@ func stopPayload(dir, transcript string, active bool) map[string]any {
 func TestSubagentStopHookBlocksAnUnaccountedClaimOnce(t *testing.T) {
 	t.Parallel()
 	dir := claimsRepo(t)
-	_, _, code := runTP(t, dir, "claim", "t1", "--spawn", "toolu_S1")
+	// toolu_x and the meta.json written by agentTranscript are the fixture
+	// a probe recorded: {"agentType":"general-purpose","toolUseId":"toolu_x","finished":true}.
+	_, _, code := runTP(t, dir, "claim", "t1", "--spawn", "toolu_x")
 	require.Equal(t, 0, code)
-	transcript := agentTranscript(t, "toolu_S1", true)
+	transcript := agentTranscript(t, "toolu_x", true)
 
 	stdout, stderr, code := hookRun(t, agentStopHook, true, stopPayload(dir, transcript, false))
 	require.Equal(t, 0, code, stderr)
