@@ -349,3 +349,34 @@ func TestAgentClaimHooksStandAsideInsideATpRunUnit(t *testing.T) {
 	assert.Empty(t, stdout, "no block inside a unit")
 }
 
+func TestAgentClaimHooksAreRegistered(t *testing.T) {
+	t.Parallel()
+	raw, err := os.ReadFile(filepath.Join(repoRootDir(t), "hooks", "hooks.json"))
+	require.NoError(t, err)
+	var manifest struct {
+		Hooks map[string][]struct {
+			Matcher string `json:"matcher"`
+			Hooks   []struct {
+				Command string `json:"command"`
+				Timeout int    `json:"timeout"`
+			} `json:"hooks"`
+		} `json:"hooks"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &manifest))
+
+	found := map[string]string{}
+	for event, groups := range manifest.Hooks {
+		for _, g := range groups {
+			for _, h := range g.Hooks {
+				found[h.Command] = event + "/" + g.Matcher
+			}
+		}
+	}
+	assert.Equal(t, "PreToolUse/Agent", found["${CLAUDE_PLUGIN_ROOT}/"+agentClaimHook])
+	assert.Equal(t, "SubagentStop/", found["${CLAUDE_PLUGIN_ROOT}/"+agentStopHook])
+	for _, rel := range []string{agentClaimHook, agentStopHook} {
+		info, statErr := os.Stat(filepath.Join(repoRootDir(t), filepath.FromSlash(rel)))
+		require.NoError(t, statErr, rel)
+		assert.NotZero(t, info.Mode().Perm()&0o111, "%s must be executable: a hook without its exec bit fails open", rel)
+	}
+}
