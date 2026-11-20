@@ -285,3 +285,31 @@ func stopPayload(dir, transcript string, active bool) map[string]any {
 	}
 }
 
+func TestSubagentStopHookBlocksAnUnaccountedClaimOnce(t *testing.T) {
+	t.Parallel()
+	dir := claimsRepo(t)
+	_, _, code := runTP(t, dir, "claim", "t1", "--spawn", "toolu_S1")
+	require.Equal(t, 0, code)
+	transcript := agentTranscript(t, "toolu_S1", true)
+
+	stdout, stderr, code := hookRun(t, agentStopHook, true, stopPayload(dir, transcript, false))
+	require.Equal(t, 0, code, stderr)
+	var decision map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &decision), "the block is the JSON decision: %q", stdout)
+	assert.Equal(t, "block", decision["decision"])
+	reason, _ := decision["reason"].(string)
+	assert.Contains(t, reason, "t1")
+	assert.Contains(t, reason, "tp done")
+	assert.Contains(t, reason, "waiting=")
+
+	stdout, _, code = hookRun(t, agentStopHook, true, stopPayload(dir, transcript, true))
+	assert.Equal(t, 0, code)
+	assert.Empty(t, stdout, "a stop already blocked once passes")
+
+	_, _, code = runTP(t, dir, "done", "t1", "--gate-passed", "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code)
+	stdout, _, code = hookRun(t, agentStopHook, true, stopPayload(dir, transcript, false))
+	assert.Equal(t, 0, code)
+	assert.Empty(t, stdout, "a closed claim lets the agent stop")
+}
+
