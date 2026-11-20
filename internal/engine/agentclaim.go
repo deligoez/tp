@@ -21,6 +21,14 @@ const TaskMarkerPrefix = "tp-task: "
 // Code issues (toolu_..., a UUID) and nothing a shell or JSON would read.
 var claimTokenRe = regexp.MustCompile(`^[A-Za-z0-9_-]{1,128}$`)
 
+// markerIDRe and markerFileRe are the shapes the plugin's spawn hook takes as
+// a marker's id and task file; a task outside them gets no marker, since the
+// hook would skip it without claiming.
+var (
+	markerIDRe   = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
+	markerFileRe = regexp.MustCompile(`^[A-Za-z0-9._/-]+\.tasks\.json$`)
+)
+
 // ValidClaimToken reports whether s may be recorded as a spawn or session id.
 func ValidClaimToken(s string) bool {
 	return claimTokenRe.MatchString(s)
@@ -28,7 +36,8 @@ func ValidClaimToken(s string) bool {
 
 // TaskMarker is the line `tp-task: <id> <task file>` for task id of the task
 // file at taskFilePath, the path relative to its repository root. Outside a
-// git repository it is "": the hook that reads it claims from the root.
+// git repository it is "": the hook that reads it claims from the root. It
+// is "" too for an id or path the hook would not read as a marker.
 func TaskMarker(taskFilePath, id string) string {
 	abs, err := filepath.Abs(taskFilePath)
 	if err != nil {
@@ -39,7 +48,7 @@ func TaskMarker(taskFilePath, id string) string {
 		return ""
 	}
 	rel := repoRelativeTo(root, abs)
-	if filepath.IsAbs(filepath.FromSlash(rel)) {
+	if filepath.IsAbs(filepath.FromSlash(rel)) || !markerIDRe.MatchString(id) || !markerFileRe.MatchString(rel) {
 		return ""
 	}
 	return TaskMarkerPrefix + id + " " + rel
