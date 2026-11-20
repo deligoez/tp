@@ -23,10 +23,28 @@ set -u
 
 payload=$(cat)
 
-# A marker candidate: an id starting with a letter or digit, then a task file.
-# Prose that describes the marker (`tp-task: <id> <task file>`) is not one.
-markers=$(printf '%s' "$payload" |
-	grep -Eo 'tp-task: [A-Za-z0-9][^ "\\]* [^ "\\]*\.tasks\.json' | sort -u)
+# A marker is a whole line of tool_input.prompt that starts with
+# "tp-task: ". Only the prompt is read: a marker quoted in another field, or
+# inside a sentence, is not a request to claim. The prompt arrives as a JSON
+# string, so its lines are split on the escape \n; an escaped backslash is set
+# aside first so that "\\n" is not read as a line break, and a trailing \r of
+# a CRLF line is dropped. Every candidate line is checked against the id and
+# path shapes below, and one that fails refuses the spawn.
+prompt=$(printf '%s' "$payload" |
+	grep -Eo '"prompt"[[:space:]]*:[[:space:]]*"([^"\\]|\\.)*"' | sed -n 1p)
+[ -n "$prompt" ] || exit 0
+markers=$(printf '%s\n' "$prompt" | awk '
+{
+	sub(/^"prompt"[[:space:]]*:[[:space:]]*"/, "")
+	sub(/"$/, "")
+	gsub(/\\\\/, "\001")
+	n = split($0, line, /\\n/)
+	for (i = 1; i <= n; i++) {
+		l = line[i]
+		sub(/\\r$/, "", l)
+		if (index(l, "tp-task: ") == 1) print l
+	}
+}' | sort -u)
 [ -n "$markers" ] || exit 0
 
 refuse() {
