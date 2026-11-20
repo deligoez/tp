@@ -75,6 +75,15 @@ func TestBriefCarriesItsTaskMarker(t *testing.T) {
 	require.Equal(t, 0, code, stderr)
 	require.NoError(t, json.Unmarshal([]byte(stdout), &brief))
 	assert.Equal(t, "tp-task: t1 spec.tasks.json", brief["marker"], "the path is relative to the repository root, not the working directory")
+
+	// An id the spawn hook would not take as a marker gets none, rather than
+	// a marker the hook silently skips.
+	addTask(t, dir, `{"id":"_odd","title":"Odd","depends_on":[],"estimate_minutes":5,"acceptance":"odd acceptance criteria met","source_sections":["s1"]}`)
+	stdout, stderr, code = runTP(t, dir, "brief", "_odd")
+	require.Equal(t, 0, code, stderr)
+	brief = map[string]any{}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &brief))
+	assert.NotContains(t, brief, "marker")
 }
 
 func TestClaimSpawnClaimsAnOpenTaskForTheSpawn(t *testing.T) {
