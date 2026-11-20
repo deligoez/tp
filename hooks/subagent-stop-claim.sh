@@ -2,7 +2,7 @@
 # subagent-stop-claim.sh - the tp plugin's SubagentStop hook
 # (spec/backlog/agent-bound-claims.md, Decision 3).
 #
-# The spawn hook claimed each marked task for the Agent call's tool_use_id.
+# The spawn hook claimed the marked task for the Agent call's tool_use_id.
 # Claude Code keeps that id in the agent's meta.json beside its transcript
 # (`toolUseId`), so this hook links the stop to the spawn without state of its
 # own, asks `tp claims --spawn` which of its tasks are neither done nor
@@ -48,20 +48,31 @@ block() {
 }
 
 if ! out=$(tp claims --spawn "$spawn" 2>/dev/null); then
-	block "tp claims --spawn $spawn failed, so whether this agent's claimed tasks are closed is unknown. Close each with tp done <id> or record tp set <id> waiting=..., then stop."
+	# A tp older than the plugin has no claims command, and then made no
+	# claim either: nothing to guard.
+	tp claims --help >/dev/null 2>&1 || exit 0
+	block "tp claims --spawn $spawn failed, so whether the task bound to your spawn is closed is unknown. Close it with tp done <id> --file <task file>, or record tp set <id> waiting=... --file <task file>, then stop."
 fi
 
-# The unaccounted ids, kept only when they are plain ids, since they are
-# written into a JSON string below.
-ids=$(printf '%s' "$out" |
-	grep -Eo '"unaccounted":\[[^]]*\]' |
-	grep -Eo '"[^"]*"' | grep -v '^"unaccounted"$' | sed -e 's/^"//' -e 's/"$//' |
-	grep -E '^[A-Za-z0-9][A-Za-z0-9._-]*$' | tr '\n' ' ' | sed 's/ $//')
-if [ -z "$ids" ]; then
+# The unaccounted tasks as "<id> <file>" lines, kept only when both are plain
+# id and path shapes, since they are written into a JSON string below.
+pairs=$(printf '%s' "$out" |
+	grep -Eo '"id":"[A-Za-z0-9][A-Za-z0-9._-]*","file":"[A-Za-z0-9._/-]+","accounted":false' |
+	sed -e 's/^"id":"//' -e 's/","file":"/ /' -e 's/","accounted":false$//')
+if [ -z "$pairs" ]; then
 	case $out in
 	*'"unaccounted":[]'*) exit 0 ;;
 	esac
-	ids='(see tp claims)'
+	block "The task bound to your spawn is not closed (see tp claims --spawn $spawn). Close it with tp done, or record tp set <id> waiting=..., then stop."
 fi
 
-block "You claimed tasks you have not closed: $ids. For each, either close it with evidence - tp done <id> \\\"what was done and how it was verified\\\" - or, if it waits on something outside your control, record that with tp set <id> waiting=\\\"<what>\\\". Then stop."
+steps=''
+IFS='
+'
+for pair in $pairs; do
+	id=${pair%% *}
+	file=${pair#* }
+	steps="$steps Task $id ($file): close it with evidence - tp done $id --file $file \\\"<what was done and how it was verified>\\\" (under commit_strategy hc, commit first and add --commit <sha>) - or, if it waits on something outside your control, record tp set $id waiting=\\\"<what>\\\" --file $file."
+done
+
+block "The task bound to your spawn is not closed. Run these from the repository root.$steps Then stop."
