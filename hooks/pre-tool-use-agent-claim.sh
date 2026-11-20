@@ -4,7 +4,7 @@
 #
 # A coordinator that hands a sub-agent a task pastes that task's brief into
 # the Agent prompt, and the brief carries the marker line
-# `tp-task: <id> <task file>`. This hook claims each marked task for the spawn
+# `tp-task: <id> <task file>`. This hook claims the marked task for the spawn
 # before the agent starts, binding it to the call's tool_use_id, so a claim no
 # longer depends on the agent remembering to make it. When the claim is
 # refused - the task is done, blocked, held by another spawn, unknown, or the
@@ -43,6 +43,14 @@ markers=$(printf '%s\n' "$prompt" | awk '
 		l = line[i]
 		sub(/\\r$/, "", l)
 		if (index(l, "tp-task: ") == 1) print l
+		# A brief run from a shell prints JSON, and pasted whole its
+		# marker sits in the "marker" field, quotes escaped once more.
+		if (match(l, /\\"marker\\":[ ]*\\"tp-task: [^\\]*\\"/)) {
+			m = substr(l, RSTART, RLENGTH)
+			sub(/^\\"marker\\":[ ]*\\"/, "", m)
+			sub(/\\"$/, "", m)
+			print m
+		}
 	}
 }' | sort -u)
 [ -n "$markers" ] || exit 0
@@ -51,6 +59,11 @@ refuse() {
 	printf 'tp agent claim: %s\n' "$1" >&2
 	exit 2
 }
+
+# One task per spawn: claiming several and refusing on a later one would
+# leave the earlier ones claimed for a spawn that never started.
+[ "$(printf '%s\n' "$markers" | wc -l)" -le 1 ] ||
+	refuse "the prompt marks more than one task (tp-task:). Spawn one agent per task, each with its own brief."
 
 field() {
 	printf '%s' "$payload" |
