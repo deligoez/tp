@@ -100,6 +100,29 @@ func unitGate(taskFilePath, worktree, root, gatedTree string) bool {
 		"fix the failure in this worktree, commit the fix, and ask for the close again naming every commit", taker)
 }
 
+// closeOnClaimHolder is tp done on a task this worktree's copy has open while
+// another worktree's copy holds it claimed for a spawn: a hand-driven
+// coordinator claimed it on its own tree before this worktree's agent ran
+// (spec/backlog/agent-bound-claims.md). The gate runs here, on the agent's
+// code, and the close is written beside the claim, so this branch carries no
+// task-file change for the coordinator to merge. It returns the task file
+// the close goes to, entering that file's tree.
+func closeOnClaimHolder(taskFilePath, id string) string {
+	holder := engine.ClaimHolderCopy(taskFilePath, id)
+	if holder == "" {
+		return taskFilePath
+	}
+	if !doneGatePassed && doneSkipGate == "" && doneCoveredBy == "" && runQualityGatePreFlock(taskFilePath, true) {
+		doneGatePassed = true
+	}
+	output.Notice(fmt.Sprintf("task %s is claimed in %s: the close is written there, beside the claim", id, holder))
+	if err := os.Chdir(filepath.Dir(holder)); err != nil {
+		output.Error(ExitFile, err.Error(), runtimeFailureHint)
+		os.Exit(ExitFile)
+	}
+	return holder
+}
+
 func exitUsage(msg, hint string) {
 	output.Error(ExitUsage, msg, hint)
 	os.Exit(ExitUsage)
