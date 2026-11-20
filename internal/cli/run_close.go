@@ -30,6 +30,7 @@ func claimTasksFunc(taskFile string) func(ids []string) error {
 				}
 				if task.Status == model.StatusOpen {
 					task.Status = model.StatusWIP
+					task.Waiting = ""
 					task.StartedAt = &now
 					task.DurationSource = model.DurationSourceClaimed
 				}
@@ -58,6 +59,7 @@ func releaseTasksFunc(taskFile string) func(ids []string) error {
 				}
 				if task.Status == model.StatusWIP {
 					task.Status = model.StatusOpen
+					task.Waiting = ""
 					task.StartedAt = nil
 					task.DurationSource = ""
 					task.ClaimedBy = nil
@@ -83,6 +85,7 @@ func reopenSoloFunc(taskFile string) func(id string) error {
 				return err
 			}
 			task.Status = model.StatusOpen
+			task.Waiting = ""
 			task.StartedAt = nil
 			task.DurationSource = ""
 			task.ClaimedBy = nil
