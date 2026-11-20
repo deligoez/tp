@@ -259,6 +259,27 @@ func TestAgentClaimHookPassesAPromptWithoutAMarker(t *testing.T) {
 	assert.Equal(t, "open", taskState(t, dir, "t1")["status"])
 }
 
+// TestAgentClaimHookReadsOnlyWholeMarkerLinesOfThePrompt: a marker is a line
+// of tool_input.prompt that starts with "tp-task: ". A marker quoted inside a
+// sentence, or one in any other field, is not a request to claim.
+func TestAgentClaimHookReadsOnlyWholeMarkerLinesOfThePrompt(t *testing.T) {
+	t.Parallel()
+	dir := claimsRepo(t)
+	inline := spawnPayload(dir, "toolu_M1", "The brief's marker looks like tp-task: t1 spec.tasks.json and is claimed.")
+	_, stderr, code := hookRun(t, agentClaimHook, true, inline)
+	assert.Equal(t, 0, code, stderr)
+	elsewhere := spawnPayload(dir, "toolu_M1", "No marker in this prompt.")
+	elsewhere["tool_input"].(map[string]any)["description"] = "tp-task: t1 spec.tasks.json"
+	elsewhere["note"] = "x\ntp-task: t1 spec.tasks.json\n"
+	_, stderr, code = hookRun(t, agentClaimHook, true, elsewhere)
+	assert.Equal(t, 0, code, stderr)
+	assert.Equal(t, "open", taskState(t, dir, "t1")["status"], "neither payload marks a task")
+
+	_, stderr, code = hookRun(t, agentClaimHook, true, spawnPayload(dir, "toolu_M1", "tp-task: t1 spec.tasks.json"))
+	require.Equal(t, 0, code, stderr)
+	assert.Equal(t, "toolu_M1", claimedBy(t, dir, "t1")["spawn"], "a prompt that is only the marker line claims")
+}
+
 func TestAgentClaimHookRefusesTheSpawnWhenTheClaimFails(t *testing.T) {
 	t.Parallel()
 	dir := claimsRepo(t)
