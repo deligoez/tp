@@ -120,3 +120,39 @@ func TestHeld_ResumeNamesHeldTasksWhenNothingElseIsReady(t *testing.T) {
 	assert.Contains(t, stdout, "gated", "resume names the held task")
 	assert.Contains(t, stdout, "the release tag", "and what holds it")
 }
+
+func TestHeld_AnUnmetDependencyOutranksAHoldInStatusAndExport(t *testing.T) {
+	t.Parallel()
+	dir := setupProject(t)
+	addTaskWithEstimate(t, dir, "base", 5)
+	addTask(t, dir, `{"id":"top","title":"Task top","depends_on":["base"],"estimate_minutes":5,"acceptance":"top acceptance criteria met","source_sections":["s1"]}`)
+	_, _, code := runTP(t, dir, "set", "top", "waiting=the release tag")
+	require.Equal(t, 0, code)
+
+	got := parseJSON(t, mustTP(t, dir, "status"))
+	assert.InDelta(t, 1, got["blocked"], 0, "a held task with an unmet dependency is blocked, as export says")
+	assert.InDelta(t, 0, got["held"], 0)
+	assert.Contains(t, mustTP(t, dir, "export"), `"waits_on_task"`)
+}
+
+func TestHeld_ShowSaysAHeldTaskIsNotReady(t *testing.T) {
+	t.Parallel()
+	dir := heldProject(t)
+	assert.Equal(t, false, parseJSON(t, mustTP(t, dir, "show", "gated"))["is_ready"])
+	assert.Equal(t, true, parseJSON(t, mustTP(t, dir, "show", "free"))["is_ready"])
+}
+
+func TestHeld_ABatchClaimNamingAHeldTaskClearsWaiting(t *testing.T) {
+	t.Parallel()
+	dir := heldProject(t)
+	_, stderr, code := runTP(t, dir, "claim", "free", "gated")
+	require.Equal(t, 0, code, stderr)
+	assert.Nil(t, showTask(t, dir, "gated")["waiting"])
+}
+
+func mustTP(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	stdout, stderr, code := runTP(t, dir, args...)
+	require.Equal(t, 0, code, "tp %v: %s", args, stderr)
+	return stdout
+}
