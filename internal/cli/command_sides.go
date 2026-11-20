@@ -75,6 +75,7 @@ var commandSides = map[string]string{
 	// tp claims takes no task file: it reads every task file of every
 	// worktree of the working directory's repository.
 	"tp claims":   sideNone,
+	"tp pool":     sideNone,
 	"tp config":   sideFile,
 	"tp export":   sideFile,
 	"tp graph":    sideFile,
