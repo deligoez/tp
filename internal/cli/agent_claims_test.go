@@ -237,3 +237,51 @@ func TestAgentClaimHookPassesAPromptWithoutAMarker(t *testing.T) {
 	assert.Equal(t, "open", taskState(t, dir, "t1")["status"])
 }
 
+func TestAgentClaimHookRefusesTheSpawnWhenTheClaimFails(t *testing.T) {
+	t.Parallel()
+	dir := claimsRepo(t)
+	for name, tc := range map[string]struct {
+		prompt string
+		withTP bool
+	}{
+		"blocked task":   {"tp-task: t3 spec.tasks.json", true},
+		"unknown task":   {"tp-task: nope spec.tasks.json", true},
+		"id shape":       {"tp-task: t1$(x) spec.tasks.json", true},
+		"path escapes":   {"tp-task: t1 ../spec.tasks.json", true},
+		"tp not on PATH": {"tp-task: t1 spec.tasks.json", false},
+	} {
+		_, stderr, code := hookRun(t, agentClaimHook, tc.withTP, spawnPayload(dir, "toolu_H3", "Unit.\n"+tc.prompt+"\n"))
+		assert.Equal(t, 2, code, "%s must refuse the spawn: %s", name, stderr)
+		assert.NotEmpty(t, stderr, "%s names its reason", name)
+	}
+	assert.Equal(t, "open", taskState(t, dir, "t1")["status"])
+}
+
+// agentTranscript writes the files Claude Code keeps beside a subagent's
+// transcript: the agent's own jsonl and its meta.json, whose toolUseId the
+// stop hook reads. The meta shape is the one a probe recorded.
+func agentTranscript(t *testing.T, toolUseID string, withMeta bool) string {
+	t.Helper()
+	sub := filepath.Join(t.TempDir(), "session", "subagents")
+	require.NoError(t, os.MkdirAll(sub, 0o755))
+	transcript := filepath.Join(sub, "agent-a1b2c3.jsonl")
+	require.NoError(t, os.WriteFile(transcript, []byte(`{"type":"user","message":{"content":"x"}}`+"\n"), 0o600))
+	if withMeta {
+		meta := `{"agentType":"general-purpose","toolUseId":"` + toolUseID + `","finished":true}`
+		require.NoError(t, os.WriteFile(strings.TrimSuffix(transcript, ".jsonl")+".meta.json", []byte(meta), 0o600))
+	}
+	return transcript
+}
+
+func stopPayload(dir, transcript string, active bool) map[string]any {
+	return map[string]any{
+		"session_id":            "sess-h",
+		"cwd":                   dir,
+		"hook_event_name":       "SubagentStop",
+		"stop_hook_active":      active,
+		"agent_id":              "a1b2c3",
+		"agent_type":            "general-purpose",
+		"agent_transcript_path": transcript,
+	}
+}
+
