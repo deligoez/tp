@@ -218,3 +218,14 @@ func spawnPayload(dir, toolUseID, prompt string) map[string]any {
 	}
 }
 
+func TestAgentClaimHookClaimsTheMarkedTaskAtSpawn(t *testing.T) {
+	t.Parallel()
+	dir := claimsRepo(t)
+
+	_, stderr, code := hookRun(t, agentClaimHook, true, spawnPayload(dir, "toolu_H1", "Do the unit.\ntp-task: t1 spec.tasks.json\nThen stop."))
+	require.Equal(t, 0, code, stderr)
+	task := taskState(t, dir, "t1")
+	assert.Equal(t, "wip", task["status"])
+	assert.Equal(t, map[string]any{"session": "sess-h", "spawn": "toolu_H1"}, task["claimed_by"])
+}
+
