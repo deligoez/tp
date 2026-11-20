@@ -24,7 +24,7 @@ func newClaimCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&claimAllReady, "all-ready", false, "claim all ready tasks")
 	cmd.Flags().StringVar(&claimSpawn, "spawn", "", "bind the claim to an Agent spawn (its tool_use_id); one id only")
 	cmd.Flags().StringVar(&claimSession, "session", "", "with --spawn: the session that made the spawn")
-	cmd.Flags().BoolVar(&claimTakeover, "takeover", false, "with --spawn: rebind a wip task another spawn holds")
+	cmd.Flags().BoolVar(&claimTakeover, "takeover", false, "free a wip task's claim from its spawn, keeping started_at; one id, no other claim flag")
 	return cmd
 }
 
@@ -53,6 +53,9 @@ func runClaim(cmd *cobra.Command, args []string) error {
 		refuseBlockedClaim(tf, taskFilePath, claimTargets(args))
 		if claimSpawn != "" {
 			return claimForSpawn(tf, taskFilePath, args[0])
+		}
+		if claimTakeover {
+			return takeoverClaim(tf, taskFilePath, args[0])
 		}
 
 		// Determine which IDs to claim

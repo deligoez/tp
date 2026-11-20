@@ -25,7 +25,7 @@ const (
 // tool_use_id, and the session that made the call when the caller knew it.
 type ClaimedBy struct {
 	Session string `json:"session,omitempty"`
-	Spawn   string `json:"spawn"`
+	Spawn   string `json:"spawn,omitempty"`
 }
 
 // Task represents a single atomic work item.
