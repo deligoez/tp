@@ -21,6 +21,13 @@ const (
 	DurationSourceImplicit = "implicit"
 )
 
+// ClaimedBy names the agent spawn a task is claimed for: the Agent tool call's
+// tool_use_id, and the session that made the call when the caller knew it.
+type ClaimedBy struct {
+	Session string `json:"session,omitempty"`
+	Spawn   string `json:"spawn"`
+}
+
 // Task represents a single atomic work item.
 type Task struct {
 	ID              string   `json:"id"`
@@ -40,7 +47,11 @@ type Task struct {
 	// Waiting says what a wip task is waiting on (a background job, a
 	// person), so tp resume can tell a parked claim from an abandoned one.
 	// A close or a reopen clears it.
-	Waiting           string     `json:"waiting,omitempty"`
+	Waiting string `json:"waiting,omitempty"`
+	// ClaimedBy is managed by tp: the spawn whose agent holds this task,
+	// set by `tp claim --spawn` and cleared with started_at by an unclaim,
+	// a reopen or a run's release (spec/backlog/agent-bound-claims.md).
+	ClaimedBy         *ClaimedBy `json:"claimed_by,omitempty"`
 	StartedAt         *time.Time `json:"started_at"`
 	DurationSource    string     `json:"duration_source,omitempty"`
 	ClosedAt          *time.Time `json:"closed_at"`
