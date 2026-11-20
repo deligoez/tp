@@ -42,12 +42,17 @@ markers=$(printf '%s\n' "$prompt" | awk '
 	for (i = 1; i <= n; i++) {
 		l = line[i]
 		sub(/\\r$/, "", l)
-		if (index(l, "tp-task: ") == 1) print l
+		if (index(l, "tp-task: ") == 1) {
+			sub(/[ \t]+$/, "", l)
+			print l
+		}
 		# A brief run from a shell prints JSON, and pasted whole its
-		# marker sits in the "marker" field, quotes escaped once more.
-		if (match(l, /\\"marker\\":[ ]*\\"tp-task: [^\\]*\\"/)) {
+		# marker sits in the "marker" field, quotes escaped once more. It
+		# is a field only where a JSON key can start: at the start of the line
+		# (pretty) or after { or , (compact); a sentence quoting one is not.
+		if (match(l, /(^[ \t]*|[{,][ \t]*)\\"marker\\":[ ]*\\"tp-task: [^\\]*\\"/)) {
 			m = substr(l, RSTART, RLENGTH)
-			sub(/^\\"marker\\":[ ]*\\"/, "", m)
+			sub(/^.*\\"marker\\":[ ]*\\"/, "", m)
 			sub(/\\"$/, "", m)
 			print m
 		}
