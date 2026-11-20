@@ -802,7 +802,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp claim --all-ready` | Claim all ready tasks at once; a file with no task yet exits 4 naming `tp resume`'s phase and next step |
 | `tp claim <id> --spawn <tool_use_id> [--session <id>]` | Claim one task for an agent spawn (`claimed_by`); a wip task keeps `started_at`; another spawn's task is refused until `tp claim <id> --takeover` frees it. The plugin's Agent hook runs it from the brief's marker |
 | `tp claims --spawn <tool_use_id>` | One line of JSON: the spawn's claimed tasks across every worktree, and which are `unaccounted` (neither done nor parked with `waiting`) |
-| `tp pool --session <id> [--live <spawn>]...` | A coordinator session's slots: its wip claims as `running`/`parked`/`orphans`/`respawn`/`unmerged`, `cap` (`run_max_parallel`), `free`, the `ready` tasks of its files, and `ask` with a `reason`; `--stop-hook` reads a Stop payload and prints only the block decision |
+| `tp pool --session <id> [--live <spawn>]... [--unresolved <n>]` | A coordinator session's slots: its wip claims as `running`/`parked`/`orphans`/`respawn`/`unmerged`, `cap` (`run_max_parallel`), `free`, the `ready` tasks of its files, and `ask` with a `reason`; `--stop-hook` reads a Stop payload and prints only the block decision |
 | `tp unclaim <id> [id...]` | wip -> open (clears `started_at` and `claimed_by`; batch; an open id is a no-op in `already_open`) |
 | `tp close <id> <reason>` | wip -> done (low-level, prefer tp done) |
 | `tp close <id> --reason-file reason.md` / `--stdin` | Read the closure reason from a file / from stdin |
