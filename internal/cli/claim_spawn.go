@@ -65,6 +65,7 @@ func claimForSpawn(tf *model.TaskFile, taskFilePath, id string) error {
 	task.ClaimedBy = &model.ClaimedBy{Session: claimSession, Spawn: claimSpawn}
 	tf.UpdatedAt = time.Now().UTC()
 	if err := model.WriteTaskFile(taskFilePath, tf); err != nil {
+		// task-file-hint: the write that failed is the task file's.
 		output.Error(ExitFile, err.Error())
 		os.Exit(ExitFile)
 		return nil
