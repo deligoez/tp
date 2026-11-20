@@ -22,6 +22,9 @@ func newClaimCmd() *cobra.Command {
 		RunE:  runClaim,
 	}
 	cmd.Flags().BoolVar(&claimAllReady, "all-ready", false, "claim all ready tasks")
+	cmd.Flags().StringVar(&claimSpawn, "spawn", "", "bind the claim to an Agent spawn (its tool_use_id); one id only")
+	cmd.Flags().StringVar(&claimSession, "session", "", "with --spawn: the session that made the spawn")
+	cmd.Flags().BoolVar(&claimTakeover, "takeover", false, "with --spawn: rebind a wip task another spawn holds")
 	return cmd
 }
 
@@ -31,6 +34,7 @@ func runClaim(_ *cobra.Command, args []string) error {
 		os.Exit(ExitUsage)
 		return nil
 	}
+	refuseBadSpawnFlags(args)
 
 	taskFilePath, err := discoverWriteTarget()
 	if err != nil {
@@ -47,6 +51,9 @@ func runClaim(_ *cobra.Command, args []string) error {
 			return nil
 		}
 		refuseBlockedClaim(tf, taskFilePath, claimTargets(args))
+		if claimSpawn != "" {
+			return claimForSpawn(tf, taskFilePath, args[0])
+		}
 
 		// Determine which IDs to claim
 		ids := args
