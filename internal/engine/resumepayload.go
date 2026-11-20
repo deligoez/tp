@@ -33,7 +33,7 @@ func ReadyTasks(tf *model.TaskFile) []*model.Task {
 	ready := make([]*model.Task, 0)
 	for i := range tf.Tasks {
 		t := &tf.Tasks[i]
-		if t.Status == model.StatusOpen && depsSatisfied(t, done) {
+		if t.Startable(done) {
 			ready = append(ready, t)
 		}
 	}
@@ -59,16 +59,6 @@ func doneTaskIDs(tf *model.TaskFile) map[string]bool {
 		}
 	}
 	return done
-}
-
-// depsSatisfied reports whether every dependency of t is done.
-func depsSatisfied(t *model.Task, done map[string]bool) bool {
-	for _, dep := range t.DependsOn {
-		if !done[dep] {
-			return false
-		}
-	}
-	return true
 }
 
 // ImplementPreview returns the preview for the implement phase's payload.task:

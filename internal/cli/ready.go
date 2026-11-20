@@ -58,22 +58,11 @@ func runReady(_ *cobra.Command, _ []string) error {
 		}
 	}
 
-	// Find ready tasks: open with all deps done
+	// Find ready tasks: open, not held, with all deps done
 	ready := make([]model.Task, 0)
 	for i := range tf.Tasks {
-		t := &tf.Tasks[i]
-		if t.Status != model.StatusOpen {
-			continue
-		}
-		allDone := true
-		for _, dep := range t.DependsOn {
-			if !done[dep] {
-				allDone = false
-				break
-			}
-		}
-		if allDone {
-			ready = append(ready, *t)
+		if tf.Tasks[i].Startable(done) {
+			ready = append(ready, tf.Tasks[i])
 		}
 	}
 

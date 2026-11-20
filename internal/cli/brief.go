@@ -148,17 +148,7 @@ func selectBriefTarget(tf *model.TaskFile) *model.Task {
 
 	var ready []*model.Task
 	for i := range tf.Tasks {
-		if tf.Tasks[i].Status != model.StatusOpen {
-			continue
-		}
-		allDone := true
-		for _, dep := range tf.Tasks[i].DependsOn {
-			if !done[dep] {
-				allDone = false
-				break
-			}
-		}
-		if allDone {
+		if tf.Tasks[i].Startable(done) {
 			ready = append(ready, &tf.Tasks[i])
 		}
 	}
