@@ -229,3 +229,11 @@ func TestAgentClaimHookClaimsTheMarkedTaskAtSpawn(t *testing.T) {
 	assert.Equal(t, map[string]any{"session": "sess-h", "spawn": "toolu_H1"}, task["claimed_by"])
 }
 
+func TestAgentClaimHookPassesAPromptWithoutAMarker(t *testing.T) {
+	t.Parallel()
+	dir := claimsRepo(t)
+	_, stderr, code := hookRun(t, agentClaimHook, false, spawnPayload(dir, "toolu_H2", "Research something, no task here."))
+	assert.Equal(t, 0, code, stderr)
+	assert.Equal(t, "open", taskState(t, dir, "t1")["status"])
+}
+
