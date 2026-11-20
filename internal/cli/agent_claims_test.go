@@ -44,13 +44,12 @@ func claimsRepo(t *testing.T) string {
 	return dir
 }
 
-func gitIn(t *testing.T, dir string, args ...string) string {
+func gitIn(t *testing.T, dir string, args ...string) {
 	t.Helper()
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	require.NoError(t, err, "git %v: %s", args, out)
-	return string(out)
 }
 
 // claimedBy is the claimed_by object of one task, or nil.
