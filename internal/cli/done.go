@@ -358,14 +358,7 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 			switch tf.Tasks[i].Status {
 			case model.StatusOpen:
 				openCount++
-				allDone := true
-				for _, dep := range tf.Tasks[i].DependsOn {
-					if !doneSet[dep] {
-						allDone = false
-						break
-					}
-				}
-				if allDone {
+				if tf.Tasks[i].Startable(doneSet) {
 					readyCount++
 				}
 			case model.StatusWIP:
@@ -526,14 +519,7 @@ func runDoneMulti(taskFilePath string, taskIDs []string, reason string) error {
 			switch tf.Tasks[i].Status {
 			case model.StatusOpen:
 				openCount++
-				allDone := true
-				for _, dep := range tf.Tasks[i].DependsOn {
-					if !doneSet[dep] {
-						allDone = false
-						break
-					}
-				}
-				if allDone {
+				if tf.Tasks[i].Startable(doneSet) {
 					readyCount++
 				}
 			case model.StatusWIP:
@@ -965,14 +951,7 @@ func runDoneBatch() error {
 			switch tf.Tasks[i].Status {
 			case model.StatusOpen:
 				openCount++
-				allDone := true
-				for _, dep := range tf.Tasks[i].DependsOn {
-					if !doneSet[dep] {
-						allDone = false
-						break
-					}
-				}
-				if allDone {
+				if tf.Tasks[i].Startable(doneSet) {
 					readyCount++
 				}
 			case model.StatusWIP:
