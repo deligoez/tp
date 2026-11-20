@@ -362,9 +362,9 @@ func TestSubagentStopHookBlocksAnUnaccountedClaimOnce(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(stdout), &decision), "the block is the JSON decision: %q", stdout)
 	assert.Equal(t, "block", decision["decision"])
 	reason, _ := decision["reason"].(string)
-	assert.Contains(t, reason, "t1")
-	assert.Contains(t, reason, "tp done")
-	assert.Contains(t, reason, "waiting=")
+	assert.Contains(t, reason, "tp done t1 --file spec.tasks.json", "runnable in a repository with several task files")
+	assert.Contains(t, reason, "tp set t1 waiting=")
+	assert.Contains(t, reason, "--commit <sha>", "under hc a close needs its commit")
 
 	stdout, _, code = hookRun(t, agentStopHook, true, stopPayload(dir, transcript, true))
 	assert.Equal(t, 0, code)
