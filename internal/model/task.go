@@ -44,9 +44,12 @@ type Task struct {
 	// Solo is managed by tp: a task whose side-by-side unit failed to
 	// integrate runs alone from then on (spec/backlog/parallel-implement.md).
 	Solo bool `json:"solo,omitempty"`
-	// Waiting says what a wip task is waiting on (a background job, a
-	// person), so tp resume can tell a parked claim from an abandoned one.
-	// A close or a reopen clears it.
+	// Waiting says what a task is waiting on. On a wip task it is a parked
+	// claim (a background job, a person), so tp resume can tell one from an
+	// abandoned claim; on an open task it is a hold, a gate that is not a
+	// task, which keeps the task out of the ready set (Held,
+	// spec/backlog/filled-pool.md). A close, a claim, an unclaim or a reopen
+	// clears it.
 	Waiting string `json:"waiting,omitempty"`
 	// ClaimedBy is managed by tp: the spawn whose agent holds this task,
 	// set by `tp claim --spawn` and cleared with started_at by an unclaim,
@@ -181,6 +184,26 @@ func (t *Task) SetCommitFiles(files []string) {
 	}
 	t.CommitFiles = append([]string(nil), unique...)
 	t.CommitFilesTotal = 0
+}
+
+// Held reports whether t is an open task held by a gate that is not a task:
+// waiting set while open. A held task is never ready.
+func (t *Task) Held() bool {
+	return t.Status == StatusOpen && t.Waiting != ""
+}
+
+// Startable reports whether t is open, not held, and every dependency is in
+// done: the ready set every picker reads.
+func (t *Task) Startable(done map[string]bool) bool {
+	if t.Status != StatusOpen || t.Waiting != "" {
+		return false
+	}
+	for _, dep := range t.DependsOn {
+		if !done[dep] {
+			return false
+		}
+	}
+	return true
 }
 
 // ValidTransition returns true if the status transition is allowed.
