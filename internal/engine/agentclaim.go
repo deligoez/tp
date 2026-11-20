@@ -119,7 +119,9 @@ func scanClaims(tree, spawn string, claimed, accounted map[claimKey]bool) {
 			if task.ClaimedBy != nil && task.ClaimedBy.Spawn == spawn {
 				claimed[k] = true
 			}
-			if task.Status == model.StatusDone || task.Waiting != "" {
+			// A parked claim is waiting on a wip task; waiting on an open
+			// task is a hold, which a stale copy keeps after the claim.
+			if task.Status == model.StatusDone || (task.Status == model.StatusWIP && task.Waiting != "") {
 				accounted[k] = true
 			}
 		}
