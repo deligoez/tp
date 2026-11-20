@@ -111,3 +111,40 @@ func TestClaimSpawnRebindsAWipTaskAndKeepsItsStart(t *testing.T) {
 	assert.Equal(t, 0, code, "the same spawn may claim again: %s", stderr)
 }
 
+func TestClaimSpawnRefuses(t *testing.T) {
+	t.Parallel()
+	dir := claimsRepo(t)
+	_, _, code := runTP(t, dir, "claim", "t1", "--spawn", "toolu_A3")
+	require.Equal(t, 0, code)
+	_, _, code = runTP(t, dir, "done", "t2", "--gate-passed", "--", "t2 acceptance criteria met")
+	require.Equal(t, 0, code)
+
+	for _, tc := range []struct {
+		name string
+		args []string
+		code int
+	}{
+		{"held by another spawn", []string{"claim", "t1", "--spawn", "toolu_B3"}, 4},
+		{"done", []string{"claim", "t2", "--spawn", "toolu_B3"}, 4},
+		{"blocked", []string{"claim", "t3", "--spawn", "toolu_B3"}, 4},
+		{"unknown id", []string{"claim", "nope", "--spawn", "toolu_B3"}, 4},
+		{"spawn shape", []string{"claim", "t3", "--spawn", "toolu;rm"}, 2},
+		{"session shape", []string{"claim", "t1", "--spawn", "toolu_A3", "--session", "a b"}, 2},
+		{"one id only", []string{"claim", "t1", "t3", "--spawn", "toolu_B3"}, 2},
+		{"session needs spawn", []string{"claim", "t1", "--session", "s"}, 2},
+		{"takeover needs spawn", []string{"claim", "t1", "--takeover"}, 2},
+	} {
+		_, stderr, got := runTP(t, dir, tc.args...)
+		assert.Equal(t, tc.code, got, "%s: %s", tc.name, stderr)
+	}
+	assert.Equal(t, "toolu_A3", claimedBy(t, dir, "t1")["spawn"], "a refused claim leaves the holder")
+
+	_, stderr, _ := runTP(t, dir, "claim", "t1", "--spawn", "toolu_B3")
+	assert.Contains(t, stderr, "tp claim t1 --spawn toolu_B3 --takeover", "the refusal names the way out")
+	started := taskState(t, dir, "t1")["started_at"]
+	_, stderr, code = runTP(t, dir, "claim", "t1", "--spawn", "toolu_B3", "--takeover")
+	require.Equal(t, 0, code, stderr)
+	assert.Equal(t, "toolu_B3", claimedBy(t, dir, "t1")["spawn"])
+	assert.Equal(t, started, taskState(t, dir, "t1")["started_at"], "a takeover keeps the start")
+}
+
