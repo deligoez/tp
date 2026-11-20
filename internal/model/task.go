@@ -195,9 +195,11 @@ func (t *Task) Held() bool {
 // Startable reports whether t is open, not held, and every dependency is in
 // done: the ready set every picker reads.
 func (t *Task) Startable(done map[string]bool) bool {
-	if t.Status != StatusOpen || t.Waiting != "" {
-		return false
-	}
+	return t.Status == StatusOpen && t.Waiting == "" && t.DepsDone(done)
+}
+
+// DepsDone reports whether every dependency of t is in done.
+func (t *Task) DepsDone(done map[string]bool) bool {
 	for _, dep := range t.DependsOn {
 		if !done[dep] {
 			return false
