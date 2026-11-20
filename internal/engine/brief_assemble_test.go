@@ -44,6 +44,19 @@ func TestBuildBrief_MachinePartsAndVerbatimAcceptance(t *testing.T) {
 	assert.Equal(t, "41-57", b.Task.SourceLines)
 }
 
+// TestBriefText_MarkerStandsOnItsOwnLine: the marker the plugin's spawn hook
+// reads is the text brief's first line, so pasting the brief carries it.
+func TestBriefText_MarkerStandsOnItsOwnLine(t *testing.T) {
+	tasks := []model.Task{{ID: "unit", Title: "Unit", Status: model.StatusOpen, Acceptance: "done"}}
+	b, err := BuildBrief(&model.TaskFile{Tasks: tasks}, &tasks[0], "", CommitStrategyBuiltin, "", 0, false, false)
+	require.NoError(t, err)
+	b.Marker = "tp-task: unit spec/x.tasks.json"
+	assert.True(t, strings.HasPrefix(b.Text(), "tp-task: unit spec/x.tasks.json\n\n## Identity"), b.Text())
+
+	b.Marker = ""
+	assert.True(t, strings.HasPrefix(b.Text(), "## Identity"), "no marker, no line")
+}
+
 func TestBuildBrief_CompactDropsExcerptAndFileLists(t *testing.T) {
 	base := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	prior := doneTask("prior", "Prior", "- prior done", base)
