@@ -67,13 +67,7 @@ func runShow(_ *cobra.Command, args []string) error {
 			done[tf.Tasks[i].ID] = true
 		}
 	}
-	isReady := task.Status == model.StatusOpen
-	for _, dep := range task.DependsOn {
-		if !done[dep] {
-			isReady = false
-			break
-		}
-	}
+	isReady := task.Startable(done)
 
 	result := showResult{
 		Task:    *task,
