@@ -1,111 +1,93 @@
-# Agent-bound claims and a filled pool
+# Agent-bound claims
 
-Status: decision candidate.
+Status: decision, building.
 
 ## Problem
 
 A coordinator that spawns one subagent per task from hand-written briefs, outside `tp run`, depends
-on agents remembering four steps, and a field report shows each one slipping:
+on remembering two steps, and a field report shows both slipping:
 
-- **Missed claims.** Subagents closed tasks they never claimed, so `tp done` claimed them
-  implicitly and the task recorded about zero minutes.
-- **Early claims.** A task was claimed for an agent that started it hours later, so its elapsed time
-  counted the wait.
-- **Unexplained wip.** Wip tasks did not say which were being worked and which were parked behind a
-  merge, a long run or a decision.
-- **Ready tasks left idle.** The coordinator only looked for ready tasks when an agent finished, so a
-  task that became ready while others ran stayed unstarted.
-
-A real gate the coordinator kept in its head, a tag the task's output had to be built from, was
-recorded neither as a dependency nor as `waiting`.
+- **Claims slip.** Subagents closed tasks nobody had claimed, so `tp done` claimed them implicitly
+  and the task recorded about zero minutes. Other tasks were claimed hours before their agent
+  started.
+- **Agents stop with tasks still wip and no reason.** Nothing on disk separates a task being worked
+  from one parked behind a merge, a long run or a decision.
 
 **Git cannot stand in for claims.** A task committed through one `hc run` has the same author time
 on its first and last commit. Work is not always done in a worktree. Other people's commits land in
-between. So a task's commits say nothing about when it started.
+between.
 
 ## What the harness gives
 
-Measured in a scratch repository, with `claude -p` and a probe hook:
+Measured in a scratch repository with `claude -p` and a logging hook:
 
-- **Identity reaches only the hook.** Every `PreToolUse` input from a subagent carries `agent_id`;
-  the main session's input carries none.
-- **The command environment holds only the session.** It has `CLAUDE_CODE_SESSION_ID`, the same for
-  main and subagents, and no agent id.
-- **Rewriting the command is rejected.** A `PreToolUse` hook can rewrite a command through
-  `updatedInput`, but the rewritten command no longer matches the user's allow rules: `touch x`
-  under `Bash(touch:*)` ran unprefixed and was refused prefixed.
-- **The agent's prompt is readable.** A subagent's transcript is
-  `<session transcript dir>/subagents/agent-<agent_id>.jsonl`, and its first line is the prompt the
-  agent was spawned with. A hook can read it from the agent's first tool call. This is an observed
-  layout, not a documented contract.
-- **When the stop events fire:**
-  - `SubagentStop` fires for a foreground subagent, for a worktree subagent (its `cwd` is the
-    worktree) and for a background subagent.
-  - It does not fire for a subagent stopped with `TaskStop`.
-  - `Stop` fires at the end of every main-session turn.
-- **A stop can be blocked once.** `{"decision":"block","reason":...}` on `SubagentStop` made the
-  subagent run the reason's instruction. The next `SubagentStop` came with `stop_hook_active: true`.
+- **The spawn is visible.** A `PreToolUse` hook with matcher `Agent` sees `tool_input.prompt` (a
+  documented field) and `tool_use_id`. This held for a general-purpose agent, a background agent
+  and a fork.
+- **The stop is linked to its spawn.**
+  - `SubagentStop` fires for a foreground subagent, a worktree subagent and a background subagent,
+    and it carries `agent_transcript_path`.
+  - Beside that transcript, `agent-<id>.meta.json` records the spawn's `toolUseId` and whether the
+    agent `finished`. This is an observed layout, not a documented contract.
+- **A stop can be blocked once.** `{"decision":"block","reason":...}` made the subagent act on the
+  reason. Its next stop came with `stop_hook_active: true`.
+- **Some events fire no hook, or fire twice.**
+  - A subagent stopped with `TaskStop` fires no `SubagentStop`.
+  - A background agent can fire `SubagentStop`, then resume and stop again.
+- **The command environment has no agent id**, only `CLAUDE_CODE_SESSION_ID`. Rewriting a command to
+  add one breaks the user's allow rules.
 
 ## Decision
 
-1. **The brief carries the task; the hook claims it.**
-   - `tp brief <id>` puts one marker line, `tp-task: <id>`, in the brief.
-   - At a subagent's first tool call, the plugin's `PreToolUse` hook reads the agent's prompt. For
-     each marker it finds, the hook runs `tp claim <id>` itself with the claimant
-     `{session, agent}`, and records the agent in local state keyed by git's common dir, so every
-     worktree sees the same state.
-   - The claim time is the agent's first action. Nobody has to remember the claim.
-   - A brief without the marker falls back to today's behaviour.
-2. **An agent cannot stop with an unexplained claim.** The plugin's `SubagentStop` hook looks up the
-   wip tasks this agent claimed that carry no `waiting`.
-   - If it finds any, it blocks the stop once and names the two ways out: `tp done <id> ...`, or
+1. **The brief carries the task.** `tp brief <id>` prints, on its own line, the marker
+   `tp-task: <id> <task file>`, where the task file is relative to the repository root.
+2. **The spawn claims it.** The plugin's `PreToolUse` hook with matcher `Agent` reads the markers in
+   `tool_input.prompt` and runs `tp claim <id> --file <task file> --spawn <tool_use_id>` for each,
+   passing values as argv after checking each against the id and path shapes.
+   - **An open task** is claimed now: `started_at` is the spawn, `duration_source` is `claimed`, and
+     `claimed_by` is `{session, spawn}`.
+   - **A wip task** keeps its `started_at`, and `claimed_by` moves to this spawn. This covers a
+     coordinator that claimed before spawning.
+   - **A refusal** (done, blocked, held by another spawn whose agent has not finished, unknown id, a
+     lock timeout) exits 2 and the spawn does not happen.
+   - **A prompt without a marker** passes untouched.
+3. **The agent cannot stop with an unexplained claim.** The plugin's `SubagentStop` hook reads
+   `toolUseId` from the agent's `meta.json` and asks `tp claims --spawn <id>` for the tasks claimed
+   by that spawn.
+   - A task counts as accounted for when it is done or has `waiting` set in any worktree's copy of
+     its task file, so a close in another worktree counts before it merges.
+   - If any task is unaccounted, the hook blocks the stop once, naming `tp done <id> ...` and
      `tp set <id> waiting="<what>"`.
-   - With `stop_hook_active` set, it lets the stop through.
-   - The main session gets a non-blocking note instead, because its `Stop` ends every turn.
-3. **An unclaimed close is dated by its agent.**
-   - When an agent closes a task it never claimed, `started_at` is that agent's first recorded
-     action, not now, and `duration_source` is `"agent"`.
-   - When one agent works several tasks, this is an upper bound, and `tp report` says so.
-   - An explicit claim is never overwritten.
-4. **Waiting is measured.** Setting `waiting` stamps `waiting_since`, and clearing it adds the
-   interval to `waited_minutes`. `tp report` adds `waited_minutes` and `active_minutes` next to
-   `actual_minutes`.
-5. **The pool stays full.** `run_max_parallel` becomes the coordinator's cap too.
-   - When the coordinator's turn ends (`Stop`), the hook counts the live agents holding tp claims.
-   - If that count is below the cap and `tp ready` lists tasks, the hook blocks the stop once. It
-     names the ready tasks and the free slots, each with the `tp brief` command to spawn.
-   - A task held back for a reason that is not a task is written as `waiting` on the task, or as a
-     dependency when the reason is a task. Then `tp ready` no longer offers it, and the reason is on
-     disk instead of in the coordinator's head.
-6. **`tp resume` names abandoned claims.** A wip task without `waiting`, whose agent has no
-   `SubagentStop` and whose transcript has not been written for longer than the task's estimate, is
-   reported as possibly abandoned. A killed agent fires no hook, so this report is its only cover.
+   - With `stop_hook_active` set, the stop passes.
+   - With no `meta.json`, or no claims, the hook exits 0.
+4. **Who commits the claim does not change.** The claim is a change to the task file, which the
+   coordinator commits as it does today.
 
 ## Alternatives rejected
 
-- **Refuse writes while no task is wip.** This blocks the coordinator's own claim commits and its
-  measurement output.
-- **Prefix commands with the identity.** It breaks the user's allow rules (see above).
-- **Derive start from commits.** Commits carry no start time (see above).
-- **Match commit files to `touches`.** Tasks share files, and measurement tasks touch none.
-- **Bind claims to a worktree marker.** Work is not always in a worktree.
-- **Move every coordinator to `tp run`.** That is the existing deterministic path, but a coordinator
-  that briefs agents by hand and waits on other sessions' decisions is not one `tp run` drives today.
+- **Claim at the agent's first tool call by reading its transcript.** It needs a hook on every tool
+  call of every session, and a fork's transcript holds its parent's context.
+- **Prefix commands with the identity.** It breaks allow rules.
+- **Date an unclaimed close by its agent.** `tp done` cannot learn the agent. A claim at spawn makes
+  the question moot.
+- **Derive start from commits.** Commits carry no start time.
+- **Refuse writes while no task is wip.** It blocks the coordinator's own claim commits.
 
 ## Non-goals
 
-- Guessing an agent's task when its brief carries no marker and it never closes.
-- Time inside a background run beyond `waiting`.
-- `tp run` units: the driver claims for its children already, and `stop-role-incomplete.sh` keeps
-  its job.
+- A brief without a marker.
+- A killed agent: no hook fires for it. Liveness and filling free slots belong to the decision on
+  keeping the pool full.
+- A resumed background agent that finishes after `waiting` was set: its stop passes, as `waiting`
+  says the task is parked.
+- `tp run` units: the driver claims for its children, and `stop-role-incomplete.sh` keeps its job.
+- Measuring waiting time.
 
 ## Consequences
 
-- The hook change bumps `plugin.json`.
-- REFERENCE.md gains `claimed_by`, `duration_source: "agent"`, `waiting_since`, `waited_minutes`
-  and `active_minutes`.
-- Board clients should prefer `active_minutes` and name `"agent"` durations as upper bounds.
-- A coordinator now has its turn extended while slots are free and ready tasks remain. That is the
-  cost of keeping the pool full.
-- The prompt read depends on Claude Code's transcript layout. A test pins the layout, so a change
-  fails loudly rather than silently claiming nothing.
+- There are two new plugin hooks. `plugin.json` is bumped, and the release check reads Hooks 4
+  (SessionStart, PreToolUse, Stop, SubagentStop).
+- REFERENCE.md gains `claimed_by` and the `tp claim --spawn` and `tp claims` forms. SKILL.md's
+  parallel workflow says to spawn from `tp brief` output.
+- A test pins the `meta.json` layout, so a change in Claude Code fails loudly rather than letting
+  every stop through.
