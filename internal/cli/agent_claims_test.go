@@ -122,7 +122,7 @@ func TestClaimSpawnRebindsAWipTaskAndKeepsItsStart(t *testing.T) {
 func TestClaimSpawnRefuses(t *testing.T) {
 	t.Parallel()
 	dir := claimsRepo(t)
-	_, _, code := runTP(t, dir, "claim", "t1", "--spawn", "toolu_A3")
+	_, _, code := runTP(t, dir, "claim", "t1", "--spawn", "toolu_A3", "--session", "sess-0")
 	require.Equal(t, 0, code)
 	_, _, code = runTP(t, dir, "done", "t2", "--gate-passed", "--", "t2 acceptance criteria met")
 	require.Equal(t, 0, code)
@@ -141,7 +141,9 @@ func TestClaimSpawnRefuses(t *testing.T) {
 		{"empty session", []string{"claim", "t1", "--spawn", "toolu_A3", "--session", ""}, 2},
 		{"one id only", []string{"claim", "t1", "t3", "--spawn", "toolu_B3"}, 2},
 		{"session needs spawn", []string{"claim", "t1", "--session", "s"}, 2},
-		{"takeover needs spawn", []string{"claim", "t1", "--takeover"}, 2},
+		{"takeover takes no spawn", []string{"claim", "t1", "--spawn", "toolu_B3", "--takeover"}, 2},
+		{"takeover takes one id", []string{"claim", "t1", "t3", "--takeover"}, 2},
+		{"takeover of a task not wip", []string{"claim", "t2", "--takeover"}, 4},
 	} {
 		_, stderr, got := runTP(t, dir, tc.args...)
 		assert.Equal(t, tc.code, got, "%s: %s", tc.name, stderr)
@@ -149,12 +151,23 @@ func TestClaimSpawnRefuses(t *testing.T) {
 	assert.Equal(t, "toolu_A3", claimedBy(t, dir, "t1")["spawn"], "a refused claim leaves the holder")
 
 	_, stderr, _ := runTP(t, dir, "claim", "t1", "--spawn", "toolu_B3")
-	assert.Contains(t, stderr, "tp claim t1 --spawn toolu_B3 --takeover", "the refusal names the way out")
+	assert.Contains(t, stderr, "tp claim t1 --takeover", "the refusal names the takeover")
+	assert.Contains(t, stderr, "tp unclaim t1", "and the unclaim")
+
+	// The takeover frees the claim from its dead spawn and keeps the rest, so
+	// the next spawn from the brief binds as for a coordinator's claim.
 	started := taskState(t, dir, "t1")["started_at"]
-	_, stderr, code = runTP(t, dir, "claim", "t1", "--spawn", "toolu_B3", "--takeover")
+	_, stderr, code = runTP(t, dir, "claim", "t1", "--takeover")
+	require.Equal(t, 0, code, stderr)
+	task := taskState(t, dir, "t1")
+	assert.Equal(t, "wip", task["status"])
+	assert.Equal(t, started, task["started_at"], "a takeover keeps the start")
+	assert.Equal(t, map[string]any{"session": "sess-0"}, task["claimed_by"], "a takeover clears only the spawn")
+
+	_, stderr, code = runTP(t, dir, "claim", "t1", "--spawn", "toolu_B3")
 	require.Equal(t, 0, code, stderr)
 	assert.Equal(t, "toolu_B3", claimedBy(t, dir, "t1")["spawn"])
-	assert.Equal(t, started, taskState(t, dir, "t1")["started_at"], "a takeover keeps the start")
+	assert.Equal(t, started, taskState(t, dir, "t1")["started_at"])
 }
 
 // TestClaimsCountsACloseInAnotherWorktree: the coordinator claims on the main
