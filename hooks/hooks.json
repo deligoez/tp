@@ -1,5 +1,5 @@
 {
-  "description": "tp session hooks: preflight and orient at SessionStart, hold the unit scope fence on writes, and refuse a role unit's stop before it has written its findings",
+  "description": "tp session hooks: preflight and orient at SessionStart, hold the unit scope fence on writes, claim a brief's task when an agent is spawned with it, refuse a sub-agent's stop while a task it claimed is neither done nor waiting, and refuse a role unit's stop before it has written its findings",
   "hooks": {
     "SessionStart": [
       {
@@ -23,6 +23,16 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-use-agent-claim.sh",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "Stop": [
@@ -31,6 +41,17 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/stop-role-incomplete.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/subagent-stop-claim.sh",
             "timeout": 10
           }
         ]
