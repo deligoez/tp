@@ -94,7 +94,8 @@ func TestPoolClassifiesTheSessionsClaims(t *testing.T) {
 	assert.Contains(t, p.Reason, "`tp brief t5 --file spec.tasks.json`")
 	assert.NotContains(t, p.Reason, "tp brief t6", "only as many ready tasks as free slots")
 	assert.Contains(t, p.Reason, "`tp claim t4 --takeover --file spec.tasks.json`")
-	assert.Contains(t, p.Reason, `waiting=`, "the reason names the way to hold a task back")
+	assert.Contains(t, p.Reason, `waiting="<why>" --file <task file>`, "the reason names the way to hold a task back")
+	assert.Contains(t, p.Reason, "tp-task marker", "the reason says what in the brief claims the task")
 }
 
 func TestPoolDoesNotAskAFullPool(t *testing.T) {
