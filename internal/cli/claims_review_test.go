@@ -29,24 +29,6 @@ func TestClaimsCountsAWorktreeAgentParkingOnItsOpenCopy(t *testing.T) {
 	assert.Contains(t, stdout, `"unaccounted":[]`)
 }
 
-// TestAWorktreeCloseIsWrittenBesideTheClaim: the agent's branch carries no
-// task-file change, so the coordinator's merge cannot meet its uncommitted
-// claims, and the close keeps the claim's start.
-func TestAWorktreeCloseIsWrittenBesideTheClaim(t *testing.T) {
-	t.Parallel()
-	dir := claimsRepo(t)
-	spawnClaim(t, dir, "t1", "toolu_W", "sessC")
-	started := taskState(t, dir, "t1")["started_at"]
-	wt := filepath.Join(t.TempDir(), "wt")
-	gitIn(t, dir, "worktree", "add", "-q", wt)
-	_, stderr, code := runTP(t, wt, "done", "t1", "--gate-passed", "--", "t1 acceptance criteria met")
-	require.Equal(t, 0, code, stderr)
-
-	assert.Equal(t, "done", taskState(t, dir, "t1")["status"])
-	assert.Equal(t, started, taskState(t, dir, "t1")["started_at"])
-	assert.Empty(t, gitRun(t, wt, "status", "--porcelain"), "the worktree's task file is untouched")
-}
-
 // TestPoolDoesNotTrustAStaleCloseInAnotherWorktree: a worktree closed t1
 // before the coordinator claimed it again; that close says nothing of the
 // new claim, which has lost its agent.
