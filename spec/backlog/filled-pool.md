@@ -30,10 +30,19 @@ Measured in a scratch repository with `claude -p` and a logging hook:
 
 ## Decision
 
-1. **A live claim is one whose spawn is running.** A wip task holds a slot when its
-   `claimed_by.spawn` is the `toolUseId` of a subagent that `background_tasks` lists as running.
-   - A wip task with no running spawn is reported as orphaned and holds no slot, whether its agent
-     finished without closing the task or was killed.
+1. **A wip task is in one of three classes:**
+   - **running**: its `claimed_by.spawn` is the `toolUseId` of a subagent that `background_tasks`
+     lists as running;
+   - **parked**: `waiting` is set;
+   - **orphaned**: neither.
+
+   Running and parked tasks hold a slot. An orphaned task holds none.
+
+   Parked must hold a slot. An agent that ends its turn to wait on its own background job drops out
+   of `background_tasks` (measured: only its shell stays listed, with no owner), and
+   agent-bound-claims.md's stop guard makes it set `waiting` at that moment. A killed agent, or one
+   that finished without closing, leaves an orphan. Its exit is
+   `tp claim <id> --spawn <new> --takeover` from a fresh spawn, which keeps `started_at`.
 2. **The coordinator is asked to fill free slots.** The plugin's `Stop` hook runs
    `tp pool --session <session_id> --live <spawn ids>`, which answers with the cap
    (`run_max_parallel`), the live claims, the orphans and the ready tasks.
@@ -50,6 +59,14 @@ Measured in a scratch repository with `claude -p` and a logging hook:
    `held`, and `tp validate` stops rejecting it. A gate that is a task stays a `depends_on`. A held
    task is the coordinator's on-disk answer to "why is this ready task not started?", and the hook
    stops asking about it.
+   - Every path that turns a task back to open clears `waiting`, so a stale value cannot hide it:
+     `tp unclaim`, `tp reopen`, and `tp run`'s release and solo reopen.
+   - A claim on a held task clears `waiting`.
+   - When every open task is held, `tp ready` is empty, and `tp resume` names the held tasks with
+     their reasons.
+4. **No hook fires inside a `tp run` unit.** The `Agent`, `SubagentStop` and `Stop` hooks exit 0 at
+   once under the same signal the existing hooks use to detect a unit, so a unit that pastes a brief
+   into a subagent cannot become a coordinator beside the driver's pool.
 
 ## Alternatives rejected
 
