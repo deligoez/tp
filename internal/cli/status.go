@@ -64,12 +64,12 @@ func runStatus(_ *cobra.Command, _ []string) error {
 		t := &tf.Tasks[i]
 		switch {
 		case t.Status != model.StatusOpen:
+		case !t.DepsDone(done):
+			result.Blocked++
 		case t.Held():
 			result.Held++
-		case t.Startable(done):
-			result.Ready++
 		default:
-			result.Blocked++
+			result.Ready++
 		}
 	}
 
