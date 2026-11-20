@@ -638,6 +638,25 @@ func hookFailClosedCases() map[string][]hookFailClosedCase {
 			},
 			wantExit: 0,
 		}},
+		"hooks/stop-fill-pool.sh": {{
+			// The pool hook only nudges: with no tp on PATH to read the pool it
+			// prints nothing and passes, through a 2 MiB payload inside the
+			// margin (spec/backlog/filled-pool.md, Decision 2).
+			name: "a coordinator's stop behind 2 MiB with no tp to read the pool",
+			env:  minimal,
+			payload: func(t *testing.T) []byte {
+				t.Helper()
+				payload, err := json.Marshal(map[string]any{
+					"hook_event_name":  "Stop",
+					"session_id":       "sess-bound",
+					"stop_hook_active": false,
+					"background_tasks": []any{map[string]any{"id": "a1", "type": "subagent", "status": "running", "description": strings.Repeat("unit ", 419431)}},
+				})
+				require.NoError(t, err)
+				return payload
+			},
+			wantExit: 0,
+		}},
 		stopHookPath: {
 			{
 				name:     "a role unit that wrote no findings file",
