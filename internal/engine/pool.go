@@ -41,10 +41,18 @@ type Pool struct {
 	// Unmerged are claims closed in another worktree's copy and not yet in
 	// this tree; they hold no slot.
 	Unmerged []PoolTask `json:"unmerged"`
-	Free     int        `json:"free"`
-	Ready    []PoolTask `json:"ready"`
-	Ask      bool       `json:"ask"`
-	Reason   string     `json:"reason,omitempty"`
+	// Landing are claims whose worktree agent asked for its close; tp land
+	// picks the agent's commits onto this tree's branch and closes them
+	// (spec/backlog/worktree-land.md). They hold no slot, and while any
+	// waits the coordinator is asked to land them, slot or no slot.
+	Landing []PoolTask `json:"landing"`
+	Free    int        `json:"free"`
+	Ready   []PoolTask `json:"ready"`
+	Ask     bool       `json:"ask"`
+	Reason  string     `json:"reason,omitempty"`
+	// common is the repository's git common directory, where land
+	// requests live.
+	common string
 }
 
 // PoolInput is what the pool is computed from: the tree the coordinator works
@@ -70,11 +78,12 @@ type otherCopies struct {
 func PoolOf(in PoolInput) Pool {
 	p := Pool{Session: in.Session, Unresolved: in.Unresolved,
 		Running: []PoolTask{}, Parked: []PoolTask{}, Orphans: []PoolTask{}, Respawn: []PoolTask{},
-		Unmerged: []PoolTask{}, Ready: []PoolTask{}}
+		Unmerged: []PoolTask{}, Landing: []PoolTask{}, Ready: []PoolTask{}}
 	home := gitToplevel(in.Start)
 	if home == "" || !ValidClaimToken(in.Session) {
 		return p
 	}
+	p.common = gitCommonDir(home)
 	live := map[string]bool{}
 	for _, s := range in.Live {
 		live[s] = true
@@ -88,7 +97,7 @@ func PoolOf(in PoolInput) Pool {
 	}
 	p.Free = max(p.Cap-len(p.Running)-len(p.Parked)-p.Unresolved, 0)
 	// A session that never claimed has cap 0, so no free slot to ask about.
-	p.Ask = p.Free > 0 && len(p.Ready)+len(p.Orphans)+len(p.Respawn) > 0
+	p.Ask = len(p.Landing) > 0 || (p.Free > 0 && len(p.Ready)+len(p.Orphans)+len(p.Respawn) > 0)
 	if p.Ask {
 		p.Reason = poolReason(&p)
 	}
@@ -146,13 +155,16 @@ func (p *Pool) addFile(home, path string, live map[string]bool, others map[claim
 	}
 }
 
-// classify puts one wip task the session claimed in its class: a live spawn
-// first, then a close or a park another worktree's copy made for this same
+// classify puts one wip task the session claimed in its class: a land
+// request first, then a live spawn, then a close or a park another
+// worktree's copy made for this same
 // spawn, then waiting here.
 func (p *Pool) classify(task *model.Task, rel string, live map[string]bool, other otherCopies) {
 	pt := PoolTask{ID: task.ID, File: rel, Waiting: task.Waiting}
 	spawn := task.ClaimedBy.Spawn
 	switch {
+	case p.common != "" && HasLandRequest(LandDirFor(p.common, rel), task.ID):
+		p.Landing = append(p.Landing, pt)
 	case spawn != "" && live[spawn]:
 		p.Running = append(p.Running, pt)
 	case spawn != "" && other.doneBy[spawn]:
@@ -223,6 +235,29 @@ func samePath(a, b string) bool {
 // claims to spawn again, and how to record a gate that keeps a task back.
 func poolReason(p *Pool) string {
 	var b strings.Builder
+	if len(p.Landing) > 0 {
+		b.WriteString("Worktree agents finished ")
+		files := map[string]bool{}
+		for i, t := range p.Landing {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(t.ID)
+			files[t.File] = true
+		}
+		b.WriteString(": land them first, which picks their commits onto this tree's branch and closes them, with")
+		for _, t := range p.Landing {
+			if files[t.File] {
+				fmt.Fprintf(&b, " `tp land --file %s`", t.File)
+				files[t.File] = false
+			}
+		}
+		b.WriteString(".")
+		if p.Free == 0 || len(p.Ready)+len(p.Orphans)+len(p.Respawn) == 0 {
+			return b.String()
+		}
+		b.WriteString(" Then: ")
+	}
 	fmt.Fprintf(&b, "%d of %d parallel slots are free (run_max_parallel). Run these from the repository root.", p.Free, p.Cap)
 	if n := min(p.Free, len(p.Ready)); n > 0 {
 		b.WriteString(" Start each of these in its own background subagent, its prompt holding the brief's output, whose tp-task marker claims the task:")
