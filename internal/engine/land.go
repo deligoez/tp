@@ -125,6 +125,8 @@ func HasLandRequest(dir, id string) bool {
 type LandBlockedError struct {
 	Paths []string
 	Cause string
+	// Abort is the git command that clears an operation in progress.
+	Abort string
 }
 
 func (e *LandBlockedError) Error() string {
@@ -165,8 +167,8 @@ func LandPick(root string, commits []string) (pre string, landed []string, err e
 	if blocked := landBlockingPaths(root, commits); len(blocked) > 0 {
 		return pre, nil, &LandBlockedError{Paths: blocked}
 	}
-	if op := gitOperationInProgress(root); op != "" {
-		return pre, nil, &LandBlockedError{Cause: op + " is in progress in this tree"}
+	if op, abort := gitOperationInProgress(root); op != "" {
+		return pre, nil, &LandBlockedError{Cause: op + " is in progress in this tree", Abort: abort}
 	}
 	picked := make([]string, 0, len(commits))
 	for _, sha := range commits {
@@ -208,16 +210,18 @@ func pickOne(root, sha string) (string, error) {
 
 // gitOperationInProgress names a cherry-pick, merge, revert or rebase this
 // tree is in the middle of; "" when none.
-func gitOperationInProgress(root string) string {
-	for _, op := range []struct{ ref, name string }{
-		{"CHERRY_PICK_HEAD", "a cherry-pick"}, {"MERGE_HEAD", "a merge"},
-		{"REVERT_HEAD", "a revert"}, {"REBASE_HEAD", "a rebase"},
+func gitOperationInProgress(root string) (name, abort string) {
+	for _, op := range []struct{ ref, name, abort string }{
+		{"CHERRY_PICK_HEAD", "a cherry-pick", "git cherry-pick --abort"},
+		{"MERGE_HEAD", "a merge", "git merge --abort"},
+		{"REVERT_HEAD", "a revert", "git revert --abort"},
+		{"REBASE_HEAD", "a rebase", "git rebase --abort"},
 	} {
 		if _, err := gitOut(root, "rev-parse", "-q", "--verify", op.ref); err == nil {
-			return op.name
+			return op.name, op.abort
 		}
 	}
-	return ""
+	return "", ""
 }
 
 // equivalentOnHead returns the commit between sha's merge base with HEAD and
