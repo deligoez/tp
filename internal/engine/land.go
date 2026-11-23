@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -164,30 +165,103 @@ func LandPick(root string, commits []string) (pre string, landed []string, err e
 	if blocked := landBlockingPaths(root, commits); len(blocked) > 0 {
 		return pre, nil, &LandBlockedError{Paths: blocked}
 	}
+	if op := gitOperationInProgress(root); op != "" {
+		return pre, nil, &LandBlockedError{Cause: op + " is in progress in this tree"}
+	}
 	picked := make([]string, 0, len(commits))
 	for _, sha := range commits {
-		// A commit whose change HEAD already carries (a pick a crash left
-		// behind, a hand merge under another sha) lands as an empty commit
-		// rather than stopping the pick.
-		pick := exec.Command("git", "cherry-pick", "--allow-empty", "--keep-redundant-commits", sha)
-		pick.Dir = root
-		if out, pickErr := pick.CombinedOutput(); pickErr != nil {
-			conflicted, _ := gitOut(root, "diff", "--name-only", "--diff-filter=U")
-			_, _ = gitOut(root, "cherry-pick", "--abort")
+		landedAs, pickErr := pickOne(root, sha)
+		if pickErr != nil {
 			_ = LandUndo(root, pre)
-			if conflicted == "" {
-				return pre, nil, &LandBlockedError{Cause: strings.TrimSpace(string(out))}
-			}
-			return pre, nil, fmt.Errorf("commit %s conflicts with this branch in %s", sha, strings.Join(strings.Fields(conflicted), ", "))
+			return pre, nil, pickErr
 		}
-		head, headErr := gitOut(root, "rev-parse", "HEAD")
-		if headErr != nil {
-			_ = LandUndo(root, pre)
-			return pre, nil, headErr
-		}
-		picked = append(picked, head)
+		picked = append(picked, landedAs)
 	}
 	return pre, picked, nil
+}
+
+// pickOne cherry-picks sha onto HEAD at root and returns the commit that now
+// carries its change: the new pick, or the commit on HEAD that already
+// carries the same change (a pick a crashed run left, a hand merge under
+// another sha), which is not picked again. A conflict, or a pick git refuses
+// for the commit itself (a merge commit), is an error naming it.
+func pickOne(root, sha string) (string, error) {
+	pick := exec.Command("git", "cherry-pick", "--allow-empty", sha)
+	pick.Dir = root
+	out, pickErr := pick.CombinedOutput()
+	if pickErr == nil {
+		return gitOut(root, "rev-parse", "HEAD")
+	}
+	conflicted, _ := gitOut(root, "diff", "--name-only", "--diff-filter=U")
+	if conflicted == "" {
+		if same := equivalentOnHead(root, sha); same != "" {
+			_, _ = gitOut(root, "cherry-pick", "--skip")
+			return same, nil
+		}
+	}
+	_, _ = gitOut(root, "cherry-pick", "--abort")
+	if conflicted != "" {
+		return "", fmt.Errorf("commit %s conflicts with this branch in %s", sha, strings.Join(strings.Fields(conflicted), ", "))
+	}
+	return "", fmt.Errorf("git refused to pick commit %s: %s", sha, strings.TrimSpace(string(out)))
+}
+
+// gitOperationInProgress names a cherry-pick, merge, revert or rebase this
+// tree is in the middle of; "" when none.
+func gitOperationInProgress(root string) string {
+	for _, op := range []struct{ ref, name string }{
+		{"CHERRY_PICK_HEAD", "a cherry-pick"}, {"MERGE_HEAD", "a merge"},
+		{"REVERT_HEAD", "a revert"}, {"REBASE_HEAD", "a rebase"},
+	} {
+		if _, err := gitOut(root, "rev-parse", "-q", "--verify", op.ref); err == nil {
+			return op.name
+		}
+	}
+	return ""
+}
+
+// equivalentOnHead returns the commit between sha's merge base with HEAD and
+// HEAD whose change has sha's patch id; "" when none does.
+func equivalentOnHead(root, sha string) string {
+	id := patchID(root, sha)
+	if id == "" {
+		return ""
+	}
+	base, err := gitOut(root, "merge-base", "HEAD", sha)
+	if err != nil {
+		return ""
+	}
+	revs, err := gitOut(root, "rev-list", "--no-merges", base+"..HEAD")
+	if err != nil {
+		return ""
+	}
+	for rev := range strings.SplitSeq(revs, "\n") {
+		if rev != "" && patchID(root, rev) == id {
+			return rev
+		}
+	}
+	return ""
+}
+
+// patchID is the stable patch id of commit rev's change; "" when it has none.
+func patchID(root, rev string) string {
+	diff := exec.Command("git", "diff-tree", "-p", "--root", rev)
+	diff.Dir = root
+	patch, err := diff.Output()
+	if err != nil || len(patch) == 0 {
+		return ""
+	}
+	id := exec.Command("git", "patch-id", "--stable")
+	id.Dir = root
+	id.Stdin = bytes.NewReader(patch)
+	out, err := id.Output()
+	if err != nil {
+		return ""
+	}
+	if fields := strings.Fields(string(out)); len(fields) > 0 {
+		return fields[0]
+	}
+	return ""
 }
 
 // LandUndo takes a landing's pick back to pre, keeping uncommitted changes;
