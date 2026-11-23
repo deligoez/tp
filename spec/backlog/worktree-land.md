@@ -63,6 +63,10 @@ it.
 - A hand merge that rewrote the commits (squash, rebase): `tp land` does not recognise it, picks
   again, and on conflict reopens the task.
 - A coordinator whose own tree fails the gate: the agent's task is reopened for it.
+- A worktree whose own copy carries a spawn's claim on the task (cut after an older claim was
+  committed, then taken over): it speaks for itself, and its close stays local. Only a copy that
+  carries no spawn's claim looks for the holder, so the coordinator's own tree never writes into a
+  stale copy.
 - A new workflow field, an escalation, or an operator decision.
 
 ## Acceptance
