@@ -140,25 +140,18 @@ func scanClaims(tree, spawn string, claimed, accounted map[claimKey]bool) {
 }
 
 // ClaimHolderCopy returns the copy, in another worktree of the repository, of
-// the task file at path that holds task id under a spawn's claim, when the
-// copy at path carries no spawn's claim on it and has it open or wip: the
-// coordinator claimed it on its own tree after this worktree was cut. A write
-// about that claim belongs with it, in the holder's copy. A holder with the
-// task wip is preferred to one with it done (a claim landed and closed). It
-// returns "" when no other copy holds such a claim.
+// the task file at path that has task id wip under a spawn's claim, when the
+// copy at path has it open: the coordinator claimed it
+// on its own tree after this worktree was cut. A write about that claim
+// belongs with it, in the holder's copy. It returns "" when path's copy is
+// not open, or no other copy holds such a claim; a copy that is wip or done
+// here speaks for itself, so tp run's own closes never look elsewhere.
 func ClaimHolderCopy(path, id string) string {
 	tf, err := model.ReadTaskFile(path)
 	if err != nil {
 		return ""
 	}
-	task, _, findErr := model.FindTask(tf, id)
-	if findErr != nil {
-		return ""
-	}
-	// A copy that carries a spawn's claim speaks for it here: the
-	// coordinator's own tree, or a worktree cut after a claim was committed.
-	// Looking elsewhere from it could reach a stale copy of an older claim.
-	if task.Status == model.StatusDone || (task.ClaimedBy != nil && task.ClaimedBy.Spawn != "") {
+	if task, _, findErr := model.FindTask(tf, id); findErr != nil || task.Status != model.StatusOpen {
 		return ""
 	}
 	tree := gitToplevel(filepath.Dir(path))
@@ -166,7 +159,6 @@ func ClaimHolderCopy(path, id string) string {
 		return ""
 	}
 	rel := repoRelativeTo(tree, path)
-	done := ""
 	for _, other := range worktreeRoots(tree) {
 		if samePath(other, tree) {
 			continue
@@ -176,20 +168,11 @@ func ClaimHolderCopy(path, id string) string {
 		if readErr != nil {
 			continue
 		}
-		t, _, tErr := model.FindTask(copyTF, id)
-		if tErr != nil || t.ClaimedBy == nil || t.ClaimedBy.Spawn == "" {
-			continue
-		}
-		switch t.Status {
-		case model.StatusWIP:
+		if t, _, tErr := model.FindTask(copyTF, id); tErr == nil && t.Status == model.StatusWIP && t.ClaimedBy != nil && t.ClaimedBy.Spawn != "" {
 			return copyPath
-		case model.StatusDone:
-			if done == "" {
-				done = copyPath
-			}
 		}
 	}
-	return done
+	return ""
 }
 
 // worktreeRoots is every worktree of the repository holding start, from
