@@ -56,6 +56,7 @@ func runCommit(_ *cobra.Command, args []string) error {
 		return nil
 	}
 	enterTree(taskFilePath, "tp commit")
+	refuseCommitBesideClaim(taskFilePath, args[0])
 
 	if resolveEffectiveStrategy(taskFilePath) == engine.CommitStrategyHC {
 		output.Error(ExitUsage, "tp commit is not valid under commit_strategy hc", hcCommitHint)
