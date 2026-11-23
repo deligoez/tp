@@ -293,5 +293,6 @@ func landCommand(home, rel string) string {
 	if err != nil {
 		return "tp land --file " + rel
 	}
-	return fmt.Sprintf("cd %s && tp land --file %s", filepath.ToSlash(dir), filepath.ToSlash(file))
+	// A subshell, so the coordinator's own working directory stays put.
+	return fmt.Sprintf("(cd %s && tp land --file %s)", filepath.ToSlash(dir), filepath.ToSlash(file))
 }
