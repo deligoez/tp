@@ -44,6 +44,7 @@ type poolOut struct {
 	Orphans     []poolID `json:"orphans"`
 	Respawn     []poolID `json:"respawn"`
 	Unmerged    []poolID `json:"unmerged"`
+	Landing     []poolID `json:"landing"`
 	Free        int      `json:"free"`
 	Ready       []poolID `json:"ready"`
 	Ask         bool     `json:"ask"`
