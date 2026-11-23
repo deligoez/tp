@@ -163,6 +163,34 @@ func TestLandClosesOverAPickACrashLeftBehind(t *testing.T) {
 	assert.Contains(t, stdout, `"landed": [
     "t1"`)
 	assert.Equal(t, "done", taskState(t, dir, "t1")["status"])
+	// The task records the commit that carries the work, not an empty one.
+	shas, _ := taskState(t, dir, "t1")["commit_shas"].([]any)
+	require.Len(t, shas, 1)
+	assert.Contains(t, gitRun(t, dir, "show", "--name-only", "--format=", shas[0].(string)), "agent.txt")
+}
+
+// An agent's merge commit cannot be picked: the landing ends, it does not
+// wait forever.
+func TestLandReopensATaskWhoseCommitIsAMerge(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "")
+	gitIn(t, wt, "checkout", "-q", "-b", "side")
+	side := agentCommit(t, wt)
+	gitIn(t, wt, "checkout", "-q", "agent-t1")
+	require.NoError(t, os.WriteFile(filepath.Join(wt, "more.txt"), []byte("more\n"), 0o600))
+	gitIn(t, wt, "add", "-A")
+	gitIn(t, wt, "commit", "-q", "-m", "more")
+	more := strings.TrimSpace(gitRun(t, wt, "rev-parse", "HEAD"))
+	gitIn(t, wt, "merge", "-q", "--no-ff", "-m", "merge side", "side")
+	merge := strings.TrimSpace(gitRun(t, wt, "rev-parse", "HEAD"))
+	_, stderr, code := runTP(t, wt, "done", "t1", "--commit", side, "--commit", more, "--commit", merge, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+
+	stdout, stderr, code := runTP(t, dir, "land")
+	require.Equal(t, 0, code, stdout+stderr)
+	assert.Contains(t, stdout, `"reopened"`)
+	assert.Contains(t, stdout, "is a merge")
+	assert.Equal(t, "open", taskState(t, dir, "t1")["status"])
 }
 
 // A command the SubagentStop reason prints, run in the coordinator's tree,
@@ -177,7 +205,14 @@ func TestACoordinatorCloseRefusesACommitItsBranchLacks(t *testing.T) {
 	_, stderr, code := runTP(t, dir, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
 	assert.Equal(t, 1, code, stderr)
 	assert.Contains(t, stderr, "not on this tree's branch")
+	// The hint names the worktree holding the commit and the agent's command.
+	assert.Contains(t, stderr, filepath.Base(wt))
+	assert.Contains(t, stderr, "tp done t1 --commit "+sha)
 	assert.Equal(t, "wip", taskState(t, dir, "t1")["status"])
+
+	_, stderr, code = runTP(t, dir, "done", "t1", "--commit", "deadbeef", "--", "t1 acceptance criteria met")
+	assert.Equal(t, 1, code, stderr)
+	assert.Contains(t, stderr, "does not exist")
 }
 
 // A request lands only in the tree whose copy holds the claim it was made
