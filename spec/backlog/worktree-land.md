@@ -38,10 +38,11 @@ end in another such command.
    are the agent's, so nothing else is committed.
 4. **A failed landing reopens the task.** A conflict, a commit that no longer exists, or a red gate
    takes the pick back (`git reset --keep`), reopens the task as solo with its claim cleared, drops
-   the request, and names the log. The pool then asks for a fresh agent on the current `HEAD`, as
-   `tp run` does with a unit that failed to integrate. A pick refused by the coordinator's own
-   uncommitted changes in the same paths reopens nothing: `tp land` names the paths and asks for them
-   to be committed first. No hint suggests `--skip-gate` or `--force`.
+   the request, and names the cause and the brief to spawn a fresh agent from, on the current `HEAD`,
+   as `tp run` does with a unit that failed to integrate. The agent's worktree is told the outcome and
+   closes nothing. A pick refused by the coordinator's own state (anything staged, or uncommitted
+   changes in the same paths) reopens nothing: `tp land` names the paths and asks for them to be
+   committed first. No hint suggests `--skip-gate` or `--force`.
 5. **The hooks sequence it.** `tp claims --spawn` counts a task with a land request as accounted. The
    pool reads requests as a class of its own, *landing*, ahead of every other: the coordinator's stop
    is refused while one waits, with `tp land` as the reason's first command, whether or not a slot
@@ -64,9 +65,9 @@ it.
   again, and on conflict reopens the task.
 - A coordinator whose own tree fails the gate: the agent's task is reopened for it.
 - A worktree whose own copy carries a spawn's claim on the task (cut after an older claim was
-  committed, then taken over): it speaks for itself, and its close stays local. Only a copy that
-  carries no spawn's claim looks for the holder, so the coordinator's own tree never writes into a
-  stale copy.
+  committed, then taken over): it speaks for itself, and its close stays local. Only a copy that has
+  the task open looks for a holder, and only a `wip` one under a spawn's claim, so neither the
+  coordinator's own tree nor `tp run` ever writes into a stale copy.
 - A new workflow field, an escalation, or an operator decision.
 
 ## Acceptance
