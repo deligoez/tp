@@ -33,7 +33,7 @@ golangci-lint run
 # Round artifacts no recorded round owns (dry run; --apply removes)
 ./scripts/clean-emissions.sh
 
-# Stripped binary (production, <14MB: 13.4 MB measured for v1.17.0 with the gzipped deck.gl, 12.9 MB without)
+# Stripped binary (production; keep it under 14MB)
 go build -ldflags="-s -w" -o tp ./cmd/tp
 ```
 
