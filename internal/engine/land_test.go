@@ -17,6 +17,6 @@ func TestLandCommandEntersAProjectBelowTheWorktreeRoot(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Join(home, "proj", ".tp"), 0o750))
 	require.NoError(t, os.MkdirAll(filepath.Join(home, ".tp"), 0o750))
 
-	assert.Equal(t, "cd proj && tp land --file spec.tasks.json", landCommand(home, "proj/spec.tasks.json"))
+	assert.Equal(t, "(cd proj && tp land --file spec.tasks.json)", landCommand(home, "proj/spec.tasks.json"))
 	assert.Equal(t, "tp land --file spec.tasks.json", landCommand(home, "spec.tasks.json"))
 }
