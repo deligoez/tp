@@ -342,3 +342,64 @@ func TestLandIsBlockedByTheCoordinatorsOwnChanges(t *testing.T) {
 	assert.Contains(t, stdout, "run tp land again")
 	assert.Equal(t, "wip", taskState(t, dir, "t1")["status"], "a blocked landing reopens nothing")
 }
+
+// A pick that fails for this tree's own reasons (here a held index lock) is
+// blocked and keeps the task, not reopened: the agent's work is fine.
+func TestLandIsBlockedByAHeldIndexLock(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "")
+	sha := agentCommit(t, wt)
+	_, stderr, code := runTP(t, wt, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	lock := filepath.Join(dir, ".git", "index.lock")
+	require.NoError(t, os.WriteFile(lock, nil, 0o600))
+
+	stdout, _, code := runTP(t, dir, "land")
+	assert.Equal(t, 4, code, stdout)
+	assert.Contains(t, stdout, `"blocked"`)
+	assert.Equal(t, "wip", taskState(t, dir, "t1")["status"], "a blocked landing reopens nothing")
+
+	require.NoError(t, os.Remove(lock))
+	stdout, stderr, code = runTP(t, dir, "land")
+	require.Equal(t, 0, code, stdout+stderr)
+	assert.Equal(t, "done", taskState(t, dir, "t1")["status"])
+}
+
+// A cherry-pick left paused in this tree blocks the landing with the command
+// that clears it.
+func TestLandIsBlockedByACherryPickInProgress(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "")
+	sha := agentCommit(t, wt)
+	_, stderr, code := runTP(t, wt, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	head := strings.TrimSpace(gitRun(t, dir, "rev-parse", "HEAD"))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".git", "CHERRY_PICK_HEAD"), []byte(head+"\n"), 0o600))
+
+	stdout, _, code := runTP(t, dir, "land")
+	assert.Equal(t, 4, code, stdout)
+	assert.Contains(t, stdout, "git cherry-pick --abort")
+	assert.Equal(t, "wip", taskState(t, dir, "t1")["status"])
+}
+
+// A change this branch already carries inside a larger commit lands as that
+// commit rather than reopening the task.
+func TestLandClosesAChangeTheBranchCarriesInsideALargerCommit(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "")
+	sha := agentCommit(t, wt)
+	_, stderr, code := runTP(t, wt, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "agent.txt"), []byte("work\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "other.txt"), []byte("other\n"), 0o600))
+	gitIn(t, dir, "add", "agent.txt", "other.txt")
+	gitIn(t, dir, "commit", "-q", "-m", "squashed")
+	squashed := strings.TrimSpace(gitRun(t, dir, "rev-parse", "HEAD"))
+
+	stdout, stderr, code := runTP(t, dir, "land")
+	require.Equal(t, 0, code, stdout+stderr)
+	assert.Equal(t, "done", taskState(t, dir, "t1")["status"], stdout)
+	shas, _ := taskState(t, dir, "t1")["commit_shas"].([]any)
+	require.Len(t, shas, 1)
+	assert.Equal(t, squashed, shas[0], "the task records the commit that already carries the work")
+}
