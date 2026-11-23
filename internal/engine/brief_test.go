@@ -76,7 +76,11 @@ func TestCloseRecipeText_Builtin(t *testing.T) {
 	// Under builtin, --auto-commit is the path, not a rejection, and the hc
 	// command/rejected note are absent.
 	assert.NotContains(t, got, "are all rejected")
-	assert.NotContains(t, got, "--commit <sha>")
+	assert.NotContains(t, got, "commit with hc")
+	// An agent in a worktree of its own commits with git and asks with
+	// --commit, since --auto-commit is refused there.
+	assert.Contains(t, got, "In a git worktree of your own")
+	assert.Contains(t, got, `tp done <id> --commit <sha> -- "<evidence>"`)
 }
 
 func TestCloseRecipeText_HC(t *testing.T) {
