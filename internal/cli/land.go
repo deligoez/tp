@@ -1,10 +1,13 @@
 package cli
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -64,17 +67,23 @@ func runLand(_ *cobra.Command, _ []string) error {
 		taskFilePath = abs
 	}
 	dir := engine.LandDir(taskFilePath)
-	requests, err := engine.ReadLandRequests(dir)
+	requests, unreadable, err := engine.ReadLandRequests(dir)
 	if err != nil {
 		output.Error(ExitFile, err.Error(), runtimeFailureHint)
 		os.Exit(ExitFile)
 	}
+	refuseLandOutsideHolder(taskFilePath, requests)
 	root := engine.CanonicalProjectRoot(filepath.Dir(taskFilePath))
 	l := &lander{
 		root: root, taskFile: taskFilePath, dir: dir,
 		close:  closeTaskFunc(root, taskFilePath),
 		reopen: reopenSoloFunc(taskFilePath),
 		res:    &landResult{Landed: []string{}, Reopened: []landItem{}, Blocked: []landItem{}, Dropped: []string{}},
+	}
+	for _, path := range unreadable {
+		l.res.Blocked = append(l.res.Blocked, landItem{ID: strings.TrimSuffix(filepath.Base(path), ".json"),
+			Error: "the land request " + path + " cannot be read",
+			Hint:  "delete it (rm " + path + "); the task keeps its claim, and its agent asks again with tp done or the pool offers the claim to a fresh one"})
 	}
 	for i := range requests {
 		l.land(&requests[i])
@@ -86,6 +95,23 @@ func runLand(_ *cobra.Command, _ []string) error {
 		os.Exit(ExitState)
 	}
 	return nil
+}
+
+// refuseLandOutsideHolder exits 2 before anything is touched when this tree
+// is not the one holding the claims the requests are for: run from an
+// agent's worktree, where the tasks are still open, tp land would drop
+// every request as no longer wip.
+func refuseLandOutsideHolder(taskFilePath string, requests []engine.LandRequest) {
+	for i := range requests {
+		id := requests[i].ID
+		if taskStatusIn(taskFilePath, id) == model.StatusWIP {
+			continue
+		}
+		if holder := engine.ClaimHolderCopy(taskFilePath, id); holder != "" {
+			exitUsage(fmt.Sprintf("tp land runs in the tree that holds the claims, and task %s is claimed in %s", id, holder),
+				"an agent in its own worktree stops after tp done; the coordinator runs tp land in its own tree")
+		}
+	}
 }
 
 // land picks one request's commits, closes its task with them, and on a
@@ -100,16 +126,16 @@ func (l *lander) land(r *engine.LandRequest) {
 	var blocked *engine.LandBlockedError
 	if errors.As(err, &blocked) {
 		l.res.Blocked = append(l.res.Blocked, landItem{ID: r.ID, Error: err.Error(),
-			Hint: "commit those paths on this tree's branch, then run tp land again"})
+			Hint: "commit or unstage those paths on this tree's branch, then run tp land again"})
 		return
 	}
 	if err != nil {
-		l.reopenAfter(r.ID, "", err, "")
+		l.reopenAfter(r, "", err.Error(), "")
 		return
 	}
 	logs := filepath.Join(l.dir, "logs")
 	if mkErr := os.MkdirAll(logs, 0o750); mkErr != nil {
-		l.reopenAfter(r.ID, pre, mkErr, "")
+		l.reopenAfter(r, pre, mkErr.Error(), "")
 		return
 	}
 	logPath := filepath.Join(logs, r.ID+".log")
@@ -117,39 +143,77 @@ func (l *lander) land(r *engine.LandRequest) {
 	var refused *engine.CloseRefusedError
 	switch {
 	case closeErr == nil || taskStatusIn(l.taskFile, r.ID) == model.StatusDone:
+		l.outcome(r, "")
 		l.drop(r.ID)
 		l.res.Landed = append(l.res.Landed, r.ID)
 	case errors.As(closeErr, &refused):
 		_ = engine.LandUndo(l.root, pre)
-		l.res.Blocked = append(l.res.Blocked, landItem{ID: r.ID, Error: "tp done refused the close", Log: logPath,
-			Hint: "read the log; the request is kept for the next tp land"})
+		l.res.Blocked = append(l.res.Blocked, landItem{ID: r.ID, Error: "tp done refused the close: " + closeFailure(closeErr, logPath), Log: logPath,
+			Hint: "the request is kept: clear what the error names, then run tp land again"})
 	default:
-		l.reopenAfter(r.ID, pre, closeErr, logPath)
+		l.reopenAfter(r, pre, closeFailure(closeErr, logPath), logPath)
 	}
 }
 
 // reopenAfter takes a failed landing back to pre (when it picked anything),
-// reopens the task to run alone, and drops its request.
-func (l *lander) reopenAfter(id, pre string, cause error, logPath string) {
+// reopens the task to run alone, records the outcome for the agent's
+// worktree, and drops its request.
+func (l *lander) reopenAfter(r *engine.LandRequest, pre, cause, logPath string) {
 	if pre != "" {
 		_ = engine.LandUndo(l.root, pre)
 	}
-	item := landItem{ID: id, Error: cause.Error(), Log: logPath,
-		Hint: fmt.Sprintf("task %s is open again: spawn a fresh agent from tp brief %s", id, id)}
-	if err := l.reopen(id); err != nil {
+	item := landItem{ID: r.ID, Error: cause, Log: logPath,
+		Hint: fmt.Sprintf("task %s is open again: spawn a fresh agent from tp brief %s, and tell it this error", r.ID, r.ID)}
+	if err := l.reopen(r.ID); err != nil {
 		item.Error += "; reopening failed: " + err.Error()
 		item.Hint = "the request is kept for the next tp land"
 		l.res.Blocked = append(l.res.Blocked, item)
 		return
 	}
-	l.drop(id)
+	l.outcome(r, cause)
+	l.drop(r.ID)
 	l.res.Reopened = append(l.res.Reopened, item)
+}
+
+// outcome records what this landing did for the request's worktree; cause
+// is "" for a task landed and closed.
+func (l *lander) outcome(r *engine.LandRequest, cause string) {
+	o := &engine.LandOutcome{ID: r.ID, Worktree: r.Worktree, Landed: cause == "", Error: cause}
+	if err := engine.WriteLandOutcome(l.dir, o); err != nil {
+		output.Notice(fmt.Sprintf("the land outcome of %s could not be recorded: %v", r.ID, err))
+	}
 }
 
 func (l *lander) drop(id string) {
 	if err := engine.RemoveLandRequest(l.dir, id); err != nil {
 		output.Notice(fmt.Sprintf("the land request of %s could not be removed: %v", id, err))
 	}
+}
+
+// closeFailure is why the tp done child failed: the error its log ends
+// with, or err itself when the log names none.
+func closeFailure(err error, logPath string) string {
+	data, readErr := os.ReadFile(logPath)
+	if readErr != nil {
+		return err.Error()
+	}
+	// The child's error is a JSON object, pretty-printed, opening a line.
+	cause := ""
+	for i := range data {
+		if data[i] != '{' || (i > 0 && data[i-1] != '\n') {
+			continue
+		}
+		var e struct {
+			Error string `json:"error"`
+		}
+		if json.NewDecoder(bytes.NewReader(data[i:])).Decode(&e) == nil && e.Error != "" {
+			cause = e.Error
+		}
+	}
+	if cause == "" {
+		return err.Error()
+	}
+	return cause
 }
 
 // taskStatusIn is task id's status in the task file at path, "" when it

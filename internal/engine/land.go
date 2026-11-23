@@ -84,31 +84,30 @@ func WriteLandRequest(taskFile string, r *LandRequest) error {
 func ReadLandRequests(dir string) (requests []LandRequest, unreadable []string, err error) {
 	requests, unreadable = []LandRequest{}, []string{}
 	if dir == "" {
-		return out, nil
+		return requests, unreadable, nil
 	}
 	entries, err := os.ReadDir(dir)
 	if os.IsNotExist(err) {
-		return out, nil
+		return requests, unreadable, nil
 	}
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	for _, e := range entries {
 		if e.IsDir() || filepath.Ext(e.Name()) != ".json" {
 			continue
 		}
-		data, readErr := os.ReadFile(filepath.Join(dir, e.Name()))
-		if readErr != nil {
-			return nil, readErr
-		}
+		path := filepath.Join(dir, e.Name())
+		data, readErr := os.ReadFile(path)
 		var r LandRequest
-		if jsonErr := json.Unmarshal(data, &r); jsonErr != nil {
-			return nil, fmt.Errorf("land request %s: %w", e.Name(), jsonErr)
+		if readErr != nil || json.Unmarshal(data, &r) != nil || r.ID+".json" != e.Name() {
+			unreadable = append(unreadable, path)
+			continue
 		}
-		out = append(out, r)
+		requests = append(requests, r)
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
-	return out, nil
+	sort.Slice(requests, func(i, j int) bool { return requests[i].ID < requests[j].ID })
+	return requests, unreadable, nil
 }
 
 // HasLandRequest reports whether dir holds a land request for id.
@@ -116,9 +115,13 @@ func HasLandRequest(dir, id string) bool {
 	return dir != "" && fileExists(filepath.Join(dir, id+".json"))
 }
 
-// LandBlockedError is a pick the coordinator's own uncommitted changes stand
-// in the way of: they touch Paths, which the commits change too.
-type LandBlockedError struct{ Paths []string }
+// LandBlockedError is a pick this tree's own state stands in the way of:
+// uncommitted changes in Paths, or a pick git refused for a reason that is
+// not a conflict with the commits (Cause).
+type LandBlockedError struct {
+	Paths []string
+	Cause string
+}
 
 func (e *LandBlockedError) Error() string {
 	if e.Cause != "" {
