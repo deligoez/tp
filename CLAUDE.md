@@ -169,8 +169,9 @@ items are in `spec/1.3.0-measurements.md`.
 
 Before `gh release create`:
 
-1. `skills/tp/SKILL.md`, `README.md` and `CLAUDE.md` reflect every new command, flag, lint rule and
-   workflow change, and all three are committed in the tag.
+1. `skills/tp/SKILL.md` and `README.md` reflect every new command, flag, lint rule and workflow
+   change; `CLAUDE.md` changes only when a rule, convention, structure or workflow of this codebase
+   does. All three are committed in the tag.
 2. Bump `.claude-plugin/plugin.json`'s `version` before tagging, every release (and on any plugin
    content change after a tag, rule 12). The field pins what `claude plugin update` offers, and
    `hooks/session-start.sh` reads it as the minimum tp version, so the release ships a binary at or
