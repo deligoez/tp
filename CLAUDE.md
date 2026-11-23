@@ -81,29 +81,8 @@ its first round delete or narrow; they do not add requirements.
 Open work is `BUGS.md` (the fix track, and entries awaiting an operator decision); the decision
 candidates in `spec/backlog/` are worked through. A shipped decision note leaves for
 `spec/backlog/ARCHIVE.md`, one row each naming the release and the sha to read it at; what the release
-measured stays in `spec/<version>-measurements.md`. v1.28.0 draws a spec's tasks with deck.gl (Steps and
-a shelved Map beside Board), opens task detail in the epic drawer, and adds `tp epic layout` and
-`tp export --list`'s `updated_at` for clients that read tp without the dashboard
-(`spec/1.28.0-measurements.md`). v1.27.0 rebuilds the dashboard page on `DESIGN.md`
-and simplifies its Epics view (folds, four KPIs, a View menu, no tp command in plain view), and
-`tp dashboard` falls back to a free port when 7377 is taken and `--port` was not passed
-(`spec/1.27.0-measurements.md`). v1.26.0 caps concurrent quality gates under
-`tp run` with `run_max_parallel_gates` (slot files, the main gate first) and adds `tp gate`, which runs
-the gate on the current checkout under a slot and lets the unit's `tp done` reuse the pass
-(`spec/1.26.0-measurements.md`). v1.25.0 rolls the implement pool's slots: each
-unit integrates as it exits and its slot refills while the others run, the caps are read before every
-spawn, and `tp resume`/`tp run --dry-run` name a live pool's `running_units`
-(`spec/1.25.0-measurements.md`). v1.24.0 answers a parallel-implement field
-report: `worktree_setup_cmd` warms each implement-batch worktree from the main tree, a wip task can
-name what it is `waiting` on, `tp resume` reports `plugin_stale`, and `tp add`/`tp set` refuse what
-`tp validate` would (`spec/1.24.0-measurements.md`). v1.23.0 gives an epic an owner: a declared
-`owners` set and `epics[].owner`, filtered by `--owner`/`--unowned` and drawn on the dashboard
-(`spec/1.23.0-measurements.md`). v1.22.0 audits each closed task's own files in
-batches of ten through `task_audit_roles` (`tp audit --task-audit`; `spec/1.22.0-measurements.md`), after
-the audit trial in `spec/1.21.1-measurements.md` showed one prompt over a long file list skims. v1.21.0
-records an emitted review round only from its inbox and reuses a parallel unit's gate when the main
-branch holds the tree it gated (`spec/1.21.0-measurements.md`); v1.20.1 hands every registered check its
-spec in `TP_SPEC`. `converged-payload-open.md` is parked until a project sets `audit_converge_on:
+measured stays in `spec/<version>-measurements.md`, and what it shipped is its release notes and git
+history. `spec/backlog/converged-payload-open.md` is parked until a project sets `audit_converge_on:
 blocking`. Other parked and closed decisions are in `spec/undecided.md`. The epic layer's deferred pilot
 items are in `spec/1.3.0-measurements.md`.
 
