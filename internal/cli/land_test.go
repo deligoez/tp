@@ -127,7 +127,7 @@ func TestLandReopensATaskWhosePickConflicts(t *testing.T) {
 	stdout, stderr, code := runTP(t, dir, "land")
 	require.Equal(t, 0, code, stderr)
 	assert.Contains(t, stdout, `"reopened"`)
-	assert.Contains(t, stdout, "tp brief t1")
+	assert.Contains(t, stdout, "tp brief t1 --file spec.tasks.json")
 	assert.NotContains(t, stdout+stderr, "--skip-gate")
 	assert.NotContains(t, stdout+stderr, "--force")
 	assert.Equal(t, "open", taskState(t, dir, "t1")["status"])
@@ -141,6 +141,66 @@ func TestLandReopensATaskWhosePickConflicts(t *testing.T) {
 	assert.Equal(t, 4, code, stderr)
 	assert.Contains(t, stderr, "could not land task t1")
 	assert.Empty(t, gitRun(t, wt, "status", "--porcelain"), "the agent's copy is not closed")
+}
+
+// A tp land that crashed after its pick left the work on HEAD under a new
+// sha; the rerun must close on it, not refuse the redundant pick forever.
+func TestLandClosesOverAPickACrashLeftBehind(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "")
+	sha := agentCommit(t, wt)
+	_, stderr, code := runTP(t, wt, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	// The coordinator's HEAD moves first, so the pick gets a sha of its own.
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "unrelated.txt"), []byte("x\n"), 0o600))
+	gitIn(t, dir, "add", "unrelated.txt")
+	gitIn(t, dir, "commit", "-q", "-m", "unrelated")
+	gitIn(t, dir, "cherry-pick", sha)
+	require.NotEqual(t, sha, strings.TrimSpace(gitRun(t, dir, "rev-parse", "HEAD")))
+
+	stdout, stderr, code := runTP(t, dir, "land")
+	require.Equal(t, 0, code, stdout+stderr)
+	assert.Contains(t, stdout, `"landed": [
+    "t1"`)
+	assert.Equal(t, "done", taskState(t, dir, "t1")["status"])
+}
+
+// A command the SubagentStop reason prints, run in the coordinator's tree,
+// must not close a spawn's claim on a commit its branch does not have.
+func TestACoordinatorCloseRefusesACommitItsBranchLacks(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "")
+	sha := agentCommit(t, wt)
+	// The coordinator's gate passes without the agent's code.
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "agent.txt"), []byte("local\n"), 0o600))
+
+	_, stderr, code := runTP(t, dir, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
+	assert.Equal(t, 1, code, stderr)
+	assert.Contains(t, stderr, "not on this tree's branch")
+	assert.Equal(t, "wip", taskState(t, dir, "t1")["status"])
+}
+
+// A request lands only in the tree whose copy holds the claim it was made
+// for, not in a third tree that has the task wip on a claim of its own.
+func TestLandRefusesATreeWithoutTheRequestsClaim(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "")
+	sha := agentCommit(t, wt)
+	_, stderr, code := runTP(t, wt, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	other := filepath.Join(t.TempDir(), "other")
+	gitIn(t, dir, "worktree", "add", "-q", "-b", "other", other)
+	_, stderr, code = runTP(t, other, "claim", "t1")
+	require.Equal(t, 0, code, stderr)
+
+	_, stderr, code = runTP(t, other, "land")
+	assert.Equal(t, 2, code, stderr)
+	assert.NoFileExists(t, filepath.Join(other, "agent.txt"))
+
+	stdout, stderr, code := runTP(t, dir, "land")
+	require.Equal(t, 0, code, stderr)
+	assert.Contains(t, stdout, `"landed": [
+    "t1"`)
 }
 
 func TestLandKeepsTheCoordinatorsStagedChange(t *testing.T) {
