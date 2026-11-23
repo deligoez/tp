@@ -247,10 +247,8 @@ func taskStatusIn(path, id string) string {
 	return task.Status
 }
 
-// relFile is the task file relative to the project root tp land runs in.
+// relFile is the task file relative to the repository root, where the
+// pool's commands run from.
 func (l *lander) relFile() string {
-	if rel, err := filepath.Rel(l.root, engine.CanonicalPath(l.taskFile)); err == nil && !strings.HasPrefix(rel, "..") {
-		return filepath.ToSlash(rel)
-	}
-	return l.taskFile
+	return engine.RepoRelativePath(l.taskFile)
 }
