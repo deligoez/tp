@@ -217,6 +217,7 @@ tp remove <id>                 # Remove a task (--force cleans dependents)
 tp set <id> field=value        # Update a field (--workflow, --project, --local, --bulk)
 tp set --epic <id>             # Bind the task file to an epic ("" unbinds); its status follows the file
 tp keep <path> "<reason>"      # Keep-list a deliberately-uncommitted file (--remove, --list)
+tp land                        # Pick worktree agents' finished commits onto this branch and close their tasks
 ```
 
 ### Query
