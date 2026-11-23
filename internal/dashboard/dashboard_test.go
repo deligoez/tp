@@ -277,8 +277,8 @@ func TestPage_BoardColumnsPartitionTheExportedTaskStates(t *testing.T) {
 			seen[s]++
 		}
 	}
-	assert.Equal(t, map[string]int{"ready": 1, "waits_on_task": 1, "waits_on_epic": 1, "wip": 1, "done": 1}, seen)
-	assert.ElementsMatch(t, []string{"ready", "waits_on_task", "waits_on_epic"}, append(append([]string{}, byCol["ready"]...), byCol["waiting"]...))
+	assert.Equal(t, map[string]int{"ready": 1, "waits_on_task": 1, "waits_on_epic": 1, "held": 1, "wip": 1, "done": 1}, seen)
+	assert.ElementsMatch(t, []string{"ready", "waits_on_task", "waits_on_epic", "held"}, append(append([]string{}, byCol["ready"]...), byCol["waiting"]...))
 	assert.Equal(t, []string{"wip"}, byCol["wip"])
 	assert.Equal(t, []string{"done"}, byCol["done"])
 	for _, field := range []string{".state", ".waits_on", ".depends_on", ".estimate_minutes", ".started_at", ".closed_at", ".closed_reason", ".commit_shas", ".acceptance", ".source_sections"} {

@@ -15,12 +15,13 @@ import (
 const TaskExportVersion = 1
 
 // The states a task of tp export carries: an open task is ready, waits on a
-// task it depends on, or waits on its file's epic; a wip or done task carries
-// its status.
+// task it depends on, waits on its file's epic, or is held by a gate that is
+// not a task (waiting set while open); a wip or done task carries its status.
 const (
 	TaskStateReady       = "ready"
 	TaskStateWaitsOnTask = "waits_on_task"
 	TaskStateWaitsOnEpic = "waits_on_epic"
+	TaskStateHeld        = "held"
 	TaskStateWIP         = model.StatusWIP
 	TaskStateDone        = model.StatusDone
 )
@@ -177,6 +178,8 @@ func exportTask(t *model.Task, done map[string]bool, epicWaits []string) ExportT
 	case epicWaits != nil:
 		et.State = TaskStateWaitsOnEpic
 		et.WaitsOn = append(et.WaitsOn, epicWaits...)
+	case t.Held():
+		et.State = TaskStateHeld
 	default:
 		et.State = TaskStateReady
 	}

@@ -209,7 +209,7 @@ tp next                        # Resume WIP or claim the next ready task (--mini
 
 ### Task State
 ```bash
-tp claim <id> [id...]          # open → wip (--all-ready)
+tp claim <id> [id...]          # open → wip (--all-ready; --spawn binds one task to an agent spawn)
 tp unclaim <id> [id...]        # wip → open (undo a claim)
 tp close <id> <reason>         # wip → done (low-level, prefer tp done)
 tp reopen <id>                 # done → open (clears timestamps + SHAs)
@@ -217,13 +217,16 @@ tp remove <id>                 # Remove a task (--force cleans dependents)
 tp set <id> field=value        # Update a field (--workflow, --project, --local, --bulk)
 tp set --epic <id>             # Bind the task file to an epic ("" unbinds); its status follows the file
 tp keep <path> "<reason>"      # Keep-list a deliberately-uncommitted file (--remove, --list)
+tp land                        # Pick worktree agents' finished commits onto this branch and close their tasks
 ```
 
 ### Query
 ```bash
 tp list                        # All tasks (--status, --tag, --ids, --compact)
-tp ready                       # Tasks with all deps satisfied (--first, --count, --ids)
+tp ready                       # Tasks with all deps satisfied and not held (--first, --count, --ids)
 tp show <id>                   # Full details + spec_excerpt + blocks
+tp claims --spawn <id>         # An agent spawn's claimed tasks, and which are neither done nor parked
+tp pool --session <id>         # A coordinator's parallel slots: live, parked and orphaned claims, ready tasks
 tp status                      # Progress summary (open/wip/done counts)
 tp blocked                     # Tasks waiting on unsatisfied deps
 tp graph                       # Dependency tree (--tag, --from)

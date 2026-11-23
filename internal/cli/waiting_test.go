@@ -7,8 +7,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestWaiting_SetOnWipClearedByClose: waiting is said of a claim in progress.
-// It is refused on an open task and cleared when the task closes.
+// TestWaiting_SetOnWipClearedByClose: waiting is said of a claim in progress
+// or, on an open task, of a hold; a claim ends the hold, and a close clears
+// it.
 func TestWaiting_SetOnWipClearedByClose(t *testing.T) {
 	t.Parallel()
 	dir := initEntryProject(t)
@@ -16,7 +17,7 @@ func TestWaiting_SetOnWipClearedByClose(t *testing.T) {
 	require.Equal(t, 0, code, stderr)
 
 	_, stderr, code = runTP(t, dir, "set", "t1", "waiting=a background job")
-	assert.Equal(t, 1, code, "waiting on an open task must be refused: %s", stderr)
+	assert.Equal(t, 0, code, "waiting on an open task holds it: %s", stderr)
 
 	_, stderr, code = runTP(t, dir, "claim", "t1")
 	require.Equal(t, 0, code, stderr)

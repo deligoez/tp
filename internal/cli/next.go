@@ -101,41 +101,26 @@ func runNext(_ *cobra.Command, _ []string) error {
 
 	var ready []*model.Task
 	for i := range tf.Tasks {
-		if tf.Tasks[i].Status != model.StatusOpen {
-			continue
-		}
-		allDone := true
-		for _, dep := range tf.Tasks[i].DependsOn {
-			if !done[dep] {
-				allDone = false
-				break
-			}
-		}
-		if allDone {
+		if tf.Tasks[i].Startable(done) {
 			ready = append(ready, &tf.Tasks[i])
 		}
 	}
 
 	if len(ready) == 0 {
 		// Check if all done or blocked
-		allDone := true
-		blocked := make([]string, 0)
-		for i := range tf.Tasks {
-			if tf.Tasks[i].Status != model.StatusDone {
-				allDone = false
-				if tf.Tasks[i].Status == model.StatusOpen {
-					blocked = append(blocked, tf.Tasks[i].ID)
-				}
-			}
-		}
+		blocked, held, allDone := notReadyIDs(tf, done)
 		if allDone {
 			_ = output.JSON(map[string]any{"done": true, "message": "All tasks complete"})
 		} else {
-			_ = output.JSON(map[string]any{
+			out := map[string]any{
 				"done":    false,
-				"message": fmt.Sprintf("No ready tasks. %d tasks blocked.", len(blocked)),
+				"message": fmt.Sprintf("No ready tasks. %d tasks blocked, %d held.", len(blocked), len(held)),
 				"blocked": blocked,
-			})
+			}
+			if len(held) > 0 {
+				out["held"] = held
+			}
+			_ = output.JSON(out)
 		}
 		os.Exit(ExitState)
 		return nil
@@ -172,9 +157,9 @@ func runNext(_ *cobra.Command, _ []string) error {
 				os.Exit(ExitState)
 				return nil
 			}
-			if t.Status != model.StatusOpen {
-				// Already claimed by another agent between read and lock
-				output.Error(ExitState, fmt.Sprintf("task %s already claimed", t.ID))
+			if t.Status != model.StatusOpen || t.Waiting != "" {
+				// Claimed or held by another agent between read and lock
+				output.Error(ExitState, fmt.Sprintf("task %s already claimed or held", t.ID))
 				os.Exit(ExitState)
 				return nil
 			}
@@ -266,4 +251,28 @@ func outputNextBrief(tf *model.TaskFile, task *model.Task, specPath, taskFilePat
 	}
 	fmt.Print(b.Text())
 	return nil
+}
+
+// notReadyIDs splits the open tasks of a file with no ready task: blocked by
+// a dependency, or held by a gate that is not a task. An unmet dependency
+// outranks the hold, as in tp status. allDone is true when nothing is open or
+// wip.
+func notReadyIDs(tf *model.TaskFile, done map[string]bool) (blocked, held []string, allDone bool) {
+	blocked = []string{}
+	allDone = true
+	for i := range tf.Tasks {
+		t := &tf.Tasks[i]
+		if t.Status == model.StatusDone {
+			continue
+		}
+		allDone = false
+		switch {
+		case t.Status != model.StatusOpen:
+		case !t.DepsDone(done):
+			blocked = append(blocked, t.ID)
+		case t.Held():
+			held = append(held, t.ID)
+		}
+	}
+	return blocked, held, allDone
 }

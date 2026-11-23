@@ -149,7 +149,12 @@ func TestStopHookIsRegisteredForEveryStop(t *testing.T) {
 	groups := manifest.Hooks["Stop"]
 	require.Len(t, groups, 1, "one Stop group: the hook decides on TP_UNIT_KIND, not on a matcher")
 
-	require.Len(t, groups[0].Hooks, 1)
+	// The second hook is the filled pool's (spec/backlog/filled-pool.md),
+	// bounded the same way.
+	require.Len(t, groups[0].Hooks, 2)
+	pool := groups[0].Hooks[1]
+	assert.Equal(t, "${CLAUDE_PLUGIN_ROOT}/hooks/stop-fill-pool.sh", pool.Command)
+	assert.Equal(t, hookTimeoutSeconds, pool.Timeout)
 	entry := groups[0].Hooks[0]
 	assert.Equal(t, "command", entry.Type)
 	assert.Equal(t, "${CLAUDE_PLUGIN_ROOT}/"+stopHookPath, entry.Command,

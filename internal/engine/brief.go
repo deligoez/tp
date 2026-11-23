@@ -136,10 +136,13 @@ func WorktreeCloseRecipeText(effectiveStrategy, qualityGate, id string, touches 
 func closeRecipeCommand(effectiveStrategy string) (command, rejected string) {
 	switch effectiveStrategy {
 	case CommitStrategyHC:
-		command = "   commit with hc, then:\n   tp done <id> --commit <sha> -- \"<evidence>\"   (repeat --commit per sha)\n"
+		command = "   commit with hc, then:\n   tp done <id> --commit <sha> -- \"<evidence>\"   (repeat --commit per sha)\n" +
+			"   In a git worktree of your own, where the task is claimed in another tree, the same, and stop.\n"
 		rejected = "Under hc, a bare \"tp done\", \"tp commit\", and \"--auto-commit\" are all rejected: make the commit with hc, then record the SHA with \"tp done <id> --commit <sha>\"."
 	default:
-		command = "   tp done <id> --auto-commit -- \"<evidence>\"\n"
+		command = "   tp done <id> --auto-commit -- \"<evidence>\"\n" +
+			"   In a git worktree of your own, where the task is claimed in another tree: commit with git, then\n" +
+			"   tp done <id> --commit <sha> -- \"<evidence>\"   (repeat --commit per sha), and stop.\n"
 		rejected = ""
 	}
 	return command, rejected
@@ -488,6 +491,9 @@ type BriefTask struct {
 // prior_work carry the unit and its prior-work selection. The assembled text
 // brief (the default output) is built from these same parts by Text.
 type Brief struct {
+	// Marker is the `tp-task: <id> <task file>` line the plugin's spawn hook
+	// claims from (spec/backlog/agent-bound-claims.md); "" outside git.
+	Marker    string           `json:"marker,omitempty"`
 	Identity  string           `json:"identity"`
 	Task      BriefTask        `json:"task"`
 	PriorWork *PriorWorkResult `json:"prior_work"`
@@ -566,6 +572,11 @@ func compactPriorWork(prior *PriorWorkResult) *PriorWorkResult {
 // always present.
 func (b *Brief) Text() string {
 	var s strings.Builder
+
+	// The marker leads, on its own line, so a pasted brief carries it.
+	if b.Marker != "" {
+		s.WriteString(b.Marker + "\n\n")
+	}
 
 	// §4.1 Identity (§4.2): what this unit is, and the one-unit-then-stop rule.
 	s.WriteString("## Identity\n\n")

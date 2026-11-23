@@ -2028,11 +2028,11 @@
   // BOARD is the Board's columns: key, label and the task states tp export
   // reports that each one holds. Ready and waiting hold the open tasks, so the
   // columns count what tp status counts as open, wip and done.
-  const BOARD = [["ready", tk("board.ready"), ["ready"]], ["wip", tk("board.wip"), ["wip"]], ["waiting", tk("board.waiting"), ["waits_on_task", "waits_on_epic"]], ["done", tk("board.done"), ["done"]]];
-  const TASK_LABEL = { ready: tk("task.state.ready"), wip: tk("task.state.wip"), waits_on_task: tk("task.state.waits_on_task"), waits_on_epic: tk("task.state.waits_on_epic"), done: tk("task.state.done") };
-  const TASK_COLOR = { ready: "ready", wip: "active", waits_on_task: "waiting", waits_on_epic: "held", done: "done" };
+  const BOARD = [["ready", tk("board.ready"), ["ready"]], ["wip", tk("board.wip"), ["wip"]], ["waiting", tk("board.waiting"), ["waits_on_task", "waits_on_epic", "held"]], ["done", tk("board.done"), ["done"]]];
+  const TASK_LABEL = { ready: tk("task.state.ready"), wip: tk("task.state.wip"), waits_on_task: tk("task.state.waits_on_task"), waits_on_epic: tk("task.state.waits_on_epic"), held: tk("task.state.held"), done: tk("task.state.done") };
+  const TASK_COLOR = { ready: "ready", wip: "active", waits_on_task: "waiting", waits_on_epic: "held", held: "held", done: "done" };
   const WIP_MARK = '<svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 2.5a5.5 5.5 0 0 1 0 11z" fill="currentColor"/></svg>';
-  const TASK_MARK = { done: CHECK, wip: WIP_MARK, waits_on_epic: PAUSE, waits_on_task: "", ready: "" };
+  const TASK_MARK = { done: CHECK, wip: WIP_MARK, waits_on_epic: PAUSE, held: PAUSE, waits_on_task: "", ready: "" };
   INFO.tasks = tk("info.tasks");
   INFO.progress = tk("info.progress");
 
@@ -2069,6 +2069,7 @@
     if (task.state === "done") return task.closed_at ? t("task.closedAgo", { ago: ago(task.closed_at) }) : t("task.state.done");
     if (task.state === "wip") return task.started_at ? t("task.startedAgo", { ago: ago(task.started_at) }) : t("task.state.wip");
     if (task.state === "waits_on_task" || task.state === "waits_on_epic") return t("task.after", { ids: (task.waits_on || []).join(", ") });
+    if (task.state === "held") return t("task.heldBy", { why: task.waiting || "" });
     const n = (ix.dependents[task.id] || []).length;
     return n ? t("task.unblocks", { n }) : t("task.unblocksNothing");
   }
@@ -2208,6 +2209,7 @@
       "<dl>" + time + "</dl>" +
       (cmd ? '<div class="cmdline"><span class="sum">' + esc(task.state === "ready" ? t("task.nextClaim") : t("task.nextDone")) + "</span>" + copyCmd(cmd) + "</div>" : "") +
       (task.state === "waits_on_epic" ? '<p class="opnote">' + t.html("task.epicWaits_html", { epic: d.epic || "" }) + "</p>" : "") +
+      (task.state === "held" ? '<p class="opnote">' + esc(t("task.heldNote", { why: task.waiting || "" })) + "</p>" : "") +
       "<div><h4>" + esc(t("task.acceptance")) + '</h4><ul class="deps">' + acc.map((a) => '<li><span class="mk">–</span><span>' + esc(a) + "</span></li>").join("") + "</ul></div></div>" +
       '<div class="dside"><div class="two-col"><div><h4>' + esc(t("task.dependsOn")) + '</h4><ul class="deps">' + deps + "</ul></div><div><h4>" + esc(t("task.neededBy")) + '</h4><ul class="deps">' + needs + "</ul></div></div>" +
       (src ? "<div><h4>" + esc(t("task.fromSpec")) + "</h4>" + src + "</div>" : "") + "</div>";
@@ -2239,7 +2241,7 @@
       '<div class="seg" role="group" aria-label="' + esc(t("tasks.view")) + '">' + tview("steps", tk("tasks.steps")) + tview("map", tk("tasks.map")) + tview("board", tk("tasks.board")) + "</div></div>" +
       '<div class="stages ' + (work.tview === "board" ? "board" : "graph") + '" id="stages">' + (tasks.length ? stagesHTML(d, ix) : none(t("progress.noTasks"))) + "</div>" +
       // The Map's card draws its own legend, the epic map's.
-      (work.tview === "map" ? "" : '<div class="legend">' + ["ready", "wip", "waits_on_task", "waits_on_epic", "done"].map((s) => '<span><i class="lg" data-s="' + s + '"></i>' + esc(word(TASK_LABEL, s)) + "</span>").join("") + "</div>") + "</section>";
+      (work.tview === "map" ? "" : '<div class="legend">' + ["ready", "wip", "waits_on_task", "waits_on_epic", "held", "done"].map((s) => '<span><i class="lg" data-s="' + s + '"></i>' + esc(word(TASK_LABEL, s)) + "</span>").join("") + "</div>") + "</section>";
     if (work.tview === "steps" && tasks.length && window.tpTaskGraph) window.tpTaskGraph.show(d, work.task);
     if (work.tview === "map" && tasks.length && window.tpTaskMap) window.tpTaskMap.show($("tm-slot"), d, work.task);
     if (focused) {

@@ -190,7 +190,7 @@
 
   // TASK_MAP_MARK is the epic map's mark for each task state, so the Map
   // draws a task in the colour the epic map draws an epic in that state.
-  P.TASK_MAP_MARK = { done: "done", wip: "in_progress", ready: "ready", waits_on_task: "waiting", waits_on_epic: "held" };
+  P.TASK_MAP_MARK = { done: "done", wip: "in_progress", ready: "ready", waits_on_task: "waiting", waits_on_epic: "held", held: "held" };
   // taskMapMarks is each task's mark and title by id, over steps, the tasks
   // grouped as the Steps view groups them, for the Map, whose places come
   // from /api/layout?view=tasks: the epic map's mark for its state, ready

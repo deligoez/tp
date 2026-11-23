@@ -20,6 +20,7 @@ var (
 		"status":              "use `tp claim`, `tp close`, `tp unclaim` (wip → open), or `tp reopen` (done → open)",
 		"started_at":          "set automatically by `tp claim` / `tp done` / `tp next`",
 		"duration_source":     "set automatically by `tp claim` / `tp next` / `tp done` / `tp commit`",
+		"claimed_by":          "set automatically by `tp claim --spawn`; cleared by `tp unclaim` / `tp reopen`",
 		"closed_at":           "set automatically by `tp close` / `tp done`",
 		"closed_reason":       "set automatically by `tp close` / `tp done`",
 		"gate_passed_at":      "set automatically by `tp done --gate-passed`",
@@ -141,6 +142,12 @@ func runSet(cmd *cobra.Command, args []string) error {
 		output.Error(ExitFile, err.Error())
 		os.Exit(ExitFile)
 		return nil
+	}
+	if field == "waiting" {
+		if holder := engine.ClaimHolderCopy(taskFilePath, args[0]); holder != "" {
+			output.Notice(fmt.Sprintf("task %s is claimed in %s: waiting is written there, beside the claim", args[0], holder))
+			taskFilePath = holder
+		}
 	}
 
 	return engine.WithFileLock(taskFilePath, func() error {

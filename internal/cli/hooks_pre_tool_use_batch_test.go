@@ -36,7 +36,7 @@ func pluginWriteMatcher(t *testing.T) string {
 	t.Helper()
 	var manifest pluginHooksManifest
 	require.NoError(t, json.Unmarshal([]byte(readRepoDoc(t, pluginHooksManifestPath)), &manifest))
-	groups := manifest.Hooks["PreToolUse"]
+	groups := writeDenyGroups(t, &manifest)
 	require.Len(t, groups, 1)
 	return groups[0].Matcher
 }

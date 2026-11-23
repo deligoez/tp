@@ -207,9 +207,10 @@ func TaskSchemaErrors(t *model.Task) []string {
 	if err := ValidTouches(t.Touches); err != nil {
 		msgs = append(msgs, fmt.Sprintf("task %s: %v", t.ID, err))
 	}
-	// waiting describes a claim in progress; a close or a reopen clears it.
-	if t.Waiting != "" && t.Status != model.StatusWIP {
-		msgs = append(msgs, fmt.Sprintf("task %s: waiting is set on a task that is %s; only a wip task waits", t.ID, t.Status))
+	// waiting describes a parked claim (wip) or a hold (open); a close clears
+	// it, so a done task waits on nothing.
+	if t.Waiting != "" && t.Status == model.StatusDone {
+		msgs = append(msgs, fmt.Sprintf("task %s: waiting is set on a task that is %s; only an open or wip task waits", t.ID, t.Status))
 	}
 	// It is author text that tp resume's guidance line carries into every
 	// session's orientation, so it stays one short line.

@@ -169,7 +169,7 @@ npx skills update -g         # other agents: updates every installed global skil
 ```
 
 Use the exact version tag, not `@latest`. Then verify by running: `claude plugin details tp@tp` must
-report the new version and the full inventory (Skills 1 / Agents 3 / Hooks 3) — `claude plugin
+report the new version and the full inventory (Skills 1 / Agents 3 / Hooks 4) — `claude plugin
 validate` passing is not evidence that the plugin loads.
 
 ## Tech Stack

@@ -109,6 +109,8 @@ INCREMENTAL (1 task at a time):
 	setCmd.GroupID = "state"
 	keepCmd := newKeepCmd()
 	keepCmd.GroupID = "state"
+	landCmd := newLandCmd()
+	landCmd.GroupID = "state"
 
 	// Query commands
 	listCmd := newListCmd()
@@ -121,6 +123,10 @@ INCREMENTAL (1 task at a time):
 	blockedCmd.GroupID = "query"
 	showCmd := newShowCmd()
 	showCmd.GroupID = "query"
+	claimsCmd := newClaimsCmd()
+	claimsCmd.GroupID = "query"
+	poolCmd := newPoolCmd()
+	poolCmd.GroupID = "query"
 	graphCmd := newGraphCmd()
 	graphCmd.GroupID = "query"
 	statsCmd := newStatsCmd()
@@ -155,8 +161,8 @@ INCREMENTAL (1 task at a time):
 	useCmd.GroupID = "data"
 
 	cmd.AddCommand(planCmd, doneCmd, nextCmd, briefCmd, commitCmd, resumeCmd, runCmd, escalateCmd, gateCmd)
-	cmd.AddCommand(claimCmd, unclaimCmd, closeCmd, reopenCmd, removeCmd, setCmd, keepCmd)
-	cmd.AddCommand(listCmd, statusCmd, readyCmd, blockedCmd, showCmd, graphCmd, statsCmd, reportCmd, lintCmd, reviewCmd, auditCmd, groundCmd, validateCmd, epicCmd, dashboardCmd, exportCmd)
+	cmd.AddCommand(claimCmd, unclaimCmd, closeCmd, reopenCmd, removeCmd, setCmd, keepCmd, landCmd)
+	cmd.AddCommand(listCmd, statusCmd, readyCmd, blockedCmd, showCmd, claimsCmd, poolCmd, graphCmd, statsCmd, reportCmd, lintCmd, reviewCmd, auditCmd, groundCmd, validateCmd, epicCmd, dashboardCmd, exportCmd)
 	cmd.AddCommand(initCmd, addCmd, importCmd, useCmd)
 	cmd.AddCommand(newConfigCmd())
 

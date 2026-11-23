@@ -58,7 +58,8 @@ add: bulk spec stdin
 audit: affected-files affected-from-tasks base check findings force harness-note merge output record record-inbox resolve resolve-all role status task-audit
 blocked:
 brief: prior
-claim: all-ready
+claim: all-ready session spawn takeover
+claims: spawn
 close: reason-file skip-gate stdin
 commit: files
 config: dry-run extract force resolved
@@ -92,10 +93,12 @@ ground: check force record status units
 import: force spec
 init: commit-strategy domain eject-roles epic force graph quality-gate
 keep: list remove
+land:
 lint:
 list: ids status tag
 next: brief epic minimal peek
 plan: from level minimal
+pool: live session stop-hook unresolved
 ready: count epic first ids
 remove: force
 reopen:

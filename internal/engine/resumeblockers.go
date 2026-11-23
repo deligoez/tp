@@ -94,14 +94,11 @@ func BuildBlockers(in *BlockerInputs) []Blocker {
 	}
 
 	// no-ready-task — escalate: implement with open tasks but none ready (payload.task is null).
+	// Held tasks are named with what holds them, so the operator sees the
+	// gates that are not tasks (spec/backlog/filled-pool.md).
 	if in.Phase == PhaseImplement {
 		if _, _, hasTask := ImplementPreview(in.TaskFile); !hasTask && HasOpenTasks(in.TaskFile) {
-			blockers = append(blockers, Blocker{
-				Code:    "no-ready-task",
-				Class:   ClassEscalate,
-				Message: "no task is ready; open tasks are blocked by unfinished dependencies",
-				Data:    map[string]any{"blocked_by": unmetDeps(in.TaskFile)},
-			})
+			blockers = append(blockers, noReadyTaskBlocker(in.TaskFile))
 		}
 	}
 

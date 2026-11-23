@@ -30,19 +30,24 @@ Measured in a scratch repository with `claude -p` and a logging hook:
 
 ## Decision
 
-1. **A wip task is in one of three classes:**
+1. **A wip task the session claimed is in one of these classes,** the first that holds:
+   - **unmerged**: another worktree's copy has it done;
    - **running**: its `claimed_by.spawn` is the `toolUseId` of a subagent that `background_tasks`
      lists as running;
-   - **parked**: `waiting` is set;
-   - **orphaned**: neither.
+   - **parked**: `waiting` is set in this or another worktree's copy;
+   - **respawn**: claimed by the session with no spawn, as `--takeover` leaves it;
+   - **orphaned**: none of these.
 
-   Running and parked tasks hold a slot. An orphaned task holds none.
+   Running and parked tasks hold a slot; the rest hold none. Only claims whose `claimed_by.session`
+   is this session are classified, so a claim made by hand or by another session is never this
+   coordinator's orphan. A live agent whose spawn cannot be read holds a slot, and while one does,
+   no claim is called an orphan: a task given to two agents costs more than an idle slot.
 
    Parked must hold a slot. An agent that ends its turn to wait on its own background job drops out
    of `background_tasks` (measured: only its shell stays listed, with no owner), and
    agent-bound-claims.md's stop guard makes it set `waiting` at that moment. A killed agent, or one
-   that finished without closing, leaves an orphan. Its exit is
-   `tp claim <id> --spawn <new> --takeover` from a fresh spawn, which keeps `started_at`.
+   that finished without closing, leaves an orphan. Its exit is `tp claim <id> --takeover`, which
+   keeps `started_at`, then a fresh spawn from the brief.
 2. **The coordinator is asked to fill free slots.** The plugin's `Stop` hook runs
    `tp pool --session <session_id> --live <spawn ids>`, which answers with the cap
    (`run_max_parallel`), the live claims, the orphans and the ready tasks.
@@ -86,5 +91,6 @@ Measured in a scratch repository with `claude -p` and a logging hook:
 ## Consequences
 
 - REFERENCE.md gains `tp pool`, the `held` export state, and `waiting` on open tasks.
+- `tp status` gains a `held` count beside `ready` and `blocked`.
 - The dashboard and board clients show `held` as a waiting column, not a ready one.
 - Each turn a coordinator ends with free slots and ready tasks costs one more turn.

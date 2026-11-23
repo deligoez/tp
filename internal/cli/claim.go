@@ -22,15 +22,19 @@ func newClaimCmd() *cobra.Command {
 		RunE:  runClaim,
 	}
 	cmd.Flags().BoolVar(&claimAllReady, "all-ready", false, "claim all ready tasks")
+	cmd.Flags().StringVar(&claimSpawn, "spawn", "", "bind the claim to an Agent spawn (its tool_use_id); one id only")
+	cmd.Flags().StringVar(&claimSession, "session", "", "with --spawn: the session that made the spawn")
+	cmd.Flags().BoolVar(&claimTakeover, "takeover", false, "free a wip task's claim from its spawn, keeping started_at; one id, no other claim flag")
 	return cmd
 }
 
-func runClaim(_ *cobra.Command, args []string) error {
+func runClaim(cmd *cobra.Command, args []string) error {
 	if !claimAllReady && len(args) == 0 {
 		output.Error(ExitUsage, "task ID required (or use --all-ready)")
 		os.Exit(ExitUsage)
 		return nil
 	}
+	refuseBadSpawnFlags(cmd, args)
 
 	taskFilePath, err := discoverWriteTarget()
 	if err != nil {
@@ -47,6 +51,12 @@ func runClaim(_ *cobra.Command, args []string) error {
 			return nil
 		}
 		refuseBlockedClaim(tf, taskFilePath, claimTargets(args))
+		if claimSpawn != "" {
+			return claimForSpawn(tf, taskFilePath, args[0])
+		}
+		if claimTakeover {
+			return takeoverClaim(tf, taskFilePath, args[0])
+		}
 
 		// Determine which IDs to claim
 		ids := args
@@ -77,17 +87,7 @@ func allReadyIDs(tf *model.TaskFile, taskFilePath string) []string {
 	}
 	var ids []string
 	for i := range tf.Tasks {
-		if tf.Tasks[i].Status != model.StatusOpen {
-			continue
-		}
-		allDone := true
-		for _, dep := range tf.Tasks[i].DependsOn {
-			if !done[dep] {
-				allDone = false
-				break
-			}
-		}
-		if allDone {
+		if tf.Tasks[i].Startable(done) {
 			ids = append(ids, tf.Tasks[i].ID)
 		}
 	}
@@ -114,11 +114,26 @@ func claimSingle(tf *model.TaskFile, taskFilePath, id string) error {
 		os.Exit(ExitState)
 		return nil
 	}
+	claimSingleTask(tf, task)
 
+	if err := model.WriteTaskFile(taskFilePath, tf); err != nil {
+		output.Error(ExitFile, err.Error())
+		os.Exit(ExitFile)
+		return nil
+	}
+
+	output.Success(fmt.Sprintf("claimed %s", task.ID))
+	printResultOrExit(taskWritten{Task: task, File: taskFileLabel(taskFilePath)})
+	return nil
+}
+
+// claimSingleTask moves task from open to wip in tf, stamping started_at, or
+// exits 4 when task is not open or a dependency is not done. It does not
+// write the file.
+func claimSingleTask(tf *model.TaskFile, task *model.Task) {
 	if !model.ValidTransition(task.Status, model.StatusWIP) {
 		output.Error(ExitState, fmt.Sprintf("cannot claim: task %s is %s (must be open)", task.ID, task.Status))
 		os.Exit(ExitState)
-		return nil
 	}
 
 	// Check deps are done
@@ -132,25 +147,15 @@ func claimSingle(tf *model.TaskFile, taskFilePath, id string) error {
 		if !done[dep] {
 			output.Error(ExitState, fmt.Sprintf("cannot claim: task %s is blocked by %s", task.ID, dep), fmt.Sprintf("Complete %s first, then retry.", dep))
 			os.Exit(ExitState)
-			return nil
 		}
 	}
 
 	now := time.Now().UTC()
 	task.Status = model.StatusWIP
+	task.Waiting = ""
 	task.StartedAt = &now
 	task.DurationSource = model.DurationSourceClaimed
 	tf.UpdatedAt = now
-
-	if err := model.WriteTaskFile(taskFilePath, tf); err != nil {
-		output.Error(ExitFile, err.Error())
-		os.Exit(ExitFile)
-		return nil
-	}
-
-	output.Success(fmt.Sprintf("claimed %s", task.ID))
-	printResultOrExit(taskWritten{Task: task, File: taskFileLabel(taskFilePath)})
-	return nil
 }
 
 type claimFailure struct {
@@ -201,6 +206,7 @@ func claimBatch(tf *model.TaskFile, taskFilePath string, ids []string) error {
 		}
 
 		task.Status = model.StatusWIP
+		task.Waiting = ""
 		task.StartedAt = &now
 		task.DurationSource = model.DurationSourceClaimed
 		claimed = append(claimed, id)

@@ -533,7 +533,7 @@ kbd { display: inline-block; min-width: 1.6em; padding: 0 var(--sp-1); border: 1
 .legend .lg { display: inline-block; width: 16px; height: 12px; border: 1px solid var(--ready); border-left-width: 3px; border-radius: 2px; }
 .legend .lg[data-s="wip"] { border-color: var(--active); }
 .legend .lg[data-s="waits_on_task"] { border-color: var(--line-strong); border-style: dashed; border-left-style: solid; }
-.legend .lg[data-s="waits_on_epic"] { border-color: var(--held); border-style: dashed; border-left-style: solid; }
+.legend .lg[data-s="waits_on_epic"], .legend .lg[data-s="held"] { border-color: var(--held); border-style: dashed; border-left-style: solid; }
 .legend .lg[data-s="done"] { border-color: var(--done); background: var(--fill-success-weak); }
 .gcard .legend button { display: inline-flex; align-items: center; gap: var(--sp-2); min-height: 24px; padding: 0 var(--sp-1); border: 0; border-radius: var(--r-1); background: none; color: var(--ink); }
 .gcard .legend button:hover { background: var(--fill-hover); }
@@ -732,7 +732,7 @@ body.mapfs .gcard.fs .glegend .legend { max-height: none; overflow: visible; }
 .tcard[data-s="ready"] { --c: var(--fill-strong); }
 .tcard[data-s="wip"] { --c: var(--icon-information); }
 .tcard[data-s="waits_on_task"] { --c: var(--icon-neutral); border-style: dashed; border-left-style: solid; box-shadow: none; }
-.tcard[data-s="waits_on_epic"] { --c: var(--icon-warning); border-style: dashed; border-left-style: solid; box-shadow: none; }
+.tcard[data-s="waits_on_epic"], .tcard[data-s="held"] { --c: var(--icon-warning); border-style: dashed; border-left-style: solid; box-shadow: none; }
 .tcard[data-s="done"] { --c: var(--icon-success); background: linear-gradient(var(--fill-weak), var(--fill-weak)) var(--surface); box-shadow: none; border-color: var(--line); }
 .tcard .tt { display: flex; gap: var(--sp-2); align-items: flex-start; font: var(--type-tiny-bold); }
 .tcard .tt .ic { margin-top: 2px; color: var(--c); }

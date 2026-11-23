@@ -42,3 +42,61 @@ func TestReleaseBatchFunc_PutsClaimedTasksBackToOpen(t *testing.T) {
 	assert.True(t, b.Solo, "a task that was solo stays solo")
 	assert.Equal(t, model.StatusDone, c.Status, "a task that is not wip is left alone")
 }
+
+// heldRunTaskFile is a task file whose task a is held: open with waiting set.
+func heldRunTaskFile(t *testing.T) string {
+	t.Helper()
+	taskFile := filepath.Join(t.TempDir(), "s.tasks.json")
+	require.NoError(t, os.WriteFile(taskFile, []byte(`{"spec":"s.md","tasks":[
+ {"id":"a","title":"A","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"x","source_sections":["x"],"waiting":"the release tag"}]}`), 0o600))
+	return taskFile
+}
+
+func waitingOf(t *testing.T, taskFile string) string {
+	t.Helper()
+	tf, err := model.ReadTaskFile(taskFile)
+	require.NoError(t, err)
+	task, _, err := model.FindTask(tf, "a")
+	require.NoError(t, err)
+	return task.Waiting
+}
+
+// TestRunClaimClearsAHold: a run that claims a held task ends the hold, so the
+// wip task is not read as parked (spec/backlog/filled-pool.md, Decision 3).
+func TestRunClaimClearsAHold(t *testing.T) {
+	t.Parallel()
+	taskFile := heldRunTaskFile(t)
+	require.NoError(t, claimTasksFunc(taskFile)([]string{"a"}))
+	assert.Empty(t, waitingOf(t, taskFile))
+}
+
+// TestRunReleaseClearsWaiting: a released task goes back to open without the
+// parking text, which on an open task would hold it.
+func TestRunReleaseClearsWaiting(t *testing.T) {
+	t.Parallel()
+	taskFile := heldRunTaskFile(t)
+	require.NoError(t, claimTasksFunc(taskFile)([]string{"a"}))
+	setWaiting(t, taskFile, "a long run")
+	require.NoError(t, releaseTasksFunc(taskFile)([]string{"a"}))
+	assert.Empty(t, waitingOf(t, taskFile))
+}
+
+// TestRunSoloReopenClearsWaiting: the solo reopen is a path back to open too.
+func TestRunSoloReopenClearsWaiting(t *testing.T) {
+	t.Parallel()
+	taskFile := heldRunTaskFile(t)
+	require.NoError(t, claimTasksFunc(taskFile)([]string{"a"}))
+	setWaiting(t, taskFile, "a long run")
+	require.NoError(t, reopenSoloFunc(taskFile)("a"))
+	assert.Empty(t, waitingOf(t, taskFile))
+}
+
+func setWaiting(t *testing.T, taskFile, waiting string) {
+	t.Helper()
+	tf, err := model.ReadTaskFile(taskFile)
+	require.NoError(t, err)
+	task, _, err := model.FindTask(tf, "a")
+	require.NoError(t, err)
+	task.Waiting = waiting
+	require.NoError(t, model.WriteTaskFile(taskFile, tf))
+}

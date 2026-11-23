@@ -31,13 +31,16 @@ const hookTimeoutSeconds = 10
 const installCommand = "go install github.com/deligoez/tp/cmd/tp@latest"
 
 type pluginHooksManifest struct {
-	Hooks map[string][]struct {
-		Matcher string `json:"matcher"`
-		Hooks   []struct {
-			Type    string `json:"type"`
-			Command string `json:"command"`
-			Timeout int    `json:"timeout"`
-		} `json:"hooks"`
+	Hooks map[string][]pluginHookGroup `json:"hooks"`
+}
+
+// pluginHookGroup is one matcher's entry under an event in hooks/hooks.json.
+type pluginHookGroup struct {
+	Matcher string `json:"matcher"`
+	Hooks   []struct {
+		Type    string `json:"type"`
+		Command string `json:"command"`
+		Timeout int    `json:"timeout"`
 	} `json:"hooks"`
 }
 

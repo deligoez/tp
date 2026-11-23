@@ -99,8 +99,10 @@ func unclaimTasks(tf *model.TaskFile, ids []string) unclaimResult {
 			result.AlreadyOpen = append(result.AlreadyOpen, id)
 		case task.Status == model.StatusWIP:
 			task.Status = model.StatusOpen
+			task.Waiting = ""
 			task.StartedAt = nil
 			task.DurationSource = ""
+			task.ClaimedBy = nil
 			result.Unclaimed = append(result.Unclaimed, id)
 		default:
 			result.Failed = append(result.Failed, unclaimFailure{
