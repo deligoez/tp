@@ -39,11 +39,13 @@ const (
 // resolved by its own rule; nothing here resolves one, since a check that
 // resolves by another route can approve a target the mode does not use.
 var commandSides = map[string]string{
-	"tp audit":                sideTree,
-	"tp close":                sideTree,
-	"tp commit":               sideTree,
-	"tp done":                 sideTree,
-	"tp gate":                 sideTree,
+	"tp audit":  sideTree,
+	"tp close":  sideTree,
+	"tp commit": sideTree,
+	"tp done":   sideTree,
+	"tp gate":   sideTree,
+	// tp land picks commits onto the checked-out branch and gates the tree.
+	"tp land":                 sideTree,
 	"tp import":               sideTree,
 	"tp review":               sideTree,
 	"tp review --perspective": sideTree,
