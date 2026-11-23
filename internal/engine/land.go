@@ -163,12 +163,17 @@ func LandPick(root string, commits []string) (pre string, landed []string, err e
 	}
 	picked := make([]string, 0, len(commits))
 	for _, sha := range commits {
-		if _, pickErr := gitOut(root, "cherry-pick", "--allow-empty", sha); pickErr != nil {
+		// A commit whose change HEAD already carries (a pick a crash left
+		// behind, a hand merge under another sha) lands as an empty commit
+		// rather than stopping the pick.
+		pick := exec.Command("git", "cherry-pick", "--allow-empty", "--keep-redundant-commits", sha)
+		pick.Dir = root
+		if out, pickErr := pick.CombinedOutput(); pickErr != nil {
 			conflicted, _ := gitOut(root, "diff", "--name-only", "--diff-filter=U")
 			_, _ = gitOut(root, "cherry-pick", "--abort")
 			_ = LandUndo(root, pre)
 			if conflicted == "" {
-				return pre, nil, &LandBlockedError{Cause: pickErr.Error()}
+				return pre, nil, &LandBlockedError{Cause: strings.TrimSpace(string(out))}
 			}
 			return pre, nil, fmt.Errorf("commit %s conflicts with this branch in %s", sha, strings.Join(strings.Fields(conflicted), ", "))
 		}
