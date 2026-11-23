@@ -52,7 +52,10 @@ func TestPoolCountsALiveAgentWhoseTaskIsClosedInItsWorktree(t *testing.T) {
 	spawnClaim(t, dir, "t1", "toolu_A", "sessC")
 	wt := filepath.Join(t.TempDir(), "wt")
 	gitIn(t, dir, "worktree", "add", "-q", wt)
-	_, stderr, code := runTP(t, wt, "done", "t1", "--gate-passed", "--", "t1 acceptance criteria met")
+	sha := agentCommit(t, wt)
+	_, stderr, code := runTP(t, wt, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	_, stderr, code = runTP(t, dir, "land")
 	require.Equal(t, 0, code, stderr)
 
 	p := pool(t, dir, "--session", "sessC", "--live", "toolu_A")
