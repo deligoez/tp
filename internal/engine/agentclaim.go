@@ -141,11 +141,11 @@ func scanClaims(tree, spawn string, claimed, accounted map[claimKey]bool) {
 
 // ClaimHolderCopy returns the copy, in another worktree of the repository, of
 // the task file at path that has task id wip under a spawn's claim, when the
-// copy at path has it open: the coordinator claimed it
-// on its own tree after this worktree was cut. A write about that claim
-// belongs with it, in the holder's copy. It returns "" when path's copy is
-// not open, or no other copy holds such a claim; a copy that is wip or done
-// here speaks for itself, so tp run's own closes never look elsewhere.
+// copy at path has it open: the coordinator claimed it on its own tree after
+// this worktree was cut. A write about that claim belongs with it, in the
+// holder's copy. It returns "" when path's copy is not open, or no other copy
+// holds such a claim; a copy that is wip or done here speaks for itself, so
+// tp run's own closes never look elsewhere.
 func ClaimHolderCopy(path, id string) string {
 	tf, err := model.ReadTaskFile(path)
 	if err != nil {
@@ -154,6 +154,13 @@ func ClaimHolderCopy(path, id string) string {
 	if task, _, findErr := model.FindTask(tf, id); findErr != nil || task.Status != model.StatusOpen {
 		return ""
 	}
+	return SpawnHolderCopy(path, id, "")
+}
+
+// SpawnHolderCopy returns the copy, in another worktree than path's, of the
+// task file at path that has task id wip under spawn's claim (any spawn's
+// when spawn is ""); "" when none does.
+func SpawnHolderCopy(path, id, spawn string) string {
 	tree := gitToplevel(filepath.Dir(path))
 	if tree == "" {
 		return ""
@@ -168,11 +175,22 @@ func ClaimHolderCopy(path, id string) string {
 		if readErr != nil {
 			continue
 		}
-		if t, _, tErr := model.FindTask(copyTF, id); tErr == nil && t.Status == model.StatusWIP && t.ClaimedBy != nil && t.ClaimedBy.Spawn != "" {
+		t, _, tErr := model.FindTask(copyTF, id)
+		if tErr == nil && t.Status == model.StatusWIP && t.ClaimedBy != nil && t.ClaimedBy.Spawn != "" &&
+			(spawn == "" || t.ClaimedBy.Spawn == spawn) {
 			return copyPath
 		}
 	}
 	return ""
+}
+
+// CommitOnHead reports whether sha is a commit HEAD at dir contains.
+func CommitOnHead(dir, sha string) bool {
+	if !SafeGitRev(sha) {
+		return false
+	}
+	_, err := gitOut(dir, "merge-base", "--is-ancestor", sha, "HEAD")
+	return err == nil
 }
 
 // worktreeRoots is every worktree of the repository holding start, from
