@@ -113,6 +113,9 @@ func HasLandRequest(dir, id string) bool {
 type LandBlockedError struct{ Paths []string }
 
 func (e *LandBlockedError) Error() string {
+	if e.Cause != "" {
+		return "git refused the pick: " + e.Cause
+	}
 	return "uncommitted changes in " + strings.Join(e.Paths, ", ") + " stand in the way of the pick"
 }
 
@@ -120,9 +123,10 @@ func (e *LandBlockedError) Error() string {
 // and returns the HEAD it started from and the commits now carrying the work.
 // Commits already on HEAD (a hand merge of the same commits, or a pick a
 // crash left behind) are not picked again. A commit that no longer exists, or
-// a pick that conflicts, is an error with HEAD restored; uncommitted changes
-// in the paths the commits change are a *LandBlockedError, before anything is
-// picked.
+// one that conflicts with the branch, is an error naming it, with HEAD
+// restored. This tree's own state is a *LandBlockedError, before anything is
+// picked or after it is taken back: a staged change, an unstaged one in a
+// path the commits change, or a pick git refused without a conflict.
 func LandPick(root string, commits []string) (pre string, landed []string, err error) {
 	pre, err = gitOut(root, "rev-parse", "HEAD")
 	if err != nil {
@@ -146,24 +150,43 @@ func LandPick(root string, commits []string) (pre string, landed []string, err e
 	if blocked := landBlockingPaths(root, commits); len(blocked) > 0 {
 		return pre, nil, &LandBlockedError{Paths: blocked}
 	}
-	picked, err := cherryPick(root, commits)
-	if err != nil {
-		_, _ = gitOut(root, "reset", "-q", "--keep", pre)
-		return pre, nil, err
+	picked := make([]string, 0, len(commits))
+	for _, sha := range commits {
+		if _, pickErr := gitOut(root, "cherry-pick", "--allow-empty", sha); pickErr != nil {
+			conflicted, _ := gitOut(root, "diff", "--name-only", "--diff-filter=U")
+			_, _ = gitOut(root, "cherry-pick", "--abort")
+			_ = LandUndo(root, pre)
+			if conflicted == "" {
+				return pre, nil, &LandBlockedError{Cause: pickErr.Error()}
+			}
+			return pre, nil, fmt.Errorf("commit %s conflicts with this branch in %s", sha, strings.Join(strings.Fields(conflicted), ", "))
+		}
+		head, headErr := gitOut(root, "rev-parse", "HEAD")
+		if headErr != nil {
+			_ = LandUndo(root, pre)
+			return pre, nil, headErr
+		}
+		picked = append(picked, head)
 	}
 	return pre, picked, nil
 }
 
-// LandUndo takes a landing's pick back to pre, keeping uncommitted changes.
+// LandUndo takes a landing's pick back to pre, keeping uncommitted changes;
+// a HEAD still at pre is left alone, so nothing staged is touched.
 func LandUndo(root, pre string) error {
 	if !SafeGitRev(pre) {
 		return fmt.Errorf("%q is not a revision", pre)
+	}
+	if head, err := gitOut(root, "rev-parse", "HEAD"); err == nil && head == pre {
+		return nil
 	}
 	_, err := gitOut(root, "reset", "-q", "--keep", pre)
 	return err
 }
 
-// landBlockingPaths lists the uncommitted paths at root that commits change.
+// landBlockingPaths lists what at root stands in the way of picking commits:
+// every staged path (git refuses a pick over a dirty index), and every
+// unstaged or untracked path the commits change.
 func landBlockingPaths(root string, commits []string) []string {
 	// Not gitOut: its trim would eat the status column of the first line.
 	cmd := exec.Command("git", "status", "--porcelain", "-z", "--untracked-files=all")
@@ -173,6 +196,14 @@ func landBlockingPaths(root string, commits []string) []string {
 		return nil
 	}
 	dirty := map[string]bool{}
+	seen := map[string]bool{}
+	var out []string
+	add := func(p string) {
+		if !seen[p] {
+			seen[p] = true
+			out = append(out, p)
+		}
+	}
 	entries := strings.Split(string(status), "\x00")
 	for i := 0; i < len(entries); i++ {
 		entry := entries[i]
@@ -180,22 +211,22 @@ func landBlockingPaths(root string, commits []string) []string {
 			continue
 		}
 		dirty[entry[3:]] = true
+		if entry[0] != ' ' && entry[0] != '?' {
+			add(entry[3:])
+		}
 		// -z writes a rename's source as the next entry, with no status.
 		if entry[0] == 'R' || entry[0] == 'C' {
 			i++
 		}
 	}
-	seen := map[string]bool{}
-	var out []string
 	for _, sha := range commits {
 		files, diffErr := gitOut(root, "diff-tree", "--no-commit-id", "--name-only", "-r", sha)
 		if diffErr != nil {
 			continue
 		}
 		for f := range strings.SplitSeq(files, "\n") {
-			if f != "" && dirty[f] && !seen[f] {
-				seen[f] = true
-				out = append(out, f)
+			if f != "" && dirty[f] {
+				add(f)
 			}
 		}
 	}
