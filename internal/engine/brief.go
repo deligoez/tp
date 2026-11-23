@@ -139,7 +139,9 @@ func closeRecipeCommand(effectiveStrategy string) (command, rejected string) {
 		command = "   commit with hc, then:\n   tp done <id> --commit <sha> -- \"<evidence>\"   (repeat --commit per sha)\n"
 		rejected = "Under hc, a bare \"tp done\", \"tp commit\", and \"--auto-commit\" are all rejected: make the commit with hc, then record the SHA with \"tp done <id> --commit <sha>\"."
 	default:
-		command = "   tp done <id> --auto-commit -- \"<evidence>\"\n"
+		command = "   tp done <id> --auto-commit -- \"<evidence>\"\n" +
+			"   In a git worktree of your own, where the task is claimed in another tree: commit with git, then\n" +
+			"   tp done <id> --commit <sha> -- \"<evidence>\"   (repeat --commit per sha), and stop.\n"
 		rejected = ""
 	}
 	return command, rejected
