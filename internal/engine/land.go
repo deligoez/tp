@@ -67,14 +67,22 @@ func WriteLandRequest(taskFile string, r *LandRequest) error {
 	if err != nil {
 		return err
 	}
-	return writeFileAtomic(filepath.Join(dir, record.ID+".json"), append(data, '\n'))
+	if err := writeFileAtomic(filepath.Join(dir, record.ID+".json"), append(data, '\n')); err != nil {
+		return err
+	}
+	// A new request supersedes what an earlier landing of the task did.
+	if err := os.Remove(filepath.Join(dir, "outcome", record.ID+".json")); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
 }
 
-// ReadLandRequests returns the land requests in dir in id order; none is an
-// empty slice. A file that cannot be parsed is an error: a request tp land
-// cannot read is finished work it must not silently drop.
-func ReadLandRequests(dir string) ([]LandRequest, error) {
-	out := []LandRequest{}
+// ReadLandRequests returns the land requests in dir in id order, and the
+// paths of request files it could not read or parse; none is an empty slice.
+// An unreadable request is not dropped: it is named, so the caller can say
+// how to clear it while the readable ones still land.
+func ReadLandRequests(dir string) (requests []LandRequest, unreadable []string, err error) {
+	requests, unreadable = []LandRequest{}, []string{}
 	if dir == "" {
 		return out, nil
 	}
@@ -241,4 +249,56 @@ func RemoveLandRequest(dir, id string) error {
 		return err
 	}
 	return nil
+}
+
+// LandOutcome is what tp land did with a request: landed and closed, or not
+// landed for Error and the task reopened. It is kept for the agent's
+// worktree, whose own copy still has the task open, so a close tried there
+// after the landing is told the outcome instead of closing that copy.
+type LandOutcome struct {
+	ID       string `json:"id"`
+	Worktree string `json:"worktree"`
+	Landed   bool   `json:"landed"`
+	Error    string `json:"error,omitempty"`
+	At       string `json:"at"`
+}
+
+// WriteLandOutcome records o in dir, the task file's land directory.
+func WriteLandOutcome(dir string, o *LandOutcome) error {
+	record := *o
+	if record.At == "" {
+		record.At = time.Now().UTC().Format(time.RFC3339Nano)
+	}
+	out := filepath.Join(dir, "outcome")
+	if err := os.MkdirAll(out, 0o750); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(&record, "", "  ")
+	if err != nil {
+		return err
+	}
+	return writeFileAtomic(filepath.Join(out, record.ID+".json"), append(data, '\n'))
+}
+
+// LandOutcomeIn returns the outcome tp land recorded for task id of the task
+// file at taskFile when the request came from the worktree cwd is in; nil
+// otherwise.
+func LandOutcomeIn(taskFile, id, cwd string) *LandOutcome {
+	dir := LandDir(taskFile)
+	if dir == "" {
+		return nil
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "outcome", id+".json"))
+	if err != nil {
+		return nil
+	}
+	var o LandOutcome
+	if json.Unmarshal(data, &o) != nil || o.ID != id {
+		return nil
+	}
+	mine, theirs := gitToplevel(cwd), gitToplevel(o.Worktree)
+	if mine == "" || theirs == "" || !samePath(mine, theirs) {
+		return nil
+	}
+	return &o
 }
