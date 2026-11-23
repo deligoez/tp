@@ -13,8 +13,13 @@ import (
 
 // landHint is how an agent in its own worktree closes a task a coordinator
 // claimed on another tree (spec/backlog/worktree-land.md).
-func landHint(id string) string {
-	return fmt.Sprintf("in this worktree, commit your work with git (git add -A && git commit -m \"<message>\"), then run tp done %s --commit <sha> -- \"<evidence>\", naming every commit; then stop: the coordinator picks the commits and closes the task", id)
+// It names the commit tool the brief named for the effective strategy.
+func landHint(taskFilePath, id string) string {
+	commit := "commit your work with git (git add -A && git commit -m \"<message>\")"
+	if resolveEffectiveStrategy(taskFilePath) == engine.CommitStrategyHC {
+		commit = "commit your work with hc (hc run)"
+	}
+	return fmt.Sprintf("in this worktree, %s, then run tp done %s --commit <sha> -- \"<evidence>\", naming every commit; then stop: the coordinator picks the commits and closes the task", commit, id)
 }
 
 // landHolder returns the copy, in another worktree, that holds one of ids
@@ -61,14 +66,14 @@ func refuseAfterLanding(taskFilePath, id string) {
 // tp land in the coordinator's tree picks and closes.
 func runDoneLand(holder, taskFilePath string, taskIDs []string, reason string) error {
 	if len(taskIDs) != 1 {
-		exitUsage("a close in an agent's worktree names one task", landHint("<id>"))
+		exitUsage("a close in an agent's worktree names one task", landHint(taskFilePath, "<id>"))
 	}
 	id := taskIDs[0]
 	if given := landRefusedFlags(); given != "" {
-		exitUsage(fmt.Sprintf("task %s is claimed in %s: %s does not apply to a close in this worktree", id, holder, given), landHint(id))
+		exitUsage(fmt.Sprintf("task %s is claimed in %s: %s does not apply to a close in this worktree", id, holder, given), landHint(taskFilePath, id))
 	}
 	if len(doneCommits) == 0 {
-		exitUsage(fmt.Sprintf("task %s is claimed in %s: a close in this worktree needs --commit <sha>", id, holder), landHint(id))
+		exitUsage(fmt.Sprintf("task %s is claimed in %s: a close in this worktree needs --commit <sha>", id, holder), landHint(taskFilePath, id))
 	}
 	tf, err := model.ReadTaskFile(holder)
 	if err != nil {
@@ -83,12 +88,15 @@ func runDoneLand(holder, taskFilePath string, taskIDs []string, reason string) e
 	root := engine.CanonicalProjectRoot(filepath.Dir(holder))
 	ordered, checkErr := engine.CheckUnitCommits(root, worktree, holder, specPath, doneCommits)
 	if checkErr != nil {
-		output.Error(ExitValidation, checkErr.Error(), landHint(id))
+		output.Error(ExitValidation, checkErr.Error(), landHint(taskFilePath, id))
 		os.Exit(ExitValidation)
 	}
 	runQualityGateIn(taskFilePath, gateDir(taskFilePath), "",
 		"fix the failure in this worktree, commit the fix, and run tp done again naming every commit", mainGateTaker())
 	record := &engine.LandRequest{ID: id, Reason: reason, Commits: ordered, Worktree: worktree}
+	if task, _, findErr := model.FindTask(tf, id); findErr == nil && task.ClaimedBy != nil {
+		record.Spawn = task.ClaimedBy.Spawn
+	}
 	if writeErr := engine.WriteLandRequest(holder, record); writeErr != nil {
 		output.Error(ExitFile, writeErr.Error(), runtimeFailureHint)
 		os.Exit(ExitFile)
@@ -120,6 +128,36 @@ func landRefusedFlags() string {
 func refuseCommitBesideClaim(taskFilePath, id string) {
 	refuseAfterLanding(taskFilePath, id)
 	if holder := engine.ClaimHolderCopy(taskFilePath, id); holder != "" {
-		exitUsage(fmt.Sprintf("task %s is claimed in %s: tp commit does not apply in this worktree", id, holder), landHint(id))
+		exitUsage(fmt.Sprintf("task %s is claimed in %s: tp commit does not apply in this worktree", id, holder), landHint(taskFilePath, id))
+	}
+}
+
+// refuseOffBranchClose exits 1 when a close in this tree names a commit its
+// branch does not have, for a task a spawn claimed here: that commit is a
+// worktree agent's, and it lands through tp land, never by a close here.
+func refuseOffBranchClose(taskFilePath string, ids []string) {
+	if len(doneCommits) == 0 {
+		return
+	}
+	tf, err := model.ReadTaskFile(taskFilePath)
+	if err != nil {
+		return
+	}
+	spawned := false
+	for _, id := range ids {
+		if task, _, findErr := model.FindTask(tf, id); findErr == nil && task.ClaimedBy != nil && task.ClaimedBy.Spawn != "" {
+			spawned = true
+		}
+	}
+	if !spawned {
+		return
+	}
+	dir := filepath.Dir(taskFilePath)
+	for _, sha := range doneCommits {
+		if !engine.CommitOnHead(dir, sha) {
+			output.Error(ExitValidation, fmt.Sprintf("commit %s is not on this tree's branch", sha),
+				"an agent in its own worktree runs tp done <id> --commit <sha> there and stops; this tree lands its commits with tp land")
+			os.Exit(ExitValidation)
+		}
 	}
 }

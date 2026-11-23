@@ -139,6 +139,7 @@ func runDone(cmd *cobra.Command, args []string) error {
 		return runDoneLand(holder, taskFilePath, taskIDs, reason)
 	}
 	enterTree(taskFilePath, "tp done")
+	refuseOffBranchClose(taskFilePath, taskIDs)
 
 	if resolveEffectiveStrategy(taskFilePath) == engine.CommitStrategyHC {
 		if doneAutoCommit {

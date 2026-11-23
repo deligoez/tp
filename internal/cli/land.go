@@ -97,27 +97,41 @@ func runLand(_ *cobra.Command, _ []string) error {
 	return nil
 }
 
-// refuseLandOutsideHolder exits 2 before anything is touched when this tree
-// is not the one holding the claims the requests are for: run from an
-// agent's worktree, where the tasks are still open, tp land would drop
-// every request as no longer wip.
+// refuseLandOutsideHolder exits 2 before anything is touched when another
+// tree holds a claim a request was made under and this one does not: run
+// from an agent's worktree, or from a tree with a claim of its own, tp land
+// would drop the request or land it on the wrong branch.
 func refuseLandOutsideHolder(taskFilePath string, requests []engine.LandRequest) {
 	for i := range requests {
-		id := requests[i].ID
-		if taskStatusIn(taskFilePath, id) == model.StatusWIP {
+		r := &requests[i]
+		if holdsRequest(taskFilePath, r) {
 			continue
 		}
-		if holder := engine.ClaimHolderCopy(taskFilePath, id); holder != "" {
-			exitUsage(fmt.Sprintf("tp land runs in the tree that holds the claims, and task %s is claimed in %s", id, holder),
+		if holder := engine.SpawnHolderCopy(taskFilePath, r.ID, r.Spawn); holder != "" {
+			exitUsage(fmt.Sprintf("tp land runs in the tree that holds the claims, and task %s is claimed in %s", r.ID, holder),
 				"an agent in its own worktree stops after tp done; the coordinator runs tp land in its own tree")
 		}
 	}
 }
 
+// holdsRequest reports whether the copy at taskFilePath has r's task wip
+// under the claim r was made under.
+func holdsRequest(taskFilePath string, r *engine.LandRequest) bool {
+	tf, err := model.ReadTaskFile(taskFilePath)
+	if err != nil {
+		return false
+	}
+	task, _, err := model.FindTask(tf, r.ID)
+	if err != nil || task.Status != model.StatusWIP {
+		return false
+	}
+	return r.Spawn == "" || (task.ClaimedBy != nil && task.ClaimedBy.Spawn == r.Spawn)
+}
+
 // land picks one request's commits, closes its task with them, and on a
 // failure takes the pick back and reopens the task for a fresh agent.
 func (l *lander) land(r *engine.LandRequest) {
-	if taskStatusIn(l.taskFile, r.ID) != model.StatusWIP {
+	if !holdsRequest(l.taskFile, r) {
 		l.drop(r.ID)
 		l.res.Dropped = append(l.res.Dropped, r.ID)
 		return
@@ -125,8 +139,11 @@ func (l *lander) land(r *engine.LandRequest) {
 	pre, landed, err := engine.LandPick(l.root, r.Commits)
 	var blocked *engine.LandBlockedError
 	if errors.As(err, &blocked) {
-		l.res.Blocked = append(l.res.Blocked, landItem{ID: r.ID, Error: err.Error(),
-			Hint: "commit or unstage those paths on this tree's branch, then run tp land again"})
+		hint := "commit, stash or revert those paths on this tree's branch, then run tp land again"
+		if blocked.Cause != "" {
+			hint = "finish or abort what git names in this tree (a cherry-pick, merge or rebase in progress), then run tp land again"
+		}
+		l.res.Blocked = append(l.res.Blocked, landItem{ID: r.ID, Error: err.Error(), Hint: hint})
 		return
 	}
 	if err != nil {
@@ -163,7 +180,7 @@ func (l *lander) reopenAfter(r *engine.LandRequest, pre, cause, logPath string) 
 		_ = engine.LandUndo(l.root, pre)
 	}
 	item := landItem{ID: r.ID, Error: cause, Log: logPath,
-		Hint: fmt.Sprintf("task %s is open again: spawn a fresh agent from tp brief %s, and tell it this error", r.ID, r.ID)}
+		Hint: fmt.Sprintf("task %s is open again: spawn a fresh agent from tp brief %s --file %s, and tell it this error", r.ID, r.ID, l.relFile())}
 	if err := l.reopen(r.ID); err != nil {
 		item.Error += "; reopening failed: " + err.Error()
 		item.Hint = "the request is kept for the next tp land"
@@ -228,4 +245,12 @@ func taskStatusIn(path, id string) string {
 		return ""
 	}
 	return task.Status
+}
+
+// relFile is the task file relative to the project root tp land runs in.
+func (l *lander) relFile() string {
+	if rel, err := filepath.Rel(l.root, engine.CanonicalPath(l.taskFile)); err == nil && !strings.HasPrefix(rel, "..") {
+		return filepath.ToSlash(rel)
+	}
+	return l.taskFile
 }

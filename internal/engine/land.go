@@ -22,7 +22,10 @@ type LandRequest struct {
 	Reason   string   `json:"reason"`
 	Commits  []string `json:"commits"`
 	Worktree string   `json:"worktree"`
-	At       string   `json:"at"`
+	// Spawn is the claim the request was made under; only a tree whose
+	// copy has the task wip under it lands the request.
+	Spawn string `json:"spawn,omitempty"`
+	At    string `json:"at"`
 }
 
 // LandDir is where the land requests of the task file at taskFile live: in
