@@ -185,9 +185,13 @@ func LandPick(root string, commits []string) (pre string, landed []string, err e
 // pickOne cherry-picks sha onto HEAD at root and returns the commit that now
 // carries its change: the new pick, or the commit on HEAD that already
 // carries the same change (a pick a crashed run left, a hand merge under
-// another sha), which is not picked again. A conflict, or a pick git refuses
-// for the commit itself (a merge commit), is an error naming it.
+// another sha, or inside a larger commit), which is not picked again. A
+// conflict or a merge commit is an error naming the commit; any other refusal
+// is this tree's own state, a *LandBlockedError carrying git's message.
 func pickOne(root, sha string) (string, error) {
+	if parents, err := gitOut(root, "rev-list", "--parents", "-n", "1", sha); err == nil && len(strings.Fields(parents)) > 2 {
+		return "", fmt.Errorf("commit %s is a merge commit: tp land picks commits with one parent", sha)
+	}
 	pick := exec.Command("git", "cherry-pick", "--allow-empty", sha)
 	pick.Dir = root
 	out, pickErr := pick.CombinedOutput()
@@ -195,17 +199,29 @@ func pickOne(root, sha string) (string, error) {
 		return gitOut(root, "rev-parse", "HEAD")
 	}
 	conflicted, _ := gitOut(root, "diff", "--name-only", "--diff-filter=U")
-	if conflicted == "" {
-		if same := equivalentOnHead(root, sha); same != "" {
-			_, _ = gitOut(root, "cherry-pick", "--skip")
-			return same, nil
-		}
-	}
-	_, _ = gitOut(root, "cherry-pick", "--abort")
 	if conflicted != "" {
+		_, _ = gitOut(root, "cherry-pick", "--abort")
 		return "", fmt.Errorf("commit %s conflicts with this branch in %s", sha, strings.Join(strings.Fields(conflicted), ", "))
 	}
-	return "", fmt.Errorf("git refused to pick commit %s: %s", sha, strings.TrimSpace(string(out)))
+	if emptyPick(root) {
+		_, _ = gitOut(root, "cherry-pick", "--skip")
+		if same := equivalentOnHead(root, sha); same != "" {
+			return same, nil
+		}
+		return gitOut(root, "rev-parse", "HEAD")
+	}
+	_, _ = gitOut(root, "cherry-pick", "--abort")
+	return "", &LandBlockedError{Cause: strings.TrimSpace(string(out))}
+}
+
+// emptyPick reports a cherry-pick stopped because its change is already on
+// HEAD: one is in progress and nothing is staged against HEAD.
+func emptyPick(root string) bool {
+	if _, err := gitOut(root, "rev-parse", "-q", "--verify", "CHERRY_PICK_HEAD"); err != nil {
+		return false
+	}
+	_, err := gitOut(root, "diff", "--cached", "--quiet")
+	return err == nil
 }
 
 // gitOperationInProgress names a cherry-pick, merge, revert or rebase this
