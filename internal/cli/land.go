@@ -140,8 +140,11 @@ func (l *lander) land(r *engine.LandRequest) {
 	var blocked *engine.LandBlockedError
 	if errors.As(err, &blocked) {
 		hint := "commit, stash or revert those paths on this tree's branch, then run tp land again"
-		if blocked.Cause != "" {
-			hint = "finish or abort what git names in this tree (a cherry-pick, merge or rebase in progress), then run tp land again"
+		switch {
+		case blocked.Abort != "":
+			hint = "finish it, or run " + blocked.Abort + " in this tree, then run tp land again"
+		case blocked.Cause != "":
+			hint = "clear what git reports in this tree, then run tp land again"
 		}
 		l.res.Blocked = append(l.res.Blocked, landItem{ID: r.ID, Error: err.Error(), Hint: hint})
 		return
