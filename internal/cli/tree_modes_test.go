@@ -95,6 +95,11 @@ func treeModeWays(f *treeFixture) map[string]map[string]way {
 			"TP_FILE": {args: []string{"gate"}, env: fileEnv},
 			"active":  {args: []string{"gate"}},
 		},
+		"tp land": {
+			"spec": {na: "takes no argument, not a spec"}, "--file": {args: []string{"land", "--file", f.taskFile}},
+			"TP_FILE": {args: []string{"land"}, env: fileEnv},
+			"active":  {args: []string{"land"}},
+		},
 		"tp import": {
 			"spec":    {args: []string{"import", f.plan}},
 			"--file":  {na: "the target is the plan's spec field, not a discovered task file"},
