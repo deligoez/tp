@@ -17,7 +17,7 @@ import (
 func landHint(taskFilePath, id string) string {
 	commit := "commit your work with git (git add -A && git commit -m \"<message>\")"
 	if resolveEffectiveStrategy(taskFilePath) == engine.CommitStrategyHC {
-		commit = "commit your work with hc (hc run)"
+		commit = "commit your work with hc"
 	}
 	return fmt.Sprintf("in this worktree, %s, then run tp done %s --commit <sha> -- \"<evidence>\", naming every commit; then stop: the coordinator picks the commits and closes the task", commit, id)
 }
@@ -143,21 +143,34 @@ func refuseOffBranchClose(taskFilePath string, ids []string) {
 	if err != nil {
 		return
 	}
-	spawned := false
+	spawned := ""
 	for _, id := range ids {
 		if task, _, findErr := model.FindTask(tf, id); findErr == nil && task.ClaimedBy != nil && task.ClaimedBy.Spawn != "" {
-			spawned = true
+			spawned = id
 		}
 	}
-	if !spawned {
+	if spawned == "" {
 		return
 	}
 	dir := filepath.Dir(taskFilePath)
 	for _, sha := range doneCommits {
-		if !engine.CommitOnHead(dir, sha) {
-			output.Error(ExitValidation, fmt.Sprintf("commit %s is not on this tree's branch", sha),
-				"an agent in its own worktree runs tp done <id> --commit <sha> there and stops; this tree lands its commits with tp land")
+		switch {
+		case !engine.CommitExists(dir, sha):
+			output.Error(ExitValidation, fmt.Sprintf("commit %s does not exist", sha), "name a commit this tree's branch contains")
+			os.Exit(ExitValidation)
+		case !engine.CommitOnHead(dir, sha):
+			output.Error(ExitValidation, fmt.Sprintf("commit %s is not on this tree's branch", sha), offBranchHint(dir, spawned, sha))
 			os.Exit(ExitValidation)
 		}
 	}
+}
+
+// offBranchHint names the way a commit not on this tree's branch reaches it:
+// the agent in the worktree holding it asks, and this tree lands the request.
+func offBranchHint(dir, id, sha string) string {
+	ask := fmt.Sprintf("tp done %s --commit %s -- \"<evidence>\"", id, sha)
+	if wt := engine.WorktreeWithCommit(dir, sha); wt != "" {
+		ask = fmt.Sprintf("(cd %s && %s)", wt, ask)
+	}
+	return fmt.Sprintf("the agent in the worktree holding the commit asks for the close there with %s, naming every commit; then run tp land here", ask)
 }
