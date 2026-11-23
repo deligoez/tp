@@ -115,8 +115,9 @@ items are in `spec/1.3.0-measurements.md`.
    `audit_converge_on: blocking`, changing `quality_gate`, setting or changing `worktree_setup_cmd`,
    accepting a critical/high review finding or any audit finding without a change
    (`accept-finding`), `--force` over an unrecorded emission or `tp epic review --discard`
-   (`discard-emission`), granting a stale epic review slice one round past its cap
-   (`tp epic review <slice> --grant-round`, `grant-round`), and an epoch whose cut holds an
+   (`discard-emission`), an epic's done record, a gate's met record and a task file's epic binding
+   (`epic-done`, `gate-met`, `epic-binding`), granting a stale epic review slice one round past its
+   cap (`tp epic review <slice> --grant-round`, `grant-round`), and an epoch whose cut holds an
    unresolved blocking review or audit finding (`tp review <spec> --rewritten`,
    `rewrite-past-blocking`). Under `tp run` each exits 2; the unit records it with
    `tp escalate --decision <name>` (the closed set is `engine.EscalationDecisions`) and the run
