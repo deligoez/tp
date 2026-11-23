@@ -51,8 +51,8 @@ type Pool struct {
 	Ask     bool       `json:"ask"`
 	Reason  string     `json:"reason,omitempty"`
 	// common is the repository's git common directory, where land
-	// requests live.
-	common string
+	// requests live; home is the coordinator's worktree root.
+	common, home string
 }
 
 // PoolInput is what the pool is computed from: the tree the coordinator works
@@ -83,7 +83,7 @@ func PoolOf(in PoolInput) Pool {
 	if home == "" || !ValidClaimToken(in.Session) {
 		return p
 	}
-	p.common = gitCommonDir(home)
+	p.common, p.home = gitCommonDir(home), home
 	live := map[string]bool{}
 	for _, s := range in.Live {
 		live[s] = true
@@ -248,7 +248,7 @@ func poolReason(p *Pool) string {
 		b.WriteString(": land them first, which picks their commits onto this tree's branch and closes them, with")
 		for _, t := range p.Landing {
 			if files[t.File] {
-				fmt.Fprintf(&b, " `tp land --file %s`", t.File)
+				fmt.Fprintf(&b, " `%s`", landCommand(p.home, t.File))
 				files[t.File] = false
 			}
 		}
@@ -277,4 +277,21 @@ func poolReason(p *Pool) string {
 	}
 	b.WriteString(" If a task must not start yet for a reason that is not a task, record it with `tp set <id> waiting=\"<why>\" --file <task file>`, which holds it out of the ready set; then end the turn.")
 	return b.String()
+}
+
+// landCommand is the tp land call for the task file at rel (relative to the
+// worktree root home): tp land works in the project the file belongs to, so
+// a project below home is entered first.
+func landCommand(home, rel string) string {
+	home = CanonicalPath(home)
+	path := filepath.Join(home, filepath.FromSlash(rel))
+	dir, err := filepath.Rel(home, CanonicalProjectRoot(filepath.Dir(path)))
+	if err != nil || dir == "." || strings.HasPrefix(dir, "..") {
+		return "tp land --file " + rel
+	}
+	file, err := filepath.Rel(filepath.Join(home, dir), path)
+	if err != nil {
+		return "tp land --file " + rel
+	}
+	return fmt.Sprintf("cd %s && tp land --file %s", filepath.ToSlash(dir), filepath.ToSlash(file))
 }
