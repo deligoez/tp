@@ -65,8 +65,14 @@ func TestAWorktreeAgentsCloseLandsThroughTheCoordinator(t *testing.T) {
 			var refusal struct {
 				Hint string `json:"hint"`
 			}
-			require.NoError(t, json.Unmarshal([]byte(stderr), &refusal), stderr)
-			assert.Contains(t, refusal.Hint, "git add -A && git commit -m")
+			// The refusal is the last line; a notice may precede it.
+			lines := strings.Split(strings.TrimSpace(stderr), "\n")
+			require.NoError(t, json.Unmarshal([]byte(lines[len(lines)-1]), &refusal), stderr)
+			if strategy == "hc" {
+				assert.Contains(t, refusal.Hint, "commit your work with hc", "the hint follows the strategy the brief named")
+			} else {
+				assert.Contains(t, refusal.Hint, "git add -A && git commit -m")
+			}
 			assert.Contains(t, refusal.Hint, "tp done t1 --commit <sha> --")
 			assert.Contains(t, refusal.Hint, "then stop")
 
