@@ -68,7 +68,7 @@ func TestAWorktreeAgentsCloseLandsThroughTheCoordinator(t *testing.T) {
 			require.NoError(t, json.Unmarshal([]byte(stderr), &refusal), stderr)
 			assert.Contains(t, refusal.Hint, "git add -A && git commit -m")
 			assert.Contains(t, refusal.Hint, "tp done t1 --commit <sha> --")
-			assert.Contains(t, refusal.Hint, "tp land")
+			assert.Contains(t, refusal.Hint, "then stop")
 
 			sha := agentCommit(t, wt)
 			stdout, stderr, code := runTP(t, wt, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
@@ -126,8 +126,105 @@ func TestLandReopensATaskWhosePickConflicts(t *testing.T) {
 	assert.NotContains(t, stdout+stderr, "--force")
 	assert.Equal(t, "open", taskState(t, dir, "t1")["status"])
 	assert.Equal(t, head, gitRun(t, dir, "rev-parse", "HEAD"), "the pick is taken back")
+	assert.Contains(t, stdout, "conflicts with this branch in agent.txt")
 	stdout, _, _ = runTP(t, dir, "land")
 	assert.Contains(t, stdout, `"landed": []`, "the request is gone")
+
+	// The agent, still running, cannot close the reopened task on its copy.
+	_, stderr, code = runTP(t, wt, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
+	assert.Equal(t, 4, code, stderr)
+	assert.Contains(t, stderr, "could not land task t1")
+	assert.Empty(t, gitRun(t, wt, "status", "--porcelain"), "the agent's copy is not closed")
+}
+
+func TestLandKeepsTheCoordinatorsStagedChange(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "")
+	sha := agentCommit(t, wt)
+	_, stderr, code := runTP(t, wt, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	// A staged file the agent's commit does not touch: git refuses a pick
+	// over a dirty index all the same.
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "other.txt"), []byte("mine\n"), 0o600))
+	gitIn(t, dir, "add", "other.txt")
+
+	stdout, _, code := runTP(t, dir, "land")
+	assert.Equal(t, 4, code, stdout)
+	assert.Contains(t, stdout, "other.txt")
+	assert.Equal(t, "wip", taskState(t, dir, "t1")["status"], "a blocked landing reopens nothing")
+	assert.Equal(t, "other.txt", strings.TrimSpace(gitRun(t, dir, "diff", "--cached", "--name-only")), "the staged change stays staged")
+
+	gitIn(t, dir, "commit", "-q", "-m", "mine")
+	stdout, stderr, code = runTP(t, dir, "land")
+	require.Equal(t, 0, code, stderr)
+	assert.Contains(t, stdout, `"landed": [
+    "t1"`)
+}
+
+func TestLandRefusesToRunInAnAgentsWorktree(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "")
+	sha := agentCommit(t, wt)
+	_, stderr, code := runTP(t, wt, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+
+	_, stderr, code = runTP(t, wt, "land")
+	assert.Equal(t, 2, code, stderr)
+	assert.Contains(t, stderr, "holds the claims")
+
+	stdout, stderr, code := runTP(t, dir, "land")
+	require.Equal(t, 0, code, stderr)
+	assert.Contains(t, stdout, `"landed": [
+    "t1"`, "the request survived the refused run")
+}
+
+func TestLandReportsWhyTheGateFailed(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "")
+	sha := agentCommit(t, wt)
+	_, stderr, code := runTP(t, wt, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	_, stderr, code = runTP(t, dir, "set", "--workflow", "--project", "quality_gate=test -f never.txt")
+	require.Equal(t, 0, code, stderr)
+
+	stdout, stderr, code := runTP(t, dir, "land")
+	require.Equal(t, 0, code, stderr)
+	var res struct {
+		Reopened []struct {
+			Error string `json:"error"`
+			Hint  string `json:"hint"`
+		} `json:"reopened"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &res), stdout)
+	require.Len(t, res.Reopened, 1, stdout)
+	assert.Contains(t, res.Reopened[0].Error, "gate", "the child's own error, not its exit status")
+	assert.NotContains(t, res.Reopened[0].Error, "exit status")
+	assert.NotContains(t, stdout, "--skip-gate")
+}
+
+// A worktree left over from an earlier landing has the task done; a close
+// in another tree, where the task is open again, closes there.
+func TestACloseBesideALandedWorktreeClosesItsOwnCopy(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "")
+	sha := agentCommit(t, wt)
+	_, stderr, code := runTP(t, wt, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	_, stderr, code = runTP(t, dir, "land")
+	require.Equal(t, 0, code, stderr)
+	gitIn(t, dir, "add", "-A")
+	gitIn(t, dir, "commit", "-q", "-m", "landed")
+	gitIn(t, dir, "worktree", "add", "-q", "-b", "later", filepath.Join(t.TempDir(), "later"))
+
+	_, stderr, code = runTP(t, dir, "reopen", "t1")
+	require.Equal(t, 0, code, stderr)
+	_, stderr, code = runTP(t, dir, "claim", "t1")
+	require.Equal(t, 0, code, stderr)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "agent.txt"), []byte("again\n"), 0o600))
+	stdout, stderr, code := runTP(t, dir, "done", "t1", "--auto-commit", "--", "t1 acceptance criteria met again")
+	require.Equal(t, 0, code, stderr)
+	assert.Contains(t, stdout, `"closed"`)
+	assert.Equal(t, "done", taskState(t, dir, "t1")["status"])
 }
 
 func TestLandIsBlockedByTheCoordinatorsOwnChanges(t *testing.T) {
