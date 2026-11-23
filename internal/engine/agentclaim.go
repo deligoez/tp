@@ -151,15 +151,22 @@ func ClaimHolderCopy(path, id string) string {
 	if err != nil {
 		return ""
 	}
-	if task, _, findErr := model.FindTask(tf, id); findErr != nil || task.Status != model.StatusOpen {
+	task, _, findErr := model.FindTask(tf, id)
+	if findErr != nil {
 		return ""
 	}
-	dir := filepath.Dir(path)
-	tree := gitToplevel(dir)
+	// A copy that carries a spawn's claim speaks for it here: the
+	// coordinator's own tree, or a worktree cut after a claim was committed.
+	// Looking elsewhere from it could reach a stale copy of an older claim.
+	if task.Status == model.StatusDone || (task.ClaimedBy != nil && task.ClaimedBy.Spawn != "") {
+		return ""
+	}
+	tree := gitToplevel(filepath.Dir(path))
 	if tree == "" {
 		return ""
 	}
 	rel := repoRelativeTo(tree, path)
+	done := ""
 	for _, other := range worktreeRoots(tree) {
 		if samePath(other, tree) {
 			continue
@@ -169,12 +176,20 @@ func ClaimHolderCopy(path, id string) string {
 		if readErr != nil {
 			continue
 		}
-		if t, _, findErr := model.FindTask(copyTF, id); findErr == nil && t.Status == model.StatusWIP &&
-			t.ClaimedBy != nil && t.ClaimedBy.Spawn != "" {
+		t, _, tErr := model.FindTask(copyTF, id)
+		if tErr != nil || t.ClaimedBy == nil || t.ClaimedBy.Spawn == "" {
+			continue
+		}
+		switch t.Status {
+		case model.StatusWIP:
 			return copyPath
+		case model.StatusDone:
+			if done == "" {
+				done = copyPath
+			}
 		}
 	}
-	return ""
+	return done
 }
 
 // worktreeRoots is every worktree of the repository holding start, from
