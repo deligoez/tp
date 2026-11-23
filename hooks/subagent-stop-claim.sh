@@ -72,7 +72,7 @@ IFS='
 for pair in $pairs; do
 	id=${pair%% *}
 	file=${pair#* }
-	steps="$steps Task $id ($file): close it with evidence - tp done $id --file $file \\\"<what was done and how it was verified>\\\" (under commit_strategy hc, commit first and add --commit <sha>) - or, if it waits on something outside your control, record tp set $id waiting=\\\"<what>\\\" --file $file."
+	steps="$steps Task $id ($file): close it with evidence - tp done $id --file $file -- \\\"<what was done and how it was verified>\\\" (under commit_strategy hc, or in a git worktree of your own, commit your work first and add --commit <sha> before the --) - or, if it waits on something outside your control, record tp set $id waiting=\\\"<what>\\\" --file $file."
 done
 
 block "The task bound to your spawn is not closed. Run these from the repository root.$steps Then stop."
