@@ -83,6 +83,16 @@ func ClaimsOfSpawn(start, spawn string) SpawnClaims {
 	for _, tree := range worktreeRoots(start) {
 		scanClaims(tree, spawn, claimed, accounted)
 	}
+	// A worktree agent's close waits as a land request until the
+	// coordinator lands it (spec/backlog/worktree-land.md): asked for, so
+	// accounted.
+	if common := gitCommonDir(start); common != "" {
+		for k := range claimed {
+			if HasLandRequest(LandDirFor(common, k.file), k.id) {
+				accounted[k] = true
+			}
+		}
+	}
 	keys := make([]claimKey, 0, len(claimed))
 	for k := range claimed {
 		keys = append(keys, k)
@@ -130,13 +140,12 @@ func scanClaims(tree, spawn string, claimed, accounted map[claimKey]bool) {
 }
 
 // ClaimHolderCopy returns the copy, in another worktree of the repository, of
-// the task file at path that holds task id claimed for a spawn, when the copy
-// at path still has the task open: the coordinator claimed it on its own tree
-// and this worktree was cut before the claim. A write about that claim belongs
-// in the holder's copy, so the claim's start, its spawn and its close stay in
-// one file and the worktree's branch carries no task-file change to merge.
-// It returns "" when path's own copy is not open, or no other copy holds the
-// claim.
+// the task file at path that holds task id under a spawn's claim, when the
+// copy at path carries no spawn's claim on it and has it open or wip: the
+// coordinator claimed it on its own tree after this worktree was cut. A write
+// about that claim belongs with it, in the holder's copy. A holder with the
+// task wip is preferred to one with it done (a claim landed and closed). It
+// returns "" when no other copy holds such a claim.
 func ClaimHolderCopy(path, id string) string {
 	tf, err := model.ReadTaskFile(path)
 	if err != nil {
