@@ -215,3 +215,41 @@ func worktreeRoots(start string) []string {
 	}
 	return roots
 }
+
+// RepoRelativePath is path relative to the top level of its git worktree, in
+// slash form; path itself outside git.
+func RepoRelativePath(path string) string {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return path
+	}
+	top := gitToplevel(filepath.Dir(abs))
+	if top == "" {
+		return path
+	}
+	return filepath.ToSlash(repoRelativeTo(top, abs))
+}
+
+// CommitExists reports whether sha names a commit in dir's repository.
+func CommitExists(dir, sha string) bool {
+	if !SafeGitRev(sha) {
+		return false
+	}
+	_, err := gitOut(dir, "rev-parse", "--verify", "--quiet", sha+"^{commit}")
+	return err == nil
+}
+
+// WorktreeWithCommit returns the root of another worktree of dir's
+// repository whose HEAD contains sha; "" when none does.
+func WorktreeWithCommit(dir, sha string) string {
+	tree := gitToplevel(dir)
+	if tree == "" || !SafeGitRev(sha) {
+		return ""
+	}
+	for _, other := range worktreeRoots(tree) {
+		if !samePath(other, tree) && CommitOnHead(other, sha) {
+			return other
+		}
+	}
+	return ""
+}
