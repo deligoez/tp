@@ -100,6 +100,8 @@ func TestCloseRecipeText_HC(t *testing.T) {
 	assert.Contains(t, got, `"--auto-commit"`)
 	// The hc recipe does not offer --auto-commit as the close command.
 	assert.NotContains(t, got, "--auto-commit --")
+	// In a worktree of its own the agent asks the same way, and stops.
+	assert.Contains(t, got, "In a git worktree of your own")
 }
 
 func TestCloseRecipeText_GateVerbatim(t *testing.T) {
