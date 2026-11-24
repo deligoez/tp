@@ -20,6 +20,10 @@ the very end, and only where it is truly needed.
    Its count is reported in `converged` and in `tp resume`.
 4. **Implement and audit units both find.**
 5. **One Full spec,** not two Decision notes.
+6. **A spec-silent choice goes to the human (2026-11-24).** The decision unit answers `task` only
+   when pre-existing text excludes the rejected alternative; any spec-silent choice, or a compound
+   finding with one spec-silent part, is `human`. Measured on the field: 62% of the non-Fix-shaped
+   findings were spec-silent, and both findings that turned out wrong were non-Fix-shaped.
 
 ## Design inputs (from the tp-smart consultation)
 
@@ -94,12 +98,29 @@ the very end, and only where it is truly needed.
 That gives a found-task yield of about 0.1 task per unit, so the human queue is the heavier half.
 The evidence is thin, from one field and uncounted before 16:45; the measurements file says so.
 
+## Measured 2026-11-24 (expected split written first)
+
+Strict reading: `task` only where text written before the choice excludes the alternative.
+
+- **Seed window** (re-counted): 22 additions after the cut, not 23 — 17 from the loop, 5 unit
+  findings. Findings: 1 Fix-shaped (not 2; a second is Fix only under a loose reading), 1 `task`,
+  3 `human`. Decisions: 7 `human`.
+- **After the note** (88 → 199 tasks): 111 additions — 74 spec or process work (the non-goal), 21
+  unit findings, 11 review or audit findings, 3 unknown. The 32 findings: 10 Fix-shaped, 9 `task`,
+  13 `human`.
+- **Combined, 37 findings:** 11 Fix-shaped, 10 `task`, 16 `human`. Spec-silent: 16 of the 26
+  non-Fix-shaped, 23 of 33 with the decisions. Settled by operator decision 6.
+- **Wrong findings:** 2, both non-Fix-shaped (one never reproduced in 47 tries, one a suspicion
+  that did not hold); none of the 11 Fix-shaped.
+- **Convergence:** 0.94 tasks closed per task added after the note; 12 of the 13 open additions are
+  deferred, so the backlog that builds up is a deferral queue.
+- **Anchors:** 23 `source_sections` strings name no heading in the spec, and 53 of the 111
+  additions anchor to one catch-all section — the field case for `origin` and for refusing
+  synthetic anchors.
+
 ## Must be measured before building
 
-- Classify the field's 5 findings and 7 decisions under the shape rule and the decision unit's
-  citation rule, with the expected split written first. If most are spec-silent, whether an agent
-  may make a spec-silent choice becomes a new operator decision.
-- Then a seeded clone run with obvious and ambiguous defects. Count:
+- A seeded clone run with obvious and ambiguous defects. Count:
   - misrouted findings;
   - wrong tasks, whose reproduction never goes red;
   - cap hits;
