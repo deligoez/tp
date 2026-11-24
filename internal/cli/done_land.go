@@ -26,14 +26,26 @@ func landHint(taskFilePath, id string) string {
 // under a spawn's claim this worktree's copy does not carry; "" when none.
 // A task tp land already landed or gave back from this worktree stops the
 // close here instead (refuseAfterLanding).
+// landHolder returns the copy, in another worktree, that holds one of ids
+// under a spawn's claim this worktree's copy does not carry; "" when none.
+// A task tp land already dealt with from this worktree stops the close here
+// instead (claimHolderAfterLanding).
 func landHolder(taskFilePath string, ids []string) string {
 	for _, id := range ids {
-		refuseAfterLanding(taskFilePath, id)
-		if holder := engine.ClaimHolderCopy(taskFilePath, id); holder != "" {
+		if holder := claimHolderAfterLanding(taskFilePath, id); holder != "" {
 			return holder
 		}
 	}
 	return ""
+}
+
+// claimHolderAfterLanding is the one place a command writing a task resolves
+// where its claim is held: it exits 4 when tp land already dealt with a
+// request this worktree made for id (refuseAfterLanding), and otherwise
+// returns the copy in another worktree holding id's claim, "" when none.
+func claimHolderAfterLanding(taskFilePath, id string) string {
+	refuseAfterLanding(taskFilePath, id)
+	return engine.ClaimHolderCopy(taskFilePath, id)
 }
 
 // refuseAfterLanding exits 4 when tp land has dealt with a request this
@@ -126,8 +138,7 @@ func landRefusedFlags() string {
 // on another tree: the commit would carry a task-file change the coordinator's
 // merge meets, and close nothing the coordinator can see.
 func refuseCommitBesideClaim(taskFilePath, id string) {
-	refuseAfterLanding(taskFilePath, id)
-	if holder := engine.ClaimHolderCopy(taskFilePath, id); holder != "" {
+	if holder := claimHolderAfterLanding(taskFilePath, id); holder != "" {
 		exitUsage(fmt.Sprintf("task %s is claimed in %s: tp commit does not apply in this worktree", id, holder), landHint(taskFilePath, id))
 	}
 }
