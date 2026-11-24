@@ -43,8 +43,9 @@ type Pool struct {
 	Unmerged []PoolTask `json:"unmerged"`
 	// Landing are claims whose worktree agent asked for its close; tp land
 	// picks the agent's commits onto this tree's branch and closes them
-	// (spec/backlog/worktree-land.md). They hold no slot, and while any
-	// waits the coordinator is asked to land them, slot or no slot.
+	// (spec/backlog/worktree-land.md). One holds a slot only while its
+	// agent still runs, and while any waits the coordinator is asked to
+	// land them, slot or no slot.
 	Landing []PoolTask `json:"landing"`
 	Free    int        `json:"free"`
 	Ready   []PoolTask `json:"ready"`
@@ -53,6 +54,8 @@ type Pool struct {
 	// common is the repository's git common directory, where land
 	// requests live; home is the coordinator's worktree root.
 	common, home string
+	// landingLive counts the landing claims whose agent still runs.
+	landingLive int
 }
 
 // PoolInput is what the pool is computed from: the tree the coordinator works
@@ -95,7 +98,7 @@ func PoolOf(in PoolInput) Pool {
 	if p.Unresolved > 0 {
 		p.Orphans = []PoolTask{}
 	}
-	p.Free = max(p.Cap-len(p.Running)-len(p.Parked)-p.Unresolved, 0)
+	p.Free = max(p.Cap-len(p.Running)-len(p.Parked)-p.landingLive-p.Unresolved, 0)
 	// A session that never claimed has cap 0, so no free slot to ask about.
 	p.Ask = len(p.Landing) > 0 || (p.Free > 0 && len(p.Ready)+len(p.Orphans)+len(p.Respawn) > 0)
 	if p.Ask {
@@ -165,6 +168,11 @@ func (p *Pool) classify(task *model.Task, rel string, live map[string]bool, othe
 	switch {
 	case p.common != "" && HasLandRequest(LandDirFor(p.common, rel), task.ID):
 		p.Landing = append(p.Landing, pt)
+		// Its agent asked to land and was told to stop; until it has, it
+		// still runs and holds its slot.
+		if spawn != "" && live[spawn] {
+			p.landingLive++
+		}
 	case spawn != "" && live[spawn]:
 		p.Running = append(p.Running, pt)
 	case spawn != "" && other.doneBy[spawn]:
