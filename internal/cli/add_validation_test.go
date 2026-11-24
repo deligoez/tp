@@ -346,3 +346,25 @@ func TestStats_TagsEmptyIsArrayNotNull(t *testing.T) {
 	// tags must be "[]" not "null".
 	assert.JSONEq(t, `[]`, string(raw["tags"]), "stats.tags must be [] when empty")
 }
+
+// TestAdd_RefusesUnresolvedSourceSection is spec 1.31.0 §10 row "An unresolved
+// anchor is refused": a source_sections entry naming no heading of the spec
+// exits non-zero naming the entry and adds nothing; warning instead of refusing
+// fails it. An entry naming a real heading still adds the task.
+func TestAdd_RefusesUnresolvedSourceSection(t *testing.T) {
+	t.Parallel()
+	dir := initEntryProject(t)
+
+	_, stderr, code := runTP(t, dir, "add",
+		`{"id":"t1","title":"T","estimate_minutes":5,"acceptance":"done","source_sections":["## 9. Catch-all"]}`)
+	assert.Equal(t, 1, code, "an unresolved anchor must exit non-zero: %s", stderr)
+	e := errJSON(t, stderr)
+	assert.Contains(t, e["error"], "## 9. Catch-all", "error must name the entry")
+
+	tasks, _, code := runTP(t, dir, "list", "--json")
+	require.Equal(t, 0, code)
+	assert.NotContains(t, tasks, `"t1"`, "a refused add must write nothing")
+
+	_, stderr, code = runTP(t, dir, "add", validEntryTask)
+	assert.Equal(t, 0, code, "an entry naming a real heading must still add: %s", stderr)
+}
