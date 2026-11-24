@@ -1,0 +1,68 @@
+{"unit_id": "u2", "anchor": "§0", "text_sha": "d653e47eb57d", "ordinal": 1, "verdict": "PASS", "kind": "document", "tier": "read", "evidence": "spec/backlog/found-tasks.md:13-29 lists operator decisions 1-7; spec/1.31.0.md §11 lists three interview answers dated 2026-11-24"}
+{"unit_id": "u3", "anchor": "§0", "text_sha": "7a2217a76058", "ordinal": 1, "verdict": "PASS", "kind": "document", "tier": "read", "evidence": "spec/1.31.0-measurements.md §1 (field counts), §2-§4 (seeded runs 1-3)"}
+{"unit_id": "u9", "anchor": "§1", "text_sha": "502975879dab", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u11", "anchor": "§1", "text_sha": "04e7bd8ee12d", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u12", "anchor": "§1", "text_sha": "e1dfd4349fac", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u13", "anchor": "§1", "text_sha": "47311295f64b", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u14", "anchor": "§1", "text_sha": "a883be09cb09", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u15", "anchor": "§1", "text_sha": "3e48c2644831", "ordinal": 1, "verdict": "PARTIAL", "kind": "document", "tier": "read", "evidence": "spec/1.31.0-measurements.md:50 records one defect at two line numbers and one bundled request; spec/backlog/found-tasks.md:139-140 says \"Nothing was lost this time only by luck\"", "partial_kind": "reason-not-conclusion", "note": "The observations are measured, but the looser format did not break: the seeded run lost nothing. \"broke\" overstates the cited section; \"was brittle\" is what it shows."}
+{"unit_id": "u16", "anchor": "§1", "text_sha": "dc47ccbad4b2", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u17", "anchor": "§1", "text_sha": "83459a62723b", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u18", "anchor": "§1", "text_sha": "bd3725ee1a7a", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u20", "anchor": "§2", "text_sha": "b305b0d5e711", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u21", "anchor": "§2", "text_sha": "7da723a3ddf6", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u23", "anchor": "§2", "text_sha": "da947b88101e", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u24", "anchor": "§2", "text_sha": "b646ed2224ad", "ordinal": 1, "verdict": "PASS", "kind": "code-structure", "tier": "read", "evidence": "hooks/hooks.json:38 Stop hooks; hooks/stop-fill-pool.sh (the pool Stop hook) blocks once via tp pool --stop-hook, passes on stop_hook_active", "note": "Premise only: the pool Stop hook exists and blocks once; the unapplied-request refusal is new behaviour."}
+{"unit_id": "u25", "anchor": "§2", "text_sha": "4203c9f95cdb", "ordinal": 1, "verdict": "PASS", "kind": "document", "tier": "read", "evidence": "spec/1.31.0.md §11 item 1"}
+{"unit_id": "u26", "anchor": "§2", "text_sha": "3382fc34594f", "ordinal": 1, "verdict": "PASS", "kind": "document", "tier": "read", "evidence": "spec/1.31.0-measurements.md:47 \"The defect blocking a unit arrived sixth and fell past the cap\""}
+{"unit_id": "u31", "anchor": "§3", "text_sha": "783d36248aa2", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u33", "anchor": "§3", "text_sha": "86f24f15736a", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u35", "anchor": "§3", "text_sha": "395fa8887a15", "ordinal": 1, "verdict": "PARTIAL", "kind": "behaviour", "tier": "run", "evidence": "in a git clone: /tmp/tp-dev/tp add --file spec/1.31.0.tasks.json with source_sections [\"§99 No Such Heading\"] -> added, rc=0; the same task with no source_sections/source_lines -> {\"error\":\"task probe-b: needs source_sections or source_lines\",\"code\":1}", "partial_kind": "two-readings", "note": "\"Anchors become checked\" holds for the unknown-heading half (accepted today). The no-anchor half is already refused today (exit 1, source_lines also counts as an anchor), so it is not new; the spec should say only origin joins the existing alternatives."}
+{"unit_id": "u36", "anchor": "§3", "text_sha": "3485b82e4ba0", "ordinal": 1, "verdict": "PASS", "kind": "document", "tier": "read", "evidence": "spec/1.31.0-measurements.md:30 \"23 source_sections strings name no heading in the spec\""}
+{"unit_id": "u38", "anchor": "§3", "text_sha": "57f35a265021", "ordinal": 1, "verdict": "PASS", "kind": "document", "tier": "read", "evidence": "spec/1.31.0-measurements.md:30-31 \"53 of the 111 additions anchor to one catch-all section\""}
+{"unit_id": "u39", "anchor": "§3", "text_sha": "8d28cd3e78cd", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u40", "anchor": "§3", "text_sha": "2eafff934319", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u41", "anchor": "§3", "text_sha": "6d6acfb22a4d", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u44", "anchor": "§4", "text_sha": "4921b3711a30", "ordinal": 1, "verdict": "NOT-A-CLAIM", "note": "Decision; retries exist (driver_pool.go:52) and an escalating unit is already not counted as a failed attempt (SKILL.md:481)."}
+{"unit_id": "u46", "anchor": "§4", "text_sha": "6fa702956ade", "ordinal": 1, "verdict": "PASS", "kind": "document", "tier": "read", "evidence": "spec/1.31.0-measurements.md:46 \"Two units stopped blocked on a defect outside their files\"; spec/backlog/found-tasks.md:134"}
+{"unit_id": "u47", "anchor": "§4", "text_sha": "ed961f20aed9", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u48", "anchor": "§4", "text_sha": "42a5ec4ecfe7", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u50", "anchor": "§5", "text_sha": "0b4c22e6f11b", "ordinal": 1, "verdict": "NOT-A-CLAIM", "note": "Decision. CONVENTIONS.md exists in neither tp nor its code (git grep -i CONVENTIONS.md internal skills: no hits); a target-project file name."}
+{"unit_id": "u51", "anchor": "§5", "text_sha": "02ccc8a153e4", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u52", "anchor": "§5", "text_sha": "406a5d891722", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u54", "anchor": "§5", "text_sha": "056076f2dcce", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u56", "anchor": "§5", "text_sha": "d7254ae18669", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u57", "anchor": "§5", "text_sha": "467b5df5278d", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u58", "anchor": "§5", "text_sha": "e40fb0deb454", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u59", "anchor": "§5", "text_sha": "438d329113f4", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u60", "anchor": "§5", "text_sha": "170e4dc27e3a", "ordinal": 1, "verdict": "PARTIAL", "kind": "document", "tier": "read", "evidence": "spec/1.31.0-measurements.md §3 table: \"`task` that changes nothing (expected = observed)\" = 3; §4 table expected = answered on all six; spec/backlog/found-tasks.md:163 \"Every wrong `task` had expected = observed\"", "partial_kind": "two-readings", "note": "True if \"two answers\" means the two-answer contract; false if it counts answers: three, not two, forced no-change tasks."}
+{"unit_id": "u61", "anchor": "§5", "text_sha": "58d9db2c2030", "ordinal": 1, "verdict": "PASS", "kind": "document", "tier": "read", "evidence": "spec/backlog/found-tasks.md:23-26 operator decision 6"}
+{"unit_id": "u62", "anchor": "§5", "text_sha": "44391584f7f6", "ordinal": 1, "verdict": "PASS", "kind": "document", "tier": "read", "evidence": "spec/1.31.0-measurements.md:22 combined 37 findings: 10 `task` by citation", "note": "Factual premise of the rejection only."}
+{"unit_id": "u63", "anchor": "§5", "text_sha": "ead01387093b", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u64", "anchor": "§5", "text_sha": "1305c8d2b5a5", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u65", "anchor": "§5", "text_sha": "09f48c4b4eca", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u66", "anchor": "§5", "text_sha": "1a1983e09058", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u67", "anchor": "§6", "text_sha": "cdad5573bad1", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u68", "anchor": "§6", "text_sha": "84aca062b576", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u69", "anchor": "§6", "text_sha": "c55fa2742376", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u71", "anchor": "§6", "text_sha": "95c9140e62d2", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u72", "anchor": "§6", "text_sha": "6b9c6838e48a", "ordinal": 1, "verdict": "PASS", "kind": "document", "tier": "read", "evidence": "spec/undecided.md:409 \"An inbox for findings seen during implement (`tp note`). *Deferred.*\""}
+{"unit_id": "u73", "anchor": "§6", "text_sha": "1fff16a31d65", "ordinal": 1, "verdict": "PARTIAL", "kind": "document", "tier": "read", "evidence": "spec/backlog/found-tasks.md:19-20 decision 3 says \"The queue blocks nothing\" (count in converged and tp resume); the \"human input is collected at the very end\" sentence is the Direction paragraph, found-tasks.md:9-11", "partial_kind": "reason-not-conclusion", "note": "The conclusion holds, but the citation points to the wrong source: decision 3 does not say \"at the end, once\"; the operator Direction of 2026-11-18 does."}
+{"unit_id": "u74", "anchor": "§6", "text_sha": "ef3d8e206208", "ordinal": 1, "verdict": "NOT-A-CLAIM", "note": "Acceptance; the flags it names exist: tp review/audit --status --check (tp-dev --help)."}
+{"unit_id": "u75", "anchor": "§6", "text_sha": "64f2c2ab98ce", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u76", "anchor": "§6", "text_sha": "b8715bea0729", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u78", "anchor": "§7", "text_sha": "ad667b1650f5", "ordinal": 1, "verdict": "PASS", "kind": "document", "tier": "read", "evidence": "CLAUDE.md:136-137 rule 13 \"record out-of-surface findings with justification and ship\"", "note": "The quoted words are elided from the rule, not verbatim; the meaning matches."}
+{"unit_id": "u79", "anchor": "§7", "text_sha": "78f6c42aa9f2", "ordinal": 1, "verdict": "PASS", "kind": "document", "tier": "read", "evidence": "spec/1.31.0.md §11 item 2", "note": "Decision; the citation holds. Task audit exists (--task-audit)."}
+{"unit_id": "u80", "anchor": "§7", "text_sha": "45577399b44f", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u82", "anchor": "§8", "text_sha": "8e24c857ec89", "ordinal": 1, "verdict": "PASS", "kind": "document", "tier": "read", "evidence": "spec/1.31.0.md §11 item 3 \"The cap counts per spec task file, not per run\"", "note": "Supersedes backlog decision 2 (\"capped per run\", found-tasks.md:17) on purpose."}
+{"unit_id": "u84", "anchor": "§8", "text_sha": "e3990b7afd6a", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u85", "anchor": "§8", "text_sha": "041355b01aca", "ordinal": 1, "verdict": "PARTIAL", "kind": "document", "tier": "read", "evidence": "spec/1.31.0-measurements.md:16 after the note 111 additions: 74 spec or process work, 21 unit + 11 review/audit findings", "partial_kind": "two-readings", "note": "found_max bounds found-task growth, but most of the field growth (74 of 111) was spec/process work, a §10 non-goal it does not bound. True only as \"the findings part of the growth\"."}
+{"unit_id": "u86", "anchor": "§8", "text_sha": "75645c0f8f6f", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u88", "anchor": "§8", "text_sha": "29e83aab9a89", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u89", "anchor": "§9", "text_sha": "dd3ef5698e38", "ordinal": 1, "verdict": "NOT-A-CLAIM", "note": "Decision. Unit kinds in internal/engine/unitkind.go:22-34; audit-fix disposes rows (REFERENCE.md:407), not tp add."}
+{"unit_id": "u90", "anchor": "§9", "text_sha": "18e996851fc9", "ordinal": 1, "verdict": "NOT-A-CLAIM", "note": "Acceptance; TP_UNIT_KIND exists (engine.EnvUnitKind, internal/cli/gate.go:171-181)."}
+{"unit_id": "u92", "anchor": "§10", "text_sha": "d47981ef657f", "ordinal": 1, "verdict": "PASS", "kind": "code-structure", "tier": "read", "evidence": "internal/engine/driver_pool.go:50-53 \"A stop cause, an escalation, ... drains the pool instead: nothing new is spawned\"", "note": "The quoted phrase is in no doc or code verbatim (git grep -i \"drains and stops\" hits only spec/1.31.0.md and the backlog note); the behaviour it names exists."}
+{"unit_id": "u94", "anchor": "§11", "text_sha": "f1eeba3c9c11", "ordinal": 1, "verdict": "PASS", "kind": "document", "tier": "read", "evidence": "spec/backlog/found-tasks.md:13-29"}
+{"unit_id": "u95", "anchor": "§11", "text_sha": "b816928943c2", "ordinal": 1, "verdict": "PASS", "kind": "document", "tier": "read", "evidence": "spec/1.31.0.md §11 numbered list of three"}
+{"unit_id": "u96", "anchor": "§11", "text_sha": "011206d3d9aa", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u99", "anchor": "§11", "text_sha": "909045e0e2ab", "ordinal": 1, "verdict": "PASS", "kind": "document", "tier": "read", "evidence": "spec/1.31.0.tasks.json:7-8 review_max_rounds 3, audit_max_rounds 3"}
