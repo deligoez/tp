@@ -178,15 +178,38 @@ func ClaimHolderCopy(path, id string) string {
 		return ""
 	case task.Status == model.StatusOpen:
 		return SpawnHolderCopy(path, id, "")
-	case spawnClaimed(task):
+	case SpawnClaimed(task):
 		return mainTreeHolderCopy(path, id)
 	}
 	return ""
 }
 
-// spawnClaimed reports whether task is wip under an agent spawn's claim.
-func spawnClaimed(task *model.Task) bool {
+// SpawnClaimed reports whether task is wip under an agent spawn's claim: an
+// agent works on it, so it is that agent's, never offered to resume.
+func SpawnClaimed(task *model.Task) bool {
 	return task.Status == model.StatusWIP && task.ClaimedBy != nil && task.ClaimedBy.Spawn != ""
+}
+
+// AgentHeld returns the ids of tf's tasks wip under an agent spawn's claim.
+func AgentHeld(tf *model.TaskFile) []string {
+	var ids []string
+	for i := range tf.Tasks {
+		if SpawnClaimed(&tf.Tasks[i]) {
+			ids = append(ids, tf.Tasks[i].ID)
+		}
+	}
+	return ids
+}
+
+// ResumableWIP returns tf's first wip task no agent spawn holds: an
+// interrupted unit, resumed before anything new starts; nil when none.
+func ResumableWIP(tf *model.TaskFile) *model.Task {
+	for i := range tf.Tasks {
+		if t := &tf.Tasks[i]; t.Status == model.StatusWIP && !SpawnClaimed(t) {
+			return t
+		}
+	}
+	return nil
 }
 
 // mainTreeHolderCopy is the main worktree's copy of the task file at path
@@ -206,7 +229,7 @@ func mainTreeHolderCopy(path, id string) string {
 	if err != nil {
 		return ""
 	}
-	if t, _, tErr := model.FindTask(copyTF, id); tErr == nil && spawnClaimed(t) {
+	if t, _, tErr := model.FindTask(copyTF, id); tErr == nil && SpawnClaimed(t) {
 		return copyPath
 	}
 	return ""

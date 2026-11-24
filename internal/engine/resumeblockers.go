@@ -97,7 +97,7 @@ func BuildBlockers(in *BlockerInputs) []Blocker {
 	// Held tasks are named with what holds them, so the operator sees the
 	// gates that are not tasks (spec/backlog/filled-pool.md).
 	if in.Phase == PhaseImplement {
-		if _, _, hasTask := ImplementPreview(in.TaskFile); !hasTask && HasOpenTasks(in.TaskFile) {
+		if _, _, hasTask := ImplementPreview(in.TaskFile); !hasTask && HasOpenTasks(in.TaskFile) && len(AgentHeld(in.TaskFile)) == 0 {
 			blockers = append(blockers, noReadyTaskBlocker(in.TaskFile))
 		}
 	}

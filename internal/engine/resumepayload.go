@@ -3,6 +3,7 @@ package engine
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/deligoez/tp/internal/model"
 )
@@ -62,14 +63,12 @@ func doneTaskIDs(tf *model.TaskFile) map[string]bool {
 }
 
 // ImplementPreview returns the preview for the implement phase's payload.task:
-// the first WIP task in file order (wip=true) if any, else the highest-priority
-// ready task (wip=false). hasTask is false when no task is ready and only open
-// blocked tasks remain — the no-ready-task case (§4.4).
+// the first WIP task in file order no agent spawn holds (wip=true) if any,
+// else the highest-priority ready task (wip=false). hasTask is false when no
+// task is ready and only open blocked tasks, or agent-held ones, remain.
 func ImplementPreview(tf *model.TaskFile) (id string, wip, hasTask bool) {
-	for i := range tf.Tasks {
-		if tf.Tasks[i].Status == model.StatusWIP {
-			return tf.Tasks[i].ID, true, true
-		}
+	if t := ResumableWIP(tf); t != nil {
+		return t.ID, true, true
 	}
 	ready := ReadyTasks(tf)
 	if len(ready) == 0 {
@@ -181,6 +180,9 @@ func BuildNextAction(phase, specPath, shown string, tf *model.TaskFile, st *Revi
 		}
 	case PhaseImplement:
 		id, wip, has := ImplementPreview(tf)
+		if held := AgentHeld(tf); !has && len(held) > 0 {
+			return agentHeldNextAction(tf, held)
+		}
 		var task any
 		if has {
 			task = map[string]any{"id": id}
@@ -230,6 +232,26 @@ func decomposeNextAction(specPath string, checksRegistered bool) NextAction {
 		BriefCommand: &brief,
 		Summary:      CheckGateClause(specPath) + step,
 		Payload:      map[string]any{},
+	}
+}
+
+// agentHeldNextAction is the implement next action when agents hold every
+// task that could run: the coordinator's pool, which lands a finished
+// agent's work first and names a claim whose agent is gone. A claim made
+// without a session gives no pool to read, so the step is tp land.
+func agentHeldNextAction(tf *model.TaskFile, held []string) NextAction {
+	command := "tp land"
+	for i := range tf.Tasks {
+		if t := &tf.Tasks[i]; SpawnClaimed(t) && t.ClaimedBy.Session != "" {
+			command = "tp pool --session " + t.ClaimedBy.Session
+			break
+		}
+	}
+	return NextAction{
+		Command:      &command,
+		BriefCommand: &command,
+		Summary:      fmt.Sprintf("agents hold %s; land what they finish and refill the pool", strings.Join(held, ", ")),
+		Payload:      map[string]any{"task": nil, "wip": false, "agent_held": held},
 	}
 }
 
