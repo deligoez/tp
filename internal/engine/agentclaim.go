@@ -157,31 +157,49 @@ func scanClaims(tree, spawn string, claimed, accounted map[claimKey]bool) {
 
 // ClaimHolderCopy returns the copy, in another worktree of the repository, of
 // the task file at path that holds task id's spawn claim, where a write about
-// that claim belongs. Two cases reach it:
-//   - path's copy has id open: the coordinator claimed it on its own tree
-//     after this worktree was cut, so any other copy with id wip under a
-//     spawn's claim holds it;
-//   - path's copy, in a linked worktree, has id wip under a spawn's claim:
-//     the claim was committed before this worktree was cut, so the main
-//     worktree's copy holds it, when it has id wip under a spawn's claim.
-//
-// It returns "" otherwise. A copy wip without a spawn's claim, or done,
-// speaks for itself, so tp run's own closes never look elsewhere.
+// that claim belongs: path's copy has id open, because the coordinator
+// claimed it on its own tree after this worktree was cut, so any other copy
+// with id wip under a spawn's claim holds it. It returns "" otherwise: a copy
+// with id wip or done speaks for itself, so tp run's own closes and a
+// coordinator's own writes never look elsewhere.
 func ClaimHolderCopy(path, id string) string {
+	if taskStatusAt(path, id) == model.StatusOpen {
+		return SpawnHolderCopy(path, id, "")
+	}
+	return ""
+}
+
+// LandHolderCopy is where an agent's close in its worktree lands:
+// ClaimHolderCopy, and also, when path's copy in a linked worktree has id wip
+// under a spawn's claim because the claim was committed before the worktree
+// was cut, the main worktree's copy when it has id wip under a spawn's claim.
+// A coordinator working in a linked worktree therefore leaves its claims
+// uncommitted until tp land.
+func LandHolderCopy(path, id string) string {
+	if holder := ClaimHolderCopy(path, id); holder != "" {
+		return holder
+	}
+	tf, err := model.ReadTaskFile(path)
+	if err != nil {
+		return ""
+	}
+	if task, _, findErr := model.FindTask(tf, id); findErr == nil && SpawnClaimed(task) {
+		return mainTreeHolderCopy(path, id)
+	}
+	return ""
+}
+
+// taskStatusAt is id's status in the task file at path; "" when unreadable.
+func taskStatusAt(path, id string) string {
 	tf, err := model.ReadTaskFile(path)
 	if err != nil {
 		return ""
 	}
 	task, _, findErr := model.FindTask(tf, id)
-	switch {
-	case findErr != nil:
+	if findErr != nil {
 		return ""
-	case task.Status == model.StatusOpen:
-		return SpawnHolderCopy(path, id, "")
-	case SpawnClaimed(task):
-		return mainTreeHolderCopy(path, id)
 	}
-	return ""
+	return task.Status
 }
 
 // SpawnClaimed reports whether task is wip under an agent spawn's claim: an

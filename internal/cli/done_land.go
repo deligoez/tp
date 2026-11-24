@@ -31,7 +31,7 @@ func landHint(taskFilePath, id string) string {
 // holderHasClaimToken reports whether the copy holding id's claim in
 // another worktree carries a claim token, without reading it out.
 func holderHasClaimToken(taskFilePath, id string) bool {
-	holder := engine.ClaimHolderCopy(taskFilePath, id)
+	holder := engine.LandHolderCopy(taskFilePath, id)
 	if holder == "" {
 		return false
 	}
@@ -59,7 +59,7 @@ func landHolder(taskFilePath string, ids []string) string {
 // returns the copy in another worktree holding id's claim, "" when none.
 func claimHolderAfterLanding(taskFilePath, id string) string {
 	refuseAfterLanding(taskFilePath, id)
-	return engine.ClaimHolderCopy(taskFilePath, id)
+	return engine.LandHolderCopy(taskFilePath, id)
 }
 
 // refuseLandedIDs runs refuseAfterLanding over every id a command writes:
