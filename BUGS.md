@@ -8,26 +8,6 @@ fix needs a design choice leaves this file for a decision note.
 
 ## Needs an operator decision
 
-- **After a land request leaves, nothing tells the agent's worktree or the coordinator's session what
-  happened** (v1.29.0, spec/backlog/worktree-land.md item 4, "a failed landing reopens the task as
-  solo with its claim cleared"). Found by the v1.29.0 review rounds, reproduced in scratch repos with
-  `landRepo`'s fixture (`internal/cli/land_test.go`); the fix is a change to that decision, not a
-  local repair:
-  - A request `tp land` drops (the task was closed by hand, or a crash fell between the close and its
-    outcome record) writes no outcome, so the agent's `tp done --auto-commit` then closes its own
-    copy.
-  - A second request the agent writes while `tp land` gates the first is deleted with it; the second
-    commit never lands, and the agent is told "already landed".
-  - `tp set <id> waiting=` in the agent's worktree after a landing writes the local copy (only `tp
-    done` and `tp commit` read the outcome).
-  - A coordinator whose only claim a landing reopened is no longer a coordinator: `tp pool
-    --stop-hook` prints nothing, and only `tp land`'s own output names the fresh brief.
-  - The child close's log, which `reopened[].log` names, still carries `tp done`'s `--skip-gate`
-    hint.
-  - A `landing` task holds no slot while its agent still runs, so the pool can briefly run one agent
-    over `run_max_parallel`.
-  - `tp done --batch` entries with `commit_shas` skip the off-branch refusal the single-id close has.
-
 ## Fix track
 
 ## Decided elsewhere, not a fix
