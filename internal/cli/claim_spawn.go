@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"slices"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -15,6 +16,7 @@ import (
 var (
 	claimSpawn    string
 	claimSession  string
+	claimToken    string
 	claimTakeover bool
 )
 
@@ -24,21 +26,25 @@ var (
 // at the sink where it is written into the task file.
 func refuseBadSpawnFlags(cmd *cobra.Command, args []string) {
 	sessionSet := cmd.Flags().Changed("session")
+	tokenSet := cmd.Flags().Changed("claim-token")
 	usage := func(msg string) {
 		output.Error(ExitUsage, msg)
 		os.Exit(ExitUsage)
 	}
 	if claimTakeover {
-		if claimSpawn != "" || sessionSet || claimAllReady || len(args) != 1 {
+		if claimSpawn != "" || sessionSet || tokenSet || claimAllReady || len(args) != 1 {
 			usage("--takeover takes exactly one task id and no other claim flag")
 		}
 		return
 	}
 	if claimSpawn == "" {
-		if sessionSet {
-			usage("--session needs --spawn")
+		if sessionSet || tokenSet {
+			usage("--session and --claim-token need --spawn")
 		}
 		return
+	}
+	if tokenSet && !engine.ValidClaimToken(claimToken) {
+		usage(fmt.Sprintf("--claim-token %q: want 1-128 of A-Z a-z 0-9 _ -", claimToken))
 	}
 	if claimAllReady || len(args) != 1 {
 		usage("--spawn claims exactly one task id")
@@ -64,11 +70,22 @@ func claimForSpawn(tf *model.TaskFile, taskFilePath, id string) error {
 	} else if held := task.ClaimedBy; held != nil && held.Spawn != "" && held.Spawn != claimSpawn {
 		output.Error(ExitState,
 			fmt.Sprintf("cannot claim: task %s is held by spawn %s", task.ID, held.Spawn),
-			fmt.Sprintf("If that agent is gone, free the claim with `tp claim %s --takeover` (keeps started_at) and spawn again, or `tp unclaim %s`.", task.ID, task.ID))
+			fmt.Sprintf("If that agent is gone, free the claim with `tp claim %s --takeover` (keeps started_at) and spawn again from a fresh `tp brief %s`, or `tp unclaim %s`.", task.ID, task.ID, task.ID))
 		os.Exit(ExitState)
 		return nil
 	}
-	task.ClaimedBy = &model.ClaimedBy{Session: claimSession, Spawn: claimSpawn}
+	var retired []string
+	if task.ClaimedBy != nil {
+		retired = task.ClaimedBy.Retired
+	}
+	if claimToken != "" && slices.Contains(retired, claimToken) {
+		output.Error(ExitState,
+			fmt.Sprintf("cannot claim: task %s was taken over from the agent spawned from this brief", task.ID),
+			fmt.Sprintf("run tp brief %s --file %s again and spawn from that fresh brief", task.ID, taskFileLabel(taskFilePath)))
+		os.Exit(ExitState)
+		return nil
+	}
+	task.ClaimedBy = &model.ClaimedBy{Session: claimSession, Spawn: claimSpawn, Token: claimToken, Retired: retired}
 	return writeClaim(tf, taskFilePath, task, fmt.Sprintf("claimed %s for spawn %s", task.ID, claimSpawn))
 }
 
@@ -84,9 +101,13 @@ func takeoverClaim(tf *model.TaskFile, taskFilePath, id string) error {
 		return nil
 	}
 	if task.ClaimedBy != nil {
-		task.ClaimedBy.Spawn = ""
-		if task.ClaimedBy.Session == "" {
-			task.ClaimedBy = nil
+		session := task.ClaimedBy.Session
+		task.ClaimedBy = task.ClaimedBy.Released()
+		if session != "" {
+			if task.ClaimedBy == nil {
+				task.ClaimedBy = &model.ClaimedBy{}
+			}
+			task.ClaimedBy.Session = session
 		}
 	}
 	return writeClaim(tf, taskFilePath, task, fmt.Sprintf("freed %s from its spawn", task.ID))

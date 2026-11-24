@@ -24,6 +24,7 @@ func newClaimCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&claimAllReady, "all-ready", false, "claim all ready tasks")
 	cmd.Flags().StringVar(&claimSpawn, "spawn", "", "bind the claim to an Agent spawn (its tool_use_id); one id only")
 	cmd.Flags().StringVar(&claimSession, "session", "", "with --spawn: the session that made the spawn")
+	cmd.Flags().StringVar(&claimToken, "claim-token", "", "with --spawn: the claim token of the brief the spawn was made from")
 	cmd.Flags().BoolVar(&claimTakeover, "takeover", false, "free a wip task's claim from its spawn, keeping started_at; one id, no other claim flag")
 	return cmd
 }
