@@ -205,6 +205,7 @@ func runSetBulk() error {
 		os.Exit(ExitFile)
 		return nil
 	}
+	refuseLandedIDs(taskFilePath, ndjsonIDs(setBulkFile))
 
 	f, err := os.Open(setBulkFile)
 	if err != nil {
