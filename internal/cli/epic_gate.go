@@ -129,7 +129,7 @@ func loadEpicStates() (g *model.EpicGraph, states map[string]engine.EpicState, b
 func readEpicStates() (g *model.EpicGraph, states map[string]engine.EpicState, bound map[string][]string, rerr *epicRunError) {
 	tpDir := engine.DiscoverTPDir(".")
 	if tpDir == "" {
-		return nil, nil, nil, &epicRunError{code: ExitFile, msg: "epic graph not found: no .tp/ directory up to the git boundary", hint: epicGraphFileHint}
+		return nil, nil, nil, &epicRunError{code: ExitFile, msg: "epic graph not found: no project .tp/ directory up to the git boundary (one holding only locks or run state is not one)", hint: epicGraphFileHint}
 	}
 	g, _, err := engine.LoadEpicGraph(tpDir)
 	if err != nil {

@@ -47,7 +47,7 @@ func epicLintFindings(g *model.EpicGraph, unknown []engine.EpicGraphUnknownKey, 
 func runEpicLint(_ *cobra.Command, _ []string) error {
 	tpDir := engine.DiscoverTPDir(".")
 	if tpDir == "" {
-		output.Error(ExitFile, "epic graph not found: no .tp/ directory up to the git boundary", epicGraphFileHint)
+		output.Error(ExitFile, "epic graph not found: no project .tp/ directory up to the git boundary (one holding only locks or run state is not one)", epicGraphFileHint)
 		os.Exit(ExitFile)
 		return nil
 	}

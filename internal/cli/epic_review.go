@@ -460,7 +460,7 @@ func loadEpicReviewGraph() epicReviewGraph {
 func readEpicReviewGraph() (epicReviewGraph, *epicRunError) {
 	tpDir := engine.DiscoverTPDir(".")
 	if tpDir == "" {
-		return epicReviewGraph{}, &epicRunError{code: ExitFile, msg: "epic graph not found: no .tp/ directory up to the git boundary", hint: epicGraphFileHint}
+		return epicReviewGraph{}, &epicRunError{code: ExitFile, msg: "epic graph not found: no project .tp/ directory up to the git boundary (one holding only locks or run state is not one)", hint: epicGraphFileHint}
 	}
 	g, unknown, err := engine.LoadEpicGraph(tpDir)
 	if err != nil {
