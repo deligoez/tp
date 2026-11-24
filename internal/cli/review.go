@@ -303,7 +303,8 @@ func newReviewCmd() *cobra.Command {
 		Use:   "review <spec.md>",
 		Short: "Generate review prompts for spec quality or planning",
 		Long: `Parses a spec and generates targeted review prompts.
-Default (no --perspective): 3 adversarial prompts (implementer, tester, architect).
+Default (no --perspective): one adversarial prompt per role of the review panel
+(the built-in corpus: implementer, tester, architect; .tp/ may define its own).
 --perspective documentation: single doc change plan prompt.
 --perspective testing: single test plan prompt.
 --perspective code-audit: single code audit prompt (requires --affected-files).
@@ -469,7 +470,7 @@ Modes (mutually exclusive):
 	cmd.Flags().BoolVar(&verifyMode, "verify", false, "Generate lightweight verification prompt")
 	cmd.Flags().BoolVar(&reportMode, "report", false, "Generate cross-round convergence report")
 	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "Output file path (for --merge; - writes the rows to stdout)")
-	cmd.Flags().StringVar(&diffFrom, "diff-from", "", "Baseline spec for diff-based review (requires --round >= 2)")
+	cmd.Flags().StringVar(&diffFrom, "diff-from", "", "Baseline spec for diff-based review")
 	cmd.Flags().BoolVar(&specInline, "spec-inline", false, "Embed full spec content inline (default: reference by path)")
 	cmd.Flags().BoolVar(&forceFlag, "force", false, "With --resolve/--resolve-all: re-resolve already resolved findings; on an emission: discard an unrecorded round's emission when the spec changed since it")
 	cmd.Flags().StringVar(&recordPath, "record", "", "Record a review round from an NDJSON findings file")
