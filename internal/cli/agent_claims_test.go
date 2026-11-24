@@ -263,6 +263,42 @@ func TestClaimSpawnRefuses(t *testing.T) {
 	assert.Equal(t, started, taskState(t, dir, "t1")["started_at"])
 }
 
+// A task an agent spawn holds is that agent's: tp brief and tp next pass
+// over it to the next ready task, and when agents hold all that could run,
+// tp next exits 4 naming them and tp resume names the pool, not a blocker.
+func TestNextPassesOverAnAgentHeldTask(t *testing.T) {
+	t.Parallel()
+	dir := claimsRepo(t)
+	spawnClaim(t, dir, "t1", "toolu_A", "sessC")
+
+	stdout, stderr, code := runTP(t, dir, "brief")
+	require.Equal(t, 0, code, stderr)
+	assert.Contains(t, stdout, `"id": "t2"`, "the brief names the next ready task")
+	stdout, stderr, code = runTP(t, dir, "next")
+	require.Equal(t, 0, code, stderr)
+	assert.Contains(t, stdout, `"id": "t2"`)
+	assert.Equal(t, "toolu_A", claimedBy(t, dir, "t1")["spawn"], "the agent's claim stands")
+
+	_, stderr, code = runTP(t, dir, "unclaim", "t2")
+	require.Equal(t, 0, code, stderr)
+	spawnClaim(t, dir, "t2", "toolu_B", "sessC")
+	stdout, _, code = runTP(t, dir, "next")
+	assert.Equal(t, 4, code, stdout)
+	assert.Contains(t, stdout, `"agent_held"`, stdout)
+
+	stdout, stderr, code = runTP(t, dir, "resume")
+	require.Equal(t, 0, code, stderr)
+	var res struct {
+		Blockers   []any `json:"blockers"`
+		NextAction struct {
+			Command string `json:"command"`
+		} `json:"next_action"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &res), stdout)
+	assert.Empty(t, res.Blockers, stdout)
+	assert.Equal(t, "tp pool --session sessC", res.NextAction.Command, stdout)
+}
+
 // TestClaimsCountsACloseInAnotherWorktree: the coordinator claims on the main
 // tree and the agent closes in its own worktree, so a close or a waiting in
 // any worktree's copy accounts for the claim.
