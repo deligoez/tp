@@ -51,7 +51,14 @@ func ExtractOutOfScope(closedReason string) string {
 // brief assembles this text; it is a statement of the close path, not a check
 // tp runs.
 func CloseRecipeText(effectiveStrategy, qualityGate string) string {
-	command, rejected := closeRecipeCommand(effectiveStrategy)
+	return CloseRecipeTextFor(effectiveStrategy, qualityGate, "")
+}
+
+// CloseRecipeTextFor is CloseRecipeText for a brief that carries a claim
+// token: the close in an agent's own worktree names it
+// (spec/backlog/a-land-request-names-its-agent.md).
+func CloseRecipeTextFor(effectiveStrategy, qualityGate, claimToken string) string {
+	command, rejected := closeRecipeCommand(effectiveStrategy, claimToken)
 
 	var b strings.Builder
 	b.WriteString("How to close this unit.\n\n")
@@ -133,16 +140,23 @@ func WorktreeCloseRecipeText(effectiveStrategy, qualityGate, id string, touches 
 // strategy (§8.1) and, for hc only, the rejected-invocation note (§8.4). An
 // unrecognized strategy resolves to the builtin recipe, matching
 // EffectiveCommitStrategy's default-to-builtin behavior.
-func closeRecipeCommand(effectiveStrategy string) (command, rejected string) {
+func closeRecipeCommand(effectiveStrategy, claimToken string) (command, rejected string) {
+	worktreeClose := "   tp done <id> --commit <sha> -- \"<evidence>\"   (repeat --commit per sha), and stop.\n"
+	if claimToken != "" {
+		worktreeClose = "   tp done <id> --commit <sha> --claim-token " + claimToken + " -- \"<evidence>\"   (repeat --commit per sha), and stop.\n"
+	}
 	switch effectiveStrategy {
 	case CommitStrategyHC:
 		command = "   commit with hc, then:\n   tp done <id> --commit <sha> -- \"<evidence>\"   (repeat --commit per sha)\n" +
 			"   In a git worktree of your own, where the task is claimed in another tree, the same, and stop.\n"
+		if claimToken != "" {
+			command = "   commit with hc, then:\n   tp done <id> --commit <sha> -- \"<evidence>\"   (repeat --commit per sha)\n" +
+				"   In a git worktree of your own, where the task is claimed in another tree, commit with hc, then\n" + worktreeClose
+		}
 		rejected = "Under hc, a bare \"tp done\", \"tp commit\", and \"--auto-commit\" are all rejected: make the commit with hc, then record the SHA with \"tp done <id> --commit <sha>\"."
 	default:
 		command = "   tp done <id> --auto-commit -- \"<evidence>\"\n" +
-			"   In a git worktree of your own, where the task is claimed in another tree: commit with git, then\n" +
-			"   tp done <id> --commit <sha> -- \"<evidence>\"   (repeat --commit per sha), and stop.\n"
+			"   In a git worktree of your own, where the task is claimed in another tree: commit with git, then\n" + worktreeClose
 		rejected = ""
 	}
 	return command, rejected
@@ -493,12 +507,18 @@ type BriefTask struct {
 type Brief struct {
 	// Marker is the `tp-task: <id> <task file>` line the plugin's spawn hook
 	// claims from (spec/backlog/agent-bound-claims.md); "" outside git.
-	Marker    string           `json:"marker,omitempty"`
-	Identity  string           `json:"identity"`
-	Task      BriefTask        `json:"task"`
-	PriorWork *PriorWorkResult `json:"prior_work"`
-	Close     string           `json:"close"`
-	Scope     string           `json:"scope"`
+	Marker string `json:"marker,omitempty"`
+	// ClaimToken tells the agent this brief spawns from every other agent
+	// spawned for the task: the spawn hook records it in the claim, and the
+	// agent's close in its own worktree names it
+	// (spec/backlog/a-land-request-names-its-agent.md). "" when no hook
+	// claims from the brief.
+	ClaimToken string           `json:"claim_token,omitempty"`
+	Identity   string           `json:"identity"`
+	Task       BriefTask        `json:"task"`
+	PriorWork  *PriorWorkResult `json:"prior_work"`
+	Close      string           `json:"close"`
+	Scope      string           `json:"scope"`
 
 	// LastFailure is §4.2's record of the last unit of this cycle that
 	// failed, when one is present. It is omitted otherwise rather than
@@ -575,7 +595,11 @@ func (b *Brief) Text() string {
 
 	// The marker leads, on its own line, so a pasted brief carries it.
 	if b.Marker != "" {
-		s.WriteString(b.Marker + "\n\n")
+		s.WriteString(b.Marker + "\n")
+		if b.ClaimToken != "" {
+			s.WriteString(ClaimTokenPrefix + b.ClaimToken + "\n")
+		}
+		s.WriteString("\n")
 	}
 
 	// §4.1 Identity (§4.2): what this unit is, and the one-unit-then-stop rule.
