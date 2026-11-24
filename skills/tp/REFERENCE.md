@@ -87,7 +87,7 @@ here. Field ranges and schemas follow in the sections after.
 | `tp review spec.md --perspective regression` | Standalone regression pass (needs state R≥2, or `--diff-from` + `--findings`) |
 | `tp review spec.md --no-state` | Disable all state reads/writes; restores pre-0.23.0 manual `--round` numbering |
 | `tp review spec.md --role <name>` | Emit only that role's prompt. A name the round does not emit but tp recognises exits 0 with an empty `prompts[]`; a name it recognises nowhere exits 2 and writes nothing |
-| `tp audit spec.md` | Post-implementation audit: verify code matches spec. No audit-able file → exit 4 with `suggested_files` + hint |
+| `tp audit spec.md` | Post-implementation audit: verify code matches spec. With no change in the working tree or since the last tag, audits the done tasks' commit files (`tasks-fallback`, v1.30.0); no audit-able file otherwise → exit 4 with `suggested_files` + hint |
 | `tp audit spec.md --affected-files src/a.go` | Manual file selection (comma or repeated; each path cleaned, made repo-relative and deduped) |
 | `tp audit spec.md --affected-from-tasks` | Audit exactly the files touched by done tasks' `commit_shas` |
 | `tp audit spec.md --role <name>` | Emit only that role's prompt; same three name classes as `tp review --role` |
@@ -1486,8 +1486,15 @@ on a rune boundary, the prompt's marker names the same counts, and the key survi
   `[{kind, message, files?, …}]` and omitted when there are none. It survives `--compact` and
   `--quiet`, and it is taken from the round's prompts before `--role`, so every sibling unit carries
   the same cuts, as `file_summary.truncated` does. The kinds are a closed set:
-  - `auto-detect-cap`: auto-detection kept the first 50 of the changed files; `total_changed` is
-    the pre-cap count.
+  - `auto-detect-cap`: auto-detection, or its task-commit fallback, kept the first 50 files;
+    `total_changed` is the pre-cap count.
+  - `tasks-fallback` (v1.30.0): auto-detection saw no change at all and no `--base` was given
+    (an untagged repository after implement committed everything, or HEAD at the latest tag), so
+    the files the done tasks' commits touched — the set `--affected-from-tasks` derives — were
+    audited instead. The set is cut like auto-detection's, not handed whole like a named list, and
+    no file carries a diff annotation, since no comparison measured it. `total_changed` is the
+    derived count. A tree where only skipped types changed, an empty `--base` range, or done tasks
+    with no usable commit still exit 4 with `suggested_files`.
   - `code-files-cut`: the code roles' list is cut below the auto-detect cap.
   - `spec-coverage-files-cut`: spec-coverage's own list is cut at 20.
   - `named-list-one-prompt` (v1.21.1): a named list longer than the code roles' cap of 10 goes

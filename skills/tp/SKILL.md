@@ -283,10 +283,11 @@ itself. Details: REFERENCE.md, "Task Audit".
 1. `tp audit <spec>` — one prompt per active auditor role, each with a JSON-array checklist and its
    files. **spec-coverage is the only auditor id that changes routing**: it takes the spec-derived
    checklist; every other role gets one `file_check` item per file of the shared code-file list
-   (ranked by churn and cut to ten when auto-detected; cuts are named in `notices`). On a committed
-   tree — the normal end of implement — no changed file is found (exit 4): use
-   `--affected-from-tasks`, or `--affected-files` to name files. Either named form goes uncut into
-   each code role's one prompt, and a long named list is read shallowly: keep it short.
+   (ranked by churn and cut to ten when auto-detected; cuts are named in `notices`). When nothing
+   changed in the working tree or since the last tag — the normal end of implement on an untagged
+   repository — it audits the files the done tasks' commits touched, cut the same way (a
+   `tasks-fallback` notice). `--affected-from-tasks` and `--affected-files` name the list instead;
+   either named form goes uncut into each code role's one prompt, and a long one is read shallowly.
 2. Spawn one sub-agent per role prompt; each writes one NDJSON line per checklist item (`status` ∈
    PASS/PARTIAL/FAIL) to its `output_path`.
 3. Merge and record: `tp audit --merge r1.ndjson ... -o results.ndjson && tp audit <spec> --record results.ndjson`.
@@ -451,7 +452,7 @@ checkpoint; a crashed unit is recovered on the next `tp resume`, never lost.
 
 - `next_units` (the ordered `{kind, id, brief_command}` list to execute now), `round` (`null` outside a round-based phase) and `phase` are the machine surface a driver parses. `last_failure` is the advisory `{unit_kind, unit_id, phase, exit_code, summary, at}` record of the previous attempt's wall, or `null`; it never changes which unit runs next.
 - Phase is task-first: an open task reads `implement` even when the spec is stale (a `spec-stale` blocker fires, the phase does not revert). A `spec-stale` blocker clears only through the round its message names — emit, run the roles, record: a `--record` with no emission of its own certifies no reading and does not clear it.
-- `next_action.payload` embeds the next unit's work, so a fresh agent needs one call. `next_action.brief_command` names the unit's command per phase — `tp next --brief` in implement, `tp review <spec> --round N` in review, `tp audit <spec>` in audit (on a committed tree it exits 4 with `no changed files detected`: run it with `--affected-from-tasks`) — and is null while an escalate blocker stands and in decompose.
+- `next_action.payload` embeds the next unit's work, so a fresh agent needs one call. `next_action.brief_command` names the unit's command per phase — `tp next --brief` in implement, `tp review <spec> --round N` in review, `tp audit <spec>` in audit — and is null while an escalate blocker stands and in decompose.
 - `bookkeeping` lists the tp-owned dirty files a close legitimately leaves under `commit_strategy: hc` — commit them; they never count as `unexplained-changes`.
 
 The field-by-field output table and the blocker vocabulary are in [REFERENCE.md](REFERENCE.md). **The loop** — what a driver does, whether tp runs it or you do:
