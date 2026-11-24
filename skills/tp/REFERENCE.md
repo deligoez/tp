@@ -1369,7 +1369,19 @@ tp does **not** guard against deactivating a role that has open findings — no 
 
 
 **`--role` payload contract (v0.36.0).** `--role <name>` narrows a `tp review`/`tp audit` emission to
-one role. Its exact form and the reasoning are in [SKILL.md](SKILL.md); what the payload does is:
+one role; it is what a unit runs as its own first command. It takes exactly one value and is not
+repeatable, and `--role ""` is refused as an unknown role rather than read as an absent flag. It is
+legal wherever prompts are emitted and refused (exit 2) where none are, checked before the mode's own
+argument validation:
+
+| Command | `--role` legal in | `--role` refused in |
+|---|---|---|
+| `tp review` | default, `--perspective`, `--diff-from`, `--verify` | `--merge`, `--record`, `--status`, `--report`, `--resolve`, `--resolve-all`, `--rewritten` |
+| `tp audit` | default only | `--merge`, `--record`, `--status`, `--resolve`, `--resolve-all` |
+
+The exit-0-empty class below is forced, not a courtesy: a corpus role with an empty checklist is
+still spawned as a unit and emits no prompt, so its own first command must not fail. What the payload
+does is:
 
 | Name class | Exit | `prompts[]` | Other keys |
 |---|---|---|---|
