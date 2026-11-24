@@ -3,7 +3,7 @@
   "spec": "spec/1.31.0.md",
   "imported_at": "2026-11-24T21:33:03.666479Z",
   "created_at": "2026-11-24T21:33:03.664126Z",
-  "updated_at": "2026-11-24T21:39:50.417763Z",
+  "updated_at": "2026-11-24T22:35:16.636923Z",
   "workflow": {
     "review_max_rounds": 5,
     "audit_max_rounds": 3
@@ -23,7 +23,7 @@
       "id": "found-request-store",
       "title": "Store found requests in spec run state",
       "description": "Model and store for a found request: location, reproduction, expected, observed, optional question and alternatives, blocks, finder, arrival order, applied/undecided state; kept in the spec's run state, written under its lock.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "model",
         "found"
@@ -34,11 +34,23 @@
       "source_sections": [
         "## 1. The request"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-24T22:35:16.407587Z",
+      "duration_source": "implicit",
+      "closed_at": "2026-11-24T22:35:16.407587Z",
+      "closed_reason": "- TestFoundRequestWithEveryFieldRoundTrips adds a request with every field set plus an undecided state and loads it back equal; a reflection check fails on any zero field.\n- TestFoundRequestsKeepArrivalOrderAndStartUnapplied files three requests and reloads them in arrival order, seq 1-3, state unapplied even when the caller passed applied; TestConcurrentFoundAddsLoseNone files 8 concurrently and loads 8.\n- TestFoundStoreLivesInRunStateNotTheTaskFile: the task file is byte-identical after an add and the store is .tp/run-\u003ckey\u003e%found.json beside the run state.\nReclosed by the operator's session: the unit's first close ran against a gate the env leak had rewritten (fixed in e7e69052, 06675113, b5e848db); the project gate passed on this tree.",
+      "gate_passed_at": "2026-11-24T22:35:16.407587Z",
+      "commit_sha": "ffde3715e3bc83647b062c3a819f3ee0da2551aa",
+      "commit_shas": [
+        "ffde3715e3bc83647b062c3a819f3ee0da2551aa",
+        "feddd35e11b33cb7f3446494548f44d4c3877a77"
+      ],
+      "commit_files": [
+        "internal/engine/foundrequest.go",
+        "internal/engine/foundrequest_test.go"
+      ],
+      "task_audit_owed": [
+        "go-safety"
+      ]
     },
     {
       "id": "found-add-cmd",
@@ -90,7 +102,7 @@
       "id": "task-origin-field",
       "title": "Add the origin field to tasks",
       "description": "Task gains origin: the finder (task id, or audit round and row key) and the request location. origin and source_sections are exclusive; origin satisfies the entry anchor check; tp validate accepts a found task.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "model",
         "found"
@@ -101,11 +113,29 @@
       "source_sections": [
         "## 3. The found task"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-24T22:35:16.407587Z",
+      "duration_source": "implicit",
+      "closed_at": "2026-11-24T22:35:16.407587Z",
+      "closed_reason": "- A task with origin {finder_task, location} and no source_sections is accepted by tp add and tp validate exits 0 (probed with the rebuilt binary in a fresh repo); origin satisfies the TaskSchemaErrors/ValidateTaskEntry anchor check.\n- A task with both is refused: 'origin and source_sections are exclusive', exit 1 (probed).\n- origin round-trips through load and save (c9bf75a3); a task without it gains no key (probed: p1 carries no origin).\nOut of scope: an empty origin {} still satisfies the anchor check; no shape check on finder/location.",
+      "gate_passed_at": "2026-11-24T22:35:16.407587Z",
+      "commit_sha": "34a9e708",
+      "commit_shas": [
+        "34a9e708",
+        "c9bf75a3",
+        "3ec84295",
+        "0577568f",
+        "ee4bdc7d"
+      ],
+      "commit_files": [
+        "internal/engine/entry.go",
+        "internal/engine/origin_test.go",
+        "internal/engine/validate.go",
+        "internal/model/origin_test.go",
+        "internal/model/task.go"
+      ],
+      "task_audit_owed": [
+        "go-safety"
+      ]
     },
     {
       "id": "add-refuses-unresolved-anchor",
@@ -156,7 +186,7 @@
       "id": "found-max-field",
       "title": "Add the found_max workflow field",
       "description": "found_max workflow field, default 5, resolved like the other workflow fields and carried by config extract and validate --project. Raising it is rule 9: under TP_UNATTENDED it exits 2 with raise-found-cap, added to EscalationDecisions.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "workflow",
         "found"
@@ -167,11 +197,49 @@
       "source_sections": [
         "## 8. The cap"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-24T22:35:16.407587Z",
+      "duration_source": "implicit",
+      "closed_at": "2026-11-24T22:35:16.407587Z",
+      "closed_reason": "- tp config --resolved reports found_max 5 from source default; resolution and clamping covered by 7ce35d18 (0 resolves to 0, uncapped).\n- Under TP_UNATTENDED, tp set --workflow found_max=6 and found_max=0 exit 2 naming raise-found-cap; found_max=4 exits 0 (probed; 0d5093dc covers it, --project too).\n- raise-found-cap is in engine.EscalationDecisions and tp escalate lists it (probed --help; 82c19984).\nOut of scope: tp escalate's long help still counts six decisions; the plugin.json bump to 1.31.0 landed here early for a plugin test.",
+      "gate_passed_at": "2026-11-24T22:35:16.407587Z",
+      "commit_sha": "5511b7b6",
+      "commit_shas": [
+        "5511b7b6",
+        "f416c5d3",
+        "5889ccce",
+        "c7bf88a9",
+        "1f085c5d",
+        "50f62047",
+        "50f7eac3",
+        "7ce35d18",
+        "82c19984",
+        "0d5093dc",
+        "100121ef"
+      ],
+      "commit_files": [
+        ".claude-plugin/plugin.json",
+        "internal/cli/config.go",
+        "internal/cli/config_extract.go",
+        "internal/cli/escalate_test.go",
+        "internal/cli/set.go",
+        "internal/cli/set_project.go",
+        "internal/cli/unattended.go",
+        "internal/cli/unattended_fence_test.go",
+        "internal/cli/validate_project.go",
+        "internal/engine/configresolve.go",
+        "internal/engine/escalation.go",
+        "internal/engine/foundmax.go",
+        "internal/engine/foundmax_test.go",
+        "internal/engine/projectconfig.go",
+        "internal/engine/unattended.go",
+        "internal/engine/validate.go",
+        "internal/model/projectconfig.go",
+        "internal/model/workflow.go",
+        "skills/tp/REFERENCE.md"
+      ],
+      "task_audit_owed": [
+        "go-safety"
+      ]
     },
     {
       "id": "found-apply-dedup",
