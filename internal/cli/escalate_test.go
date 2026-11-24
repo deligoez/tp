@@ -170,6 +170,7 @@ func TestEscalateAcceptsTheDocumentedDecisions(t *testing.T) {
 		"skip-gate",
 		"raise-review-cap",
 		"raise-audit-cap",
+		"raise-found-cap",
 		"import-force",
 		"audit-converge-on",
 		"accept-finding",
