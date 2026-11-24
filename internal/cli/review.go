@@ -398,7 +398,12 @@ Modes (mutually exclusive):
 				return runReview(cmd, engine.ResolveSpecArg(args[0]), round, findingsPath, perspective, docsPath, testPath, affectedFiles, finalRound, diffFrom, roleFilter, cmd.Flags().Changed("role"), specInline, noState)
 			}
 			if err := validateModeFlags(mode, cmd.Flags().Changed("round"), findingsPath, affectedFiles, finalRound, diffFrom, specInline, perspective); err != nil {
-				output.Error(ExitUsage, err.Error())
+				msg := err.Error()
+				if recordInbox {
+					// The record mode covers both forms; name the one passed.
+					msg = strings.Replace(msg, "--record ", "--record-inbox ", 1)
+				}
+				output.Error(ExitUsage, msg)
 				os.Exit(ExitUsage)
 				return nil
 			}
@@ -454,7 +459,7 @@ Modes (mutually exclusive):
 	}
 
 	// Default review flags
-	cmd.Flags().IntVar(&round, "round", 1, "Current review round number (1-indexed), for the default panel and --perspective code-audit; --merge, --resolve, --resolve-all, --verify, --report, --record, --status and --perspective documentation/testing/regression refuse it")
+	cmd.Flags().IntVar(&round, "round", 1, "Current review round number (1-indexed), for the default panel and --perspective code-audit; --merge, --resolve, --resolve-all, --verify, --report, --record, --record-inbox, --status and --perspective documentation/testing/regression refuse it")
 	cmd.Flags().StringVar(&findingsPath, "findings", "", "Path to NDJSON file with previous round findings")
 	cmd.Flags().StringVar(&roleFilter, "role", "", roleFlagUsage)
 	cmd.Flags().StringVar(&perspective, "perspective", "", "Review perspective: documentation, testing, or code-audit")
