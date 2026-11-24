@@ -18,6 +18,12 @@ import (
 var binaryPath string
 
 func TestMain(m *testing.M) {
+	// A tp run unit runs this suite from its own shell: without its variables,
+	// in-process tests and every spawned binary run as a call by hand.
+	for _, name := range engine.RunEnvVars {
+		_ = os.Unsetenv(name)
+	}
+
 	// Build the binary to a temp location
 	tmp, err := os.MkdirTemp("", "tp-test-bin-*")
 	if err != nil {
