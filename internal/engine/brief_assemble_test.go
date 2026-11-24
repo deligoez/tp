@@ -57,6 +57,17 @@ func TestBriefText_MarkerStandsOnItsOwnLine(t *testing.T) {
 	assert.True(t, strings.HasPrefix(b.Text(), "## Identity"), "no marker, no line")
 }
 
+// TestBriefText_ClaimTokenFollowsTheMarker: the claim token is a line of its
+// own under the marker, which a hook older than the token ignores.
+func TestBriefText_ClaimTokenFollowsTheMarker(t *testing.T) {
+	tasks := []model.Task{{ID: "unit", Title: "Unit", Status: model.StatusOpen, Acceptance: "done"}}
+	b, err := BuildBrief(&model.TaskFile{Tasks: tasks}, &tasks[0], "", CommitStrategyBuiltin, "", 0, false, false)
+	require.NoError(t, err)
+	b.Marker = "tp-task: unit spec/x.tasks.json"
+	b.ClaimToken = "k7f2ab01"
+	assert.True(t, strings.HasPrefix(b.Text(), "tp-task: unit spec/x.tasks.json\ntp-claim-token: k7f2ab01\n\n## Identity"), b.Text())
+}
+
 func TestBuildBrief_CompactDropsExcerptAndFileLists(t *testing.T) {
 	base := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	prior := doneTask("prior", "Prior", "- prior done", base)
