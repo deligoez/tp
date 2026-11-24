@@ -41,6 +41,16 @@ Output: {task, spec_excerpt, blocks, remaining, quality_gate}`,
 	return cmd
 }
 
+// withAgentHeld adds to a no-ready-task answer the tasks agent spawns hold,
+// and the coordinator's step: their landing and the pool, not a resume.
+func withAgentHeld(tf *model.TaskFile, out map[string]any) map[string]any {
+	if held := engine.AgentHeld(tf); len(held) > 0 {
+		out["agent_held"] = held
+		out["hint"] = "agents hold these tasks: run tp land when one finishes, and tp pool --session <your session id> to refill the free slots"
+	}
+	return out
+}
+
 func runNext(_ *cobra.Command, _ []string) error {
 	// §9.2: --brief and --minimal are mutually exclusive (one assembles context,
 	// the other strips it); a usage error (exit 2), checked before any file work.
@@ -74,11 +84,10 @@ func runNext(_ *cobra.Command, _ []string) error {
 
 	// If --peek, always show next ready (ignore WIP)
 	if !nextPeek {
-		// Check for WIP task first (resume)
-		for i := range tf.Tasks {
-			if tf.Tasks[i].Status == model.StatusWIP {
-				return outputNextTask(tf, &tf.Tasks[i], taskFilePath, specPath)
-			}
+		// Check for WIP task first (resume); a task an agent spawn holds is
+		// that agent's.
+		if wip := engine.ResumableWIP(tf); wip != nil {
+			return outputNextTask(tf, wip, taskFilePath, specPath)
 		}
 	}
 	exitIfNoTasks(tf, taskFilePath)
@@ -120,7 +129,7 @@ func runNext(_ *cobra.Command, _ []string) error {
 			if len(held) > 0 {
 				out["held"] = held
 			}
-			_ = output.JSON(out)
+			_ = output.JSON(withAgentHeld(tf, out))
 		}
 		os.Exit(ExitState)
 		return nil

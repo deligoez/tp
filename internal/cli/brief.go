@@ -142,11 +142,10 @@ func spawnClaimToken(taskFilePath, id string) string {
 // emitting the {done, message} shape tp next uses and exiting ExitState when no
 // task is available. It never claims or writes.
 func selectBriefTarget(tf *model.TaskFile) *model.Task {
-	// In-progress task first (resume), mirroring tp next.
-	for i := range tf.Tasks {
-		if tf.Tasks[i].Status == model.StatusWIP {
-			return &tf.Tasks[i]
-		}
+	// In-progress task first (resume), mirroring tp next; a task an agent
+	// spawn holds is that agent's.
+	if wip := engine.ResumableWIP(tf); wip != nil {
+		return wip
 	}
 
 	done := make(map[string]bool)
@@ -184,11 +183,11 @@ func selectBriefTarget(tf *model.TaskFile) *model.Task {
 		if allDone {
 			_ = output.JSON(map[string]any{"done": true, "message": "All tasks complete"})
 		} else {
-			_ = output.JSON(map[string]any{
+			_ = output.JSON(withAgentHeld(tf, map[string]any{
 				"done":    false,
 				"message": fmt.Sprintf("No ready tasks. %d tasks blocked.", len(blocked)),
 				"blocked": blocked,
-			})
+			}))
 		}
 		os.Exit(ExitState)
 		return nil
