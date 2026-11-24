@@ -84,9 +84,10 @@ func closeTaskFile(t *testing.T, dir, tasksArrayJSON string) {
 	git(t, dir, "commit", "-m", "close task")
 }
 
-// TestAuditSuggestedFilesFromCommitSHAs: a clean tree with a done task whose
-// commit_shas reference commits touching a.go and b.go — audit exits 4 with
-// suggested_files naming exactly those paths (§11.1).
+// TestAuditSuggestedFilesFromCommitSHAs: an empty --base range with a done task
+// whose commit_shas reference commits touching a.go and b.go — audit exits 4
+// with suggested_files naming exactly those paths (§11.1). Without --base the
+// same tree audits those files (TestAuditCleanTreeFallsBackToTaskCommits).
 func TestAuditSuggestedFilesFromCommitSHAs(t *testing.T) {
 	t.Parallel()
 	dir, specPath := newAuditRepo(t)
@@ -94,7 +95,7 @@ func TestAuditSuggestedFilesFromCommitSHAs(t *testing.T) {
 	sha2 := commitFile(t, dir, "b.go", "add b")
 	closeTaskFile(t, dir, doneTaskJSON(t, sha1, sha2))
 
-	_, stderr, code := runTP(t, dir, "audit", specPath)
+	_, stderr, code := runTP(t, dir, "audit", specPath, "--base", "HEAD")
 	require.Equal(t, 4, code)
 
 	var payload map[string]any
@@ -138,7 +139,7 @@ func TestAuditSuggestedFilesTypeFilter(t *testing.T) {
 	sha := gitOut(t, dir, "rev-parse", "HEAD")
 	closeTaskFile(t, dir, doneTaskJSON(t, sha))
 
-	_, stderr, code := runTP(t, dir, "audit", specPath)
+	_, stderr, code := runTP(t, dir, "audit", specPath, "--base", "HEAD")
 	require.Equal(t, 4, code)
 
 	var payload map[string]any
@@ -156,7 +157,7 @@ func TestAuditSuggestedFilesSurvivesCompact(t *testing.T) {
 	sha2 := commitFile(t, dir, "b.go", "add b")
 	closeTaskFile(t, dir, doneTaskJSON(t, sha1, sha2))
 
-	_, stderr, code := runTP(t, dir, "audit", specPath, "--compact")
+	_, stderr, code := runTP(t, dir, "audit", specPath, "--base", "HEAD", "--compact")
 	require.Equal(t, 4, code)
 
 	var payload map[string]any
