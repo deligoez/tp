@@ -115,6 +115,30 @@ func ReadLandRequests(dir string) (requests []LandRequest, unreadable []string, 
 	return requests, unreadable, nil
 }
 
+// PendingRequestFrom returns the worktree of the land request waiting for
+// task id of the task file at taskFile when another worktree than worktree
+// made it; "" when none waits or this worktree made it. A request is one per
+// task, so a second worktree's close must not replace it unseen.
+func PendingRequestFrom(taskFile, id, worktree string) string {
+	dir := LandDir(taskFile)
+	if dir == "" {
+		return ""
+	}
+	data, err := os.ReadFile(filepath.Join(dir, id+".json"))
+	if err != nil {
+		return ""
+	}
+	var r LandRequest
+	if json.Unmarshal(data, &r) != nil || r.Worktree == "" {
+		return ""
+	}
+	mine, theirs := gitToplevel(worktree), gitToplevel(r.Worktree)
+	if theirs == "" || (mine != "" && samePath(mine, theirs)) {
+		return ""
+	}
+	return theirs
+}
+
 // HasLandRequest reports whether dir holds a land request for id.
 func HasLandRequest(dir, id string) bool {
 	return dir != "" && fileExists(filepath.Join(dir, id+".json"))

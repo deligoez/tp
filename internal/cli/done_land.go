@@ -126,6 +126,12 @@ func runDoneLand(holder, taskFilePath string, taskIDs []string, reason string) e
 	}
 	specPath, _ := engine.ResolveSpecPath(holder, tf.Spec)
 	worktree, _ := os.Getwd()
+	// Checked before the gate, so a close the claim has moved past costs no gate run.
+	if other := engine.PendingRequestFrom(holder, id, worktree); other != "" {
+		output.Error(ExitState, fmt.Sprintf("task %s already has a land request from %s, made under the current claim", id, other),
+			"the task's claim moved to another agent: nothing is left to do in this worktree, stop")
+		os.Exit(ExitState)
+	}
 	root := engine.CanonicalProjectRoot(filepath.Dir(holder))
 	ordered, checkErr := engine.CheckUnitCommits(root, worktree, holder, specPath, doneCommits)
 	if checkErr != nil {
