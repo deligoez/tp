@@ -199,6 +199,10 @@ func TaskSchemaErrors(t *model.Task) []string {
 	if len(t.SourceSections) == 0 && t.SourceLines == "" && t.Origin == nil {
 		msgs = append(msgs, fmt.Sprintf("task %s: needs source_sections (canonical headings) or source_lines", t.ID))
 	}
+	// A found task answers a request, not a spec section (spec/1.31.0.md §3).
+	if t.Origin != nil && len(t.SourceSections) > 0 {
+		msgs = append(msgs, fmt.Sprintf("task %s: origin and source_sections are exclusive; a found task carries origin in place of source_sections", t.ID))
+	}
 	// task_audit_owed is tp done's record of the audit a close owed; on
 	// a task that is not done it can only have been written by hand.
 	if len(t.TaskAuditOwed) > 0 && t.Status != model.StatusDone {
