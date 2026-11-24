@@ -7,6 +7,19 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// TestCapNextActionNeverOffersAFixThatCannotEndTheLoop: at the cap no round
+// verifies a fix, so a blocking review row and any audit row is accepted or
+// the cap raised; fixed is offered only for a review row that does not block.
+func TestCapNextActionNeverOffersAFixThatCannotEndTheLoop(t *testing.T) {
+	t.Parallel()
+	review := ReviewNextAction("spec.md", LoopDone{CapReached: true}, true, nil, "r1.ndjson", CheckVerdict{})
+	assert.Contains(t, review, "--resolve <index> wontfix|duplicate", review)
+	assert.Contains(t, review, "fixed only for a medium or low finding", review)
+	audit := AuditNextAction("spec.md", LoopDone{CapReached: true}, false, 1, "a1.ndjson")
+	assert.Contains(t, audit, "--resolve <role:item_id> wontfix|duplicate", audit)
+	assert.NotContains(t, audit, "fixed|", audit)
+}
+
 // earlierHigh is a carried blocking row from round 1, before the latest.
 func earlierHigh() CarriedRow {
 	return CarriedRow{Round: 1, File: ".tp-review/spec/review-round-1.ndjson", Index: 0, Severity: "high",
