@@ -35,6 +35,45 @@ func auditRecord(t *testing.T, dir, ndjsonContent string) (out map[string]any, s
 	return out, stderr, code
 }
 
+// Accepting a finding without a change is the operator's decision however it
+// arrives: under TP_UNATTENDED a row that comes to --record already resolved
+// wontfix — a critical or high review finding, or any audit finding — is
+// refused as accept-finding, as --resolve is; a low review row is the unit's.
+func TestRecordFencesAPreResolvedAcceptanceUnattended(t *testing.T) {
+	t.Parallel()
+	const accepted = `,"resolved":{"status":"wontfix","evidence":"the verifier rejected it"}}`
+	reviewRow := func(sev string) string {
+		return `{"role":"implementer","severity":"` + sev + `","class":"gap","location":"§1","finding":"f","evidence":"e"` + accepted + "\n"
+	}
+	cases := []struct {
+		name, phase, row string
+		refused          bool
+	}{
+		{"high review row", "review", reviewRow("high"), true},
+		{"low review row", "review", reviewRow("low"), false},
+		{"audit FAIL row", "audit", `{"role":"go-safety","item_id":"item-4","status":"FAIL","finding":"f"` + accepted + "\n", true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\ncontent\n"), 0o600))
+			markRoundEmitted(t, dir, c.phase)
+			f := filepath.Join(dir, "rows.ndjson")
+			require.NoError(t, os.WriteFile(f, []byte(c.row), 0o600))
+			_, stderr, code := runTPFence(t, dir, true, c.phase, "spec.md", "--record", f)
+			if !c.refused {
+				assert.Equal(t, 0, code, stderr)
+				return
+			}
+			assert.Equal(t, 2, code, stderr)
+			assert.Contains(t, stderr, "accept-finding")
+			_, stderr, code = runTPFence(t, dir, false, c.phase, "spec.md", "--record", f)
+			assert.Equal(t, 0, code, "attended, the operator records it: %s", stderr)
+		})
+	}
+}
+
 func TestAuditRecord_CountsNonPass(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
