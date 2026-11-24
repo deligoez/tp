@@ -49,7 +49,8 @@ func TestReleaseGate_PanelEqualityAcrossEverySpec(t *testing.T) {
 			base := filepath.Base(local)
 
 			// A file to audit, inside the sandbox. §7: `tp audit <spec>` on a
-			// clean tree exits 4 with "no changed files detected" -- it does
+			// clean tree with no done-task commit exits 4 with "no changed
+			// files detected" -- it does
 			// not pass vacuously, it does not run at all, and a release tree is
 			// clean exactly when this gate fires. Naming the files is what
 			// makes the audit half measure anything.

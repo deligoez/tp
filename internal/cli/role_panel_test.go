@@ -11,9 +11,9 @@ import (
 
 // emitAuditPayload is emitPayload for the other command.
 //
-// It passes --affected-files because a clean tree makes `tp audit <spec>` exit
-// 4 with "no changed files detected" -- it does not pass vacuously, it does not
-// run at all, and a release tree is clean exactly when this gate fires. The
+// It passes --affected-files because a clean tree with no done-task commit
+// makes `tp audit <spec>` exit 4 with "no changed files detected" -- it does
+// not pass vacuously, it does not run at all, and a release tree is clean exactly when this gate fires. The
 // spec itself is the affected file: every spec routes to spec-coverage, so the
 // panel is non-empty whatever else the tree holds.
 func emitAuditPayload(t *testing.T, spec string, args ...string) map[string]any {

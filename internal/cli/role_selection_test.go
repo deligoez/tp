@@ -74,7 +74,8 @@ func TestRoleSelectionIsByteIdenticalToTheUnrestrictedEntry(t *testing.T) {
 
 // TestAuditRoleSelectionIsByteIdentical is property 4's other half. It is a
 // separate test rather than a subtest because tp audit needs its affected
-// files named: on a clean tree it exits 4 with "no changed files detected", so
+// files named: on a clean tree with no done-task commit it exits 4 with "no
+// changed files detected", so
 // a shared harness would have to branch on the command anyway.
 func TestAuditRoleSelectionIsByteIdentical(t *testing.T) {
 	t.Parallel()

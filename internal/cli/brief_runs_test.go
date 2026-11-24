@@ -27,8 +27,8 @@ import (
 // not drop a unit — and it is the row that would make a unit's own first
 // command fail under an exit-2 rule.
 //
-// The tree is left DIRTY on purpose. `tp audit <spec>` on a clean tree exits 4
-// with "no changed files detected", so a brief run against a clean tree would
+// The tree is left DIRTY on purpose. `tp audit <spec>` on a clean tree with no
+// done-task commit exits 4 with "no changed files detected", so a brief run against a clean tree would
 // measure that refusal instead of the property. An audit-role unit runs after
 // implementation, when the tree is not clean; the fixture reproduces that.
 func divergentAuditRepo(t *testing.T) string {
