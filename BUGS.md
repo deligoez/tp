@@ -8,13 +8,6 @@ fix needs a design choice leaves this file for a decision note.
 
 ## Needs an operator decision
 
-- **On a committed tree, the audit commands `tp resume` and `tp run` hand out exit 4.** After implement
-  commits everything, `tp resume`'s `next_action.command` is `tp audit <spec>` and the audit-role
-  units are `tp audit <spec> --role <r>`. Both exit 4 with `no changed files detected` and a hint
-  naming `--affected-from-tasks`, which works. The agent recovers from the hint, but each audit
-  round costs one failed call per unit. The choice: should the emission fall back to the done tasks'
-  files when the tree is clean, or should `brief_command` name `--affected-from-tasks`? Found by the
-  v1.29.4 skill review. SKILL.md documents the re-run for now.
 ## Fix track
 
 ## Decided elsewhere, not a fix
