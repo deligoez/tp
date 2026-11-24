@@ -141,6 +141,27 @@ and merges `blocks_me` into the list of blocked units; within the cap a blocking
 units report what their own work ran into, never a sweep of the package. The decision unit is still
 unmeasured: run 2 seeds choices.
 
+## Seeded run 2: the decision unit (2026-11-24, answer key written first)
+
+Six choice findings on the same module: two settled by a spec sentence, two spec-silent or
+borderline, two where the code already conforms (one pinned by a test).
+
+- **Right: 2 of 6.** Both spec-settled choices became `task` with the exact sentence quoted. One of
+  them restated acceptance an open task already carried, and the unit said so.
+- **Forced by the two-answer set: 3 of 6.** Where the code already conforms, the unit answered
+  `task` with "expected = observed, add a pinning test" and said it would rather have answered
+  "already settled, no change". Each is a task that changes nothing.
+- **Legislated: 1 of 6.** A spec-silent choice answered `task`, citing a contrast between two
+  sections rather than a sentence that excludes the alternative; the unit itself called it
+  borderline.
+- **Over-escalated: 1 of 6.** A choice the spec's stated form settles went to `human`.
+
+Consequences for the spec: the decision unit needs a third answer, `conforms` (the code already
+matches a quoted sentence or a pinning test; no task) — it is not `drop`, which discards a defect.
+A citation is a verbatim quote tp can find in the cited file; that catches an invented citation,
+not an inference passed off as one. A found request is checked against the open tasks' acceptance
+as well as against other requests.
+
 ## Must be measured before building
 
 - A seeded clone run with obvious and ambiguous defects. Count:
