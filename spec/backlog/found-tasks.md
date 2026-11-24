@@ -182,7 +182,24 @@ that task and never becomes a found task. A found request holds one defect; dedu
 reproduction and merges the units it blocks; a blocking request goes first within the cap; units
 report what their own work ran into, never a sweep.
 
-## Must be measured before building
+## Seeded run 3: the contract (2026-11-24, key and pass bar written first)
+
+Six findings on the same module under the three-answer contract, three of them spec-silent with a
+reproduction that goes red under the proposed change — the case run 2 never seeded.
+
+- **Pass bar met on every line.** The three spec-silent findings went to `human`, none to `task`;
+  harmful legislation 0 of 3. Both settled findings became `task` with a red reproduction; the
+  pinned decoy became `conforms` with a green one; nothing was over-escalated.
+- **Checked by hand, not taken from the report.** Every quote was found in the spec verbatim (and
+  whitespace-normalised, since one spanned a line break); the two `task` reproductions were rerun
+  and failed, the `conforms` one passed. The quote check therefore has to normalise whitespace.
+- **The unit swept anyway.** It reported two defects outside its input, as run 1's units did. The
+  "never a sweep" rule belongs in every unit's prompt, the decision unit's included, and an
+  unasked finding it reports is dropped or fed back as a request, never acted on.
+
+The measurement phase is done: the spec interview starts from this note.
+
+## Not measured (left to the field)
 
 - A seeded clone run with obvious and ambiguous defects. Count:
   - misrouted findings;
