@@ -555,6 +555,43 @@ func TestASetInTheAgentsWorktreeAfterLandingIsRefused(t *testing.T) {
 	assert.Empty(t, gitRun(t, wt, "status", "--porcelain"), "the agent's copy is untouched")
 }
 
+// Every command that writes one task refuses the agent's copy of a task tp
+// land dealt with, as tp done does. tp add writes a new task and tp reopen
+// only a done one, so neither touches the open copy; tp set --workflow and
+// tp set --epic write no task.
+func TestEveryTaskWriterRefusesALandedCopy(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "")
+	sha := agentCommit(t, wt)
+	_, stderr, code := runTP(t, wt, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	_, stderr, code = runTP(t, dir, "land")
+	require.Equal(t, 0, code, stderr)
+
+	batch := filepath.Join(t.TempDir(), "done.ndjson")
+	require.NoError(t, os.WriteFile(batch, []byte(`{"id":"t1","reason":"t1 acceptance criteria met"}`+"\n"), 0o600))
+	bulk := filepath.Join(t.TempDir(), "set.ndjson")
+	require.NoError(t, os.WriteFile(bulk, []byte(`{"id":"t1","field":"title","value":"Renamed"}`+"\n"), 0o600))
+	writers := map[string][]string{
+		"claim":     {"claim", "t1"},
+		"close":     {"close", "t1", "t1 acceptance criteria met"},
+		"remove":    {"remove", "t1"},
+		"done":      {"done", "t1", "--auto-commit", "--", "t1 acceptance criteria met"},
+		"done bulk": {"done", "--batch", batch},
+		"commit":    {"commit", "t1", "t1 acceptance criteria met"},
+		"set":       {"set", "t1", "waiting=a long run"},
+		"set bulk":  {"set", "--bulk", bulk},
+	}
+	for name, args := range writers {
+		stdout, stderr, code := runTP(t, wt, args...)
+		assert.Equal(t, 4, code, "%s: %s%s", name, stdout, stderr)
+		assert.Contains(t, stdout+stderr, "already landed", name)
+		assert.Empty(t, gitRun(t, wt, "status", "--porcelain"), "%s leaves the agent's copy untouched", name)
+		// A writer that slipped through must not hide the next one's result.
+		gitIn(t, wt, "checkout", "-q", "--", ".")
+	}
+}
+
 // A batch row is refused a commit this tree's branch lacks, as a close by id
 // is: the commit is a worktree agent's, and it lands through tp land.
 func TestABatchCloseRefusesACommitItsBranchLacks(t *testing.T) {
