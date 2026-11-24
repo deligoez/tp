@@ -56,3 +56,15 @@ func TestRemovingALandRequestKeepsOneWrittenSince(t *testing.T) {
 	require.NoError(t, RemoveLandRequest(dir, &later))
 	assert.NoFileExists(t, filepath.Join(dir, "t1.json"))
 }
+
+// A request tp land cannot remove is reported, not passed over as removed.
+func TestRemovingALandRequestReportsAFailedRemove(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	body := `{"id":"t1","reason":"r","commits":["abc"],"worktree":"/w","at":"1"}`
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "t1.json"), []byte(body), 0o600))
+	require.NoError(t, os.Chmod(dir, 0o500))
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
+
+	assert.Error(t, RemoveLandRequest(dir, &LandRequest{ID: "t1", At: "1"}))
+}
