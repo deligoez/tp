@@ -25,9 +25,12 @@ import (
 // without parsing prose: a decision outside it is a usage error, not a further
 // category.
 const (
-	EscalateSkipGate        = "skip-gate"
-	EscalateRaiseReviewCap  = "raise-review-cap"
-	EscalateRaiseAuditCap   = "raise-audit-cap"
+	EscalateSkipGate       = "skip-gate"
+	EscalateRaiseReviewCap = "raise-review-cap"
+	EscalateRaiseAuditCap  = "raise-audit-cap"
+	// EscalateRaiseFoundCap is raising found_max or setting it to 0, which
+	// lifts spec/1.31.0.md §8's cap on a task file's found tasks.
+	EscalateRaiseFoundCap   = "raise-found-cap"
 	EscalateImportForce     = "import-force"
 	EscalateAuditConvergeOn = "audit-converge-on"
 	EscalateAcceptFinding   = "accept-finding"
@@ -64,6 +67,7 @@ var escalationDecisions = []string{
 	EscalateSkipGate,
 	EscalateRaiseReviewCap,
 	EscalateRaiseAuditCap,
+	EscalateRaiseFoundCap,
 	EscalateImportForce,
 	EscalateAuditConvergeOn,
 	EscalateAcceptFinding,
