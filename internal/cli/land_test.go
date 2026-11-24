@@ -445,6 +445,36 @@ func TestAFailedAgentsSecondCloseLeavesTheFreshAgentsRequest(t *testing.T) {
 	assert.Equal(t, "fresh\n", string(got), "the fresh agent's commit is the one landed")
 }
 
+// After a takeover, the old agent's late close does not replace the fresh
+// agent's waiting request: the request is refused, naming the other
+// worktree, and the fresh agent's commit is the one landed.
+func TestALateCloseAfterATakeoverLeavesTheFreshRequest(t *testing.T) {
+	t.Parallel()
+	dir, wtA := landRepo(t, "")
+	shaA := agentCommit(t, wtA)
+	_, stderr, code := runTP(t, dir, "claim", "t1", "--takeover")
+	require.Equal(t, 0, code, stderr)
+	spawnClaim(t, dir, "t1", "toolu_B", "sessC")
+	wtB := filepath.Join(t.TempDir(), "wtB")
+	gitIn(t, dir, "worktree", "add", "-q", "-b", "agent-t1-b", wtB)
+	require.NoError(t, os.WriteFile(filepath.Join(wtB, "agent.txt"), []byte("fresh\n"), 0o600))
+	gitIn(t, wtB, "add", "-A")
+	gitIn(t, wtB, "commit", "-q", "-m", "t1 fresh work")
+	shaB := strings.TrimSpace(gitRun(t, wtB, "rev-parse", "HEAD"))
+	_, stderr, code = runTP(t, wtB, "done", "t1", "--commit", shaB, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+
+	_, stderr, code = runTP(t, wtA, "done", "t1", "--commit", shaA, "--", "t1 acceptance criteria met")
+	assert.Equal(t, 4, code, "the late close is refused: %s", stderr)
+	assert.Contains(t, stderr, filepath.Base(wtB), "the refusal names the worktree whose request waits")
+
+	stdout, stderr, code := runTP(t, dir, "land")
+	require.Equal(t, 0, code, stdout+stderr)
+	got, err := os.ReadFile(filepath.Join(dir, "agent.txt"))
+	require.NoError(t, err)
+	assert.Equal(t, "fresh\n", string(got), "the fresh agent's commit is the one landed")
+}
+
 // A request whose task was closed without its commits is not dropped
 // silently: tp land names the commits, and the agent is told they did not
 // land instead of closing its own copy.
