@@ -33,7 +33,7 @@ payload=$(cat)
 prompt=$(printf '%s' "$payload" |
 	grep -Eo '"prompt"[[:space:]]*:[[:space:]]*"([^"\\]|\\.)*"' | sed -n 1p)
 [ -n "$prompt" ] || exit 0
-markers=$(printf '%s\n' "$prompt" | awk '
+found=$(printf '%s\n' "$prompt" | awk '
 {
 	sub(/^"prompt"[[:space:]]*:[[:space:]]*"/, "")
 	sub(/"$/, "")
@@ -42,7 +42,7 @@ markers=$(printf '%s\n' "$prompt" | awk '
 	for (i = 1; i <= n; i++) {
 		l = line[i]
 		sub(/\\r$/, "", l)
-		if (index(l, "tp-task: ") == 1) {
+		if (index(l, "tp-task: ") == 1 || index(l, "tp-claim-token: ") == 1) {
 			sub(/[ \t]+$/, "", l)
 			print l
 		}
@@ -56,9 +56,21 @@ markers=$(printf '%s\n' "$prompt" | awk '
 			sub(/\\"$/, "", m)
 			print m
 		}
+		# The claim token of a pasted JSON brief sits in its "claim_token"
+		# field the same way.
+		if (match(l, /(^[ \t]*|[{,][ \t]*)\\"claim_token\\":[ ]*\\"[^\\]*\\"/)) {
+			m = substr(l, RSTART, RLENGTH)
+			sub(/^.*\\"claim_token\\":[ ]*\\"/, "", m)
+			sub(/\\"$/, "", m)
+			print "tp-claim-token: " m
+		}
 	}
 }' | sort -u)
+markers=$(printf '%s\n' "$found" | sed -n '/^tp-task: /p')
 [ -n "$markers" ] || exit 0
+# The brief's claim token (spec/backlog/a-land-request-names-its-agent.md)
+# is a line of its own under the marker, so a hook older than it ignores it.
+tokens=$(printf '%s\n' "$found" | sed -n 's/^tp-claim-token: //p')
 
 refuse() {
 	printf 'tp agent claim: %s\n' "$1" >&2
@@ -86,6 +98,11 @@ session=$(field session_id)
 if [ -n "$session" ] && ! token_ok "$session"; then
 	refuse "session_id \"$session\" is not an id tp records."
 fi
+if [ -n "$tokens" ]; then
+	[ "$(printf '%s\n' "$tokens" | wc -l)" -le 1 ] ||
+		refuse "the prompt carries more than one claim token (tp-claim-token:). Spawn one agent per task, each with its own brief."
+	token_ok "$tokens" || refuse "claim token \"$tokens\" is not a token tp records."
+fi
 
 command -v tp >/dev/null 2>&1 ||
 	refuse "the prompt marks a task (tp-task:), but tp is not on PATH to claim it. Install tp, or drop the marker line."
@@ -108,11 +125,11 @@ for marker in $markers; do
 	esac
 	printf '%s\n' "$file" | grep -Eq '^[A-Za-z0-9._/-]+$' ||
 		refuse "marker task file \"$file\" is not a task file path."
-	if [ -n "$session" ]; then
-		err=$(cd "$root" && tp claim "$id" --file "$file" --spawn "$spawn" --session "$session" 2>&1 >/dev/null)
-	else
-		err=$(cd "$root" && tp claim "$id" --file "$file" --spawn "$spawn" 2>&1 >/dev/null)
-	fi || refuse "cannot claim $id for this spawn, so it does not start: $err"
+	set -- claim "$id" --file "$file" --spawn "$spawn"
+	[ -n "$session" ] && set -- "$@" --session "$session"
+	[ -n "$tokens" ] && set -- "$@" --claim-token "$tokens"
+	err=$(cd "$root" && tp "$@" 2>&1 >/dev/null) ||
+		refuse "cannot claim $id for this spawn, so it does not start: $err"
 done
 
 exit 0
