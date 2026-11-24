@@ -46,6 +46,7 @@ func Unattended() bool {
 var fencedCapFields = map[string]bool{
 	"review_max_rounds":          true,
 	"audit_max_rounds":           true,
+	"found_max":                  true,
 	"run_max_budget_usd":         true,
 	"run_max_unit_budget_usd":    true,
 	"run_max_units":              false,
@@ -117,6 +118,8 @@ func ResolvedCapValue(wf *model.Workflow, field string) (float64, bool) {
 		return float64(wf.ReviewMaxRounds), true
 	case "audit_max_rounds":
 		return float64(wf.AuditMaxRounds), true
+	case "found_max":
+		return float64(wf.FoundMax), true
 	case "run_max_units":
 		return float64(wf.RunMaxUnits), true
 	case "run_max_wall_clock_seconds":
