@@ -31,6 +31,7 @@ var (
 	doneCoveredBy  string
 	doneFiles      string
 	doneSkipGate   string
+	doneClaimToken string
 )
 
 func newDoneCmd() *cobra.Command {
@@ -57,6 +58,7 @@ On error: {error, code, acceptance, hint} on stderr. Task unchanged.`,
 	cmd.Flags().StringVar(&doneCoveredBy, "covered-by", "", "close as covered by another done task (skips closure verification)")
 	cmd.Flags().StringVar(&doneFiles, "files", "", "file globs to stage for --auto-commit (default: all changes)")
 	cmd.Flags().StringVar(&doneSkipGate, "skip-gate", "", "skip gate execution, recording the reason on each closed task")
+	cmd.Flags().StringVar(&doneClaimToken, "claim-token", "", "in an agent's own worktree: the claim token its brief names")
 	return cmd
 }
 

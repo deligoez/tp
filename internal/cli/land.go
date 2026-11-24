@@ -128,7 +128,7 @@ func holdsRequest(taskFilePath string, r *engine.LandRequest) bool {
 	if err != nil || task.Status != model.StatusWIP {
 		return false
 	}
-	return r.Spawn == "" || (task.ClaimedBy != nil && task.ClaimedBy.Spawn == r.Spawn)
+	return r.MadeUnder(task.ClaimedBy)
 }
 
 // land picks one request's commits, closes its task with them, and on a

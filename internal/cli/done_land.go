@@ -20,13 +20,24 @@ func landHint(taskFilePath, id string) string {
 	if resolveEffectiveStrategy(taskFilePath) == engine.CommitStrategyHC {
 		commit = "commit your work with hc"
 	}
-	return fmt.Sprintf("in this worktree, %s, then run tp done %s --commit <sha> -- \"<evidence>\", naming every commit; then stop: the coordinator picks the commits and closes the task", commit, id)
+	token := ""
+	if holderHasClaimToken(taskFilePath, id) {
+		token = " --claim-token <the token your brief names>"
+	}
+	return fmt.Sprintf("in this worktree, %s, then run tp done %s --commit <sha>%s -- \"<evidence>\", naming every commit; then stop: the coordinator picks the commits and closes the task", commit, id, token)
 }
 
-// landHolder returns the copy, in another worktree, that holds one of ids
-// under a spawn's claim this worktree's copy does not carry; "" when none.
-// A task tp land already landed or gave back from this worktree stops the
-// close here instead (refuseAfterLanding).
+// holderHasClaimToken reports whether the copy holding id's claim in
+// another worktree carries a claim token, without reading it out.
+func holderHasClaimToken(taskFilePath, id string) bool {
+	holder := engine.ClaimHolderCopy(taskFilePath, id)
+	if holder == "" {
+		return false
+	}
+	tf, err := model.ReadTaskFile(holder)
+	return err == nil && heldClaim(tf, id).Token != ""
+}
+
 // landHolder returns the copy, in another worktree, that holds one of ids
 // under a spawn's claim this worktree's copy does not carry; "" when none.
 // A task tp land already dealt with from this worktree stops the close here
@@ -127,7 +138,9 @@ func runDoneLand(holder, taskFilePath string, taskIDs []string, reason string) e
 	specPath, _ := engine.ResolveSpecPath(holder, tf.Spec)
 	worktree, _ := os.Getwd()
 	// Checked before the gate, so a close the claim has moved past costs no gate run.
-	if other := engine.PendingRequestFrom(holder, id, worktree); other != "" {
+	claim := heldClaim(tf, id)
+	refuseForeignClaim(claim, id)
+	if other := engine.PendingRequestFrom(holder, id, worktree, claim); other != "" {
 		output.Error(ExitState, fmt.Sprintf("task %s already has a land request from %s, made under the current claim", id, other),
 			"the task's claim moved to another agent: nothing is left to do in this worktree, stop")
 		os.Exit(ExitState)
@@ -140,10 +153,8 @@ func runDoneLand(holder, taskFilePath string, taskIDs []string, reason string) e
 	}
 	runQualityGateIn(taskFilePath, gateDir(taskFilePath), "",
 		"fix the failure in this worktree, commit the fix, and run tp done again naming every commit", mainGateTaker())
-	record := &engine.LandRequest{ID: id, Reason: reason, Commits: ordered, Worktree: worktree}
-	if task, _, findErr := model.FindTask(tf, id); findErr == nil && task.ClaimedBy != nil {
-		record.Spawn = task.ClaimedBy.Spawn
-	}
+	refuseClaimMovedDuringGate(holder, id, claim)
+	record := &engine.LandRequest{ID: id, Reason: reason, Commits: ordered, Worktree: worktree, Spawn: claim.Spawn, Token: claim.Token}
 	if writeErr := engine.WriteLandRequest(holder, record); writeErr != nil {
 		output.Error(ExitFile, writeErr.Error(), runtimeFailureHint)
 		os.Exit(ExitFile)
@@ -151,6 +162,53 @@ func runDoneLand(holder, taskFilePath string, taskIDs []string, reason string) e
 	output.Success(fmt.Sprintf("land request for %s: the coordinator lands it with tp land", id))
 	printResultOrExit(map[string]any{"land_requested": true, "id": id, "commits": ordered, "claimed_in": holder})
 	return nil
+}
+
+// heldClaim is the claim the holder's copy has on id; an empty one when it
+// has none.
+func heldClaim(tf *model.TaskFile, id string) *model.ClaimedBy {
+	if task, _, err := model.FindTask(tf, id); err == nil && task.ClaimedBy != nil {
+		return task.ClaimedBy
+	}
+	return &model.ClaimedBy{}
+}
+
+// refuseForeignClaim stops a close in an agent's worktree that does not
+// name the claim token the task's claim carries: the token tells the agent
+// spawned from the claim's brief from one a takeover replaced
+// (spec/backlog/a-land-request-names-its-agent.md). A claim without a token
+// takes the close as before. Neither token is printed.
+func refuseForeignClaim(claim *model.ClaimedBy, id string) {
+	if doneClaimToken != "" && !engine.ValidClaimToken(doneClaimToken) {
+		exitUsage(fmt.Sprintf("--claim-token %q: want 1-128 of A-Z a-z 0-9 _ -", doneClaimToken), "pass the claim token your brief names")
+	}
+	if claim.Token == "" || claim.Token == doneClaimToken {
+		return
+	}
+	if doneClaimToken == "" {
+		exitUsage(fmt.Sprintf("task %s's claim carries a claim token: a close in this worktree needs --claim-token", id),
+			"run tp done again with the --claim-token your brief names")
+	}
+	output.Error(ExitState, fmt.Sprintf("task %s is claimed by another agent: the claim token is not the one this close names", id),
+		"the task was taken over by another agent: nothing is left to do in this worktree, stop")
+	os.Exit(ExitState)
+}
+
+// refuseClaimMovedDuringGate exits 4 when the claim the close was checked
+// against before its gate is no longer the holder's: a takeover while the
+// gate ran must not let this request replace the fresh agent's.
+func refuseClaimMovedDuringGate(holder, id string, before *model.ClaimedBy) {
+	tf, err := model.ReadTaskFile(holder)
+	if err != nil {
+		output.Error(ExitFile, err.Error(), runtimeFailureHint)
+		os.Exit(ExitFile)
+	}
+	if now := heldClaim(tf, id); now.Spawn == before.Spawn && now.Token == before.Token {
+		return
+	}
+	output.Error(ExitState, fmt.Sprintf("task %s was taken over by another agent while the gate ran", id),
+		"nothing is left to do in this worktree: stop")
+	os.Exit(ExitState)
 }
 
 // landRefusedFlags names the given tp done flags a close in an agent's

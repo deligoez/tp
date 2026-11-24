@@ -12,6 +12,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/deligoez/tp/internal/model"
 )
 
 // LandRequest is a worktree agent's request to close a task a hand-driven
@@ -26,7 +28,19 @@ type LandRequest struct {
 	// Spawn is the claim the request was made under; only a tree whose
 	// copy has the task wip under it lands the request.
 	Spawn string `json:"spawn,omitempty"`
+	// Token is the claim token the request was made under, when the claim
+	// carries one: the agent's own, which tp done checked against the claim.
+	Token string `json:"token,omitempty"`
 	At    string `json:"at"`
+}
+
+// MadeUnder reports whether r was made under claim: the same spawn and the
+// same claim token, each where r carries one.
+func (r *LandRequest) MadeUnder(claim *model.ClaimedBy) bool {
+	if claim == nil {
+		return r.Spawn == "" && r.Token == ""
+	}
+	return (r.Spawn == "" || r.Spawn == claim.Spawn) && (r.Token == "" || r.Token == claim.Token)
 }
 
 // LandDir is where the land requests of the task file at taskFile live: in
@@ -117,9 +131,10 @@ func ReadLandRequests(dir string) (requests []LandRequest, unreadable []string, 
 
 // PendingRequestFrom returns the worktree of the land request waiting for
 // task id of the task file at taskFile when another worktree than worktree
-// made it; "" when none waits or this worktree made it. A request is one per
-// task, so a second worktree's close must not replace it unseen.
-func PendingRequestFrom(taskFile, id, worktree string) string {
+// made it under claim; "" when none waits, this worktree made it, or it was
+// made under a claim a takeover replaced. A request is one per task, so a
+// second worktree's close must not replace it unseen.
+func PendingRequestFrom(taskFile, id, worktree string, claim *model.ClaimedBy) string {
 	dir := LandDir(taskFile)
 	if dir == "" {
 		return ""
@@ -129,7 +144,7 @@ func PendingRequestFrom(taskFile, id, worktree string) string {
 		return ""
 	}
 	var r LandRequest
-	if json.Unmarshal(data, &r) != nil || r.Worktree == "" {
+	if json.Unmarshal(data, &r) != nil || r.Worktree == "" || !r.MadeUnder(claim) {
 		return ""
 	}
 	mine, theirs := gitToplevel(worktree), gitToplevel(r.Worktree)
