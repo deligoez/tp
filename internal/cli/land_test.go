@@ -510,6 +510,34 @@ func TestLandTellsTheAgentWhenItsRequestIsDropped(t *testing.T) {
 
 // A landed task is done in the coordinator's tree; a write to the agent's
 // copy of it is refused as tp done's is.
+// A request whose task is already done with its change on this branch, as a
+// crash between the close and its outcome leaves it, is dropped as landed:
+// nothing is named unlanded, and the agent is told it landed.
+func TestLandDropsARequestItsBranchAlreadyCarriesAsLanded(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "")
+	sha := agentCommit(t, wt)
+	_, stderr, code := runTP(t, wt, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	// A commit of the coordinator's own first, so the pick is a new sha.
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "other.txt"), []byte("other\n"), 0o600))
+	gitIn(t, dir, "add", "other.txt")
+	gitIn(t, dir, "commit", "-q", "-m", "other")
+	gitIn(t, dir, "cherry-pick", sha)
+	picked := strings.TrimSpace(gitRun(t, dir, "rev-parse", "HEAD"))
+	require.NotEqual(t, sha, picked)
+	_, stderr, code = runTP(t, dir, "done", "t1", "--commit", picked, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+
+	stdout, stderr, code := runTP(t, dir, "land")
+	require.Equal(t, 0, code, stdout+stderr)
+	assert.Contains(t, stdout, `"unlanded": []`, "the branch carries the commit under another sha")
+
+	_, stderr, code = runTP(t, wt, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
+	assert.Equal(t, 4, code, stderr)
+	assert.Contains(t, stderr, "already landed")
+}
+
 func TestASetInTheAgentsWorktreeAfterLandingIsRefused(t *testing.T) {
 	t.Parallel()
 	dir, wt := landRepo(t, "")
