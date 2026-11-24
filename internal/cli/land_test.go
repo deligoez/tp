@@ -408,3 +408,109 @@ func TestLandClosesAChangeTheBranchCarriesInsideALargerCommit(t *testing.T) {
 	require.Len(t, shas, 1)
 	assert.Equal(t, squashed, shas[0], "the task records the commit that already carries the work")
 }
+
+// An agent whose landing failed cannot ask again over the fresh agent the
+// coordinator spawned for the reopened task: the fresh request lands.
+func TestAFailedAgentsSecondCloseLeavesTheFreshAgentsRequest(t *testing.T) {
+	t.Parallel()
+	dir, wtA := landRepo(t, "")
+	shaA := agentCommit(t, wtA)
+	_, stderr, code := runTP(t, wtA, "done", "t1", "--commit", shaA, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "agent.txt"), []byte("other\n"), 0o600))
+	gitIn(t, dir, "add", "agent.txt")
+	gitIn(t, dir, "commit", "-q", "-m", "other")
+	stdout, stderr, code := runTP(t, dir, "land")
+	require.Equal(t, 0, code, stderr)
+	require.Contains(t, stdout, `"reopened"`)
+
+	spawnClaim(t, dir, "t1", "toolu_B", "sessC")
+	wtB := filepath.Join(t.TempDir(), "wtB")
+	gitIn(t, dir, "worktree", "add", "-q", "-b", "agent-t1-b", wtB)
+	require.NoError(t, os.WriteFile(filepath.Join(wtB, "agent.txt"), []byte("fresh\n"), 0o600))
+	gitIn(t, wtB, "add", "-A")
+	gitIn(t, wtB, "commit", "-q", "-m", "t1 fresh work")
+	shaB := strings.TrimSpace(gitRun(t, wtB, "rev-parse", "HEAD"))
+	_, stderr, code = runTP(t, wtB, "done", "t1", "--commit", shaB, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+
+	_, stderr, code = runTP(t, wtA, "done", "t1", "--commit", shaA, "--", "t1 acceptance criteria met")
+	assert.Equal(t, 4, code, "the first agent is told its landing failed: %s", stderr)
+
+	stdout, stderr, code = runTP(t, dir, "land")
+	require.Equal(t, 0, code, stdout+stderr)
+	assert.Equal(t, "done", taskState(t, dir, "t1")["status"], stdout)
+	got, err := os.ReadFile(filepath.Join(dir, "agent.txt"))
+	require.NoError(t, err)
+	assert.Equal(t, "fresh\n", string(got), "the fresh agent's commit is the one landed")
+}
+
+// A request whose task was closed without its commits is not dropped
+// silently: tp land names the commits, and the agent is told they did not
+// land instead of closing its own copy.
+func TestLandTellsTheAgentWhenItsRequestIsDropped(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "")
+	sha := agentCommit(t, wt)
+	_, stderr, code := runTP(t, wt, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	// The coordinator closes t1 by hand with its own work.
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "agent.txt"), []byte("mine\n"), 0o600))
+	_, stderr, code = runTP(t, dir, "done", "t1", "--auto-commit", "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+
+	stdout, stderr, code := runTP(t, dir, "land")
+	require.Equal(t, 0, code, stdout+stderr)
+	var res struct {
+		Unlanded []struct {
+			ID   string `json:"id"`
+			Hint string `json:"hint"`
+		} `json:"unlanded"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &res), stdout)
+	require.Len(t, res.Unlanded, 1, stdout)
+	assert.Equal(t, "t1", res.Unlanded[0].ID)
+	assert.Contains(t, res.Unlanded[0].Hint, "git cherry-pick "+sha)
+
+	_, stderr, code = runTP(t, wt, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
+	assert.Equal(t, 4, code, stderr)
+	assert.Contains(t, stderr, "could not land task t1")
+	assert.Equal(t, "open", taskState(t, wt, "t1")["status"], "the agent's copy is not closed")
+}
+
+// A landed task is done in the coordinator's tree; a write to the agent's
+// copy of it is refused as tp done's is.
+func TestASetInTheAgentsWorktreeAfterLandingIsRefused(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "")
+	sha := agentCommit(t, wt)
+	_, stderr, code := runTP(t, wt, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	_, stderr, code = runTP(t, dir, "land")
+	require.Equal(t, 0, code, stderr)
+
+	for _, kv := range []string{"waiting=a long run", "title=Renamed"} {
+		_, stderr, code = runTP(t, wt, "set", "t1", kv)
+		assert.Equal(t, 4, code, "%s: %s", kv, stderr)
+		assert.Contains(t, stderr, "already landed", kv)
+	}
+	assert.Empty(t, gitRun(t, wt, "status", "--porcelain"), "the agent's copy is untouched")
+}
+
+// A batch row is refused a commit this tree's branch lacks, as a close by id
+// is: the commit is a worktree agent's, and it lands through tp land.
+func TestABatchCloseRefusesACommitItsBranchLacks(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "")
+	sha := agentCommit(t, wt)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "agent.txt"), []byte("local\n"), 0o600))
+	batch := filepath.Join(t.TempDir(), "batch.ndjson")
+	require.NoError(t, os.WriteFile(batch,
+		[]byte(`{"id":"t1","reason":"t1 acceptance criteria met","commit_shas":["`+sha+`"]}`+"\n"), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "done", "--batch", batch)
+	assert.NotEqual(t, 0, code, stdout+stderr)
+	assert.Contains(t, stdout+stderr, "not on this tree's branch")
+	assert.Contains(t, stdout+stderr, "tp done t1 --commit "+sha)
+	assert.Equal(t, "wip", taskState(t, dir, "t1")["status"])
+}
