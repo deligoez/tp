@@ -96,6 +96,7 @@ func runClose(cmd *cobra.Command, args []string) error {
 		os.Exit(ExitFile)
 		return nil
 	}
+	refuseLandedIDs(taskFilePath, args[:1])
 	enterTree(taskFilePath, "tp close")
 
 	if resolveEffectiveStrategy(taskFilePath) == engine.CommitStrategyHC {
