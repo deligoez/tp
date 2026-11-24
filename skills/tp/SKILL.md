@@ -356,7 +356,8 @@ lint rules, payloads, state directory and exit codes: REFERENCE.md, "Epic Graph"
    `tp epic add` needs its targets to exist. A write that adds a lint error exits 1 and writes nothing.
 4. **`tp epic lint`** — read the warnings the writers do not refuse; exit 0 means no error.
 5. **Review the touched slice** — `tp epic review --epics <ids> --name <topic>` (one slice that grows
-   with the topic), or `--milestone <m>` / `--epic <id>`; `--milestones <m,...>` or `--all` emit
+   with the topic), or `--milestone <m>` / `--epic <id>`. A milestone slice asks every epic in it and
+   its gate, so a topic spread over several milestones costs a round per milestone; `--milestones <m,...>` or `--all` emit
    several, each recorded on its own. Spawn one sub-agent per role prompt writing its `output_path`
    (empty when it finds nothing), record with `tp epic review <slice> --record-inbox`, fix the graph
    or `--resolve` each finding, and repeat until `tp epic review <slice> --status --check` exits 0.
@@ -367,14 +368,16 @@ lint rules, payloads, state directory and exit codes: REFERENCE.md, "Epic Graph"
      edit read `stale_units` and `purpose_stale_units`. A purpose naming what the milestone releases
      gets that release's obligations checked.
    - Unchanged units carry; a re-asked unit sees its earlier `wontfix`/`duplicate` decisions. After a
-     round that fixed only non-blocking findings, the next runs the regression role alone.
+     round that fixed only non-blocking findings and left nothing open, the next runs the
+     regression role alone.
    - Each `fixed` costs one more round, so a cap of 3 is two repairs and one clean round; on a large
      slice the operator may set `review_max_rounds` 4–5 before round 1. A slice whose graph changed
      after its cap reads `grantable: true`, and the operator's `--grant-round` buys one round.
    - `review_converge_on: blocking` (default) lets a slice finish with medium/low findings open.
    - **Stop rule:** when the finding count has not fallen for two rounds and the new findings ask
-     design questions an edge cannot settle, stop rather than raise the cap; resolve them `wontfix`
-     with a pointer to where the design is taken up, or leave them open.
+     design questions an edge cannot settle (how an operator decision is built, not which epic owns
+     it), stop rather than raise the cap — a larger cap will not converge it. Resolve them `wontfix`
+     with a pointer to where the design is taken up, or leave them open, and decide outside the graph.
    - A class raised across slices (`tp epic review --report --all`) points at a lint rule or a
      `direct` tag check, the operator's to add.
    - **Descriptions** (an epic's intent, scope, non-goals, open questions; behaviour belongs in its
@@ -400,12 +403,13 @@ records `tp escalate --decision other`.
    the graph's `owners`, `tp epic set <id> owner='["ana"]'`); `--owner <h>` / `--unowned` filter
    `ready` and `status`.
 3. **Bind when you start:** `tp init <spec> --epic <id>` or `tp set --epic <id>` once the epic's spec
-   exists (one spec per epic); the status follows the file and the claim is ignored. `--epic ""`
+   exists. Write one spec per epic (a family shares a design note), so a later epic's dependencies
+   never hold back an earlier one's tasks; the status follows the file and the claim is ignored. `--epic ""`
    unbinds.
 4. **The epic block:** while a direct dependency of a bound file's epic is not done, `tp next`,
    `tp ready` and `tp claim` offer no task (`blocked_by_epics`; `tp next` exits 4, `tp claim` 1) and
    `tp done` refuses a task not already `wip`. With no `wip` task, `tp resume` reports `epic-blocked`:
-   stop and report it. When the blockers are conditions, `operator` names the
+   stop and report it. When every blocker is a condition, `operator` names the
    `tp epic done <c> --evidence` records — the operator's decision, never yours. An any-of group holds
    until one member is done (`blocked_by_any_of`, `operator.choices`).
 5. **Gates:** a milestone opens when every milestone it opens after is open with a green gate — every
@@ -487,7 +491,7 @@ Where no runner is configured, or a human belongs in the loop, drive the same lo
 
 **Worktree agents land through the coordinator.** Spawn each agent in its own worktree (Claude Code's Agent tool with `isolation: "worktree"`, or `git worktree add`), its prompt holding the brief whole. The agent commits with git and runs `tp done <id> --commit <sha> --claim-token <token> -- "<evidence>"`, as its close recipe says; `tp commit` and `--auto-commit` are refused there. A claim that carries a token refuses a close without it (exit 2: rerun with the token the brief names) and a close from an agent a takeover replaced (exit 4), before its gate runs. The close gates the code and leaves a land request; the coordinator's `tp land` picks the commits onto its branch and closes the task there, so a dependent starts only once the code is in. Then the agent stops: once the task is landed or reopened, a close in that worktree exits 4, and the coordinator respawns the task from a fresh `tp brief <id>`. A park (`tp set waiting=`) goes to the copy that holds the claim. The close lands whether or not the claim was committed before the worktree was cut, provided the coordinator works in the main worktree; a coordinator in a linked worktree leaves the claim uncommitted until `tp land`.
 
-**Keep the pool full.** A session that claimed through spawns is a coordinator. Set `run_max_parallel` at the project layer first (`tp set --workflow --project run_max_parallel=<n>`): it is the hand pool's cap too, default 1. The plugin's second `Stop` hook runs `tp pool --stop-hook` when the coordinator's turn ends and refuses the stop once:
+**Keep the pool full.** A session that claimed through spawns is a coordinator. Set `run_max_parallel` at the project layer first (`tp set --workflow --project run_max_parallel=<n>`): it is the hand pool's cap too, default 1. The plugin's second `Stop` hook runs `tp pool --stop-hook` when the coordinator's turn ends and refuses the stop once, a finished task first:
 
 - while a land request waits, with `tp land --file <file>`, slot or no slot; a landing that fails reopens the task, and `tp land` names the brief to spawn a fresh agent from;
 - while fewer agents run than `run_max_parallel` allows and a task is ready (or a claim lost its agent), with each task's `tp brief <id> --file <file>` — the tasks `tp run` would start beside the running ones, so one whose `touches` overlap a running task's waits. Spawn them in the background; a claim whose agent is gone is freed with `tp claim <id> --takeover --file <file>` first.
