@@ -530,6 +530,46 @@ func TestAReplacedAgentCannotCloseUnderTheFreshClaim(t *testing.T) {
 	landsFresh(t, dir)
 }
 
+// The agent a takeover replaced asks before the fresh agent is spawned: no
+// tree holds the claim then, so its close writes no land request, and the
+// fresh agent spawned after it is the one that lands.
+func TestAReplacedAgentsCloseBeforeTheFreshSpawnDoesNotLand(t *testing.T) {
+	t.Parallel()
+	dir, wtA := landRepo(t, "")
+	tokenClaim(t, dir, "toolu_W", "tokA0001")
+	shaA := agentCommit(t, wtA)
+	_, stderr, code := runTP(t, dir, "claim", "t1", "--takeover")
+	require.Equal(t, 0, code, stderr)
+	_, _, _ = runTP(t, wtA, "done", "t1", "--commit", shaA, "--claim-token", "tokA0001", "--", "t1 acceptance criteria met")
+
+	tokenClaim(t, dir, "toolu_B", "tokB0002")
+	wtB, shaB := freshAgent(t, dir)
+	_, stderr, code = runTP(t, wtB, "done", "t1", "--commit", shaB, "--claim-token", "tokB0002", "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	landsFresh(t, dir)
+}
+
+// A fresh agent claimed without a token (a hook older than the claim
+// token) does not let the replaced agent's retired token close under it.
+func TestARetiredTokenIsRefusedUnderATokenlessClaim(t *testing.T) {
+	t.Parallel()
+	dir, wtA := landRepo(t, "")
+	tokenClaim(t, dir, "toolu_W", "tokA0001")
+	shaA := agentCommit(t, wtA)
+	_, stderr, code := runTP(t, dir, "claim", "t1", "--takeover")
+	require.Equal(t, 0, code, stderr)
+	_, stderr, code = runTP(t, dir, "claim", "t1", "--spawn", "toolu_B", "--session", "sessC")
+	require.Equal(t, 0, code, stderr)
+
+	_, stderr, code = runTP(t, wtA, "done", "t1", "--commit", shaA, "--claim-token", "tokA0001", "--", "t1 acceptance criteria met")
+	assert.Equal(t, 4, code, "a retired token is refused: %s", stderr)
+
+	wtB, shaB := freshAgent(t, dir)
+	_, stderr, code = runTP(t, wtB, "done", "t1", "--commit", shaB, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	landsFresh(t, dir)
+}
+
 // The agent a takeover replaced asked before the takeover: its waiting
 // request does not block the fresh agent, and it does not land.
 func TestAReplacedAgentsEarlierRequestDoesNotBlockTheFreshAgent(t *testing.T) {
