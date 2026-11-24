@@ -294,6 +294,7 @@ func TestLandReportsWhyTheGateFailed(t *testing.T) {
 		Reopened []struct {
 			Error string `json:"error"`
 			Hint  string `json:"hint"`
+			Log   string `json:"log"`
 		} `json:"reopened"`
 	}
 	require.NoError(t, json.Unmarshal([]byte(stdout), &res), stdout)
@@ -301,6 +302,10 @@ func TestLandReportsWhyTheGateFailed(t *testing.T) {
 	assert.Contains(t, res.Reopened[0].Error, "gate", "the child's own error, not its exit status")
 	assert.NotContains(t, res.Reopened[0].Error, "exit status")
 	assert.NotContains(t, stdout, "--skip-gate")
+	require.NotEmpty(t, res.Reopened[0].Log, stdout)
+	log, err := os.ReadFile(res.Reopened[0].Log)
+	require.NoError(t, err)
+	assert.NotContains(t, string(log), "--skip-gate", "the close's own log offers no skip either")
 }
 
 // A worktree left over from an earlier landing has the task done; a close
