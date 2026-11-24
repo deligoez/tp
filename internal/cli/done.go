@@ -803,6 +803,11 @@ func runDoneBatch() error {
 		os.Exit(ExitFile)
 		return nil
 	}
+	rowIDs := make([]string, 0, len(entries))
+	for _, e := range entries {
+		rowIDs = append(rowIDs, e.ID)
+	}
+	refuseLandedIDs(taskFilePath, rowIDs)
 	enterTree(taskFilePath, "tp done")
 
 	tfPre, preErr := model.ReadTaskFile(taskFilePath)
