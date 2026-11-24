@@ -8,16 +8,6 @@ fix needs a design choice leaves this file for a decision note.
 
 ## Needs an operator decision
 
-- **A land request does not carry who made it, so after a takeover the first request wins.** A request
-  is stamped with the claim the holder's copy carries when it is written, not with the requesting
-  agent's own spawn, which the worktree does not know. Since v1.29.1 a second worktree's `tp done`
-  is refused while the first one's request waits, which protects the fresh agent when the old one
-  asks late (`TestALateCloseAfterATakeoverLeavesTheFreshRequest`). In the reverse order (the agent a
-  takeover replaced asks first, then the fresh agent), the old agent's work lands under the fresh
-  claim and the fresh agent is refused. Closing it needs the request to carry the requester's
-  identity (the spawn reaching the agent's worktree, for instance through the brief), a choice with
-  user-visible consequences.
-
 ## Fix track
 
 ## Decided elsewhere, not a fix
