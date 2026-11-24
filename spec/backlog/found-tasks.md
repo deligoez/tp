@@ -118,6 +118,29 @@ Strict reading: `task` only where text written before the choice excludes the al
   additions anchor to one catch-all section — the field case for `origin` and for refusing
   synthetic anchors.
 
+## Seeded run 1 (2026-11-24, a synthetic Go module, answer key written first)
+
+Eight seeds (four obvious, two settled by a spec sentence, one spec-silent choice, one decoy pinned by
+the spec and a test), four implement units on four tasks, the request format above, cap 5.
+
+- **Yield.** 24 requests, 7 distinct defects after dedup (about 70% duplicates): every unit scanned
+  the whole package and found the same six. One real defect nobody seeded was found by all four.
+- **Routing.** All 7 were Fix-shaped; the decision unit got nothing. The spec-silent seed was never
+  raised and the decoy was never raised, so no wrong task. The fixing filter turned all 7 red for
+  the stated reason, each from the request's own text alone.
+- **Placement (b) happened unprompted.** Two units stopped blocked on a defect outside their files.
+- **The cap shed the wrong task.** Requests applied in arrival order, so the defect blocking a unit
+  was sixth and went to the queue behind a message-wording fix.
+- **Dedup by first record lost `blocks_me`.** The unit a defect blocked was not the first to report
+  it, so the kept record said it blocked nothing.
+- **Exact-location dedup is brittle both ways.** One defect came at two line numbers; one request
+  bundled two defects under one location. Nothing was lost this time only by luck.
+
+Consequences for the spec: a request holds one defect; dedup keys on the reproduction, not the line,
+and merges `blocks_me` into the list of blocked units; within the cap a blocking request goes first;
+units report what their own work ran into, never a sweep of the package. The decision unit is still
+unmeasured: run 2 seeds choices.
+
 ## Must be measured before building
 
 - A seeded clone run with obvious and ambiguous defects. Count:
