@@ -81,6 +81,8 @@ type WorkflowOverride struct {
 	// TaskAuditRoles tracks presence like Checks: an explicit empty list
 	// replaces the lower layers with no roles.
 	TaskAuditRoles *[]string `json:"task_audit_roles,omitempty"`
+	// FoundMax is spec/1.31.0.md §8's cap on a task file's found tasks.
+	FoundMax *int `json:"found_max,omitempty"`
 
 	// The unattended run's caps and runner (§7). Runner is raw JSON because the
 	// field takes three shapes — a built-in template name, a runner object, or a
@@ -114,6 +116,7 @@ func (o *WorkflowOverride) IsEmpty() bool {
 		o.ReviewMaxRounds == nil &&
 		o.AuditMaxRounds == nil &&
 		o.Checks == nil &&
+		o.FoundMax == nil &&
 		o.TaskAuditRoles == nil &&
 		o.CommitStrategy == nil &&
 		o.ReviewConvergeOn == nil &&

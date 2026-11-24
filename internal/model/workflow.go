@@ -33,6 +33,9 @@ type Workflow struct {
 	// TaskAuditRoles are the code roles that audit each task's own files after
 	// it closes (spec/backlog/per-task-code-audit.md at c15412d4). Never spec-coverage.
 	TaskAuditRoles []string `json:"task_audit_roles"`
+	// FoundMax caps the found tasks one spec's task file may ever hold
+	// (spec/1.31.0.md §8); 0 is uncapped, like review_max_rounds.
+	FoundMax int `json:"found_max"`
 
 	RunMaxUnits            int             `json:"run_max_units"`
 	RunMaxWallClockSeconds int             `json:"run_max_wall_clock_seconds"`
