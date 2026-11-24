@@ -44,6 +44,26 @@ func fenceReviewAcceptance(status string, rows []map[string]any) {
 	}
 }
 
+// fencePreResolvedAcceptance is the two fences above for a row that arrives
+// at --record or --record-inbox already resolved wontfix or duplicate: the
+// acceptance is the same decision whichever command writes it.
+func fencePreResolvedAcceptance(phase string, row map[string]any) {
+	if !engine.Unattended() {
+		return
+	}
+	status, _ := resolvedStatusOf(row)
+	if !acceptanceStatus(status) {
+		return
+	}
+	if phase == engine.PhaseAudit {
+		if !engine.AuditRowIsPass(row) {
+			fenceAuditAcceptance(status)
+		}
+		return
+	}
+	fenceReviewAcceptance(status, []map[string]any{row})
+}
+
 // fenceAuditAcceptance refuses, under TP_UNATTENDED, accepting an audit
 // finding without a code change. fixed stays open: it is the audit-fix unit's
 // own write.

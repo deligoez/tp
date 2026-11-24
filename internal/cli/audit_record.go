@@ -86,6 +86,11 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 		os.Exit(ExitValidation)
 		return nil
 	}
+	// Before the carry: an acceptance the operator recorded earlier is carried,
+	// one the payload brings is a new one.
+	for _, row := range rows {
+		fencePreResolvedAcceptance(engine.PhaseAudit, row)
+	}
 	// The carry runs before the stamp, so a re-recorded finding the operator
 	// accepted on the item's latest graded row is graded with that
 	// acceptance, and the round file written below holds it.

@@ -335,6 +335,7 @@ func parseRecordRows(path string, data []byte) (findings, dirty int, incomplete 
 
 		rl.observe(row, lineNum)
 
+		fencePreResolvedAcceptance(engine.PhaseReview, row)
 		status, evidence := resolvedStatusOf(row)
 		switch status {
 		case "fixed":
