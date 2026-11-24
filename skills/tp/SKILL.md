@@ -829,38 +829,64 @@ Before closing a task (`tp done`):
 
 ## Gate, Budget & Escalation Policy — user-approval gates
 
-- **The gate runs automatically at `tp done`.** `--skip-gate "<reason>"` skips it and records `gate_skipped_reason` on each closed task. **`--skip-gate` requires explicit user approval — it is never the agent's own decision.**
-- **The round cap (`review_max_rounds` / `audit_max_rounds`, default 3; 0 = uncapped):** once the cap is reached, prompt generation and `--record` refuse with exit 4. The loop is **done** (`done_by: cap`) when every finding of the latest round carries a disposition in its recorded round file — `fixed`, or `wontfix`/`duplicate` with evidence — and no unresolved or unverified-fixed blocking row is carried from an earlier round (v1.16.0; the refusal's hint is then that row's way out — an acceptance, or the operator's raise of the cap, never `fixed`). A blocking finding marked `fixed` at the cap keeps the loop open (`blocking_fixed_at_cap`): no round will re-read the repair, so the operator accepts it with evidence or raises the cap by one for a verification round. A done loop needs no `--force` at `tp import`. Raising a cap and importing with `--force` stay user-approved decisions — never the agent's own.
-- **Convergence criteria differ by phase (v0.28.0+).** A **spec review** is converged only when a counted round surfaces **no blocking findings** — the blocking severities are **critical and high** (the built-in `review_converge_on=blocking` policy; `review_converge_on=all` opts into the strict any-severity rule) — and, since v1.16.0, no blocking finding of an earlier round stands unresolved in the carried set, since the next round is told not to re-report it: a blocking finding leaves the loop only by a fix, an acceptance or an epoch, never by silence. Accepting a critical or high finding without a spec change is the operator's decision, and so is an epoch that cuts one (`rewrite-past-blocking`) (medium/low findings may be accepted with recorded justification once none blocking remain). An **implementation audit** ends on `audit_clean_rounds` consecutive clean rounds (default 2), or at `audit_max_rounds` with every finding dispositioned, and since v1.18.0 only while no blocking row of an earlier round stands carried: a non-PASS row leaves the loop by a later round's PASS, an acceptance or an epoch, never by an empty round; accepting any audit finding without a code change is the operator's decision. What an audit round must be clean *of* is `audit_converge_on` (v0.37.0), whose built-in default `all` counts every non-`PASS` row — deliberately the opposite of `review_converge_on`'s default. Setting it to `blocking`, so only `error` (and any severity tp cannot grade) blocks, is a **user-approved decision**, taken per cycle on the previous cycle's severity mix and never as a standing repo default; see "`audit_converge_on`" in Workflow D for the fence, the escalation name and the one-liner that derives the mix.
-- **Under `tp run` the policy is enforced, not merely stated (v0.35.0).** Every unit a run spawns carries `TP_UNATTENDED=1`, and the decisions above stop being available to it: `--skip-gate` at any of its sinks, `tp import --force`, a `tp set --workflow` raise of `review_max_rounds`/`audit_max_rounds` or any `run_max_*` cap, — since v0.37.0 — `audit_converge_on` reaching `blocking`, at all four of its sinks, a change of `quality_gate` at any of its write paths, — since v1.24.0 — setting or changing `worktree_setup_cmd` at either layer (escalated as `other`), accepting a critical/high review finding or any audit finding, an emission's discarding `--force` and, since v1.10.0, `tp epic review --discard`, — since v1.5.0 — an epic's done record, a gate's met record and a task file's epic binding, removals included, and — since v1.7.0 — the grant of one epic review round past the cap (`tp epic review <slice> --grant-round`), and — since v1.16.0 — an epoch whose cut holds an unresolved blocking review row (`tp review <spec> --rewritten`), each exit 2 with a hint naming `tp escalate`. By hand, outside a run, that epoch runs with no flag, as an acceptance by hand does, and says on stderr which rows it cut; `--force` stays the discard of an unrecorded emission. The rule differs by sink and the difference matters: `tp set --workflow --project` refuses **any** write of `blocking`, on its value alone, because it writes the layer every base resolves through including bases tp cannot enumerate; `tp set --workflow` (task layer), `tp import` and `tp config --extract` refuse a write that **changes what resolves** to `blocking`. See the `audit_converge_on` section of Workflow D. Record the decision with `tp escalate --decision <skip-gate|raise-review-cap|raise-audit-cap|import-force|audit-converge-on|accept-finding|discard-emission|epic-done|gate-met|epic-binding|grant-round|rewrite-past-blocking|other> --evidence "<what you found>" [--option "<a way forward>"]` — the run stops with `stop_reason: escalation`, the operator decides, and `tp run` is started again. **An escalation is a normal outcome, not a crash**, and it is neither a failed attempt nor a recorded round.
-- **A unit runs a full suite only through `tp gate` (v1.26.0).** Inside `tp run`, run the targeted package tests your change needs directly, and a whole suite only as `tp gate`, which takes one of the run's gate slots (`run_max_parallel_gates`) as `tp done`'s gate does, so pooled units overlap on agent time rather than on test load. This is a rule for the agent, not a fence: tp cannot see an agent's own `go test`. Slots are polled, not queued fairly, so a gate can wait longer than one that asked after it; the main-branch gate always goes first, and the wait never counts against `gate_timeout_seconds`.
-- **Verify the gate with separate exit codes, never a `&&` chain.** `<tests> && <linter> && echo OK` prints nothing when it fails, and a missing `OK` does not catch the eye. Run each command on its own and read each exit code (`<tests>; echo $?`, then `<linter>; echo $?`) before you close the task.
+**Operator decisions are never the agent's own.** Under `tp run` every unit carries
+`TP_UNATTENDED=1`, and each of these exits 2 with a hint naming `tp escalate`; by hand, outside a
+run, stop and ask. The `--decision` name to record is in brackets:
+
+| Decision | Name |
+|---|---|
+| `--skip-gate` on `tp done`/`tp close`, or changing `quality_gate` (a rewritten gate is a skipped one) | `skip-gate` |
+| raising `review_max_rounds` / `audit_max_rounds` | `raise-review-cap` / `raise-audit-cap` |
+| `tp import --force` | `import-force` |
+| `audit_converge_on` resolving to `blocking` | `audit-converge-on` |
+| accepting a critical/high review finding, or any audit finding, without a change | `accept-finding` |
+| discarding an unrecorded emission (`--force` on an emit, `tp epic review --discard`) | `discard-emission` |
+| an epic's done record, a gate's met record, a task file's epic binding | `epic-done`, `gate-met`, `epic-binding` |
+| one epic review round past the cap (`--grant-round`) | `grant-round` |
+| an epoch whose cut holds an unresolved blocking row (`--rewritten`) | `rewrite-past-blocking` |
+| raising a `run_max_*` cap, setting `worktree_setup_cmd`, `runner` or `notify_cmd` | `other` |
+
+Record it with `tp escalate --decision <name> --evidence "<what you found>" [--option "<a way forward>"]`;
+the run stops with `stop_reason: escalation` for the operator. **An escalation is a normal outcome**,
+neither a failed attempt nor a recorded round.
+
+- **The round cap** (default 3; `0` uncaps): at the cap emission and `--record` refuse (exit 4), and
+  the loop is **done** (`done_by: cap`) once every finding of the latest round is dispositioned and
+  no blocking row is carried from an earlier round. A blocking finding marked `fixed` at the cap
+  keeps the loop open (`blocking_fixed_at_cap`): no round re-reads the repair, so the operator
+  accepts it or raises the cap.
+- **Convergence differs by phase.** Review: no surviving critical or high (`review_converge_on`,
+  default `blocking`), medium/low acceptable with evidence. Audit: `audit_clean_rounds` clean rounds
+  under `audit_converge_on` (default `all`: every non-PASS row counts). In both, a blocking row
+  leaves only by a fix a later round verifies, an acceptance, or an epoch — never by an empty round.
+- **A unit runs a full suite only through `tp gate`.** Inside `tp run`, run targeted package tests
+  directly and the whole suite as `tp gate`, which takes one of the run's gate slots
+  (`run_max_parallel_gates`).
+- **Verify the gate with separate exit codes, never a `&&` chain**: `<tests>; echo $?`, then
+  `<linter>; echo $?`.
 
 ## Class & Checks Guidance
 
-- **Fill `class`** on every review finding: a kebab-case slug naming its failure class, the key `--merge` clusters on. A class that is a pattern a script could check across the whole corpus (example: `code-citation-drift`) is what the mechanization rule below looks for.
-- **Mechanization candidate:** a class that appears in ≥ 2 distinct rounds OR ≥ 5 times in a single round (`tp review --report` and `--record` output list `mechanize_candidates`). When one appears, write a detector command and register it: `tp set --workflow checks='[{"class":"<slug>","cmd":"<detector>"}]'`. A check is **only worth registering when the artifact it measures already exists in the review phase** — registered checks run in the review phase only, so a check whose subject a later phase writes can never verify it, while tp still tells every reviewer to stop reporting that class. When the subject is written later, make running the check the acceptance of the task that creates it instead.
-- Once registered, tp runs the check every review round, reports it in `mechanical_checks`, and tells reviewers to stop reporting that class. A check's exit code is its contract: **0** passed, **1** found violations, anything else — 2 or higher, 126/127, a signal, a start failure, a timeout — could not run and is reported `ran: false`. A prompt suppresses a class only when its check reported `ran: true` in that emission, so a check that could not run — or never started, because no task file resolves — suppresses nothing. `tp review --status --check` requires every check to pass before exiting 0.
-- **A check reads its spec from `TP_SPEC` (v1.20.1).** tp runs every check at the task file's repository root with `TP_SPEC` naming the spec the command is about: relative to that root when the spec lies under it, absolute otherwise. A `TP_SPEC` or `TP_ROUND` the shell or a `tp run` unit carried is dropped first, and with no spec `TP_SPEC` is unset, never empty. Write the argument as `"${TP_SPEC:?}"`, so a run with no spec fails the check rather than grading an empty path. Never derive the spec from `tp resume`: it names the active task file's spec, so in a repository with two specs the check grades the wrong one — tp's own three checks did that until v1.20.1.
-- **Registration retires the suggestion (v0.33.0):** a registered check retires its mechanize candidate — the class is dropped from `mechanize_candidates`, from the register-a-check `hint`, and from `next_action`'s mechanize branch, and `tp review <spec> --record <file>` names the withheld classes in `mechanized_classes`. Under `--record` and `--status --check` only a check that ran (exit 0 or 1) retires its class; plain `--status`, which runs no check, keeps registration as the trigger. `--record` runs the checks only when their result can change its output, and then carries `mechanical_checks`. A failing check still blocks `tp review --status --check`. Class matching is byte-for-byte.
-- `over-specification` is the one exception, scoped to a single sink: registering a check for it suppresses it from the candidates like any other class, but it never joins the `Mechanically checked classes — do NOT report findings of these classes:` sentence, because tp's own review prompts ask reviewers to raise it.
+- **Fill `class`** on every review finding: a kebab-case slug naming its failure class, the key `--merge` clusters on.
+- **Mechanization candidate:** a class that appears in ≥ 2 distinct rounds OR ≥ 5 times in a single round (`mechanize_candidates` in `--report` and `--record`). Write a detector and register it: `tp set --workflow checks='[{"class":"<slug>","cmd":"<detector>"}]'`. A check is **only worth registering when the artifact it measures already exists in the review phase** — checks run in the review phase only; when the subject is written later, make running the check the acceptance of the task that creates it.
+- Once registered, tp runs the check every review round (`mechanical_checks`) and tells reviewers to stop reporting that class. Exit **0** passed, **1** found violations, anything else could not run (`ran: false`) and suppresses nothing. `tp review --status --check` requires every check to pass.
+- **A check reads its spec from `TP_SPEC`**: write the argument as `"${TP_SPEC:?}"`, never derive the spec from `tp resume`, which names the active task file's spec.
+- **Registration retires the suggestion:** a registered check retires its mechanize candidate — the class leaves `mechanize_candidates`, the hint and `next_action`, and `--record` names it in `mechanized_classes`. `over-specification` is never added to the prompts' do-not-report list, since tp's own prompts ask for it.
 
-## Role Corpus & frontmatter overrides (v0.25.0)
+## Role Corpus & frontmatter overrides
 
 Review and audit roles are **project-owned data** — one JSON file per role under the repo-root `.tp/`:
 
-- `.tp/reviewers/*.json` drives `tp review`; `.tp/auditors/*.json` drives `tp audit` (phase = directory). Schema `{id, title, instructions, focus[], domains[], context}` (`context` is read only by `tp epic review`); `id` MUST equal the filename stem (lowercase kebab-case); `regression` is reserved. Commit the corpus to VCS.
-- A populated phase directory **replaces** the embedded default corpus for that phase; absent/empty keeps tp's curated defaults (software: implementer/tester/architect + spec-coverage/security/maintainability-conventions; prose: coherence/soundness + spec-coverage/soundness). A project happy with defaults keeps **zero role files**.
-- `tp init --eject-roles [--domain software|prose] [--force]` writes the defaults as editable, byte-identical files, and **ejected role files are not rewritten on upgrade** — re-eject with `--force` to adopt newer default prompts. tp's own repo dogfoods a custom 4+4 corpus (adopted v0.26.0: implementer/tester/architect/ax-economist reviewers + spec-coverage/go-safety/maintainability-conventions/ax-contract auditors).
+- `.tp/reviewers/*.json` drives `tp review`; `.tp/auditors/*.json` drives `tp audit`. Schema `{id, title, instructions, focus[], domains[], context}`; `id` equals the filename stem; `regression` is reserved. Commit the corpus.
+- A populated phase directory **replaces** the embedded defaults for that phase; absent or empty keeps them (software: implementer/tester/architect + spec-coverage/security/maintainability-conventions; prose: coherence/soundness + spec-coverage/soundness).
+- `tp init --eject-roles [--domain software|prose] [--force]` writes the defaults as editable files, and **ejected role files are not rewritten on upgrade** — re-eject with `--force` to adopt newer prompts.
 
-Emission is corpus-driven: `tp review` emits one prompt per active reviewer role plus the built-in `regression` role (appended, never a corpus file); `tp audit` emits one per active auditor role. Every prompt stamps a five-key output contract: `role, location, class, severity`, plus `evidence` on a review prompt (v1.1.0) and `status` on an audit prompt. tp still only emits prompts — it never executes agents.
-
-Spec frontmatter steers the corpus without new files:
+`tp review` emits one prompt per active reviewer role plus the built-in `regression`; `tp audit` one per active auditor role. tp only emits prompts — it never executes agents. Spec frontmatter steers the corpus:
 
 ```yaml
 ---
 tp:
-  domain: prose          # selects & filters the corpus (no persona swap)
+  domain: prose          # selects & filters the corpus
   review_roles:          # append focus questions to an existing role
     implementer:
       focus: ["Can each section be written without inventing facts not in the outline?"]
@@ -870,136 +896,56 @@ tp:
 ---
 ```
 
-- `domain` selects the embedded corpus when no role files exist and filters a user corpus by each role's `domains`; an unknown domain falls back to `software` with a lint warning.
-- `tp.review_roles`/`tp.audit_roles` **append** focus to an existing role (project focus first); an unknown override id is a lint warning; `regression` takes no overrides. The standalone `tp: lens` is retired.
-- **`enabled` (v0.32.0)** is the override object's second permitted key beside `focus`. enabled: false deactivates a role for one spec — no prompt, and that override's `focus` applied nowhere; `enabled: true` is a no-op. Two refusals fire **on prompt emission only** and exit 2: emptying a phase, and deactivating `spec-coverage`. Both are emission-only: they exit before any prompt is emitted and before any state is written — so `--record`, `--status`, `--merge` and the rest are unaffected, and a refused run leaves no `.tp-review/<spec>/` behind. Keep `domains` as the **durable** axis — a role's standing scope across every spec — and use `enabled: false` as the **one-spec exception** to it.
-- **Overlap and staleness:** `tp review --merge`/`--report`/`--status` carry a per-role `overlap_report` flagging a `trim_candidate` (a reviewer that found only what others also found), and `--status` reports `roles_stale` when the corpus changed since the last recorded round. tp reports; trimming a role is your decision.
+- `tp.review_roles`/`tp.audit_roles` **append** focus to a role; an unknown id is a lint warning.
+- enabled: false deactivates a role for one spec (`enabled` is the override's other key). Emptying a phase or deactivating `spec-coverage` is refused at emission (exit 2). Keep `domains` as a role's standing scope and `enabled: false` as the one-spec exception.
+- `overlap_report` flags a `trim_candidate` (a role that found only what others found) and `roles_stale` a corpus changed since the last round; trimming is your decision.
 
-Corpus validation and its exit code, the exact warning and refusal strings, the cluster keys, the hash
-rules and the two trim levers are in [REFERENCE.md](REFERENCE.md).
+Validation, refusal strings, hashes and the two trim levers: REFERENCE.md, "Role Corpus".
 
-## Role authoring guidance (v0.25.0)
+## Role authoring guidance
 
-Opening role authoring is a power feature — a project-authored role is only as good as its prompt. Design each role for **high-signal, low-overlap, contract-conformant** findings:
+1. **One distinct failure-lens per role**; overlapping roles waste tokens and show up as trim candidates.
+2. **A reviewer reports what would make the implementation wrong** — requirements that contradict each other or the goal, or cannot be satisfied. Detail the code will settle (exit codes, field names, helper names) is not a finding; adversarial probing belongs in the audit.
+3. **Evidence demand**: every finding has a `§`-anchored `location`; a `high` carries a counterexample in `evidence` (two contradicting spec lines, or a command and its output).
+4. **Finding nothing is a normal result** — say so, or the role reaches for a minor point.
+5. **The role customizes only its `focus`**, never the finding schema tp injects.
+6. **Altitude**: push toward decidable invariants a task's acceptance can verify. The class `over-specification` names a detail only code can establish, prescribed in the spec; it is usually low or medium, and its remedy is moving the detail into task acceptance.
 
-1. **One distinct failure-lens per role.** A role must target a failure mode no other role covers. Overlapping roles waste tokens and get flagged as trim candidates (`overlap_report`) — diversity of lenses beats count.
-2. **A reviewer reports what would make the implementation wrong** — a requirement that contradicts another, contradicts the spec's stated goal, or cannot be satisfied. Detail the code will settle (exact exit codes, JSON field names, error hints, helper names) is not a finding: the implementation decides it and its tests pin it. Adversarial probing belongs in the audit, where code exists.
-3. **Evidence demand.** Every finding carries a `location` (a `§`-anchor) and a why — this is what makes dedup (the overlap report) and audit PASS/FAIL meaningful. A `high` review finding carries a counterexample in `evidence`: two quoted spec lines that contradict each other, or a command and its output.
-4. **Finding nothing is a normal result.** A role that returns no rows has done its job; tell it so, or it reaches for a minor point.
-5. **Output-contract adherence.** The role customizes only its `focus`, never the finding schema — tp injects the fixed contract (`role, location, class, severity`, plus `evidence` on a review prompt and `status` on an audit prompt).
-6. **Altitude.** A spec review should push toward **decidable invariants** — behavior a task's acceptance can verify against the quality gate — and away from implementation prose that pins mechanism (SQL, an index, a field layout) whose correctness only code can establish. The canonical finding `class` `over-specification` names exactly this smell: *a detail whose correctness can only be established against code, prescribed in the spec where it belongs in task acceptance instead.* Any reviewer may raise it; it is usually **low or medium** severity (an altitude judgment, not a blocking defect), so it never blocks convergence under `review_converge_on=blocking` unless a reviewer stamps it critical/high — convergence reads severity, not the class. tp does not detect over-specification and never deletes spec content on its own claim of it; the remedy is to revise the over-specified detail down into a task's acceptance where the gate can check it.
-
-**Worked example role sets:**
-
-- **code/software** — reviewers: *buildability* (`implementer`: a requirement that cannot be built as written), *testability* (`tester`: two correct implementations that would fail each other's tests), *consistency* (`architect`: section against section, and against existing behaviour the spec does not say it changes). Auditors, on code: `spec-coverage`, `security` (trust boundaries, injection, unsafe defaults, unpaired locks), `maintainability-conventions`.
-- **prose** — *narrative continuity* (coherence: does one part contradict, duplicate, or pre-empt another?) vs *expository derivability* (soundness: can each claim be derived from what precedes it without inventing facts?). Prose defaults to the leaner two-reviewer panel because prose flaws surface from many angles at once.
-
-**Other domains** and their characteristic diverging lenses (for custom corpora): **legal/contract** — obligation completeness vs. ambiguity/loophole; **product/PRD** — user-journey completeness vs. measurable acceptance; **data-schema** — referential integrity vs. migration/compat; **academic** — claim support vs. methodology soundness.
-
-The embedded default reviewers follow rules 1–4 — run `tp init --eject-roles` to read them. A corpus ejected before v1.2.0 keeps the older, adversarial reviewer text until it is re-ejected with `--force`.
+Example lenses — software: buildability (`implementer`), testability (`tester`), consistency (`architect`); auditors `spec-coverage`, `security`, `maintainability-conventions`. Prose: coherence vs soundness. Legal: obligation completeness vs loopholes; PRD: journey completeness vs measurable acceptance; data schema: referential integrity vs migration; academic: claim support vs methodology.
 
 ## Recording language — read in any language, record in English
 
-**A unit reads the spec in whatever language its author wrote, and records in English.** The two
-halves are separate rules and collapsing them either way is wrong.
+A unit reads the spec in its author's language and judges it there; translating first loses the
+precision a review is for. Everything it **records** is English: finding and audit row text, `class`
+slugs, closure reasons and commit messages — they are committed, the next round clusters on them
+byte-for-byte, and a second language splits one idea across two slug families. The emitted prompt
+does not state this, so an orchestrator that spawns units says it when it spawns them.
 
-Forcing the *input* to English would mean nobody could write a spec in their own language, and a
-reviewer told to "work in English" against a Turkish spec may translate it in its head before
-judging it — losing exactly the precision a review is for. So the spec, and the spec content the
-prompt embeds, are the author's.
+## `--role` — one prompt at a time
 
-The *recorded output* is English without exception: finding text, audit row text, `class` slugs,
-closure reasons passed to `tp done`, and commit messages. Three reasons, in the order they bite:
+`tp review <spec> --role <name>` and `tp audit <spec> --role <name>` emit one role's prompt; it is a
+unit's own first command. A name the invocation emits gives exactly that prompt; a name tp
+recognises in either phase's corpus but does not emit this round exits 0 with `prompts: []`; an
+unknown name exits 2 and writes nothing. Legal modes and the payload: REFERENCE.md, "`--role`
+payload contract".
 
-1. **They are committed artifacts.** `review-round-N.ndjson` and the audit results are checked in;
-   a repo's English-only convention for committed files applies to them like any other file.
-2. **The next round reads them.** `--merge` clusters by `(location, class)` and hands the
-   representative to every role. A corpus with two languages splits one idea across two slug
-   families, and `mechanize_candidates` — which matches slugs byte-for-byte — stops seeing it. One
-   cycle in this repository already produced **20 distinct slugs for a single idea** in one
-   language; a second language multiplies that, it does not add to it.
-3. **A human reads the round later.** The recorded rounds are the only durable account of why a
-   spec says what it says.
+## Where judgement-shaping text belongs
 
-**This is a convention, not yet a fence.** Nothing in the emitted prompt states it today — measured:
-the role prompt carries zero mentions of language. Until a release puts it in the output contract,
-an orchestrator that spawns units itself should say it when it spawns them.
+Standing instructions that shape judgement go in per-spec `focus` frontmatter or the project's role
+files, both recorded via `roles_hash` — never only in the orchestrator's wrapper, which tp cannot
+see. The wrapper is for runtime setup. Framing it must carry anyway is declared with
+`--harness-note "<text>"` on `--record`, and `--status` reports `harness_stale` when it changed.
 
-## `--role` — one prompt at a time (v0.36.0)
+## `next_action` — the single next step
 
-`tp review <spec> --role <name>` and `tp audit <spec> --role <name>` narrow an emission to a single
-role's prompt. It is what a **unit** runs as its own first command: the emission the whole panel
-would produce is many times the size of the one prompt the unit will act on, and a run that loses a
-sub-agent mid-round loses only that role's work rather than the round's.
+`tp review`/`tp audit` `--status` and `--record` return a `next_action` by a fixed precedence; it is advisory and gates no exit code:
 
-`--role` takes exactly one value and is not repeatable. `--role ""` is refused as an unknown role
-rather than treated as an absent flag, so "flag given empty" and "flag absent" are never the same
-command.
+1. **Done** (converged, or the cap reached with every latest finding dispositioned) → review: decompose and `tp import`; audit: proceed to release.
+2. **The cap reached with a finding undispositioned, or a blocking finding open** → disposition it, or (below the cap) revise the spec or code. Accepting a blocking finding is named as the operator's decision.
+3. **A `mechanize_candidates` class recurs, none blocking** (review only) → register a check, then run the next round. A check is **only worth registering when the artifact it measures already exists in the review phase**. A class whose check is registered and ran falls through to step 4.
+4. **Clean but not yet converged** → run the next round.
 
-**Three name classes, three outcomes.** The set that produces a prompt is what *that invocation*
-would emit — not the corpus, and not the phase's active role set: the built-in `regression` role is
-emitted and belongs to no corpus, and `--perspective testing` emits `test-planner`, which is in
-neither.
-
-| The name is… | Outcome |
-|---|---|
-| in the emitted set | exit **0**, exactly one `prompts[]` entry, byte-identical to that role's entry in the same invocation without the flag; `skipped_roles` names every other emitted role with reason `role-filter` and, when non-empty, survives `--compact` |
-| recognised but not emitted this round | exit **0**, `prompts: []`. A name *this* phase skipped keeps its own `skipped_roles` entry; a name recognised only through the other phase's corpus is in none |
-| recognised nowhere | exit **2**, with a hint naming what the invocation would have emitted; nothing is written to the state directory |
-
-"Recognised" spans **both phases**: the user corpus and the embedded default corpus for reviewers
-*and* auditors, plus `regression`. So an auditor running `tp audit <spec> --role spec-coverage` and
-one running `tp review <spec> --role spec-coverage` both exit 0 — the second emits nothing, because
-`tp review` never emits an auditor.
-
-The exit-0-empty class is not a courtesy, it is forced: the unit set and the emitted set are
-computed by different filters. A corpus role with an empty checklist is spawned as a unit and emits
-no prompt, so under an exit-2 rule its own brief would fail before it did any work.
-
-**Where the flag is legal.** It is legal wherever prompts are emitted and refused with exit 2 where
-none are, and the refusal is evaluated *before* the mode's own argument validation, so the hint
-names the flag conflict rather than a missing `--findings`. The two commands do not have the same
-flag sets:
-
-| Command | `--role` legal in | `--role` refused in |
-|---|---|---|
-| `tp review` | default, `--perspective`, `--diff-from`, `--verify` | `--merge`, `--record`, `--status`, `--report`, `--resolve`, `--resolve-all`, `--rewritten` |
-| `tp audit` | default only | `--merge`, `--record`, `--status`, `--resolve`, `--resolve-all` |
-
-`tp audit` registers no `--perspective`, `--diff-from`, `--verify` or `--report` at all.
-
-**`review_loop.instruction` narrows with the payload.** That key is addressed to a caller holding
-the whole panel — spawn a sub-agent per prompt, merge, record the round, order the regression prompt
-against the others. Under `--role` it follows the payload it now describes: a payload holding **one**
-prompt gets a sentence-subset that directs no action that payload cannot support; a payload holding
-**none** gets an empty key, because nothing at all is supportable there. Without `--role` the key is
-unchanged.
-
-## Where judgement-shaping text belongs (v0.31.0)
-
-Standing instructions that shape a reviewer's judgement — what counts as a real defect, what to treat as intentional, what altitude to hold — do **not** belong in the orchestrator's prompt wrapper. tp cannot see that wrapper, so framing hidden there makes two rounds look comparable when their instructions differed materially. Standing framing has two sanctioned homes, both recorded via `roles_hash`:
-
-- **Per-spec focus** → `tp.review_roles` / `tp.audit_roles` frontmatter (append `focus` to a reviewer or auditor role).
-- **Project-owned roles** → `.tp/reviewers/*.json` / `.tp/auditors/*.json`.
-
-The wrapper is only for what tp cannot know — runtime setup (e.g. hook-blocked native file tools → use the MCP toolset). When the wrapper must carry standing framing anyway, declare it with `--harness-note "<text>"` on `tp review`/`tp audit --record` so it is recorded on the round instead of staying invisible (the flag requires `--record`; supplying it alone is a usage error, exit 2). `--status` then surfaces `harness_stale` — true only when the two most recently recorded rounds **both** carry non-empty notes that differ — and, when stale, the latest `harness_note`. The note is opt-in, gates nothing, and both `harness_note`/`harness_stale` are stripped under `--compact`. Review and audit surface these symmetrically.
-
-## `next_action` — the single next step (v0.31.0)
-
-`tp review --status`/`--record` and `tp audit --status`/`--record` return a `next_action` naming the one next step the current state calls for, by a fixed precedence (retained under `--compact`):
-
-1. **Done** — converged, or the round cap reached with every finding of the latest round dispositioned → the forward step: review names the directive `decompose the spec into tasks, then tp import <base>.tasks.json`; audit names the terminal `converged — implementation verified, proceed to release`, and a loop the cap ended says so instead. Convergence wins even when non-blocking findings remain open. Under `audit_converge_on: blocking` the audit string also **names the accepted count as a numeral** (`converged over N accepted rows — …`), so the round that closed over open advisory rows says so.
-2. **The cap reached with a finding undispositioned, or a blocking finding open** → at the cap, disposition each remaining finding in the recorded round file it names; below it, revise the spec where the finding is a defect or disposition it there (audit: fix the code, or disposition a finding that needs no code change). Disposition is named as an exit equal to a change; accepting a blocking finding is named as the operator's decision, and `--resolve-all` is never advised.
-3. **A `mechanize_candidates` class recurs, none blocking** (review only) → register a check (`tp set --workflow checks='[…]'`), then run the next round. The directive carries the phase qualifier: a check is **only worth registering when the artifact it measures already exists in the review phase**, because registered checks run in that phase alone. The un-mechanizable `over-specification` class never triggers this — it falls through to step 4. A class whose registered check ran falls through too (under plain `--status`, any registered class), so the driver is never told to write a check that already exists; a class whose check could not run is named with that check to fix.
-4. **Clean but not yet converged** → run the next round: `tp review <spec>`, then `tp review <spec> --record-inbox` (audit: `tp audit <spec> --record <file>`). Under `audit_converge_on: blocking` the audit string is prefixed with the same numeral (`N accepted rows carried forward — run the next audit round: …`) — this is the branch a `blocking` cycle takes on *every* clean round, where the converged branch fires once.
-
-**Registered checks override the review import steps.** Under `--record` and `--status --check`, at
-done or at the cap, a registered check that failed or could not run replaces every step that names
-import with that check to fix, ending `tp review <spec> --status --check exits 1 until every
-registered check passes`. Plain `--status` runs no check, so while any check is registered its import
-step starts `run tp review <spec> --status --check (--status alone runs no check) and on exit 0`.
-
-`next_action` is advisory and read-only; it gates no exit code.
+A registered check that failed or could not run replaces any step that names import.
 
 ## State directory (`.tp-review/`)
 
