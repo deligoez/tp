@@ -100,7 +100,7 @@ Resolves the task file by the discovery order (a spec argument wins and uses its
 | `bookkeeping` | `[]` of `{path, kind, ref}` — tp-owned dirty files that need committing (§5.2). `kind` ∈ `closure` (the task file; `ref` = task id) / `round` (a `.tp-review/` round or snapshot file; `ref` = round number) / `config` (any other dirty `.tp/` state; `ref` = basename). Reported separately from `changes` and never an `unexplained-changes` blocker. Under `commit_strategy: hc` a close legitimately leaves these modified |
 | `guidance` | one-line implement-phase note (run each unit in a fresh subagent/context); absent outside `implement`. v1.24.0 appends what the next unit's wip task is `waiting` on, and, when the effective `run_max_parallel` is above 1 and the remaining tasks form one chain, that only a chain of N tasks remains |
 | `plugin_stale` | v1.24.0: one line naming a tp plugin older than this released binary, with the remedy (`claude plugin update tp@tp`, then a new session); absent otherwise. Read from `$CLAUDE_PLUGIN_ROOT`, which the plugin's `SessionStart` hook sets and an agent's own shell does not, so it shows at session start and at compaction. Silent for a dev, pseudo-version or `+dirty` build, a manifest it cannot read, and a plugin not named `tp` |
-| `next_action` | `{command, brief_command, summary, payload}`; `command` is null for `release`, and for `decompose` while the resolved workflow registers no check — with at least one registered, the decompose action carries the read-only `tp review <spec> --status --check` in **both** `command` and `brief_command` and its summary names that gate ahead of decomposing. `brief_command` names the command that produces the brief for this phase. Payload: review/audit `{round, unresolved_findings}` (round = recorded+1, 0 unresolved on round 1; `unresolved_findings` counts the last round's open findings — every review row and every non-`PASS` audit row not resolved `wontfix`/`duplicate` with evidence, so a `fixed` row still counts), implement `{task: {id}|null, wip}`, `{action:"record-round", round:N}` when a snapshot exists without its recorded round, decompose `{unit: {id, kind}}`, release `{}`. While an escalate blocker stands and `next_units` is empty, `summary` is the first escalate blocker's message, `command` and `brief_command` are null, and `payload` drops its step preview (`task`/`wip`, `round`/`action`) but keeps `unresolved_findings` |
+| `next_action` | `{command, brief_command, summary, payload}`; `command` is null for `release`, and for `decompose` while the resolved workflow registers no check — with at least one registered, the decompose action carries the read-only `tp review <spec> --status --check` in **both** `command` and `brief_command` and its summary names that gate ahead of decomposing. `brief_command` names the command that produces the brief for this phase. Payload: review/audit `{round, unresolved_findings}` (round = recorded+1, 0 unresolved on round 1; `unresolved_findings` counts the last round's open findings — every review row and every non-`PASS` audit row not resolved `wontfix`/`duplicate` with evidence, so a `fixed` row still counts), implement `{task: {id}|null, wip}` (plus `agent_held` when agent spawns hold every task that could run, v1.29.4), `{action:"record-round", round:N}` when a snapshot exists without its recorded round, decompose `{unit: {id, kind}}`, release `{}`. While an escalate blocker stands and `next_units` is empty, `summary` is the first escalate blocker's message, `command` and `brief_command` are null, and `payload` drops its step preview (`task`/`wip`, `round`/`action`) but keeps `unresolved_findings` |
 | `blockers` | `{code, class, message, data}` in fixed code order |
 | `next_units` (v0.35.0) | ordered `[]` of `{kind, id, brief_command}` — the units a driver should execute **now**. `[]` when the phase is blocked, awaiting an operator decision, or `release`. Concurrency is not repeated per entry: it is fixed per kind (see [Unattended Run](#unattended-run-v0350)) |
 | `round` (v0.35.0) | the round `next_units` belongs to — the round being collected for role units, the round just recorded for the resolve/fix kinds — and `null` outside a round-based phase |
@@ -153,7 +153,7 @@ Acceptance: Model exists. Migration runs.
 
 The plugin's `PreToolUse` hook on `Agent` (`hooks/pre-tool-use-agent-claim.sh`) reads the marker from `tool_input.prompt` alone: a whole line that starts with `tp-task: `, or the `"marker": "tp-task: ..."` field of a brief's JSON pasted whole; a marker inside a sentence, or in any other field, is not read. A spawn carries one task: a prompt with two different markers is refused, so no claim is left behind for a spawn that never starts. The hook runs `tp claim <id> --file <task file> --spawn <tool_use_id>` from the repository root, passing the payload's `tool_use_id` and `session_id`. A refusal, or a marker whose id or path fails its shape, exits 2 and the spawn does not happen; a prompt without a marker, and any spawn inside a `tp run` unit (`TP_UNIT_KIND` set), pass untouched. `tp brief` carries the marker as `marker` in its JSON and as the first line of its terminal text, the task file relative to the repository root; there is no marker outside git, or for an id outside `[A-Za-z0-9][A-Za-z0-9._-]*` or a task file path outside `[A-Za-z0-9._/-]`, which the hook would not read.
 
-**A claim held in another worktree (v1.29.0).** A coordinator's claim is an uncommitted change on its own tree, so an agent's worktree, cut from `HEAD`, has the task `open`. When this tree's copy has the task `open` and another worktree's copy holds it `wip` under a spawn's claim, three commands act on that claim instead of the local copy (spec/backlog/worktree-land.md); a copy that has the task `wip` or `done` speaks for itself:
+**A claim held in another worktree (v1.29.0).** A coordinator's claim is an uncommitted change on its own tree, so an agent's worktree, cut from `HEAD`, has the task `open`. When this tree's copy has the task `open` and another worktree's copy holds it `wip` under a spawn's claim, three commands act on that claim instead of the local copy (spec/backlog/worktree-land.md); a copy that has the task `done`, or `wip` without a spawn's claim, speaks for itself. Since v1.29.4 a linked worktree whose copy has the task `wip` under a spawn's claim (the claim was committed before the worktree was cut) routes them to the main worktree's copy when that copy has it `wip` under a spawn's claim, so a coordinator working in the main worktree may commit claims freely; a coordinator in a linked worktree leaves the claim uncommitted until `tp land`:
 - `tp set <id> waiting=...` writes to the holder's copy, with a notice naming it, so the park sits beside the claim.
 - `tp done <id> --commit <sha>... -- "<evidence>"` closes nothing. It refuses more than one id, a missing `--commit`, and any of `--auto-commit`, `--covered-by` and `--skip-gate` it was given (exit 2); checks the evidence and dependencies against the holder's copy, then the commits (on this worktree's `HEAD`, not on the holder's branch, every commit since the branch left it, none touching the task file, `.tp/` or the spec's review state; exit 1), then runs the gate here, on the agent's code. It then records a land request in the git common directory (`tp/land/<key>/<id>.json`, keyed by the task file's path relative to the worktree's top level) and prints `{land_requested, id, commits, claimed_in}`. A repeated `tp done` replaces the request.
 - `tp commit <id>` is refused (exit 2). Each refusal's hint names the commands: `git add -A && git commit -m "<message>"` (under `hc`, a commit made with hc), then `tp done <id> --commit <sha> -- "<evidence>"`, then stop.
@@ -225,11 +225,11 @@ kinds and no others; `(kind, id)` identifies a unit, and `id` is its durable sub
 | Kind | `id` | Durable write | Concurrency | `brief_command` |
 |------|------|---------------|-------------|-----------------|
 | `implement` | task id | the task's `status` is `done`; in a pool, a pending close for the task | alone, or side by side in an implement pool (v1.19.0) | `tp next --brief`; `tp brief <id>` in a pool |
-| `review-role` | role id | `$TP_ROUND_DIR/role-$TP_UNIT_ID.ndjson` exists and every content line parses | parallel with sibling roles | `tp review <spec>` |
+| `review-role` | role id | `$TP_ROUND_DIR/role-$TP_UNIT_ID.ndjson` exists and every content line parses | parallel with sibling roles | `tp review <spec> --role <role>` |
 | `review-record` | round number | `$TP_ROUND_DIR/merged.ndjson` **and** a review round file for `$TP_ROUND` exist | alone | `[ -f "$TP_ROUND_DIR/merged.ndjson" ] \|\| tp review --merge "$TP_ROUND_DIR"/role-*.ndjson -o "$TP_ROUND_DIR/merged.ndjson" && tp review <spec> --record "$TP_ROUND_DIR/merged.ndjson"` |
 | `review-resolve` | spec base name | every finding in `$TP_ROUND_DIR/merged.ndjson` carries a disposition | alone | `tp review <spec> --status` |
 | `decompose` | spec base name | the task file holds at least one task | alone | `tp resume` |
-| `audit-role` | role id | `$TP_ROUND_DIR/role-$TP_UNIT_ID.ndjson` exists and every content line parses | parallel with sibling roles | `tp audit <spec>` |
+| `audit-role` | role id | `$TP_ROUND_DIR/role-$TP_UNIT_ID.ndjson` exists and every content line parses | parallel with sibling roles | `tp audit <spec> --role <role>` |
 | `audit-record` | round number | `$TP_ROUND_DIR/merged.ndjson` **and** an audit round file for `$TP_ROUND` exist | alone | the `tp audit` form of the review-record command above |
 | `audit-fix` | the finding's `role:item_id` | every non-`PASS` row under that key carries a disposition in the round's results file; when a task audit holds the key's latest grading, in that task audit's round file, with nothing under the key left undisposed in the results file | alone | `tp audit <spec> --status`; for a task-audit row, `tp audit <spec> --status && echo 'fix <key>, graded in <file>, then claim it: tp audit <file> --resolve <key> fixed "<evidence>"'` |
 | `task-audit-role` (v1.22.0) | role id | `$TP_ROUND_DIR/role-$TP_UNIT_ID.ndjson` exists and every content line parses, in the task audit's own round directory (`task-audit-r<seq>`) | parallel with sibling roles | `tp audit <spec> --task-audit --role <id>` |
@@ -272,13 +272,19 @@ prefixes diverge, compared case-insensitively, and an empty literal prefix overl
 `touches` are a hint (v1.20.0): only touches both tasks name can be compared, so a task without
 them joins the pool unscreened, and a clash is caught by the pick and the gate: whichever unit of
 the pair integrates second is discarded and rerun alone. A wip task that no pool runs (an
-interrupted unit) is resumed alone; a task carrying `solo: true` (managed: set by a failed
+interrupted unit) is resumed alone. A task `wip` under an agent spawn's claim (`claimed_by.spawn`) is that
+agent's (v1.29.4): `tp next`, `tp brief` with no id, `tp resume`'s implement preview and `next_action`, and
+`tp run`'s `next_units` never offer it to resume; `tp pool` counts it against `run_max_parallel`, while
+`tp run`, whose own units never carry a spawn claim, passes over it; when agents hold every task that could run, `tp next` and `tp brief` exit 4 with `agent_held` and
+a hint, and `tp resume` reports no blocker, its `next_action.command` `tp pool --session <session>`
+(`tp land` when the claim has no session). A task carrying `solo: true` (managed: set by a failed
 integration, never by hand), or one whose id is unsafe in a branch name or a path (anything but
 letters, digits, `.`, `_` and `-`, a `..`, a trailing `.` or a `.lock` suffix), never joins the pool
 and, when it is next, runs alone. Either one, next in line while the pool runs, starts nothing: the
 pool drains for it, and it runs alone in the main tree once the pool is empty. A pool starts with two
-or more units; one unit with an empty pool is the ordinary implement unit. Pools are `tp run`'s
-alone: nothing else integrates a pending close.
+or more units; one unit with an empty pool is the ordinary implement unit. `tp run` integrates its
+own pool's pending closes; a hand coordinator's worktree agents are integrated by `tp land`, with
+`tp pool` naming its slots (both above).
 
 The slots roll (v1.25.0): each unit is integrated on the main branch as soon as it exits, and its
 slot is refilled from the oracle, with the running units named, while the others still run. One
@@ -393,8 +399,8 @@ by `tp validate` and `tp set`.
 - **Limits.** A worktree is a fresh checkout of `HEAD`, without ignored files (dependencies, `.env`,
   build output), and the unit's gate runs there; `tp run --dry-run` says so on stderr before a pool.
   A project whose units or gate need them sets `worktree_setup_cmd` to prepare each worktree (above)
-  or keeps `run_max_parallel` at 1; a hand-driven parallel flow gets no setup, and its remedy is
-  `tp run`. `tp validate` names every open task without `touches` in one warning while
+  or keeps `run_max_parallel` at 1; a hand coordinator's worktrees get no setup from tp: the coordinator
+  prepares each one itself, or uses `tp run`. `tp validate` names every open task without `touches` in one warning while
   `run_max_parallel` is above 1, and the warning names `worktree_setup_cmd`. The caps are read
   before every spawn in a pool, retries included, so `run_max_units` is never passed; the spend and
   wall-clock caps can be, by the units still running while the pool drains.
@@ -758,7 +764,9 @@ the `SessionStart` hook fails with the install command rather than degrading qui
 |---|---|---|
 | `SessionStart` | `*` | preflight `tp`'s presence and version, then inject `tp resume --compact` as additional context |
 | `PreToolUse` | `Write\|Edit\|MultiEdit\|NotebookEdit` and codedbpro's `create`/`edit`/`patch`/`replace`/`batch` | deny writes to `.tp-review/` contents, `*.tasks.json`, `.tp/config.json` and `.tp/local.json` inside the session's repository (git's top level from `$CLAUDE_PROJECT_DIR`, else the hook's cwd); a write outside it, such as a fixture under `mktemp -d`, passes, and so does a read-only tool; a `batch` is judged op by op, so one whose ops are all reads passes |
-| `Stop` | — | inside a role unit whose findings file fails its predicate and with no escalation record, block **once** with the reason |
+| `PreToolUse` | `Agent` | `hooks/pre-tool-use-agent-claim.sh`: claim the task a brief's marker names for the spawn (see `tp claim --spawn` above) |
+| `Stop` | — | `hooks/stop-role-incomplete.sh`: inside a role unit whose findings file fails its predicate and with no escalation record, block **once** with the reason; then `hooks/stop-fill-pool.sh`: `tp pool --stop-hook`, asking a coordinator to land and fill its free slots |
+| `SubagentStop` | — | `hooks/subagent-stop-claim.sh`: block a sub-agent's first stop while a task it claimed is neither `done` nor `waiting` (see `tp claims --spawn` above) |
 
 The session hook deliberately does not branch on the matcher (`clear` is not reliably reported on
 every client, and an occasionally redundant orientation costs less than an occasionally missing one).
