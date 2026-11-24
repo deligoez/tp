@@ -34,3 +34,25 @@ func TestRepoRelativePathIsFromTheWorktreeRoot(t *testing.T) {
 
 	assert.Equal(t, "proj/spec.tasks.json", RepoRelativePath(filepath.Join(home, "proj", "spec.tasks.json")))
 }
+
+// tp land removes only the request it read: one the agent wrote while the
+// landing ran stays for the next tp land.
+func TestRemovingALandRequestKeepsOneWrittenSince(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	write := func(at string) {
+		t.Helper()
+		body := `{"id":"t1","reason":"r","commits":["abc"],"worktree":"/w","at":"` + at + `"}`
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "t1.json"), []byte(body), 0o600))
+	}
+	write("1")
+	read := LandRequest{ID: "t1", At: "1"}
+	write("2")
+
+	require.NoError(t, RemoveLandRequest(dir, &read))
+	assert.FileExists(t, filepath.Join(dir, "t1.json"), "the later request is kept")
+
+	later := LandRequest{ID: "t1", At: "2"}
+	require.NoError(t, RemoveLandRequest(dir, &later))
+	assert.NoFileExists(t, filepath.Join(dir, "t1.json"))
+}
