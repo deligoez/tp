@@ -1,17 +1,620 @@
 {
   "version": 1,
   "spec": "spec/1.31.0.md",
-  "created_at": "2026-11-24T21:08:54.950207Z",
-  "updated_at": "2026-11-24T21:26:26.064486Z",
+  "imported_at": "2026-11-24T21:33:03.666479Z",
+  "created_at": "2026-11-24T21:33:03.664126Z",
+  "updated_at": "2026-11-24T21:33:03.66648Z",
   "workflow": {
     "review_max_rounds": 4,
     "audit_max_rounds": 3
   },
   "coverage": {
-    "total_sections": 0,
-    "mapped_sections": 0,
-    "context_only": [],
+    "total_sections": 13,
+    "mapped_sections": 10,
+    "context_only": [
+      "# tp v1.31.0 — found tasks",
+      "## 11. Non-goals",
+      "## 12. Decided with the operator"
+    ],
     "unmapped": []
   },
-  "tasks": []
+  "tasks": [
+    {
+      "id": "found-request-store",
+      "title": "Store found requests in spec run state",
+      "description": "Model and store for a found request: location, reproduction, expected, observed, optional question and alternatives, blocks, finder, arrival order, applied/undecided state; kept in the spec's run state, written under its lock.",
+      "status": "open",
+      "tags": [
+        "model",
+        "found"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 20,
+      "acceptance": "- a request with every field round-trips through save and load unchanged\n- requests keep arrival order across a reload, and a new request is unapplied\n- the store lives in the spec's run state, not in the task file",
+      "source_sections": [
+        "## 1. The request"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "found-add-cmd",
+      "title": "Add tp found add with shape checks",
+      "description": "tp found add records one request; refuses with exit 2 a request with no location, no reproduction, or neither all four Fix fields nor a question; blocks only when the caller works a task. Changes no task.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "found"
+      ],
+      "depends_on": [
+        "found-request-store"
+      ],
+      "estimate_minutes": 20,
+      "acceptance": "- a request with all four Fix fields records; the same request with no reproduction exits 2, and one with neither the Fix fields nor a question exits 2\n- `--blocks` without a task the caller works exits 2; the task file is byte-identical after any `tp found add`\n- JSON output names the recorded request's id",
+      "source_sections": [
+        "## 1. The request"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "unit-prompts-no-sweep",
+      "title": "Teach unit prompts to file requests",
+      "description": "The implement and audit-role unit prompts say to file a defect outside the unit's task with tp found add, one defect per request, and carry the no-sweep sentence.",
+      "status": "open",
+      "tags": [
+        "prompt",
+        "found"
+      ],
+      "depends_on": [
+        "found-add-cmd"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- the implement and audit-role prompts each carry the no-sweep sentence and name `tp found add`\n- a prompt test fails if either sentence is removed",
+      "source_sections": [
+        "## 1. The request"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "task-origin-field",
+      "title": "Add the origin field to tasks",
+      "description": "Task gains origin: the finder (task id, or audit round and row key) and the request location. origin and source_sections are exclusive; origin satisfies the entry anchor check; tp validate accepts a found task.",
+      "status": "open",
+      "tags": [
+        "model",
+        "found"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 15,
+      "acceptance": "- a task with `origin` and no `source_sections` passes `tp validate` and the entry check\n- a task with both `origin` and `source_sections` fails validation naming both\n- `origin` round-trips through load and save; a task without it gains no key",
+      "source_sections": [
+        "## 3. The found task"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "add-refuses-unresolved-anchor",
+      "title": "Refuse tp add on unresolved headings",
+      "description": "tp add refuses a source_sections entry that names no heading of the spec, naming the entry; today it accepts any text.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "found"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 12,
+      "acceptance": "- `tp add` with a `source_sections` entry naming no heading exits non-zero naming the entry\n- §10 row 'An unresolved anchor is refused': fixture and mutant as the row states; the counts at HEAD and under the mutant are recorded in the closure\n- an entry naming a real heading still adds the task",
+      "source_sections": [
+        "## 3. The found task",
+        "## 10. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "found-queue-store",
+      "title": "Store the queue beside the task file",
+      "description": "A committed file beside the spec's task file holds open and decided entries: location, question, alternatives, the finders waiting on it, the request; decided entries are conforms answers.",
+      "status": "open",
+      "tags": [
+        "model",
+        "found"
+      ],
+      "depends_on": [
+        "found-request-store"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- an open and a decided entry round-trip through save and load in a file beside the task file\n- the file is not ignored by git and is written under the task-file lock",
+      "source_sections": [
+        "## 6. The queue"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "found-max-field",
+      "title": "Add the found_max workflow field",
+      "description": "found_max workflow field, default 5, resolved like the other workflow fields and carried by config extract and validate --project. Raising it is rule 9: under TP_UNATTENDED it exits 2 with raise-found-cap, added to EscalationDecisions.",
+      "status": "open",
+      "tags": [
+        "workflow",
+        "found"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 15,
+      "acceptance": "- an unset `found_max` resolves to 5; `found_max=0` resolves to 0\n- `tp set --workflow found_max=6` under `TP_UNATTENDED` exits 2 with `raise-found-cap`; lowering it does not\n- `raise-found-cap` is in `engine.EscalationDecisions` and `tp escalate --decision raise-found-cap` records",
+      "source_sections": [
+        "## 8. The cap"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "found-apply-dedup",
+      "title": "Dedup requests by file and reproduction",
+      "description": "tp found apply drops a request whose file and whitespace-normalised reproduction match one in its batch, one whose outcome is open, one still undecided, or an open queue entry; the duplicate opens nothing and its finder is placed against the kept one.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "found"
+      ],
+      "depends_on": [
+        "found-request-store",
+        "found-queue-store",
+        "task-origin-field"
+      ],
+      "estimate_minutes": 25,
+      "acceptance": "- two requests in one batch with the same file and reproduction at different lines open one task (§10 row 'Dedup keys on the reproduction', counts recorded)\n- a request matching an undecided request or an open queue entry opens nothing and adds no entry (round-4 findings 5, 10)\n- a request matching a done or handed-back task's request is not a duplicate",
+      "source_sections": [
+        "## 2. Applying requests",
+        "## 10. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "found-apply-open",
+      "title": "Open found tasks within the cap",
+      "description": "tp found apply turns Fix-shaped requests into found tasks, blocking first then by arrival, within found_max counted over every found task the file has carried (task answers in, settled tasks out); past it they become open queue entries.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "found"
+      ],
+      "depends_on": [
+        "found-apply-dedup",
+        "found-max-field"
+      ],
+      "estimate_minutes": 30,
+      "acceptance": "- with the cap one short, a blocking request filed after a non-blocking one is the one applied (§10 row 'Blocking first within the cap', counts recorded)\n- after five found tasks a sixth Fix-shaped request is queued, also after a stop and restart (§10 row 'The cap holds across a restart')\n- at `found_max=0` no task opens and every Fix-shaped request that is neither a duplicate nor attached is queued; a non-Fix-shaped request goes to the decision unit (round-4 findings 0, 1, 4, 12)",
+      "source_sections": [
+        "## 2. Applying requests",
+        "## 8. The cap",
+        "## 10. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "found-apply-attach",
+      "title": "Attach requests inside an open task",
+      "description": "A request whose location falls inside an open spec task's files opens nothing, does not count against the cap, and is attached to that task as a note shown by tp show and the brief; that task is its outcome.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "found"
+      ],
+      "depends_on": [
+        "found-apply-open"
+      ],
+      "estimate_minutes": 20,
+      "acceptance": "- a request inside an open task's files opens no task and shows on that task in `tp show` and its brief\n- the attachment does not change the cap count\n- the closure states whether a request inside an open found task's files attaches, with a test (round-4 finding 3)",
+      "source_sections": [
+        "## 2. Applying requests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "found-placement",
+      "title": "Place found tasks on the finder's edge",
+      "description": "Apply adds at most one edge: a non-blocking found task depends on its task finder (an audit finder adds none); a blocking request makes the finder depend on its outcome; an edge that would close a cycle becomes an open queue entry whose question names the cycle.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "found"
+      ],
+      "depends_on": [
+        "found-apply-attach"
+      ],
+      "estimate_minutes": 25,
+      "acceptance": "- a non-blocking found task lists the finder in `depends_on`; one from an audit row lists nothing\n- after a blocking request the finder lists the found task in `depends_on`; a blocking duplicate's finder depends on the kept task\n- a blocking edge that would close a cycle adds no edge and opens a queue entry naming the cycle (round-4 finding 14)",
+      "source_sections": [
+        "## 4. Placement",
+        "## 2. Applying requests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "finder-waits",
+      "title": "Make a blocked finder wait on its request",
+      "description": "A blocking request with no task outcome makes its finder wait, open and not ready, until a task outcome, a conforms answer, or a settled entry; apply never moves a wip finder whose unit is still running.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "found"
+      ],
+      "depends_on": [
+        "found-placement"
+      ],
+      "estimate_minutes": 25,
+      "acceptance": "- after a blocking request that becomes a queue entry, the finder is open and not in `tp next`'s ready set; once the entry is rejected it is ready\n- §10 row 'An entry holds only its finders': one open entry holding one finder and one unrelated ready task; counts recorded\n- apply leaves a wip finder under a live claim or running unit unchanged; it returns to open when that unit exits without closing (round-4 findings 7, 11)",
+      "source_sections": [
+        "## 4. Placement",
+        "## 10. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "run-applies-requests",
+      "title": "Apply requests after every run unit",
+      "description": "tp run applies requests after every unit, after the round is recorded for audit units; a unit that filed a blocking request and exits without closing returns to open without spending an attempt.",
+      "status": "open",
+      "tags": [
+        "driver",
+        "found"
+      ],
+      "depends_on": [
+        "finder-waits"
+      ],
+      "estimate_minutes": 25,
+      "acceptance": "- a run whose implement unit files a request ends with the found task in the file\n- §10 row 'A blocking placement spends no attempt': counts recorded\n- an audit unit's requests are applied only after its round is recorded",
+      "source_sections": [
+        "## 2. Applying requests",
+        "## 4. Placement",
+        "## 10. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "stop-hook-apply",
+      "title": "Refuse the coordinator's stop with requests unapplied",
+      "description": "In a hand-coordinated session the pool's Stop hook refuses the coordinator's stop once while unapplied requests exist, naming tp found apply.",
+      "status": "open",
+      "tags": [
+        "hooks",
+        "found"
+      ],
+      "depends_on": [
+        "found-apply-open"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- with an unapplied request the Stop hook refuses once naming `tp found apply`; with `stop_hook_active` true it lets the stop through\n- with no unapplied request it does not refuse",
+      "source_sections": [
+        "## 2. Applying requests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "found-brief",
+      "title": "Brief a found task from its request",
+      "description": "A found task's brief carries the request's fields and no spec excerpt, and says its first step is the reproduction and tp found handback when it does not fail for the stated reason.",
+      "status": "open",
+      "tags": [
+        "brief",
+        "found"
+      ],
+      "depends_on": [
+        "task-origin-field",
+        "found-apply-open"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- a found task's brief shows location, reproduction, expected and observed, and no excerpt\n- the brief names `tp found handback` as the step when the reproduction does not fail",
+      "source_sections": [
+        "## 3. The found task"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "found-handback",
+      "title": "Add tp found handback",
+      "description": "tp found handback \u003cid\u003e \"\u003cwhy\u003e\" closes a found task as done marked handed back, opens a queue entry holding its request, and moves the finders depending on it to wait on that entry.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "found"
+      ],
+      "depends_on": [
+        "finder-waits"
+      ],
+      "estimate_minutes": 20,
+      "acceptance": "- after `tp found handback` the task is done and marked handed back, and the queue lists its request\n- a finder that depended on the task now waits on the entry and is not ready\n- handback on a task without `origin` exits 2",
+      "source_sections": [
+        "## 3. The found task",
+        "## 4. Placement"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "coverage-skips-found",
+      "title": "Leave found tasks out of spec coverage",
+      "description": "Spec coverage excludes found tasks from its denominator; a task audit still reaches them through their files.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "found"
+      ],
+      "depends_on": [
+        "task-origin-field"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- spec coverage reports the same figures before and after a found task is added\n- a task audit of a found task lists its files",
+      "source_sections": [
+        "## 3. The found task"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "decision-answer-cmd",
+      "title": "Record decision answers with the quote check",
+      "description": "A command records a decision unit's answer to an undecided request: task (Fix fields, reproduction, quote found verbatim whitespace-normalised in the cited file), conforms (quote checked the same way), or human (queue entry).",
+      "status": "open",
+      "tags": [
+        "cli",
+        "found"
+      ],
+      "depends_on": [
+        "found-placement",
+        "found-queue-store"
+      ],
+      "estimate_minutes": 30,
+      "acceptance": "- a `task` answer whose quote is not in the cited file is refused and the request stays undecided (§10 rows 'A quote must be in the cited file' and 'The quote check normalises whitespace', counts recorded)\n- a `conforms` answer opens no task and appears in the queue's decided list; a `human` answer adds an open entry with the question and alternatives\n- a `task` answer is applied like a Fix-shaped request but never as a duplicate of the request it answers; past the cap it adds an open entry",
+      "source_sections": [
+        "## 5. The decision unit",
+        "## 10. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "decision-unit-kind",
+      "title": "Schedule the decision unit in tp run",
+      "description": "A decision unit kind takes at most 5 undecided requests and runs when undecided requests exist and no implement unit is ready or running; when only waiting tasks remain it runs first if a request is undecided, then the run stops with no-ready-task if none is ready.",
+      "status": "open",
+      "tags": [
+        "driver",
+        "found"
+      ],
+      "depends_on": [
+        "decision-answer-cmd",
+        "run-applies-requests"
+      ],
+      "estimate_minutes": 30,
+      "acceptance": "- with undecided requests and no ready implement unit, the run spawns one decision unit carrying at most 5 requests\n- with only waiting tasks and no undecided request, the run stops with `no-ready-task` without spawning a decision unit\n- the decision unit's prompt says it never makes a rule-9 decision and answers `human` when in doubt",
+      "source_sections": [
+        "## 5. The decision unit",
+        "## 4. Placement"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "decision-agent",
+      "title": "Add the decision plugin agent",
+      "description": "A fourth plugin agent runs the decision unit from the prompt tp emits; the plugin inventory and its tests count four agents.",
+      "status": "open",
+      "tags": [
+        "plugin",
+        "found"
+      ],
+      "depends_on": [
+        "decision-unit-kind"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- `agents/` holds the decision agent and the plugin inventory tests expect four agents\n- the run's runner template names the decision agent for the decision unit kind",
+      "source_sections": [
+        "## 5. The decision unit"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "found-settle-cmd",
+      "title": "Add tp found settle for the person",
+      "description": "tp found settle takes a batch and settles each open entry: make a task in that spec's task file (not counted against the cap) or reject with a reason; settling releases the entry's waiting finders.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "found"
+      ],
+      "depends_on": [
+        "finder-waits"
+      ],
+      "estimate_minutes": 20,
+      "acceptance": "- one `tp found settle` call makes a task of one entry and rejects another\n- a task the person makes does not count against `found_max`; a finder waiting on it now depends on it\n- a rejected entry's finder is ready again",
+      "source_sections": [
+        "## 6. The queue",
+        "## 4. Placement"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "resume-queue-counts",
+      "title": "Show the queue in resume and payloads",
+      "description": "tp resume prints the open entry count and how many tasks wait on them; the converged payload carries the open count; an entry holding no finder changes no phase or --check.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "found"
+      ],
+      "depends_on": [
+        "found-settle-cmd"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- `tp resume` prints the open entry count and how many tasks wait on them\n- with an open entry that holds no finder, `tp review/audit --status --check` and `tp resume`'s phase are what they would be without it\n- the converged payload carries the open entry count",
+      "source_sections": [
+        "## 6. The queue"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "audit-files-requests",
+      "title": "File out-of-surface audit findings as requests",
+      "description": "A Fix-shaped finding outside the spec's surface becomes a request applied after the round is recorded; the row is recorded as out-of-surface under rule 13 naming the request; a found task's commit does not reset the clean-round streak.",
+      "status": "open",
+      "tags": [
+        "audit",
+        "found"
+      ],
+      "depends_on": [
+        "run-applies-requests"
+      ],
+      "estimate_minutes": 25,
+      "acceptance": "- a Fix-shaped out-of-surface audit finding files a request applied after the round is recorded, and its row's disposition names the request (round-4 finding 9)\n- the audit's consecutive clean count is the same before and after a found task closes\n- an audit row on an asked item still takes the audit-fix path and files no request",
+      "source_sections": [
+        "## 7. The audit's part"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "found-fence",
+      "title": "Fence task-graph writes inside run units",
+      "description": "Under tp run, a unit of any kind but decompose that calls tp add, tp import, tp set depends_on or tp found settle exits 2 naming tp found add.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "found"
+      ],
+      "depends_on": [
+        "found-settle-cmd"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- with `TP_UNIT_KIND=implement` and `TP_UNATTENDED=1`, `tp add` exits 2 naming `tp found add`; with `TP_UNIT_KIND=decompose` it succeeds (§10 row 'The fence', counts recorded)\n- `tp import`, `tp set \u003cid\u003e depends_on=…` and `tp found settle` exit 2 the same way under an implement unit\n- outside a run every one of them behaves as before",
+      "source_sections": [
+        "## 9. The fence",
+        "## 10. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "found-docs",
+      "title": "Document found tasks across skill and docs",
+      "description": "SKILL.md, REFERENCE.md and README cover tp found add/apply/handback/settle, origin, the queue, found_max and its interview question, the decision unit; CLAUDE.md rule 9 lists raise-found-cap; undecided.md drops the tp note entry; plugin.json bumps.",
+      "status": "open",
+      "tags": [
+        "docs",
+        "found"
+      ],
+      "depends_on": [
+        "found-fence",
+        "decision-agent",
+        "audit-files-requests",
+        "resume-queue-counts",
+        "found-handback",
+        "found-brief",
+        "coverage-skips-found",
+        "stop-hook-apply",
+        "unit-prompts-no-sweep",
+        "add-refuses-unresolved-anchor"
+      ],
+      "estimate_minutes": 40,
+      "acceptance": "- SKILL.md's inventory and REFERENCE.md cover every new command, field and exit, and Workflow A's interview asks for `found_max` (5, a higher number, or 0)\n- CLAUDE.md rule 9 lists `raise-found-cap`; `spec/undecided.md` no longer lists the `tp note` inbox as deferred\n- `.claude-plugin/plugin.json`'s version is bumped and the doc tests pass",
+      "source_sections": [
+        "## 6. The queue",
+        "## 8. The cap",
+        "## 5. The decision unit"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
 }
