@@ -52,5 +52,110 @@
       "hash_scheme": "snapshot"
     }
   ],
-  "audit_rounds": []
+  "audit_rounds": [],
+  "task_audits": [
+    {
+      "seq": 1,
+      "members": [
+        {
+          "id": "found-max-field",
+          "closed_at": "2026-11-24T22:35:16.407587Z",
+          "piece": 0,
+          "pieces": 2,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            ".claude-plugin/plugin.json",
+            "internal/cli/config.go",
+            "internal/cli/config_extract.go",
+            "internal/cli/escalate_test.go",
+            "internal/cli/set.go",
+            "internal/cli/set_project.go",
+            "internal/cli/unattended.go",
+            "internal/cli/unattended_fence_test.go",
+            "internal/cli/validate_project.go",
+            "internal/engine/configresolve.go"
+          ]
+        }
+      ],
+      "files": [
+        ".claude-plugin/plugin.json",
+        "internal/cli/config.go",
+        "internal/cli/config_extract.go",
+        "internal/cli/escalate_test.go",
+        "internal/cli/set.go",
+        "internal/cli/set_project.go",
+        "internal/cli/unattended.go",
+        "internal/cli/unattended_fence_test.go",
+        "internal/cli/validate_project.go",
+        "internal/engine/configresolve.go"
+      ],
+      "roles": [
+        "go-safety"
+      ],
+      "head": "67319dd987ac6b688725934e947d3a8b37606e4b",
+      "emitted_at": "2026-11-24T22:35:37.257937Z",
+      "recorded_at": "2026-11-24T22:37:32Z",
+      "file": "task-audit-1.ndjson",
+      "findings": 1
+    },
+    {
+      "seq": 2,
+      "members": [
+        {
+          "id": "found-max-field",
+          "closed_at": "2026-11-24T22:35:16.407587Z",
+          "piece": 1,
+          "pieces": 2,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/engine/escalation.go",
+            "internal/engine/foundmax.go",
+            "internal/engine/foundmax_test.go",
+            "internal/engine/projectconfig.go",
+            "internal/engine/unattended.go",
+            "internal/engine/validate.go",
+            "internal/model/projectconfig.go",
+            "internal/model/workflow.go"
+          ]
+        },
+        {
+          "id": "found-request-store",
+          "closed_at": "2026-11-24T22:35:16.407587Z",
+          "piece": 0,
+          "pieces": 1,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/engine/foundrequest.go",
+            "internal/engine/foundrequest_test.go"
+          ]
+        }
+      ],
+      "files": [
+        "internal/engine/escalation.go",
+        "internal/engine/foundmax.go",
+        "internal/engine/foundmax_test.go",
+        "internal/engine/projectconfig.go",
+        "internal/engine/unattended.go",
+        "internal/engine/validate.go",
+        "internal/model/projectconfig.go",
+        "internal/model/workflow.go",
+        "internal/engine/foundrequest.go",
+        "internal/engine/foundrequest_test.go"
+      ],
+      "roles": [
+        "go-safety"
+      ],
+      "head": "67319dd987ac6b688725934e947d3a8b37606e4b",
+      "emitted_at": "2026-11-24T22:38:03.18849Z",
+      "recorded_at": "2026-11-24T22:39:40Z",
+      "file": "task-audit-2.ndjson",
+      "findings": 1
+    }
+  ]
 }
