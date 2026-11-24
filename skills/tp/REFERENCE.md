@@ -1072,6 +1072,18 @@ clears its round, and the next `--record` carries it forward while its file is u
 Dispositions). `role_streaks[].open`, `consecutive_clean` and `spec_coverage_clean_rounds` stay
 severity-blind, so under `blocking` a round can record `clean: true` beside a non-zero `open`.
 
+The field only saves rounds when it resolves before audit round 1, so decide it from the previous
+cycle's severity mix. `by_severity` is not persisted; count it over the recorded rounds (the glob
+leaves out the raw per-role files in `audit-inbox/`, which would double-count):
+
+```bash
+python3 -c 'import json,sys,collections;print(collections.Counter((r.get("severity") if r.get("severity") in ("error","warning","info") else "unrecognised") for f in sys.argv[1:] for l in open(f) if l.strip() for r in [json.loads(l)] if r.get("status")!="PASS"))' <spec-dir>/.tp-review/<previous-version>/audit-round-*.ndjson
+```
+
+Read the `error` column, not the round saving: on tp's own cycles `blocking` would have converged
+rounds earlier and shipped over an `error` row raised after the point it halted. Take `blocking` per
+cycle with those numbers in front of you, never as a standing default.
+
 Illegal values are refused at both ends with the same hint as `review_converge_on`
 (`must be one of: blocking, all`): a bad literal at a write sink is a **usage error (exit 2)**, and a
 bad value already stored, reaching `tp audit --record`/`--status`, is a **validation error (exit 1)**.
