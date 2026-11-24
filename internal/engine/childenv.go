@@ -29,6 +29,16 @@ const (
 	EnvUnattended = "TP_UNATTENDED"
 )
 
+// RunEnvVars are every variable a tp run unit carries because the driver set
+// it: its identity, the run's directories and gate slots, and the unattended
+// fence. A command that is the project's rather than the unit's — the quality
+// gate — and a test suite run inside a unit see none of them, or they resolve
+// the run's own task file instead of their fixture.
+var RunEnvVars = []string{
+	EnvRunID, EnvRunDir, EnvRoundDir, EnvRound, EnvTaskFile, EnvUnitID,
+	EnvUnitKind, EnvUnitSeq, EnvPhase, EnvUnattended, EnvGateMainSlots, EnvGateMainTimes,
+}
+
 // UnitEnv is one unit attempt's identity as the driver hands it to a child: the
 // run it belongs to, the cycle it works on, and the unit itself.
 //

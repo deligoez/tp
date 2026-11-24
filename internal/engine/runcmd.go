@@ -113,28 +113,26 @@ func RunGateCommand(parent context.Context, command, dir string, env []string, t
 	return commandResult(ctx, err, buf, timeout, tailLines)
 }
 
-// gateSlotVars are what makes a tp call take one of the run's gate slots.
-var gateSlotVars = []string{EnvRunDir, EnvUnitSeq, EnvGateMainSlots, EnvGateMainTimes}
-
-// gateEnv is env (nil: the tp process's own) without the run's slot
-// variables. A gate holds a slot while its command runs, so a tp call inside
-// it that took another slot of the same run would wait on its own caller, and
-// at a cap of 1 never return; without them it is a call by hand.
+// gateEnv is env (nil: the tp process's own) without any of RunEnvVars. A
+// gate holds a slot while its command runs, so a tp call inside it that took
+// another slot of the same run would wait on its own caller, and at a cap of 1
+// never return; and a suite that saw TP_FILE resolved the run's own task file
+// and wrote its fixtures into it. Without them the command is a call by hand.
 func gateEnv(env []string) []string {
 	if env == nil {
 		env = os.Environ()
 	}
 	out := make([]string, 0, len(env))
 	for _, kv := range env {
-		if !slotVar(kv) {
+		if !runVar(kv) {
 			out = append(out, kv)
 		}
 	}
 	return out
 }
 
-func slotVar(kv string) bool {
-	for _, name := range gateSlotVars {
+func runVar(kv string) bool {
+	for _, name := range RunEnvVars {
 		if strings.HasPrefix(kv, name+"=") {
 			return true
 		}
