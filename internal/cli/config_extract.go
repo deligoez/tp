@@ -69,6 +69,7 @@ func computeCommonPolicy(overrides []model.WorkflowOverride) model.WorkflowOverr
 	common.AuditCleanRounds = commonPtr(overrides, func(o *model.WorkflowOverride) *int { return o.AuditCleanRounds })
 	common.ReviewMaxRounds = commonPtr(overrides, func(o *model.WorkflowOverride) *int { return o.ReviewMaxRounds })
 	common.AuditMaxRounds = commonPtr(overrides, func(o *model.WorkflowOverride) *int { return o.AuditMaxRounds })
+	common.FoundMax = commonPtr(overrides, func(o *model.WorkflowOverride) *int { return o.FoundMax })
 	// quality_gate is hoisted: after the hoist it lands at the project layer,
 	// where the project setter authors it.
 	//
@@ -148,6 +149,9 @@ func hoistedFields(common *model.WorkflowOverride) []string {
 	if common.AuditMaxRounds != nil {
 		fields = append(fields, "audit_max_rounds")
 	}
+	if common.FoundMax != nil {
+		fields = append(fields, "found_max")
+	}
 	if common.ReviewConvergeOn != nil {
 		fields = append(fields, "review_converge_on")
 	}
@@ -210,6 +214,9 @@ func mergeCommon(dst, common *model.WorkflowOverride) {
 	}
 	if common.AuditMaxRounds != nil {
 		dst.AuditMaxRounds = common.AuditMaxRounds
+	}
+	if common.FoundMax != nil {
+		dst.FoundMax = common.FoundMax
 	}
 	if common.ReviewConvergeOn != nil {
 		dst.ReviewConvergeOn = common.ReviewConvergeOn

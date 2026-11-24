@@ -80,6 +80,7 @@ func resolvedConfig(wf *model.Workflow, override *model.WorkflowOverride) map[st
 		// audit_converge_on reports on the same terms as its twin: the raw
 		// resolved value and the layer it won on, unvalidated here (§2).
 		"audit_converge_on": vs(wf.AuditConvergeOn, override.AuditConvergeOn != nil, project.AuditConvergeOn != nil),
+		"found_max":         vs(wf.FoundMax, override.FoundMax != nil, project.FoundMax != nil),
 
 		// §7's run fields. runner reports its raw JSON value whatever shape it
 		// takes, so a per-kind map is visible here before the runner resolver
