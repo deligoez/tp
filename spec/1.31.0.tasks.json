@@ -3,9 +3,9 @@
   "spec": "spec/1.31.0.md",
   "imported_at": "2026-11-24T21:33:03.666479Z",
   "created_at": "2026-11-24T21:33:03.664126Z",
-  "updated_at": "2026-11-24T21:33:03.66648Z",
+  "updated_at": "2026-11-24T21:36:54.781668Z",
   "workflow": {
-    "review_max_rounds": 4,
+    "review_max_rounds": 5,
     "audit_max_rounds": 3
   },
   "coverage": {
@@ -76,7 +76,7 @@
         "found-add-cmd"
       ],
       "estimate_minutes": 12,
-      "acceptance": "- the implement and audit-role prompts each carry the no-sweep sentence and name `tp found add`\n- a prompt test fails if either sentence is removed",
+      "acceptance": "- the implement and audit-role prompts each carry the no-sweep sentence and name `tp found add`\n- a prompt test asserts both sentences in each prompt, and goes red when either sentence is absent",
       "source_sections": [
         "## 1. The request"
       ],
@@ -163,7 +163,7 @@
       ],
       "depends_on": [],
       "estimate_minutes": 15,
-      "acceptance": "- an unset `found_max` resolves to 5; `found_max=0` resolves to 0\n- `tp set --workflow found_max=6` under `TP_UNATTENDED` exits 2 with `raise-found-cap`; lowering it does not\n- `raise-found-cap` is in `engine.EscalationDecisions` and `tp escalate --decision raise-found-cap` records",
+      "acceptance": "- an unset `found_max` resolves to 5; `found_max=0` resolves to 0 and means uncapped\n- `tp set --workflow found_max=6` or `found_max=0` under `TP_UNATTENDED` exits 2 with `raise-found-cap`; lowering it does not\n- `raise-found-cap` is in `engine.EscalationDecisions` and `tp escalate --decision raise-found-cap` records",
       "source_sections": [
         "## 8. The cap"
       ],
@@ -213,7 +213,7 @@
         "found-max-field"
       ],
       "estimate_minutes": 30,
-      "acceptance": "- with the cap one short, a blocking request filed after a non-blocking one is the one applied (§10 row 'Blocking first within the cap', counts recorded)\n- after five found tasks a sixth Fix-shaped request is queued, also after a stop and restart (§10 row 'The cap holds across a restart')\n- at `found_max=0` no task opens and every Fix-shaped request that is neither a duplicate nor attached is queued; a non-Fix-shaped request goes to the decision unit (round-4 findings 0, 1, 4, 12)",
+      "acceptance": "- with the cap one short, a blocking request filed after a non-blocking one is the one applied (§10 row 'Blocking first within the cap', counts recorded)\n- after five found tasks a sixth Fix-shaped request is queued, also after a stop and restart (§10 row 'The cap holds across a restart'); at `found_max=0` it opens a found task\n- a Fix-shaped request past the cap is queued and a non-Fix-shaped one goes to the decision unit (round-4 finding 1)",
       "source_sections": [
         "## 2. Applying requests",
         "## 8. The cap",
