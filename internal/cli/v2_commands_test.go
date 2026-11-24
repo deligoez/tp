@@ -583,8 +583,8 @@ func TestRemoveForceCleansDepsToEmptyArray(t *testing.T) {
 	t.Parallel()
 	dir := setupProject(t)
 
-	addTask(t, dir, `{"id":"base","title":"Base task","estimate_minutes":3,"acceptance":"Base done.","source_sections":["# Test Spec"],"depends_on":[]}`)
-	addTask(t, dir, `{"id":"child","title":"Child task","estimate_minutes":3,"acceptance":"Child done.","source_sections":["# Test Spec"],"depends_on":["base"]}`)
+	addTask(t, dir, `{"id":"base","title":"Base task","estimate_minutes":3,"acceptance":"Base done.","source_sections":["# Spec"],"depends_on":[]}`)
+	addTask(t, dir, `{"id":"child","title":"Child task","estimate_minutes":3,"acceptance":"Child done.","source_sections":["# Spec"],"depends_on":["base"]}`)
 
 	// remove --force should clean up child's depends_on to [] not null
 	_, _, code := runTP(t, dir, "remove", "base", "--force")
