@@ -197,6 +197,34 @@ func TestUnattendedFence_GateCapRaiseRefused(t *testing.T) {
 		"the accepted lowering landed")
 }
 
+// found_max is a cap whose 0 is uncapped (spec/1.31.0.md §8), so under the
+// variable a unit may lower it but never raise it or set 0, and the refusal
+// names raise-found-cap.
+func TestUnattendedFence_FoundCapRaiseRefused(t *testing.T) {
+	t.Parallel()
+	dir := setupProject(t)
+
+	_, stderr, code := runTPEnv(t, dir, []string{unattendedOn}, "set", "--workflow", "found_max=6")
+	require.Equal(t, 2, code, "a cap above the resolved 5 is a raise")
+	assert.Contains(t, stderr, "raise-found-cap", "the hint names the escalation decision")
+	_, stderr, code = runTPEnv(t, dir, []string{unattendedOn}, "set", "--workflow", "found_max=0")
+	require.Equal(t, 2, code, "0 removes the cap, so it is a raise")
+	assert.Contains(t, stderr, "raise-found-cap")
+	_, stderr, code = runTPEnv(t, dir, []string{unattendedOn}, "set", "--workflow", "--project", "found_max=0")
+	require.Equal(t, 2, code, "the project layer is fenced on the same terms")
+	assert.Contains(t, stderr, "raise-found-cap")
+	_, stderr, code = runTPEnv(t, dir, []string{unattendedOn}, "set", "--workflow", "found_max=4")
+	require.Equal(t, 0, code, "lowering the cap is accepted: %s", stderr)
+
+	stdout, stderr, code := runTPEnv(t, dir, nil, "config", "--resolved")
+	require.Equal(t, 0, code, "config --resolved: %s", stderr)
+	var resolved map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &resolved))
+	workflow := resolved["workflow"].(map[string]any)
+	assert.InDelta(t, 4.0, workflow["found_max"].(map[string]any)["value"], 1e-9,
+		"the accepted lowering landed")
+}
+
 // Section 5.1: the fence compares against the value section 7's precedence
 // actually resolves. TP_REVIEW_MAX_ROUNDS is set here as a decoy, not as a
 // layer: tp reads no TP_<FIELD> variable for any workflow field, so its mere
