@@ -86,6 +86,99 @@ func TestBriefCarriesItsTaskMarker(t *testing.T) {
 	assert.NotContains(t, brief, "marker")
 }
 
+// A brief an Agent spawn claims from carries a fresh claim token, on a line
+// of its own and in the close recipe; a brief inside tp run carries none,
+// since the hook does not claim for a unit.
+func TestBriefCarriesAClaimToken(t *testing.T) {
+	t.Parallel()
+	dir := claimsRepo(t)
+
+	stdout, stderr, code := runTP(t, dir, "brief", "t1")
+	require.Equal(t, 0, code, stderr)
+	var brief map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &brief))
+	token, _ := brief["claim_token"].(string)
+	require.Regexp(t, `^[a-z0-9]{8,32}$`, token)
+	assert.Contains(t, brief["close"], "--claim-token "+token+" -- ", "the worktree close command names the token before the reason")
+
+	stdout, stderr, code = runTP(t, dir, "brief", "t1")
+	require.Equal(t, 0, code, stderr)
+	require.NoError(t, json.Unmarshal([]byte(stdout), &brief))
+	assert.NotEqual(t, token, brief["claim_token"], "every brief mints its own token")
+
+	stdout, stderr, code = runTPEnv(t, dir, []string{"TP_UNIT_KIND=implement"}, "brief", "t1")
+	require.Equal(t, 0, code, stderr)
+	brief = map[string]any{}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &brief))
+	assert.NotContains(t, brief, "claim_token", "a tp run unit's brief carries no token")
+}
+
+// The spawn hook records the brief's claim token in the claim it makes, from
+// the plain line and from a pasted JSON brief; a marker without one claims
+// as before.
+func TestAgentClaimHookRecordsTheClaimToken(t *testing.T) {
+	t.Parallel()
+	dir := claimsRepo(t)
+	_, stderr, code := hookRun(t, agentClaimHook, true, spawnPayload(dir, "toolu_T1", "brief\ntp-task: t1 spec.tasks.json\ntp-claim-token: k7f2ab01\n"))
+	require.Equal(t, 0, code, stderr)
+	assert.Equal(t, "k7f2ab01", claimedBy(t, dir, "t1")["token"])
+
+	pasted := "{\n  \"marker\": \"tp-task: t2 spec.tasks.json\",\n  \"claim_token\": \"q9q9q9q9\",\n  \"identity\": \"x\"\n}"
+	_, stderr, code = hookRun(t, agentClaimHook, true, spawnPayload(dir, "toolu_T2", pasted))
+	require.Equal(t, 0, code, stderr)
+	assert.Equal(t, "q9q9q9q9", claimedBy(t, dir, "t2")["token"])
+
+	_, _, code = hookRun(t, agentClaimHook, true, spawnPayload(dir, "toolu_T4", "tp-task: t4 spec.tasks.json\ntp-claim-token: bad token\n"))
+	assert.Equal(t, 2, code, "a token tp would not record refuses the spawn")
+}
+
+// A takeover frees the claim's token with its spawn.
+func TestTakeoverClearsTheClaimToken(t *testing.T) {
+	t.Parallel()
+	dir := claimsRepo(t)
+	_, stderr, code := runTP(t, dir, "claim", "t1", "--spawn", "toolu_A", "--session", "sessX", "--claim-token", "aaaa1111")
+	require.Equal(t, 0, code, stderr)
+	assert.Equal(t, "aaaa1111", claimedBy(t, dir, "t1")["token"])
+	_, stderr, code = runTP(t, dir, "claim", "t1", "--takeover")
+	require.Equal(t, 0, code, stderr)
+	assert.Equal(t, map[string]any{"session": "sessX", "retired": []any{"aaaa1111"}}, claimedBy(t, dir, "t1"), "the session stays; the spawn goes and its token is retired")
+
+	// A spawn from the brief the takeover replaced reuses its token: refused,
+	// so the two agents cannot share one token.
+	_, stderr, code = runTP(t, dir, "claim", "t1", "--spawn", "toolu_A2", "--session", "sessX", "--claim-token", "aaaa1111")
+	assert.Equal(t, 4, code, "a replaced brief's token is refused: %s", stderr)
+	assert.Contains(t, stderr, "tp brief t1")
+	_, stderr, code = runTP(t, dir, "claim", "t1", "--spawn", "toolu_A2", "--session", "sessX", "--claim-token", "bbbb2222")
+	require.Equal(t, 0, code, stderr)
+	_, stderr, code = runTP(t, dir, "claim", "t1", "--takeover")
+	require.Equal(t, 0, code, stderr)
+	_, _, code = runTP(t, dir, "claim", "t1", "--spawn", "toolu_A3", "--claim-token", "aaaa1111")
+	assert.Equal(t, 4, code, "every replaced token stays refused")
+
+	// An unclaim retires the token too: the brief it freed is not reused.
+	_, stderr, code = runTP(t, dir, "claim", "t2", "--spawn", "toolu_C", "--claim-token", "cccc3333")
+	require.Equal(t, 0, code, stderr)
+	_, stderr, code = runTP(t, dir, "unclaim", "t2")
+	require.Equal(t, 0, code, stderr)
+	_, _, code = runTP(t, dir, "claim", "t2", "--spawn", "toolu_C2", "--claim-token", "cccc3333")
+	assert.Equal(t, 4, code, "an unclaimed brief's token is refused")
+
+	// A reopen retires the token of the claim that closed the task.
+	_, stderr, code = runTP(t, dir, "claim", "t2", "--spawn", "toolu_D", "--claim-token", "dddd4444")
+	require.Equal(t, 0, code, stderr)
+	_, stderr, code = runTP(t, dir, "done", "t2", "--", "t2 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	_, stderr, code = runTP(t, dir, "reopen", "t2")
+	require.Equal(t, 0, code, stderr)
+	_, _, code = runTP(t, dir, "claim", "t2", "--spawn", "toolu_D2", "--claim-token", "dddd4444")
+	assert.Equal(t, 4, code, "a reopened task's old token is refused")
+
+	_, _, code = runTP(t, dir, "claim", "t2", "--spawn", "toolu_B", "--claim-token", "no good")
+	assert.Equal(t, 2, code, "a token tp would not record is a usage error")
+	_, _, code = runTP(t, dir, "claim", "t2", "--claim-token", "aaaa1111")
+	assert.Equal(t, 2, code, "--claim-token needs --spawn")
+}
+
 func TestClaimSpawnClaimsAnOpenTaskForTheSpawn(t *testing.T) {
 	t.Parallel()
 	dir := claimsRepo(t)
