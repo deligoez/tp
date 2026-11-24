@@ -111,12 +111,29 @@ func printBrief(tf *model.TaskFile, task *model.Task, taskFilePath, specPath str
 	// about to start reads it before it walks into the same wall.
 	b.LastFailure = engine.ReadLastFailure(failureRoot, taskFilePath)
 	b.Marker = engine.TaskMarker(taskFilePath, task.ID)
+	if b.Marker != "" && failureRoot == "." {
+		if token := spawnClaimToken(taskFilePath, task.ID); token != "" {
+			b.ClaimToken = token
+			b.Close = engine.CloseRecipeTextFor(effective, wf.QualityGate, token)
+		}
+	}
 
 	if output.IsJSON() {
 		return output.JSON(b)
 	}
 	fmt.Print(b.Text())
 	return nil
+}
+
+// spawnClaimToken mints the claim token of a brief an Agent spawn will claim
+// from: none inside a tp run unit, whose hook does not claim, and none in an
+// agent's worktree whose task another tree holds, where the agent already has
+// its token (spec/backlog/a-land-request-names-its-agent.md).
+func spawnClaimToken(taskFilePath, id string) string {
+	if os.Getenv(engine.EnvUnitKind) != "" || engine.ClaimHolderCopy(taskFilePath, id) != "" {
+		return ""
+	}
+	return engine.NewClaimToken()
 }
 
 // selectBriefTarget picks the read-only brief target when no id is given (§9.1):
