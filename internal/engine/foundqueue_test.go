@@ -60,3 +60,11 @@ func TestFoundQueue_AnOpenAndADecidedEntryRoundTripBesideTheTaskFile(t *testing.
 	assert.Equal(t, 1, exitErr.ExitCode())
 }
 
+func TestFoundQueue_AMissingFileIsAnEmptyQueue(t *testing.T) {
+	_, taskFile := queueFixture(t)
+	got, err := ReadFoundQueue(taskFile)
+	require.NoError(t, err)
+	assert.Empty(t, got)
+	assert.NotNil(t, got)
+}
+
