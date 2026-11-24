@@ -62,13 +62,14 @@ type roundRefusal struct {
 // roundRefusals lists every tp review invocation that refuses --round, each
 // with the arguments it needs to run if the refusal were missing.
 var roundRefusals = map[string]roundRefusal{
-	"merge":       {[]string{"review", "--merge", "findings.ndjson", "-o", "merged.ndjson"}, "--merge is mutually exclusive with --round", "--merge"},
-	"resolve":     {[]string{"review", "findings.ndjson", "--resolve", "0", "fixed", "e"}, "--resolve is mutually exclusive with --round", "--resolve"},
-	"resolve-all": {[]string{"review", "findings.ndjson", "--resolve-all", "fixed", "e"}, "--resolve-all is mutually exclusive with --round", "--resolve-all"},
-	"report":      {[]string{"review", "--report", "findings.ndjson"}, "--report is mutually exclusive with --round", "--report"},
-	"record":      {[]string{"review", "spec.md", "--record", "empty.ndjson"}, "--record is mutually exclusive with --round", "--record"},
-	"status":      {[]string{"review", "spec.md", "--status"}, "--status is mutually exclusive with --round", "--status"},
-	"verify":      {[]string{"review", "--verify", "spec.md", "--findings", "findings.ndjson"}, "--verify is mutually exclusive with --round", "--verify"},
+	"merge":        {[]string{"review", "--merge", "findings.ndjson", "-o", "merged.ndjson"}, "--merge is mutually exclusive with --round", "--merge"},
+	"resolve":      {[]string{"review", "findings.ndjson", "--resolve", "0", "fixed", "e"}, "--resolve is mutually exclusive with --round", "--resolve"},
+	"resolve-all":  {[]string{"review", "findings.ndjson", "--resolve-all", "fixed", "e"}, "--resolve-all is mutually exclusive with --round", "--resolve-all"},
+	"report":       {[]string{"review", "--report", "findings.ndjson"}, "--report is mutually exclusive with --round", "--report"},
+	"record":       {[]string{"review", "spec.md", "--record", "empty.ndjson"}, "--record is mutually exclusive with --round", "--record"},
+	"record-inbox": {[]string{"review", "spec.md", "--record-inbox"}, "--record-inbox is mutually exclusive with --round", "--record-inbox"},
+	"status":       {[]string{"review", "spec.md", "--status"}, "--status is mutually exclusive with --round", "--status"},
+	"verify":       {[]string{"review", "--verify", "spec.md", "--findings", "findings.ndjson"}, "--verify is mutually exclusive with --round", "--verify"},
 	"perspective-documentation": {[]string{"review", "spec.md", "--perspective", "documentation", "--docs-path", "docs"},
 		"--perspective is mutually exclusive with --round/--findings (except code-audit)", "documentation"},
 	"perspective-testing": {[]string{"review", "spec.md", "--perspective", "testing", "--test-path", "tests"},
