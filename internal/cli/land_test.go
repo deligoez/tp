@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -473,6 +474,126 @@ func TestALateCloseAfterATakeoverLeavesTheFreshRequest(t *testing.T) {
 	got, err := os.ReadFile(filepath.Join(dir, "agent.txt"))
 	require.NoError(t, err)
 	assert.Equal(t, "fresh\n", string(got), "the fresh agent's commit is the one landed")
+}
+
+// tokenClaim binds t1's claim in dir to spawn under a claim token, as the
+// spawn hook does from a brief that carries one.
+func tokenClaim(t *testing.T, dir, spawn, token string) {
+	t.Helper()
+	_, stderr, code := runTP(t, dir, "claim", "t1", "--spawn", spawn, "--session", "sessC", "--claim-token", token)
+	require.Equal(t, 0, code, stderr)
+}
+
+// freshAgent is the agent a takeover spawns: its own worktree and commit.
+func freshAgent(t *testing.T, dir string) (wt, sha string) {
+	t.Helper()
+	wt = filepath.Join(t.TempDir(), "wtB")
+	gitIn(t, dir, "worktree", "add", "-q", "-b", "agent-t1-b", wt)
+	require.NoError(t, os.WriteFile(filepath.Join(wt, "agent.txt"), []byte("fresh\n"), 0o600))
+	gitIn(t, wt, "add", "-A")
+	gitIn(t, wt, "commit", "-q", "-m", "t1 fresh work")
+	return wt, strings.TrimSpace(gitRun(t, wt, "rev-parse", "HEAD"))
+}
+
+// landsFresh runs tp land in dir and asserts the fresh agent's work landed.
+func landsFresh(t *testing.T, dir string) {
+	t.Helper()
+	stdout, stderr, code := runTP(t, dir, "land")
+	require.Equal(t, 0, code, stdout+stderr)
+	got, err := os.ReadFile(filepath.Join(dir, "agent.txt"))
+	require.NoError(t, err)
+	assert.Equal(t, "fresh\n", string(got), "the fresh agent's commit is the one landed")
+}
+
+// The agent a takeover replaced asks after the fresh agent's claim: its
+// token is not the claim's, so it is refused before its gate and the fresh
+// agent's close goes through.
+func TestAReplacedAgentCannotCloseUnderTheFreshClaim(t *testing.T) {
+	t.Parallel()
+	dir, wtA := landRepo(t, "")
+	tokenClaim(t, dir, "toolu_W", "tokA0001")
+	shaA := agentCommit(t, wtA)
+	_, stderr, code := runTP(t, dir, "claim", "t1", "--takeover")
+	require.Equal(t, 0, code, stderr)
+	tokenClaim(t, dir, "toolu_B", "tokB0002")
+
+	_, stderr, code = runTP(t, wtA, "done", "t1", "--commit", shaA, "--claim-token", "tokA0001", "--", "t1 acceptance criteria met")
+	assert.Equal(t, 4, code, "the replaced agent is refused: %s", stderr)
+	assert.NotContains(t, stderr, "tokB0002", "the refusal does not print the claim's token")
+
+	wtB, shaB := freshAgent(t, dir)
+	_, stderr, code = runTP(t, wtB, "done", "t1", "--commit", shaB, "--claim-token", "tokB0002", "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	landsFresh(t, dir)
+}
+
+// The agent a takeover replaced asked before the takeover: its waiting
+// request does not block the fresh agent, and it does not land.
+func TestAReplacedAgentsEarlierRequestDoesNotBlockTheFreshAgent(t *testing.T) {
+	t.Parallel()
+	dir, wtA := landRepo(t, "")
+	tokenClaim(t, dir, "toolu_W", "tokA0001")
+	shaA := agentCommit(t, wtA)
+	_, stderr, code := runTP(t, wtA, "done", "t1", "--commit", shaA, "--claim-token", "tokA0001", "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	_, stderr, code = runTP(t, dir, "claim", "t1", "--takeover")
+	require.Equal(t, 0, code, stderr)
+	tokenClaim(t, dir, "toolu_B", "tokB0002")
+
+	wtB, shaB := freshAgent(t, dir)
+	_, stderr, code = runTP(t, wtB, "done", "t1", "--commit", shaB, "--claim-token", "tokB0002", "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, "a request made under the replaced claim does not block: %s", stderr)
+	landsFresh(t, dir)
+}
+
+// A takeover while the replaced agent's gate runs: the claim is checked again
+// after the gate, so the replaced agent writes no request over the fresh one.
+func TestATakeoverDuringTheGateRefusesTheReplacedAgent(t *testing.T) {
+	t.Parallel()
+	dir, _ := landRepo(t, "")
+	once := filepath.Join(t.TempDir(), "once")
+	script := fmt.Sprintf("test -f agent.txt || exit 1\n[ -f %q ] && exit 0\ntouch %q\ncd %q || exit 1\n%q claim t1 --takeover >/dev/null && %q claim t1 --spawn toolu_B --session sessC --claim-token tokB0002 >/dev/null\n",
+		once, once, dir, binaryPath, binaryPath)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "gate.sh"), []byte(script), 0o600))
+	_, stderr, code := runTP(t, dir, "set", "--workflow", "--project", "quality_gate=sh gate.sh")
+	require.Equal(t, 0, code, stderr)
+	// Only the gate: the claim stays an uncommitted change of this tree.
+	gitIn(t, dir, "add", "gate.sh", ".tp")
+	gitIn(t, dir, "commit", "-q", "-m", "takeover gate")
+	tokenClaim(t, dir, "toolu_W", "tokA0001")
+	wtA := filepath.Join(t.TempDir(), "wtA")
+	gitIn(t, dir, "worktree", "add", "-q", "-b", "agent-t1-a", wtA)
+	shaA := agentCommit(t, wtA)
+
+	_, stderr, code = runTP(t, wtA, "done", "t1", "--commit", shaA, "--claim-token", "tokA0001", "--", "t1 acceptance criteria met")
+	assert.Equal(t, 4, code, "the claim moved during the gate: %s", stderr)
+
+	wtB, shaB := freshAgent(t, dir)
+	_, stderr, code = runTP(t, wtB, "done", "t1", "--commit", shaB, "--claim-token", "tokB0002", "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	landsFresh(t, dir)
+}
+
+// A claim that carries a token takes a close only with that token; the
+// refusal names neither token.
+func TestACloseWithoutTheClaimTokenIsRefused(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "")
+	tokenClaim(t, dir, "toolu_W", "tokA0001")
+	sha := agentCommit(t, wt)
+	for want, extra := range map[int][]string{2: nil, 4: {"--claim-token", "tokZ9999"}} {
+		args := append([]string{"done", "t1", "--commit", sha}, extra...)
+		_, stderr, code := runTP(t, wt, append(args, "--", "t1 acceptance criteria met")...)
+		assert.Equal(t, want, code, "%v: %s", extra, stderr)
+		assert.NotContains(t, stderr, "tokA0001")
+	}
+	_, stderr, code := runTP(t, wt, "done", "t1", "--", "t1 acceptance criteria met")
+	assert.Equal(t, 2, code, stderr)
+	var refusal struct{ Hint string }
+	require.NoError(t, json.Unmarshal([]byte(stderr), &refusal))
+	assert.Contains(t, refusal.Hint, "--claim-token <the token your brief names>", "the land hint names the flag, not the token")
+	_, stderr, code = runTP(t, wt, "done", "t1", "--commit", sha, "--claim-token", "tokA0001", "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
 }
 
 // A request whose task was closed without its commits is not dropped
