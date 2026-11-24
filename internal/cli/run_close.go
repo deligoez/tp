@@ -62,7 +62,7 @@ func releaseTasksFunc(taskFile string) func(ids []string) error {
 					task.Waiting = ""
 					task.StartedAt = nil
 					task.DurationSource = ""
-					task.ClaimedBy = nil
+					task.ClaimedBy = task.ClaimedBy.Released()
 				}
 			}
 			tf.UpdatedAt = time.Now().UTC()
@@ -88,7 +88,7 @@ func reopenSoloFunc(taskFile string) func(id string) error {
 			task.Waiting = ""
 			task.StartedAt = nil
 			task.DurationSource = ""
-			task.ClaimedBy = nil
+			task.ClaimedBy = task.ClaimedBy.Released()
 			task.Solo = true
 			tf.UpdatedAt = time.Now().UTC()
 			return model.WriteTaskFile(taskFile, tf)

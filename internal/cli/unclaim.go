@@ -102,7 +102,7 @@ func unclaimTasks(tf *model.TaskFile, ids []string) unclaimResult {
 			task.Waiting = ""
 			task.StartedAt = nil
 			task.DurationSource = ""
-			task.ClaimedBy = nil
+			task.ClaimedBy = task.ClaimedBy.Released()
 			result.Unclaimed = append(result.Unclaimed, id)
 		default:
 			result.Failed = append(result.Failed, unclaimFailure{
