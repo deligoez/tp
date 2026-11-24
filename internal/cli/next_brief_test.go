@@ -41,7 +41,7 @@ func TestNextBrief_ComposesWithJSON(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# S\n"), 0o600))
 	runTP(t, dir, "init", "spec.md")
-	runTP(t, dir, "add", `{"id":"a","title":"Task A","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"One.","source_sections":["s"]}`)
+	runTP(t, dir, "add", `{"id":"a","title":"Task A","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"One.","source_sections":["# S"]}`)
 
 	out, _, code := runTP(t, dir, "next", "--brief", "--json")
 	require.Equal(t, 0, code)
@@ -57,7 +57,7 @@ func TestNextBrief_BriefAndMinimalMutuallyExclusive(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# S\n"), 0o600))
 	runTP(t, dir, "init", "spec.md")
-	runTP(t, dir, "add", `{"id":"a","title":"A","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"One.","source_sections":["s"]}`)
+	runTP(t, dir, "add", `{"id":"a","title":"A","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"One.","source_sections":["# S"]}`)
 
 	_, _, code := runTP(t, dir, "next", "--brief", "--minimal")
 	assert.Equal(t, 2, code)

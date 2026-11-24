@@ -167,7 +167,7 @@ func TestTaskAuditOracle_AuditPhaseOrder(t *testing.T) {
 func TestTaskAuditOracle_AnOwedBatchRunsBeforeAFix(t *testing.T) {
 	t.Parallel()
 	dir, _ := failedTaskAudit(t)
-	_, stderr, code := runTP(t, dir, "add", `{"id":"t2","title":"Task t2","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"t2 acceptance met","source_sections":["s1"]}`)
+	_, stderr, code := runTP(t, dir, "add", `{"id":"t2","title":"Task t2","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"t2 acceptance met","source_sections":["# Spec"]}`)
 	require.Equal(t, 0, code, "add: %s", stderr)
 	closeWith(t, dir, "t2", commitFiles(t, dir, "b.go"))
 

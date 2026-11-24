@@ -17,7 +17,7 @@ import (
 func TestSet_LockContentionTimeoutExitsFour(t *testing.T) {
 	t.Parallel()
 	dir := setupProject(t)
-	addTask(t, dir, `{"id":"t1","title":"T","depends_on":[],"estimate_minutes":10,"acceptance":"T is done","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t1","title":"T","depends_on":[],"estimate_minutes":10,"acceptance":"T is done","source_sections":["# Spec"]}`)
 
 	// Resolve the macOS /var -> /private/var symlink so this process and the tp
 	// subprocess agree on the absolute task-file path (and thus the lock hash).

@@ -70,7 +70,7 @@ func TestCommitShas_RejectsOptionLookalike(t *testing.T) {
 func TestCommitShas_CoveredByRecordsNone(t *testing.T) {
 	t.Parallel()
 	dir := setupCommitProject(t, "t1")
-	_, _, code := runTP(t, dir, "add", `{"id":"t2","title":"T2","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"t2 done","source_sections":["s1"]}`)
+	_, _, code := runTP(t, dir, "add", `{"id":"t2","title":"T2","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"t2 done","source_sections":["# Spec"]}`)
 	require.Equal(t, 0, code)
 	_, _, code = runTP(t, dir, "done", "t1", "--gate-passed", "--commit", "aaa", "--", "t1 acceptance met")
 	require.Equal(t, 0, code)

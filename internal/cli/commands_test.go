@@ -116,7 +116,7 @@ func TestFullLifecycle(t *testing.T) {
 	require.NoError(t, err, "task file should exist after init")
 
 	// 2. Add a task
-	taskJSON := `{"id":"t1","title":"First task","status":"open","depends_on":[],"estimate_minutes":10,"acceptance":"Tests pass","source_sections":["s1"]}`
+	taskJSON := `{"id":"t1","title":"First task","status":"open","depends_on":[],"estimate_minutes":10,"acceptance":"Tests pass","source_sections":["# Test Spec"]}`
 	_, stderr, code = runTP(t, dir, "add", taskJSON)
 	assert.Equal(t, 0, code, "add should succeed: %s", stderr)
 
@@ -169,7 +169,7 @@ func TestClaimDoneTask(t *testing.T) {
 
 	runTP(t, dir, "init", "spec.md")
 
-	taskJSON := `{"id":"t1","title":"Task","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"Done","source_sections":["s1"]}`
+	taskJSON := `{"id":"t1","title":"Task","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"Done","source_sections":["# Spec"]}`
 	runTP(t, dir, "add", taskJSON)
 	runTP(t, dir, "claim", "t1")
 	runTP(t, dir, "close", "t1", "Everything is Done and verified completely")
@@ -190,7 +190,7 @@ func TestCloseWithoutReason(t *testing.T) {
 
 	runTP(t, dir, "init", "spec.md")
 
-	taskJSON := `{"id":"t1","title":"Task","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"Done","source_sections":["s1"]}`
+	taskJSON := `{"id":"t1","title":"Task","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"Done","source_sections":["# Spec"]}`
 	runTP(t, dir, "add", taskJSON)
 	runTP(t, dir, "claim", "t1")
 

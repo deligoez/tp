@@ -155,7 +155,7 @@ func TestDone_AHandRunCloseTakesNoSlot(t *testing.T) {
 
 	root := setupProjectWithGate(t, "touch gate-ran")
 	capGates(t, root, "")
-	addTask(t, root, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+	addTask(t, root, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["# Spec"]}`)
 	_, stderr, code = runTPEnv(t, root, outsideRun, "done", "t1", "task complete and verified fully")
 	require.Equal(t, 0, code, stderr)
 	assert.FileExists(t, filepath.Join(root, "gate-ran"))

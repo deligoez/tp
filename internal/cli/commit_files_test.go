@@ -67,7 +67,7 @@ func TestCommitFiles_CapFiftyWithTotal(t *testing.T) {
 func TestCommitFiles_CoveredByRecordsNone(t *testing.T) {
 	t.Parallel()
 	dir := setupCommitProject(t, "t1")
-	_, _, code := runTP(t, dir, "add", `{"id":"t2","title":"T2","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"t2 done","source_sections":["s1"]}`)
+	_, _, code := runTP(t, dir, "add", `{"id":"t2","title":"T2","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"t2 done","source_sections":["# Spec"]}`)
 	require.Equal(t, 0, code)
 	sha := commitFile(t, dir, "a.go", "add a")
 	_, _, code = runTP(t, dir, "done", "t1", "--gate-passed", "--commit", sha, "--", "t1 acceptance met")
@@ -151,8 +151,8 @@ func TestCommitFiles_MultiIDDoneResolves(t *testing.T) {
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
 	_, _, code := runTP(t, dir, "init", "spec.md")
 	require.Equal(t, 0, code)
-	addTask(t, dir, `{"id":"t1","title":"First","depends_on":[],"estimate_minutes":5,"acceptance":"shared acceptance met","source_sections":["s1"]}`)
-	addTask(t, dir, `{"id":"t2","title":"Second","depends_on":[],"estimate_minutes":5,"acceptance":"shared acceptance met","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t1","title":"First","depends_on":[],"estimate_minutes":5,"acceptance":"shared acceptance met","source_sections":["# Spec"]}`)
+	addTask(t, dir, `{"id":"t2","title":"Second","depends_on":[],"estimate_minutes":5,"acceptance":"shared acceptance met","source_sections":["# Spec"]}`)
 	initGitRepo(t, dir)
 	sha := commitFile(t, dir, "a.go", "add a")
 	_, stderr, code := runTP(t, dir, "done", "t1", "t2", "--gate-passed",

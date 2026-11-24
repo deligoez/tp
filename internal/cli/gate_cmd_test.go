@@ -70,7 +70,7 @@ func TestGate_ThenDoneOnTheMainTreeRunsOneGate(t *testing.T) {
 	t.Parallel()
 	count := filepath.Join(t.TempDir(), "count")
 	root := projectGated(t, "echo ran >> "+count)
-	addTask(t, root, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+	addTask(t, root, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["# Spec"]}`)
 	gitRun(t, root, "init", "-q", "-b", "main")
 	gitRun(t, root, "add", "-A")
 	gitRun(t, root, "-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-q", "-m", "base")

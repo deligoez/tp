@@ -169,7 +169,7 @@ func TestGateLoop_EndToEnd(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 		_, _, code := runTP(t, dir, "init", "spec.md", "--quality-gate", "exit 1")
 		require.Equal(t, 0, code)
-		addTask(t, dir, `{"id":"t1","title":"T","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+		addTask(t, dir, `{"id":"t1","title":"T","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["# Spec"]}`)
 
 		_, _, code = runTP(t, dir, "done", "t1", "task complete and fully verified")
 		assert.Equal(t, 4, code, "failing gate blocks done")
@@ -182,7 +182,7 @@ func TestGateLoop_EndToEnd(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 		_, _, code := runTP(t, dir, "init", "spec.md", "--quality-gate", "true")
 		require.Equal(t, 0, code)
-		addTask(t, dir, `{"id":"t1","title":"T","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+		addTask(t, dir, `{"id":"t1","title":"T","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["# Spec"]}`)
 
 		_, stderr, code := runTP(t, dir, "done", "t1", "task complete and fully verified")
 		require.Equal(t, 0, code, "stderr: %s", stderr)
@@ -195,7 +195,7 @@ func TestGateLoop_EndToEnd(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 		_, _, code := runTP(t, dir, "init", "spec.md", "--quality-gate", "exit 1")
 		require.Equal(t, 0, code)
-		addTask(t, dir, `{"id":"t1","title":"T","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+		addTask(t, dir, `{"id":"t1","title":"T","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["# Spec"]}`)
 
 		_, _, code = runTP(t, dir, "done", "t1", "task complete and fully verified", "--skip-gate", "ci offline")
 		require.Equal(t, 0, code)

@@ -43,7 +43,7 @@ func setupCommitProject(t *testing.T, taskID string) string {
 	_, _, code := runTP(t, dir, "init", "spec.md")
 	require.Equal(t, 0, code)
 
-	taskJSON := `{"id":"` + taskID + `","title":"Test task","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"` + taskID + ` acceptance met","source_sections":["s1"]}`
+	taskJSON := `{"id":"` + taskID + `","title":"Test task","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"` + taskID + ` acceptance met","source_sections":["# Spec"]}`
 	_, _, code = runTP(t, dir, "add", taskJSON)
 	require.Equal(t, 0, code)
 
@@ -317,8 +317,8 @@ func TestCommitSequentialTasks(t *testing.T) {
 	_, _, code := runTP(t, dir, "init", "spec.md")
 	require.Equal(t, 0, code)
 
-	addTask(t, dir, `{"id":"t1","title":"First","depends_on":[],"estimate_minutes":5,"acceptance":"First done","source_sections":["s1"]}`)
-	addTask(t, dir, `{"id":"t2","title":"Second","depends_on":["t1"],"estimate_minutes":5,"acceptance":"Second done","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t1","title":"First","depends_on":[],"estimate_minutes":5,"acceptance":"First done","source_sections":["# Spec"]}`)
+	addTask(t, dir, `{"id":"t2","title":"Second","depends_on":["t1"],"estimate_minutes":5,"acceptance":"Second done","source_sections":["# Spec"]}`)
 
 	initGitRepo(t, dir)
 

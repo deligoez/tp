@@ -43,7 +43,7 @@ func importWithGate(t *testing.T, gate string) string {
 func initWithGate(t *testing.T, gate string, files map[string]os.FileMode) (dir, stderr string) {
 	t.Helper()
 	dir = t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Test Spec\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 	for name, mode := range files {
 		path := filepath.Join(dir, name)
 		require.NoError(t, os.WriteFile(path, []byte("#!/bin/sh\nexit 0\n"), 0o600))
@@ -115,7 +115,7 @@ func TestUnresolvedGate_InitWarnsOnNonExecutablePath(t *testing.T) {
 func doneGateError(t *testing.T, gate string, files map[string]os.FileMode) map[string]any {
 	t.Helper()
 	dir, _ := initWithGate(t, gate, files)
-	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["# Spec"]}`)
 
 	_, stderr, code := runTP(t, dir, "done", "t1", "task complete and verified fully")
 	require.Equal(t, 4, code, "a failed gate exits 4: %s", stderr)
@@ -155,7 +155,7 @@ func TestUnresolvedGate_DoneOnExit126NamesTheCommandWithoutSkipGate(t *testing.T
 func TestUnresolvedGate_BatchOnExit127DoesNotSuggestSkipGate(t *testing.T) {
 	t.Parallel()
 	dir, _ := initWithGate(t, missingGateCmd+" && true", nil)
-	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"A complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"A complete","source_sections":["# Spec"]}`)
 	ndjson := filepath.Join(dir, "results.ndjson")
 	require.NoError(t, os.WriteFile(ndjson, []byte(`{"id":"a","reason":"A complete and verified"}`+"\n"), 0o600))
 
@@ -180,7 +180,7 @@ func TestUnresolvedGate_BatchOnExit127DoesNotSuggestSkipGate(t *testing.T) {
 func TestUnresolvedGate_OrdinaryFailureKeepsSkipGateHint(t *testing.T) {
 	t.Parallel()
 	dir, _ := initWithGate(t, "exit 1", nil)
-	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["# Spec"]}`)
 
 	_, stderr, code := runTP(t, dir, "done", "t1", "task complete and verified fully")
 	require.Equal(t, 4, code, "stderr: %s", stderr)

@@ -14,8 +14,8 @@ func TestDoneCoveredBy(t *testing.T) {
 	t.Parallel()
 	dir := setupProject(t)
 
-	addTask(t, dir, `{"id":"t1","title":"First","depends_on":[],"estimate_minutes":5,"acceptance":"First done","source_sections":["s1"]}`)
-	addTask(t, dir, `{"id":"t2","title":"Second","depends_on":[],"estimate_minutes":5,"acceptance":"Second done with specific criteria","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t1","title":"First","depends_on":[],"estimate_minutes":5,"acceptance":"First done","source_sections":["# Spec"]}`)
+	addTask(t, dir, `{"id":"t2","title":"Second","depends_on":[],"estimate_minutes":5,"acceptance":"Second done with specific criteria","source_sections":["# Spec"]}`)
 
 	// Close t1 normally
 	runTP(t, dir, "claim", "t1")
@@ -34,8 +34,8 @@ func TestDoneCoveredByNotDone(t *testing.T) {
 	t.Parallel()
 	dir := setupProject(t)
 
-	addTask(t, dir, `{"id":"t1","title":"First","depends_on":[],"estimate_minutes":5,"acceptance":"First done","source_sections":["s1"]}`)
-	addTask(t, dir, `{"id":"t2","title":"Second","depends_on":[],"estimate_minutes":5,"acceptance":"Second done","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t1","title":"First","depends_on":[],"estimate_minutes":5,"acceptance":"First done","source_sections":["# Spec"]}`)
+	addTask(t, dir, `{"id":"t2","title":"Second","depends_on":[],"estimate_minutes":5,"acceptance":"Second done","source_sections":["# Spec"]}`)
 
 	// t1 is not done — covered-by should fail
 	_, stderr, code := runTP(t, dir, "done", "t2", "covered by t1", "--covered-by", "t1")
@@ -47,7 +47,7 @@ func TestDoneCoveredByNonExistent(t *testing.T) {
 	t.Parallel()
 	dir := setupProject(t)
 
-	addTask(t, dir, `{"id":"t1","title":"First","depends_on":[],"estimate_minutes":5,"acceptance":"First done","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t1","title":"First","depends_on":[],"estimate_minutes":5,"acceptance":"First done","source_sections":["# Spec"]}`)
 
 	_, stderr, code := runTP(t, dir, "done", "t1", "covered by ghost", "--covered-by", "nonexistent")
 	assert.NotEqual(t, 0, code)
@@ -58,8 +58,8 @@ func TestDoneCoveredByForbiddenPatternAllowed(t *testing.T) {
 	t.Parallel()
 	dir := setupProject(t)
 
-	addTask(t, dir, `{"id":"t1","title":"First","depends_on":[],"estimate_minutes":5,"acceptance":"First done","source_sections":["s1"]}`)
-	addTask(t, dir, `{"id":"t2","title":"Second","depends_on":[],"estimate_minutes":5,"acceptance":"Second criteria","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t1","title":"First","depends_on":[],"estimate_minutes":5,"acceptance":"First done","source_sections":["# Spec"]}`)
+	addTask(t, dir, `{"id":"t2","title":"Second","depends_on":[],"estimate_minutes":5,"acceptance":"Second criteria","source_sections":["# Spec"]}`)
 
 	runTP(t, dir, "claim", "t1")
 	runTP(t, dir, "close", "t1", "First done completely with evidence")
@@ -73,8 +73,8 @@ func TestBatchDoneCoveredBy(t *testing.T) {
 	t.Parallel()
 	dir := setupProject(t)
 
-	addTask(t, dir, `{"id":"t1","title":"First","depends_on":[],"estimate_minutes":5,"acceptance":"First done","source_sections":["s1"]}`)
-	addTask(t, dir, `{"id":"t2","title":"Second","depends_on":[],"estimate_minutes":5,"acceptance":"Second done","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t1","title":"First","depends_on":[],"estimate_minutes":5,"acceptance":"First done","source_sections":["# Spec"]}`)
+	addTask(t, dir, `{"id":"t2","title":"Second","depends_on":[],"estimate_minutes":5,"acceptance":"Second done","source_sections":["# Spec"]}`)
 
 	// Close t1 normally
 	runTP(t, dir, "claim", "t1")

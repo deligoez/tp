@@ -20,7 +20,7 @@ func TestDone_OutOfScopeLineAcceptedAndPreserved(t *testing.T) {
 	dir := setupCloseStrategyProject(t, "builtin")
 	// A two-criterion task exercises evidence-line counting: the Out of scope:
 	// line must not count toward the two required evidence lines.
-	runTP(t, dir, "add", `{"id":"two","title":"Two","depends_on":[],"estimate_minutes":5,"acceptance":"First part. Second part.","source_sections":["s1"]}`)
+	runTP(t, dir, "add", `{"id":"two","title":"Two","depends_on":[],"estimate_minutes":5,"acceptance":"First part. Second part.","source_sections":["# Spec"]}`)
 
 	reason := "- first done at internal/cli/done.go:279\n- second verified at internal/cli/report.go\nOut of scope: typo spotted in README.md"
 	_, stderr, code := runTP(t, dir, "done", "two", "--gate-passed", "--", reason)

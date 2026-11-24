@@ -132,7 +132,7 @@ func TestTaskAuditOwed_IsManaged(t *testing.T) {
 	assert.Equal(t, 2, code, "set: %s", stderr)
 	assert.Contains(t, stderr, "managed")
 
-	_, stderr, code = runTP(t, dir, "add", `{"id":"t2","title":"T2","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"t2 done","source_sections":["s1"],"task_audit_owed":["go-safety"]}`)
+	_, stderr, code = runTP(t, dir, "add", `{"id":"t2","title":"T2","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"t2 done","source_sections":["# Spec"],"task_audit_owed":["go-safety"]}`)
 	assert.Equal(t, 1, code, "add: %s", stderr)
 	assert.Contains(t, stderr, "task_audit_owed")
 

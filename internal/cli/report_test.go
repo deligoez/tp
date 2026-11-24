@@ -15,7 +15,7 @@ import (
 func addTaskWithEstimate(t *testing.T, dir, id string, estimate int) {
 	t.Helper()
 	taskJSON := `{"id":"` + id + `","title":"Task ` + id + `","status":"open","depends_on":[],"estimate_minutes":` +
-		fmt.Sprintf("%d", estimate) + `,"acceptance":"` + id + ` acceptance criteria met","source_sections":["s1"]}`
+		fmt.Sprintf("%d", estimate) + `,"acceptance":"` + id + ` acceptance criteria met","source_sections":["# Spec"]}`
 	_, _, code := runTP(t, dir, "add", taskJSON)
 	require.Equal(t, 0, code, "add task %s should succeed", id)
 }

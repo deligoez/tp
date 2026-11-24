@@ -35,7 +35,7 @@ func claimsRepo(t *testing.T) string {
 	require.Equal(t, 0, code, "init: %s", stderr)
 	addTaskWithEstimate(t, dir, "t1", 5)
 	addTaskWithEstimate(t, dir, "t2", 5)
-	addTask(t, dir, `{"id":"t3","title":"Task t3","depends_on":["t1"],"estimate_minutes":5,"acceptance":"t3 acceptance criteria met","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t3","title":"Task t3","depends_on":["t1"],"estimate_minutes":5,"acceptance":"t3 acceptance criteria met","source_sections":["# Spec"]}`)
 	gitIn(t, dir, "init", "-q")
 	gitIn(t, dir, "config", "user.email", "test@test.com")
 	gitIn(t, dir, "config", "user.name", "Test")
@@ -78,7 +78,7 @@ func TestBriefCarriesItsTaskMarker(t *testing.T) {
 
 	// An id the spawn hook would not take as a marker gets none, rather than
 	// a marker the hook silently skips.
-	addTask(t, dir, `{"id":"_odd","title":"Odd","depends_on":[],"estimate_minutes":5,"acceptance":"odd acceptance criteria met","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"_odd","title":"Odd","depends_on":[],"estimate_minutes":5,"acceptance":"odd acceptance criteria met","source_sections":["# Spec"]}`)
 	stdout, stderr, code = runTP(t, dir, "brief", "_odd")
 	require.Equal(t, 0, code, stderr)
 	brief = map[string]any{}

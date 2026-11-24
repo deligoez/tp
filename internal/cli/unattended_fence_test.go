@@ -19,7 +19,7 @@ const unattendedOn = "TP_UNATTENDED=1"
 func fenceProject(t *testing.T) string {
 	t.Helper()
 	dir := setupProjectWithGate(t, "exit 7")
-	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["# Spec"]}`)
 	return dir
 }
 
@@ -74,7 +74,7 @@ func TestUnattendedFence_ImportForceRefused(t *testing.T) {
 
 	importPath := filepath.Join(dir, "import.json")
 	doc := `{"version":1,"spec":"spec.md","tasks":[` +
-		`{"id":"n1","title":"New","estimate_minutes":5,"acceptance":"New task complete.","source_sections":["# Test Spec"],"depends_on":[]}]}`
+		`{"id":"n1","title":"New","estimate_minutes":5,"acceptance":"New task complete.","source_sections":["# Spec"],"depends_on":[]}]}`
 	require.NoError(t, os.WriteFile(importPath, []byte(doc), 0o600))
 
 	stdout, stderr, code := runTPEnv(t, dir, []string{unattendedOn}, "import", importPath, "--force")

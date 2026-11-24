@@ -125,7 +125,7 @@ func TestHeld_AnUnmetDependencyOutranksAHoldInStatusAndExport(t *testing.T) {
 	t.Parallel()
 	dir := setupProject(t)
 	addTaskWithEstimate(t, dir, "base", 5)
-	addTask(t, dir, `{"id":"top","title":"Task top","depends_on":["base"],"estimate_minutes":5,"acceptance":"top acceptance criteria met","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"top","title":"Task top","depends_on":["base"],"estimate_minutes":5,"acceptance":"top acceptance criteria met","source_sections":["# Spec"]}`)
 	_, _, code := runTP(t, dir, "set", "top", "waiting=the release tag")
 	require.Equal(t, 0, code)
 

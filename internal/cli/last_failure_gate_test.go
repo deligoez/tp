@@ -50,7 +50,7 @@ func TestDoneGate_FailureUnderARunRecordsLastFailure(t *testing.T) {
 	// assertion on the output cannot be satisfied by a summary that merely
 	// echoes the command back.
 	dir := setupProjectWithGate(t, `printf 'gate-tail-%s\n' marker; exit 7`)
-	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["# Spec"]}`)
 
 	reason := "task complete and verified fully"
 	_, stderr, code := runTPEnv(t, dir, gateUnitEnv("implement", "t1", "implement"), "done", "t1", reason)
@@ -74,7 +74,7 @@ func TestDoneGate_FailureUnderARunRecordsLastFailure(t *testing.T) {
 func TestDoneGate_FailureOutsideARunRecordsNothing(t *testing.T) {
 	t.Parallel()
 	dir := setupProjectWithGate(t, "echo boom; exit 7")
-	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["# Spec"]}`)
 
 	_, stderr, code := runTP(t, dir, "done", "t1", "task complete and verified fully")
 	require.Equal(t, 4, code, "gate failure still exits 4: %s", stderr)
@@ -94,7 +94,7 @@ func TestDoneGate_FailureOutsideARunRecordsNothing(t *testing.T) {
 func TestDoneGate_PassingGateUnderARunRecordsNothing(t *testing.T) {
 	t.Parallel()
 	dir := setupProjectWithGate(t, "echo ok")
-	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["# Spec"]}`)
 
 	_, stderr, code := runTPEnv(t, dir, gateUnitEnv("implement", "t1", "implement"), "done", "t1", "task complete and verified fully")
 	require.Equal(t, 0, code, "done failed: %s", stderr)
@@ -108,7 +108,7 @@ func TestDoneGate_PassingGateUnderARunRecordsNothing(t *testing.T) {
 func TestDoneGate_SilentGateFailureStillSummarizes(t *testing.T) {
 	t.Parallel()
 	dir := setupProjectWithGate(t, "exit 3")
-	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["# Spec"]}`)
 
 	_, _, code := runTPEnv(t, dir, gateUnitEnv("implement", "t1", "implement"), "done", "t1", "task complete and verified fully")
 	require.Equal(t, 4, code)
@@ -125,8 +125,8 @@ func TestDoneGate_SilentGateFailureStillSummarizes(t *testing.T) {
 func TestDoneGate_SecondFailureOverwritesTheFirst(t *testing.T) {
 	t.Parallel()
 	dir := setupProjectWithGate(t, "echo boom; exit 7")
-	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
-	addTask(t, dir, `{"id":"t2","title":"Task two","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["# Spec"]}`)
+	addTask(t, dir, `{"id":"t2","title":"Task two","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["# Spec"]}`)
 
 	_, _, code := runTPEnv(t, dir, gateUnitEnv("implement", "t1", "implement"), "done", "t1", "task complete and verified fully")
 	require.Equal(t, 4, code)
@@ -144,7 +144,7 @@ func TestDoneGate_SecondFailureOverwritesTheFirst(t *testing.T) {
 func TestDoneGate_BatchFailureUnderARunRecordsLastFailure(t *testing.T) {
 	t.Parallel()
 	dir := setupProjectWithGate(t, `printf 'gate-tail-%s\n' marker; exit 7`)
-	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"A complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"A complete","source_sections":["# Spec"]}`)
 
 	ndjson := filepath.Join(dir, "results.ndjson")
 	require.NoError(t, os.WriteFile(ndjson, []byte(`{"id":"a","reason":"A complete and verified"}`+"\n"), 0o600))
@@ -168,7 +168,7 @@ func TestDoneGate_BatchFailureUnderARunRecordsLastFailure(t *testing.T) {
 func TestCloseGate_FailureUnderARunRecordsNothing(t *testing.T) {
 	t.Parallel()
 	dir := setupProjectWithGate(t, "echo boom; exit 7")
-	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["# Spec"]}`)
 	_, stderr, code := runTP(t, dir, "claim", "t1")
 	require.Equal(t, 0, code, "claim failed: %s", stderr)
 
@@ -183,7 +183,7 @@ func TestCloseGate_FailureUnderARunRecordsNothing(t *testing.T) {
 func TestDoneGate_RecordedFailureReachesTheNextBrief(t *testing.T) {
 	t.Parallel()
 	dir := setupProjectWithGate(t, "echo boom; exit 7")
-	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["# Spec"]}`)
 
 	_, _, code := runTPEnv(t, dir, gateUnitEnv("implement", "t1", "implement"), "done", "t1", "task complete and verified fully")
 	require.Equal(t, 4, code)

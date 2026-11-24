@@ -17,7 +17,7 @@ func setupBatchCommitProject(t *testing.T, ids ...string) string {
 	t.Helper()
 	dir := setupCommitProject(t, ids[0])
 	for _, id := range ids[1:] {
-		_, _, code := runTP(t, dir, "add", `{"id":"`+id+`","title":"T","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"`+id+` acceptance met","source_sections":["s1"]}`)
+		_, _, code := runTP(t, dir, "add", `{"id":"`+id+`","title":"T","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"`+id+` acceptance met","source_sections":["# Spec"]}`)
 		require.Equal(t, 0, code)
 	}
 	return dir

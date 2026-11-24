@@ -102,8 +102,8 @@ func TestBrief_NoArg_TargetsSameTaskAsNextPeek(t *testing.T) {
 	runTP(t, dir, "init", "spec.md")
 	// Two ready tasks; tp next orders by estimate asc when dependent-count ties,
 	// so the lower-estimate t2 is next.
-	runTP(t, dir, "add", `{"id":"t1","title":"T1","status":"open","depends_on":[],"estimate_minutes":10,"acceptance":"One.","source_sections":["s"]}`)
-	runTP(t, dir, "add", `{"id":"t2","title":"T2","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"Two.","source_sections":["s"]}`)
+	runTP(t, dir, "add", `{"id":"t1","title":"T1","status":"open","depends_on":[],"estimate_minutes":10,"acceptance":"One.","source_sections":["# S"]}`)
+	runTP(t, dir, "add", `{"id":"t2","title":"T2","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"Two.","source_sections":["# S"]}`)
 
 	peekOut, _, code := runTP(t, dir, "next", "--peek")
 	require.Equal(t, 0, code)
@@ -122,8 +122,8 @@ func TestBrief_NoArg_TargetsWIPAndIsReadOnly(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# S\n"), 0o600))
 	runTP(t, dir, "init", "spec.md")
-	runTP(t, dir, "add", `{"id":"wip","title":"WIP","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"One.","source_sections":["s"]}`)
-	runTP(t, dir, "add", `{"id":"ready","title":"Ready","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"Two.","source_sections":["s"]}`)
+	runTP(t, dir, "add", `{"id":"wip","title":"WIP","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"One.","source_sections":["# S"]}`)
+	runTP(t, dir, "add", `{"id":"ready","title":"Ready","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"Two.","source_sections":["# S"]}`)
 	runTP(t, dir, "claim", "wip") // -> wip
 
 	// §9.1: with no arg, brief targets the in-progress task.
@@ -144,7 +144,7 @@ func TestBrief_AllDone_Exit4DoneShape(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# S\n"), 0o600))
 	writeTaskFile(t, dir, `{"version":1,"spec":"spec.md","workflow":{},"tasks":[
-		{"id":"a","title":"A","status":"done","depends_on":[],"estimate_minutes":5,"acceptance":"One.","source_sections":["s"],"closed_reason":"- done"}
+		{"id":"a","title":"A","status":"done","depends_on":[],"estimate_minutes":5,"acceptance":"One.","source_sections":["# S"],"closed_reason":"- done"}
 	]}`)
 
 	out, _, code := runTP(t, dir, "brief")
@@ -160,7 +160,7 @@ func TestBrief_UnknownID_Exit4DoneShape(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# S\n"), 0o600))
 	runTP(t, dir, "init", "spec.md")
-	runTP(t, dir, "add", `{"id":"a","title":"A","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"One.","source_sections":["s"]}`)
+	runTP(t, dir, "add", `{"id":"a","title":"A","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"One.","source_sections":["# S"]}`)
 
 	out, _, code := runTP(t, dir, "brief", "nope")
 	// §9.1: an unknown explicit id exits 4 (state) with the {done, message} shape.
@@ -205,7 +205,7 @@ func TestBrief_PriorOutOfRange_Exit2(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# S\n"), 0o600))
 	runTP(t, dir, "init", "spec.md")
-	runTP(t, dir, "add", `{"id":"a","title":"A","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"One.","source_sections":["s"]}`)
+	runTP(t, dir, "add", `{"id":"a","title":"A","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"One.","source_sections":["# S"]}`)
 
 	// §5.4: --prior outside [0,20] is a usage error (exit 2).
 	_, _, code := runTP(t, dir, "brief", "--prior", "99")

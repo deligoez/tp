@@ -22,7 +22,7 @@ func setupCloseStrategyProject(t *testing.T, strategy string) string {
 	}
 	_, _, code := runTP(t, dir, args...)
 	require.Equal(t, 0, code)
-	_, _, code = runTP(t, dir, "add", `{"id":"t1","title":"T1","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"t1 done","source_sections":["s1"]}`)
+	_, _, code = runTP(t, dir, "add", `{"id":"t1","title":"T1","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"t1 done","source_sections":["# Spec"]}`)
 	require.Equal(t, 0, code)
 	initGitRepo(t, dir)
 	return dir
@@ -72,7 +72,7 @@ func TestCloseStrategy_HCRejectsBareDone(t *testing.T) {
 func TestCloseStrategy_HCCommitAndCoveredByClose(t *testing.T) {
 	t.Parallel()
 	dir := setupCloseStrategyProject(t, "hc")
-	_, _, code := runTP(t, dir, "add", `{"id":"t2","title":"T2","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"t2 done","source_sections":["s1"]}`)
+	_, _, code := runTP(t, dir, "add", `{"id":"t2","title":"T2","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"t2 done","source_sections":["# Spec"]}`)
 	require.Equal(t, 0, code)
 	_, stderr, code := runTP(t, dir, "done", "t1", "--gate-passed", "--commit", "aaa", "--", "t1 done")
 	assert.Equal(t, 0, code, "hc closes with --commit: %s", stderr)
@@ -83,7 +83,7 @@ func TestCloseStrategy_HCCommitAndCoveredByClose(t *testing.T) {
 func TestCloseStrategy_BatchBadRowIsFailedRow(t *testing.T) {
 	t.Parallel()
 	dir := setupCloseStrategyProject(t, "hc")
-	_, _, code := runTP(t, dir, "add", `{"id":"t2","title":"T2","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"t2 done","source_sections":["s1"]}`)
+	_, _, code := runTP(t, dir, "add", `{"id":"t2","title":"T2","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"t2 done","source_sections":["# Spec"]}`)
 	require.Equal(t, 0, code)
 	ndjson := `{"id":"t1","reason":"t1 done","gate_passed":true,"commit_shas":["aaa"]}` + "\n" +
 		`{"id":"t2","reason":"t2 done","gate_passed":true}` + "\n"

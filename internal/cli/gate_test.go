@@ -16,7 +16,7 @@ func setupProjectWithGate(t *testing.T, gate string) string {
 	t.Helper()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
-	require.NoError(t, os.WriteFile(specPath, []byte("# Test Spec\n"), 0o600))
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
 	_, stderr, code := runTP(t, dir, "init", "spec.md", "--quality-gate", gate)
 	require.Equal(t, 0, code, "init failed: %s", stderr)
 	return dir
@@ -34,7 +34,7 @@ func showTask(t *testing.T, dir, id string) map[string]any {
 func TestGate_DoneRunsGateAndStampsGatePassedAt(t *testing.T) {
 	t.Parallel()
 	dir := setupProjectWithGate(t, "echo ok")
-	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["# Spec"]}`)
 
 	stdout, stderr, code := runTP(t, dir, "done", "t1", "task complete and verified fully")
 	require.Equal(t, 0, code, "done failed: stderr=%s stdout=%s", stderr, stdout)
@@ -47,7 +47,7 @@ func TestGate_DoneRunsGateAndStampsGatePassedAt(t *testing.T) {
 func TestGate_FailureClosesNothingWithExit4(t *testing.T) {
 	t.Parallel()
 	dir := setupProjectWithGate(t, "echo boom; exit 7")
-	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["# Spec"]}`)
 
 	_, stderr, code := runTP(t, dir, "done", "t1", "task complete and verified fully")
 	assert.Equal(t, 4, code, "gate failure must exit 4")
@@ -67,8 +67,8 @@ func TestGate_FailureClosesNothingWithExit4(t *testing.T) {
 func TestGate_MultiIDRunsGateOnce(t *testing.T) {
 	t.Parallel()
 	dir := setupProjectWithGate(t, "echo run >> gate_runs.txt")
-	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"A complete","source_sections":["s1"]}`)
-	addTask(t, dir, `{"id":"b","title":"B","depends_on":[],"estimate_minutes":5,"acceptance":"B complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"A complete","source_sections":["# Spec"]}`)
+	addTask(t, dir, `{"id":"b","title":"B","depends_on":[],"estimate_minutes":5,"acceptance":"B complete","source_sections":["# Spec"]}`)
 
 	stdout, stderr, code := runTP(t, dir, "done", "a", "b", "both tasks complete and verified")
 	require.Equal(t, 0, code, "multi done failed: stderr=%s stdout=%s", stderr, stdout)
@@ -87,8 +87,8 @@ func TestGate_MultiIDRunsGateOnce(t *testing.T) {
 func TestGate_BatchRunsGateOnceBeforeEntries(t *testing.T) {
 	t.Parallel()
 	dir := setupProjectWithGate(t, "echo run >> gate_runs.txt")
-	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"A complete","source_sections":["s1"]}`)
-	addTask(t, dir, `{"id":"b","title":"B","depends_on":["a"],"estimate_minutes":5,"acceptance":"B complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"A complete","source_sections":["# Spec"]}`)
+	addTask(t, dir, `{"id":"b","title":"B","depends_on":["a"],"estimate_minutes":5,"acceptance":"B complete","source_sections":["# Spec"]}`)
 
 	ndjson := filepath.Join(dir, "results.ndjson")
 	lines := []string{
@@ -112,8 +112,8 @@ func TestGate_BatchRunsGateOnceBeforeEntries(t *testing.T) {
 func TestGate_BatchFailureFailsEveryEntry(t *testing.T) {
 	t.Parallel()
 	dir := setupProjectWithGate(t, "exit 3")
-	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"A complete","source_sections":["s1"]}`)
-	addTask(t, dir, `{"id":"b","title":"B","depends_on":[],"estimate_minutes":5,"acceptance":"B complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"A complete","source_sections":["# Spec"]}`)
+	addTask(t, dir, `{"id":"b","title":"B","depends_on":[],"estimate_minutes":5,"acceptance":"B complete","source_sections":["# Spec"]}`)
 
 	ndjson := filepath.Join(dir, "results.ndjson")
 	lines := []string{
@@ -139,7 +139,7 @@ func TestGate_BatchFailureFailsEveryEntry(t *testing.T) {
 func TestGate_CloseRunsGateAndStamps(t *testing.T) {
 	t.Parallel()
 	dir := setupProjectWithGate(t, "echo ok")
-	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["# Spec"]}`)
 	_, _, code := runTP(t, dir, "claim", "t1")
 	require.Equal(t, 0, code)
 
@@ -154,7 +154,7 @@ func TestGate_CloseRunsGateAndStamps(t *testing.T) {
 func TestSkipGate_RecordsReasonAndSkipsExecution(t *testing.T) {
 	t.Parallel()
 	dir := setupProjectWithGate(t, "echo run >> gate_runs.txt")
-	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["# Spec"]}`)
 
 	stdout, stderr, code := runTP(t, dir, "done", "t1", "task complete and verified fully", "--skip-gate", "CI environment unavailable")
 	require.Equal(t, 0, code, "done --skip-gate failed: stderr=%s stdout=%s", stderr, stdout)
@@ -171,7 +171,7 @@ func TestSkipGate_RecordsReasonAndSkipsExecution(t *testing.T) {
 func TestSkipGate_UsageErrors(t *testing.T) {
 	t.Parallel()
 	dir := setupProjectWithGate(t, "echo ok")
-	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["# Spec"]}`)
 
 	_, _, code := runTP(t, dir, "done", "t1", "reason text here", "--skip-gate", "  ")
 	assert.Equal(t, 2, code, "empty --skip-gate reason is a usage error")
@@ -186,7 +186,7 @@ func TestSkipGate_UsageErrors(t *testing.T) {
 func TestSkipGate_RecordedEvenWithoutGate(t *testing.T) {
 	t.Parallel()
 	dir := setupProject(t) // no quality gate configured
-	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["# Spec"]}`)
 
 	_, stderr, code := runTP(t, dir, "done", "t1", "task complete and verified fully", "--skip-gate", "no gate but honest record")
 	require.Equal(t, 0, code, "stderr: %s", stderr)
@@ -198,8 +198,8 @@ func TestSkipGate_RecordedEvenWithoutGate(t *testing.T) {
 func TestSkipGate_BatchEntriesCloseDespiteGateFailure(t *testing.T) {
 	t.Parallel()
 	dir := setupProjectWithGate(t, "exit 3")
-	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"A complete","source_sections":["s1"]}`)
-	addTask(t, dir, `{"id":"b","title":"B","depends_on":[],"estimate_minutes":5,"acceptance":"B complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"A complete","source_sections":["# Spec"]}`)
+	addTask(t, dir, `{"id":"b","title":"B","depends_on":[],"estimate_minutes":5,"acceptance":"B complete","source_sections":["# Spec"]}`)
 
 	ndjson := filepath.Join(dir, "results.ndjson")
 	lines := []string{
@@ -226,8 +226,8 @@ func TestSkipGate_BatchEntriesCloseDespiteGateFailure(t *testing.T) {
 func TestSkipGate_BatchAllSkipNeverRunsGate(t *testing.T) {
 	t.Parallel()
 	dir := setupProjectWithGate(t, "echo run >> gate_runs.txt")
-	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"A complete","source_sections":["s1"]}`)
-	addTask(t, dir, `{"id":"b","title":"B","depends_on":[],"estimate_minutes":5,"acceptance":"B complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"A complete","source_sections":["# Spec"]}`)
+	addTask(t, dir, `{"id":"b","title":"B","depends_on":[],"estimate_minutes":5,"acceptance":"B complete","source_sections":["# Spec"]}`)
 
 	ndjson := filepath.Join(dir, "results.ndjson")
 	lines := []string{
@@ -246,7 +246,7 @@ func TestSkipGate_BatchAllSkipNeverRunsGate(t *testing.T) {
 func TestSkipGate_BatchEmptySkipGateFailsEntry(t *testing.T) {
 	t.Parallel()
 	dir := setupProjectWithGate(t, "echo ok")
-	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"A complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"A complete","source_sections":["# Spec"]}`)
 
 	ndjson := filepath.Join(dir, "results.ndjson")
 	require.NoError(t, os.WriteFile(ndjson, []byte(`{"id":"a","reason":"A complete and verified","skip_gate":"  "}`+"\n"), 0o600))
@@ -266,7 +266,7 @@ func TestSkipGate_BatchEmptySkipGateFailsEntry(t *testing.T) {
 func TestSkipGate_CloseRecordsReason(t *testing.T) {
 	t.Parallel()
 	dir := setupProjectWithGate(t, "echo run >> gate_runs.txt")
-	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["# Spec"]}`)
 	_, _, code := runTP(t, dir, "claim", "t1")
 	require.Equal(t, 0, code)
 
@@ -284,7 +284,7 @@ func TestSkipGate_CloseRecordsReason(t *testing.T) {
 func TestGateBatch_CheapCheckFailuresDoNotTriggerGate(t *testing.T) {
 	t.Parallel()
 	dir := setupProjectWithGate(t, "echo run >> gate_runs.txt")
-	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"First thing. Second thing.","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"First thing. Second thing.","source_sections":["# Spec"]}`)
 
 	// Reason fails closure verification (2 criteria, 0 evidence lines)
 	ndjson := filepath.Join(dir, "results.ndjson")
@@ -308,8 +308,8 @@ func TestGateBatch_CheapCheckFailuresDoNotTriggerGate(t *testing.T) {
 func TestGateBatch_MixedCheapFailureAndSurvivorRunsGateOnce(t *testing.T) {
 	t.Parallel()
 	dir := setupProjectWithGate(t, "echo run >> gate_runs.txt")
-	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"First thing. Second thing.","source_sections":["s1"]}`)
-	addTask(t, dir, `{"id":"b","title":"B","depends_on":[],"estimate_minutes":5,"acceptance":"B complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"First thing. Second thing.","source_sections":["# Spec"]}`)
+	addTask(t, dir, `{"id":"b","title":"B","depends_on":[],"estimate_minutes":5,"acceptance":"B complete","source_sections":["# Spec"]}`)
 
 	ndjson := filepath.Join(dir, "results.ndjson")
 	lines := []string{
@@ -334,7 +334,7 @@ func TestGateBatch_MixedCheapFailureAndSurvivorRunsGateOnce(t *testing.T) {
 func TestGatePassedCompat_IgnoredWithInfoWhenGateSet(t *testing.T) {
 	t.Parallel()
 	dir := setupProjectWithGate(t, "echo ok")
-	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["# Spec"]}`)
 
 	stdout, stderr, code := runTP(t, dir, "done", "t1", "task complete and verified fully", "--gate-passed")
 	require.Equal(t, 0, code, "stderr=%s stdout=%s", stderr, stdout)
@@ -348,7 +348,7 @@ func TestGatePassedCompat_IgnoredWithInfoWhenGateSet(t *testing.T) {
 func TestGatePassedCompat_AttestationPreservedWithoutGate(t *testing.T) {
 	t.Parallel()
 	dir := setupProject(t) // no quality gate configured
-	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["# Spec"]}`)
 
 	_, stderr, code := runTP(t, dir, "done", "t1", "task complete and verified fully", "--gate-passed")
 	require.Equal(t, 0, code, "stderr: %s", stderr)

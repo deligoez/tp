@@ -52,7 +52,7 @@ func TestDoneMulti_RefusedTargetLeavesOpenTaskUntouched(t *testing.T) {
 func TestDoneMulti_MixedClosesPassingTargetAndLeavesRefusedTargetUntouched(t *testing.T) {
 	t.Parallel()
 	dir := setupCommitProject(t, "t1")
-	_, stderr, code := runTP(t, dir, "add", `{"id":"t2","title":"T","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"t2 part one works; t2 part two works","source_sections":["s1"]}`)
+	_, stderr, code := runTP(t, dir, "add", `{"id":"t2","title":"T","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"t2 part one works; t2 part two works","source_sections":["# Spec"]}`)
 	require.Equal(t, 0, code, "add: %s", stderr)
 	before := rawTasksJSON(t, dir, "t2")
 	res, stderr, code := runDoneMultiJSON(t, dir, "t1", "t2", "--gate-passed", "--commit", "aaa", "--", "t1 acceptance met")

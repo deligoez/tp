@@ -18,7 +18,7 @@ import (
 func setupHCRepoWithClosedTask(t *testing.T) string {
 	t.Helper()
 	dir := setupCloseStrategyProject(t, "hc")
-	_, _, code := runTP(t, dir, "add", `{"id":"t2","title":"T2","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"t2 done","source_sections":["s1"]}`)
+	_, _, code := runTP(t, dir, "add", `{"id":"t2","title":"T2","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"t2 done","source_sections":["# Spec"]}`)
 	require.Equal(t, 0, code)
 	_, stderr, code := runTP(t, dir, "done", "t1", "--gate-passed", "--commit", "aaa", "--", "t1 done")
 	require.Equal(t, 0, code, "hc closes t1 with --commit: %s", stderr)

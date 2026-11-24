@@ -28,7 +28,7 @@ func newResumeRepo(t *testing.T) string {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# S\n\n## 1. X\nx\n"), 0o600))
 	_, _, code := runTP(t, dir, "init", "spec.md")
 	require.Equal(t, 0, code)
-	_, _, code = runTP(t, dir, "add", `{"id":"t1","title":"X","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"x done","source_sections":["### 1. X"]}`)
+	_, _, code = runTP(t, dir, "add", `{"id":"t1","title":"X","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"x done","source_sections":["## 1. X"]}`)
 	require.Equal(t, 0, code)
 	initGitRepo(t, dir)
 	return dir
@@ -141,7 +141,7 @@ func TestResume_NonGitDirectoryEmptyArrays(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# S\n\n## 1. X\nx\n"), 0o600))
 	_, _, code := runTP(t, dir, "init", "spec.md")
 	require.Equal(t, 0, code)
-	_, _, code = runTP(t, dir, "add", `{"id":"t1","title":"X","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"x done","source_sections":["### 1. X"]}`)
+	_, _, code = runTP(t, dir, "add", `{"id":"t1","title":"X","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"x done","source_sections":["## 1. X"]}`)
 	require.Equal(t, 0, code)
 	// No git init: git state cannot be read.
 	res := resumeResult(t, dir)

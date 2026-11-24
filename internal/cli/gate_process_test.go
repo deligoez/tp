@@ -31,7 +31,7 @@ func gateConfig(t *testing.T, root, gate, extra string) {
 func projectGated(t *testing.T, gate string) string {
 	t.Helper()
 	dir := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Test Spec\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 	_, stderr, code := runTP(t, dir, "init", "spec.md")
 	require.Equal(t, 0, code, "init failed: %s", stderr)
 	gateConfig(t, dir, gate, "")

@@ -22,7 +22,7 @@ func taskAuditProject(t *testing.T, ids ...string) string {
 	_, _, code := runTP(t, dir, "init", "spec.md")
 	require.Equal(t, 0, code)
 	for _, id := range ids {
-		_, stderr, code := runTP(t, dir, "add", `{"id":"`+id+`","title":"Task `+id+`","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"`+id+` acceptance met","source_sections":["s1"]}`)
+		_, stderr, code := runTP(t, dir, "add", `{"id":"`+id+`","title":"Task `+id+`","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"`+id+` acceptance met","source_sections":["# Spec"]}`)
 		require.Equal(t, 0, code, "add %s: %s", id, stderr)
 	}
 	auditors := filepath.Join(dir, ".tp", "auditors")

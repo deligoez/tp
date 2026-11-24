@@ -16,7 +16,7 @@ func setupProject(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
-	err := os.WriteFile(specPath, []byte("# Test Spec\n\nSome content.\n"), 0o600)
+	err := os.WriteFile(specPath, []byte("# Spec\n\nSome content.\n"), 0o600)
 	require.NoError(t, err)
 
 	_, stderr, code := runTP(t, dir, "init", "spec.md")
@@ -36,9 +36,9 @@ func Test2CallWorkflow(t *testing.T) {
 	dir := setupProject(t)
 
 	// Add 3 tasks: a, b depends on a, c depends on b
-	addTask(t, dir, `{"id":"a","title":"Task A","depends_on":[],"estimate_minutes":10,"acceptance":"A is done","source_sections":["s1"]}`)
-	addTask(t, dir, `{"id":"b","title":"Task B","depends_on":["a"],"estimate_minutes":15,"acceptance":"B is done","source_sections":["s1"]}`)
-	addTask(t, dir, `{"id":"c","title":"Task C","depends_on":["b"],"estimate_minutes":20,"acceptance":"C is done","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"a","title":"Task A","depends_on":[],"estimate_minutes":10,"acceptance":"A is done","source_sections":["# Spec"]}`)
+	addTask(t, dir, `{"id":"b","title":"Task B","depends_on":["a"],"estimate_minutes":15,"acceptance":"B is done","source_sections":["# Spec"]}`)
+	addTask(t, dir, `{"id":"c","title":"Task C","depends_on":["b"],"estimate_minutes":20,"acceptance":"C is done","source_sections":["# Spec"]}`)
 
 	// tp plan --json
 	stdout, stderr, code := runTP(t, dir, "plan")
@@ -97,7 +97,7 @@ func TestDoneSingleImplicitClaim(t *testing.T) {
 	t.Parallel()
 	dir := setupProject(t)
 
-	addTask(t, dir, `{"id":"t1","title":"Solo task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t1","title":"Solo task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["# Spec"]}`)
 
 	// tp done t1 "reason" -- should work with implicit claim (open -> wip -> done)
 	stdout, stderr, code := runTP(t, dir, "done", "t1", "Task complete and verified with full implementation details")
@@ -122,8 +122,8 @@ func TestNextWIPResume(t *testing.T) {
 	t.Parallel()
 	dir := setupProject(t)
 
-	addTask(t, dir, `{"id":"a","title":"Task A","depends_on":[],"estimate_minutes":10,"acceptance":"A done","source_sections":["s1"]}`)
-	addTask(t, dir, `{"id":"b","title":"Task B","depends_on":["a"],"estimate_minutes":15,"acceptance":"B done","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"a","title":"Task A","depends_on":[],"estimate_minutes":10,"acceptance":"A done","source_sections":["# Spec"]}`)
+	addTask(t, dir, `{"id":"b","title":"Task B","depends_on":["a"],"estimate_minutes":15,"acceptance":"B done","source_sections":["# Spec"]}`)
 
 	// tp next → claims a, returns a
 	stdout, stderr, code := runTP(t, dir, "next")
@@ -165,9 +165,9 @@ func TestListFilters(t *testing.T) {
 	dir := setupProject(t)
 
 	// Add tasks with different statuses and tags
-	addTask(t, dir, `{"id":"t1","title":"Auth login","status":"open","tags":["auth"],"depends_on":[],"estimate_minutes":10,"acceptance":"Login works","source_sections":["s1"]}`)
-	addTask(t, dir, `{"id":"t2","title":"Auth logout","status":"open","tags":["auth","api"],"depends_on":[],"estimate_minutes":5,"acceptance":"Logout works","source_sections":["s1"]}`)
-	addTask(t, dir, `{"id":"t3","title":"Dashboard","status":"open","tags":["ui"],"depends_on":[],"estimate_minutes":20,"acceptance":"Dashboard renders","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t1","title":"Auth login","status":"open","tags":["auth"],"depends_on":[],"estimate_minutes":10,"acceptance":"Login works","source_sections":["# Spec"]}`)
+	addTask(t, dir, `{"id":"t2","title":"Auth logout","status":"open","tags":["auth","api"],"depends_on":[],"estimate_minutes":5,"acceptance":"Logout works","source_sections":["# Spec"]}`)
+	addTask(t, dir, `{"id":"t3","title":"Dashboard","status":"open","tags":["ui"],"depends_on":[],"estimate_minutes":20,"acceptance":"Dashboard renders","source_sections":["# Spec"]}`)
 
 	// Claim t1 to make it wip
 	_, stderr, code := runTP(t, dir, "claim", "t1")
@@ -212,8 +212,8 @@ func TestDoneBatchPartialFailure(t *testing.T) {
 	dir := setupProject(t)
 
 	// Add 2 tasks
-	addTask(t, dir, `{"id":"t1","title":"Good task","depends_on":[],"estimate_minutes":5,"acceptance":"Good task acceptance criteria fulfilled","source_sections":["s1"]}`)
-	addTask(t, dir, `{"id":"t2","title":"Bad task","depends_on":[],"estimate_minutes":5,"acceptance":"Bad task needs very detailed and specific acceptance criteria that must be addressed in the reason","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t1","title":"Good task","depends_on":[],"estimate_minutes":5,"acceptance":"Good task acceptance criteria fulfilled","source_sections":["# Spec"]}`)
+	addTask(t, dir, `{"id":"t2","title":"Bad task","depends_on":[],"estimate_minutes":5,"acceptance":"Bad task needs very detailed and specific acceptance criteria that must be addressed in the reason","source_sections":["# Spec"]}`)
 
 	// Write NDJSON: t1 with good reason, t2 with bad reason (too short)
 	ndjsonPath := filepath.Join(dir, "batch.ndjson")
@@ -253,7 +253,7 @@ func TestNilSlicesInJSON(t *testing.T) {
 	dir := setupProject(t)
 
 	// Add 1 task with no dependents → blocks should be []
-	addTask(t, dir, `{"id":"solo","title":"Solo task","depends_on":[],"estimate_minutes":5,"acceptance":"Done","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"solo","title":"Solo task","depends_on":[],"estimate_minutes":5,"acceptance":"Done","source_sections":["# Spec"]}`)
 
 	// tp show → blocks should be [] not null
 	stdout, stderr, code := runTP(t, dir, "show", "solo")
@@ -333,7 +333,7 @@ func TestDoneWithCommitAndGatePassed(t *testing.T) {
 	t.Parallel()
 	dir := setupProject(t)
 
-	addTask(t, dir, `{"id":"gated","title":"Gated task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"gated","title":"Gated task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["# Spec"]}`)
 
 	// tp done with --gate-passed --commit abc123
 	_, stderr, code := runTP(t, dir, "done", "gated", "Task complete and fully verified with all criteria met", "--gate-passed", "--commit", "abc123")
@@ -354,9 +354,9 @@ func TestClaimMultipleIDs(t *testing.T) {
 	t.Parallel()
 	dir := setupProject(t)
 
-	addTask(t, dir, `{"id":"m1","title":"Multi 1","depends_on":[],"estimate_minutes":5,"acceptance":"Done","source_sections":["s1"]}`)
-	addTask(t, dir, `{"id":"m2","title":"Multi 2","depends_on":[],"estimate_minutes":5,"acceptance":"Done","source_sections":["s1"]}`)
-	addTask(t, dir, `{"id":"m3","title":"Multi 3","depends_on":[],"estimate_minutes":5,"acceptance":"Done","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"m1","title":"Multi 1","depends_on":[],"estimate_minutes":5,"acceptance":"Done","source_sections":["# Spec"]}`)
+	addTask(t, dir, `{"id":"m2","title":"Multi 2","depends_on":[],"estimate_minutes":5,"acceptance":"Done","source_sections":["# Spec"]}`)
+	addTask(t, dir, `{"id":"m3","title":"Multi 3","depends_on":[],"estimate_minutes":5,"acceptance":"Done","source_sections":["# Spec"]}`)
 
 	// tp claim m1 m2 → should claim both
 	stdout, stderr, code := runTP(t, dir, "claim", "m1", "m2")
@@ -387,7 +387,7 @@ func TestPlanSpecExcerpt(t *testing.T) {
 	require.Equal(t, 0, code, "init failed: %s", stderr)
 
 	// Add a task with source_lines: "2-4"
-	addTask(t, dir, `{"id":"excerpt","title":"Excerpt task","depends_on":[],"estimate_minutes":5,"acceptance":"Done","source_sections":["s1"],"source_lines":"2-4"}`)
+	addTask(t, dir, `{"id":"excerpt","title":"Excerpt task","depends_on":[],"estimate_minutes":5,"acceptance":"Done","source_sections":["# Spec"],"source_lines":"2-4"}`)
 
 	// tp plan → verify spec_excerpt contains lines 2-4
 	stdout, stderr, code := runTP(t, dir, "plan")
@@ -507,8 +507,8 @@ func TestDoneBatchAllFail(t *testing.T) {
 	t.Parallel()
 	dir := setupProject(t)
 
-	addTask(t, dir, `{"id":"fail1","title":"Fail task 1","depends_on":[],"estimate_minutes":5,"acceptance":"Very specific acceptance criteria that must be fully addressed","source_sections":["s1"]}`)
-	addTask(t, dir, `{"id":"fail2","title":"Fail task 2","depends_on":[],"estimate_minutes":5,"acceptance":"Another very specific acceptance criteria that must be fully addressed","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"fail1","title":"Fail task 1","depends_on":[],"estimate_minutes":5,"acceptance":"Very specific acceptance criteria that must be fully addressed","source_sections":["# Spec"]}`)
+	addTask(t, dir, `{"id":"fail2","title":"Fail task 2","depends_on":[],"estimate_minutes":5,"acceptance":"Another very specific acceptance criteria that must be fully addressed","source_sections":["# Spec"]}`)
 
 	// Write batch with bad reasons for both
 	ndjsonPath := filepath.Join(dir, "allfail.ndjson")
@@ -534,7 +534,7 @@ func TestDoneBatchIdempotent(t *testing.T) {
 	t.Parallel()
 	dir := setupProject(t)
 
-	addTask(t, dir, `{"id":"idem","title":"Idempotent task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"idem","title":"Idempotent task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["# Spec"]}`)
 
 	// Close the task normally
 	_, stderr, code := runTP(t, dir, "done", "idem", "Task complete and fully verified with all acceptance criteria")
@@ -560,9 +560,9 @@ func TestListTagFilter(t *testing.T) {
 	t.Parallel()
 	dir := setupProject(t)
 
-	addTask(t, dir, `{"id":"auth1","title":"Auth login","tags":["auth"],"depends_on":[],"estimate_minutes":5,"acceptance":"Done","source_sections":["s1"]}`)
-	addTask(t, dir, `{"id":"auth2","title":"Auth logout","tags":["auth","api"],"depends_on":[],"estimate_minutes":5,"acceptance":"Done","source_sections":["s1"]}`)
-	addTask(t, dir, `{"id":"ui1","title":"Dashboard","tags":["ui"],"depends_on":[],"estimate_minutes":5,"acceptance":"Done","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"auth1","title":"Auth login","tags":["auth"],"depends_on":[],"estimate_minutes":5,"acceptance":"Done","source_sections":["# Spec"]}`)
+	addTask(t, dir, `{"id":"auth2","title":"Auth logout","tags":["auth","api"],"depends_on":[],"estimate_minutes":5,"acceptance":"Done","source_sections":["# Spec"]}`)
+	addTask(t, dir, `{"id":"ui1","title":"Dashboard","tags":["ui"],"depends_on":[],"estimate_minutes":5,"acceptance":"Done","source_sections":["# Spec"]}`)
 
 	// tp list --tag auth → only auth-tagged tasks
 	stdout, stderr, code := runTP(t, dir, "list", "--tag", "auth")

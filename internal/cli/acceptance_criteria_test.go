@@ -12,7 +12,7 @@ import (
 
 // bulletTask's two bullets carry a "; " and a ". " of their own; each is still
 // one criterion.
-const bulletTask = `{"id":"t1","title":"Bullets","depends_on":[],"estimate_minutes":5,"acceptance":"- first criterion; with a semicolon\n- second. With a period","source_sections":["s1"]}`
+const bulletTask = `{"id":"t1","title":"Bullets","depends_on":[],"estimate_minutes":5,"acceptance":"- first criterion; with a semicolon\n- second. With a period","source_sections":["# Spec"]}`
 
 // twoEvidenceLines is one column-0 evidence line per bullet of bulletTask.
 const twoEvidenceLines = "- first verified at internal/a.go:1\n- second verified at internal/b.go:2"
@@ -36,7 +36,7 @@ func TestBulletAcceptance_EachBulletIsOneCriterion(t *testing.T) {
 
 	// The atomicity rule must fire on a prose task with four criteria, so its
 	// silence on t1 is the count and not a rule that never ran.
-	addTask(t, dir, `{"id":"t2","title":"Prose","depends_on":[],"estimate_minutes":5,"acceptance":"A holds. B holds. C holds. D holds.","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t2","title":"Prose","depends_on":[],"estimate_minutes":5,"acceptance":"A holds. B holds. C holds. D holds.","source_sections":["# Spec"]}`)
 	stdout, stderr, _ = runTP(t, dir, "validate")
 	assert.Contains(t, stdout+stderr, "task t2: acceptance has 4 criteria (max 3)")
 	assert.NotContains(t, stdout+stderr, "task t1: acceptance has")
@@ -54,8 +54,8 @@ func TestArrayAcceptance_CountsOneCriterionPerElement(t *testing.T) {
 
 	bulk := filepath.Join(dir, "tasks.ndjson")
 	require.NoError(t, os.WriteFile(bulk, []byte(
-		`{"id":"a","title":"Array","depends_on":[],"estimate_minutes":5,"acceptance":["first; with a semicolon","second. With a period"],"source_sections":["s1"]}`+"\n"+
-			`{"id":"b","title":"Prose","depends_on":[],"estimate_minutes":5,"acceptance":"Model exists; migration runs. Tests pass.","source_sections":["s1"]}`+"\n"), 0o600))
+		`{"id":"a","title":"Array","depends_on":[],"estimate_minutes":5,"acceptance":["first; with a semicolon","second. With a period"],"source_sections":["# Spec"]}`+"\n"+
+			`{"id":"b","title":"Prose","depends_on":[],"estimate_minutes":5,"acceptance":"Model exists; migration runs. Tests pass.","source_sections":["# Spec"]}`+"\n"), 0o600))
 
 	stdout, stderr, code := runTP(t, dir, "add", "--bulk", bulk)
 	require.Equal(t, 0, code, "bulk add failed: %s", stderr)
