@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -39,13 +40,41 @@ func landHolder(taskFilePath string, ids []string) string {
 	return ""
 }
 
-// claimHolderAfterLanding is the one place a command writing a task resolves
-// where its claim is held: it exits 4 when tp land already dealt with a
+// claimHolderAfterLanding is how tp done and tp commit resolve where a task's
+// claim is held (tp set's waiting does the same in two steps, and the other
+// writers call refuseLandedIDs): it exits 4 when tp land already dealt with a
 // request this worktree made for id (refuseAfterLanding), and otherwise
 // returns the copy in another worktree holding id's claim, "" when none.
 func claimHolderAfterLanding(taskFilePath, id string) string {
 	refuseAfterLanding(taskFilePath, id)
 	return engine.ClaimHolderCopy(taskFilePath, id)
+}
+
+// refuseLandedIDs runs refuseAfterLanding over every id a command writes:
+// claim, close, remove and the batch forms of done and set.
+func refuseLandedIDs(taskFilePath string, ids []string) {
+	for _, id := range ids {
+		refuseAfterLanding(taskFilePath, id)
+	}
+}
+
+// ndjsonIDs is the "id" of every line of the NDJSON file at path that has
+// one; a file it cannot read gives none, and the command reports it as before.
+func ndjsonIDs(path string) []string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var ids []string
+	for line := range strings.SplitSeq(string(data), "\n") {
+		var row struct {
+			ID string `json:"id"`
+		}
+		if json.Unmarshal([]byte(line), &row) == nil && row.ID != "" {
+			ids = append(ids, row.ID)
+		}
+	}
+	return ids
 }
 
 // refuseAfterLanding exits 4 when tp land has dealt with a request this
