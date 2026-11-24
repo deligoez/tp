@@ -2,9 +2,9 @@
   "version": 1,
   "spec": "spec/1.31.0.md",
   "created_at": "2026-11-24T21:08:54.950207Z",
-  "updated_at": "2026-11-24T21:08:54.959057Z",
+  "updated_at": "2026-11-24T21:26:26.064486Z",
   "workflow": {
-    "review_max_rounds": 3,
+    "review_max_rounds": 4,
     "audit_max_rounds": 3
   },
   "coverage": {
