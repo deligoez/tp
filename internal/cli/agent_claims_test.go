@@ -273,10 +273,6 @@ func TestClaimsCountsACloseInAnotherWorktree(t *testing.T) {
 	require.Equal(t, 0, code)
 	_, _, code = runTP(t, dir, "claim", "t2", "--spawn", "toolu_W1")
 	require.Equal(t, 0, code)
-	gitIn(t, dir, "commit", "-q", "-am", "claim")
-	wt := filepath.Join(t.TempDir(), "wt")
-	gitIn(t, dir, "worktree", "add", "-q", wt)
-
 	unaccounted := func() []any {
 		stdout, stderr, code := runTP(t, dir, "claims", "--spawn", "toolu_W1")
 		require.Equal(t, 0, code, stderr)
@@ -287,9 +283,8 @@ func TestClaimsCountsACloseInAnotherWorktree(t *testing.T) {
 	}
 	assert.ElementsMatch(t, []any{"t1", "t2"}, unaccounted())
 
-	_, stderr, code := runTP(t, wt, "done", "t1", "--gate-passed", "--", "t1 acceptance criteria met")
-	require.Equal(t, 0, code, stderr)
-	_, stderr, code = runTP(t, dir, "set", "t2", "waiting=a long run")
+	worktreeWithDoneCopy(t, dir, "t1")
+	_, stderr, code := runTP(t, dir, "set", "t2", "waiting=a long run")
 	require.Equal(t, 0, code, stderr)
 	assert.Empty(t, unaccounted(), "done in the worktree and waiting on main both account")
 

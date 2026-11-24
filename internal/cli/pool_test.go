@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -167,19 +168,31 @@ func TestPoolNamesATakenOverClaimForRespawn(t *testing.T) {
 	assert.Contains(t, p.Reason, "Claim t1 has no agent")
 }
 
-// TestPoolReadsOtherWorktreeCopies: a worktree cut after the claims were
-// committed carries them, so its agent closes and parks on its own copy.
+// worktreeWithDoneCopy commits the claims already made in dir, then adds a
+// worktree whose copy has id done under its spawn's claim while dir's copy
+// keeps it wip: a branch closed by a tp older than the land request.
+func worktreeWithDoneCopy(t *testing.T, dir, id string) string {
+	t.Helper()
+	gitIn(t, dir, "commit", "-q", "-am", "claims")
+	claims := strings.TrimSpace(gitRun(t, dir, "rev-parse", "HEAD"))
+	_, stderr, code := runTP(t, dir, "done", id, "--gate-passed", "--", id+" acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	gitIn(t, dir, "commit", "-q", "-am", id+" done")
+	wt := filepath.Join(t.TempDir(), "wt")
+	gitIn(t, dir, "worktree", "add", "-q", wt)
+	gitIn(t, dir, "reset", "-q", "--hard", claims)
+	return wt
+}
+
+// TestPoolReadsOtherWorktreeCopies: a worktree's copy that has a claimed
+// task done, or parked, accounts for the claim.
 func TestPoolReadsOtherWorktreeCopies(t *testing.T) {
 	t.Parallel()
 	dir := poolRepo(t)
 	spawnClaim(t, dir, "t1", "toolu_A", "sessC")
 	spawnClaim(t, dir, "t2", "toolu_B", "sessC")
-	gitIn(t, dir, "commit", "-q", "-am", "claims")
-	wt := filepath.Join(t.TempDir(), "wt")
-	gitIn(t, dir, "worktree", "add", "-q", wt)
-	_, stderr, code := runTP(t, wt, "done", "t1", "--gate-passed", "--", "t1 acceptance criteria met")
-	require.Equal(t, 0, code, stderr)
-	_, stderr, code = runTP(t, wt, "set", "t2", "waiting=a long run")
+	wt := worktreeWithDoneCopy(t, dir, "t1")
+	_, stderr, code := runTP(t, wt, "set", "t2", "waiting=a long run")
 	require.Equal(t, 0, code, stderr)
 
 	p := pool(t, dir, "--session", "sessC")
