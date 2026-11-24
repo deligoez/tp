@@ -8,8 +8,41 @@ fix needs a design choice leaves this file for a decision note.
 
 ## Needs an operator decision
 
+- **A task whose work is a `tp set --project` change is dispatched to a worktree unit, then its commit
+  is refused.** Field report (2026-11-25, worktree pool, `run_max_parallel=4`): the unit had to change
+  `.tp/config.json` with `tp set --workflow --project quality_gate=...`; `tp done` refused the commit
+  ("changes .tp/config.json, which only tp writes"), and the coordinator closed it on the main tree.
+  Choice: mark such tasks coordinator-only at dispatch, or accept a commit whose only `.tp/config.json`
+  change is the one `tp set` produced.
+- **`tp land` leaves the task file modified, so under `hc` every land costs a separate close commit.**
+  Field report (2026-11-25): about ten extra commits in a 13-task run. Choice: say so in land's
+  output, or let land commit the task file under the configured `commit_strategy`.
+
 ## Fix track
 
+Field report of 2026-11-25 (v1.30.0 worktree pool): reproduce each before fixing.
+
+- **The brief's close recipe omits `--file`.** In a repo with more than one task file, `tp done <id>
+  --commit <sha> --claim-token <t>` run inside a worktree exits 3 (task file not found); it works with
+  `--file <path>`. Test: the recipe a worktree brief prints names the task file.
+- **`tp brief` carries no `touches`.** `.task` holds acceptance, id, source_sections, spec_excerpt and
+  title, while the task file holds narrowed `touches` globs the pool uses. Test: a task with `touches`
+  briefs them.
+- **The worktree brief does not say to use absolute paths.** A unit's MCP file tool resolved a
+  relative path against the main checkout and edited the wrong tree. Test: the worktree brief's runtime
+  notes name the worktree's absolute path.
+- **The 300-character description limit is enforced only by validate/import.** The skill's
+  decomposition rules never state it; a first import failed on 8 descriptions. Test: SKILL.md's
+  decomposition rules name the limit.
+
+Found in this repo (2026-11-25):
+
+- **Resolving a carried finding `fixed` after the round that read the repair leaves it
+  `fixed-unverified`.** Review round 4 of 1.31.0 read the repaired spec and found no high finding, but
+  rounds 1-3 were resolved after round 4 was recorded, so `--status --check` still exits 1 with 16
+  carried rows. Repro: record round N+1 over a repaired spec, then `--resolve-all fixed` round N; the
+  rows stay `fixed-unverified`. Either the next_action tells the agent to resolve before the next round,
+  or a later clean round that read the repaired text verifies them.
 ## Decided elsewhere, not a fix
 
 - **An auto-detected file list beyond 10 is cut per code role, and an inline spec excerpt stops at
