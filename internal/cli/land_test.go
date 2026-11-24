@@ -479,6 +479,57 @@ func TestALateCloseAfterATakeoverLeavesTheFreshRequest(t *testing.T) {
 	assert.Equal(t, "fresh\n", string(got), "the fresh agent's commit is the one landed")
 }
 
+// committedClaimRepo is a coordinator tree whose t1 claim, made under
+// token, is committed before the agent's worktree is added: the worktree's
+// own copy then has t1 wip under that claim too.
+func committedClaimRepo(t *testing.T, token string) (dir, wt string) {
+	t.Helper()
+	dir = claimsRepo(t)
+	_, stderr, code := runTP(t, dir, "set", "--workflow", "--project", "quality_gate=test -f agent.txt")
+	require.Equal(t, 0, code, stderr)
+	_, stderr, code = runTP(t, dir, "claim", "t1", "--spawn", "toolu_W", "--session", "sessC", "--claim-token", token)
+	require.Equal(t, 0, code, stderr)
+	gitIn(t, dir, "add", "-A")
+	gitIn(t, dir, "commit", "-q", "-m", "claim t1")
+	wt = filepath.Join(t.TempDir(), "wt")
+	gitIn(t, dir, "worktree", "add", "-q", "-b", "agent-t1", wt)
+	return dir, wt
+}
+
+// A claim committed with the task file reaches the agent's worktree, where
+// t1 is wip as well: the close still lands through the coordinator.
+func TestACommittedClaimStillLandsThroughTheCoordinator(t *testing.T) {
+	t.Parallel()
+	dir, wt := committedClaimRepo(t, "tokA0001")
+	sha := agentCommit(t, wt)
+	stdout, stderr, code := runTP(t, wt, "done", "t1", "--commit", sha, "--claim-token", "tokA0001", "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	assert.Contains(t, stdout, `"land_requested": true`, "the close is a land request, not a close of the worktree's copy")
+
+	stdout, stderr, code = runTP(t, dir, "land")
+	require.Equal(t, 0, code, stdout+stderr)
+	assert.Equal(t, "done", taskState(t, dir, "t1")["status"], stdout)
+}
+
+// After a takeover the worktree's committed copy names the old token, while
+// the coordinator's claim names the fresh one: the coordinator's claim is
+// the one the close is checked against.
+func TestACommittedClaimIsCheckedAgainstTheCoordinatorsClaim(t *testing.T) {
+	t.Parallel()
+	dir, _ := committedClaimRepo(t, "tokA0001")
+	_, stderr, code := runTP(t, dir, "claim", "t1", "--takeover")
+	require.Equal(t, 0, code, stderr)
+	tokenClaim(t, dir, "toolu_B", "tokB0002")
+	wtB, shaB := freshAgent(t, dir)
+
+	_, stderr, code = runTP(t, wtB, "done", "t1", "--commit", shaB, "--claim-token", "tokA0001", "--", "t1 acceptance criteria met")
+	assert.Equal(t, 4, code, "the replaced agent's token is refused: %s", stderr)
+	stdout, stderr, code := runTP(t, wtB, "done", "t1", "--commit", shaB, "--claim-token", "tokB0002", "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	assert.Contains(t, stdout, `"land_requested": true`)
+	landsFresh(t, dir)
+}
+
 // tokenClaim binds t1's claim in dir to spawn under a claim token, as the
 // spawn hook does from a brief that carries one.
 func tokenClaim(t *testing.T, dir, spawn, token string) {
