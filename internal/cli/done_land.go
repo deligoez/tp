@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/deligoez/tp/internal/engine"
@@ -182,7 +183,11 @@ func refuseForeignClaim(claim *model.ClaimedBy, id string) {
 	if doneClaimToken != "" && !engine.ValidClaimToken(doneClaimToken) {
 		exitUsage(fmt.Sprintf("--claim-token %q: want 1-128 of A-Z a-z 0-9 _ -", doneClaimToken), "pass the claim token your brief names")
 	}
-	if claim.Token == "" || claim.Token == doneClaimToken {
+	// A retired token is refused even under a claim that carries none (a
+	// hook older than the claim token claimed the fresh spawn): the agent a
+	// takeover replaced holds it.
+	retired := doneClaimToken != "" && slices.Contains(claim.Retired, doneClaimToken)
+	if !retired && (claim.Token == "" || claim.Token == doneClaimToken) {
 		return
 	}
 	if doneClaimToken == "" {
