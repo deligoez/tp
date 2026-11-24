@@ -58,13 +58,13 @@ add: bulk spec stdin
 audit: affected-files affected-from-tasks base check findings force harness-note merge output record record-inbox resolve resolve-all role status task-audit
 blocked:
 brief: prior
-claim: all-ready session spawn takeover
+claim: all-ready claim-token session spawn takeover
 claims: spawn
 close: reason-file skip-gate stdin
 commit: files
 config: dry-run extract force resolved
 dashboard: port
-done: auto-commit batch commit covered-by files gate-passed reason-file skip-gate stdin
+done: auto-commit batch claim-token commit covered-by files gate-passed reason-file skip-gate stdin
 epic:
 epic add: bulk if-revision stdin
 epic apply: dry-run if-revision
