@@ -3,6 +3,7 @@ package model
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -26,6 +27,29 @@ const (
 type ClaimedBy struct {
 	Session string `json:"session,omitempty"`
 	Spawn   string `json:"spawn,omitempty"`
+	// Token is the claim token of the brief the spawn was made from; an
+	// agent's close in its own worktree must name it.
+	Token string `json:"token,omitempty"`
+	// Retired holds the tokens takeovers cleared: a spawn from a replaced
+	// brief would share its token with the agent it replaced.
+	Retired []string `json:"retired,omitempty"`
+}
+
+// Released is what a claim leaves on its task when its agent is released
+// (unclaim, reopen, a takeover's spawn): the tokens a spawn from a replaced
+// brief must not reuse, nil when there are none.
+func (c *ClaimedBy) Released() *ClaimedBy {
+	if c == nil {
+		return nil
+	}
+	retired := slices.Clone(c.Retired)
+	if c.Token != "" {
+		retired = append(retired, c.Token)
+	}
+	if len(retired) == 0 {
+		return nil
+	}
+	return &ClaimedBy{Retired: retired}
 }
 
 // Task represents a single atomic work item.
