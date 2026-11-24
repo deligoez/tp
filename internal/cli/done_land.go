@@ -90,11 +90,12 @@ func ndjsonIDs(path string) []string {
 }
 
 // refuseAfterLanding exits 4 when tp land has dealt with a request this
-// worktree made for id while this worktree's copy still has the task open:
+// worktree made for id while this worktree's copy still has the task open,
+// or wip under the spawn's claim committed before the worktree was cut:
 // closing that copy would close a task the coordinator already closed, or
 // one it reopened for a fresh agent.
 func refuseAfterLanding(taskFilePath, id string) {
-	if taskStatusIn(taskFilePath, id) != model.StatusOpen {
+	if taskStatusIn(taskFilePath, id) == model.StatusDone {
 		return
 	}
 	cwd, _ := os.Getwd()
