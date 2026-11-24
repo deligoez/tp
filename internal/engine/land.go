@@ -74,8 +74,9 @@ func WriteLandRequest(taskFile string, r *LandRequest) error {
 	if err := writeFileAtomic(filepath.Join(dir, record.ID+".json"), append(data, '\n')); err != nil {
 		return err
 	}
-	// A new request supersedes what an earlier landing of the task did.
-	if err := os.Remove(filepath.Join(dir, "outcome", record.ID+".json")); err != nil && !os.IsNotExist(err) {
+	// A new request supersedes what an earlier landing from the same worktree
+	// did; another worktree's outcome stays, so its agent is still told.
+	if err := os.Remove(outcomePath(dir, record.ID, record.Worktree)); err != nil && !os.IsNotExist(err) {
 		return err
 	}
 	return nil
@@ -357,15 +358,33 @@ func RemoveLandRequest(dir, id string) error {
 }
 
 // LandOutcome is what tp land did with a request: landed and closed, or not
-// landed for Error and the task reopened. It is kept for the agent's
-// worktree, whose own copy still has the task open, so a close tried there
-// after the landing is told the outcome instead of closing that copy.
+// landed for Error (the task reopened, or closed without these commits). It is
+// kept for the agent's worktree, whose own copy still has the task open, so a
+// write tried there after the landing is told the outcome instead of changing
+// that copy. Session is the coordinator's session whose claim the request was
+// made under: a reopened task stays that session's to refill.
 type LandOutcome struct {
 	ID       string `json:"id"`
 	Worktree string `json:"worktree"`
+	Session  string `json:"session,omitempty"`
 	Landed   bool   `json:"landed"`
 	Error    string `json:"error,omitempty"`
 	At       string `json:"at"`
+}
+
+// outcomePath is where the outcome of task id's request from worktree lives
+// in dir: one file per task and worktree, so an outcome a second agent's
+// request clears is its own and never the first agent's.
+func outcomePath(dir, id, worktree string) string {
+	top := gitToplevel(worktree)
+	if top == "" {
+		top = filepath.Clean(worktree)
+	}
+	if resolved, err := filepath.EvalSymlinks(top); err == nil {
+		top = resolved
+	}
+	sum := sha256.Sum256([]byte(top))
+	return filepath.Join(dir, "outcome", id+"."+hex.EncodeToString(sum[:8])+".json")
 }
 
 // WriteLandOutcome records o in dir, the task file's land directory.
@@ -374,15 +393,15 @@ func WriteLandOutcome(dir string, o *LandOutcome) error {
 	if record.At == "" {
 		record.At = time.Now().UTC().Format(time.RFC3339Nano)
 	}
-	out := filepath.Join(dir, "outcome")
-	if err := os.MkdirAll(out, 0o750); err != nil {
+	path := outcomePath(dir, record.ID, record.Worktree)
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return err
 	}
 	data, err := json.MarshalIndent(&record, "", "  ")
 	if err != nil {
 		return err
 	}
-	return writeFileAtomic(filepath.Join(out, record.ID+".json"), append(data, '\n'))
+	return writeFileAtomic(path, append(data, '\n'))
 }
 
 // LandOutcomeIn returns the outcome tp land recorded for task id of the task
@@ -393,7 +412,7 @@ func LandOutcomeIn(taskFile, id, cwd string) *LandOutcome {
 	if dir == "" {
 		return nil
 	}
-	data, err := os.ReadFile(filepath.Join(dir, "outcome", id+".json"))
+	data, err := os.ReadFile(outcomePath(dir, id, cwd))
 	if err != nil {
 		return nil
 	}
@@ -406,4 +425,31 @@ func LandOutcomeIn(taskFile, id, cwd string) *LandOutcome {
 		return nil
 	}
 	return &o
+}
+
+// ReopenedFor returns the ids in dir whose landing failed under a claim of
+// session: tasks a failed landing gave back to that coordinator to refill.
+func ReopenedFor(dir, session string) map[string]bool {
+	ids := map[string]bool{}
+	if dir == "" || session == "" {
+		return ids
+	}
+	paths, _ := filepath.Glob(filepath.Join(dir, "outcome", "*.json"))
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		var o LandOutcome
+		if json.Unmarshal(data, &o) == nil && !o.Landed && o.Session == session {
+			ids[o.ID] = true
+		}
+	}
+	return ids
+}
+
+// CarriedOnHead reports whether the branch checked out at root carries sha's
+// change: sha itself, or a commit with its patch id since their merge base.
+func CarriedOnHead(root, sha string) bool {
+	return CommitOnHead(root, sha) || (SafeGitRev(sha) && equivalentOnHead(root, sha) != "")
 }
