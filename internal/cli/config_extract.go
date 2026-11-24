@@ -164,6 +164,13 @@ func hoistedFields(common *model.WorkflowOverride) []string {
 	if common.TaskAuditRoles != nil {
 		fields = append(fields, "task_audit_roles")
 	}
+	return append(fields, hoistedRunFields(common)...)
+}
+
+// hoistedRunFields is hoistedFields' tail for §7's run caps and runner, split
+// out so neither half outgrows funlen; the order is the one hoistedFields kept.
+func hoistedRunFields(common *model.WorkflowOverride) []string {
+	var fields []string
 	if common.RunMaxUnits != nil {
 		fields = append(fields, "run_max_units")
 	}
