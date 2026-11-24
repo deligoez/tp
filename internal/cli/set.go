@@ -143,6 +143,9 @@ func runSet(cmd *cobra.Command, args []string) error {
 		os.Exit(ExitFile)
 		return nil
 	}
+	// A task tp land dealt with from this worktree is the coordinator's now:
+	// no field of this copy is written, as no close of it is.
+	refuseAfterLanding(taskFilePath, args[0])
 	if field == "waiting" {
 		if holder := engine.ClaimHolderCopy(taskFilePath, args[0]); holder != "" {
 			output.Notice(fmt.Sprintf("task %s is claimed in %s: waiting is written there, beside the claim", args[0], holder))
