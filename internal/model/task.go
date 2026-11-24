@@ -52,6 +52,16 @@ func (c *ClaimedBy) Released() *ClaimedBy {
 	return &ClaimedBy{Retired: retired}
 }
 
+// Origin is where a found task came from: its finder, either the task whose
+// unit found the request or the audit round and row key that raised it, and
+// the request's location (file:line).
+type Origin struct {
+	FinderTask string `json:"finder_task,omitempty"`
+	AuditRound int    `json:"audit_round,omitempty"`
+	AuditRow   string `json:"audit_row,omitempty"`
+	Location   string `json:"location"`
+}
+
 // Task represents a single atomic work item.
 type Task struct {
 	ID              string   `json:"id"`
@@ -64,7 +74,10 @@ type Task struct {
 	Acceptance      string   `json:"acceptance"`
 	SourceSections  []string `json:"source_sections"`
 	SourceLines     string   `json:"source_lines,omitempty"`
-	Touches         []string `json:"touches,omitempty"`
+	// Origin anchors a found task: the request that opened it, carried in
+	// place of source_sections, never beside it (spec/1.31.0.md §3).
+	Origin  *Origin  `json:"origin,omitempty"`
+	Touches []string `json:"touches,omitempty"`
 	// Solo is managed by tp: a task whose side-by-side unit failed to
 	// integrate runs alone from then on (spec/backlog/parallel-implement.md).
 	Solo bool `json:"solo,omitempty"`
