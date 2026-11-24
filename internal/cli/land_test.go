@@ -511,6 +511,40 @@ func TestACommittedClaimStillLandsThroughTheCoordinator(t *testing.T) {
 	assert.Equal(t, "done", taskState(t, dir, "t1")["status"], stdout)
 }
 
+// Under a committed claim, a close in the agent's worktree after tp land
+// picked it is refused, as under an uncommitted one.
+func TestACommittedClaimsCloseAfterLandingIsRefused(t *testing.T) {
+	t.Parallel()
+	dir, wt := committedClaimRepo(t, "tokA0001")
+	sha := agentCommit(t, wt)
+	_, stderr, code := runTP(t, wt, "done", "t1", "--commit", sha, "--claim-token", "tokA0001", "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	stdout, stderr, code := runTP(t, dir, "land")
+	require.Equal(t, 0, code, stdout+stderr)
+
+	_, stderr, code = runTP(t, wt, "done", "t1", "--commit", sha, "--claim-token", "tokA0001", "--", "t1 acceptance criteria met")
+	assert.Equal(t, 4, code, "the task is landed: %s", stderr)
+}
+
+// A coordinator working in a linked worktree writes its own claim's fields
+// in its own copy, even when the main worktree carries the same committed
+// claim.
+func TestALinkedCoordinatorsOwnWriteStaysInItsTree(t *testing.T) {
+	t.Parallel()
+	dir := claimsRepo(t)
+	coord := filepath.Join(t.TempDir(), "coord")
+	gitIn(t, dir, "worktree", "add", "-q", "-b", "coord", coord)
+	_, stderr, code := runTP(t, coord, "claim", "t1", "--spawn", "toolu_W", "--session", "sessC", "--claim-token", "tokA0001")
+	require.Equal(t, 0, code, stderr)
+	gitIn(t, coord, "commit", "-q", "-am", "claim t1")
+	gitIn(t, dir, "merge", "-q", "--ff-only", "coord")
+
+	_, stderr, code = runTP(t, coord, "set", "t1", "waiting=a long run")
+	require.Equal(t, 0, code, stderr)
+	assert.Equal(t, "a long run", taskState(t, coord, "t1")["waiting"], "written in the coordinator's own copy")
+	assert.Nil(t, taskState(t, dir, "t1")["waiting"], "not in the main worktree's")
+}
+
 // After a takeover the worktree's committed copy names the old token, while
 // the coordinator's claim names the fresh one: the coordinator's claim is
 // the one the close is checked against.
