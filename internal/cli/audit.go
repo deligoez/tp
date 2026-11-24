@@ -26,6 +26,9 @@ var (
 	errAffectedFileMissing    = errors.New("affected file not found")
 	errAffectedFileUnreadable = errors.New("cannot read affected file")
 	errAffectedPathIsDir      = errors.New("affected path is a directory, not a file")
+	// errNoChangedFiles is auto-detection finding no change at all, with no
+	// --base: the one case the done tasks' commit files stand in for.
+	errNoChangedFiles = errors.New("no changed files detected")
 )
 
 type checklistEntry struct {
@@ -317,7 +320,7 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 
 	// Expand comma-separated values in --affected-files
 	affectedFiles = expandCommaFiles(affectedFiles)
-	files, totalChanged := determineAuditFiles(specPath, affectedFiles, base, affectedFromTasks)
+	files, totalChanged, fallback := determineAuditFiles(specPath, affectedFiles, base, affectedFromTasks)
 
 	// §2.5 item 2: resolve the auditor panel — and with it decide the
 	// spec-coverage and empty-phase refusals — ahead of every write the
@@ -355,6 +358,10 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 		inputs.DiffUnmeasured = true
 		// And the list is the operator's: the code roles get it whole.
 		inputs.Named = true
+	} else if fallback {
+		// The task-commit fallback is auto-detection's stand-in, so it is cut
+		// like it; but no comparison measured its files, so none carries churn.
+		inputs.DiffUnmeasured = true
 	} else {
 		inputs.DiffStats = auditDiffStats(filepath.Dir(specPath), base)
 		inputs.Deleted = auditDeletedFiles(filepath.Dir(specPath), base)
@@ -408,7 +415,7 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	snap.write(specPath)
 	writeAuditRolePools(specPath, snap.round, pools)
 	cut := cutNotices(roundPrompts)
-	notices := slices.Concat(autoDetectCapNotice(totalChanged, len(files)),
+	notices := slices.Concat(tasksFallbackNotice(fallback, len(files), totalChanged), autoDetectCapNotice(totalChanged, len(files)),
 		universeNotices(specPath, files, base, len(affectedFiles) > 0, affectedFromTasks), cut)
 
 	summary := engine.BuildAffectedSummary(files, nil)
@@ -461,9 +468,12 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 // pre-cap count of files the resolution considered (§8a.3): the two differ only
 // when auto-detection truncated the set. With affectedFromTasks, files are
 // derived from done-task commit_shas (§11.2); otherwise the normal
-// --affected-files / git-diff resolution applies. Errors abort via
+// --affected-files / git-diff resolution applies. When auto-detection finds no
+// audit-able file and no --base named the comparison, the done tasks' commit
+// files stand in for it and fallback is true
+// (spec/backlog/a-clean-tree-audits-the-task-commits.md). Errors abort via
 // exitAuditNoFiles / ExitFile, matching runAudit's exit contract.
-func determineAuditFiles(specPath string, affectedFiles []string, base string, affectedFromTasks bool) (files []string, totalChanged int) {
+func determineAuditFiles(specPath string, affectedFiles []string, base string, affectedFromTasks bool) (files []string, totalChanged int, fallback bool) {
 	if affectedFromTasks {
 		// --affected-from-tasks bypasses diff auto-detection and audits the
 		// union of files touched by done-task commit_shas directly (§11.2).
@@ -479,10 +489,10 @@ func determineAuditFiles(specPath string, affectedFiles []string, base string, a
 			// derived is the empty list the branch just computed; hand it over
 			// rather than making exitAuditNoFiles derive the same answer again.
 			exitAuditNoFilesWith(fmt.Sprintf("no files derivable from done-task commits (%s) — provide --affected-files", reason), derived)
-			return nil, 0
+			return nil, 0, false
 		}
 		// Nothing caps this path, so the audited set is the whole derived set.
-		return derived, len(derived)
+		return derived, len(derived), false
 	}
 	resolved, totalChanged, err := resolveAuditFiles(specPath, affectedFiles, base)
 	if err != nil {
@@ -495,14 +505,20 @@ func determineAuditFiles(specPath string, affectedFiles []string, base string, a
 			// names the task file, which is not what is wrong here.
 			output.Error(ExitFile, err.Error(), "check the --affected-files path, or drop the flag to auto-detect from the diff")
 			os.Exit(ExitFile)
-			return nil, 0
+			return nil, 0, false
+		}
+		derived := suggestFilesFromTasks(specPath)
+		if errors.Is(err, errNoChangedFiles) && len(derived) > 0 {
+			// Implement ends with every task committed, so on an untagged
+			// repository auto-detection has nothing; the commits are the change.
+			return capAutoDetected(derived), len(derived), true
 		}
 		// No audit-able file in the diff (exit 4): carry suggested_files so
 		// the agent can pick targets without re-deriving them from git (§11.1).
-		exitAuditNoFiles(specPath, err.Error())
-		return nil, 0
+		exitAuditNoFilesWith(err.Error(), derived)
+		return nil, 0, false
 	}
-	return resolved, totalChanged
+	return resolved, totalChanged, false
 }
 
 // auditRoundSnapshot is the round snapshot loadAuditSpec prepares and runAudit
@@ -972,9 +988,24 @@ func resolveAuditFiles(specPath string, affectedFiles []string, base string) (fi
 		if base != "" {
 			return nil, 0, fmt.Errorf("no changed files detected (diff %s...HEAD is empty) — provide --affected-files", base)
 		}
-		return nil, 0, fmt.Errorf("no changed files detected (staged+unstaged is empty) — use --base <tag> for committed changes, or --affected-files")
+		return nil, 0, fmt.Errorf("%w (staged+unstaged is empty) — use --base <tag> for committed changes, or --affected-files", errNoChangedFiles)
 	}
 	return files, totalChanged, nil
+}
+
+// capAutoDetected keeps the first maxAutoDetectFiles of an auto-detected set,
+// or of the task-commit set standing in for it, and says so when it cuts.
+// Notice, not Info: the caller asked for the whole set and got a prefix of it,
+// and on the Info channel that truncation is invisible in JSON mode, which is
+// every piped run. The message names both numbers: "more than 50 files
+// changed" read identically at 51 and at 113, so the caller could size neither
+// the loss nor the --affected-files list that works around it.
+func capAutoDetected(files []string) []string {
+	if len(files) <= maxAutoDetectFiles {
+		return files
+	}
+	output.Notice(autoDetectCapMessage(len(files)))
+	return files[:maxAutoDetectFiles]
 }
 
 // detectChangedFiles returns the audit-able changed files, capped at
@@ -998,17 +1029,7 @@ func detectChangedFiles(dir, base string) (files []string, totalChanged int, err
 	// ever have read and overstate the loss.
 	totalChanged = len(filtered)
 
-	if len(filtered) > maxAutoDetectFiles {
-		filtered = filtered[:maxAutoDetectFiles]
-		// Notice, not Info: the caller asked for the whole changed set and got a
-		// prefix of it. On the Info channel that truncation is invisible in JSON
-		// mode, which is every piped run.
-		//
-		// Name both numbers. "more than 50 files changed" read identically at 51
-		// and at 113, so the caller could size neither the loss nor the
-		// --affected-files list that works around it.
-		output.Notice(autoDetectCapMessage(totalChanged))
-	}
+	filtered = capAutoDetected(filtered)
 
 	if len(filtered) == 0 && len(allFiles) > 0 {
 		// Collect skipped file extensions for the error message
@@ -1357,20 +1378,13 @@ func auditTasksCarryAnySHA(specPath string) bool {
 	return false
 }
 
-// exitAuditNoFiles emits the exit-4 payload when audit finds no audit-able
+// exitAuditNoFilesWith emits the exit-4 payload when audit finds no audit-able
 // file: it carries suggested_files — the union of paths touched by the
-// commit_shas of every done task, type-filtered — so the agent can pick audit
+// commit_shas of every done task, type-filtered, which the caller already
+// derived to decide whether it had any files — so the agent can pick audit
 // targets without re-deriving them from git (§11.1). suggested_files is
 // decision-critical and survives --compact (§8.4): it is emitted directly on
 // the error path, never passed through compactAuditChecklist.
-func exitAuditNoFiles(specPath, reason string) {
-	exitAuditNoFilesWith(reason, suggestFilesFromTasks(specPath))
-}
-
-// exitAuditNoFilesWith is exitAuditNoFiles for a caller that already derived
-// the suggestion. --affected-from-tasks computes exactly this list to decide
-// whether it has any files at all, and re-deriving it here would walk every
-// done task's commits a second time for a result the caller is holding.
 func exitAuditNoFilesWith(reason string, suggested []string) {
 	output.ErrorExtras(ExitState, reason, map[string]any{
 		"suggested_files": suggested,

@@ -14,7 +14,26 @@ const (
 	noticeCodeFilesCut         = "code-files-cut"
 	noticeSpecCoverageFilesCut = "spec-coverage-files-cut"
 	noticeNamedListOnePrompt   = "named-list-one-prompt"
+	noticeTasksFallback        = "tasks-fallback"
 )
+
+// tasksFallbackNotice says that auto-detection found nothing and the done
+// tasks' commit files were audited instead: how many were audited, and of how
+// many when the auto-detect cap cut the set.
+func tasksFallbackNotice(fallback bool, audited, derived int) []auditNotice {
+	if !fallback {
+		return nil
+	}
+	count := "the " + countNoun(derived, "file", "files")
+	if audited < derived {
+		count = fmt.Sprintf("%d of the %d files", audited, derived)
+	}
+	return []auditNotice{(&auditNotice{
+		Kind:         noticeTasksFallback,
+		Message:      "no changed files in the working tree or since the last tag; auditing " + count + " the done tasks' commits touched",
+		TotalChanged: derived,
+	}).emit()}
+}
 
 // auditNotice is one notice an emission printed on stderr, kept in the payload
 // as well: --quiet erases stderr and --compact drops file_summary, and an agent
