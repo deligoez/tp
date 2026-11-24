@@ -156,21 +156,60 @@ func scanClaims(tree, spawn string, claimed, accounted map[claimKey]bool) {
 }
 
 // ClaimHolderCopy returns the copy, in another worktree of the repository, of
-// the task file at path that has task id wip under a spawn's claim, when the
-// copy at path has it open: the coordinator claimed it on its own tree after
-// this worktree was cut. A write about that claim belongs with it, in the
-// holder's copy. It returns "" when path's copy is not open, or no other copy
-// holds such a claim; a copy that is wip or done here speaks for itself, so
-// tp run's own closes never look elsewhere.
+// the task file at path that holds task id's spawn claim, where a write about
+// that claim belongs. Two cases reach it:
+//   - path's copy has id open: the coordinator claimed it on its own tree
+//     after this worktree was cut, so any other copy with id wip under a
+//     spawn's claim holds it;
+//   - path's copy, in a linked worktree, has id wip under a spawn's claim:
+//     the claim was committed before this worktree was cut, so the main
+//     worktree's copy holds it, when it has id wip under a spawn's claim.
+//
+// It returns "" otherwise. A copy wip without a spawn's claim, or done,
+// speaks for itself, so tp run's own closes never look elsewhere.
 func ClaimHolderCopy(path, id string) string {
 	tf, err := model.ReadTaskFile(path)
 	if err != nil {
 		return ""
 	}
-	if task, _, findErr := model.FindTask(tf, id); findErr != nil || task.Status != model.StatusOpen {
+	task, _, findErr := model.FindTask(tf, id)
+	switch {
+	case findErr != nil:
+		return ""
+	case task.Status == model.StatusOpen:
+		return SpawnHolderCopy(path, id, "")
+	case spawnClaimed(task):
+		return mainTreeHolderCopy(path, id)
+	}
+	return ""
+}
+
+// spawnClaimed reports whether task is wip under an agent spawn's claim.
+func spawnClaimed(task *model.Task) bool {
+	return task.Status == model.StatusWIP && task.ClaimedBy != nil && task.ClaimedBy.Spawn != ""
+}
+
+// mainTreeHolderCopy is the main worktree's copy of the task file at path
+// when path lies in a linked worktree and that copy has id under a spawn's
+// claim; "" otherwise.
+func mainTreeHolderCopy(path, id string) string {
+	tree := gitToplevel(filepath.Dir(path))
+	if tree == "" {
 		return ""
 	}
-	return SpawnHolderCopy(path, id, "")
+	roots := worktreeRoots(tree)
+	if len(roots) < 2 || samePath(roots[0], tree) {
+		return ""
+	}
+	copyPath := filepath.Join(roots[0], filepath.FromSlash(repoRelativeTo(tree, path)))
+	copyTF, err := model.ReadTaskFile(copyPath)
+	if err != nil {
+		return ""
+	}
+	if t, _, tErr := model.FindTask(copyTF, id); tErr == nil && spawnClaimed(t) {
+		return copyPath
+	}
+	return ""
 }
 
 // SpawnHolderCopy returns the copy, in another worktree than path's, of the
