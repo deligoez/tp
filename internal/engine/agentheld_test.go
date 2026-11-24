@@ -22,7 +22,8 @@ func agentHeldFile(ready bool) *model.TaskFile {
 }
 
 // A task an agent spawn holds is that agent's: resume previews the next
-// ready task instead, and the implement units count it as running.
+// ready task instead, and the implement units pass over it. The hand pool
+// counts it against run_max_parallel itself (tp pool passes it as busy).
 func TestAnAgentHeldTaskIsNotOfferedToResume(t *testing.T) {
 	t.Parallel()
 	tf := agentHeldFile(true)
@@ -30,8 +31,18 @@ func TestAnAgentHeldTaskIsNotOfferedToResume(t *testing.T) {
 	assert.Equal(t, "t3", id)
 	assert.False(t, wip)
 	assert.True(t, has)
-	assert.Empty(t, ImplementUnits(tf, 1, nil), "the agent holds the one slot")
+	assert.Equal(t, []string{"t3"}, ImplementUnits(tf, 1, nil), "a held task does not stop tp run's lead")
 	assert.Equal(t, []string{"t3"}, ImplementUnits(tf, 2, nil))
+	assert.Empty(t, ImplementUnits(tf, 1, []string{"t1"}), "the pool, passing it as busy, counts its slot")
+}
+
+// An agent at work is not an epic-blocked escalation either.
+func TestAgentHeldWorkIsNotEpicBlocked(t *testing.T) {
+	t.Parallel()
+	block := &EpicBlock{Epic: "b", BlockedBy: []string{"c"}}
+	require.True(t, block.Blocks(), "the state under test: the file's epic is blocked")
+	bs := BuildBlockers(&BlockerInputs{Phase: PhaseImplement, TaskFile: agentHeldFile(false), EpicBlock: block})
+	assert.Empty(t, blockerCodes(bs))
 }
 
 // When the only unblocked work is held by agents, nothing is escalated: the
