@@ -154,26 +154,34 @@ func refuseOffBranchClose(taskFilePath string, ids []string) {
 	if err != nil {
 		return
 	}
-	spawned := ""
 	for _, id := range ids {
-		if task, _, findErr := model.FindTask(tf, id); findErr == nil && task.ClaimedBy != nil && task.ClaimedBy.Spawn != "" {
-			spawned = id
+		task, _, findErr := model.FindTask(tf, id)
+		if findErr != nil {
+			continue
+		}
+		if msg, hint := offBranchRefusal(filepath.Dir(taskFilePath), task, doneCommits); msg != "" {
+			output.Error(ExitValidation, msg, hint)
+			os.Exit(ExitValidation)
 		}
 	}
-	if spawned == "" {
-		return
+}
+
+// offBranchRefusal is why a close in dir's tree may not record shas for
+// task, with its hint, or "" when it may: a task a spawn claimed here closes
+// only on commits this tree's branch has, by id and in a batch alike.
+func offBranchRefusal(dir string, task *model.Task, shas []string) (msg, hint string) {
+	if task.ClaimedBy == nil || task.ClaimedBy.Spawn == "" {
+		return "", ""
 	}
-	dir := filepath.Dir(taskFilePath)
-	for _, sha := range doneCommits {
+	for _, sha := range shas {
 		switch {
 		case !engine.CommitExists(dir, sha):
-			output.Error(ExitValidation, fmt.Sprintf("commit %s does not exist", sha), "name a commit this tree's branch contains")
-			os.Exit(ExitValidation)
+			return fmt.Sprintf("commit %s does not exist", sha), "name a commit this tree's branch contains"
 		case !engine.CommitOnHead(dir, sha):
-			output.Error(ExitValidation, fmt.Sprintf("commit %s is not on this tree's branch", sha), offBranchHint(dir, spawned, sha))
-			os.Exit(ExitValidation)
+			return fmt.Sprintf("commit %s is not on this tree's branch", sha), offBranchHint(dir, task.ID, sha)
 		}
 	}
+	return "", ""
 }
 
 // offBranchHint names the way a commit not on this tree's branch reaches it:

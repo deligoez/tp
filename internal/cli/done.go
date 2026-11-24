@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
@@ -706,6 +707,9 @@ type batchRefusalContext struct {
 	batchIDs map[string]bool
 	strategy string
 	blocked  *engine.EpicBlock
+	// dir is the task file's directory, where a row's shas must be on HEAD
+	// when its task is a spawn's claim (offBranchRefusal).
+	dir string
 }
 
 // checkBatchRow runs every refusal a row can meet once the gate has settled —
@@ -744,6 +748,9 @@ func checkBatchRow(tf *model.TaskFile, task *model.Task, entry *batchEntry, rc b
 	}
 	if rc.strategy == engine.CommitStrategyHC && len(shas) == 0 && entry.CoveredBy == "" {
 		return nil, &batchFailure{ID: entry.ID, Error: "commit_strategy is hc: row needs commit_shas or covered_by", Hint: hcCommitHint}
+	}
+	if msg, hint := offBranchRefusal(rc.dir, task, shas); msg != "" {
+		return nil, &batchFailure{ID: entry.ID, Error: msg, Hint: hint}
 	}
 	return shas, nil
 }
@@ -899,7 +906,8 @@ func runDoneBatch() error {
 
 			// Every refusal runs before the row touches its task, so a
 			// refused row is written back exactly as it was read.
-			shas, refusal := checkBatchRow(tf, task, &entry, batchRefusalContext{doneSet: doneSet, batchIDs: batchIDs, strategy: batchStrategy, blocked: blocked})
+			shas, refusal := checkBatchRow(tf, task, &entry, batchRefusalContext{doneSet: doneSet, batchIDs: batchIDs, strategy: batchStrategy, blocked: blocked,
+				dir: filepath.Dir(taskFilePath)})
 			if refusal != nil {
 				failures = append(failures, *refusal)
 				continue
