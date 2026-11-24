@@ -30,7 +30,14 @@ func ValidateLineCoverage(tf *model.TaskFile, specPath string) []Finding {
 
 	// Build covered set from all tasks' source_lines
 	covered := make(map[int]bool)
+	specTasks := 0
 	for i := range tf.Tasks {
+		// A found task answers a request, not the spec, so it stays out of
+		// spec coverage (spec/1.31.0.md §3).
+		if tf.Tasks[i].Origin != nil {
+			continue
+		}
+		specTasks++
 		sl := tf.Tasks[i].SourceLines
 		if sl == "" {
 			continue
@@ -76,7 +83,7 @@ func ValidateLineCoverage(tf *model.TaskFile, specPath string) []Finding {
 		findings = append(findings, Finding{
 			Severity: "warning",
 			Rule:     "line-coverage",
-			Message:  fmt.Sprintf("%d tasks have no usable source anchors — line coverage cannot be computed. Add source_sections (canonical headings) to each task; source_lines (e.g. \"15-42\") adds optional precision.", len(tf.Tasks)),
+			Message:  fmt.Sprintf("%d tasks have no usable source anchors — line coverage cannot be computed. Add source_sections (canonical headings) to each task; source_lines (e.g. \"15-42\") adds optional precision.", specTasks),
 		})
 		return findings
 	}
