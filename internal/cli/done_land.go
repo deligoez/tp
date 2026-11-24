@@ -53,7 +53,7 @@ func refuseAfterLanding(taskFilePath, id string) {
 		output.Error(ExitState, fmt.Sprintf("task %s is already landed: the coordinator picked this worktree's commits and closed it", id),
 			"nothing is left to do for this task: stop")
 	} else {
-		output.Error(ExitState, fmt.Sprintf("the coordinator could not land task %s from this worktree (%s) and reopened it for a fresh agent", id, o.Error),
+		output.Error(ExitState, fmt.Sprintf("the coordinator could not land task %s from this worktree: %s", id, o.Error),
 			"nothing is left to do in this worktree: stop")
 	}
 	os.Exit(ExitState)

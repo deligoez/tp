@@ -36,12 +36,14 @@ type landItem struct {
 // landResult is tp land's payload. Landed tasks are closed on this tree's
 // branch; reopened ones failed to land and wait for a fresh agent; blocked
 // ones keep their request until what blocks them is cleared; dropped requests
-// were for tasks no longer wip.
+// were for tasks no longer wip under their claim, and unlanded names those
+// whose task was closed without the request's commits.
 type landResult struct {
 	Landed   []string   `json:"landed"`
 	Reopened []landItem `json:"reopened"`
 	Blocked  []landItem `json:"blocked"`
 	Dropped  []string   `json:"dropped"`
+	Unlanded []landItem `json:"unlanded"`
 }
 
 // lander carries what landing one request needs.
@@ -78,7 +80,8 @@ func runLand(_ *cobra.Command, _ []string) error {
 		root: root, taskFile: taskFilePath, dir: dir,
 		close:  closeTaskFunc(root, taskFilePath),
 		reopen: reopenSoloFunc(taskFilePath),
-		res:    &landResult{Landed: []string{}, Reopened: []landItem{}, Blocked: []landItem{}, Dropped: []string{}},
+		res: &landResult{Landed: []string{}, Reopened: []landItem{}, Blocked: []landItem{},
+			Dropped: []string{}, Unlanded: []landItem{}},
 	}
 	for _, path := range unreadable {
 		l.res.Blocked = append(l.res.Blocked, landItem{ID: strings.TrimSuffix(filepath.Base(path), ".json"),
@@ -132,10 +135,10 @@ func holdsRequest(taskFilePath string, r *engine.LandRequest) bool {
 // failure takes the pick back and reopens the task for a fresh agent.
 func (l *lander) land(r *engine.LandRequest) {
 	if !holdsRequest(l.taskFile, r) {
-		l.drop(r.ID)
-		l.res.Dropped = append(l.res.Dropped, r.ID)
+		l.dropStale(r)
 		return
 	}
+	session := landClaimSession(l.taskFile, r.ID)
 	pre, landed, err := engine.LandPick(l.root, r.Commits)
 	var blocked *engine.LandBlockedError
 	if errors.As(err, &blocked) {
@@ -150,12 +153,12 @@ func (l *lander) land(r *engine.LandRequest) {
 		return
 	}
 	if err != nil {
-		l.reopenAfter(r, "", err.Error(), "")
+		l.reopenAfter(r, session, "", err.Error(), "")
 		return
 	}
 	logs := filepath.Join(l.dir, "logs")
 	if mkErr := os.MkdirAll(logs, 0o750); mkErr != nil {
-		l.reopenAfter(r, pre, mkErr.Error(), "")
+		l.reopenAfter(r, session, pre, mkErr.Error(), "")
 		return
 	}
 	logPath := filepath.Join(logs, r.ID+".log")
@@ -163,22 +166,22 @@ func (l *lander) land(r *engine.LandRequest) {
 	var refused *engine.CloseRefusedError
 	switch {
 	case closeErr == nil || taskStatusIn(l.taskFile, r.ID) == model.StatusDone:
-		l.outcome(r, "")
-		l.drop(r.ID)
+		l.outcome(r, session, "")
+		l.drop(r)
 		l.res.Landed = append(l.res.Landed, r.ID)
 	case errors.As(closeErr, &refused):
 		_ = engine.LandUndo(l.root, pre)
 		l.res.Blocked = append(l.res.Blocked, landItem{ID: r.ID, Error: "tp done refused the close: " + closeFailure(closeErr, logPath), Log: logPath,
 			Hint: "the request is kept: clear what the error names, then run tp land again"})
 	default:
-		l.reopenAfter(r, pre, closeFailure(closeErr, logPath), logPath)
+		l.reopenAfter(r, session, pre, closeFailure(closeErr, logPath), logPath)
 	}
 }
 
 // reopenAfter takes a failed landing back to pre (when it picked anything),
 // reopens the task to run alone, records the outcome for the agent's
-// worktree, and drops its request.
-func (l *lander) reopenAfter(r *engine.LandRequest, pre, cause, logPath string) {
+// worktree under the claim's session, and drops its request.
+func (l *lander) reopenAfter(r *engine.LandRequest, session, pre, cause, logPath string) {
 	if pre != "" {
 		_ = engine.LandUndo(l.root, pre)
 	}
@@ -190,24 +193,68 @@ func (l *lander) reopenAfter(r *engine.LandRequest, pre, cause, logPath string) 
 		l.res.Blocked = append(l.res.Blocked, item)
 		return
 	}
-	l.outcome(r, cause)
-	l.drop(r.ID)
+	l.outcome(r, session, cause)
+	l.drop(r)
 	l.res.Reopened = append(l.res.Reopened, item)
+}
+
+// dropStale drops a request whose task is no longer wip under its claim, and
+// still records an outcome for the agent's worktree: landed when the task is
+// done here and this branch carries every commit, else why not. A task closed
+// without the commits names them, so they are not lost without a word.
+func (l *lander) dropStale(r *engine.LandRequest) {
+	cause := ""
+	if taskStatusIn(l.taskFile, r.ID) != model.StatusDone {
+		cause = fmt.Sprintf("task %s is no longer claimed under the claim this worktree's request was made under", r.ID)
+	} else if missing := l.uncarried(r.Commits); len(missing) > 0 {
+		cause = fmt.Sprintf("task %s was closed without the commits %s", r.ID, strings.Join(missing, ", "))
+		l.res.Unlanded = append(l.res.Unlanded, landItem{ID: r.ID, Error: cause,
+			Hint: fmt.Sprintf("if they belong to task %s, run git cherry-pick %s in this tree and commit; otherwise leave them", r.ID, strings.Join(missing, " "))})
+	}
+	l.outcome(r, "", cause)
+	l.drop(r)
+	l.res.Dropped = append(l.res.Dropped, r.ID)
+}
+
+// uncarried lists the commits this tree's branch does not carry.
+func (l *lander) uncarried(commits []string) []string {
+	missing := []string{}
+	for _, sha := range commits {
+		if !engine.CarriedOnHead(l.root, sha) {
+			missing = append(missing, sha)
+		}
+	}
+	return missing
 }
 
 // outcome records what this landing did for the request's worktree; cause
 // is "" for a task landed and closed.
-func (l *lander) outcome(r *engine.LandRequest, cause string) {
-	o := &engine.LandOutcome{ID: r.ID, Worktree: r.Worktree, Landed: cause == "", Error: cause}
+func (l *lander) outcome(r *engine.LandRequest, session, cause string) {
+	o := &engine.LandOutcome{ID: r.ID, Worktree: r.Worktree, Session: session, Landed: cause == "", Error: cause}
 	if err := engine.WriteLandOutcome(l.dir, o); err != nil {
 		output.Notice(fmt.Sprintf("the land outcome of %s could not be recorded: %v", r.ID, err))
 	}
 }
 
-func (l *lander) drop(id string) {
-	if err := engine.RemoveLandRequest(l.dir, id); err != nil {
-		output.Notice(fmt.Sprintf("the land request of %s could not be removed: %v", id, err))
+// drop removes the request r was read as; one written since is kept.
+func (l *lander) drop(r *engine.LandRequest) {
+	if err := engine.RemoveLandRequest(l.dir, r); err != nil {
+		output.Notice(fmt.Sprintf("the land request of %s could not be removed: %v", r.ID, err))
 	}
+}
+
+// landClaimSession is the session of task id's claim in the task file at path,
+// "" when it has none.
+func landClaimSession(path, id string) string {
+	tf, err := model.ReadTaskFile(path)
+	if err != nil {
+		return ""
+	}
+	task, _, err := model.FindTask(tf, id)
+	if err != nil || task.ClaimedBy == nil {
+		return ""
+	}
+	return task.ClaimedBy.Session
 }
 
 // closeFailure is why the tp done child failed: the error its log ends

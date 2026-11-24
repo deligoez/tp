@@ -350,8 +350,23 @@ func landBlockingPaths(root string, commits []string) []string {
 
 // RemoveLandRequest deletes the request for id in dir; an absent one is not
 // an error.
-func RemoveLandRequest(dir, id string) error {
-	if err := os.Remove(filepath.Join(dir, id+".json")); err != nil && !os.IsNotExist(err) {
+// RemoveLandRequest deletes the request for r's task in dir when it is still
+// the one r was read as: a request the agent wrote since (a later At) is kept
+// for the next tp land. An absent one is not an error.
+func RemoveLandRequest(dir string, r *LandRequest) error {
+	path := filepath.Join(dir, r.ID+".json")
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	var stored LandRequest
+	if json.Unmarshal(data, &stored) == nil && stored.At != r.At {
+		return nil
+	}
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 		return err
 	}
 	return nil
