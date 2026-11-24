@@ -162,10 +162,11 @@ Repeat until `tp review <spec> --status --check` exits 0:
 
 1. `tp review <spec>` — auto-numbers the round, snapshots the spec, and injects previous findings
    and the changed-sections diff. From round 2 a **regression** prompt is added when the spec
-   changed; process it first.
+   changed or fixed findings exist; process it first.
 2. Spawn one sub-agent per prompt; each writes NDJSON findings to its `output_path` (an empty file,
    or a line holding only `[]`, when it finds nothing). **Every row needs `severity`, `finding`,
-   `location` and `evidence`, non-empty**; `--record` refuses the whole file otherwise. Row contract:
+   `location` and `evidence`, non-empty**; `--record` refuses the whole file otherwise, and `tp review --merge` drops such a row with a stderr
+   warning (`inputs[].skipped`), so it never becomes a finding. Row contract:
    REFERENCE.md, "Finding `class` and Report".
 3. `tp review <spec> --record-inbox` — records the round from every role's file and refuses (exit
    3) while a role has none. It is the only way to record an emitted round; `--record <file>` is for
@@ -211,7 +212,7 @@ unit has finished.
 
 1. Decompose into tasks — **you are the decomposer, tp validates your output.**
 2. Backward pass — every table row and numbered list item → some task's acceptance; `tp validate` for line coverage.
-3. `tp import tasks.json` — **plain, no `--force`.** The init shell holds zero tasks, so no overwrite flag is needed and the convergence checks stay armed: a review loop with recorded rounds that is not done, or a registered review check that fails, blocks the import (exit 1). A loop the cap ended passes. `--force` (overwriting real tasks, skipping those checks) is an operator decision.
+3. `tp import tasks.json` — **plain, no `--force`.** The init shell holds zero tasks, so no overwrite flag is needed and the convergence checks stay armed: a review loop with recorded rounds that is not done, or a registered review check that fails, blocks the import (exit 1); with no recorded round it passes unverified. A loop the cap ended passes, and the payload says so (`done_by`, `fixed_at_cap`, `stale_waived`). `--force` (overwriting real tasks, skipping those checks) is an operator decision.
 
 ### Decomposition Rules
 
@@ -284,8 +285,8 @@ itself. Details: REFERENCE.md, "Task Audit".
    checklist; every other role gets one `file_check` item per file of the shared code-file list
    (ranked by churn and cut to ten when auto-detected; cuts are named in `notices`). On a committed
    tree — the normal end of implement — no changed file is found (exit 4): use
-   `--affected-from-tasks`, or `--affected-files` to name files. A long named list is read
-   shallowly, so prefer the ten-file cut.
+   `--affected-from-tasks`, or `--affected-files` to name files. Either named form goes uncut into
+   each code role's one prompt, and a long named list is read shallowly: keep it short.
 2. Spawn one sub-agent per role prompt; each writes one NDJSON line per checklist item (`status` ∈
    PASS/PARTIAL/FAIL) to its `output_path`.
 3. Merge and record: `tp audit --merge r1.ndjson ... -o results.ndjson && tp audit <spec> --record results.ndjson`.
@@ -870,8 +871,8 @@ neither a failed attempt nor a recorded round.
 - **Fill `class`** on every review finding: a kebab-case slug naming its failure class, the key `--merge` clusters on.
 - **Mechanization candidate:** a class that appears in ≥ 2 distinct rounds OR ≥ 5 times in a single round (`mechanize_candidates` in `--report` and `--record`). Write a detector and register it: `tp set --workflow checks='[{"class":"<slug>","cmd":"<detector>"}]'`. A check is **only worth registering when the artifact it measures already exists in the review phase** — checks run in the review phase only; when the subject is written later, make running the check the acceptance of the task that creates it.
 - Once registered, tp runs the check every review round (`mechanical_checks`) and tells reviewers to stop reporting that class. Exit **0** passed, **1** found violations, anything else could not run (`ran: false`) and suppresses nothing. `tp review --status --check` requires every check to pass.
-- **A check reads its spec from `TP_SPEC`**: write the argument as `"${TP_SPEC:?}"`, never derive the spec from `tp resume`, which names the active task file's spec.
-- **Registration retires the suggestion:** a registered check retires its mechanize candidate — the class leaves `mechanize_candidates`, the hint and `next_action`, and `--record` names it in `mechanized_classes`. `over-specification` is never added to the prompts' do-not-report list, since tp's own prompts ask for it.
+- **A check reads its spec from `TP_SPEC`**: tp runs every check at the task file's repository root with `TP_SPEC` naming the spec, relative to that root when the spec lies under it and absolute otherwise; a `TP_SPEC` or `TP_ROUND` the caller carried is dropped first, and with no spec `TP_SPEC` is unset, never empty. Write the argument as `"${TP_SPEC:?}"`, never derive the spec from `tp resume`, which names the active task file's spec.
+- **Registration retires the suggestion:** a registered check retires its mechanize candidate — the class leaves `mechanize_candidates`, the hint and `next_action`, and `--record` names it in `mechanized_classes`. Under `--record` and `--status --check` only a check that ran (exit 0 or 1) retires its class; plain `--status` runs no check. `over-specification` is never added to the prompts' do-not-report list, since tp's own prompts ask for it.
 
 ## Role Corpus & frontmatter overrides
 
@@ -896,6 +897,7 @@ tp:
 ---
 ```
 
+- `domain` selects the embedded corpus and filters a user corpus by each role's `domains`; an unknown domain falls back to `software` with a lint warning.
 - `tp.review_roles`/`tp.audit_roles` **append** focus to a role; an unknown id is a lint warning.
 - enabled: false deactivates a role for one spec (`enabled` is the override's other key). Emptying a phase or deactivating `spec-coverage` is refused at emission (exit 2). Keep `domains` as a role's standing scope and `enabled: false` as the one-spec exception.
 - `overlap_report` flags a `trim_candidate` (a role that found only what others found) and `roles_stale` a corpus changed since the last round; trimming is your decision.
@@ -945,7 +947,7 @@ see. The wrapper is for runtime setup. Framing it must carry anyway is declared 
 3. **A `mechanize_candidates` class recurs, none blocking** (review only) → register a check, then run the next round. A check is **only worth registering when the artifact it measures already exists in the review phase**. A class whose check is registered and ran falls through to step 4.
 4. **Clean but not yet converged** → run the next round.
 
-A registered check that failed or could not run replaces any step that names import.
+Under `--record` and `--status --check`, a registered check that failed or could not run replaces any step that names import with that check to fix. Plain `--status` runs no check, so while a check is registered its import step starts with `tp review <spec> --status --check`.
 
 ## State directory (`.tp-review/`)
 
