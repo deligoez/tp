@@ -1,0 +1,73 @@
+{"unit_id":"u2","anchor":"§0","text_sha":"7111b2060434","ordinal":1,"verdict":"PASS","kind":"document","tier":"read","evidence":"spec/backlog/found-tasks.md:13-30 lists operator decisions 1-7; spec/1.31.0.md §12 (lines 217-223) lists three interview answers dated 2026-11-24","note":"backlog decision 2 says the cap is per run; interview answer 3 supersedes it, as §12 and §8 record"}
+{"unit_id":"u86","anchor":"§8","text_sha":"a984382334cf","ordinal":1,"verdict":"PASS","kind":"document","tier":"read","evidence":"spec/1.31.0.md §11 line 212-213 names spec work re-decomposed mid-run as a non-goal; spec/backlog/found-tasks.md:96-98 counts 18 of the last 23 additions from the measure-diagnose-decide loop vs 5 from unit findings, so it is the larger growth"}
+{"unit_id":"u94","anchor":"§10","text_sha":"83ebd2a168d2","ordinal":1,"verdict":"NOT-A-CLAIM","note":"Tests-table row: a planned fixture and mutant for an unbuilt subject; §10 defers its counts to the implementing task"}
+{"unit_id":"u95","anchor":"§10","text_sha":"40836e30d2ea","ordinal":1,"verdict":"NOT-A-CLAIM","note":"Tests-table row: planned fixture and mutant for the unbuilt blocks-merge in tp found apply"}
+{"unit_id":"u98","anchor":"§10","text_sha":"9dd6c88997c1","ordinal":1,"verdict":"NOT-A-CLAIM","note":"Tests-table row: planned fixture and mutant for the unbuilt decision-unit quote check"}
+{"unit_id":"u101","anchor":"§10","text_sha":"897cfd58de8c","ordinal":1,"verdict":"NOT-A-CLAIM","kind":"code-structure","tier":"query","evidence":"git grep -n TP_UNIT_KIND -- '*.go' : internal/cli/gate.go:171 and escalate_test.go:91 use TP_UNIT_KIND today","note":"Tests-table row (a plan); the env var the fixture relies on already exists"}
+{"unit_id":"u102","anchor":"§10","text_sha":"90e4b3dc49ae","ordinal":1,"verdict":"NOT-A-CLAIM","note":"Tests-table row: planned fixture and mutant for the §3 source_sections refusal, not yet built"}
+{"unit_id":"u3","anchor":"§0","text_sha":"7a2217a76058","verdict":"PASS","kind":"document","tier":"read","evidence":"spec/1.31.0-measurements.md §1 (field counts), §2-§4 (seeded runs 1-3)","ordinal":1,"carried_from":1}
+{"unit_id":"u9","anchor":"§1","text_sha":"502975879dab","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u11","anchor":"§1","text_sha":"04e7bd8ee12d","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u12","anchor":"§1","text_sha":"e1dfd4349fac","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u13","anchor":"§1","text_sha":"47311295f64b","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u14","anchor":"§1","text_sha":"a883be09cb09","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u15","anchor":"§1","text_sha":"e11f8b340a61","verdict":"PASS","kind":"document","tier":"read","evidence":"spec/1.31.0-measurements.md:50 (§2): 'One defect came at two line numbers; one request bundled two defects under one location.' under the backlog note's request format (§2 line 39)","ordinal":1,"carried_from":2,"note":"'only output about work it was not given' is the design's premise (§1 rejects tp add / free text), not a world claim"}
+{"unit_id":"u16","anchor":"§1","text_sha":"dc47ccbad4b2","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u17","anchor":"§1","text_sha":"83459a62723b","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u18","anchor":"§1","text_sha":"bd3725ee1a7a","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u20","anchor":"§2","text_sha":"b305b0d5e711","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u21","anchor":"§2","text_sha":"7da723a3ddf6","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u23","anchor":"§2","text_sha":"da947b88101e","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u24","anchor":"§2","text_sha":"b646ed2224ad","verdict":"PASS","kind":"code-structure","tier":"read","evidence":"hooks/hooks.json:38 Stop hooks; hooks/stop-fill-pool.sh (the pool Stop hook) blocks once via tp pool --stop-hook, passes on stop_hook_active","ordinal":1,"carried_from":1,"note":"Premise only: the pool Stop hook exists and blocks once; the unapplied-request refusal is new behaviour."}
+{"unit_id":"u25","anchor":"§2","text_sha":"4203c9f95cdb","verdict":"PASS","kind":"document","tier":"read","evidence":"spec/1.31.0.md §11 item 1","ordinal":1,"carried_from":1}
+{"unit_id":"u26","anchor":"§2","text_sha":"3382fc34594f","verdict":"PASS","kind":"document","tier":"read","evidence":"spec/1.31.0-measurements.md:47 \"The defect blocking a unit arrived sixth and fell past the cap\"","ordinal":1,"carried_from":1}
+{"unit_id":"u31","anchor":"§3","text_sha":"783d36248aa2","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u33","anchor":"§3","text_sha":"86f24f15736a","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u35","anchor":"§3","text_sha":"8c7c01a44921","verdict":"NOT-A-CLAIM","kind":"behaviour","tier":"run","evidence":"mktemp dir: tp init s.md (one heading '## 1. A'); /tmp/tp-dev/tp add '{\"id\":\"t1\",\"title\":\"x\",\"acceptance\":\"y\",\"estimate_minutes\":5,\"source_sections\":[\"## 9. Nowhere\"]}' -\u003e exit 0, added; today's entry check is internal/engine/entry.go:54-59 (rule source-anchor: source_sections or source_lines), NormalizeSourceSections leaves unresolvable entries unchanged (resolve_section.go:187-193)","ordinal":1,"carried_from":2,"note":"A decision (new refusal). Its premise holds: today tp add accepts an anchor naming no heading, and the entry check it extends exists as named."}
+{"unit_id":"u36","anchor":"§3","text_sha":"3485b82e4ba0","verdict":"PASS","kind":"document","tier":"read","evidence":"spec/1.31.0-measurements.md:30 \"23 source_sections strings name no heading in the spec\"","ordinal":1,"carried_from":1}
+{"unit_id":"u38","anchor":"§3","text_sha":"57f35a265021","verdict":"PASS","kind":"document","tier":"read","evidence":"spec/1.31.0-measurements.md:30-31 \"53 of the 111 additions anchor to one catch-all section\"","ordinal":1,"carried_from":1}
+{"unit_id":"u39","anchor":"§3","text_sha":"8d28cd3e78cd","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u40","anchor":"§3","text_sha":"2eafff934319","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u41","anchor":"§3","text_sha":"6d6acfb22a4d","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u44","anchor":"§4","text_sha":"4921b3711a30","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1,"note":"Decision; retries exist (driver_pool.go:52) and an escalating unit is already not counted as a failed attempt (SKILL.md:481)."}
+{"unit_id":"u46","anchor":"§4","text_sha":"6fa702956ade","verdict":"PASS","kind":"document","tier":"read","evidence":"spec/1.31.0-measurements.md:46 \"Two units stopped blocked on a defect outside their files\"; spec/backlog/found-tasks.md:134","ordinal":1,"carried_from":1}
+{"unit_id":"u47","anchor":"§4","text_sha":"ed961f20aed9","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u48","anchor":"§4","text_sha":"42a5ec4ecfe7","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u50","anchor":"§5","text_sha":"0b4c22e6f11b","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1,"note":"Decision. CONVENTIONS.md exists in neither tp nor its code (git grep -i CONVENTIONS.md internal skills: no hits); a target-project file name."}
+{"unit_id":"u51","anchor":"§5","text_sha":"02ccc8a153e4","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u52","anchor":"§5","text_sha":"406a5d891722","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u54","anchor":"§5","text_sha":"056076f2dcce","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u56","anchor":"§5","text_sha":"d7254ae18669","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u57","anchor":"§5","text_sha":"467b5df5278d","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u58","anchor":"§5","text_sha":"e40fb0deb454","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u59","anchor":"§5","text_sha":"438d329113f4","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u60","anchor":"§5","text_sha":"cc8d924466a5","verdict":"PASS","kind":"document","tier":"read","evidence":"spec/1.31.0-measurements.md:58-62 (§3): wrong task outcomes are only the 3 'task that changes nothing (expected = observed)'; :69-76 (§4): pass bar written first, all 6 answered as expected, quotes found verbatim (one after whitespace normalisation, which §5's quote check specifies)","ordinal":1,"carried_from":2}
+{"unit_id":"u61","anchor":"§5","text_sha":"58d9db2c2030","verdict":"PASS","kind":"document","tier":"read","evidence":"spec/backlog/found-tasks.md:23-26 operator decision 6","ordinal":1,"carried_from":1}
+{"unit_id":"u62","anchor":"§5","text_sha":"44391584f7f6","verdict":"PASS","kind":"document","tier":"read","evidence":"spec/1.31.0-measurements.md:22 combined 37 findings: 10 `task` by citation","ordinal":1,"carried_from":1,"note":"Factual premise of the rejection only."}
+{"unit_id":"u63","anchor":"§5","text_sha":"ead01387093b","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u64","anchor":"§5","text_sha":"1305c8d2b5a5","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u65","anchor":"§5","text_sha":"09f48c4b4eca","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u66","anchor":"§5","text_sha":"1a1983e09058","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u67","anchor":"§6","text_sha":"cdad5573bad1","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u68","anchor":"§6","text_sha":"84aca062b576","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u69","anchor":"§6","text_sha":"c55fa2742376","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u71","anchor":"§6","text_sha":"95c9140e62d2","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u72","anchor":"§6","text_sha":"6b9c6838e48a","verdict":"PASS","kind":"document","tier":"read","evidence":"spec/undecided.md:409 \"An inbox for findings seen during implement (`tp note`). *Deferred.*\"","ordinal":1,"carried_from":1}
+{"unit_id":"u73","anchor":"§6","text_sha":"cbfbeaca607c","verdict":"PASS","kind":"document","tier":"read","evidence":"spec/backlog/found-tasks.md:9-11 (Direction: 'Human input is collected at the very end'); :19 (operator decision 3: 'The queue blocks nothing ... holds neither convergence nor the release')","ordinal":1,"carried_from":2,"note":"'survives the context and the machine' follows from the queue being a committed file"}
+{"unit_id":"u74","anchor":"§6","text_sha":"ef3d8e206208","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1,"note":"Acceptance; the flags it names exist: tp review/audit --status --check (tp-dev --help)."}
+{"unit_id":"u75","anchor":"§6","text_sha":"64f2c2ab98ce","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u76","anchor":"§6","text_sha":"b8715bea0729","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u78","anchor":"§7","text_sha":"ad667b1650f5","verdict":"PASS","kind":"document","tier":"read","evidence":"CLAUDE.md:136-137 rule 13 \"record out-of-surface findings with justification and ship\"","ordinal":1,"carried_from":1,"note":"The quoted words are elided from the rule, not verbatim; the meaning matches."}
+{"unit_id":"u79","anchor":"§7","text_sha":"78f6c42aa9f2","verdict":"PASS","kind":"document","tier":"read","evidence":"spec/1.31.0.md §11 item 2","ordinal":1,"carried_from":1,"note":"Decision; the citation holds. Task audit exists (--task-audit)."}
+{"unit_id":"u80","anchor":"§7","text_sha":"45577399b44f","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u82","anchor":"§8","text_sha":"8e24c857ec89","verdict":"PASS","kind":"document","tier":"read","evidence":"spec/1.31.0.md §11 item 3 \"The cap counts per spec task file, not per run\"","ordinal":1,"carried_from":1,"note":"Supersedes backlog decision 2 (\"capped per run\", found-tasks.md:17) on purpose."}
+{"unit_id":"u84","anchor":"§8","text_sha":"e3990b7afd6a","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u87","anchor":"§8","text_sha":"75645c0f8f6f","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u89","anchor":"§8","text_sha":"29e83aab9a89","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u90","anchor":"§9","text_sha":"dd3ef5698e38","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1,"note":"Decision. Unit kinds in internal/engine/unitkind.go:22-34; audit-fix disposes rows (REFERENCE.md:407), not tp add."}
+{"unit_id":"u91","anchor":"§9","text_sha":"18e996851fc9","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1,"note":"Acceptance; TP_UNIT_KIND exists (engine.EnvUnitKind, internal/cli/gate.go:171-181)."}
+{"unit_id":"u105","anchor":"§11","text_sha":"d47981ef657f","verdict":"PASS","kind":"code-structure","tier":"read","evidence":"internal/engine/driver_pool.go:50-53 \"A stop cause, an escalation, ... drains the pool instead: nothing new is spawned\"","ordinal":1,"carried_from":1,"note":"The quoted phrase is in no doc or code verbatim (git grep -i \"drains and stops\" hits only spec/1.31.0.md and the backlog note); the behaviour it names exists."}
+{"unit_id":"u107","anchor":"§12","text_sha":"f1eeba3c9c11","verdict":"PASS","kind":"document","tier":"read","evidence":"spec/backlog/found-tasks.md:13-29","ordinal":1,"carried_from":1}
+{"unit_id":"u108","anchor":"§12","text_sha":"b816928943c2","verdict":"PASS","kind":"document","tier":"read","evidence":"spec/1.31.0.md §11 numbered list of three","ordinal":1,"carried_from":1}
+{"unit_id":"u109","anchor":"§12","text_sha":"011206d3d9aa","verdict":"NOT-A-CLAIM","ordinal":1,"carried_from":1}
+{"unit_id":"u112","anchor":"§12","text_sha":"909045e0e2ab","verdict":"PASS","kind":"document","tier":"read","evidence":"spec/1.31.0.tasks.json:7-8 review_max_rounds 3, audit_max_rounds 3","ordinal":1,"carried_from":1}
