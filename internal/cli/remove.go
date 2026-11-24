@@ -31,6 +31,7 @@ func runRemove(_ *cobra.Command, args []string) error {
 		os.Exit(ExitFile)
 		return nil
 	}
+	refuseLandedIDs(taskFilePath, args[:1])
 
 	return engine.WithFileLock(taskFilePath, func() error {
 		tf, err := model.ReadTaskFile(taskFilePath)
