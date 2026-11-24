@@ -279,3 +279,51 @@ func TestPoolStopHookStaysSilent(t *testing.T) {
 		assert.Empty(t, stdout, name)
 	}
 }
+
+// A coordinator whose only claim a failed landing reopened is still a
+// coordinator: the Stop hook asks for a fresh agent on the task.
+func TestPoolAsksForAFreshAgentAfterAFailedLanding(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "")
+	sha := agentCommit(t, wt)
+	_, stderr, code := runTP(t, wt, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "agent.txt"), []byte("other\n"), 0o600))
+	gitIn(t, dir, "add", "agent.txt")
+	gitIn(t, dir, "commit", "-q", "-m", "other")
+	stdout, stderr, code := runTP(t, dir, "land")
+	require.Equal(t, 0, code, stderr)
+	require.Contains(t, stdout, `"reopened"`)
+
+	p := pool(t, dir, "--session", "sessC")
+	assert.True(t, p.Coordinator, "the reopened claim keeps the session a coordinator")
+	assert.Contains(t, idsOf(p.Ready), "t1")
+	assert.True(t, p.Ask)
+
+	stdout, _, code = hookRun(t, poolHook, true, poolStopPayload(t, dir, false))
+	require.Equal(t, 0, code)
+	assert.Contains(t, stdout, "tp brief t1")
+
+	// Once a fresh agent claims it, the session is a coordinator by that claim.
+	spawnClaim(t, dir, "t1", "toolu_B", "sessC")
+	p = pool(t, dir, "--session", "sessC", "--live", "toolu_B")
+	assert.Equal(t, []string{"t1"}, idsOf(p.Running))
+}
+
+// A landing task whose agent still runs holds its slot, so the pool never
+// runs more agents than run_max_parallel.
+func TestALandingTaskWhoseAgentRunsHoldsItsSlot(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "")
+	sha := agentCommit(t, wt)
+	_, stderr, code := runTP(t, wt, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+
+	p := pool(t, dir, "--session", "sessC", "--live", "toolu_W")
+	assert.Equal(t, []string{"t1"}, idsOf(p.Landing))
+	assert.Equal(t, p.Cap-1, p.Free, "the live agent still holds its slot")
+	assert.True(t, p.Ask, "the landing is still asked for")
+
+	p = pool(t, dir, "--session", "sessC")
+	assert.Equal(t, p.Cap, p.Free, "an agent that has stopped holds none")
+}
