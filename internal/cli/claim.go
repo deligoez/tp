@@ -42,6 +42,7 @@ func runClaim(cmd *cobra.Command, args []string) error {
 		os.Exit(ExitFile)
 		return nil
 	}
+	refuseLandedIDs(taskFilePath, args)
 
 	return engine.WithFileLock(taskFilePath, func() error {
 		tf, readErr := model.ReadTaskFile(taskFilePath)
