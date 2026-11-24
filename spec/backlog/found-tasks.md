@@ -199,14 +199,13 @@ reproduction that goes red under the proposed change — the case run 2 never se
 
 The measurement phase is done: the spec interview starts from this note.
 
-## Not measured (left to the field)
+## Still unmeasured (left to the field)
 
-- A seeded clone run with obvious and ambiguous defects. Count:
-  - misrouted findings;
-  - wrong tasks, whose reproduction never goes red;
-  - cap hits;
-  - tokens added per unit;
-  - work left undone because the queue holds it.
+The seeded runs counted misrouted findings, wrong tasks and cap hits. Two counts need a real run:
+
+- tokens added per unit: run 1 had no control unit, so the cost of reporting is not separable from
+  the task's own (each unit spent 70k-85k tokens in all);
+- work left undone because the queue holds it.
 
 ## Non-goals
 
