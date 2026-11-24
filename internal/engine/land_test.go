@@ -8,6 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/deligoez/tp/internal/model"
 )
 
 // tp land refuses a task file of another project, so a project below the
@@ -67,4 +69,18 @@ func TestRemovingALandRequestReportsAFailedRemove(t *testing.T) {
 	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
 
 	assert.Error(t, RemoveLandRequest(dir, &LandRequest{ID: "t1", At: "1"}))
+}
+
+// A request is made under a claim only with that claim's spawn and claim
+// token, each where the request carries one: the same spawn rebound under
+// another brief's token does not land the old request.
+func TestALandRequestIsMadeUnderItsSpawnAndToken(t *testing.T) {
+	t.Parallel()
+	claim := &model.ClaimedBy{Spawn: "s1", Token: "tokA"}
+	assert.True(t, (&LandRequest{Spawn: "s1", Token: "tokA"}).MadeUnder(claim))
+	assert.True(t, (&LandRequest{Spawn: "s1"}).MadeUnder(claim), "a request without a token")
+	assert.True(t, (&LandRequest{}).MadeUnder(nil), "no claim, no stamp")
+	assert.False(t, (&LandRequest{Spawn: "s1", Token: "tokB"}).MadeUnder(claim), "another token")
+	assert.False(t, (&LandRequest{Spawn: "s2", Token: "tokA"}).MadeUnder(claim), "another spawn")
+	assert.False(t, (&LandRequest{Spawn: "s1"}).MadeUnder(nil), "a claim gone")
 }
