@@ -293,6 +293,7 @@ func ResolveWorkflowLayers(taskOverride, project *model.WorkflowOverride) model.
 		TaskAuditRoles:         []string{},
 		ReviewConvergeOn:       ReviewConvergeOnBlocking,
 		AuditConvergeOn:        AuditConvergeOnAll,
+		FoundMax:               FoundMaxDefault,
 		RunMaxUnits:            RunMaxUnitsDefault,
 		RunMaxWallClockSeconds: RunMaxWallClockSecondsDefault,
 		RunMaxBudgetUSD:        RunMaxBudgetUSDDefault,
@@ -315,6 +316,7 @@ func ResolveWorkflowLayers(taskOverride, project *model.WorkflowOverride) model.
 		TaskAuditRoles:     pickSlice([]*[]string{taskOverride.TaskAuditRoles, project.TaskAuditRoles}, def.TaskAuditRoles),
 		ReviewConvergeOn:   pickString([]*string{taskOverride.ReviewConvergeOn, project.ReviewConvergeOn}, def.ReviewConvergeOn),
 		AuditConvergeOn:    pickString([]*string{taskOverride.AuditConvergeOn, project.AuditConvergeOn}, def.AuditConvergeOn),
+		FoundMax:           pickInt([]*int{taskOverride.FoundMax, project.FoundMax}, def.FoundMax),
 
 		RunMaxUnits:            pickInt([]*int{taskOverride.RunMaxUnits, project.RunMaxUnits}, def.RunMaxUnits),
 		RunMaxWallClockSeconds: pickInt([]*int{taskOverride.RunMaxWallClockSeconds, project.RunMaxWallClockSeconds}, def.RunMaxWallClockSeconds),

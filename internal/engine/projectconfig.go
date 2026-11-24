@@ -42,6 +42,7 @@ func clampWorkflowRanges(wo *model.WorkflowOverride) []string {
 	check("audit_clean_rounds", &wo.AuditCleanRounds, 1, 10)
 	check("review_max_rounds", &wo.ReviewMaxRounds, 0, 50)
 	check("audit_max_rounds", &wo.AuditMaxRounds, 0, 50)
+	check("found_max", &wo.FoundMax, FoundMaxMin, FoundMaxMax)
 	check("run_max_units", &wo.RunMaxUnits, RunMaxUnitsMin, RunMaxUnitsMax)
 	check("run_max_wall_clock_seconds", &wo.RunMaxWallClockSeconds, RunMaxWallClockSecondsMin, RunMaxWallClockSecondsMax)
 	check("run_max_unit_retries", &wo.RunMaxUnitRetries, RunMaxUnitRetriesMin, RunMaxUnitRetriesMax)
@@ -94,6 +95,7 @@ var knownWorkflowKeys = map[string]bool{
 	"run_max_budget_usd": true, "run_max_unit_budget_usd": true,
 	"run_max_unit_retries": true, "run_max_parallel": true, "run_max_parallel_gates": true, "runner": true,
 	"task_audit_roles": true, "worktree_setup_cmd": true,
+	"found_max": true,
 }
 
 // parseWorkflowOverride leniently parses a workflow object: an unknown key or a
@@ -180,6 +182,8 @@ func parseWorkflowOverride(raw json.RawMessage) (wo model.WorkflowOverride, warn
 			wo.ReviewMaxRounds = intField(k, v)
 		case "audit_max_rounds":
 			wo.AuditMaxRounds = intField(k, v)
+		case "found_max":
+			wo.FoundMax = intField(k, v)
 		case "run_max_units":
 			wo.RunMaxUnits = intField(k, v)
 		case "run_max_wall_clock_seconds":

@@ -421,6 +421,7 @@ func validateConvergence(tf *model.TaskFile) []Finding {
 	warnRange("lock_timeout_seconds", tf.Workflow.LockTimeoutSeconds, 1, 60)
 	warnRange("review_max_rounds", tf.Workflow.ReviewMaxRounds, 0, 50)
 	warnRange("audit_max_rounds", tf.Workflow.AuditMaxRounds, 0, 50)
+	warnRange("found_max", tf.Workflow.FoundMax, FoundMaxMin, FoundMaxMax)
 	if tf.Workflow.Checks != nil {
 		if err := ValidateChecks(*tf.Workflow.Checks); err != nil {
 			findings = append(findings, Finding{
