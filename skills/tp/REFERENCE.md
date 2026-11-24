@@ -26,7 +26,7 @@ here. Field ranges and schemas follow in the sections after.
 | `tp brief <id> --prior <n>` | Override the prior-work recency cap (0-20; 0 = dependency entries only) |
 | `tp run --status` | Report the current or last run: phase, units done, the accrual against each cap, the last unit's exit code and log path, `stop_reason`, and `run_state` (`in_flight`/`crashed`/`stopped`); takes no run lock; exits 3 when no run state exists |
 | `tp run --dry-run` | List the units the driver would execute next as `{phase, round, next_units}` and exit 0; spawns nothing, writes no run state, takes no run lock |
-| `tp escalate --decision <name> --evidence <text>` | Record a decision only the operator can take and stop the unit: writes `$TP_RUN_DIR/$TP_UNIT_SEQ-escalation.json` and exits 2; `--decision` is one of `skip-gate`, `raise-review-cap`, `raise-audit-cap`, `import-force`, `audit-converge-on`, `accept-finding`, `discard-emission`, `epic-done`, `gate-met`, `epic-binding`, `grant-round`, `rewrite-past-blocking`, `other`; outside a run (no `TP_RUN_DIR`) it is a usage error |
+| `tp escalate --decision <name> --evidence <text>` | Record a decision only the operator can take and stop the unit: writes `$TP_RUN_DIR/$TP_UNIT_SEQ-escalation.json` and exits 2; `--decision` is one of `skip-gate`, `raise-review-cap`, `raise-audit-cap`, `raise-found-cap`, `import-force`, `audit-converge-on`, `accept-finding`, `discard-emission`, `epic-done`, `gate-met`, `epic-binding`, `grant-round`, `rewrite-past-blocking`, `other`; outside a run (no `TP_RUN_DIR`) it is a usage error |
 | `tp escalate ... --option <text>` | Add a way forward the unit saw; repeatable, and `options` is `[]` when none is given |
 | `tp next` | Resume WIP or claim next ready; a task wip under an agent spawn's claim is that agent's and never resumed, and when agents hold every task that could run it exits 4 with `agent_held` and a hint (as does `tp brief` with no id, v1.29.4); on a bound file whose epic has a dependency not done it returns a `wip` task, else exits 4 with `{done: false, message, blocked_by_epics}` (`--peek` too), plus `operator: {decision, commands}` when every blocker is a condition; an unsatisfied any-of group adds `blocked_by_any_of` and the operator's `choices`; on a file with no task yet it exits 4 with `{done: false, message, phase, hint, command}`, `phase` the one `tp resume` reports |
 | `tp next --peek` | Preview the next ready task without claiming; unlike plain `tp next` it ignores WIP |
@@ -881,7 +881,7 @@ An escalation is a normal, expected outcome, not a crash. `tp escalate --decisio
  "phase": "review", "evidence": "…", "options": ["…"], "at": "2026-01-01T00:00:00Z"}
 ```
 
-`decision` is one of `skip-gate`, `raise-review-cap`, `raise-audit-cap`, `import-force`,
+`decision` is one of `skip-gate`, `raise-review-cap`, `raise-audit-cap`, `raise-found-cap`, `import-force`,
 `audit-converge-on`, `accept-finding`, `discard-emission`, `epic-done`, `gate-met`, `epic-binding`,
 `grant-round`, `rewrite-past-blocking`, `other`; the three epic decisions are the v1.5.0 operator
 records (`tp epic done`, `gate --met`, a binding), `grant-round` is v1.7.0's
