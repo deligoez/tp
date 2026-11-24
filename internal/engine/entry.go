@@ -21,7 +21,7 @@ type EntryFinding struct {
 //  1. id present (non-blank after trim)
 //  3. title present (non-blank after trim)
 //  4. acceptance present (non-blank after trim)
-//  5. at least one source anchor (source_sections or source_lines)
+//  5. at least one source anchor (source_sections, source_lines or origin)
 //     then every other per-task error tp validate reports (TaskSchemaErrors)
 //  6. every depends_on id resolvable against resolvableIDs
 //
@@ -51,7 +51,7 @@ func ValidateTaskEntry(task *model.Task, resolvableIDs map[string]bool) *EntryFi
 			Hint: `provide a non-blank "acceptance" field`,
 		}
 	}
-	if len(task.SourceSections) == 0 && strings.TrimSpace(task.SourceLines) == "" {
+	if len(task.SourceSections) == 0 && strings.TrimSpace(task.SourceLines) == "" && task.Origin == nil {
 		return &EntryFinding{
 			Rule: "source-anchor",
 			Msg:  fmt.Sprintf("task %s: needs source_sections or source_lines", task.ID),

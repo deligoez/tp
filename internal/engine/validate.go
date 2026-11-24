@@ -196,7 +196,7 @@ func TaskSchemaErrors(t *model.Task) []string {
 	if t.EstimateMinutes == 0 {
 		msgs = append(msgs, fmt.Sprintf("task %s: estimate_minutes is required", t.ID))
 	}
-	if len(t.SourceSections) == 0 && t.SourceLines == "" {
+	if len(t.SourceSections) == 0 && t.SourceLines == "" && t.Origin == nil {
 		msgs = append(msgs, fmt.Sprintf("task %s: needs source_sections (canonical headings) or source_lines", t.ID))
 	}
 	// task_audit_owed is tp done's record of the audit a close owed; on
