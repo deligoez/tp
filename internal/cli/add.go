@@ -261,6 +261,11 @@ func addTasks(tasks []model.Task) error {
 					os.Exit(ExitValidation)
 					return nil
 				}
+				if uerr := engine.FirstUnresolvedSection(tasks, headings); uerr != nil {
+					output.Error(ExitValidation, uerr.Error(), "name a heading of the spec in canonical form (\"## Heading Text\")")
+					os.Exit(ExitValidation)
+					return nil
+				}
 			}
 		}
 

@@ -209,3 +209,35 @@ func NormalizeSourceSections(tasks []model.Task, headings []*Heading) error {
 	}
 	return nil
 }
+
+// UnresolvedSectionError reports a source_sections entry that names no heading
+// of the spec. tp add refuses it (spec 1.31.0 §3): a made-up anchor hides that
+// a task answers no spec section.
+type UnresolvedSectionError struct {
+	TaskID      string
+	Entry       string
+	Suggestions []string
+}
+
+func (e *UnresolvedSectionError) Error() string {
+	msg := fmt.Sprintf("task %s: source_sections entry %q names no heading of the spec", e.TaskID, e.Entry)
+	if len(e.Suggestions) > 0 {
+		msg += "; did you mean: " + strings.Join(e.Suggestions, ", ")
+	}
+	return msg
+}
+
+// FirstUnresolvedSection returns the first source_sections entry, across tasks,
+// that resolves to no heading, or nil when every entry resolves. Ambiguous
+// entries are NormalizeSourceSections' to report, so they are skipped here.
+func FirstUnresolvedSection(tasks []model.Task, headings []*Heading) *UnresolvedSectionError {
+	for ti := range tasks {
+		for _, entry := range tasks[ti].SourceSections {
+			resolved, ambiguous, _ := ResolveSection(entry, headings)
+			if resolved == "" && !ambiguous {
+				return &UnresolvedSectionError{TaskID: tasks[ti].ID, Entry: entry, Suggestions: SuggestSimilarSections(entry, headings)}
+			}
+		}
+	}
+	return nil
+}
