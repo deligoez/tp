@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -16,6 +18,20 @@ import (
 
 // TaskMarkerPrefix opens the marker line a brief carries.
 const TaskMarkerPrefix = "tp-task: "
+
+// ClaimTokenPrefix opens the line under the marker that carries the brief's
+// claim token; a hook older than the token ignores the line.
+const ClaimTokenPrefix = "tp-claim-token: "
+
+// NewClaimToken mints a claim token: 16 hex characters, unique enough to
+// tell two agents spawned for one task apart. It is not a secret.
+func NewClaimToken() string {
+	var raw [8]byte
+	if _, err := rand.Read(raw[:]); err != nil {
+		return ""
+	}
+	return hex.EncodeToString(raw[:])
+}
 
 // claimTokenRe is the shape of a spawn or session id tp records: what Claude
 // Code issues (toolu_..., a UUID) and nothing a shell or JSON would read.
