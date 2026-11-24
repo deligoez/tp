@@ -22,6 +22,11 @@ const gateOutputTailLines = 20
 // gateSkipHint tells the agent how to proceed after a gate failure.
 const gateSkipHint = "fix the gate failure and retry, or close with --skip-gate '<why>' (recorded on the task)"
 
+// pickedCloseGateHint replaces gateSkipHint in the close tp land and tp run
+// spawn on picked commits: the parent takes the pick back and reopens the
+// task for a fresh agent, which fixes the failure on the new HEAD.
+const pickedCloseGateHint = "the gate failed on the picked commits: the pick is taken back and the task reopened for a fresh agent, which fixes this failure"
+
 // gateCannotRunHint replaces gateSkipHint when sh itself could not run a
 // command (exit 126 or 127). Such a gate never measured the work, the usual
 // cause is a typo, and --skip-gate is an operator's decision — so the hint
@@ -230,6 +235,11 @@ func runQualityGateIn(taskFilePath, dir, failureRoot, hint string, taker gateTak
 		recordGateFailure(failureRoot, taskFilePath, &wf, res)
 	}
 	msg, defaultHint := gateFailureText(&wf, res, dir)
+	// A close tp land or tp run spawned on picked commits is taken back and
+	// its task reopened by its parent; its log never offers to skip the gate.
+	if hint == "" && os.Getenv(engine.EnvGateMainSlots) != "" {
+		hint = pickedCloseGateHint
+	}
 	// A caller's hint replaces the one for a gate that ran red; a gate sh
 	// could not run keeps the fix-the-command hint whoever ran it.
 	if hint == "" || gateCouldNotRun(res) {
