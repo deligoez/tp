@@ -13,7 +13,7 @@ import (
 // cap admits no further round, so the remaining findings of the latest round
 // are dispositioned in its recorded file, then the loop ends and import or
 // release proceeds. Raising the cap stays a user-approved decision.
-const budgetEscalationHint = "disposition each remaining finding in the latest recorded round file — tp review|audit <round file> --resolve <selector> fixed|wontfix|duplicate \"<evidence>\" (accepting a blocking finding is the operator's decision); raising review_max_rounds/audit_max_rounds or import --force stay user-approved"
+const budgetEscalationHint = "disposition each remaining finding in the latest recorded round file — tp review|audit <round file> --resolve <selector> wontfix|duplicate \"<evidence>\" (fixed only for a medium or low review finding: no round past the cap verifies a fix; accepting a blocking finding is the operator's decision); raising review_max_rounds/audit_max_rounds or import --force stay user-approved"
 
 // refuseIfBudgetExhausted exits 4 when a round cap is set, recorded rounds
 // have reached it, and the sequence is not converged. Evaluated before line

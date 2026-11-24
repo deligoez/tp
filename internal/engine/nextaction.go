@@ -176,7 +176,7 @@ func ReviewNextAction(specPath string, done LoopDone, blockingUnresolved bool, m
 		return clause + " — then " + CheckGateCommand(specPath)
 	case done.CapReached:
 		return "the review round cap is reached: disposition each remaining finding in " + roundFile +
-			" — tp review " + roundFile + " --resolve <index> fixed|wontfix|duplicate \"<evidence>\"; accepting a critical or high finding is the operator's decision — then " + importStep + earlier
+			" — tp review " + roundFile + " --resolve <index> wontfix|duplicate \"<evidence>\" (fixed only for a medium or low finding: no round past the cap verifies a fix); accepting a critical or high finding is the operator's decision — then " + importStep + earlier
 	case blockingUnresolved:
 		return "revise the spec where a blocking finding is a defect, or disposition it — tp review " + roundFile +
 			" --resolve <index> wontfix|duplicate \"<evidence>\", the operator's decision for a critical or high finding — then run the next review round" + earlier
@@ -256,7 +256,7 @@ func AuditNextAction(specPath string, done LoopDone, latestRoundClean bool, late
 		return AuditCarriedBlockingClause(done.CarriedBlocking, specPath, done.CapReached)
 	case done.CapReached:
 		return "the audit round cap is reached: disposition each remaining finding in " + roundFile +
-			" — tp audit " + roundFile + " --resolve <role:item_id> fixed|wontfix|duplicate \"<evidence>\"; accepting a finding without a code change is the operator's decision"
+			" — tp audit " + roundFile + " --resolve <role:item_id> wontfix|duplicate \"<evidence>\" (no round past the cap re-grades a fix); accepting a finding without a code change is the operator's decision"
 	case !latestRoundClean:
 		return "address the findings, then re-audit: tp audit " + specPath + " --record <file> — or, for a finding that needs no code change, tp audit " +
 			roundFile + " --resolve <role:item_id> wontfix|duplicate \"<evidence>\" (the operator's decision)"
