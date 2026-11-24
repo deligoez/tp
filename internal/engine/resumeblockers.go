@@ -228,7 +228,7 @@ func epicBlockedBlocker(in *BlockerInputs) *Blocker {
 	if in.Phase != PhaseImplement || blk == nil || !blk.Blocks() {
 		return nil
 	}
-	if _, wip, _ := ImplementPreview(in.TaskFile); wip {
+	if _, wip, _ := ImplementPreview(in.TaskFile); wip || len(AgentHeld(in.TaskFile)) > 0 {
 		return nil
 	}
 	b := &Blocker{
