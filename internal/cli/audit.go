@@ -347,7 +347,8 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 		Universe:  files,
 		TaskFiles: engine.GitTaskFileMapping(filepath.Dir(specPath), auditTasksOf(specPath), files),
 	}
-	if len(affectedFiles) > 0 || affectedFromTasks {
+	switch {
+	case len(affectedFiles) > 0 || affectedFromTasks:
 		// The caller REPLACED the universe, and auditDiffRanges reproduces the
 		// auto-detect comparison — a range that need not contain the paths the
 		// caller named. Measuring them against it does not fail loudly: git
@@ -358,11 +359,11 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 		inputs.DiffUnmeasured = true
 		// And the list is the operator's: the code roles get it whole.
 		inputs.Named = true
-	} else if fallback {
+	case fallback:
 		// The task-commit fallback is auto-detection's stand-in, so it is cut
 		// like it; but no comparison measured its files, so none carries churn.
 		inputs.DiffUnmeasured = true
-	} else {
+	default:
 		inputs.DiffStats = auditDiffStats(filepath.Dir(specPath), base)
 		inputs.Deleted = auditDeletedFiles(filepath.Dir(specPath), base)
 	}
