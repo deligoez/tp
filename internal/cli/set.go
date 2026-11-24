@@ -52,6 +52,8 @@ var (
 		"audit_converge_on": true,
 		// A JSON array of code role ids, parsed by parseTaskAuditRoles.
 		"task_audit_roles": true,
+		// spec/1.31.0.md §8's cap on a task file's found tasks.
+		"found_max": true,
 
 		// §7's integer run caps. runner is deliberately absent: it takes three
 		// shapes rather than a scalar, so it is authored in the file itself.
@@ -570,6 +572,8 @@ func runSetWorkflow(args []string) error {
 				tf.Workflow.ReviewMaxRounds = &v
 			case "audit_max_rounds":
 				tf.Workflow.AuditMaxRounds = &v
+			case "found_max":
+				tf.Workflow.FoundMax = &v
 			case "run_max_units":
 				tf.Workflow.RunMaxUnits = &v
 			case "run_max_wall_clock_seconds":
@@ -670,6 +674,8 @@ func workflowFieldRange(field string) (lo, hi int) {
 		return 1, 60
 	case "review_max_rounds", "audit_max_rounds":
 		return 0, 50
+	case "found_max":
+		return engine.FoundMaxMin, engine.FoundMaxMax
 	case "run_max_units":
 		return engine.RunMaxUnitsMin, engine.RunMaxUnitsMax
 	case "run_max_wall_clock_seconds":

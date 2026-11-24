@@ -191,6 +191,8 @@ func runSetProjectWorkflow(args []string) error {
 				pc.Workflow.ReviewMaxRounds = &v
 			case "audit_max_rounds":
 				pc.Workflow.AuditMaxRounds = &v
+			case "found_max":
+				pc.Workflow.FoundMax = &v
 			case "run_max_units":
 				pc.Workflow.RunMaxUnits = &v
 			case "run_max_wall_clock_seconds":
