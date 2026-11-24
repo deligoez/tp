@@ -68,3 +68,32 @@ func TestFoundQueue_AMissingFileIsAnEmptyQueue(t *testing.T) {
 	assert.NotNil(t, got)
 }
 
+func TestFoundQueue_AWriteWaitsForTheTaskFileLock(t *testing.T) {
+	_, taskFile := queueFixture(t)
+	require.NoError(t, os.MkdirAll(filepath.Dir(LockFilePath(taskFile)), 0o755))
+	held := flock.New(LockFilePath(taskFile))
+	locked, err := held.TryLock()
+	require.NoError(t, err)
+	require.True(t, locked)
+
+	done := make(chan error, 1)
+	go func() {
+		done <- UpdateFoundQueue(taskFile, func(q []FoundQueueEntry) ([]FoundQueueEntry, error) {
+			return append(q, FoundQueueEntry{Location: "a.go:1"}), nil
+		})
+	}()
+
+	select {
+	case err := <-done:
+		t.Fatalf("the queue was written while another process held the task-file lock (err %v)", err)
+	case <-time.After(200 * time.Millisecond):
+	}
+	_, statErr := os.Stat(FoundQueuePath(taskFile))
+	assert.ErrorIs(t, statErr, os.ErrNotExist)
+
+	require.NoError(t, held.Unlock())
+	require.NoError(t, <-done)
+	got, err := ReadFoundQueue(taskFile)
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+}
