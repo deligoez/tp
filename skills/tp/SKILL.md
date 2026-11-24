@@ -272,131 +272,70 @@ Same as B. `tp plan` excludes done tasks, puts WIP first. A wip task an agent sp
 
 Repeat until `tp audit <spec> --status --check` exits 0:
 
-**Task audits first (v1.22.0).** When `task_audit_roles` lists code roles, each closed task owes a task audit of its own files, in batches of at most ten files (REFERENCE, Task Audit). While one is owed the audit does not converge and `--status` names `task_audits_owed` (or `task_audits_unknown` when the task file cannot be read). Run each: `tp audit <spec> --task-audit` emits the batch due (null when none), one sub-agent per prompt writes its `output_path`, then `tp audit <spec> --task-audit --record-inbox` records it. A full batch is due mid-phase, the last partial one once every task is done. Its rows join the carried set below; a FAIL is fixed and `--resolve`d `fixed` in its `task-audit-<seq>.ndjson`, which makes one re-grade due before the next release round. `tp run` schedules all of this itself.
+**Task audits first.** When `task_audit_roles` lists code roles, each closed task owes a task audit
+of its own files; while one is owed the audit does not converge (`--status` names
+`task_audits_owed`). Run each: `tp audit <spec> --task-audit` emits the batch due (null when none),
+one sub-agent per prompt writes its `output_path`, then `tp audit <spec> --task-audit --record-inbox`.
+A FAIL is fixed and `--resolve`d `fixed` in its `task-audit-<seq>.ndjson`. `tp run` schedules these
+itself. Details: REFERENCE.md, "Task Audit".
 
-1. `tp audit <spec>` — emits one prompt per active auditor role from the corpus (defaults: `spec-coverage`, `security`, `maintainability-conventions`) with an embedded JSON-array checklist and its affected files. **spec-coverage is the only auditor id that changes routing** — it alone takes the spec-derived checklist and its own file selection; every other role, built-in or user-defined, receives one `file_check` item per file over the same shared code-file list: ranked by churn and cut to ten when auto-detected, whole when named. Each cut, and a universe that looks wrong (merge-only files, files no task touched), is named on stderr and in `notices`. Auto-detects changed files via git diff; `--affected-files` overrides, or `--affected-from-tasks` audits exactly the files touched by done tasks' `commit_shas`. Either named form goes uncut into each code role's one prompt, and a long one is read shallowly: in a measured trial a role given 121 files graded every one by pattern-scanning and missed most of what ten-file prompts found on the same files (v1.21.1, `named-list-one-prompt` in `notices`; `spec/1.21.1-measurements.md`). `graded N of M` counts rows returned, not files read. When no audit-able file is found it exits 4 with `suggested_files` (the same commit-derived list) and a hint. On a committed tree — the normal end of implement — `tp audit <spec>` and `tp audit <spec> --role <r>` find no changed files and exit 4 (`no changed files detected`); re-run them with `--affected-from-tasks`.
-2. Spawn one sub-agent per role prompt; each returns one NDJSON line per checklist item (`status` ∈ PASS/PARTIAL/FAIL).
-3. Merge the per-role files: `tp audit --merge r1.ndjson r2.ndjson ... -o results.ndjson` (no spec positional — `--merge` takes NDJSON inputs only and rejects a spec with exit 2). Rows sharing `role`+`item_id` collapse only when their verdict agrees; disagreeing rows are all kept and named under `conflicts`, with a stderr warning. The payload carries a status/role breakdown and the same per-input `inputs` accounting, exiting 1 on an input whose content rows all failed to parse. Then record: `tp audit <spec> --record results.ndjson` — a row counts as a finding when `status` is absent or ≠ `PASS`, under either `audit_converge_on` value; whether a round holding findings is nonetheless **clean** is that field's answer, not the finding count's (see below). The record also stores what each code role graded of its pool (`graded`, "graded N of M" in `next_action`). The audit round sequence is independent of review rounds.
-4. Fix the code for every non-PASS item, then record how each was closed in the recorded round file `--status` names (`audit_rounds[].file`): `tp audit <round file> --resolve <0-based index|role:item_id> <fixed|wontfix|duplicate> "<evidence>"`. A `role:item_id` selector disposes every non-PASS row under the key and reports how many as `disposed`; `--resolve-all` disposes every undisposed non-PASS row and skips PASS rows; `--force` overwrites a disposition already there. A resolve into a file no round lists changes nothing and says `recorded_round: false`. **An evidenced `wontfix` or `duplicate` clears its round**, live on `--status` and `--check`; `fixed` does not — the next round re-reads the repair. **A non-PASS row stays carried until a later round grades it PASS or it is accepted (v1.18.0):** empty rounds do not clear it, so it holds convergence open, at the cap too, and every later prompt's Prior Round block lists it, a row older than the previous round with the round it was graded in. The acceptance lasts: the Prior Round block shows each row's disposition, and the next `--record` carries it onto the same `(role, item_id)` non-PASS row while the row's `evidence_file` is unchanged (reported as `carried`; `fixed` is never carried). `--status` names carried rows as `carried_blocking_rows`, and `next_action` how each clears (REFERENCE, Audit convergence). A `wontfix`/`duplicate` with blank evidence exits 2. Accepting an audit finding without a code change is the operator's decision: under `TP_UNATTENDED` it exits 2 and escalates as `accept-finding`, while `fixed` stays unfenced.
-5. Repeat. `tp audit <spec> --status` shows `consecutive_clean`, `converged`, `done`/`done_by`, `stale`, `max_rounds`/`rounds_remaining`/`budget_exhausted` (`max_rounds` null and `budget_exhausted` absent only when uncapped), `in_flight_round`, `epochs` (present only once a `tp review --rewritten` epoch exists), and (with `--merge`/`--status`) an `overlap_report` — the audit-side signal for trimming a redundant auditor; with task audits, `task_audits` (the count recorded), `task_audits_owed` (task ids) or `task_audits_unknown` (an unreadable task file's path), `task_audits_nothing_to_read` and `task_audit_roles_outside_panel` (v1.22.0).
-6. **Read the divergence signal (v0.33.0).** `tp audit <spec> --status` and `tp audit <spec> --record <file>` also carry `role_streaks` (each role's `consecutive_clean`/`open` in the latest recorded round — the streak lengths show whether the remaining findings are backlog or a regression), `spec_coverage_clean_rounds` (that role's streak, or `null` when the latest round measured no conformance at all — `null` ≠ `0`, so an absent `divergence` beside it proves nothing), and `divergence`, emitted only when spec-coverage has reached the clean-round threshold while other roles still hold open findings. All three survive `--compact`; the emission conditions and field shapes are in [REFERENCE.md](REFERENCE.md).
+1. `tp audit <spec>` — one prompt per active auditor role, each with a JSON-array checklist and its
+   files. **spec-coverage is the only auditor id that changes routing**: it takes the spec-derived
+   checklist; every other role gets one `file_check` item per file of the shared code-file list
+   (ranked by churn and cut to ten when auto-detected; cuts are named in `notices`). On a committed
+   tree — the normal end of implement — no changed file is found (exit 4): use
+   `--affected-from-tasks`, or `--affected-files` to name files. A long named list is read
+   shallowly, so prefer the ten-file cut.
+2. Spawn one sub-agent per role prompt; each writes one NDJSON line per checklist item (`status` ∈
+   PASS/PARTIAL/FAIL) to its `output_path`.
+3. Merge and record: `tp audit --merge r1.ndjson ... -o results.ndjson && tp audit <spec> --record results.ndjson`.
+   Rows sharing `role`+`item_id` collapse only when their verdicts agree (`conflicts` names the
+   rest). A row not `PASS` is a finding; whether the round is **clean** is `audit_converge_on`'s
+   answer (below).
+4. Fix the code for every non-PASS row, then dispose of each in the recorded round file `--status`
+   names (`audit_rounds[].file`): `tp audit <round file> --resolve <0-based index|role:item_id> <fixed|wontfix|duplicate> "<evidence>"`,
+   or `--resolve-all`. An evidenced `wontfix`/`duplicate` clears its round; `fixed` waits for the
+   next round's re-read. **A non-PASS row stays carried until a later round grades it PASS or it is
+   accepted** — empty rounds do not clear it, at the cap too; an acceptance carries onto the same row
+   while its `evidence_file` is unchanged. Accepting an audit finding without a code change is the
+   operator's (`accept-finding`).
+5. Repeat. `--status` reports the verdict, `next_action`, `carried_blocking_rows` and the task-audit
+   counts; field list in REFERENCE.md, "State Directory".
+6. **Read the divergence signal.** `--status` and `--record` carry `role_streaks`,
+   `spec_coverage_clean_rounds` (`null` when the latest round measured no conformance — not `0`) and
+   `divergence`, emitted when spec-coverage reached its clean-round threshold while other roles still
+   hold open findings (REFERENCE.md, "Honest Convergence Signals").
 
-   **`divergence` gates nothing — it is reporting only.** Emitting it changes no convergence arithmetic, no stored per-round `clean` flag, no `next_action` and no `--status --check` exit code: audit convergence counts every non-PASS row the resolved policy does not accept, less the rows accepted `wontfix`/`duplicate` with evidence — so `--check` still exits 1 and `next_action` still names the next audit step. When `divergence` appears, **surface it and stop** — accepting findings outside spec conformance is a user-approved decision, never the agent's.
+   **`divergence` gates nothing — it is reporting only.** It changes no convergence arithmetic, no stored per-round `clean` flag, no `next_action` and no `--status --check` exit code: audit convergence counts every non-PASS row the resolved policy does not accept, less the rows accepted `wontfix`/`duplicate` with evidence. When `divergence` appears, **surface it and stop** — accepting findings outside spec conformance is the operator's decision.
 
 **Scope the audit, or it will not converge.** Neither value of `audit_converge_on` reads whether a
-row is about the spec or about the codebase at large: under `all` every non-`PASS` row counts against
-convergence, and under `blocking` a general lens's `error` counts exactly as a spec-coverage `error`
-does. General lenses (`go-safety`, `maintainability-conventions`, `ax-contract`) always find
-*something* in a real codebase, so there is no fixed point, and every repair round creates fresh
-surface for the next. **Watch `spec-coverage` separately** — tp reports it as
-`spec_coverage_clean_rounds` and names the split as `divergence`. Once it is clean for two rounds and
-no round has ever produced a FAIL, findings outside the spec's surface are backlog, not a release
-gate: the operator accepts them with `tp audit <round file> --resolve <role:item_id> wontfix
-"<evidence>"`, naming the version that will take them, and ships. Keep audit repairs minimal for the
-same reason — a repair that introduces a new abstraction is the next version's task, not this
-audit's.
+row is about the spec or the codebase at large, and general lenses (`go-safety`,
+`maintainability-conventions`, `ax-contract`) always find *something*. Watch `spec-coverage`
+separately (`spec_coverage_clean_rounds`, `divergence`): once it is clean for two rounds and no
+round ever produced a FAIL, findings outside the spec's surface are backlog — the operator accepts
+them with `tp audit <round file> --resolve <role:item_id> wontfix "<evidence>"`, naming the version
+that will take them, and ships. Keep audit repairs minimal: a new abstraction is the next version's
+task.
 
-**Run the round cheaply — four brief rules, none of them tp code.** A role's minutes buy probes —
-clones, mode matrices, mutants, repetition loops — and the probes are what find every `FAIL`, so the
-saving is in not repeating them, never in cutting them.
+**Run the round cheaply; the probes are what find every `FAIL`, so save on repeating them, never on
+cutting them.**
 
-1. **One clone, one binary, built by the orchestrator before the role stage.** `git clone
-   --no-hardlinks` HEAD once, `go build -o` inside it once, and hand every role the path with "do not
-   clone, do not build". A role that wants a mutant copies that tree with `rsync`.
-2. **One repair unit per independent item.** Two items share a unit only when they edit the same lines
-   of the same file.
-3. **Delta re-grade.** On a round with no repairs, the brief lists the previous round's `PASS` rows and
-   the role re-records them verbatim — `evidence_file` and `evidence_lines` carried — and re-measures
-   only the non-`PASS` rows. On a round after repairs, only rows whose `evidence_file` is untouched by
-   `git -c diff.external= diff --name-only <previous record sha>..HEAD` are carried, where the
-   previous record sha is the commit that first added the round file, followed across renames
-   (`git log --follow --diff-filter=A`). The orchestrator derives that list, the role does not guess
-   it; tp does not derive it yet.
-4. **The class-to-slug table goes into the brief before round 1.** A finding matching a class already
-   routed is recorded `PARTIAL` with its slug in the note and expects no repair; only a class the table
-   lacks reaches the orchestrator.
+1. **One clone, one binary**, built by the orchestrator before the role stage and handed to every role
+   with "do not clone, do not build"; a mutant copies that tree.
+2. **One repair unit per independent item**; two items share one only when they edit the same lines.
+3. **Delta re-grade**: the brief lists the previous round's `PASS` rows whose `evidence_file` the
+   repairs since that round's record commit did not touch; the role re-records those verbatim and
+   re-measures the rest. The orchestrator derives the list.
+4. **Give the brief the class-to-slug table before round 1**: a finding of an already-routed class
+   is recorded `PARTIAL` with its slug and expects no repair.
 
-Rules 1, 3 and 4 are mechanized in tp's own repository by `scripts/audit-round-prep.py <spec>`: it
-finds the previous recorded round, derives the carried rows from the record commit's diff, clones and
-builds once, reads the class-to-slug table from `.tp/routed-classes.json`, and prints one brief
-fragment per role. It exits 2 with nothing to carry when the previous round holds `file_check` ids of
-the earlier derivation (no `.<16 hex>` digest), since such an id names no item of the next round.
-
-### `audit_converge_on` — what an audit round has to be clean of (v0.37.0)
-
-A workflow field taking `all` or `blocking`, resolving **task override > project config > built-in**
-(there is no CLI flag and no `TP_<FIELD>` environment layer for a workflow field). Its built-in
-default is **`all`** — deliberately the opposite of `review_converge_on`'s `blocking`, and the
-behaviour tp shipped before the field existed, so a project that does not set it sees no change in
-what any gate decides.
-
-| value | an audit round is clean when |
-|---|---|
-| `all` (default) | the round has no non-`PASS` row |
-| `blocking` | no non-`PASS` row in the round carries a blocking severity |
-
-**Blocking severity is `error`** — audit rows use `error`/`warning`/`info`, a different vocabulary
-from review's `critical`/`high`, and neither field is read by the other phase. **A severity tp cannot
-grade is blocking, not ignored**: `severity: null`, an absent key, a non-string value, or a string
-outside the enum all keep the round unclean under `blocking`. A round is graded under the policy
-it was **recorded with** (stored as `converge_on`), so setting the knob governs rounds recorded
-afterwards and never re-grades recorded history — and symmetrically, one approved round of
-`blocking` keeps its `clean: true` after the knob returns to `all`. A disposition written later
-still clears a round, live. `role_streaks[].open`, `consecutive_clean` and `spec_coverage_clean_rounds` stay
-severity-blind, so under `blocking` a round can read `clean: true` beside a non-zero `open`; that is
-correct — `open` counts findings, `clean` answers whether the phase may end.
-
-An illegal literal at a write sink is a usage error (exit 2); an illegal value already stored, read
-by `tp audit --record`/`--status`, is a validation error (exit 1). Both carry
-`must be one of: blocking, all`.
-
-**`blocking` is opt-in and human-only.** Its four write paths — `tp set --workflow`, its `--project`
-form, `tp import`, and `tp config --extract` — are all fenced under `TP_UNATTENDED=1`, and the rule
-differs by sink because the sinks differ in shape. At `tp set --workflow`, `tp import` and
-`tp config --extract` a write that **changes the resolved value** to `blocking` exits 2; a write of
-`all` never trips it, and an import carrying an already-resolved `blocking` forward passes. At
-`tp set --workflow --project` the rule is the **value**: a `--project` write of `blocking` exits 2
-whatever any single base resolves today, because it lands in the layer every base resolves through —
-including bases tp cannot enumerate, such as one named with `--file` from outside the project root or
-one under `vendor/`. So that refusal names no base, and a `--project` write of `all` lands even in a
-tree holding a directory the scan cannot read. The other three keep the change rule because
-`tp import` carries the existing block forward, so a value rule there would refuse every import an
-opted-in project makes. An **attended** operator writes `blocking` at any sink
-with no refusal. Under a run, if the refusal is an authoring error the unit fixes the document itself
-(omit the imported document's top-level `workflow` key, or carry `"audit_converge_on": "<resolved>"`
-in it); if the unit
-**intends** the relax it records `tp escalate --decision audit-converge-on --evidence "<what you
-found>"` and the run stops for the operator.
-
-**`tp audit --merge` emits `by_severity`** — the round's non-`PASS` rows bucketed as
-`error`/`warning`/`info`/`unrecognised` — on any round holding a non-`PASS` row, under either
-policy, and it survives `--compact`. Under `blocking` it is how you see what a `clean: true` round
-accepted. Both audit sinks' `next_action` names that accepted count as a numeral on the converged
-branch and on the clean-but-not-converged branch, so an operator reading either learns the round
-closed over open rows.
-
-**Decide the default from the previous cycle's severity mix, before round 1.** The saving is only
-reachable when the field resolves before the first round is recorded — the moment you have none of
-this cycle's evidence — and `by_severity` is computed per round rather than persisted, so the
-previous cycle's mix is recoverable only by counting `severity` across its `audit-round-*.ndjson`.
-No flag derives it; this one-liner does:
-
-```bash
-python3 -c 'import json,sys,collections;print(collections.Counter((r.get("severity") if r.get("severity") in ("error","warning","info") else "unrecognised") for f in sys.argv[1:] for l in open(f) if l.strip() for r in [json.loads(l)] if r.get("status")!="PASS"))' <spec-dir>/.tp-review/<previous-version>/audit-round-*.ndjson
-```
-
-The glob is `audit-round-*.ndjson` on purpose: it is the recorded round, and it excludes the raw
-per-role files a round may leave in `audit-inbox/` beside it, which would double-count.
-Run against tp's own corpus it reports
-`Counter({'warning': 22, 'info': 17, 'error': 3})` for v0.35.0 and
-`Counter({'warning': 44, 'info': 32, 'error': 15})` for v0.36.0.
-
-**Read the `error` column, not the round saving.** On those two cycles `blocking` would have
-converged at round 3 where `all` took 9 and never — and it would have **shipped over an `error` row
-in both**, because v0.35.0's round 4 and v0.36.0's rounds 7, 12 and 13 each carry one *after* the
-point `blocking` halts. That is why `all` is the default. Setting `blocking` is choosing to gate on
-the audited agent's own self-declared `severity`, which nothing on the audit path validates — take
-it with the numbers above in front of you, per cycle, never as a standing repo default.
+**`audit_converge_on`** (`all` by default, or `blocking`) decides what a round must be clean of:
+under `all`, every non-PASS row; under `blocking`, only rows whose severity is `error` or that tp
+cannot grade. A round is graded under the policy it was recorded with, so the field must resolve
+**before audit round 1**. Setting `blocking` is an operator decision (fenced under `TP_UNATTENDED`;
+escalate `audit-converge-on`), because it gates on the auditor's own self-declared severity.
+`tp audit --merge` reports `by_severity`. Rules, sinks and how to choose: REFERENCE.md, "Workflow
+Fields".
 
 ## Workflow E: Epic graph (plan above the spec, v1.3.0)
 
