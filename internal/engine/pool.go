@@ -116,25 +116,7 @@ func (p *Pool) addFile(home, path string, live map[string]bool, others map[claim
 		return
 	}
 	rel := repoRelativeTo(home, path)
-	claimed := false
-	var busy []string
-	for i := range tf.Tasks {
-		task := &tf.Tasks[i]
-		if task.Status == model.StatusWIP {
-			busy = append(busy, task.ID)
-		}
-		if task.ClaimedBy == nil || task.ClaimedBy.Session != p.Session {
-			continue
-		}
-		claimed = true
-		switch {
-		case task.Status == model.StatusWIP:
-			p.classify(task, rel, live, others[claimKey{file: rel, id: task.ID}])
-		case task.Status == model.StatusDone && live[task.ClaimedBy.Spawn]:
-			// Closed, and its agent is still finishing: the slot is not free yet.
-			p.Running = append(p.Running, PoolTask{ID: task.ID, File: rel})
-		}
-	}
+	claimed, busy := p.addClaims(tf, rel, live, others)
 	if !claimed {
 		return
 	}
@@ -156,6 +138,38 @@ func (p *Pool) addFile(home, path string, live map[string]bool, others map[claim
 			p.Ready = append(p.Ready, PoolTask{ID: id, File: rel})
 		}
 	}
+}
+
+// addClaims classifies the session's claims in tf, the file at rel, and
+// returns whether the session coordinates the file and which tasks are wip.
+// A task a failed landing reopened lost its claim but is still this session's
+// to refill, so it keeps the session the file's coordinator.
+func (p *Pool) addClaims(tf *model.TaskFile, rel string, live map[string]bool, others map[claimKey]otherCopies) (claimed bool, busy []string) {
+	reopened := map[string]bool{}
+	if p.common != "" {
+		reopened = ReopenedFor(LandDirFor(p.common, rel), p.Session)
+	}
+	for i := range tf.Tasks {
+		task := &tf.Tasks[i]
+		if task.Status == model.StatusWIP {
+			busy = append(busy, task.ID)
+		}
+		if task.Status == model.StatusOpen && reopened[task.ID] {
+			claimed = true
+		}
+		if task.ClaimedBy == nil || task.ClaimedBy.Session != p.Session {
+			continue
+		}
+		claimed = true
+		switch {
+		case task.Status == model.StatusWIP:
+			p.classify(task, rel, live, others[claimKey{file: rel, id: task.ID}])
+		case task.Status == model.StatusDone && live[task.ClaimedBy.Spawn]:
+			// Closed, and its agent is still finishing: the slot is not free yet.
+			p.Running = append(p.Running, PoolTask{ID: task.ID, File: rel})
+		}
+	}
+	return claimed, busy
 }
 
 // classify puts one wip task the session claimed in its class: a land
