@@ -283,8 +283,9 @@ func TestLandRefusesToRunInAnAgentsWorktree(t *testing.T) {
 func TestLandReportsWhyTheGateFailed(t *testing.T) {
 	t.Parallel()
 	dir, wt := landRepo(t, "")
+	tokenClaim(t, dir, "toolu_W", "tokA0001")
 	sha := agentCommit(t, wt)
-	_, stderr, code := runTP(t, wt, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
+	_, stderr, code := runTP(t, wt, "done", "t1", "--commit", sha, "--claim-token", "tokA0001", "--", "t1 acceptance criteria met")
 	require.Equal(t, 0, code, stderr)
 	_, stderr, code = runTP(t, dir, "set", "--workflow", "--project", "quality_gate=test -f never.txt")
 	require.Equal(t, 0, code, stderr)
@@ -307,6 +308,8 @@ func TestLandReportsWhyTheGateFailed(t *testing.T) {
 	log, err := os.ReadFile(res.Reopened[0].Log)
 	require.NoError(t, err)
 	assert.NotContains(t, string(log), "--skip-gate", "the close's own log offers no skip either")
+	assert.Equal(t, map[string]any{"retired": []any{"tokA0001"}}, claimedBy(t, dir, "t1"),
+		"the reopen retires the failed agent's token, so its brief cannot spawn again")
 }
 
 // A worktree left over from an earlier landing has the task done; a close
