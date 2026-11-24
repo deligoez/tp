@@ -68,6 +68,15 @@ func TestBriefText_ClaimTokenFollowsTheMarker(t *testing.T) {
 	assert.True(t, strings.HasPrefix(b.Text(), "tp-task: unit spec/x.tasks.json\ntp-claim-token: k7f2ab01\n\n## Identity"), b.Text())
 }
 
+// TestCloseRecipeTextFor_TokenSitsInTheWorktreeCommand: under every strategy
+// the claim token is part of the worktree close command, and without one the
+// recipe names no flag.
+func TestCloseRecipeTextFor_TokenSitsInTheWorktreeCommand(t *testing.T) {
+	for _, strategy := range []string{CommitStrategyHC, CommitStrategyBuiltin, CommitStrategyAuto} {
+		assert.Contains(t, CloseRecipeTextFor(strategy, "", "k7f2ab01"), "--claim-token k7f2ab01 --", strategy)
+		assert.NotContains(t, CloseRecipeTextFor(strategy, "", ""), "--claim-token", strategy)
+	}
+}
 func TestBuildBrief_CompactDropsExcerptAndFileLists(t *testing.T) {
 	base := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	prior := doneTask("prior", "Prior", "- prior done", base)
