@@ -24,6 +24,9 @@ the very end, and only where it is truly needed.
    when pre-existing text excludes the rejected alternative; any spec-silent choice, or a compound
    finding with one spec-silent part, is `human`. Measured on the field: 62% of the non-Fix-shaped
    findings were spec-silent, and both findings that turned out wrong were non-Fix-shaped.
+7. **The decision unit stays, as a converter (2026-11-24).** Three answers, `task`, `conforms` and
+   `human`, each tied to a red or green reproduction and a verbatim quote; see "Decision unit
+   contract" below.
 
 ## Design inputs (from the tp-smart consultation)
 
@@ -148,19 +151,36 @@ borderline, two where the code already conforms (one pinned by a test).
 
 - **Right: 2 of 6.** Both spec-settled choices became `task` with the exact sentence quoted. One of
   them restated acceptance an open task already carried, and the unit said so.
-- **Forced by the two-answer set: 3 of 6.** Where the code already conforms, the unit answered
-  `task` with "expected = observed, add a pinning test" and said it would rather have answered
-  "already settled, no change". Each is a task that changes nothing.
-- **Legislated: 1 of 6.** A spec-silent choice answered `task`, citing a contrast between two
-  sections rather than a sentence that excludes the alternative; the unit itself called it
-  borderline.
-- **Over-escalated: 1 of 6.** A choice the spec's stated form settles went to `human`.
+- **A task that changes nothing: 3 of 6.** Where the code already conforms, the unit answered `task`
+  with "expected = observed, add a pinning test" and said it would rather have answered "already
+  settled, no change". One of the three rested on an inference (a contrast between two sections)
+  rather than a sentence; since expected equalled observed, it changed no code. Harmful
+  legislation was observed 0 times — but no input was a spec-silent choice with a red reproduction,
+  the only case where it would change code.
+- **To `human`: 1 of 6.** A choice the spec's stated form arguably settles; "the form excludes it"
+  is itself an inference, so this is not counted as an error.
 
-Consequences for the spec: the decision unit needs a third answer, `conforms` (the code already
-matches a quoted sentence or a pinning test; no task) — it is not `drop`, which discards a defect.
-A citation is a verbatim quote tp can find in the cited file; that catches an invented citation,
-not an inference passed off as one. A found request is checked against the open tasks' acceptance
-as well as against other requests.
+Every wrong `task` had expected = observed: a red reproduction on HEAD separates them.
+
+## Decision unit contract (operator decision 7, 2026-11-24, with the advisor)
+
+The decision unit converts a finding into the shape check; it does not judge. Three answers, each
+tied to evidence tp can check:
+
+- **`task`**: the Fix fields, a reproduction the unit ran and saw red, and a verbatim quote tp finds
+  in the cited file (spec, CONVENTIONS/CLAUDE.md, REFERENCE) or a named test. A green reproduction
+  can never be `task`.
+- **`conforms`**: the reproduction is green, plus a verbatim quote or a named passing test. No task
+  is opened. It is not `drop`, which would discard a defect.
+- **`human`**: everything else, including any answer that rests on an inference. Decision 6 stands.
+
+The human sees `task` and `conforms` answers as well as `human` ones. When in doubt the unit
+answers `human`: a wrong `human` costs a queue entry, a wrong `task` costs code. A `task` answer
+past the cap lands in the queue already decided, quote and reproduction attached, so the batch
+command settles it in one step. A finding inside an open task's files or acceptance is routed to
+that task and never becomes a found task. A found request holds one defect; dedup keys on the
+reproduction and merges the units it blocks; a blocking request goes first within the cap; units
+report what their own work ran into, never a sweep.
 
 ## Must be measured before building
 
