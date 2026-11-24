@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strings"
 
 	"github.com/deligoez/tp/internal/model"
@@ -14,7 +13,9 @@ import (
 // is the tasks a rolling pool is running now, which the driver passes from
 // memory (spec/backlog/rolling-implement.md §2); nil outside a pool.
 //
-// A wip task no pool and no agent spawn runs is an interrupted unit, resumed alone before
+// A wip task an agent spawn holds is that agent's: it is passed over, and only
+// a pool that passes it in running counts its slot (tp pool does). A wip task
+// no pool and no agent spawn runs is an interrupted unit, resumed alone before
 // anything new starts; a solo task, or one whose id cannot name a branch, runs
 // alone when it is next in line. Either waits, with nothing returned, while
 // the pool still runs, so the pool drains for it. Otherwise the ready tasks
@@ -23,14 +24,12 @@ import (
 // hint (v1.20.0): a task without them joins unscreened, and the pick and the
 // gate catch a clash. An empty result means nothing can start now.
 func ImplementUnits(tf *model.TaskFile, maxParallel int, running []string) []string {
-	// A task an agent spawn holds runs, in that agent, whoever drives.
-	running = append(slices.Clone(running), AgentHeld(tf)...)
 	busy := make(map[string]bool, len(running))
 	for _, id := range running {
 		busy[id] = true
 	}
 	for i := range tf.Tasks {
-		if t := &tf.Tasks[i]; t.Status == model.StatusWIP && !busy[t.ID] {
+		if t := &tf.Tasks[i]; t.Status == model.StatusWIP && !busy[t.ID] && !SpawnClaimed(t) {
 			return aloneOnceDrained(t.ID, running)
 		}
 	}
