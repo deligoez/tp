@@ -78,3 +78,17 @@ func TestMapRows_BlocksFollowTheirMeanForestColumn(t *testing.T) {
 	}
 }
 
+// TestMapRows_ALayerIsCentredInItsBlock: A is two columns wide (layer 1
+// holds two epics), so its lone epics of layers 0 and 2 sit half-way
+// across it and layer 1's two side by side in forest order.
+func TestMapRows_ALayerIsCentredInItsBlock(t *testing.T) {
+	t.Parallel()
+	in := threeBands()
+	got := MapRows(&in)
+	a := mapBlockOf(t, got.Blocks, "A")
+	assert.InDelta(t, 1.0, a.ToCol-a.FromCol, 0)
+	assert.InDelta(t, a.FromCol+0.5, got.Places["a0"].X, 0)
+	assert.InDelta(t, a.FromCol, got.Places["a1"].X, 0)
+	assert.InDelta(t, a.FromCol+1, got.Places["a2"].X, 0)
+}
+
