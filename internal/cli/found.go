@@ -83,7 +83,7 @@ func runFoundApply() error {
 	}
 	foundMax := engine.EffectiveWorkflowForTaskFile(taskFilePath).FoundMax
 	root := engine.CanonicalProjectRoot(filepath.Dir(taskFilePath))
-	plan, err := applyFoundRequests(root, taskFilePath, foundMax)
+	plan, err := applyFoundRequests(root, taskFilePath, foundMax, engine.FoundRunningUnits(root, taskFilePath, implementUnitTask()))
 	if err != nil {
 		output.Error(ExitFile, "cannot apply the requests: "+err.Error(), foundStoreWriteHint)
 		os.Exit(ExitFile)
@@ -209,10 +209,11 @@ func runFoundAdd(f *foundAddFlags) error {
 // (spec/1.31.0.md §2): it plans over the requests read under the store's
 // lock, so a request filed meanwhile is either in this batch or left
 // unapplied for the next, then writes the task file, the queue and the
-// store. It returns the plan with its queue entries numbered.
-func applyFoundRequests(root, taskFilePath string, foundMax int) (engine.FoundApplyPlan, error) {
+// store. An audit unit's requests wait until their round is recorded. running
+// names the tasks a unit runs now, whose finders apply never reopens. It
+// returns the plan with its queue entries numbered.
+func applyFoundRequests(root, taskFilePath string, foundMax int, running map[string]bool) (engine.FoundApplyPlan, error) {
 	var plan engine.FoundApplyPlan
-	running := engine.FoundRunningUnits(root, taskFilePath, implementUnitTask())
 	err := engine.WithFileLock(taskFilePath, func() error {
 		tf, err := model.ReadTaskFile(taskFilePath)
 		if err != nil {
@@ -222,8 +223,10 @@ func applyFoundRequests(root, taskFilePath string, foundMax int) (engine.FoundAp
 		if err != nil {
 			return err
 		}
+		specPath, _ := engine.ResolveSpecPath(taskFilePath, tf.Spec)
+		auditRecorded := engine.RecordedAuditRound(specPath)
 		return engine.UpdateFoundRequests(root, taskFilePath, func(reqs []engine.FoundRequest) ([]engine.FoundRequest, error) {
-			plan = engine.PlanFoundApply(reqs, tf.Tasks, queue, foundMax)
+			plan = engine.PlanFoundApplyRecorded(reqs, tf.Tasks, queue, foundMax, auditRecorded)
 			reopen := func(tasks []model.Task, entries []engine.FoundQueueEntry) []string {
 				return engine.FoundFindersToReopen(reqs, tasks, append(slices.Clone(queue), entries...), running)
 			}
