@@ -56,6 +56,7 @@ batch: exit 2, nothing written.`,
 
 // runFoundSettle implements tp found settle (spec/1.31.0.md §6).
 func runFoundSettle(f *foundSettleFlags) error {
+	fenceFoundSettle()
 	rows, msg := foundSettleRows(f)
 	if msg != "" {
 		return foundRefusal(msg, foundSettleHint)
