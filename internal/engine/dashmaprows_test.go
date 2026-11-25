@@ -65,7 +65,7 @@ func TestMapRows_BandsSharingALayerMakeOneRow(t *testing.T) {
 }
 
 // TestMapRows_BlocksFollowTheirMeanForestColumn: B's epics sit left of A's
-// in the forest, so B's block comes first, two empty columns before A's,
+// in the forest, so B's block comes first, one empty column before A's,
 // every node inside its own block.
 func TestMapRows_BlocksFollowTheirMeanForestColumn(t *testing.T) {
 	t.Parallel()
@@ -73,7 +73,7 @@ func TestMapRows_BlocksFollowTheirMeanForestColumn(t *testing.T) {
 	got := MapRows(&in)
 	a, b := mapBlockOf(t, got.Blocks, "A"), mapBlockOf(t, got.Blocks, "B")
 	assert.Less(t, b.ToCol, a.FromCol)
-	assert.InDelta(t, 2.0, a.FromCol-b.ToCol-1, 0, "two empty columns between blocks")
+	assert.InDelta(t, 1.0, a.FromCol-b.ToCol-1, 0, "one empty column between blocks")
 	for _, id := range in.IDs {
 		blk, p := mapBlockOf(t, got.Blocks, in.Group[id]), got.Places[id]
 		assert.True(t, blk.FromCol <= p.X && p.X <= blk.ToCol && blk.FromY <= p.Y && p.Y <= blk.ToY, "%s at %+v outside %+v", id, p, blk)
@@ -117,8 +117,9 @@ func TestMapRows_AWideLayerFoldsAndEveryLayerKeepsOneY(t *testing.T) {
 }
 
 // TestMapRows_BlocksWrapInsideTheWidth: five two-column blocks sharing
-// layers do not fit nine columns, so they wrap onto lines of two blocks,
-// each line centred, no block past the width, the lines stacked down.
+// layers do not fit nine columns, so they wrap onto lines of three blocks
+// and two, each line centred, no block past the width, the lines stacked
+// down.
 func TestMapRows_BlocksWrapInsideTheWidth(t *testing.T) {
 	t.Parallel()
 	var nodes []mapNode
@@ -131,14 +132,14 @@ func TestMapRows_BlocksWrapInsideTheWidth(t *testing.T) {
 	in := mapInput(9, bands, nodes...)
 	got := MapRows(&in)
 	require.Len(t, got.Rows, 1)
-	assert.Equal(t, 3, got.Rows[0].Lines)
+	assert.Equal(t, 2, got.Rows[0].Lines)
 	for _, b := range got.Blocks {
 		assert.True(t, b.FromCol >= 0 && b.ToCol < 9, "%+v", b)
 	}
-	m0, m1, m2 := mapBlockOf(t, got.Blocks, "M0"), mapBlockOf(t, got.Blocks, "M1"), mapBlockOf(t, got.Blocks, "M2")
-	assert.Equal(t, []int{0, 0, 1}, []int{m0.Line, m1.Line, m2.Line})
-	assert.InDelta(t, 1.5, m0.FromCol, 0, "a six-column line centred in nine")
-	assert.Less(t, m0.ToY, m2.FromY)
+	m0, m2, m3 := mapBlockOf(t, got.Blocks, "M0"), mapBlockOf(t, got.Blocks, "M2"), mapBlockOf(t, got.Blocks, "M3")
+	assert.Equal(t, []int{0, 0, 1}, []int{m0.Line, m2.Line, m3.Line})
+	assert.InDelta(t, 0.5, m0.FromCol, 0, "an eight-column line centred in nine")
+	assert.Less(t, m0.ToY, m3.FromY)
 }
 
 // TestMapRows_ADividerSplitsEachGap: one divider per pair of neighbouring
