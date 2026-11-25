@@ -114,3 +114,24 @@ func TestForestLayout_ACycleMergedRunGivesOneBlockPerMilestone(t *testing.T) {
 	}
 }
 
+// TestForestLayout_BlocksKeepTheLayers: laying out in blocks moves columns
+// only, so every node keeps its layer and every edge but a back edge still
+// points down.
+func TestForestLayout_BlocksKeepTheLayers(t *testing.T) {
+	t.Parallel()
+	for _, mk := range []func(ForestPacking) ForestInput{twoLanes, cycleRun} {
+		in := mk(PackRows)
+		blocks := ForestLayout(&in)
+		in.Blocks = false
+		plain := ForestLayout(&in)
+		for _, id := range in.IDs {
+			assert.Equal(t, plain.Places[id].Layer, blocks.Places[id].Layer, id)
+		}
+		for i, e := range in.Edges {
+			if blocks.Roles[i] != RoleBack {
+				assert.Less(t, blocks.Places[e.From].Layer, blocks.Places[e.To].Layer, "%s->%s", e.From, e.To)
+			}
+		}
+	}
+}
+
