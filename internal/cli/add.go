@@ -36,6 +36,7 @@ func newAddCmd() *cobra.Command {
 }
 
 func runAdd(_ *cobra.Command, args []string) error {
+	fenceTaskGraphWrite("tp add")
 	if addFile != "" {
 		return addTasks(readBulkTasks(addFile))
 	}

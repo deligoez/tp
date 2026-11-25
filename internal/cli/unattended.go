@@ -54,6 +54,50 @@ func fenceEpicWrite(what string) {
 	}
 }
 
+// foundAddRoute is the route a fenced task-graph write points a unit at: a
+// defect outside its own task is recorded as a request, never as a task.
+const foundAddRoute = "record what you found instead, one defect per request: tp found add --location <file:line> --reproduction <command> --expected <text> --observed <text>"
+
+// fenceTaskGraphWrite refuses a task-graph write — tp add, tp import, tp set
+// depends_on — from a run unit (spec/1.31.0.md §9). A decompose unit is the
+// one kind that builds the graph, so it alone passes. The fence keys on the
+// unit kind, not on TP_UNATTENDED alone: outside a unit nothing changes. It
+// runs before any input is read, so the refusal holds whatever the write is.
+func fenceTaskGraphWrite(what string) {
+	kind, ok := runUnitKind()
+	if !ok || kind == engine.UnitDecompose {
+		return
+	}
+	output.Error(ExitUsage,
+		fmt.Sprintf("%s changes the task graph, which a %s unit does not do under tp run", what, kind),
+		foundAddRoute)
+	os.Exit(ExitUsage)
+}
+
+// fenceFoundSettle refuses tp found settle from a run unit of any kind,
+// decompose included: settling a queue entry is the person's step.
+func fenceFoundSettle() {
+	kind, ok := runUnitKind()
+	if !ok {
+		return
+	}
+	output.Error(ExitUsage,
+		fmt.Sprintf("tp found settle is the person's step, which a %s unit does not take under tp run", kind),
+		foundAddRoute)
+	os.Exit(ExitUsage)
+}
+
+// runUnitKind reports the unit kind this process runs as under tp run: both
+// TP_UNATTENDED and a non-empty TP_UNIT_KIND, the pair the driver exports to
+// every unit.
+func runUnitKind() (engine.UnitKind, bool) {
+	kind := os.Getenv(engine.EnvUnitKind)
+	if !engine.Unattended() || kind == "" {
+		return "", false
+	}
+	return engine.UnitKind(kind), true
+}
+
 // fenceEpicOperatorWrite refuses a done record, a met record or a binding
 // under TP_UNATTENDED, the removals included (spec/1.5.0.md §7): each is the
 // operator's, and decision is the name a unit escalates it under. tp epic
