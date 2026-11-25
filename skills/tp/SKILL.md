@@ -220,6 +220,7 @@ unit has finished.
 
 1. **Atomicity**: Each task = 1 commit, 1 verb, 1-15 min estimated
    - ≤3 acceptance criteria, ≤8 word title (no conjunctions), ≤2 source_sections
+   - `description` is at most 300 characters: `tp validate` and `tp import` refuse a longer one
    - `estimate_minutes` is required on every task: `tp import` and `tp add` exit 1 without it
    - If >3 criteria, split by concern axis
 2. **Concern axes** for splitting: types/models → logic/engine → validation → CLI/wiring → tests → docs
