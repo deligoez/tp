@@ -91,6 +91,7 @@ found:
 found add: alternative audit-row blocks expected location observed question reproduction task
 found answer: cite expected location observed quote reproduction
 found apply:
+found decide:
 found settle: expected observed reject task
 gate:
 graph: from tag

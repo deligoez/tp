@@ -77,6 +77,7 @@ var commandSides = map[string]string{
 	"tp found add":    sideFile,
 	"tp found answer": sideFile,
 	"tp found apply":  sideFile,
+	"tp found decide": sideFile,
 	"tp found settle": sideFile,
 	// tp claims takes no task file: it reads every task file of every
 	// worktree of the working directory's repository.
