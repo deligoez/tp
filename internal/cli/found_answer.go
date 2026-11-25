@@ -95,6 +95,12 @@ func runFoundAnswer(id, kind string, f *foundAnswerFlags) error {
 	if errors.Is(err, errFoundAnswerRefused) {
 		return foundRefusal(strings.TrimSuffix(err.Error(), ": "+errFoundAnswerRefused.Error()), foundAnswerHint)
 	}
+	var lockErr *engine.LockTimeoutError
+	if errors.As(err, &lockErr) {
+		// §12.2: either lock timing out is a state error (exit 4), which the
+		// root dispatcher maps with the lock's own hint.
+		return err
+	}
 	if err != nil {
 		output.Error(ExitFile, "cannot record the answer: "+err.Error(), foundStoreWriteHint)
 		os.Exit(ExitFile)
