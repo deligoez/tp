@@ -15,7 +15,50 @@ const (
 	needDecision   = "decision"
 	needCap        = "cap"
 	needLand       = "land"
+	needRun        = "run"
 )
+
+// runStopTexts words each stop reason that leaves the run waiting for a
+// person. converged and no-units are absent: a run that converged needs
+// nobody, and one with no unit to run is reported by the blocker that
+// stopped it.
+var runStopTexts = map[engine.StopReason]string{
+	engine.StopCapUnits:            "The run stopped at its limit on units.",
+	engine.StopCapWallClock:        "The run stopped at its time limit.",
+	engine.StopCapBudget:           "The run stopped at its spending limit.",
+	engine.StopEscalation:          "The run stopped on a unit's question, and the question cannot be read.",
+	engine.StopUnitFailure:         "The run stopped: a unit failed every attempt.",
+	engine.StopInterrupted:         "The run was interrupted before it finished.",
+	engine.StopDriverError:         "The run stopped on an error of its own.",
+	engine.StopWorktreeSetupFailed: "The run stopped: setting up a worktree for a unit failed.",
+}
+
+// runNeeds is the need a run left behind, if any: a crashed run (its driver
+// gone without a stop reason) and a run stopped for any reason but converged
+// or no-units. An escalation stop whose records were read is already named by
+// their needs, so it adds none. The id is the last unit's, the one the stop
+// is about.
+func runNeeds(st *engine.RunState, runState string, escalations []nowNeed) []nowNeed {
+	var text string
+	switch {
+	case runState == runStateCrashed:
+		text = "The last run stopped without finishing: its driver is gone."
+	case st.StopReason == nil, *st.StopReason == engine.StopConverged, *st.StopReason == engine.StopNoUnits:
+		return nil
+	case *st.StopReason == engine.StopEscalation && len(escalations) > 0:
+		return nil
+	default:
+		var ok bool
+		if text, ok = runStopTexts[*st.StopReason]; !ok {
+			text = fmt.Sprintf("The run stopped (%s).", *st.StopReason)
+		}
+	}
+	need := nowNeed{Kind: needRun, Text: text}
+	if u := lastRunUnit(st); u != nil {
+		need.ID = u.ID
+	}
+	return []nowNeed{need}
+}
 
 // escalationTexts words each operator decision a unit can escalate
 // (engine.EscalationDecisions) as what the unit asks of you.

@@ -209,8 +209,9 @@ func nowLandings(taskFilePath string, tf *model.TaskFile) []nowLand {
 }
 
 // nowRunOf is the current or last run of the task file as tp run --status
-// reports it, the tasks it holds now (runHeldUnits), and the escalations it
-// stopped on; nil and none when no run was ever driven over it. A run state
+// reports it, the tasks it holds now (runHeldUnits), and what it waits on
+// a person for (escalationNeeds, runNeeds); nil and none when no run was ever
+// driven over it. A run state
 // that cannot be read is said on stderr and reported as no run, so the rest
 // of the payload still reaches the pane.
 func nowRunOf(root, taskFilePath string) (run map[string]any, held map[string]*engine.RunUnitRow, escalations []nowNeed) {
@@ -225,7 +226,10 @@ func nowRunOf(root, taskFilePath string) (run map[string]any, held map[string]*e
 	run = runStatusPayload(st, taskFilePath, &wf)
 	run["last_finished"] = lastFinishedUnit(st)
 	slots, _ := run["running"].([]runningSlot)
-	return run, runHeldUnits(st, slots, root, taskFilePath), escalationNeeds(root, st)
+	needs := escalationNeeds(root, st)
+	runState, _ := run["run_state"].(string)
+	needs = append(needs, runNeeds(st, runState, needs)...)
+	return run, runHeldUnits(st, slots, root, taskFilePath), needs
 }
 
 // runHeldUnits maps each task the run holds now to its latest implement
