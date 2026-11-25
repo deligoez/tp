@@ -78,6 +78,7 @@ func runReopen(_ *cobra.Command, args []string) error {
 		task.ClaimedBy = task.ClaimedBy.Released()
 		task.GateSkippedReason = nil
 		task.TaskAuditOwed = nil
+		task.HandedBack = false
 		tf.UpdatedAt = time.Now().UTC()
 
 		if err := model.WriteTaskFile(taskFilePath, tf); err != nil {
