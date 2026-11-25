@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -46,6 +47,32 @@ type FoundRequest struct {
 	Finder       FoundFinder `json:"finder"`
 	FiledAt      string      `json:"filed_at"`
 	State        string      `json:"state"`
+}
+
+// FixShaped reports whether req carries all four Fix fields — location,
+// reproduction, expected and observed behaviour — each non-blank.
+func (req *FoundRequest) FixShaped() bool {
+	for _, field := range []string{req.Location, req.Reproduction, req.Expected, req.Observed} {
+		if strings.TrimSpace(field) == "" {
+			return false
+		}
+	}
+	return true
+}
+
+// FoundRequestShapeError returns why req is not a request tp found add may
+// record, or "" when it is (spec/1.31.0.md §1): it needs a location and a
+// reproduction, and either all four Fix fields or a question.
+func FoundRequestShapeError(req *FoundRequest) string {
+	switch {
+	case strings.TrimSpace(req.Location) == "":
+		return "a request needs a location (file:line)"
+	case strings.TrimSpace(req.Reproduction) == "":
+		return "a request needs a reproduction: a command or test that shows the defect"
+	case !req.FixShaped() && strings.TrimSpace(req.Question) == "":
+		return "a request needs either all four Fix fields (location, reproduction, expected, observed) or a question"
+	}
+	return ""
 }
 
 // foundStore is the store file's shape.
