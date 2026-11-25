@@ -10,6 +10,8 @@ import (
 	"github.com/gofrs/flock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/deligoez/tp/internal/model"
 )
 
 func queueFixture(t *testing.T) (root, taskFile string) {
@@ -66,6 +68,21 @@ func TestFoundQueue_AMissingFileIsAnEmptyQueue(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, got)
 	assert.NotNil(t, got)
+}
+
+// No queue file counts none; a queue file that exists and cannot be parsed is
+// an error for the count, as it is for ReadFoundQueue, not an empty queue.
+func TestFoundOpenCount_AnUnparsableQueueIsAnError(t *testing.T) {
+	_, taskFile := queueFixture(t)
+	open, err := FoundOpenCount(taskFile)
+	require.NoError(t, err)
+	assert.Equal(t, 0, open)
+
+	require.NoError(t, os.WriteFile(FoundQueuePath(taskFile), []byte("{bad"), 0o600))
+	_, err = FoundOpenCount(taskFile)
+	require.ErrorContains(t, err, "parse found queue")
+	_, err = FoundQueueCounts(taskFile, &model.TaskFile{})
+	require.ErrorContains(t, err, "parse found queue")
 }
 
 func TestFoundQueue_AWriteWaitsForTheTaskFileLock(t *testing.T) {
