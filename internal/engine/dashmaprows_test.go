@@ -60,6 +60,8 @@ func TestMapRows_BandsSharingALayerMakeOneRow(t *testing.T) {
 	assert.Equal(t, 1, got.Rows[1].Milestones)
 	assert.Equal(t, 1, mapBlockOf(t, got.Blocks, "C").Row)
 	assert.Equal(t, 1, mapBlockOf(t, got.Blocks, "C").Count)
+	assert.InDelta(t, got.Rows[1].FromY, mapBlockOf(t, got.Blocks, "C").LineY, 0, "a block names its line's header y")
+	assert.InDelta(t, got.Rows[1].FromY+1, mapBlockOf(t, got.Blocks, "C").FromY, 0)
 }
 
 // TestMapRows_BlocksFollowTheirMeanForestColumn: B's epics sit left of A's
