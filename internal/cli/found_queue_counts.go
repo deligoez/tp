@@ -35,7 +35,7 @@ func noteFoundOpen(result map[string]any, taskFilePath string, converged bool) {
 }
 
 // exitFoundQueueError ends a --status read whose queue file cannot be read or
-// parsed, as tp found list does, instead of reporting it as an empty queue.
+// parsed with a file error, instead of reporting it as an empty queue.
 func exitFoundQueueError(err error) {
 	output.Error(ExitFile, fmt.Sprintf("cannot read found queue: %v", err), "fix or restore the queue file beside the task file")
 	os.Exit(ExitFile)

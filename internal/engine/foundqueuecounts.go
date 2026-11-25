@@ -12,7 +12,7 @@ type FoundQueueCount struct {
 // FoundOpenCount is the number of open entries in the queue beside taskFile:
 // the count a converged payload carries. No task file or no queue file counts
 // none; a queue file that cannot be read or parsed is ReadFoundQueue's error,
-// as tp found list reports it, never an empty queue counted as zero.
+// never an empty queue counted as zero.
 func FoundOpenCount(taskFile string) (int, error) {
 	if taskFile == "" {
 		return 0, nil

@@ -106,8 +106,8 @@ func writeMistypedQueue(t *testing.T, dir string) {
 		[]byte(`{"entries":[{"id":"Q1","state":"open","location":"x.go:1","question":5}]}`), 0o600))
 }
 
-// A queue file that cannot be parsed fails a converged --status payload, as it
-// fails tp found list, instead of reporting an empty queue as found_open: 0.
+// A queue file that cannot be parsed fails a converged --status payload with a
+// file error, instead of reporting an empty queue as found_open: 0.
 func TestFoundQueue_AnUnparsableQueueFailsTheConvergedStatus(t *testing.T) {
 	t.Parallel()
 	for _, phase := range []string{"review", "audit"} {
@@ -128,7 +128,7 @@ func TestFoundQueue_AnUnparsableQueueFailsTheConvergedStatus(t *testing.T) {
 			writeMistypedQueue(t, dir)
 
 			stdout, stderr, code := runTPFence(t, dir, false, phase, "spec.md", "--status")
-			assert.Equal(t, 3, code, "exit 3 (file error), as tp found list exits; stdout=%s stderr=%s", stdout, stderr)
+			assert.Equal(t, 3, code, "exit 3, a file error; stdout=%s stderr=%s", stdout, stderr)
 			assert.Contains(t, stderr, "cannot read found queue")
 			assert.NotContains(t, stdout, `"found_open"`, "no count is reported for a queue that was not read")
 		})
