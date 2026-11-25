@@ -204,7 +204,11 @@ func nowHeldTasks(tf *model.TaskFile) []nowHeld {
 		if t.Status != model.StatusWIP {
 			continue
 		}
-		out = append(out, nowHeld{ID: t.ID, Title: t.Title, Holder: "you", Since: rfc3339(t.StartedAt)})
+		holder := "you"
+		if t.ClaimedBy != nil && t.ClaimedBy.Spawn != "" {
+			holder = "agent"
+		}
+		out = append(out, nowHeld{ID: t.ID, Title: t.Title, Holder: holder, Since: rfc3339(t.StartedAt)})
 	}
 	return out
 }
