@@ -321,7 +321,10 @@ func closePending(root, taskFile, id string) error {
 	if err != nil {
 		return err
 	}
-	wd, _ := os.Getwd()
+	wd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("worktree of the pending close: %w", err)
+	}
 	return engine.WritePendingClose(root, taskFile, &engine.PendingClose{
 		ID: id, Reason: "- implemented by the fake runner, a bulleted reason as the brief invites", Commits: []string{strings.TrimSpace(string(sha))}, Worktree: wd,
 	})
