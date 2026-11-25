@@ -277,6 +277,7 @@ func LoadProjectConfig(tpDir string) (model.ProjectConfig, []string, error) {
 		}
 	}
 	if raw, ok := top["panel"]; ok {
+		pc.Panel = raw
 		warnings = append(warnings, panelWarnings(raw)...)
 	}
 	if wfRaw, ok := top["workflow"]; ok {

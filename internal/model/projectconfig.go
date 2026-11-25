@@ -14,6 +14,9 @@ type ProjectConfig struct {
 	// Epic holds the project's epic graph settings; nil when the file has no
 	// epic key, so a write does not add one.
 	Epic *EpicProjectConfig `json:"epic,omitempty"`
+	// Panel is the plugin panel's block, kept verbatim: tp acts on nothing
+	// in it, and a write of the file must not drop it. Nil when absent.
+	Panel json.RawMessage `json:"panel,omitempty"`
 }
 
 // EpicProjectConfig is .tp/config.json's epic block.
