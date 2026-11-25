@@ -348,6 +348,34 @@ func TestNow_EscalationBecomesADecision(t *testing.T) {
 	assert.Contains(t, need["text"], "audit")
 }
 
+// Escalation records are read in unit sequence order, numerically: unit 2's
+// before unit 10's.
+func TestNow_EscalationsInNumericSequenceOrder(t *testing.T) {
+	t.Parallel()
+	dir := runProject(t)
+	writeRunState(t, dir, `{"run_id":"esc","started_at":"2026-11-25T00:00:00Z","phase":"implement","stop_reason":"escalation",
+ "totals":{"units":2,"wall_clock_seconds":3,"spend_usd":0},
+ "units":[{"seq":2,"kind":"implement","id":"early","attempt":1,"exit_code":2,"duration_seconds":3,"spend_usd":null,"log_path":"x"},
+          {"seq":10,"kind":"implement","id":"late","attempt":1,"exit_code":2,"duration_seconds":3,"spend_usd":null,"log_path":"y"}]}`)
+	for seq, unit := range map[string]string{"2": "early", "10": "late"} {
+		_, err := engine.WriteEscalation(engine.RunDir(dir, "esc"), seq, &engine.Escalation{
+			Decision: engine.EscalateSkipGate, UnitKind: engine.UnitImplement, UnitID: unit, Phase: "implement",
+			Evidence: "e", At: "2026-11-25T00:00:03Z",
+		})
+		require.NoError(t, err)
+	}
+
+	stdout, stderr, code := runTP(t, dir, "now")
+	require.Equal(t, 0, code, "tp now: %s", stderr)
+	var ids []any
+	for _, n := range decodeNow(t, stdout)["needs_you"].([]any) {
+		if need := n.(map[string]any); need["kind"] == "decision" {
+			ids = append(ids, need["id"])
+		}
+	}
+	assert.Equal(t, []any{"early", "late"}, ids)
+}
+
 // A run whose driver died without a stop reason waits for a person: needs_you
 // says so in plain words.
 func TestNow_CrashedRunIsANeed(t *testing.T) {
