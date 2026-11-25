@@ -595,6 +595,97 @@
       "recorded_at": "2026-11-25T02:20:21Z",
       "file": "task-audit-11.ndjson",
       "findings": 1
+    },
+    {
+      "seq": 12,
+      "members": [
+        {
+          "id": "found-placement",
+          "closed_at": "2026-11-25T02:18:17.605869Z",
+          "piece": 0,
+          "pieces": 1,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/cli/found.go",
+            "internal/cli/found_place_test.go",
+            "internal/engine/foundapply_test.go",
+            "internal/engine/foundplace.go",
+            "internal/engine/foundplace_test.go"
+          ]
+        }
+      ],
+      "files": [
+        "internal/cli/found.go",
+        "internal/cli/found_place_test.go",
+        "internal/engine/foundapply_test.go",
+        "internal/engine/foundplace.go",
+        "internal/engine/foundplace_test.go"
+      ],
+      "roles": [
+        "go-safety"
+      ],
+      "head": "38681ea7fd8078c823f258e45d993c715bb9113a",
+      "emitted_at": "2026-11-25T02:42:43.047607Z",
+      "recorded_at": "2026-11-25T02:44:27Z",
+      "file": "task-audit-12.ndjson",
+      "findings": 1
+    },
+    {
+      "seq": 13,
+      "members": [
+        {
+          "id": "found-placement",
+          "closed_at": "2026-11-25T02:18:17.605869Z",
+          "piece": 1,
+          "pieces": 2,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/engine/foundapply.go"
+          ]
+        },
+        {
+          "id": "decision-answer-cmd",
+          "closed_at": "2026-11-25T02:42:35.454193Z",
+          "piece": 0,
+          "pieces": 1,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/cli/command_sides.go",
+            "internal/cli/found.go",
+            "internal/cli/found_answer.go",
+            "internal/cli/found_answer_test.go",
+            "internal/cli/nongoals_surface_test.go",
+            "internal/engine/foundanswer.go",
+            "internal/engine/foundanswer_test.go",
+            "internal/engine/foundqueue.go"
+          ]
+        }
+      ],
+      "files": [
+        "internal/engine/foundapply.go",
+        "internal/cli/command_sides.go",
+        "internal/cli/found.go",
+        "internal/cli/found_answer.go",
+        "internal/cli/found_answer_test.go",
+        "internal/cli/nongoals_surface_test.go",
+        "internal/engine/foundanswer.go",
+        "internal/engine/foundanswer_test.go",
+        "internal/engine/foundqueue.go"
+      ],
+      "roles": [
+        "go-safety"
+      ],
+      "head": "59557fc2aa7846f47d45db92e4e1751f42426e0b",
+      "emitted_at": "2026-11-25T02:51:21.318926Z",
+      "recorded_at": "2026-11-25T02:53:06Z",
+      "file": "task-audit-13.ndjson",
+      "findings": 2
     }
   ]
 }
