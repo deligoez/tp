@@ -1,0 +1,144 @@
+{
+  "version": 1,
+  "spec": "spec/backlog/panel-dashboard.md",
+  "created_at": "2026-11-25T13:47:09.155402Z",
+  "updated_at": "2026-11-25T13:47:16.683163Z",
+  "workflow": {},
+  "coverage": {
+    "total_sections": 6,
+    "mapped_sections": 2,
+    "context_only": [
+      "# The panel as a small dashboard",
+      "## Alternatives",
+      "## Non-goals",
+      "## Settled at build time, not here"
+    ],
+    "unmapped": []
+  },
+  "tasks": [
+    {
+      "id": "tp-now",
+      "title": "Add the tp now command",
+      "status": "wip",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 120,
+      "acceptance": "tp now --json returns the contract payload. Tests cover held, landing, run and epics. Docs list the command.",
+      "source_sections": [
+        "## Decision"
+      ],
+      "touches": [
+        "internal/**",
+        "skills/**",
+        "README.md"
+      ],
+      "started_at": "2026-11-25T13:47:16.664327Z",
+      "duration_source": "claimed",
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "panel",
+      "title": "Grow the panel into a dashboard",
+      "status": "wip",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 120,
+      "acceptance": "Now, Tasks, Epics, Run views and a task detail render from tp now. Turkish and English tables. Falls back to tp run --status.",
+      "source_sections": [
+        "## Decision",
+        "## Rules it keeps"
+      ],
+      "touches": [
+        "hooks/**",
+        "types/**",
+        "tests/**"
+      ],
+      "started_at": "2026-11-25T13:47:16.683163Z",
+      "duration_source": "claimed",
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "merge",
+      "title": "Land both branches on main",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "tp-now",
+        "panel"
+      ],
+      "estimate_minutes": 30,
+      "acceptance": "Both worktree branches are on main. The full gate passes. The panel reads the real tp now.",
+      "source_sections": [
+        "## Decision"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "review",
+      "title": "Review the dashboard diff",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "merge"
+      ],
+      "estimate_minutes": 60,
+      "acceptance": "Two independent reviewers read the diff. Every finding is fixed or recorded.",
+      "source_sections": [
+        "## Rules it keeps"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "demo",
+      "title": "Show the dashboard to the operator",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "review"
+      ],
+      "estimate_minutes": 20,
+      "acceptance": "The operator sees the Now view in Turkish and English on a live demo run.",
+      "source_sections": [
+        "## Decision"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "release",
+      "title": "Release 1.33.0",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "demo"
+      ],
+      "estimate_minutes": 40,
+      "acceptance": "CI is green, v1.33.0 is tagged and released, the plugin is updated.",
+      "source_sections": [
+        "## Decision"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
+}
