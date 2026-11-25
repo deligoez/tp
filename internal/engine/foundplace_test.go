@@ -125,3 +125,13 @@ func TestPlanFoundApply_TheCycleCheckFollowsLongerPaths(t *testing.T) {
 	assert.Contains(t, plan.Entries[0].Question, "finder -> t1 -> t2 -> finder")
 }
 
+// A finder that already depends on the outcome gains no second copy of the edge.
+func TestPlanFoundApply_AnExistingEdgeIsNotAddedTwice(t *testing.T) {
+	req := dedupRequest(1, "x.go:3", "go test -run TestX", FoundStateUnapplied)
+	req.Blocks = true
+
+	plan := PlanFoundApply([]FoundRequest{req}, []model.Task{finderTask("finder", "t1"), touchingTask("t1", model.StatusOpen, "x.go")}, nil, 5)
+
+	assert.Empty(t, plan.Edges)
+	assert.Empty(t, plan.Entries)
+}
