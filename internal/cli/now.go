@@ -171,9 +171,9 @@ func buildNow(taskFilePath string, tf *model.TaskFile) (*nowResult, error) {
 	res.NextAction = resume.NextAction.Summary
 	res.Tasks = nowTaskCounts(tf)
 	res.Ready = nowReady(tf)
-	run, slots, escalations := nowRunOf(root, taskFilePath)
+	run, runHeld, escalations := nowRunOf(root, taskFilePath)
 	res.Run = run
-	res.Held = nowHeldTasks(tf, slots)
+	res.Held = nowHeldTasks(tf, runHeld)
 	res.Landing = nowLandings(taskFilePath, tf)
 	res.NeedsYou = append(blockerNeeds(resume.Blockers), escalations...)
 	for _, l := range res.Landing {
@@ -209,11 +209,11 @@ func nowLandings(taskFilePath string, tf *model.TaskFile) []nowLand {
 }
 
 // nowRunOf is the current or last run of the task file as tp run --status
-// reports it, the slots it runs now, and the escalations it stopped on; nil
-// and none when no run was ever driven over it. A run state that cannot be
-// read is said on stderr and reported as no run, so the rest of the payload
-// still reaches the pane.
-func nowRunOf(root, taskFilePath string) (run map[string]any, slots []runningSlot, escalations []nowNeed) {
+// reports it, the tasks it holds now (runHeldUnits), and the escalations it
+// stopped on; nil and none when no run was ever driven over it. A run state
+// that cannot be read is said on stderr and reported as no run, so the rest
+// of the payload still reaches the pane.
+func nowRunOf(root, taskFilePath string) (run map[string]any, held map[string]*engine.RunUnitRow, escalations []nowNeed) {
 	st, err := engine.ReadRunState(root, taskFilePath)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
@@ -224,8 +224,37 @@ func nowRunOf(root, taskFilePath string) (run map[string]any, slots []runningSlo
 	wf := engine.EffectiveWorkflowForTaskFile(taskFilePath)
 	run = runStatusPayload(st, taskFilePath, &wf)
 	run["last_finished"] = lastFinishedUnit(st)
-	slots, _ = run["running"].([]runningSlot)
-	return run, slots, escalationNeeds(root, st)
+	slots, _ := run["running"].([]runningSlot)
+	return run, runHeldUnits(st, slots, root, taskFilePath), escalationNeeds(root, st)
+}
+
+// runHeldUnits maps each task the run holds now to its latest implement
+// row, nil when it has none: the implement slots an in-flight run is running,
+// and every pool member engine.LiveRunningUnits names, which is the whole pool
+// of an in-flight run (a member stays pooled through its integration and the
+// main gate after its unit exits) and a dead driver's units still running.
+func runHeldUnits(st *engine.RunState, slots []runningSlot, root, taskFilePath string) map[string]*engine.RunUnitRow {
+	ids := engine.LiveRunningUnits(root, taskFilePath)
+	for i := range slots {
+		if slots[i].Kind == engine.UnitImplement {
+			ids = append(ids, slots[i].ID)
+		}
+	}
+	held := make(map[string]*engine.RunUnitRow, len(ids))
+	for _, id := range ids {
+		held[id] = latestImplementRow(st, id)
+	}
+	return held
+}
+
+// latestImplementRow is st's last implement row for task id, or nil.
+func latestImplementRow(st *engine.RunState, id string) *engine.RunUnitRow {
+	for i := len(st.Units) - 1; i >= 0; i-- {
+		if u := &st.Units[i]; u.Kind == engine.UnitImplement && u.ID == id {
+			return u
+		}
+	}
+	return nil
 }
 
 // nowFinished is the latest unit attempt that exited.
@@ -272,15 +301,9 @@ func nowReady(tf *model.TaskFile) []nowTask {
 }
 
 // nowHeldTasks lists tf's wip tasks in file order, each with who holds it:
-// the run when one of slots, a live run's, runs it; an agent when a spawn's
-// claim holds it; else you.
-func nowHeldTasks(tf *model.TaskFile, slots []runningSlot) []nowHeld {
-	byTask := map[string]*runningSlot{}
-	for i := range slots {
-		if slots[i].Kind == engine.UnitImplement {
-			byTask[slots[i].ID] = &slots[i]
-		}
-	}
+// the run when runHeld names it, with the worktree and attempt of its latest
+// row; an agent when a spawn's claim holds it; else you.
+func nowHeldTasks(tf *model.TaskFile, runHeld map[string]*engine.RunUnitRow) []nowHeld {
 	out := []nowHeld{}
 	for i := range tf.Tasks {
 		t := &tf.Tasks[i]
@@ -288,16 +311,18 @@ func nowHeldTasks(tf *model.TaskFile, slots []runningSlot) []nowHeld {
 			continue
 		}
 		row := nowHeld{ID: t.ID, Title: t.Title, Holder: "you", Since: rfc3339(t.StartedAt)}
-		switch slot := byTask[t.ID]; {
-		case slot != nil:
-			row.Holder, row.Attempt = "run", &slot.Attempt
-			if slot.Worktree != "" {
-				row.Worktree = &slot.Worktree
+		if unit, byRun := runHeld[t.ID]; byRun {
+			row.Holder = "run"
+			if unit != nil {
+				row.Attempt = &unit.Attempt
+				if unit.Worktree != "" {
+					row.Worktree = &unit.Worktree
+				}
+				if row.Since == nil && unit.StartedAt != "" {
+					row.Since = &unit.StartedAt
+				}
 			}
-			if row.Since == nil && slot.StartedAt != "" {
-				row.Since = &slot.StartedAt
-			}
-		case t.ClaimedBy != nil && t.ClaimedBy.Spawn != "":
+		} else if t.ClaimedBy != nil && t.ClaimedBy.Spawn != "" {
 			row.Holder = "agent"
 		}
 		out = append(out, row)
