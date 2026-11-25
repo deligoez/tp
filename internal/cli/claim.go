@@ -208,6 +208,10 @@ func claimBatch(tf *model.TaskFile, taskFilePath string, ids []string) error {
 			})
 			continue
 		}
+		if msg := claimOverlapRefusal(tf, task); msg != "" {
+			failures = append(failures, claimFailure{ID: id, Error: msg})
+			continue
+		}
 
 		blocked := false
 		for _, dep := range task.DependsOn {
