@@ -94,19 +94,24 @@ func keptUnitBranch(root, taskFile, branch string) bool {
 // whichever run cut it: a pending close a restarted driver integrates was
 // left by an earlier run. "" when none does.
 func unitBranchOf(root, taskFile, id, sha string) string {
-	if !SafeGitRev(sha) {
-		return ""
-	}
-	refs, err := gitOut(root, "for-each-ref", "--contains", sha, "--format=%(refname:short)", "refs/heads/"+unitBranchPrefix+cycleTag(root, taskFile)+"/")
-	if err != nil {
-		return ""
-	}
-	for branch := range strings.FieldsSeq(refs) {
+	for _, branch := range branchesContaining(root, sha, "refs/heads/"+unitBranchPrefix+cycleTag(root, taskFile)+"/") {
 		if strings.HasSuffix(branch, "/"+id) {
 			return branch
 		}
 	}
 	return ""
+}
+
+// branchesContaining lists the local branches under prefix that hold sha.
+func branchesContaining(root, sha, prefix string) []string {
+	if !SafeGitRev(sha) {
+		return nil
+	}
+	refs, err := gitOut(root, "for-each-ref", "--contains", sha, "--format=%(refname:short)", prefix)
+	if err != nil {
+		return nil
+	}
+	return strings.Fields(refs)
 }
 
 // CycleUnitBranches lists the unit branches the task file's pools left that
