@@ -64,3 +64,21 @@ func TestPlanFoundApply_ABlockingDuplicatesFinderDependsOnTheKeptTask(t *testing
 	assert.Equal(t, "found-f1", plan.Requests[1].Outcome)
 }
 
+// §4: a non-blocking duplicate or attachment adds no edge; a blocking
+// attachment makes the finder depend on the task it was attached to.
+func TestPlanFoundApply_OnlyABlockingAttachmentAddsAnEdge(t *testing.T) {
+	tasks := []model.Task{finderTask("finder"), touchingTask("t1", model.StatusOpen, "x.go")}
+	quiet := dedupRequest(1, "x.go:3", "go test -run TestA", FoundStateUnapplied)
+	dupOfQuiet := dedupRequest(2, "x.go:9", "go test -run TestA", FoundStateUnapplied)
+	dupOfQuiet.Finder.Task = "other"
+
+	plan := PlanFoundApply([]FoundRequest{quiet, dupOfQuiet}, tasks, nil, 5)
+	assert.Equal(t, map[string]string{"F1": "t1"}, planAttachedTasks(&plan))
+	assert.Empty(t, plan.Edges, "a non-blocking attachment and its duplicate add no edge")
+
+	loud := dedupRequest(3, "x.go:3", "go test -run TestB", FoundStateUnapplied)
+	loud.Blocks = true
+	plan = PlanFoundApply([]FoundRequest{loud}, tasks, nil, 5)
+	assert.Equal(t, []FoundEdge{{Task: "finder", DependsOn: "t1"}}, plan.Edges)
+}
+
