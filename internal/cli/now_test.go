@@ -8,6 +8,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/deligoez/tp/internal/engine"
+	"github.com/deligoez/tp/internal/fakerunner"
 )
 
 // decodeNow parses a `tp now` payload.
@@ -153,4 +156,26 @@ func TestNow_LiveRunHoldsItsRunningSlot(t *testing.T) {
 	assert.Equal(t, "run", row["holder"], "a live run holds the task it runs")
 	assert.Equal(t, "/elsewhere/seed", row["worktree"])
 	assert.Equal(t, 1.0, row["attempt"])
+}
+
+// A run driven through the runner seam leaves exited units: last_finished is
+// the latest of them, with its exit code and duration.
+func TestNow_RunReportsTheLastFinishedUnit(t *testing.T) {
+	t.Parallel()
+	dir := runProject(t)
+	_, stderr, code := runTPEnv(t, dir, append(seamEnv(t), fakerunner.EnvDurable+"=1"), "run")
+	require.Equal(t, 4, code, "the run stops without converging: %s", stderr)
+
+	stdout, stderr, code := runTP(t, dir, "now")
+	require.Equal(t, 0, code, "tp now: %s", stderr)
+	run, ok := decodeNow(t, stdout)["run"].(map[string]any)
+	require.True(t, ok, "a run state gives a run")
+	assert.Equal(t, "stopped", run["run_state"])
+	last, ok := run["last_finished"].(map[string]any)
+	require.True(t, ok, "the run's units exited, so one is the last finished: %v", run["last_finished"])
+	assert.Equal(t, string(engine.UnitAuditRecord), last["kind"], "the record unit ran last")
+	assert.Equal(t, "1", last["id"])
+	assert.Equal(t, 2.0, last["attempt"], "its second attempt")
+	assert.Contains(t, last, "exit_code")
+	assert.NotNil(t, last["duration_seconds"])
 }
