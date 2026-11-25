@@ -449,6 +449,63 @@
       "recorded_at": "2026-11-25T01:02:02Z",
       "file": "task-audit-8.ndjson",
       "clean": true
+    },
+    {
+      "seq": 9,
+      "members": [
+        {
+          "id": "found-apply-dedup",
+          "closed_at": "2026-11-25T01:00:54.505875Z",
+          "piece": 0,
+          "pieces": 1,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/engine/founddedup.go",
+            "internal/engine/founddedup_test.go",
+            "internal/engine/foundrequest_test.go"
+          ]
+        },
+        {
+          "id": "found-apply-open",
+          "closed_at": "2026-11-25T01:19:33.644246Z",
+          "piece": 0,
+          "pieces": 1,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/cli/command_sides.go",
+            "internal/cli/found.go",
+            "internal/cli/found_apply_test.go",
+            "internal/cli/nongoals_surface_test.go",
+            "internal/engine/foundapply.go",
+            "internal/engine/foundapply_test.go",
+            "internal/engine/foundqueue.go"
+          ]
+        }
+      ],
+      "files": [
+        "internal/engine/founddedup.go",
+        "internal/engine/founddedup_test.go",
+        "internal/engine/foundrequest_test.go",
+        "internal/cli/command_sides.go",
+        "internal/cli/found.go",
+        "internal/cli/found_apply_test.go",
+        "internal/cli/nongoals_surface_test.go",
+        "internal/engine/foundapply.go",
+        "internal/engine/foundapply_test.go",
+        "internal/engine/foundqueue.go"
+      ],
+      "roles": [
+        "go-safety"
+      ],
+      "head": "9b103671d7c704c5cf2a45a092d9dec660c7bb26",
+      "emitted_at": "2026-11-25T01:22:52.835155Z",
+      "recorded_at": "2026-11-25T01:29:32Z",
+      "file": "task-audit-9.ndjson",
+      "findings": 1
     }
   ]
 }
