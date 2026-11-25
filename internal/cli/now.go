@@ -119,7 +119,7 @@ func runNow(_ *cobra.Command, _ []string) error {
 			exitNow("no tp project found: no task file and no .tp/ directory up to the git boundary", "run tp init <spec> in the project")
 		}
 		res := emptyNow(engine.ProjectRoot("."))
-		res.Epics = nowEpics(".")
+		res.Epics = nowEpics(".", flagEpicFile)
 		return output.JSON(res)
 	}
 	tf, err := model.ReadTaskFile(taskFilePath)
@@ -185,7 +185,7 @@ func buildNow(taskFilePath string, tf *model.TaskFile) (*nowResult, error) {
 	for _, l := range res.Landing {
 		res.NeedsYou = append(res.NeedsYou, landNeed(l.ID))
 	}
-	res.Epics = nowEpics(root)
+	res.Epics = nowEpics(root, flagEpicFile)
 	return res, nil
 }
 

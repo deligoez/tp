@@ -16,8 +16,9 @@ import (
 // bind any epic or none: it is named on stderr and skipped, and the epics are
 // reported from the files that can be read. A graph that cannot be read, or a
 // state that cannot be derived, is said on stderr and reported as nil, so the
-// rest of the payload still reaches the pane.
-func nowEpics(start string) []nowEpic {
+// rest of the payload still reaches the pane. With only set (tp now --epic)
+// the list holds that epic alone.
+func nowEpics(start, only string) []nowEpic {
 	tpDir := engine.DiscoverTPDir(start)
 	if tpDir == "" {
 		return nil
@@ -42,6 +43,9 @@ func nowEpics(start string) []nowEpic {
 	out := make([]nowEpic, 0, len(g.Epics))
 	for i := range g.Epics {
 		e := &g.Epics[i]
+		if only != "" && e.ID != only {
+			continue
+		}
 		row := nowEpic{ID: e.ID, Name: e.Title, State: "open"}
 		if states[e.ID].Status == engine.EpicStatusDone {
 			row.State = "done"
