@@ -116,9 +116,12 @@
     // reaches minPx on screen. Deviation from DESIGN.md's 14px tiny type,
     // by operator decision: a whole id at 10px a zoom click earlier reads
     // better than none, in the strongest text token (at least 14:1 on
-    // every node fill) and medium weight, and grows from there.
+    // every node fill) and medium weight, and grows from there to maxPx:
+    // past it the text keeps its size while the box grows, so a box seen
+    // close holds its id with room round it (about 60% of its width two
+    // clicks after the ids appear).
     map: {
-      w: 212, h: 56, col: 224, row: 68, fs: 22, pad: 6, lh: 1.15, lineGap: 220, minPx: 10, font: "Inter, system-ui, sans-serif" },
+      w: 212, h: 56, col: 224, row: 68, fs: 22, pad: 6, lh: 1.15, lineGap: 220, minPx: 10, maxPx: 13, font: "Inter, system-ui, sans-serif" },
   };
   // measureEm is a map label's width in font sizes, the sum of its
   // characters' advances in the map's face at medium weight, as deck.gl's
@@ -635,7 +638,7 @@
       }),
       new TextLayer({
         id: "ids", data: P.nodes, visible: G.detail === "near", getPosition: (n) => [n.x, n.y + n.h / 2], getText: nodeText,
-        getSize: (n) => P.geo.fs * n.fit, sizeUnits: "common", getTextAnchor: "middle", getAlignmentBaseline: "center", lineHeight: P.geo.lh || 1.25,
+        getSize: (n) => P.geo.fs * n.fit, sizeUnits: "common", sizeMaxPixels: P.geo.maxPx || Number.MAX_SAFE_INTEGER, getTextAnchor: "middle", getAlignmentBaseline: "center", lineHeight: P.geo.lh || 1.25,
         getColor: (n) => [...c.ink, nodeAlpha(P, hits, n) >= 170 ? 255 : 70],
         fontFamily: P.geo.font || "ui-monospace, SFMono-Regular, Menlo, monospace", fontWeight: P.geo.font ? 500 : "normal",
         characterSet: P.charSet, fontSettings, updateTriggers: { getColor: v, getText: v },
