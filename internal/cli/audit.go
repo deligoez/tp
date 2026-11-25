@@ -768,7 +768,9 @@ func filesChangedSinceRound(specPath string, round *engine.ReviewRound) map[stri
 		// -c diff.external= for the same reason scripts/audit-round-prep.py sets
 		// it: under a configured external differ, `git diff` from a non-TTY child
 		// can answer near-empty, and a delta built on that carries every row.
-		for _, f := range execGitPaths(dir, "-c diff.external= diff --name-only", "-c", "diff.external=", "diff", "--name-only", base+"..HEAD") {
+		// --no-renames: under rename detection a moved file lists only its new
+		// path, and an acceptance citing the old one would carry.
+		for _, f := range execGitPaths(dir, "-c diff.external= diff --no-renames --name-only", "-c", "diff.external=", "diff", "--no-renames", "--name-only", base+"..HEAD") {
 			changed[f] = true
 		}
 	} else {
@@ -787,7 +789,7 @@ func filesChangedSinceRound(specPath string, round *engine.ReviewRound) map[stri
 // leaves the committed delta to decide.
 func filesChangedInWorkingTree(dir string) []string {
 	var files []string
-	if out, err := gitQuiet(dir, "-c", "diff.external=", "diff", "--no-ext-diff", "--no-relative", "--name-only", "-z", "HEAD"); err == nil {
+	if out, err := gitQuiet(dir, "-c", "diff.external=", "diff", "--no-ext-diff", "--no-relative", "--no-renames", "--name-only", "-z", "HEAD"); err == nil {
 		files = append(files, splitNulPaths([]byte(out))...)
 	}
 	if out, err := gitQuiet(dir, "ls-files", "--others", "--exclude-standard", "--full-name", "-z", "--", ":/"); err == nil {
@@ -857,7 +859,7 @@ func filesChangedSince(dir, since string) map[string]bool {
 	if since == "" {
 		return changed
 	}
-	for _, f := range execGitPaths(dir, "log --since --name-only", "log", "--since="+since, "--name-only", "--pretty=format:") {
+	for _, f := range execGitPaths(dir, "log --since --no-renames --name-only", "log", "--since="+since, "--no-renames", "--name-only", "--pretty=format:") {
 		changed[f] = true
 	}
 	return changed
