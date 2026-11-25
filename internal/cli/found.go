@@ -26,9 +26,9 @@ const foundStoreWriteHint = "check that the project's .tp/ directory exists and 
 
 // foundAddFlags are tp found add's inputs: the request's fields as flags.
 type foundAddFlags struct {
-	location, reproduction, expected, observed, question, task string
-	alternatives                                               []string
-	blocks                                                     bool
+	location, reproduction, expected, observed, question, task, auditRow string
+	alternatives                                                         []string
+	blocks                                                               bool
 }
 
 func newFoundCmd() *cobra.Command {
@@ -139,7 +139,12 @@ exits 2 and records nothing.
 
 --blocks marks a request the caller's task cannot pass without. It needs a wip
 task the caller works: under tp run an implement unit's own task, or the one
---task names.`,
+--task names.
+
+--audit-row role:item_id files a Fix-shaped finding outside the spec's
+surface from the in-flight audit round's row, on an item that round did not
+ask the role; recording the round names the request in that row's
+disposition, and the request is applied only after.`,
 		Args: cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return runFoundAdd(&f)
@@ -155,6 +160,7 @@ task the caller works: under tp run an implement unit's own task, or the one
 	cmd.Flags().StringArrayVar(&f.alternatives, "alternative", nil, "one way to answer --question (repeatable)")
 	cmd.Flags().BoolVar(&f.blocks, "blocks", false, "the caller's task cannot pass without this request")
 	cmd.Flags().StringVar(&f.task, "task", "", "the wip task the caller works (an implement unit's own by default)")
+	cmd.Flags().StringVar(&f.auditRow, "audit-row", "", "the in-flight audit round's row (role:item_id) an out-of-surface finding is filed from")
 	return cmd
 }
 
@@ -189,6 +195,9 @@ func runFoundAdd(f *foundAddFlags) error {
 		return foundRefusal("--blocks needs a task the caller works, and none is named", foundBlocksHint)
 	}
 	req.Finder.Task = finder
+	if f.auditRow != "" {
+		req.Finder = foundAuditRowFinder(taskFilePath, f, req)
+	}
 
 	root := engine.CanonicalProjectRoot(filepath.Dir(taskFilePath))
 	stored, err := engine.AddFoundRequest(root, taskFilePath, req)
