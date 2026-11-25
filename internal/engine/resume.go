@@ -53,6 +53,9 @@ type ResumeResult struct {
 	// RunningUnits names the implement units a live run's rolling pool runs
 	// now, left out of NextUnits (spec/backlog/rolling-implement.md §2).
 	RunningUnits []string `json:"running_units,omitempty"`
+	// FoundQueue counts the spec's open queue entries and the tasks they
+	// hold (spec/1.31.0.md §6); nil when none is open. It moves no phase.
+	FoundQueue *FoundQueueCount `json:"found_queue,omitempty"`
 	// EpicNotice is the epic block's notice (EpicBlock.Notice) of an implement
 	// phase: the file is bound to an epic the graph does not hold, or there is
 	// no graph file, so it behaves as unbound. It is not part of the payload;
