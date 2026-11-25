@@ -63,9 +63,11 @@ func TestFoundRequestWithEveryFieldRoundTrips(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, UpdateFoundRequests(root, taskFile, func(reqs []FoundRequest) ([]FoundRequest, error) {
 		reqs[0].State = FoundStateUndecided
+		reqs[0].Outcome = "found-f1"
 		return reqs, nil
 	}))
 	added.State = FoundStateUndecided
+	added.Outcome = "found-f1"
 	assertNoZeroField(t, "", reflect.ValueOf(added))
 
 	loaded, err := ReadFoundRequests(root, taskFile)
