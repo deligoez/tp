@@ -250,3 +250,14 @@ func TestPure_AWrapNeverLeavesASuffixAlone(t *testing.T) {
 	got := runPure(t, `out([P.wrapId("Alpha Beta Gamma-I", 17), P.wrapId("Delta Epsilon-II", 15), P.wrapId("Zeta Eta Theta-AI-I", 18), P.wrapId("abcdefghijklmnopq-II", 18), P.wrapId("abcdefghijklmnopqrstu", 20)]);`)
 	assert.JSONEq(t, `[["Alpha Beta", "Gamma-I"], ["Delta", "Epsilon-II"], ["Zeta Eta", "Theta-AI-I"], ["abcdefghijklmnopq-II"], ["abcdefghijklmnopqrstu"]]`, got)
 }
+
+// TestPure_AShortIdKeepsItsHeadAndItsSuffix: a shortened id keeps as much
+// of its head as fits before an ellipsis and its suffix group whole, so
+// "-I" and "-II" siblings still differ; a suffix that leaves under three
+// characters of head is cut with the rest, and an id that fits is left
+// alone.
+func TestPure_AShortIdKeepsItsHeadAndItsSuffix(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([P.shortId("Alpha Beta Gamma-II", 9), P.shortId("Alpha-I", 9), P.shortId("inventory-export", 9), P.shortId("Zeta Eta Theta-AI-II", 9)]);`)
+	assert.JSONEq(t, `["Alpha…-II", "Alpha-I", "inventor…", "Zeta Eta…"]`, got)
+}
