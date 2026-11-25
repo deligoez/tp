@@ -766,6 +766,223 @@
       "recorded_at": "2026-11-25T03:26:24Z",
       "file": "task-audit-15.ndjson",
       "clean": true
+    },
+    {
+      "seq": 16,
+      "members": [
+        {
+          "id": "found-settle-cmd",
+          "closed_at": "2026-11-25T03:08:43.963163Z",
+          "piece": 1,
+          "pieces": 2,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/cli/found.go"
+          ]
+        },
+        {
+          "id": "run-applies-requests",
+          "closed_at": "2026-11-25T03:22:04.809845Z",
+          "piece": 0,
+          "pieces": 1,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/cli/found.go",
+            "internal/cli/run.go",
+            "internal/cli/run_close.go",
+            "internal/cli/run_found_test.go",
+            "internal/engine/driver.go",
+            "internal/engine/driver_pool.go",
+            "internal/engine/foundhold.go",
+            "internal/fakerunner/cmd/tp-fake-runner/main.go",
+            "internal/fakerunner/fakerunner.go"
+          ]
+        }
+      ],
+      "files": [
+        "internal/cli/found.go",
+        "internal/cli/found.go",
+        "internal/cli/run.go",
+        "internal/cli/run_close.go",
+        "internal/cli/run_found_test.go",
+        "internal/engine/driver.go",
+        "internal/engine/driver_pool.go",
+        "internal/engine/foundhold.go",
+        "internal/fakerunner/cmd/tp-fake-runner/main.go",
+        "internal/fakerunner/fakerunner.go"
+      ],
+      "roles": [
+        "go-safety"
+      ],
+      "head": "4b708dc9af64ad4ab78ca1a1cf8fab674c7e792a",
+      "emitted_at": "2026-11-25T04:02:57.358997Z",
+      "recorded_at": "2026-11-25T04:05:13Z",
+      "file": "task-audit-16.ndjson",
+      "findings": 3
+    },
+    {
+      "seq": 17,
+      "members": [
+        {
+          "id": "found-fence",
+          "closed_at": "2026-11-25T03:34:49.747718Z",
+          "piece": 0,
+          "pieces": 1,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/cli/add.go",
+            "internal/cli/found_fence_test.go",
+            "internal/cli/found_settle.go",
+            "internal/cli/importcmd.go",
+            "internal/cli/set.go",
+            "internal/cli/unattended.go"
+          ]
+        }
+      ],
+      "files": [
+        "internal/cli/add.go",
+        "internal/cli/found_fence_test.go",
+        "internal/cli/found_settle.go",
+        "internal/cli/importcmd.go",
+        "internal/cli/set.go",
+        "internal/cli/unattended.go"
+      ],
+      "roles": [
+        "go-safety"
+      ],
+      "head": "4b708dc9af64ad4ab78ca1a1cf8fab674c7e792a",
+      "emitted_at": "2026-11-25T04:05:44.148068Z",
+      "recorded_at": "2026-11-25T04:07:15Z",
+      "file": "task-audit-17.ndjson",
+      "findings": 1
+    },
+    {
+      "seq": 18,
+      "members": [
+        {
+          "id": "resume-queue-counts",
+          "closed_at": "2026-11-25T03:49:40.550709Z",
+          "piece": 0,
+          "pieces": 1,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/cli/audit_record.go",
+            "internal/cli/found_queue_counts.go",
+            "internal/cli/found_queue_counts_test.go",
+            "internal/cli/resume.go",
+            "internal/cli/review_record.go",
+            "internal/cli/review_status.go",
+            "internal/engine/foundqueuecounts.go",
+            "internal/engine/resume.go"
+          ]
+        }
+      ],
+      "files": [
+        "internal/cli/audit_record.go",
+        "internal/cli/found_queue_counts.go",
+        "internal/cli/found_queue_counts_test.go",
+        "internal/cli/resume.go",
+        "internal/cli/review_record.go",
+        "internal/cli/review_status.go",
+        "internal/engine/foundqueuecounts.go",
+        "internal/engine/resume.go"
+      ],
+      "roles": [
+        "go-safety"
+      ],
+      "head": "4b708dc9af64ad4ab78ca1a1cf8fab674c7e792a",
+      "emitted_at": "2026-11-25T04:07:43.775471Z",
+      "recorded_at": "2026-11-25T04:08:54Z",
+      "file": "task-audit-18.ndjson",
+      "findings": 1
+    },
+    {
+      "seq": 19,
+      "members": [
+        {
+          "id": "audit-files-requests",
+          "closed_at": "2026-11-25T03:59:18.338274Z",
+          "piece": 0,
+          "pieces": 1,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/cli/found_audit.go",
+            "internal/cli/found_audit_test.go",
+            "internal/cli/nongoals_surface_test.go",
+            "internal/engine/foundaudit.go"
+          ]
+        }
+      ],
+      "files": [
+        "internal/cli/found_audit.go",
+        "internal/cli/found_audit_test.go",
+        "internal/cli/nongoals_surface_test.go",
+        "internal/engine/foundaudit.go"
+      ],
+      "roles": [
+        "go-safety"
+      ],
+      "head": "4b708dc9af64ad4ab78ca1a1cf8fab674c7e792a",
+      "emitted_at": "2026-11-25T04:09:17.945106Z",
+      "recorded_at": "2026-11-25T04:10:15Z",
+      "file": "task-audit-19.ndjson",
+      "findings": 2
+    },
+    {
+      "seq": 20,
+      "members": [
+        {
+          "id": "decision-unit-kind",
+          "closed_at": "2026-11-25T04:02:45.586719Z",
+          "piece": 0,
+          "pieces": 2,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/cli/command_sides.go",
+            "internal/cli/found_decide.go",
+            "internal/cli/hooks_stop_test.go",
+            "internal/cli/run_decision_test.go",
+            "internal/engine/briefcommand.go",
+            "internal/engine/briefcommand_test.go",
+            "internal/engine/decisionunit.go",
+            "internal/engine/decisionunit_test.go",
+            "internal/engine/driver_spend_test.go",
+            "internal/engine/nextunits.go"
+          ]
+        }
+      ],
+      "files": [
+        "internal/cli/command_sides.go",
+        "internal/cli/found_decide.go",
+        "internal/cli/hooks_stop_test.go",
+        "internal/cli/run_decision_test.go",
+        "internal/engine/briefcommand.go",
+        "internal/engine/briefcommand_test.go",
+        "internal/engine/decisionunit.go",
+        "internal/engine/decisionunit_test.go",
+        "internal/engine/driver_spend_test.go",
+        "internal/engine/nextunits.go"
+      ],
+      "roles": [
+        "go-safety"
+      ],
+      "head": "4b708dc9af64ad4ab78ca1a1cf8fab674c7e792a",
+      "emitted_at": "2026-11-25T04:10:30.480534Z",
+      "recorded_at": "2026-11-25T04:11:56Z",
+      "file": "task-audit-20.ndjson",
+      "findings": 1
     }
   ]
 }
