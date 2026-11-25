@@ -69,16 +69,17 @@ var commandSides = map[string]string{
 	// which refuses a foreign task file itself.
 	"tp review --status": sideFile,
 	// --status reads the run state file and the run lock and nothing else.
-	"tp run --status": sideFile,
-	"tp add":          sideFile,
-	"tp blocked":      sideFile,
-	"tp brief":        sideFile,
-	"tp claim":        sideFile,
-	"tp found add":    sideFile,
-	"tp found answer": sideFile,
-	"tp found apply":  sideFile,
-	"tp found decide": sideFile,
-	"tp found settle": sideFile,
+	"tp run --status":   sideFile,
+	"tp add":            sideFile,
+	"tp blocked":        sideFile,
+	"tp brief":          sideFile,
+	"tp claim":          sideFile,
+	"tp found add":      sideFile,
+	"tp found answer":   sideFile,
+	"tp found apply":    sideFile,
+	"tp found decide":   sideFile,
+	"tp found handback": sideFile,
+	"tp found settle":   sideFile,
 	// tp claims takes no task file: it reads every task file of every
 	// worktree of the working directory's repository.
 	"tp claims":   sideNone,
