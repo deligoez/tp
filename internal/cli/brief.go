@@ -86,14 +86,25 @@ func runBrief(cmd *cobra.Command, args []string) error {
 // stands: tp brief hands out work under the rule tp run's pool uses
 // (spec/backlog/worktree-dispatch.md §2.3). A claimed task reads its own.
 func exitIfClaimOverlaps(tf *model.TaskFile, task *model.Task) {
-	if task.Status != model.StatusOpen {
-		return
-	}
-	if held := engine.ClaimOverlap(tf, task); held != nil {
-		_ = output.JSON(map[string]any{"done": false, "message": fmt.Sprintf(
-			"task %q is not handed out while task %q is claimed: their touches overlap; brief it once %q is done or released", task.ID, held.ID, held.ID)})
+	if msg := claimOverlapRefusal(tf, task); msg != "" {
+		_ = output.JSON(map[string]any{"done": false, "message": msg})
 		os.Exit(ExitState)
 	}
+}
+
+// claimOverlapRefusal is why the open task is not handed out (tp brief) or
+// claimed (tp claim): its touches overlap a claimed task's
+// (engine.ClaimOverlap). "" when task is not open or overlaps no claim.
+func claimOverlapRefusal(tf *model.TaskFile, task *model.Task) string {
+	if task.Status != model.StatusOpen {
+		return ""
+	}
+	held := engine.ClaimOverlap(tf, task)
+	if held == nil {
+		return ""
+	}
+	return fmt.Sprintf("task %q is not handed out while task %q is claimed: their touches overlap; brief it once %q is done or released",
+		task.ID, held.ID, held.ID)
 }
 
 // printBrief builds and prints one task's brief under the task file's
