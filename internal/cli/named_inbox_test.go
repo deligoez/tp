@@ -159,3 +159,47 @@ func TestNamedInbox_TwoSpecsInFlightShareOneInbox(t *testing.T) {
 		assert.NoDirExists(t, filepath.Dir(paths[tc.spec][0]), "and its emptied folder")
 	}
 }
+
+// TestNamedInbox_SameBaseSpecsInFlightShareOneInbox: a/x.md and b/x.md share
+// a base name; their rounds in flight in one named inbox still write apart, and
+// each record reads and removes only its own spec's role files.
+func TestNamedInbox_SameBaseSpecsInFlightShareOneInbox(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	initGitRepo(t, dir) // the repository holds both specs
+	for _, sub := range []string{"a", "b"} {
+		require.NoError(t, os.MkdirAll(filepath.Join(dir, sub), 0o750))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, sub, "x.md"), []byte("# X\n## 1. A\ncontent\n"), 0o600))
+	}
+	specs := []string{filepath.Join("a", "x.md"), filepath.Join("b", "x.md")}
+	paths := map[string][]string{}
+	for _, spec := range specs {
+		for _, pm := range emittedPrompts(t, dir, noRoundDir(), "review", spec, "--inbox", "outside") {
+			paths[spec] = append(paths[spec], pm["output_path"].(string))
+		}
+	}
+	for _, p := range paths[specs[0]] {
+		require.NotContains(t, paths[specs[1]], p, "two same-base specs' role files never share a path")
+	}
+	for spec, ps := range paths {
+		for i, p := range ps {
+			body := ""
+			if i == 0 {
+				body = `{"severity":"low","finding":"only in ` + spec + `","location":"§1","evidence":"e"}` + "\n"
+			}
+			require.NoError(t, os.WriteFile(p, []byte(body), 0o600))
+		}
+	}
+
+	_, stderr, code := runTPEnv(t, dir, noRoundDir(), "review", specs[0], "--record-inbox", "--inbox", "outside")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	round, err := os.ReadFile(filepath.Join(dir, "a", ".tp-review", "x", "review-round-1.ndjson"))
+	require.NoError(t, err)
+	assert.Contains(t, string(round), "only in "+specs[0])
+	assert.NotContains(t, string(round), "only in "+specs[1], "a/x.md records none of b/x.md's rows")
+	for _, p := range paths[specs[1]] {
+		assert.FileExists(t, p, "a/x.md's record leaves b/x.md's files")
+	}
+	_, stderr, code = runTPEnv(t, dir, noRoundDir(), "review", specs[1], "--record-inbox", "--inbox", "outside")
+	require.Equal(t, 0, code, "b/x.md records its own round: %s", stderr)
+}
