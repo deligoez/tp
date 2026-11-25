@@ -174,7 +174,7 @@ func (d *driver) integrateOne(tf *model.TaskFile, p *PendingClose) error {
 	}
 	var refused *CloseRefusedError
 	if errors.As(pickErr, &refused) {
-		_, _ = gitOut(d.opts.Root, "reset", "-q", "--keep", pre)
+		_ = restoreHead(d.opts.Root, pre)
 		return driverErrorf(pickErr, "integrate task %q", p.ID)
 	}
 	// A close killed after it wrote the task done has closed it: the pick
@@ -207,7 +207,9 @@ func (d *driver) integrateOne(tf *model.TaskFile, p *PendingClose) error {
 func (d *driver) pickUnit(p *PendingClose) (pre string, picked []string, err error) {
 	if p.PickedOnto != "" {
 		// A crash inside a conflicting pick leaves it in progress.
-		_, _ = gitOut(d.opts.Root, "cherry-pick", "--abort")
+		if err := abortPick(d.opts.Root); err != nil {
+			return "", nil, driverErrorf(err, "integrate task %q", p.ID)
+		}
 	}
 	head, err := gitOut(d.opts.Root, "rev-parse", "HEAD")
 	if err != nil {
@@ -259,7 +261,7 @@ func (d *driver) recoverPick(p *PendingClose) (landed []string, done bool, err e
 	case slices.Equal(landedIDs, unitIDs):
 		return landed, true, nil
 	case len(landedIDs) > 0 && len(landedIDs) < len(unitIDs) && slices.Equal(landedIDs, unitIDs[:len(landedIDs)]):
-		if _, resetErr := gitOut(d.opts.Root, "reset", "-q", "--keep", p.PickedOnto); resetErr != nil {
+		if resetErr := restoreHead(d.opts.Root, p.PickedOnto); resetErr != nil {
 			return nil, false, driverErrorf(resetErr, "take back task %q's partial pick", p.ID)
 		}
 		return nil, false, nil
@@ -308,7 +310,7 @@ func patchIDs(root string, shas []string) ([]string, error) {
 // operator's signal reaches the gate child too, so a close that failed after
 // it says nothing about the unit's work.
 func (d *driver) deferUnit(p *PendingClose, pre string) error {
-	if _, err := gitOut(d.opts.Root, "reset", "-q", "--keep", pre); err != nil {
+	if err := restoreHead(d.opts.Root, pre); err != nil {
 		return driverErrorf(err, "restore the main branch after task %q", p.ID)
 	}
 	p.PickedOnto = ""
@@ -325,8 +327,9 @@ func (d *driver) deferUnit(p *PendingClose, pre string) error {
 func (d *driver) discardUnit(id, pre string, cause error, logPath string) error {
 	// --keep, not --hard: the task file's uncommitted closes of the pool's
 	// earlier units must survive, and a unit's commits never touch it
-	// (CheckUnitCommits).
-	if _, err := gitOut(d.opts.Root, "reset", "-q", "--keep", pre); err != nil {
+	// (CheckUnitCommits). A pick still stopped on a conflict is aborted
+	// first, since reset --keep refuses an unmerged index.
+	if err := restoreHead(d.opts.Root, pre); err != nil {
 		return driverErrorf(err, "restore the main branch after task %q", id)
 	}
 	output.Notice(fmt.Sprintf("task %s did not integrate (%v); it reopens to run alone", id, cause))
@@ -373,9 +376,8 @@ func cherryPick(root string, commits []string) ([]string, error) {
 		if !SafeGitRev(sha) {
 			return nil, fmt.Errorf("commit %q is not a revision", sha)
 		}
-		if _, err := gitOut(root, "cherry-pick", "--allow-empty", sha); err != nil {
-			_, _ = gitOut(root, "cherry-pick", "--abort")
-			return nil, fmt.Errorf("cherry-pick %s: %w", sha, err)
+		if out, err := gitWaitingOutLock(root, "cherry-pick", "--allow-empty", sha); err != nil {
+			return nil, pickFailure(root, sha, out)
 		}
 		head, err := gitOut(root, "rev-parse", "HEAD")
 		if err != nil {
@@ -384,6 +386,30 @@ func cherryPick(root string, commits []string) ([]string, error) {
 		picked = append(picked, head)
 	}
 	return picked, nil
+}
+
+// PickConflictError is a unit's commit that does not apply to the main
+// branch: its pick stopped on a conflict in Files and was aborted.
+type PickConflictError struct {
+	SHA   string
+	Files []string
+}
+
+func (e *PickConflictError) Error() string {
+	return fmt.Sprintf("commit %s conflicts with the main branch in %s", e.SHA, strings.Join(e.Files, ", "))
+}
+
+// pickFailure aborts a failed pick of sha and says why it failed: a conflict
+// names its files, read before the abort clears them; anything else carries
+// git's own message rather than its exit status.
+func pickFailure(root, sha string, out []byte) error {
+	conflicted, _ := gitOut(root, "diff", "--name-only", "--diff-filter=U")
+	abortErr := abortPick(root)
+	var err error = &PickConflictError{SHA: sha, Files: strings.Fields(conflicted)}
+	if conflicted == "" {
+		err = fmt.Errorf("cherry-pick %s: %s", sha, strings.TrimSpace(string(out)))
+	}
+	return errors.Join(err, abortErr)
 }
 
 // warnTouchesEscape says which picked files lie outside the task's touches.
