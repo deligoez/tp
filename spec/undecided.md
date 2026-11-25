@@ -406,10 +406,9 @@ reached for follow-up, so no loss attributed to these four was measured.
   unit (P3). The report names three rule slips but not what they cost, nor whether the rules were in
   the project's own `CLAUDE.md`, which every agent already reads. **It reopens** on a measured slip
   whose rule was written in the project's instructions and still missed by a unit.
-- **An inbox for findings seen during implement (`tp note`).** *Deferred.* The report kept its
-  out-of-scope findings in its own context, and they survived only because a compaction summary
-  carried them. Whether any was lost was not counted. **It reopens** on a counted finding
-  that was lost between a unit's report and the audit.
+- **An inbox for findings seen during implement (`tp note`).** *Closed by `v1.31.0`.* Found tasks
+  replace it: a unit files what it ran into with `tp found add`, and what no unit can settle waits
+  in the spec's committed queue for the person (`spec/1.31.0.md` §6).
 
 ### The divisible round
 
