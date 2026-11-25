@@ -93,6 +93,25 @@ func TestImplementBatch_ASoloOrWIPOrUnsafeTaskRunsAlone(t *testing.T) {
 	assert.Equal(t, []string{"a"}, ImplementUnits(unsafe, 3, nil), "an id unsafe in a branch name or a path never joins a batch")
 }
 
+// TestImplementUnits_AProjectConfigTaskRunsInTheMainTree: a task whose
+// touches may name .tp/config.json, which only the main tree commits, never
+// joins a pool: next in line it runs alone once the pool drains, and behind
+// another it is passed over. A task without touches is not taken for one
+// (spec/backlog/worktree-dispatch.md §2.1).
+func TestImplementUnits_AProjectConfigTaskRunsInTheMainTree(t *testing.T) {
+	t.Parallel()
+	for _, glob := range []string{".tp/config.json", ".tp/", ".tp/**", ".tp/*.json"} {
+		// tp next's order breaks the tie by id: a leads, z trails.
+		lead := &model.TaskFile{Tasks: []model.Task{batchTask("a", glob), batchTask("c", "y/")}}
+		assert.Equal(t, []string{"a"}, ImplementUnits(lead, 3, nil), "%s: it runs alone", glob)
+		assert.Empty(t, ImplementUnits(lead, 3, []string{"busy"}), "%s: it waits for the pool to drain", glob)
+		behind := &model.TaskFile{Tasks: []model.Task{batchTask("c", "y/"), batchTask("z", glob)}}
+		assert.Equal(t, []string{"c"}, ImplementUnits(behind, 3, nil), "%s: it never joins a pool", glob)
+	}
+	elsewhere := &model.TaskFile{Tasks: []model.Task{batchTask("a", ".tp/roles/"), batchTask("b"), batchTask("c", "y/")}}
+	assert.Equal(t, []string{"a", "b", "c"}, ImplementUnits(elsewhere, 3, nil), "other .tp paths and a task without touches still pool")
+}
+
 // TestImplementUnits_RefillsAroundARunningPool: with the pool's tasks named
 // as running, the oracle leaves them out, takes only tasks disjoint from
 // theirs, and fills the free slots alone (spec/backlog/rolling-implement.md
