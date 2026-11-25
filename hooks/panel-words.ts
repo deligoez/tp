@@ -142,7 +142,7 @@ const STOP_TR: Record<string, string> = {
   'worktree-setup-failed': 'çalışma ağacı hazırlanamadı',
 }
 
-// needs_you kinds (blocker, escalation, decision, cap, land): the label a
+// needs_you kinds (blocker, escalation, decision, cap, land, run): the label a
 // person reads before tp's own sentence.
 const NEED_EN: Record<string, string> = {
   blocker: 'Blocked',
@@ -150,6 +150,7 @@ const NEED_EN: Record<string, string> = {
   decision: 'Decision',
   cap: 'Cap reached',
   land: 'Ready to land',
+  run: 'Run',
 }
 
 const NEED_TR: Record<string, string> = {
@@ -158,6 +159,7 @@ const NEED_TR: Record<string, string> = {
   decision: 'Karar',
   cap: 'Sınıra ulaşıldı',
   land: 'Birleştirmeye hazır',
+  run: 'Koşu',
 }
 
 // holder: who holds a task in wip, a live run, a spawned agent, or the person.
