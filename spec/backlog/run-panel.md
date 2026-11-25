@@ -1,7 +1,7 @@
 # tp — A panel that shows the run
 
-**Candidate.** Class: **decision**. Raised by the operator on 2026-11-25 during the 1.31.0 run; taken
-up after 1.31.0 ships, on the Decision track.
+**Decided** by the operator on 2026-11-25: the panel ships inside tp's plugin, in 1.32.0, once the two
+measurements in §4 hold. Raised by the operator during the 1.31.0 run.
 
 ## 1. Context
 
