@@ -327,34 +327,38 @@ func markTaskDone(taskFile, id string) error {
 	})
 }
 
-// editTask applies edit to one task of the task file. The document is edited
-// as generic JSON so the fixture carries no opinion about tp's own schema
-// beyond the fields it sets.
+// editTask applies edit to one task of the task file, under the task-file lock
+// tp's own writers take: in a pool the driver claims the next unit while a
+// child still writes, and an unlocked read-modify-write would drop that claim.
+// The document is edited as generic JSON so the fixture carries no opinion
+// about tp's own schema beyond the fields it sets.
 func editTask(taskFile, id string, edit func(task map[string]any)) error {
-	data, err := os.ReadFile(taskFile) //nolint:gosec // a test fixture reading the path its driver exported
-	if err != nil {
-		return fmt.Errorf("read task file: %w", err)
-	}
-	var doc map[string]any
-	if err := json.Unmarshal(data, &doc); err != nil {
-		return fmt.Errorf("parse task file: %w", err)
-	}
-	tasks, _ := doc["tasks"].([]any)
-	for _, entry := range tasks {
-		task, ok := entry.(map[string]any)
-		if !ok || task["id"] != id {
-			continue
+	return engine.WithFileLock(taskFile, func() error {
+		data, err := os.ReadFile(taskFile) //nolint:gosec // a test fixture reading the path its driver exported
+		if err != nil {
+			return fmt.Errorf("read task file: %w", err)
 		}
-		edit(task)
-	}
-	out, err := json.MarshalIndent(doc, "", "  ")
-	if err != nil {
-		return fmt.Errorf("render task file: %w", err)
-	}
-	if err := os.WriteFile(taskFile, append(out, '\n'), 0o600); err != nil {
-		return fmt.Errorf("write task file: %w", err)
-	}
-	return nil
+		var doc map[string]any
+		if err := json.Unmarshal(data, &doc); err != nil {
+			return fmt.Errorf("parse task file: %w", err)
+		}
+		tasks, _ := doc["tasks"].([]any)
+		for _, entry := range tasks {
+			task, ok := entry.(map[string]any)
+			if !ok || task["id"] != id {
+				continue
+			}
+			edit(task)
+		}
+		out, err := json.MarshalIndent(doc, "", "  ")
+		if err != nil {
+			return fmt.Errorf("render task file: %w", err)
+		}
+		if err := os.WriteFile(taskFile, append(out, '\n'), 0o600); err != nil {
+			return fmt.Errorf("write task file: %w", err)
+		}
+		return nil
+	})
 }
 
 // writeRoleFindings writes the role kinds' durable write: one parseable line
