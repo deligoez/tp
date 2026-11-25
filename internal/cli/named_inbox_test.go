@@ -99,3 +99,22 @@ func TestNamedInbox_ARecordThatForgetsTheInboxNamesTheDirectoryRead(t *testing.T
 	assert.Contains(t, stderr, "--inbox", "and says how to read another")
 	assert.NoFileExists(t, filepath.Join(dir, ".tp-review", "spec", "review-round-1.ndjson"))
 }
+
+// TestNamedInbox_ARecordedRoundLeavesNoFileForTheNext: a named inbox names no
+// spec, so the files a record read leave with it; another spec's round 1
+// emitted into the same inbox finds none of them and is refused until its own
+// roles write theirs.
+func TestNamedInbox_ARecordedRoundLeavesNoFileForTheNext(t *testing.T) {
+	t.Parallel()
+	dir, _ := inboxSpec(t)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "other.md"), []byte("# Other\n## 1. B\ncontent\n"), 0o600))
+	for _, pm := range emittedPrompts(t, dir, noRoundDir(), "review", "spec.md", "--inbox", "outside") {
+		require.NoError(t, os.WriteFile(pm["output_path"].(string), nil, 0o600))
+	}
+	_, stderr, code := runTPEnv(t, dir, noRoundDir(), "review", "spec.md", "--record-inbox", "--inbox", "outside")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	emittedPrompts(t, dir, noRoundDir(), "review", "other.md", "--inbox", "outside")
+	_, stderr, code = runTPEnv(t, dir, noRoundDir(), "review", "other.md", "--record-inbox", "--inbox", "outside")
+	assert.Equal(t, 3, code, "spec.md's recorded files are not other.md's: %s", stderr)
+}
