@@ -161,13 +161,16 @@ func TestWontfixCarry_AnUncommittedEditIsAskedAgain(t *testing.T) {
 
 // TestWontfixCarry_TheRecordCarriesOnlyWhatTheEmissionCarried: round 2 is
 // emitted over other.go alone, so code.go's accepted wontfix was on no
-// checklist and the emission carried nothing for it. The record writes no
-// carried row for it either: it carries exactly the items the emission did.
+// checklist: the prompt does not list it as carried, and the record writes no
+// carried row for it either. Both carry exactly the items the checklist held.
 func TestWontfixCarry_TheRecordCarriesOnlyWhatTheEmissionCarried(t *testing.T) {
 	t.Parallel()
 	dir, codeID := wontfixCarryRepo(t, "2021-01-01T00:00:00Z")
-	_, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "other.go")
+	stdout, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "other.go")
 	require.Equal(t, 0, code, "emit round 2 over other.go: %s", stderr)
+	sec := auditPromptsByRole(t, stdout)["security"]
+	require.NotNil(t, sec, "the security role is emitted")
+	assert.NotContains(t, sec["prompt"], "## Carried", "an item on no checklist is not listed as carried")
 	otherPass := `{"item_id":"` + engine.FileCheckItemID("security", "other.go") + `","status":"PASS","role":"security",` +
 		`"evidence_file":"other.go","evidence_lines":"1-2","category":null,"severity":null,"notes":""}` + "\n"
 
