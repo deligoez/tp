@@ -154,6 +154,19 @@ func TestEscalateWritesThePerUnitRecord(t *testing.T) {
 	assert.WithinRange(t, at, before, time.Now().UTC().Add(time.Second))
 }
 
+// TestEscalateHelpNamesEveryDecision: the long help's list of --decision values
+// is the closed set itself. Written by hand it stopped at six while the set grew
+// to fourteen, raise-found-cap among the missing.
+func TestEscalateHelpNamesEveryDecision(t *testing.T) {
+	t.Parallel()
+	stdout, stderr, code := runTP(t, t.TempDir(), "escalate", "--help")
+	require.Equal(t, 0, code, "stderr=%s", stderr)
+	long, _, _ := strings.Cut(stdout, "Usage:")
+	for _, decision := range engine.EscalationDecisions() {
+		assert.Contains(t, long, decision, "the long help names %s", decision)
+	}
+}
+
 // TestEscalateAcceptsTheDocumentedDecisions pins §5.2's closed set, in both
 // directions: each documented value writes a record, and a value outside the
 // set is a usage error that writes none.
