@@ -166,3 +166,17 @@ func TestWorktreeCloseRecipeText(t *testing.T) {
 	}
 	assert.NotContains(t, got, "--auto-commit", "a worktree close refuses it")
 }
+
+// TestWorktreeCloseRecipeText_NamesTheWorktreeRoot: a unit's worktree close
+// names the worktree's root and says file tools take absolute paths under it;
+// a pool brief's worktree close says how to find that root.
+func TestWorktreeCloseRecipeText_NamesTheWorktreeRoot(t *testing.T) {
+	got := WorktreeCloseRecipeText(CommitStrategyBuiltin, "", "t1", nil, "/abs/wt")
+	assert.Contains(t, got, "Your worktree is /abs/wt. Give every file tool an absolute path under it")
+	assert.NotContains(t, WorktreeCloseRecipeText(CommitStrategyBuiltin, "", "t1", nil, ""), "Your worktree is")
+
+	for _, strategy := range []string{CommitStrategyHC, CommitStrategyBuiltin} {
+		assert.Contains(t, CloseRecipeTextFor(strategy, "", "k7f2ab01", ""), "absolute path under the directory git rev-parse --show-toplevel prints there", strategy)
+		assert.NotContains(t, CloseRecipeTextFor(strategy, "", "", ""), "absolute path", strategy)
+	}
+}
