@@ -185,6 +185,39 @@ test('the now view reads in Turkish, titles as written', async () => {
   ])
 })
 
+// What `tp show auth-refresh --json` adds once the detail opens.
+const SHOWN = {
+  id: 'auth-refresh',
+  title: 'Refresh tokens before expiry',
+  status: 'wip',
+  acceptance: ['Tokens refresh 60s before expiry', 'A failed refresh logs the user out'],
+  touches: ['internal/auth/**'],
+  failed: false,
+}
+
+test('a task opened from a list shows who holds it, since when, where, and what it must do', async () => {
+  const read = toNow(NOW, 0)!
+  expect(detailRows('auth-refresh', read.now, SHOWN, 'en', AT).map(row => row.text)).toEqual([
+    'Refresh tokens before expiry',
+    'auth-refresh',
+    'Held by: run, attempt 2',
+    'Since: 4m 5s ago',
+    'Worktree: /w/auth-refresh',
+    'Acceptance',
+    'Tokens refresh 60s before expiry',
+    'A failed refresh logs the user out',
+    'Touches',
+    'internal/auth/**',
+  ])
+  // Until tp show answers, the rows say it is being read.
+  expect(detailRows('cache-key', read.now, null, 'en', AT).map(row => row.text)).toEqual([
+    'Key the cache by tenant',
+    'cache-key',
+    'Waiting to land: 2m 5s',
+    'Reading the task…',
+  ])
+})
+
 test('a stopped run names why it stopped', async () => {
   const view = toView({ ...STATUS, run_state: 'stopped', stop_reason: 'converged', running: [] }, 0)
   const rows = runRows(view!, 'en', 0).map(row => row.text)
