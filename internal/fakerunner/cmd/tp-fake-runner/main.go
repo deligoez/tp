@@ -47,7 +47,9 @@ func main() {
 }
 
 // run does the whole invocation and returns the code to exit with, so every
-// path closes the record file rather than losing it to an os.Exit.
+// path closes the record file rather than losing it to an os.Exit. A record
+// that fails to close may not have reached the disk, so that is a setup
+// failure too.
 func run() int {
 	spawnedAt := time.Now().UTC()
 
@@ -62,8 +64,16 @@ func run() int {
 		fmt.Fprintln(os.Stderr, err)
 		return exitSetup
 	}
-	defer file.Close()
+	code := invoke(file, dir, seq, spawnedAt)
+	if err := file.Close(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return exitSetup
+	}
+	return code
+}
 
+// invoke runs the scripted invocation and writes its record into file.
+func invoke(file *os.File, dir string, seq int, spawnedAt time.Time) int {
 	id := os.Getenv("TP_UNIT_ID")
 	if ms := sleepFor(id); ms > 0 {
 		time.Sleep(time.Duration(ms) * time.Millisecond)
@@ -72,9 +82,14 @@ func run() int {
 		fmt.Fprintln(os.Stderr, err)
 		return exitSetup
 	}
+	attempted, err := attemptedBefore(dir, id)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return exitSetup
+	}
 	code := scriptedExit(os.Getenv(fakerunner.EnvExits), seq)
 	switch {
-	case listed(fakerunner.EnvFailFirst, id) && !attemptedBefore(dir, id):
+	case listed(fakerunner.EnvFailFirst, id) && !attempted:
 		code = 1
 	case listed(fakerunner.EnvEscalateIDs, id):
 		if err := writeEscalation(escalateValid); err != nil {
@@ -82,13 +97,17 @@ func run() int {
 			return exitSetup
 		}
 	default:
-		if err := scriptedWrites(dir, id, seq); err != nil {
+		if err := scriptedWrites(id, seq, attempted); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return exitSetup
 		}
 	}
 
-	wd, _ := os.Getwd()
+	wd, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return exitSetup
+	}
 	record := fakerunner.Invocation{
 		Seq:       seq,
 		Argv:      os.Args[1:],
@@ -115,9 +134,11 @@ func run() int {
 
 // scriptedWrites performs the writes EnvBlockIDs, EnvFoundIDs, EnvDurable and
 // EnvEscalate script for this invocation, the request first and the durable
-// write next. A blocking request is the invocation's only write.
-func scriptedWrites(dir, id string, seq int) error {
-	if listed(fakerunner.EnvBlockIDs, id) && !attemptedBefore(dir, id) {
+// write next. A blocking request is the invocation's only write. attempted
+// says an earlier invocation already ran this unit, which disarms both
+// request knobs.
+func scriptedWrites(id string, seq int, attempted bool) error {
+	if listed(fakerunner.EnvBlockIDs, id) && !attempted {
 		return fileFoundRequest(id, true)
 	}
 	if need := requiredFile(id); need != "" {
@@ -125,7 +146,7 @@ func scriptedWrites(dir, id string, seq int) error {
 			return fmt.Errorf("unit %s needs %s: %w", id, need, err)
 		}
 	}
-	if listed(fakerunner.EnvFoundIDs, id) && !attemptedBefore(dir, id) {
+	if listed(fakerunner.EnvFoundIDs, id) && !attempted {
 		if err := fileFoundRequest(id, false); err != nil {
 			return err
 		}
@@ -175,18 +196,19 @@ func listed(knob, id string) bool {
 }
 
 // attemptedBefore reports whether an earlier, finished invocation in dir ran
-// the same unit id.
-func attemptedBefore(dir, id string) bool {
+// the same unit id. A record it cannot read is an error: reading it as "never
+// attempted" would re-fire the fail-first, block and found arms on a retry.
+func attemptedBefore(dir, id string) (bool, error) {
 	recs, err := fakerunner.Records(dir)
 	if err != nil {
-		return false
+		return false, fmt.Errorf("earlier attempts of %s: %w", id, err)
 	}
 	for i := range recs {
 		if recs[i].Env["TP_UNIT_ID"] == id {
-			return true
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
 // environ returns the child's whole environment as a map. An entry without "="
