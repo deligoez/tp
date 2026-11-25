@@ -49,3 +49,28 @@ func TestNowNeedTextsCarryNoCommand(t *testing.T) {
 		assert.Contains(t, []string{needBlocker, needEscalation, needDecision, needCap, needLand, needRun}, n.Kind)
 	}
 }
+
+// Every needs_you entry carries a code that does not change with its text,
+// so the pane can word it in its own language: a run's stop reason (or
+// crashed), an escalation's decision name, a blocker's code (also when it
+// names an operator decision), a cap's workflow field, and land-request.
+func TestNowNeedsCarryAStableCode(t *testing.T) {
+	t.Parallel()
+	stopped := &engine.RunState{Units: []engine.RunUnitRow{{ID: "u"}}}
+	assert.Equal(t, "crashed", runNeeds(stopped, runStateCrashed, nil)[0].Code)
+	for _, reason := range []engine.StopReason{engine.StopUnitFailure, engine.StopCapBudget, "a-future-reason"} {
+		stopped.StopReason = &reason
+		assert.Equal(t, string(reason), runNeeds(stopped, runStateStopped, nil)[0].Code)
+	}
+	for _, decision := range engine.EscalationDecisions() {
+		assert.Equal(t, decision, escalationNeed(&engine.Escalation{Decision: decision, UnitID: "u"}).Code)
+	}
+	for _, code := range []string{"no-ready-task", "epic-blocked", "review-carried-blocking", "spec-stale", "a-future-code"} {
+		assert.Equal(t, code, blockerNeed(&engine.Blocker{Code: code}).Code)
+		operator := map[string]any{"operator": map[string]any{"decision": "x"}}
+		assert.Equal(t, code, blockerNeed(&engine.Blocker{Code: code, Data: operator}).Code)
+	}
+	assert.Equal(t, "review_max_rounds", blockerNeed(&engine.Blocker{Code: "review-budget-exhausted"}).Code)
+	assert.Equal(t, "audit_max_rounds", blockerNeed(&engine.Blocker{Code: "audit-budget-exhausted"}).Code)
+	assert.Equal(t, "land-request", landNeed("t1").Code)
+}
