@@ -270,3 +270,33 @@ func TestNow_EscalationBecomesADecision(t *testing.T) {
 	assertPlainWords(t, need["text"])
 	assert.Contains(t, need["text"], "audit")
 }
+
+// Without an epic graph epics is null; with one it lists each epic by id and
+// title, with the done and total tasks of its bound files and whether it is
+// done.
+func TestNow_EpicsNullWithoutAGraphAndFilledWithOne(t *testing.T) {
+	t.Parallel()
+	dir := runProject(t)
+	stdout, stderr, code := runTP(t, dir, "now")
+	require.Equal(t, 0, code, "tp now: %s", stderr)
+	out := decodeNow(t, stdout)
+	assert.Contains(t, out, "epics")
+	assert.Nil(t, out["epics"], "no epic layer, no epics")
+
+	// Bound files are found through git.
+	gitIn(t, dir, "init", "-q")
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".tp"), 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".tp", "epics.json"), []byte(`{"version":1,"milestones":[["m1"]],
+"epics":[
+{"id":"payments","title":"Payment flow","milestone":"m1","root":true},
+{"id":"later","title":"Later","milestone":"m1","depends_on":[{"id":"payments","why":"w"}]}]}`), 0o600))
+	_, stderr, code = runTP(t, dir, "set", "--epic", "payments")
+	require.Equal(t, 0, code, "set --epic: %s", stderr)
+
+	stdout, stderr, code = runTP(t, dir, "now")
+	require.Equal(t, 0, code, "tp now: %s", stderr)
+	assert.Equal(t, []any{
+		map[string]any{"id": "payments", "name": "Payment flow", "done": 0.0, "total": 1.0, "state": "open"},
+		map[string]any{"id": "later", "name": "Later", "done": 0.0, "total": 0.0, "state": "open"},
+	}, decodeNow(t, stdout)["epics"])
+}
