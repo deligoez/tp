@@ -53,6 +53,9 @@ func runClaim(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 		refuseBlockedClaim(tf, taskFilePath, claimTargets(args))
+		if len(args) == 1 && !claimAllReady {
+			refuseClaimOverlap(tf, args[0])
+		}
 		if claimSpawn != "" {
 			return claimForSpawn(tf, taskFilePath, args[0])
 		}
@@ -98,6 +101,20 @@ func allReadyIDs(tf *model.TaskFile, taskFilePath string) []string {
 		os.Exit(ExitState)
 	}
 	return ids
+}
+
+// refuseClaimOverlap exits 4 when the open task id's touches overlap a
+// claimed task's, with tp brief's message: tp claim hands out work under the
+// rule tp brief and tp run's pool use. An unknown id is left to the claim.
+func refuseClaimOverlap(tf *model.TaskFile, id string) {
+	task, _, err := model.FindTask(tf, id)
+	if err != nil {
+		return
+	}
+	if msg := claimOverlapRefusal(tf, task); msg != "" {
+		output.Error(ExitState, msg)
+		os.Exit(ExitState)
+	}
 }
 
 // claimTargets is the ids tp claim judges its epic block on: args, or nil
