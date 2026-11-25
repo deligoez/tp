@@ -101,17 +101,19 @@ const templateNamesHint = `tp ships two built-in templates, "` + TemplateClaude 
 const placeholdersHint = "an args template resolves {prompt}, {max_budget_usd}, {unit_id}, {unit_kind} and {log_path}; " +
 	"anything else in braces is either a typo or a value the runner has to carry in its own env"
 
-// The three agents §6.3's plugin declares under agents/. The values are the
-// agent definitions' own `name` fields, which are also their filenames, so the
-// string tp passes to --agent and the file the runner loads are one constant
-// rather than two spellings that can drift.
+// The agents the plugin declares under agents/: §6.3's three and the decision
+// agent spec/1.31.0.md §5 adds. The values are the agent definitions' own
+// `name` fields, which are also their filenames, so the string tp passes to
+// --agent and the file the runner loads are one constant rather than two
+// spellings that can drift.
 const (
 	AgentImplementer = "tp-implementer"
 	AgentReviewer    = "tp-reviewer"
 	AgentAuditor     = "tp-auditor"
+	AgentDecider     = "tp-decider"
 )
 
-// agentByKind is §6.3's per-kind table. Only the three kinds listed here run
+// agentByKind is §6.3's per-kind table. Only the kinds listed here run
 // under an agent; the record, resolve, decompose and fix kinds are absent
 // because they need the ordinary tool set, and absence rather than an empty
 // entry is what makes "takes no agent" the default for anything unlisted —
@@ -124,6 +126,9 @@ var agentByKind = map[UnitKind]string{
 	// A task audit's role reads code against its role's rules, as an
 	// audit-role does, and writes only its findings file.
 	UnitTaskAuditRole: AgentAuditor,
+	// A decision unit answers found requests with tp found answer
+	// (spec/1.31.0.md §5); it is never the finder, so it runs as its own agent.
+	UnitDecision: AgentDecider,
 }
 
 // AgentForKind returns the agent a unit of this kind runs under, or "" for the
