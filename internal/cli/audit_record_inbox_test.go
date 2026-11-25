@@ -80,3 +80,34 @@ func TestAuditRecordInbox_RefusesAMissingRole(t *testing.T) {
 	assert.Contains(t, stderr, "no results file from roles security")
 	assert.NoFileExists(t, filepath.Join(dir, ".tp-review", "spec", "audit-round-1.ndjson"))
 }
+
+// TestAuditRecordInbox_NamesTheConflicts: two parts of the security role
+// grade one item PASS and FAIL. Both rows are kept, as --merge keeps them, and
+// the record names the group under conflicts, as --merge does.
+func TestAuditRecordInbox_NamesTheConflicts(t *testing.T) {
+	t.Parallel()
+	dir, _ := answerAuditRound(t, "security", "")
+	inbox := filepath.Join(dir, ".tp-review", "spec", "audit-inbox")
+	data, err := os.ReadFile(filepath.Join(inbox, "round-1-security.a.ndjson"))
+	require.NoError(t, err)
+	var row map[string]any
+	require.NoError(t, json.Unmarshal(data, &row))
+	row["status"], row["severity"], row["category"] = "FAIL", "error", "security"
+	row["evidence_file"], row["evidence_lines"] = nil, nil
+	fail, err := json.Marshal(row)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(inbox, "round-1-security.z.ndjson"), append(fail, '\n'), 0o600))
+
+	stdout, stderr, code := runTPEnv(t, dir, noRoundDir(), "audit", "spec.md", "--record-inbox")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var out map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+	conflicts, ok := out["conflicts"].([]any)
+	require.True(t, ok, "the disagreeing group is named: %s", stdout)
+	require.Len(t, conflicts, 1)
+	first, _ := conflicts[0].(map[string]any)
+	assert.Equal(t, "security", first["role"])
+	assert.Equal(t, row["item_id"], first["item_id"])
+	assert.Equal(t, float64(2), first["rows"])
+	assert.Contains(t, stderr, "disagreeing verdicts")
+}
