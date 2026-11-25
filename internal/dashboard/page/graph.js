@@ -262,9 +262,8 @@
   // ---------- preparing the drawing from a layout ----------
   function prepareNode(L, n, i, ctx) {
     const geo = ctx.geo;
-    const at = pure.mapPlace(n);
-    const x = at.col * geo.col;
-    const y = at.row * geo.row;
+    const x = n.col * geo.col;
+    const y = n.layer * geo.row;
     const out = { i, id: n.id, x, y, w: geo.w, h: geo.h, mark: null, hold: null, label: n.id, ms: n.milestone || null, title: "", cond: false,
       centre: !!n.centre, deferrable: !!n.deferrable, layer: n.layer, col: n.col, status: null, owner: [] };
     if (L.view === "milestones") {
@@ -305,67 +304,12 @@
       : [[x - w / 2, y], [x + w / 2, y], [x + w / 2, y + h], [x - w / 2, y + h]];
     return out;
   }
-  // rowRegions is the plan map's rows (tpPure.regionsOf), each one
-  // background across the map's width from its header to its last y, named
-  // by its milestone and epic counts; its nodes take its index for their
-  // tint.
-  function rowRegions(L, nodes, geo) {
-    const pad = 12;
-    const x0 = -geo.w / 2 - pad;
-    const x1 = Math.max(0, L.columns - 1) * geo.col + geo.w / 2 + pad;
-    return L.rows.map((r, k) => {
-      const y0 = r.from_y * geo.row - pad;
-      const y1 = r.to_y * geo.row + geo.h + pad;
-      nodes.forEach((n) => { if (n.layer >= r.from_layer && n.layer <= r.to_layer) n.band = k; });
-      const name = t(tk("graph.countMilestones"), { n: r.milestones }) + " · " + t(tk("count.epics"), { n: r.count });
-      return { k, name, poly: [[x0, y0], [x1, y0], [x1, y1], [x0, y1]], x0, y0, header: true };
-    });
-  }
-  // blockLabels is each plan block's label, "name · count", over its
-  // block's leftmost epic on its line's header y, one line's labels spread
-  // apart in screen pixels at scale (tpPure.spreadLabels) and kept inside
-  // the map, after the row's header label on its first line.
-  function blockLabels(P, scale) {
-    const L = P.L;
-    if (!L.blocks || !L.blocks.length) return [];
-    const geo = P.geo;
-    const left = P.bands.length ? P.bands[0].x0 : 0;
-    const right = P.bands.length ? P.bands[0].poly[1][0] : 0;
-    const width = (s) => s.length * LABEL_CH + 12;
-    const lines = {};
-    L.blocks.forEach((b) => {
-      const own = P.nodes.filter((n) => n.ms === b.milestone && n.y >= b.from_y * geo.row && n.y <= b.to_y * geo.row);
-      const x = own.length ? Math.min(...own.map((n) => n.x - n.w / 2)) : b.from_col * geo.col;
-      const key = b.row + "/" + b.line;
-      (lines[key] = lines[key] || []).push({ text: b.milestone + " · " + b.count, x, wy: b.line_y * geo.row + 4 });
-    });
-    const out = [];
-    Object.keys(lines).forEach((key) => {
-      const items = lines[key].sort((a, b) => a.x - b.x);
-      const header = key.endsWith("/0") ? P.bands[Number(key.split("/")[0])] : null;
-      const start = header ? width(header.name) + LABEL_INSET * 2 : 0;
-      // Spread inside the span after the header, so pulling labels back in
-      // from the right never slides one under it.
-      const boxes = items.map((l) => ({ x: Math.max(0, (l.x - left) * scale - start), w: width(l.text) }));
-      pure.spreadLabels(boxes, (right - left) * scale - start, 6).forEach((x, i) => {
-        if (x !== null) out.push({ text: items[i].text, wx: left + (x + start) / scale, wy: items[i].wy });
-      });
-    });
-    return out;
-  }
-  // dividerPaths is a thin line through the middle of each gap between two
-  // blocks of a plan line, from its header to its last y.
-  function dividerPaths(L, geo) {
-    return (L.dividers || []).map((d) => ({ path: [[d.x * geo.col, d.from_y * geo.row], [d.x * geo.col, d.to_y * geo.row + geo.h]] }));
-  }
-  // bandRegions is each region's outline (tpPure.regionsOf: the plan map's
-  // rows, else the bands): per layer a band spans, the columns its nodes on
-  // that layer take, joined into one outline, so a band does not reach over
-  // a neighbouring one's nodes on other layers.
+  // bandRegions is each band's region: per layer it spans, the columns its
+  // nodes on that layer take, joined into one outline, so a band in one
+  // track does not reach over a neighbouring track's nodes on other layers.
   function bandRegions(L, nodes, geo) {
-    if (L.rows && L.rows.length) return rowRegions(L, nodes, geo);
     const pad = 12;
-    return pure.regionsOf(L).map((b, k) => {
+    return (L.bands || []).map((b, k) => {
       const names = [b.milestone].concat(b.with || []);
       const inBand = nodes.filter((n) => names.includes(n.ms));
       if (!inBand.length) return null;
@@ -426,7 +370,7 @@
       if (l.critical) counts.edges.critical = (counts.edges.critical || 0) + 1;
       if (l.any) counts.edges.any = (counts.edges.any || 0) + 1;
     });
-    return { L, geo, nodes, links, preds, succs, bands, bounds, counts, index, described, owners, charSet: pure.glyphsOf(nodes, bands.concat((L.blocks || []).map((b) => ({ name: b.milestone })))), dividers: dividerPaths(L, geo), sel: -1, anc: null, desc: null, ver: 0 };
+    return { L, geo, nodes, links, preds, succs, bands, bounds, counts, index, described, owners, charSet: pure.glyphsOf(nodes, bands), sel: -1, anc: null, desc: null, ver: 0 };
   }
 
   // curve is an edge's path: a cubic from the bottom of its dependency to
@@ -601,10 +545,6 @@
   // (tpPure.placeLabels), with the world position it is drawn at.
   function bandLabels(P, scale) {
     const order = P.bands.slice().sort((a, b) => a.y0 - b.y0 || a.x0 - b.x0);
-    // A plan row's header names its counts already and always shows, at its
-    // row's top-left in the header strip no epic sits in; the block labels
-    // on that strip start after it (blockLabels).
-    if (order.length && order[0].header) return order.map((b) => ({ b, text: b.name, wx: b.x0 + LABEL_INSET / scale, wy: b.y0 + LABEL_INSET / scale }));
     const full = (b) => b.name + " · " + b.count;
     // A label tries its band's top-left corner, then the strip just above
     // the band; the nodes' boxes, a pixel larger all round, are obstacles,
@@ -646,9 +586,6 @@
         getFillColor: (b) => [...bandFill(c, b.k), 255],
         getLineColor: [...c.line, 255], getLineWidth: 1, lineWidthUnits: "pixels", updateTriggers: { getFillColor: v },
       }),
-      new PathLayer({
-        id: "dividers", data: P.dividers, getPath: (d) => d.path, getColor: [...c.line, 255], getWidth: 1, widthUnits: "pixels", updateTriggers: { getColor: v },
-      }),
       edgeLayer("cross", sets.cross),
       edgeLayer("any", sets.any),
       edgeLayer("long", sets.long),
@@ -672,12 +609,6 @@
         fontFamily: "system-ui, sans-serif", fontWeight: 700, characterSet: P.charSet, fontSettings,
         background: true, getBackgroundColor: [...c.page, 235], backgroundPadding: [6, 3, 6, 3],
         getBorderColor: [...c.line, 255], getBorderWidth: 1, updateTriggers: { getColor: v, getBackgroundColor: v, getBorderColor: v },
-      }),
-      new TextLayer({
-        id: "block-names", data: blockLabels(P, scale), getPosition: (l) => [l.wx, l.wy], getText: (l) => l.text,
-        getPixelOffset: [6, 3], getSize: 13, sizeUnits: "pixels", getTextAnchor: "start", getAlignmentBaseline: "top", getColor: [...c.ink, 235],
-        fontFamily: "system-ui, sans-serif", fontWeight: 600, characterSet: P.charSet, fontSettings,
-        updateTriggers: { getColor: v },
       }),
       new TextLayer({
         id: "sel-title", data: sel && sel.title ? [sel] : [], getPosition: (n) => [n.x + n.w / 2 + 8, n.y + n.h / 2], getText: (n) => n.title,
@@ -831,7 +762,7 @@
   function tooltip({ object, layer }) {
     // A band names itself on hover, so a label left out to spare a node is
     // still one pointer away.
-    if (object && layer && layer.id === "bands") return { text: object.header ? object.name : object.name + " · " + object.count };
+    if (object && layer && layer.id === "bands") return { text: object.name + " · " + object.count };
     if (!object || !layer || layer.id !== "nodes") return null;
     const n = object;
     const lines = G.prepared.L.view === "milestones"

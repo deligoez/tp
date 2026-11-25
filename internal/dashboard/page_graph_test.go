@@ -174,37 +174,3 @@ func TestPure_HopsCountTheStepsFromTheSelection(t *testing.T) {
 out([[...P.hops(0, (v) => next[v])], P.chainAlpha(1, false), P.chainAlpha(2, false), P.chainAlpha(3, false), P.chainAlpha(9, false)]);`)
 	assert.JSONEq(t, `[[[1, 1], [2, 1], [3, 2], [4, 3]], 255, 255, 170, 70]`, got)
 }
-
-// TestPure_APlansRegionsAreItsRows: the map draws one background per row
-// when the layout lists rows (the plan's map), so bands that share layers
-// read as one row; a layout without rows keeps its bands.
-func TestPure_APlansRegionsAreItsRows(t *testing.T) {
-	t.Parallel()
-	got := runPure(t, `const bands = [{ milestone: "P", from_layer: 0, to_layer: 3 }, { milestone: "Q", from_layer: 1, to_layer: 3 }];
-const rows = [{ from_layer: 0, to_layer: 3, from_y: 0, to_y: 4, lines: 1, milestones: 2, count: 6 }];
-out([P.regionsOf({ bands, rows }).map((r) => r.milestones), P.regionsOf({ bands }).map((r) => r.milestone), P.regionsOf({}).length]);`)
-	assert.JSONEq(t, `[[2], ["P", "Q"], 0]`, got)
-}
-
-// TestPure_ANodeSitsAtItsMapPlace: a node the layout gives a final x and y
-// sits there, x = 0 included; one without them sits at its forest column
-// and layer.
-func TestPure_ANodeSitsAtItsMapPlace(t *testing.T) {
-	t.Parallel()
-	got := runPure(t, `out([P.mapPlace({ col: 4, layer: 2, x: 0, y: 5 }), P.mapPlace({ col: 4, layer: 2 })]);`)
-	assert.JSONEq(t, `[{"col": 0, "row": 5}, {"col": 4, "row": 2}]`, got)
-}
-
-// TestPure_LabelsOnALineAreSpreadApart: labels of one line keep their
-// order, a label overlapping the one before it is pushed right past it
-// with the gap, labels pushed past the right edge are pulled back in, and
-// a label that still cannot fit is dropped (null).
-func TestPure_LabelsOnALineAreSpreadApart(t *testing.T) {
-	t.Parallel()
-	got := runPure(t, `out([
-  P.spreadLabels([{ x: 0, w: 50 }, { x: 20, w: 30 }, { x: 200, w: 10 }], 300, 4),
-  P.spreadLabels([{ x: 0, w: 50 }, { x: 240, w: 40 }, { x: 250, w: 40 }], 300, 4),
-  P.spreadLabels([{ x: 0, w: 60 }, { x: 10, w: 60 }], 100, 4),
-]);`)
-	assert.JSONEq(t, `[[0, 54, 200], [0, 216, 260], [0, null]]`, got)
-}

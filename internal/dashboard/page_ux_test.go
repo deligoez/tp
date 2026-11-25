@@ -393,7 +393,7 @@ func TestPage_OneGraphCardDrawsEveryMode(t *testing.T) {
 	for _, s := range []string{"function drawMap(", "function drawGraph(", "function makePort(", "tpPure.placeLayout("} {
 		assert.NotContains(t, script, s)
 	}
-	for _, s := range []string{`"/api/layout?"`, "pure.regionsOf(L)", ".critical", ".any_of", ".centre", ".inbound"} {
+	for _, s := range []string{`"/api/layout?"`, "L.bands", ".critical", ".any_of", ".centre", ".inbound"} {
 		assert.Contains(t, script, s)
 	}
 	chain := strings.Index(page, `id="chaintext"`)
@@ -885,16 +885,4 @@ func TestPage_AReopenedStreamSaysConnectingAndPausedHasItsOwnMark(t *testing.T) 
 	assert.Contains(t, script, "function openStream() {\n    connState(\"connecting\");\n")
 	assert.Contains(t, script, `paused: tk("conn.paused")`)
 	assert.Contains(t, page, `.conn[data-state="paused"]::before {`)
-}
-
-// TestPage_ThePlanCardDrawsTheMapTpLaysOut: the graph card places each node
-// at the final x and y the layout gives it, draws one background per plan
-// row, a divider through each gap between blocks, and each block's label,
-// so the page computes no place of its own.
-func TestPage_ThePlanCardDrawsTheMapTpLaysOut(t *testing.T) {
-	t.Parallel()
-	_, script := pageText(t)
-	for _, s := range []string{"pure.mapPlace(n)", "rowRegions(L, nodes, geo)", `id: "dividers"`, `id: "block-names", data: blockLabels(P, scale)`, "pure.spreadLabels("} {
-		assert.Contains(t, script, s)
-	}
 }
