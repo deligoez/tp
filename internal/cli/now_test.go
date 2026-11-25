@@ -245,3 +245,28 @@ func TestNow_BlockerBecomesAPlainNeed(t *testing.T) {
 	assertPlainWords(t, need["text"])
 	assert.Contains(t, need["text"], "No task is ready")
 }
+
+// A run that stopped on an escalation leaves its record: needs_you names the
+// decision in plain words, never the record's evidence, which may quote a
+// command.
+func TestNow_EscalationBecomesADecision(t *testing.T) {
+	t.Parallel()
+	dir := runProject(t)
+	taskFile := filepath.Join(dir, "spec.tasks.json")
+	writeRunState(t, dir, `{"run_id":"esc","started_at":"2026-11-25T00:00:00Z","phase":"implement","stop_reason":"escalation",
+ "totals":{"units":1,"wall_clock_seconds":3,"spend_usd":0},
+ "units":[{"seq":1,"kind":"implement","id":"seed","attempt":1,"exit_code":2,"duration_seconds":3,"spend_usd":null,"log_path":"x"}]}`)
+	_, err := engine.WriteEscalation(engine.RunDir(dir, "esc"), "1", &engine.Escalation{
+		Decision: engine.EscalateRaiseAuditCap, UnitKind: engine.UnitImplement, UnitID: "seed", Phase: "implement",
+		Evidence: "raise it with tp set --workflow audit_max_rounds=5", Options: []string{}, At: "2026-11-25T00:00:03Z",
+	})
+	require.NoError(t, err)
+	require.FileExists(t, engine.RunStatePath(dir, taskFile))
+
+	stdout, stderr, code := runTP(t, dir, "now")
+	require.Equal(t, 0, code, "tp now: %s", stderr)
+	need := needOf(t, decodeNow(t, stdout), "decision")
+	assert.Equal(t, "seed", need["id"], "the unit that escalated")
+	assertPlainWords(t, need["text"])
+	assert.Contains(t, need["text"], "audit")
+}
