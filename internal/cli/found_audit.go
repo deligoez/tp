@@ -71,13 +71,18 @@ func foundSpecPath(taskFilePath string) string {
 // rows are the parsed non-blank lines of data, in order; a filed row is
 // updated in place, so the clean verdict computed from rows reads it, and its
 // line of data is re-encoded. data comes back unchanged when no row was filed.
-func fileFoundAuditRows(taskFilePath string, round int, data []byte, rows []map[string]any) []byte {
+// A store that cannot be read or parsed is the error: the rows filed from it
+// would otherwise be recorded open with nothing saying why.
+func fileFoundAuditRows(taskFilePath string, round int, data []byte, rows []map[string]any) ([]byte, error) {
 	if taskFilePath == "" {
-		return data
+		return data, nil
 	}
 	reqs, err := engine.ReadFoundRequests(engine.CanonicalProjectRoot(filepath.Dir(taskFilePath)), taskFilePath)
-	if err != nil || len(reqs) == 0 {
-		return data
+	if err != nil {
+		return nil, err
+	}
+	if len(reqs) == 0 {
+		return data, nil
 	}
 	lines := strings.Split(string(data), "\n")
 	next, filed := 0, 0
@@ -100,7 +105,7 @@ func fileFoundAuditRows(taskFilePath string, round int, data []byte, rows []map[
 		filed++
 	}
 	if filed == 0 {
-		return data
+		return data, nil
 	}
-	return []byte(strings.Join(lines, "\n"))
+	return []byte(strings.Join(lines, "\n")), nil
 }

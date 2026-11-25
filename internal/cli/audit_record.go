@@ -98,7 +98,12 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 	// After the fence, like the carry: the disposition of a row a request was
 	// filed from is tp's, written from the request (spec/1.31.0.md §7).
 	recordRound, _ := engine.RecordRound(len(preRounds))
-	data = fileFoundAuditRows(taskFilePath, recordRound, data, rows)
+	data, err = fileFoundAuditRows(taskFilePath, recordRound, data, rows)
+	if err != nil {
+		output.Error(ExitFile, fmt.Sprintf("cannot read found requests: %v", err), "fix or restore the found request store beside the task file, then record again")
+		os.Exit(ExitFile)
+		return nil
+	}
 	// §2: `clean` is stamped here, once, under the policy in force at record
 	// time, and nothing downstream recomputes it. The policy comes from wfPre
 	// and not from the wf resolved after recordAuditRoundEntry, for the reason
