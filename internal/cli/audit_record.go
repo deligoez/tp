@@ -439,7 +439,7 @@ func runAuditStatus(specPath string, check bool) error {
 		st = nil
 	}
 
-	wf, _ := engine.ResolveWorkflow(specPath, flagFile)
+	wf, taskFilePath := engine.ResolveWorkflow(specPath, flagFile)
 
 	// The read half of the same rule (§2): --status reports convergence, so an
 	// illegal stored audit_converge_on is refused here too, with the same
@@ -480,6 +480,7 @@ func runAuditStatus(specPath string, check bool) error {
 		"roles_stale":           engine.RolesStale(rounds, rolesHash),
 	}
 	addLoopDone(result, done)
+	addFoundOpen(result, taskFilePath, converged)
 	addTaskAudits(result, specPath, st)
 	addEpochs(result, st)
 	// §2.5: the three fields are written HERE, before the --check exit-code
