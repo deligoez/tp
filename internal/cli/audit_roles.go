@@ -517,30 +517,32 @@ func generateRoleAuditPrompts(auditorRoles []model.Role, specItems []ChecklistIt
 		}
 		inlinedContent := ""
 		if f.hasFiles {
-			// A path tp cannot read is never presented as complete (§10.7):
-			// the role is told to read that path itself rather than judging a
-			// body it never received. Only the failed path is withheld — the
-			// files tp did read stay inlined under the "(incomplete)" header,
-			// so one locked file does not send every role back to disk for the
-			// whole set.
-			inlined := false
-			if !inlinerDone {
-				if fileSetBytes(filePaths) <= perRoleReadingBudget {
-					var unreadable []string
-					inlinedContent, unreadable = fileSetRead(filePaths)
-					f.filesComplete = len(unreadable) == 0
-					f.filesPartial = !f.filesComplete
-					f.filePaths = unreadable
-					inlinerDone, inlined = true, true
-				}
-			}
-			if !inlined {
-				f.filePaths = filePaths
-			}
+			inlinedContent = frameFileReading(&f, filePaths, &inlinerDone)
 		}
 		prompts = append(prompts, buildRolePrompt(role.ID, role.Focus, items, files, fileCap, fileTotal, specContent, claudeExcerpt, prior, &f, inlinedContent))
 	}
 	return prompts, skipped
+}
+
+// frameFileReading sets f's file-reading statement for a role's filePaths
+// and returns the contents it inlines (§10.7): the first role whose files fit
+// under the reading budget inlines them, and inlinerDone records that one did.
+// A path tp cannot read is never presented as complete: the role is told to
+// read that path itself rather than judging a body it never received. Only
+// the failed path is withheld — the files tp did read stay inlined under the
+// "(incomplete)" header, so one locked file does not send every role back to
+// disk for the whole set.
+func frameFileReading(f *promptFraming, filePaths []string, inlinerDone *bool) string {
+	if !*inlinerDone && fileSetBytes(filePaths) <= perRoleReadingBudget {
+		content, unreadable := fileSetRead(filePaths)
+		f.filesComplete = len(unreadable) == 0
+		f.filesPartial = !f.filesComplete
+		f.filePaths = unreadable
+		*inlinerDone = true
+		return content
+	}
+	f.filePaths = filePaths
+	return ""
 }
 
 // claudeMDExcerptFor resolves CLAUDE.md next to the resolved task file, then
