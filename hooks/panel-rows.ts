@@ -1,5 +1,5 @@
 import type { Lang, NowView, RunSlot, RunView, TaskDetail } from '../types'
-import { capital, WORDS } from './panel-words'
+import { capital, needLine, WORDS } from './panel-words'
 
 // The pane's views as rows of words, kept apart from the drawing so each
 // view is testable in each language without a surface.
@@ -145,7 +145,7 @@ export function nowRows(
   // In display order, which is also the order a short pane keeps them in.
   const sections: Section[] = [
     { items: head ? [{ text: head, tone: 'head' }] : [] },
-    { heading: now.needs_you.length > 0 ? heading(w.needsYou) : undefined, items: now.needs_you.map(n => ({ text: `${w.need(n.kind)}: ${n.text}` })) },
+    { heading: now.needs_you.length > 0 ? heading(w.needsYou) : undefined, items: now.needs_you.map(n => ({ text: needLine(n, lang) })) },
     heldSection(now, run, lang, at),
     landingSection(now, lang, at),
     countsSection(now, lang),
@@ -259,6 +259,6 @@ export function glanceRows(now: NowView | null, run: RunView | null, lang: Lang)
   if (phase) rows.push({ text: capital(w.phase(phase), lang), tone: 'head' })
   rows.push({ text: busy > 0 ? w.inProgressCount(busy) : w.nothingHeld })
   const need = now?.needs_you[0]
-  if (need) rows.push({ text: `${w.need(need.kind)}: ${need.text}` })
+  if (need) rows.push({ text: needLine(need, lang) })
   return rows
 }
