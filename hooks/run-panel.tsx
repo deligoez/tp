@@ -226,6 +226,9 @@ async function isLive($: EngineInterface): Promise<boolean> {
 // openTask shows one task and asks `tp show` for what the lists do not
 // carry.
 async function openTask($: EngineInterface, id: string): Promise<void> {
+  // Marked before the screen changes, so a tick between the writes and the
+  // read does not start a second one.
+  detailReading = id
   const screen = await read($, screenState)
   const back: ViewName = screen.view === 'detail' ? screen.back : screen.view
   await update($, screenState, (): Screen => ({ view: 'detail', task: id, back }))
