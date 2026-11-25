@@ -180,3 +180,58 @@ func TestFoundAnswer_ATaskAnswerPastTheCapAddsAnOpenEntry(t *testing.T) {
 	assert.Equal(t, "count is three", queue[0].Quote)
 	assert.Equal(t, "go test ./internal -run TestQ", queue[0].Reproduction)
 }
+
+// A task answer whose request store cannot be written leaves nothing of the
+// answer on disk: the task file and queue it wrote first are put back, so the
+// request stays undecided and answering it again opens found-f1, not a second
+// found-f1-2 that dedup could not see.
+func TestFoundAnswer_AFailedStoreWriteLeavesNoTaskBehind(t *testing.T) {
+	t.Parallel()
+	dir := undecidedFixture(t, `{}`)
+	applyToUndecided(t, dir)
+	storeDir := filepath.Dir(engine.FoundRequestsPath(dir, filepath.Join(dir, "spec.tasks.json")))
+	require.NoError(t, os.Chmod(storeDir, 0o555))
+	t.Cleanup(func() { _ = os.Chmod(storeDir, 0o755) })
+	answer := []string{"F1", "task", "--expected", "three retries", "--observed", "five retries",
+		"--cite", "spec.md", "--quote", "The default retry count is three."}
+
+	stdout, stderr, code := foundAnswer(t, dir, answer...)
+	require.Equal(t, 3, code, "stdout=%s stderr=%s", stdout, stderr)
+	assert.Empty(t, foundTasksIn(t, dir), "the task written before the store is put back")
+	assert.Empty(t, readQueue(t, dir))
+	assert.Equal(t, engine.FoundStateUndecided, requestState(t, dir))
+
+	require.NoError(t, os.Chmod(storeDir, 0o755))
+	stdout, stderr, code = foundAnswer(t, dir, answer...)
+	require.Equal(t, 0, code, "stdout=%s stderr=%s", stdout, stderr)
+	assert.Equal(t, []string{"found-f1"}, foundTasksIn(t, dir))
+}
+
+// §12.2: tp found answer holds the task-file lock, then the store's. A lock
+// held past lock_timeout_seconds at either exits 4 (STATE) with
+// LockTimeoutError's message and hint, not the exit 3 of a failed write.
+func TestFoundAnswer_LockContentionTimeoutExitsFour(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		target func(dir string) string
+	}{
+		{"task file", func(dir string) string { return filepath.Join(dir, "spec.tasks.json") }},
+		{"request store", func(dir string) string {
+			return engine.FoundRequestsPath(dir, filepath.Join(dir, "spec.tasks.json"))
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			dir := undecidedFixture(t, `{"lock_timeout_seconds":1}`)
+			applyToUndecided(t, dir)
+
+			release := holdTaskFileLock(t, tc.target(dir))
+			defer release()
+
+			_, stderr, code := foundAnswer(t, dir, "F1", "human")
+			assert.Equal(t, 4, code, "a lock held past lock_timeout_seconds exits 4 (STATE): %s", stderr)
+			assertLockTimeoutErrorObject(t, stderr)
+		})
+	}
+}
