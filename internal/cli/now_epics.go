@@ -34,7 +34,7 @@ func nowEpics(start string) []nowEpic {
 	for _, s := range skipped {
 		output.Notice("warning: skipping a task file that cannot be read: " + s.Error())
 	}
-	states, err := engine.DeriveEpicStates(g, bound)
+	states, err := engine.DeriveEpicStatesOf(g, bound, files)
 	if err != nil {
 		output.Notice("warning: the epic states cannot be derived: " + err.Error())
 		return nil

@@ -55,7 +55,7 @@ func EpicBoundFile(start, id string) (string, error) {
 	}
 	var open []string
 	for _, path := range files {
-		f, err := readBoundFile(path)
+		f, err := readBoundFile(path, nil)
 		if err != nil {
 			return "", err
 		}

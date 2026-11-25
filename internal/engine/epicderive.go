@@ -36,10 +36,17 @@ type EpicState struct {
 // otherwise. A bound file that cannot be read, or whose review state is
 // corrupt, is an error.
 func DeriveEpicStates(g *model.EpicGraph, bound map[string][]string) (map[string]EpicState, error) {
+	return DeriveEpicStatesOf(g, bound, nil)
+}
+
+// DeriveEpicStatesOf is DeriveEpicStates for a reader that already parsed
+// the bound files, as EpicBoundTaskFiles returns them keyed by path: a file in
+// parsed is not read again; one missing from it is read from disk.
+func DeriveEpicStatesOf(g *model.EpicGraph, bound map[string][]string, parsed map[string]*model.TaskFile) (map[string]EpicState, error) {
 	states := make(map[string]EpicState, len(g.Epics))
 	for i := range g.Epics {
 		e := &g.Epics[i]
-		st, err := deriveEpicState(e, bound[e.ID])
+		st, err := deriveEpicState(e, bound[e.ID], parsed)
 		if err != nil {
 			return nil, err
 		}
@@ -48,7 +55,9 @@ func DeriveEpicStates(g *model.EpicGraph, bound map[string][]string) (map[string
 	return states, nil
 }
 
-func deriveEpicState(e *model.Epic, files []string) (EpicState, error) {
+// deriveEpicState derives e's state from its bound files, taking each from
+// parsed when it is there and reading it otherwise.
+func deriveEpicState(e *model.Epic, files []string, parsed map[string]*model.TaskFile) (EpicState, error) {
 	if len(files) == 0 {
 		switch {
 		case e.Done != nil:
@@ -63,7 +72,7 @@ func deriveEpicState(e *model.Epic, files []string) (EpicState, error) {
 	started, allReleased, timeKnown := false, true, true
 	var doneAt time.Time
 	for _, path := range files {
-		f, err := readBoundFile(path)
+		f, err := readBoundFile(path, parsed[path])
 		if err != nil {
 			return EpicState{}, err
 		}
@@ -95,13 +104,16 @@ type boundFile struct {
 	releasedAt time.Time
 }
 
-// readBoundFile reads one bound task file and its review state. A file at
-// release was brought there by its latest audit round: rounds recorded after
-// convergence end no loop, so none follows it.
-func readBoundFile(path string) (boundFile, error) {
-	tf, err := model.ReadTaskFile(path)
-	if err != nil {
-		return boundFile{}, fmt.Errorf("bound task file %s: %w", path, err)
+// readBoundFile reads one bound task file and its review state; tf is the
+// file already parsed, or nil to read it from path. A file at release was
+// brought there by its latest audit round: rounds recorded after convergence
+// end no loop, so none follows it.
+func readBoundFile(path string, tf *model.TaskFile) (boundFile, error) {
+	if tf == nil {
+		var err error
+		if tf, err = model.ReadTaskFile(path); err != nil {
+			return boundFile{}, fmt.Errorf("bound task file %s: %w", path, err)
+		}
 	}
 	specPath, _ := ResolveSpecPath(path, tf.Spec)
 	loops, err := readResumeLoops(path, specPath, tf)

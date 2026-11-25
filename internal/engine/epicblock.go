@@ -217,7 +217,7 @@ func epicDepDone(g *model.EpicGraph, id string, bound *boundIndex) (bool, error)
 	if err != nil {
 		return false, err
 	}
-	st, err := deriveEpicState(dep, files)
+	st, err := deriveEpicState(dep, files, nil)
 	if err != nil {
 		return false, err
 	}
