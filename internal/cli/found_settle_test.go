@@ -17,8 +17,14 @@ import (
 // t1, and Q2, a question holding t2.
 func foundSettleFixture(t *testing.T) string {
 	t.Helper()
-	dir := foundApplyFixture(t, `{"found_max":1}`)
-	writeTaskFile(t, dir, `{"version":1,"spec":"spec.md","workflow":{"found_max":1},"tasks":[
+	return foundSettleFixtureWith(t, `{"found_max":1}`)
+}
+
+// foundSettleFixtureWith is foundSettleFixture under the given workflow block.
+func foundSettleFixtureWith(t *testing.T, workflow string) string {
+	t.Helper()
+	dir := foundApplyFixture(t, workflow)
+	writeTaskFile(t, dir, `{"version":1,"spec":"spec.md","workflow":`+workflow+`,"tasks":[
 		{"id":"t1","title":"T1","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"One.","source_sections":["# S"]},
 		{"id":"t2","title":"T2","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"One.","source_sections":["# S"]},
 		{"id":"t3","title":"T3","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"One.","source_sections":["# S"]}
