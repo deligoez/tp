@@ -117,3 +117,16 @@ func TestClaim_BatchFailsOnlyTheOverlappingTask(t *testing.T) {
 	assert.Contains(t, res.Failed[0].Error, `"t1"`)
 }
 
+// TestClaim_AllReadySkipsTheOverlappingTask: --all-ready claims the ready
+// tasks the overlap rule hands out, and leaves t2 open.
+func TestClaim_AllReadySkipsTheOverlappingTask(t *testing.T) {
+	t.Parallel()
+	dir := overlapRepo(t)
+	holdT1(t, dir)
+
+	_, stderr, code := runTP(t, dir, "claim", "--all-ready")
+	require.Equal(t, 0, code, stderr)
+	assert.Equal(t, "wip", taskState(t, dir, "t4")["status"])
+	assert.Equal(t, "open", taskState(t, dir, "t2")["status"])
+}
+
