@@ -115,6 +115,7 @@ func handBackFoundTask(root, taskFilePath, id, why string) (engine.FoundQueueEnt
 		task.ClosedAt = &now
 		task.ClosedReason = &reason
 		task.Waiting = ""
+		task.ConflictBranch = ""
 		task.ClaimedBy = task.ClaimedBy.Released()
 		tf.UpdatedAt = now
 		if err := model.WriteTaskFile(taskFilePath, tf); err != nil {

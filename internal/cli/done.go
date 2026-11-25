@@ -313,6 +313,7 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 		task.Status = model.StatusDone
 		task.ClosedAt = &now
 		task.Waiting = ""
+		task.ConflictBranch = ""
 		task.ClosedReason = &reason
 		switch {
 		case doneSkipGate != "":
@@ -488,6 +489,7 @@ func runDoneMulti(taskFilePath string, taskIDs []string, reason string) error {
 			task.Status = model.StatusDone
 			task.ClosedAt = &now
 			task.Waiting = ""
+			task.ConflictBranch = ""
 			r := reason
 			task.ClosedReason = &r
 			switch {
@@ -931,6 +933,7 @@ func runDoneBatch() error {
 			task.Status = model.StatusDone
 			task.ClosedAt = &now
 			task.Waiting = ""
+			task.ConflictBranch = ""
 			reason := entry.Reason
 			task.ClosedReason = &reason
 			switch {
