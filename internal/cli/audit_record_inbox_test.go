@@ -67,3 +67,16 @@ func TestAuditRecordInbox_RecordsTheRoundFromItsRolesFiles(t *testing.T) {
 	assert.FileExists(t, filepath.Join(dir, ".tp-review", "spec", "audit-round-1.ndjson"))
 	assert.NoDirExists(t, filepath.Join(dir, ".tp-review", "spec", "audit-inbox"))
 }
+
+// TestAuditRecordInbox_RefusesAMissingRole: an emitted role with no file
+// refuses the record, exit 3, naming the role, and nothing is recorded.
+func TestAuditRecordInbox_RefusesAMissingRole(t *testing.T) {
+	t.Parallel()
+	dir, roles := answerAuditRound(t, "", "security")
+	require.Contains(t, roles, "security")
+
+	_, stderr, code := runTPEnv(t, dir, noRoundDir(), "audit", "spec.md", "--record-inbox")
+	assert.Equal(t, 3, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "no results file from roles security")
+	assert.NoFileExists(t, filepath.Join(dir, ".tp-review", "spec", "audit-round-1.ndjson"))
+}
