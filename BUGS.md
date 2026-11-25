@@ -13,12 +13,6 @@ None. The 2026-11-25 field reports' decisions are in `spec/backlog/land-lifecycl
 
 ## Fix track
 
-Field report of 2026-11-25 (v1.30.0 worktree pool): reproduce each before fixing.
-
-- **`tp land` exits 0 when a task is blocked.** A land that hit `.git/index.lock: File exists` listed
-  the task under `blocked` and exited 0; the coordinator committed the task file as if it had landed.
-  Test: a land with a non-empty `blocked` exits non-zero, and an index.lock is retried.
-
 Found in this repo (2026-11-25):
 
 - **Resolving a carried finding `fixed` after the round that read the repair leaves it
