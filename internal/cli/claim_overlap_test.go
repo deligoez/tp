@@ -130,3 +130,21 @@ func TestClaim_AllReadySkipsTheOverlappingTask(t *testing.T) {
 	assert.Equal(t, "open", taskState(t, dir, "t2")["status"])
 }
 
+// TestClaim_UnheldWipAndTouchlessTasksAreNotScreened: a wip task nobody
+// holds (a plain tp claim) screens nothing, and a task without touches is
+// claimable beside a held one.
+func TestClaim_UnheldWipAndTouchlessTasksAreNotScreened(t *testing.T) {
+	t.Parallel()
+	dir := overlapRepo(t)
+	_, stderr, code := runTP(t, dir, "claim", "t1")
+	require.Equal(t, 0, code, stderr)
+	_, stderr, code = runTP(t, dir, "claim", "t2")
+	require.Equal(t, 0, code, "an unheld wip task screens nothing: %s", stderr)
+
+	dir = overlapRepo(t)
+	holdT1(t, dir)
+	_, stderr, code = runTP(t, dir, "set", "t2", "touches=[]")
+	require.Equal(t, 0, code, stderr)
+	_, stderr, code = runTP(t, dir, "claim", "t2")
+	assert.Equal(t, 0, code, "a task without touches is claimable: %s", stderr)
+}
