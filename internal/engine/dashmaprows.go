@@ -11,7 +11,7 @@ import (
 // the sub-lines a fold aims at, and the y units a line keeps above its
 // first layer for its header and its blocks' labels.
 const (
-	mapBlockGap   = 2.0
+	mapBlockGap   = 1.0
 	mapFoldCap    = 8
 	mapFoldLines  = 3
 	mapHeaderRows = 1.0
