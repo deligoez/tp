@@ -111,7 +111,8 @@ items are in `spec/1.3.0-measurements.md`.
 8. **Dogfood the freshly built binary** — `go build -o /tmp/tp-dev/tp ./cmd/tp`, rebuilt after every
    implementing commit, for every tp call including review and audit; never the lagging PATH release.
 9. **Operator decisions are never the agent's own**: `--skip-gate`, `tp import --force`, raising
-   `review_max_rounds`/`audit_max_rounds` (default 3; an explicit 0 is uncapped) or any `run_max_*`,
+   `review_max_rounds`/`audit_max_rounds` (default 3; an explicit 0 is uncapped), raising `found_max`
+   or setting it to 0, uncapped (`raise-found-cap`), or any `run_max_*`,
    `audit_converge_on: blocking`, changing `quality_gate`, setting or changing `worktree_setup_cmd`,
    accepting a critical/high review finding or any audit finding without a change
    (`accept-finding`), `--force` over an unrecorded emission or `tp epic review --discard`
