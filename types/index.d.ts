@@ -1,6 +1,9 @@
 // The run panel's state contract (spec/backlog/run-panel.md): what the
 // hooks module keeps in $.state under the plugin's name.
 
+// Lang is a language the panel has words for.
+export type Lang = 'en' | 'tr'
+
 // RunSlot is one unit attempt the run holds now, as `tp run --status`
 // reports it under `running`.
 export type RunSlot = {
