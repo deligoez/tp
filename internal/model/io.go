@@ -112,11 +112,17 @@ func WriteTaskFile(path string, tf *TaskFile) error {
 
 	data = append(data, '\n')
 
-	// Atomic, for the same reason the review index is: every query command
-	// reads the task file lock-free by design, so an in-place write publishes a
-	// partial document. Measured at 8 torn reads in 1115 concurrent tp list
-	// calls against a 50KB file — each an exit 3 telling the agent to run
-	// tp use / tp init against a file that was never damaged.
+	return WriteTaskFileBytes(path, data)
+}
+
+// WriteTaskFileBytes replaces the task file at path with data, whole.
+//
+// Atomic, for the same reason the review index is: every query command
+// reads the task file lock-free by design, so an in-place write publishes a
+// partial document. Measured at 8 torn reads in 1115 concurrent tp list
+// calls against a 50KB file — each an exit 3 telling the agent to run
+// tp use / tp init against a file that was never damaged.
+func WriteTaskFileBytes(path string, data []byte) error {
 	tmp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".*.tmp")
 	if err != nil {
 		return fmt.Errorf("write task file: %w", err)
