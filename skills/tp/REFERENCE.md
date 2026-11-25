@@ -3264,7 +3264,8 @@ first 80 characters. A graph that cannot be read answers as `tp epic export` exi
 
 The answer is `{view, milestone?, epic?, depth?, layers, packing, columns, bands?, height?, rows?, blocks?, dividers?, nodes, edges}`:
 `milestone` for `scope`, `epic` and the clamped `depth` for `neighbourhood`; `layers` the number of
-layers; `packing` the `pack` used and `columns` the width in columns; `bands`, for `plan` and
+layers; `packing` the `pack` used and `columns` the width in columns, in `plan` the map's (its
+blocks from column 0 to `columns` - 1), not the forest's; `bands`, for `plan` and
 `scope`, `[{milestone, with?, from_layer, to_layer}]`, each milestone a run of consecutive layers,
 `with` listing the milestones that share the run (below). For `plan` only (unreleased), the map
 below, in column (x) and y units: `height` its y units; `rows`
@@ -3332,7 +3333,8 @@ the order of their epics' mean forest column. A block is as wide as its fullest 
 columns; a fuller layer folds onto two or three sub-lines (the block 8 columns wide, or a third
 of that layer where that is wider), and inside a block each layer's epics keep their forest order,
 centred. Blocks sit 1 empty column apart and wrap, like text, onto another line of the row where
-the next would pass `columns`, each line centred, so the map is never wider than the forest. Every
+the next would pass the forest's width, each line centred, so the map is never wider than the
+forest; its widest line then starts at column 0. Every
 line keeps one y above its first layer for its labels, and each layer of a line as many y as its
 most folded block needs, so a layer keeps one y across its line and an edge between layers of one
 line points down; a layer none of a line's blocks takes has no y in that line. An edge into an
