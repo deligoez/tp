@@ -91,6 +91,7 @@ found:
 found add: alternative blocks expected location observed question reproduction task
 found answer: cite expected location observed quote reproduction
 found apply:
+found settle: expected observed reject task
 gate:
 graph: from tag
 ground: check force record status units
