@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/backlog/panel-dashboard.md",
   "created_at": "2026-11-25T13:47:09.155402Z",
-  "updated_at": "2026-11-25T14:22:00.683542Z",
+  "updated_at": "2026-11-25T14:46:58.740571Z",
   "workflow": {},
   "coverage": {
     "total_sections": 6,
@@ -114,7 +114,7 @@
     {
       "id": "review",
       "title": "Review the dashboard diff",
-      "status": "wip",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "merge"
@@ -126,15 +126,24 @@
       ],
       "started_at": "2026-11-25T14:22:00.683542Z",
       "duration_source": "claimed",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-11-25T14:46:58.696341Z",
+      "closed_reason": "- two independent reviewers read the diff, one Go (tp now, config) and one plugin (panel), found 6 and 9 defects\n- every finding fixed test-first (tp now: 23 commits, panel: 21 commits), full gate green, 36 plugin tests pass",
+      "gate_passed_at": "2026-11-25T14:46:58.696341Z",
+      "commit_sha": "cca70f4d",
+      "commit_shas": [
+        "cca70f4d"
+      ],
+      "commit_files": [
+        "spec/backlog/panel-dashboard.md"
+      ],
+      "task_audit_owed": [
+        "go-safety"
+      ]
     },
     {
       "id": "demo",
       "title": "Show the dashboard to the operator",
-      "status": "open",
+      "status": "wip",
       "tags": [],
       "depends_on": [
         "review"
@@ -144,7 +153,8 @@
       "source_sections": [
         "## Decision"
       ],
-      "started_at": null,
+      "started_at": "2026-11-25T14:46:58.740571Z",
+      "duration_source": "claimed",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,
