@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/backlog/panel-dashboard.md",
   "created_at": "2026-11-25T13:47:09.155402Z",
-  "updated_at": "2026-11-25T14:46:58.740571Z",
+  "updated_at": "2026-11-25T16:01:35.164017Z",
   "workflow": {},
   "coverage": {
     "total_sections": 6,
@@ -143,7 +143,7 @@
     {
       "id": "demo",
       "title": "Show the dashboard to the operator",
-      "status": "wip",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "review"
@@ -155,15 +155,24 @@
       ],
       "started_at": "2026-11-25T14:46:58.740571Z",
       "duration_source": "claimed",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-11-25T16:01:35.121492Z",
+      "closed_reason": "- the operator saw the Now view live in English and in Turkish (panel.language tr) on a stopped demo run, every line in the pane's language including the /tp-run reply\n- three defects the demo surfaced were fixed test-first: the run need's label, its English sentence, a round number named as a task",
+      "gate_passed_at": "2026-11-25T16:01:35.121492Z",
+      "commit_sha": "a0090a96",
+      "commit_shas": [
+        "a0090a96"
+      ],
+      "commit_files": [
+        "internal/cli/now_needs_internal_test.go"
+      ],
+      "task_audit_owed": [
+        "go-safety"
+      ]
     },
     {
       "id": "release",
       "title": "Release 1.33.0",
-      "status": "open",
+      "status": "wip",
       "tags": [],
       "depends_on": [
         "demo"
@@ -173,7 +182,8 @@
       "source_sections": [
         "## Decision"
       ],
-      "started_at": null,
+      "started_at": "2026-11-25T16:01:35.164016Z",
+      "duration_source": "claimed",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,
