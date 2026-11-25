@@ -25,9 +25,7 @@ var agentForKind = map[engine.UnitKind]string{
 	engine.UnitAuditFix:        "",
 	engine.UnitTaskAuditRole:   "tp-auditor",
 	engine.UnitTaskAuditRecord: "",
-	// The decision agent is the decision-agent task's; until it lands the
-	// decision unit runs with the ordinary tool set.
-	engine.UnitDecision: "",
+	engine.UnitDecision:        "tp-decider",
 }
 
 // agentlessKind is one of the six kinds §6.3 leaves with the ordinary tool
@@ -85,6 +83,7 @@ func TestBuiltinRunner_ClaudeAppendsTheAgentPerKind(t *testing.T) {
 			assert.NotContains(t, runner.Args, "tp-implementer")
 			assert.NotContains(t, runner.Args, "tp-reviewer")
 			assert.NotContains(t, runner.Args, "tp-auditor")
+			assert.NotContains(t, runner.Args, "tp-decider")
 			continue
 		}
 
