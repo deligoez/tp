@@ -317,16 +317,18 @@ export const register: Register = on => {
 
   on('command.run', { command: 'tp-run' }, async ($, e) => {
     const cwd = 'cwd' in e && typeof e.cwd === 'string' ? e.cwd : sessionCwd
-    if (!(await isProject($, cwd))) return { text: 'This folder is not a tp project.' }
-    if (!version) version = await readVersion($)
+    // Read first, so every answer below is in the pane's language.
     const lang = await readLanguage($, cwd)
+    const w = WORDS[lang]
+    if (!(await isProject($, cwd))) return { text: w.notProject }
+    if (!version) version = await readVersion($)
     await update($, langState, () => lang)
     const view = await refresh($, true)
     await resumeDetail($)
     const now = await read($, nowState)
     await $.ui.open({ id: PANE, title: TITLE })
     startPolling($)
-    return { text: now || view ? 'The tp pane is open.' : 'No tp run in this project yet.' }
+    return { text: now || view ? w.paneOpen : w.noRunYet }
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
