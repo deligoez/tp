@@ -240,3 +240,13 @@ func TestPure_AnIdWithWordsWrapsBetweenThem(t *testing.T) {
 	got := runPure(t, `out([P.wrapId("Quiet Harbour Signal-I", 18), P.wrapId("inventory-export-backfill", 20)]);`)
 	assert.JSONEq(t, `[["Quiet Harbour", "Signal-I"], ["inventory-export-", "backfill"]]`, got)
 }
+
+// TestPure_AWrapNeverLeavesASuffixAlone: a trailing suffix group such as
+// "-I", "-II" or "-AI-I" stays on its word, the break falling at the last
+// space before that word; with no break left before it, the id keeps one
+// line rather than a tail of three characters or fewer.
+func TestPure_AWrapNeverLeavesASuffixAlone(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([P.wrapId("Alpha Beta Gamma-I", 17), P.wrapId("Delta Epsilon-II", 15), P.wrapId("Zeta Eta Theta-AI-I", 18), P.wrapId("abcdefghijklmnopq-II", 18), P.wrapId("abcdefghijklmnopqrstu", 20)]);`)
+	assert.JSONEq(t, `[["Alpha Beta", "Gamma-I"], ["Delta", "Epsilon-II"], ["Zeta Eta", "Theta-AI-I"], ["abcdefghijklmnopq-II"], ["abcdefghijklmnopqrstu"]]`, got)
+}
