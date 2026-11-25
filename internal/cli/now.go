@@ -287,10 +287,33 @@ type nowFinished struct {
 // lastFinishedUnit is st's exited attempt that ended last, or nil when
 // none has exited: the row tp run --status's last_unit reports may still be
 // running (spec/1.32.0-measurements.md §4).
+//
+// An end is started_at plus duration_seconds, which orders parallel units by
+// when they ended. started_at is stamped to the second, so an end is known
+// only to within one: among the rows ending within a second of the latest end,
+// and the rows that carry no end, the highest seq wins. Comparing against the
+// latest end, not pairwise, keeps a chain of near ends from walking seq order
+// away from it.
 func lastFinishedUnit(st *engine.RunState) *nowFinished {
+	var latest time.Time
+	anyEnd := false
+	for i := range st.Units {
+		if u := &st.Units[i]; u.ExitCode != nil {
+			if end, ok := unitEnd(u); ok && (!anyEnd || end.After(latest)) {
+				latest, anyEnd = end, true
+			}
+		}
+	}
 	var best *engine.RunUnitRow
 	for i := range st.Units {
-		if u := &st.Units[i]; u.ExitCode != nil && (best == nil || finishedAfter(u, best)) {
+		u := &st.Units[i]
+		if u.ExitCode == nil {
+			continue
+		}
+		if end, ok := unitEnd(u); ok && latest.Sub(end) >= time.Second {
+			continue
+		}
+		if best == nil || u.Seq > best.Seq {
 			best = u
 		}
 	}
@@ -298,25 +321,6 @@ func lastFinishedUnit(st *engine.RunState) *nowFinished {
 		return nil
 	}
 	return &nowFinished{Kind: best.Kind, ID: best.ID, Attempt: best.Attempt, ExitCode: *best.ExitCode, DurationSeconds: best.DurationSeconds}
-}
-
-// finishedAfter reports whether exited row a ended after exited row b: by
-// started_at plus duration_seconds when both rows carry them, which orders
-// parallel units by when they ended; else, and within a second, by seq.
-func finishedAfter(a, b *engine.RunUnitRow) bool {
-	aEnd, aOK := unitEnd(a)
-	bEnd, bOK := unitEnd(b)
-	if aOK && bOK {
-		// started_at is stamped to the second, so an end is known only to
-		// within one: a nearer pair keeps seq order.
-		switch {
-		case aEnd.Sub(bEnd) >= time.Second:
-			return true
-		case bEnd.Sub(aEnd) >= time.Second:
-			return false
-		}
-	}
-	return a.Seq > b.Seq
 }
 
 // unitEnd is when row u's attempt ended, and whether its row says.
