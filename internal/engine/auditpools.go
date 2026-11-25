@@ -20,6 +20,9 @@ type AuditRolePool struct {
 	// wontfix carried without asking; --record writes a carried row for
 	// exactly these.
 	Carried []string `json:"carried,omitempty"`
+	// Unprompted marks a role the emission asked nothing because every item
+	// of its checklist was carried: no results file is owed for it.
+	Unprompted bool `json:"unprompted,omitempty"`
 }
 
 // RoleGraded is "graded N of M" for one code role of a recorded audit round

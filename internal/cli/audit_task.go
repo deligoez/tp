@@ -209,7 +209,7 @@ func taskAuditPrompts(specPath string, rec *engine.TaskAuditRecord) []auditPromp
 		entries = append(entries, engine.AuditFileEntry{Path: f, Tasks: []string{}})
 	}
 	sel := engine.AuditFileSelection{CodeFiles: entries, CodeFilesTotal: len(entries), CodeFilesNamed: true}
-	prompts, _ := generateRoleAuditPrompts(roles, nil, &sel, specPath, "", claudeMDExcerptFor(specPath),
+	prompts, _, _ := generateRoleAuditPrompts(roles, nil, &sel, specPath, "", claudeMDExcerptFor(specPath),
 		taskAuditPriorRows(specPath, entries), engine.PhaseTaskAudit, rec.Seq, 0, 0, 0)
 	return appendClausesAudit(prompts)
 }

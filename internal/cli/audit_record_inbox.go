@@ -64,6 +64,9 @@ func runAuditRecordInbox(specPath, harnessNote string) error {
 	files := make(map[string][]string, len(pools))
 	var missing []string
 	for _, p := range pools {
+		if p.Unprompted {
+			continue // asked nothing, so it owes no file
+		}
 		files[p.Role] = engine.RoleInboxFiles(namedInbox(), specPath, engine.PhaseAudit, round, p.Role)
 		if len(files[p.Role]) == 0 {
 			missing = append(missing, p.Role)

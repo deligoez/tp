@@ -386,7 +386,7 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 		auditConsecutive = engine.ConsecutiveClean(st.AuditRounds)
 	}
 	// §7.2: one prompt per active auditor role in the resolved panel.
-	prompts, auditSkipped := generateRoleAuditPrompts(panel.roles, specItems, &sel, specPath, specContent, claudeMDExcerptFor(specPath), priorByRole, engine.PhaseAudit, auditRound, auditWf.AuditCleanRounds, auditConsecutive, auditWf.AuditMaxRounds)
+	prompts, auditSkipped, carriedOnly := generateRoleAuditPrompts(panel.roles, specItems, &sel, specPath, specContent, claudeMDExcerptFor(specPath), priorByRole, engine.PhaseAudit, auditRound, auditWf.AuditCleanRounds, auditConsecutive, auditWf.AuditMaxRounds)
 
 	prompts = appendClausesAudit(prompts)
 	// §9.1: name every non-emitted auditor — empty-checklist roles above plus
@@ -413,7 +413,7 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	// The round's prompts before --role keeps one: its pools and its cuts are
 	// facts of the round, so every sibling unit reports the same ones.
 	roundPrompts := slices.Clone(prompts)
-	pools := auditRolePools(roundPrompts)
+	pools := append(auditRolePools(roundPrompts), carriedOnly...)
 	prompts, auditSkipped = filterAuditPrompts(prompts, roleQueryFor(specPath, roleFilter, roleGiven).withSiblingUnits(&panel), auditSkipped)
 	// An unknown --role exits 2 inside the filter, so the snapshot is written
 	// only after it: a refusal leaves the state directory as it found it.

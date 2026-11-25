@@ -481,9 +481,12 @@ func buildRolePrompt(role string, rules []string, items []ChecklistItem, files [
 // checklist is empty produces no prompt and is named in skipped_roles
 // with reason no-checklist-items (§9.1). phase is the audit's own or the
 // task audit's, which names the output file and frames the prompt.
-func generateRoleAuditPrompts(auditorRoles []model.Role, specItems []ChecklistItem, sel *engine.AuditFileSelection, specPath, specContent, claudeExcerpt string, priorByRole map[string]*auditPriorRound, phase string, round, requiredClean, consecutiveClean, maxRounds int) ([]auditPrompt, []engine.SkippedRole) {
-	prompts := make([]auditPrompt, 0, len(auditorRoles))
-	skipped := make([]engine.SkippedRole, 0)
+// carriedOnly holds a pool for each such role whose checklist the carried
+// wontfix rows emptied: asked nothing, it still carries those items, and the
+// record writes their rows (appendCarriedWontfix).
+func generateRoleAuditPrompts(auditorRoles []model.Role, specItems []ChecklistItem, sel *engine.AuditFileSelection, specPath, specContent, claudeExcerpt string, priorByRole map[string]*auditPriorRound, phase string, round, requiredClean, consecutiveClean, maxRounds int) (prompts []auditPrompt, skipped []engine.SkippedRole, carriedOnly []engine.AuditRolePool) {
+	prompts = make([]auditPrompt, 0, len(auditorRoles))
+	skipped = make([]engine.SkippedRole, 0)
 	// §10.7 per-role inliner: the first emitted role whose files fit whole under
 	// the per-role reading budget inlines them (complete and authoritative);
 	// every later role, and any role that exceeds the budget, gets named paths
@@ -512,6 +515,7 @@ func generateRoleAuditPrompts(auditorRoles []model.Role, specItems []ChecklistIt
 		}
 		if len(items) == 0 {
 			skipped = append(skipped, engine.SkippedRole{Role: role.ID, Reason: engine.SkipNoChecklistItems})
+			carriedOnly = appendCarriedOnlyPool(carriedOnly, role.ID, prior)
 			continue
 		}
 		filePaths := make([]string, 0, len(files))
@@ -537,7 +541,19 @@ func generateRoleAuditPrompts(auditorRoles []model.Role, specItems []ChecklistIt
 		}
 		prompts = append(prompts, p)
 	}
-	return prompts, skipped
+	return prompts, skipped, carriedOnly
+}
+
+// appendCarriedOnlyPool appends the pool of a role asked nothing because
+// every item of its checklist was carried, or pools unchanged when prior
+// carried none. It is marked Unprompted: the role has no prompt, so no
+// results file is owed for it.
+func appendCarriedOnlyPool(pools []engine.AuditRolePool, role string, prior *auditPriorRound) []engine.AuditRolePool {
+	if prior == nil || len(prior.carriedItems) == 0 {
+		return pools
+	}
+	ids := prior.carriedItems
+	return append(pools, engine.AuditRolePool{Role: role, Pool: len(ids), Items: ids, Carried: ids, Unprompted: true})
 }
 
 // frameFileReading sets f's file-reading statement for a role's filePaths

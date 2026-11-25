@@ -22,7 +22,7 @@ func auditRolePools(prompts []auditPrompt) []engine.AuditRolePool {
 				// one row is never held by two rules.
 				return it.Type != "finding"
 			})
-			pools = append(pools, engine.AuditRolePool{Role: roleSpecCoverage, Pool: len(items), Items: items})
+			pools = append(pools, engine.AuditRolePool{Role: roleSpecCoverage, Pool: len(items), Items: items, Carried: prompts[i].carriedItems})
 			continue
 		}
 		items := checklistIDs(&prompts[i], func(it *ChecklistItem) bool { return it.Type == "file_check" })
