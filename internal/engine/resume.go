@@ -213,6 +213,7 @@ func assembleResume(start, taskFilePath, specPath string, tf *model.TaskFile, ru
 		Blockers:      blockers,
 		PendingCloses: pendingCloseIDs(taskFilePath),
 		RunningUnits:  running,
+		FoundQueue:    FoundQueueCounts(taskFilePath, tf),
 		EpicNotice:    epicNotice,
 	}
 	if !reads.noUnitBranches {
