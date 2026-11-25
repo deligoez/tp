@@ -7,12 +7,14 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/deligoez/tp/internal/model"
 )
 
 // Queue entry states (spec/1.31.0.md §6). An open entry awaits the person; a
 // decided one is a conforms answer, kept so it stays auditable.
 const (
-	FoundQueueOpen    = "open"
+	FoundQueueOpen    = model.FoundQueueOpen
 	FoundQueueDecided = "decided"
 )
 
@@ -45,12 +47,10 @@ type foundQueueFile struct {
 	Entries []FoundQueueEntry `json:"entries"`
 }
 
-// FoundQueuePath returns the queue file beside a spec's task file:
-// <base>.tasks.json holds its queue in <base>.queue.json. Unlike the found
-// request store it is committed, so it survives the machine, and its name does
-// not match *.tasks.json, so discovery never takes it for a task file.
+// FoundQueuePath returns the queue file beside a spec's task file
+// (model.FoundQueuePath, which the task-file reader shares).
 func FoundQueuePath(taskFile string) string {
-	return strings.TrimSuffix(taskFile, ".tasks.json") + ".queue.json"
+	return model.FoundQueuePath(taskFile)
 }
 
 // ReadFoundQueue returns a spec's queue in file order, or none when the file
