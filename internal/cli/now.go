@@ -171,11 +171,11 @@ func buildNow(taskFilePath string, tf *model.TaskFile) (*nowResult, error) {
 	res.NextAction = resume.NextAction.Summary
 	res.Tasks = nowTaskCounts(tf)
 	res.Ready = nowReady(tf)
-	run, slots := nowRunOf(root, taskFilePath)
+	run, slots, escalations := nowRunOf(root, taskFilePath)
 	res.Run = run
 	res.Held = nowHeldTasks(tf, slots)
 	res.Landing = nowLandings(taskFilePath, tf)
-	res.NeedsYou = blockerNeeds(resume.Blockers)
+	res.NeedsYou = append(blockerNeeds(resume.Blockers), escalations...)
 	for _, l := range res.Landing {
 		res.NeedsYou = append(res.NeedsYou, nowNeed{Kind: needLand, ID: l.ID,
 			Text: "A finished task waits to be landed onto this branch."})
@@ -208,22 +208,23 @@ func nowLandings(taskFilePath string, tf *model.TaskFile) []nowLand {
 }
 
 // nowRunOf is the current or last run of the task file as tp run --status
-// reports it, and the slots it runs now; nil and none when no run was ever
-// driven over it. A run state that cannot be read is said on stderr and
-// reported as no run, so the rest of the payload still reaches the pane.
-func nowRunOf(root, taskFilePath string) (run map[string]any, slots []runningSlot) {
+// reports it, the slots it runs now, and the escalations it stopped on; nil
+// and none when no run was ever driven over it. A run state that cannot be
+// read is said on stderr and reported as no run, so the rest of the payload
+// still reaches the pane.
+func nowRunOf(root, taskFilePath string) (run map[string]any, slots []runningSlot, escalations []nowNeed) {
 	st, err := engine.ReadRunState(root, taskFilePath)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
 			output.Notice("warning: the run state cannot be read: " + err.Error())
 		}
-		return nil, nil
+		return nil, nil, nil
 	}
 	wf := engine.EffectiveWorkflowForTaskFile(taskFilePath)
 	run = runStatusPayload(st, taskFilePath, &wf)
 	run["last_finished"] = lastFinishedUnit(st)
 	slots, _ = run["running"].([]runningSlot)
-	return run, slots
+	return run, slots, escalationNeeds(root, st)
 }
 
 // nowFinished is the latest unit attempt that exited.
