@@ -62,6 +62,19 @@ type Origin struct {
 	Location   string `json:"location"`
 }
 
+// FoundNote is a request attached to an open task in place of a found task of
+// its own. It carries the request's fields, since the request store it came
+// from is not committed.
+type FoundNote struct {
+	Request      string   `json:"request"`
+	Location     string   `json:"location"`
+	Reproduction string   `json:"reproduction"`
+	Expected     string   `json:"expected,omitempty"`
+	Observed     string   `json:"observed,omitempty"`
+	Question     string   `json:"question,omitempty"`
+	Alternatives []string `json:"alternatives,omitempty"`
+}
+
 // Task represents a single atomic work item.
 type Task struct {
 	ID              string   `json:"id"`
@@ -78,6 +91,10 @@ type Task struct {
 	// place of source_sections, never beside it (spec/1.31.0.md §3).
 	Origin  *Origin  `json:"origin,omitempty"`
 	Touches []string `json:"touches,omitempty"`
+	// FoundNotes is managed by tp: the requests `tp found apply` attached to
+	// this task because their location falls inside its touches
+	// (spec/1.31.0.md §2).
+	FoundNotes []FoundNote `json:"found_notes,omitempty"`
 	// Solo is managed by tp: a task whose side-by-side unit failed to
 	// integrate runs alone from then on (spec/backlog/parallel-implement.md).
 	Solo bool `json:"solo,omitempty"`
