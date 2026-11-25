@@ -64,3 +64,20 @@ func TestNext_ReportsNoneWhenEveryReadyTaskOverlapsAClaim(t *testing.T) {
 	assert.Equal(t, "open", taskState(t, dir, "t2")["status"])
 }
 
+// TestClaim_RefusesATaskOverlappingAClaim: tp claim t2 refuses with exit 4
+// and the message tp brief gives, naming t1, and leaves t2 open.
+func TestClaim_RefusesATaskOverlappingAClaim(t *testing.T) {
+	t.Parallel()
+	dir := overlapRepo(t)
+	holdT1(t, dir)
+
+	_, stderr, code := runTP(t, dir, "claim", "t2")
+	assert.Equal(t, 4, code, stderr)
+	var refusal struct {
+		Error string `json:"error"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stderr), &refusal), stderr)
+	assert.Contains(t, refusal.Error, `task "t2" is not handed out while task "t1" is claimed`)
+	assert.Equal(t, "open", taskState(t, dir, "t2")["status"])
+}
+
