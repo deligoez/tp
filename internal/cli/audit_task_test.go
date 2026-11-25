@@ -582,3 +582,31 @@ func readReviewState(t *testing.T, dir string) map[string]any {
 	require.NoError(t, json.Unmarshal(data, &st))
 	return st
 }
+
+// TestTaskAudit_RecordInboxMergesARolesPartFiles (audit-round-ergonomics.md
+// §2.3): a role whose checklist was answered in two parts and no whole file
+// records as if one file held every row.
+func TestTaskAudit_RecordInboxMergesARolesPartFiles(t *testing.T) {
+	t.Parallel()
+	dir := taskAuditProject(t, "t1")
+	closeWith(t, dir, "t1", commitFiles(t, dir, "a.go", "b.go"))
+	res := emitTaskAudit(t, dir)
+	prompt := res["prompts"].([]any)[0].(map[string]any)
+	whole := prompt["output_path"].(string)
+	if !filepath.IsAbs(whole) {
+		whole = filepath.Join(dir, whole)
+	}
+	require.NoError(t, os.MkdirAll(filepath.Dir(whole), 0o755))
+	for i, it := range prompt["checklist_items"].([]any) {
+		row, err := json.Marshal(map[string]any{"role": prompt["role"], "item_id": it.(map[string]any)["item_id"], "status": "PASS", "category": nil, "severity": nil, "notes": "n"})
+		require.NoError(t, err)
+		part := strings.TrimSuffix(whole, ".ndjson") + fmt.Sprintf(".p%d.ndjson", i)
+		require.NoError(t, os.WriteFile(part, append(row, '\n'), 0o600))
+	}
+
+	out, stderr, code := runTP(t, dir, "audit", "spec.md", "--task-audit", "--record-inbox")
+	require.Equal(t, 0, code, "record: %s", stderr)
+	var rec map[string]any
+	require.NoError(t, json.Unmarshal([]byte(out), &rec), out)
+	assert.Equal(t, true, rec["clean"], "every item graded across the parts")
+}
