@@ -286,6 +286,9 @@ func durableWrite() error {
 // answerRequests is a decision unit's durable write: every request its unit
 // id names leaves the undecided state, as tp found answer would leave it.
 func answerRequests(taskFile, unitID string) error {
+	if taskFile == "" {
+		return errors.New("TP_FILE is unset: a decision unit has no task file to answer requests in")
+	}
 	ids := engine.DecisionRequestIDs(unitID)
 	root := engine.CanonicalProjectRoot(filepath.Dir(taskFile))
 	return engine.UpdateFoundRequests(root, taskFile, func(reqs []engine.FoundRequest) ([]engine.FoundRequest, error) {
