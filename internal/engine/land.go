@@ -297,16 +297,28 @@ var hcBinary = "hc"
 // LandCommitTaskFileHC is LandCommitTaskFile under the hc commit_strategy: it
 // hands hc a one-commit plan naming the task file alone, the rest of the tree
 // left unplanned, so a project whose every commit goes through hc gets the
-// land's commit the same way (spec/backlog/land-lifecycle.md §2.1). This is
-// the one place tp runs hc; everywhere else the agent does.
+// land's commit the same way (spec/backlog/land-lifecycle.md §2.1). Beside
+// tp run's round-file commit (CommitRoundFilesHC) this is the one place tp
+// runs hc; everywhere else the agent does.
 func LandCommitTaskFileHC(root, taskFile, msg string) (string, error) {
-	rel, err := filepath.Rel(root, taskFile)
-	if err != nil {
-		rel = taskFile
+	return hcCommitPaths(root, []string{taskFile}, msg, filepath.Base(taskFile))
+}
+
+// hcCommitPaths hands hc a one-commit plan naming paths, whole files, with
+// msg, the rest of the tree left unplanned, and returns the new commit's
+// short sha. what names the commit in an error.
+func hcCommitPaths(root string, paths []string, msg, what string) (string, error) {
+	files := make([]map[string]string, 0, len(paths))
+	for _, p := range paths {
+		rel, err := filepath.Rel(root, p)
+		if err != nil {
+			rel = p
+		}
+		files = append(files, map[string]string{"path": filepath.ToSlash(rel)})
 	}
 	plan, err := json.Marshal(map[string]any{
 		"allow_unplanned": []string{"**"},
-		"commits":         []map[string]any{{"message": msg, "files": []map[string]string{{"path": filepath.ToSlash(rel)}}}},
+		"commits":         []map[string]any{{"message": msg, "files": files}},
 	})
 	if err != nil {
 		return "", err
@@ -315,7 +327,7 @@ func LandCommitTaskFileHC(root, taskFile, msg string) (string, error) {
 	cmd.Dir = root
 	cmd.Stdin = bytes.NewReader(plan)
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return "", fmt.Errorf("hc commit of %s failed: %s", filepath.Base(taskFile), strings.TrimSpace(string(out)))
+		return "", fmt.Errorf("hc commit of %s failed: %s", what, strings.TrimSpace(string(out)))
 	}
 	return gitOut(root, "rev-parse", "--short", "HEAD")
 }
