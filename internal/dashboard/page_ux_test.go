@@ -886,3 +886,16 @@ func TestPage_AReopenedStreamSaysConnectingAndPausedHasItsOwnMark(t *testing.T) 
 	assert.Contains(t, script, `paused: tk("conn.paused")`)
 	assert.Contains(t, page, `.conn[data-state="paused"]::before {`)
 }
+
+// TestPage_ThePlanCardDrawsTheMapTpLaysOut: the graph card places each node
+// at the final x and y the layout gives it, a gap opening above each line
+// of blocks, and outlines and labels each milestone block (L.blocks) in
+// the bands' own style, so the page computes no place of its own.
+func TestPage_ThePlanCardDrawsTheMapTpLaysOut(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, s := range []string{"pure.mapPlace(n)", "pure.mapY(at.row, ctx.tops, geo.row, geo.lineGap)", "pure.mapLineTops(L.blocks)",
+		"const regions = L.blocks && L.blocks.length ? L.blocks : L.bands || [];"} {
+		assert.Contains(t, script, s)
+	}
+}
