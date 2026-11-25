@@ -909,3 +909,19 @@ func TestPage_ADrawerOverAGraphDrawsNoBackdrop(t *testing.T) {
 	assert.Contains(t, script, `$("scrim").hidden = !open || !tpPure.drawerDims(kind, work.tview);`)
 	assert.NotContains(t, script, `$("scrim").hidden = !open;`)
 }
+
+// TestPage_TheMapsLabelsReadAtALowerZoom: the plan map's epic boxes carry
+// their ids in the page's own face at 18 units, in boxes grown to hold
+// them, and show them from 14 pixels on screen, so a label reads half a
+// zoom step sooner than the forest's 11-unit monospace one did.
+func TestPage_TheMapsLabelsReadAtALowerZoom(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, s := range []string{
+		`map: { w: 200, h: 52, col: 240, row: 80, fs: 18, chars: 20, lineGap: 320, minPx: 14, font: "Inter, system-ui, sans-serif" },`,
+		"G.detail = pure.detailLevel(P.geo.fs * scale, P.geo.minPx);",
+		`fontFamily: P.geo.font || "ui-monospace, SFMono-Regular, Menlo, monospace",`,
+	} {
+		assert.Contains(t, script, s)
+	}
+}
