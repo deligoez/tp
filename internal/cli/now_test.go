@@ -311,6 +311,21 @@ func TestNow_EscalationBecomesADecision(t *testing.T) {
 	assert.Contains(t, need["text"], "audit")
 }
 
+// A run whose driver died without a stop reason waits for a person: needs_you
+// says so in plain words.
+func TestNow_CrashedRunIsANeed(t *testing.T) {
+	t.Parallel()
+	dir := runProject(t)
+	writeRunState(t, dir, crashedRunState)
+
+	stdout, stderr, code := runTP(t, dir, "now")
+	require.Equal(t, 0, code, "tp now: %s", stderr)
+	out := decodeNow(t, stdout)
+	require.Equal(t, "crashed", out["run"].(map[string]any)["run_state"])
+	need := needOf(t, out, "run")
+	assertPlainWords(t, need["text"])
+}
+
 // Without an epic graph epics is null; with one it lists each epic by id and
 // title, with the done and total tasks of its bound files and whether it is
 // done.
