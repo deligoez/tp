@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/deligoez/tp/internal/model"
@@ -225,6 +226,31 @@ func parseWorkflowOverride(raw json.RawMessage) (wo model.WorkflowOverride, warn
 	return wo, warnings
 }
 
+// panelLanguages are the languages the plugin's panel has words for.
+var panelLanguages = []string{"en", "tr"}
+
+// panelWarnings checks the panel block, which only the plugin's panel reads:
+// tp itself acts on nothing in it, so a bad value is named and left alone.
+func panelWarnings(raw json.RawMessage) []string {
+	var panel map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &panel); err != nil {
+		return []string{"panel: expected an object, ignored"}
+	}
+	var warnings []string
+	for k, v := range panel {
+		if k != "language" {
+			warnings = append(warnings, "unknown panel key: "+k)
+			continue
+		}
+		var lang string
+		if err := json.Unmarshal(v, &lang); err != nil || !slices.Contains(panelLanguages, lang) {
+			warnings = append(warnings, fmt.Sprintf("panel.language: %s is not one of %s, ignored",
+				string(v), strings.Join(panelLanguages, ", ")))
+		}
+	}
+	return warnings
+}
+
 // LoadProjectConfig reads and leniently parses tpDir/config.json into a
 // ProjectConfig, returning validation warnings for unknown keys and wrong-typed
 // values (which are ignored, not errors). A missing file returns an empty
@@ -246,9 +272,12 @@ func LoadProjectConfig(tpDir string) (model.ProjectConfig, []string, error) {
 	}
 	var warnings []string
 	for k := range top {
-		if k != "workflow" && k != "epic" {
+		if k != "workflow" && k != "epic" && k != "panel" {
 			warnings = append(warnings, "unknown top-level key: "+k)
 		}
+	}
+	if raw, ok := top["panel"]; ok {
+		warnings = append(warnings, panelWarnings(raw)...)
 	}
 	if wfRaw, ok := top["workflow"]; ok {
 		wo, wfWarn := parseWorkflowOverride(wfRaw)
