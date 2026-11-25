@@ -179,6 +179,9 @@ Repeat until `tp review <spec> --status --check` exits 0:
    (0-based), or `--resolve-all <file> <disposition> "evidence"` for many.
    - `fixed` does not clean its round; the next recorded round verifies it (so a row arriving at
      `--record` already `fixed` aborts the record). `wontfix`/`duplicate` with evidence do clean it.
+   - **Dispose of every finding before the next round is emitted.** Only a round emitted after a
+     `fixed` reads the repair: one already in flight lists the row as not to re-report, so a fix
+     resolved after it stays fixed-unverified for one more round.
    - **A finding leaves a round as a spec change or as a disposition, never as new prose.** When the
      answer is *why the text is already right*, it goes in the `wontfix` evidence: prose written to
      satisfy a reviewer becomes the next round's surface.
