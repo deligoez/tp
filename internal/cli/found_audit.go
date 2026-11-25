@@ -26,16 +26,33 @@ func foundAuditRowFinder(taskFilePath string, f *foundAddFlags, req *engine.Foun
 	if !req.FixShaped() || strings.TrimSpace(req.Question) != "" {
 		_ = foundRefusal("an audit finding outside the spec's surface becomes a request only when it is Fix-shaped: --expected and --observed, no --question", foundAuditRowHint)
 	}
+	finder, err := engine.FoundAuditFinder(foundSpecPath(taskFilePath), f.auditRow)
+	if err != nil {
+		_ = foundRefusal(err.Error(), foundAuditRowHint)
+	}
+	return finder
+}
+
+// foundAuditUnitFinder is the finder of a request an audit-role unit files
+// without --audit-row, a finding that is not a row (spec/1.31.0.md §7): the
+// audit round in flight, so tp found apply holds the request until that round
+// is recorded. No round in flight leaves the finder empty.
+func foundAuditUnitFinder(taskFilePath string) engine.FoundFinder {
+	round, err := engine.InFlightAuditRound(foundSpecPath(taskFilePath))
+	if err != nil {
+		_ = foundRefusal(err.Error(), foundAuditRowHint)
+	}
+	return engine.FoundFinder{AuditRound: round}
+}
+
+// foundSpecPath is the spec of the task file a request is filed against.
+func foundSpecPath(taskFilePath string) string {
 	tf, err := model.ReadTaskFile(taskFilePath)
 	if err != nil {
 		_ = foundRefusal(err.Error(), foundAuditRowHint)
 	}
 	specPath, _ := engine.ResolveSpecPath(taskFilePath, tf.Spec)
-	finder, err := engine.FoundAuditFinder(specPath, f.auditRow)
-	if err != nil {
-		_ = foundRefusal(err.Error(), foundAuditRowHint)
-	}
-	return finder
+	return specPath
 }
 
 // fileFoundAuditRows writes, at --record, the disposition of every row of

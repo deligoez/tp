@@ -197,6 +197,8 @@ func runFoundAdd(f *foundAddFlags) error {
 	req.Finder.Task = finder
 	if f.auditRow != "" {
 		req.Finder = foundAuditRowFinder(taskFilePath, f, req)
+	} else if engine.UnitKind(os.Getenv(engine.EnvUnitKind)) == engine.UnitAuditRole {
+		req.Finder = foundAuditUnitFinder(taskFilePath)
 	}
 
 	root := engine.CanonicalProjectRoot(filepath.Dir(taskFilePath))
