@@ -113,9 +113,12 @@
     // a 12-unit gap, and its id is set in the page's own face, medium, at
     // fs units, whole in one or two lines measured to fit inside pad
     // (tpPure.fitIdIn), never cut. The ids show once the smallest of them
-    // reaches minPx (DESIGN.md's tiny type, 14px) on screen.
+    // reaches minPx on screen. Deviation from DESIGN.md's 14px tiny type,
+    // by operator decision: a whole id at 10px a zoom click earlier reads
+    // better than none, in the strongest text token (at least 14:1 on
+    // every node fill) and medium weight, and grows from there.
     map: {
-      w: 212, h: 56, col: 224, row: 68, fs: 22, pad: 6, lh: 1.15, lineGap: 220, minPx: 14, font: "Inter, system-ui, sans-serif" },
+      w: 212, h: 56, col: 224, row: 68, fs: 22, pad: 6, lh: 1.15, lineGap: 220, minPx: 10, font: "Inter, system-ui, sans-serif" },
   };
   // measureEm is a map label's width in font sizes, the sum of its
   // characters' advances in the map's face at medium weight, as deck.gl's
