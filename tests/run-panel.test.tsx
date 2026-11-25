@@ -373,6 +373,41 @@ test('the command outside a tp project says so and reads no status', async ($, o
   expect(ran).toBe(false)
 })
 
+test('the pane opens on now, switches views by its buttons and opens a task from a row', async ($, on) => {
+  mock.clock(on, { now: AT })
+  const ran = world(on, {
+    'tp --version': VERSION,
+    'tp now --json': { exitCode: 0, stdout: JSON.stringify(NOW) },
+    'tp show auth-refresh --json': {
+      exitCode: 0,
+      stdout: JSON.stringify({ ...SHOWN, acceptance: 'Tokens refresh 60s before expiry\n- A failed refresh logs the user out' }),
+    },
+  })
+  await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
+  await runCommand($)
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: 'Implement phase · run in progress (4m 5s)' })).toBeTruthy()
+  expect((await ui.findAll({ type: 'Button' })).map(b => b.key).slice(0, 4)).toEqual([
+    'view-now',
+    'view-tasks',
+    'view-epics',
+    'view-run',
+  ])
+
+  await ui.press({ key: 'view-epics' })
+  expect(await ui.find({ type: 'Text', text: /^Search +█+ 4\/4 · done$/ })).toBeTruthy()
+
+  await ui.press({ key: 'view-now' })
+  await ui.press({ key: 'held:auth-refresh' })
+  expect(await ui.find({ type: 'Text', text: 'Held by: run, attempt 2' })).toBeTruthy()
+  expect(await ui.find({ type: 'Text', text: 'A failed refresh logs the user out' })).toBeTruthy()
+
+  await ui.press({ key: 'back' })
+  expect(await ui.find({ type: 'Text', text: 'Needs you' })).toBeTruthy()
+  expect([...new Set(ran)].sort()).toEqual(['tp --version', 'tp now --json', 'tp show auth-refresh --json'])
+  await ui.unmount()
+})
+
 test('the language comes from the project, then Claude Code, then the locale, then English', async () => {
   expect(resolveLanguage({ project: 'tr', setting: 'english', locale: 'en_US.UTF-8' })).toBe('tr')
   expect(resolveLanguage({ project: 'en', setting: 'turkish', locale: 'tr_TR.UTF-8' })).toBe('en')
