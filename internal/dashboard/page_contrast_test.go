@@ -261,3 +261,35 @@ func TestPage_TheGraphDrawsOnlyDesignTokens(t *testing.T) {
 		}
 	}
 }
+
+// TestPage_ANodeIsAQuietCardWithItsStatusOnTheBorder: as the Board's
+// cards are, a node is a quiet card, its fill no further from the card
+// than a weak status tint, and its state is told by its border in the
+// status colour; the regions behind the nodes are the weak and weaker
+// neutral fills, in both themes.
+func TestPage_ANodeIsAQuietCardWithItsStatusOnTheBorder(t *testing.T) {
+	t.Parallel()
+	css := string(served(t, "/style.css"))
+	for _, over := range []string{"", darkByControl} {
+		tok, err := json.Marshal(themeTokens(t, css, over))
+		require.NoError(t, err)
+		got := runPure(t, `const tok = `+string(tok)+`;
+const pal = P.graphPalette(tok);
+const far = {};
+Object.keys(pal.fill).forEach((k) => { far[k] = Math.round(P.deltaE(pal.fill[k], pal.surface) * 10) / 10; });
+out({ far, band: pal.band.map((b) => Math.round(P.deltaE(b, pal.page) * 10) / 10) });`)
+		var res struct {
+			Far  map[string]float64 `json:"far"`
+			Band []float64          `json:"band"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(got), &res))
+		require.NotEmpty(t, res.Far)
+		for k, d := range res.Far {
+			assert.LessOrEqual(t, d, 10.0, "theme %q: the %s fill is a quiet tint of the card", over, k)
+		}
+		require.Len(t, res.Band, 2)
+		for _, d := range res.Band {
+			assert.LessOrEqual(t, d, 6.0, "theme %q: a region is a weak neutral fill", over)
+		}
+	}
+}
