@@ -702,21 +702,27 @@
   };
 
   // wrapId is an id as lines of at most per characters: a break after the
-  // last ".", "-" or ":" in the line's second half, else at the line's end.
-  // Nothing is cut.
+  // last ".", "-", ":" or space in the line's second half (the space
+  // dropped), else at the line's end. Nothing else is cut.
   P.wrapId = function (id, per) {
     const lines = [];
     let rest = id;
     while (rest.length > per) {
       let cut = per;
-      for (let i = per; i >= Math.ceil(per / 2); i--) {
-        if (".-:".includes(rest[i - 1])) {
+      let drop = 0;
+      for (let i = per + 1; i >= Math.ceil(per / 2); i--) {
+        if (rest[i - 1] === " ") {
+          cut = i - 1;
+          drop = 1;
+          break;
+        }
+        if (i <= per && ".-:".includes(rest[i - 1])) {
           cut = i;
           break;
         }
       }
       lines.push(rest.slice(0, cut));
-      rest = rest.slice(cut);
+      rest = rest.slice(cut + drop);
     }
     lines.push(rest);
     return lines;
