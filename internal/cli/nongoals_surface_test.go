@@ -55,7 +55,7 @@ import (
 const pinnedSurface = `
 : color compact file json no-color no-compact no-quiet quiet
 add: bulk spec stdin
-audit: affected-files affected-from-tasks base check findings force harness-note merge output record record-inbox resolve resolve-all role status task-audit
+audit: affected-files affected-from-tasks base check findings force harness-note inbox merge output record record-inbox resolve resolve-all role status task-audit
 blocked:
 brief: prior
 claim: all-ready claim-token session spawn takeover
@@ -111,7 +111,7 @@ remove: force
 reopen:
 report:
 resume: epic
-review: affected-files check diff-from docs-path final-round findings force harness-note merge no-state output perspective record record-inbox report resolve resolve-all rewritten role round spec-inline status test-path verify
+review: affected-files check diff-from docs-path final-round findings force harness-note inbox merge no-state output perspective record record-inbox report resolve resolve-all rewritten role round spec-inline status test-path verify
 run: dry-run status
 set: bulk epic local project workflow
 show:
