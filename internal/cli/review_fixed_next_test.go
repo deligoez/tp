@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/deligoez/tp/internal/engine"
 )
 
 // recordedHighRound records review round 1 of spec.md holding one high
@@ -63,5 +65,16 @@ func TestReviewResolve_FixedNextStepNamesTheNextRound(t *testing.T) {
 	dir, roundFile := recordedHighRound(t)
 	next, _ := resolveFixed(t, dir, roundFile, noRoundDir())["next_step"].(string)
 	assert.Contains(t, next, "tp review <spec>, then tp review <spec> --record-inbox")
+	assert.NotContains(t, next, "--verify")
+}
+
+// TestReviewResolve_FixedNextStepInsideARunNamesNoRound: a review-resolve unit
+// under tp run stops after its resolves; the driver emits the next round.
+func TestReviewResolve_FixedNextStepInsideARunNamesNoRound(t *testing.T) {
+	t.Parallel()
+	dir, roundFile := recordedHighRound(t)
+	next, _ := resolveFixed(t, dir, roundFile, append(noRoundDir(), engine.EnvRound+"=2"))["next_step"].(string)
+	assert.NotEmpty(t, next)
+	assert.NotContains(t, next, "tp review <spec>", "no emission from inside the unit")
 	assert.NotContains(t, next, "--verify")
 }
