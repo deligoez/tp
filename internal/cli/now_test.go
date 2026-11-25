@@ -61,3 +61,38 @@ func TestNow_ProjectWithoutTaskFile(t *testing.T) {
 	_, _, code = runTP(t, bare, "now")
 	assert.Equal(t, 3, code, "outside a project tp now exits 3")
 }
+
+// A wip task claimed by hand is held by you; tasks counts as tp status does,
+// and ready lists the startable tasks in tp ready's order.
+func TestNow_PlainWipTaskIsHeldByYou(t *testing.T) {
+	t.Parallel()
+	dir := runProject(t)
+	for _, args := range [][]string{
+		{"add", `{"id":"grow","title":"Grow","estimate_minutes":5,"acceptance":"Grown.","source_sections":["### 1.1 Seed"],"depends_on":[]}`},
+		{"add", `{"id":"trim","title":"Trim","estimate_minutes":5,"acceptance":"Trimmed.","source_sections":["### 1.1 Seed"],"depends_on":["seed"]}`},
+		{"claim", "seed"},
+	} {
+		_, stderr, code := runTP(t, dir, args...)
+		require.Equal(t, 0, code, "%v: %s", args, stderr)
+	}
+
+	stdout, stderr, code := runTP(t, dir, "now")
+	require.Equal(t, 0, code, "tp now: %s", stderr)
+	out := decodeNow(t, stdout)
+	assert.Equal(t, "spec.tasks.json", out["task_file"])
+	assert.Equal(t, "implement", out["phase"])
+	assert.Equal(t, map[string]any{"total": 3.0, "done": 0.0, "wip": 1.0, "open": 2.0, "ready": 1.0, "blocked": 1.0, "held": 0.0},
+		out["tasks"])
+	assert.Equal(t, []any{map[string]any{"id": "grow", "title": "Grow"}}, out["ready"])
+
+	held, ok := out["held"].([]any)
+	require.True(t, ok, "held is a list: %v", out["held"])
+	require.Len(t, held, 1)
+	seed := held[0].(map[string]any)
+	assert.Equal(t, "seed", seed["id"])
+	assert.Equal(t, "Seed", seed["title"])
+	assert.Equal(t, "you", seed["holder"], "a plain wip task with no claim is held by you")
+	assert.NotNil(t, seed["since"], "since is the task's started_at")
+	assert.Nil(t, seed["worktree"])
+	assert.Nil(t, seed["attempt"])
+}
