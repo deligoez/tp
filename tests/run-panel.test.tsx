@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { duration, panelRows, toView } from '../hooks/run-panel'
+import { duration, panelRows, tpVersion, toView } from '../hooks/run-panel'
 
 const PANE = {
   plugin: 'tp',
@@ -33,6 +33,12 @@ test('a duration reads in seconds, minutes and hours', async () => {
   expect(duration(42)).toBe('42s')
   expect(duration(754)).toBe('12m 34s')
   expect(duration(28800)).toBe('8h 0m')
+})
+
+test('the brand reads the version tp prints', async () => {
+  expect(tpVersion('tp version v1.32.0\n')).toBe('v1.32.0')
+  expect(tpVersion('tp version (devel)')).toBe('(devel)')
+  expect(tpVersion('')).toBe('')
 })
 
 test('a payload without running still draws', async () => {
