@@ -256,17 +256,10 @@ func addTasks(tasks []model.Task) error {
 		// the §7.1 coverage recompute below.
 		specPath, specExists := engine.ResolveSpecPath(taskFilePath, tf.Spec)
 		if specExists {
-			if headings, perr := engine.ParseHeadings(specPath); perr == nil && len(headings) > 0 {
-				if nerr := engine.NormalizeSourceSections(tasks, headings); nerr != nil {
-					output.Error(ExitValidation, nerr.Error())
-					os.Exit(ExitValidation)
-					return nil
-				}
-				if uerr := engine.FirstUnresolvedSection(tasks, headings); uerr != nil {
-					output.Error(ExitValidation, uerr.Error(), "name a heading of the spec in canonical form (\"## Heading Text\")")
-					os.Exit(ExitValidation)
-					return nil
-				}
+			if code, msg, hint := checkAddSourceSections(tasks, specPath); code != 0 {
+				output.Error(code, msg, hint...)
+				os.Exit(code)
+				return nil
 			}
 		}
 
@@ -295,6 +288,34 @@ func addTasks(tasks []model.Task) error {
 		}
 		return output.JSON(map[string]any{"added": ids, "file": taskFileLabel(taskFilePath), "criteria": criteriaCounts(tasks)})
 	})
+}
+
+// checkAddSourceSections normalizes the tasks' source_sections against the
+// spec's headings and refuses an entry that names none of them. It fails
+// closed: when the headings cannot be parsed (a read error, or a line past
+// bufio.Scanner's token limit) and a task carries source_sections, the add is
+// refused rather than written unchecked. A non-zero code means refuse.
+func checkAddSourceSections(tasks []model.Task, specPath string) (code int, msg string, hint []string) {
+	headings, perr := engine.ParseHeadings(specPath)
+	if perr != nil {
+		for i := range tasks {
+			if len(tasks[i].SourceSections) > 0 {
+				return ExitFile, fmt.Sprintf("cannot check source_sections: spec headings unreadable: %v", perr),
+					[]string{"fix the spec so every line parses (no line over 64KB), then add again"}
+			}
+		}
+		return 0, "", nil
+	}
+	if len(headings) == 0 {
+		return 0, "", nil
+	}
+	if nerr := engine.NormalizeSourceSections(tasks, headings); nerr != nil {
+		return ExitValidation, nerr.Error(), nil
+	}
+	if uerr := engine.FirstUnresolvedSection(tasks, headings); uerr != nil {
+		return ExitValidation, uerr.Error(), []string{"name a heading of the spec in canonical form (\"## Heading Text\")"}
+	}
+	return 0, "", nil
 }
 
 // criteriaCounts maps each task id to its acceptance criteria count — the
