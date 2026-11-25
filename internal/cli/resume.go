@@ -24,7 +24,7 @@ the project is in and the concrete next action — the note a finishing agent
 leaves for the next one. Read-only: it writes no file.
 
 Output: {phase, spec, changes, kept, bookkeeping, next_units, round, last_failure,
-next_action, blockers}`,
+next_action, blockers, found_queue}`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: runResume,
 	}
@@ -218,6 +218,9 @@ func resumeJSON(r *engine.ResumeResult, compact bool) map[string]any {
 	}
 	if len(r.RunningUnits) > 0 {
 		out["running_units"] = r.RunningUnits
+	}
+	if r.FoundQueue != nil {
+		out["found_queue"] = r.FoundQueue
 	}
 	return out
 }
