@@ -328,13 +328,30 @@ func UnitPrompt(kind UnitKind, t UnitTarget) string {
 	return briefPrompt(kind, kind.BriefCommand(t))
 }
 
+// foundRequestText is what a unit that can file requests is told about them
+// (spec/1.31.0.md §1): it names tp found add and carries the no-sweep
+// sentence, so a unit reports what its own work ran into and never hunts for
+// defects.
+const foundRequestText = " A defect your work runs into outside the work you were given is filed with `tp found add`, one defect per request." +
+	" Report only what your own work ran into; never sweep code for defects."
+
+// filesRequests reports whether a kind's unit can file found requests: an
+// implement unit and an audit role.
+func filesRequests(kind UnitKind) bool {
+	return kind == UnitImplement || kind == UnitAuditRole
+}
+
 // briefPrompt words the prompt around one brief command.
 func briefPrompt(kind UnitKind, brief string) string {
 	if brief == "" {
 		return ""
 	}
-	return fmt.Sprintf(
+	prompt := fmt.Sprintf(
 		"Run `%s` first and follow the brief it returns; it is where your instructions come from. "+
 			"Do that one %s unit and then stop: do not claim another unit, and do no work the brief did not ask for.",
 		brief, kind)
+	if filesRequests(kind) {
+		prompt += foundRequestText
+	}
+	return prompt
 }
