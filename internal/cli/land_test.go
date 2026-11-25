@@ -884,3 +884,26 @@ func TestABatchCloseRefusesACommitItsBranchLacks(t *testing.T) {
 	assert.Contains(t, stdout+stderr, "tp done t1 --commit "+sha)
 	assert.Equal(t, "wip", taskState(t, dir, "t1")["status"])
 }
+
+// landOne has the agent in wt commit its work and request t1's land, then
+// runs tp land in dir, returning its output.
+func landOne(t *testing.T, dir, wt string) string {
+	t.Helper()
+	sha := agentCommit(t, wt)
+	_, stderr, code := runTP(t, wt, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	stdout, stderr, code := runTP(t, dir, "land")
+	require.Equal(t, 0, code, stdout+stderr)
+	return stdout
+}
+
+// Under builtin, land commits the task file itself: the close leaves no
+// change behind for the coordinator to commit.
+func TestLandCommitsTheTaskFileUnderBuiltin(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "builtin")
+	stdout := landOne(t, dir, wt)
+	assert.Contains(t, stdout, `"commit": "`, stdout)
+	assert.Empty(t, gitRun(t, dir, "status", "--porcelain", "--", "spec.tasks.json"), "the task file is committed")
+	assert.Equal(t, "done", committedTaskField(t, dir, "spec.tasks.json", "t1", "status"))
+}
