@@ -205,8 +205,9 @@ func applyFoundRequests(root, taskFilePath string, foundMax int) (engine.FoundAp
 		}
 		return engine.UpdateFoundRequests(root, taskFilePath, func(reqs []engine.FoundRequest) ([]engine.FoundRequest, error) {
 			plan = engine.PlanFoundApply(reqs, tf.Tasks, queue, foundMax)
-			if len(plan.Tasks) > 0 || len(plan.Attached) > 0 {
+			if len(plan.Tasks) > 0 || len(plan.Attached) > 0 || len(plan.Edges) > 0 {
 				attachFoundNotes(tf, plan.Attached)
+				addFoundEdges(tf, plan.Edges)
 				tf.Tasks = append(tf.Tasks, plan.Tasks...)
 				if err := model.WriteTaskFile(taskFilePath, tf); err != nil {
 					return nil, err
@@ -232,6 +233,17 @@ func attachFoundNotes(tf *model.TaskFile, attached []engine.FoundAttached) {
 		for i := range tf.Tasks {
 			if tf.Tasks[i].ID == a.Task {
 				tf.Tasks[i].FoundNotes = append(tf.Tasks[i].FoundNotes, a.Note)
+			}
+		}
+	}
+}
+
+// addFoundEdges adds each placement edge to its task's depends_on.
+func addFoundEdges(tf *model.TaskFile, edges []engine.FoundEdge) {
+	for _, e := range edges {
+		for i := range tf.Tasks {
+			if tf.Tasks[i].ID == e.Task {
+				tf.Tasks[i].DependsOn = append(tf.Tasks[i].DependsOn, e.DependsOn)
 			}
 		}
 	}
