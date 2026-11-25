@@ -1,0 +1,14 @@
+{
+  "entries": [
+    {
+      "id": "Q1",
+      "state": "rejected",
+      "request": "F1",
+      "location": "internal/cli/role_write_symlink_test.go:144",
+      "reproduction": "go test -count=1 -race ./... (the full gate) while other units load the machine",
+      "expected": "TestRoleWriteHookStaysCheapOnADeepMissingPath passes whatever the machine load, as it does alone (deep ~42ms vs shallow ~35ms over 3 runs)",
+      "observed": "under the gate's load it failed once with 'the ancestor walk must be bounded (deep 232.849625ms vs shallow 76.285917ms)'; the rerun gate passed",
+      "reason": "did not reproduce under the full gate on handback (found-f1); a recurrence files a new request"
+    }
+  ]
+}

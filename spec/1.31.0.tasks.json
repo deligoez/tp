@@ -3,7 +3,7 @@
   "spec": "spec/1.31.0.md",
   "imported_at": "2026-11-24T21:33:03.666479Z",
   "created_at": "2026-11-24T21:33:03.664126Z",
-  "updated_at": "2026-11-25T04:39:00.330033Z",
+  "updated_at": "2026-11-25T07:53:06.398791Z",
   "workflow": {
     "review_max_rounds": 5,
     "audit_max_rounds": 3
@@ -1193,6 +1193,32 @@
       "task_audit_owed": [
         "go-safety"
       ]
+    },
+    {
+      "id": "found-f1",
+      "title": "Fix internal/cli/role_write_symlink_test.go:144",
+      "description": "Reproduction: go test -count=1 -race ./... (the full gate) while other units load the machine\nExpected: TestRoleWriteHookStaysCheapOnADeepMissingPath passes whatever the machine load, as it does alone (deep ~42ms vs shallow ~35ms over 3 runs)\nObserved: under the gate's load it failed once with 'the ancestor walk must be bounded (deep 232.849625ms vs shallow 76.285917ms)'; the rerun gate passed",
+      "status": "done",
+      "tags": [
+        "found"
+      ],
+      "depends_on": [
+        "found-docs"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- `go test -count=1 -race ./... (the full gate) while other units load the machine` shows TestRoleWriteHookStaysCheapOnADeepMissingPath passes whatever the machine load, as it does alone (deep ~42ms vs shallow ~35ms over 3 runs), where it showed under the gate's load it failed once with 'the ancestor walk must be bounded (deep 232.849625ms vs shallow 76.285917ms)'; the rerun gate passed",
+      "source_sections": [],
+      "origin": {
+        "finder_task": "found-docs",
+        "location": "internal/cli/role_write_symlink_test.go:144"
+      },
+      "handed_back": true,
+      "started_at": "2026-11-25T07:49:38.987541Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-25T07:53:06.39879Z",
+      "closed_reason": "Handed back: The reproduction did not fail: the full gate run through tp gate (go test -count=1 -race ./... plus lint, deadcode and complexity steps) passed with exit 0 and TestRoleWriteHookStaysCheapOnADeepMissingPath did not fail; the reported failure was a single load-dependent occurrence that the reporter's own rerun also passed, so there is no red run to fix against.",
+      "gate_passed_at": null,
+      "commit_sha": null
     }
   ]
 }
