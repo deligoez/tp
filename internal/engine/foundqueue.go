@@ -16,6 +16,10 @@ import (
 const (
 	FoundQueueOpen    = model.FoundQueueOpen
 	FoundQueueDecided = "decided"
+	// FoundQueueSettled and FoundQueueRejected are the two ends tp found
+	// settle gives an open entry: a task made of it, or a rejection.
+	FoundQueueSettled  = "settled"
+	FoundQueueRejected = "rejected"
 )
 
 // FoundQueueEntry is one entry of a spec's queue (spec/1.31.0.md §6): the
@@ -40,6 +44,10 @@ type FoundQueueEntry struct {
 	// the file it cited and the quote tp found there.
 	Cited string `json:"cited,omitempty"`
 	Quote string `json:"quote,omitempty"`
+	// Task is the task a settled entry was made into, and Reason why a
+	// rejected one was rejected (spec/1.31.0.md §6).
+	Task   string `json:"task,omitempty"`
+	Reason string `json:"reason,omitempty"`
 }
 
 // foundQueueFile is the queue file's shape.
