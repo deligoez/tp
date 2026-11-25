@@ -35,6 +35,9 @@ func TestBuildBrief_AConflictBranchIsResolvedNotRedone(t *testing.T) {
 	text := b.Text()
 	assert.Contains(t, text, "## Earlier work")
 	assert.Contains(t, text, "git cherry-pick HEAD.."+branch)
+	// A merge commit is refused by tp land's pick, so the brief never
+	// suggests one.
+	assert.NotContains(t, text, "git merge")
 	assert.Contains(t, text, "do not start the task again")
 
 	b, err = BuildBrief(tf, &tasks[1], "", CommitStrategyBuiltin, "", 0, false, false)
