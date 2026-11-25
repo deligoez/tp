@@ -142,6 +142,12 @@ func landNeed(id string) nowNeed {
 	return nowNeed{Kind: needLand, ID: id, Text: "A finished task waits to be landed onto this branch.", Code: "land-request"}
 }
 
+// noActiveFileNeed is the need of a project with several task files and none
+// chosen as active: tp now cannot tell which one the pane is about.
+func noActiveFileNeed() nowNeed {
+	return nowNeed{Kind: needBlocker, Code: "no-active-file", Text: "Several task files and none is chosen as active."}
+}
+
 // blockerNeeds turns tp resume's blockers into needs_you entries. Each text
 // is written here from the blocker's code and data, never copied from its
 // message, which names the commands that clear it: the pane shows the text

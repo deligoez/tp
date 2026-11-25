@@ -100,7 +100,8 @@ reports, what waits for a person (needs_you), task counts, the wip tasks and who
 holds each, land requests waiting, the first ready tasks, the current or last
 tp run, and each epic's progress. Read-only: it writes no file.
 
-Exit 0 whenever a project is found, even with no task file; 3 outside one.`,
+Exit 0 whenever a project is found, even with no task file or with several and
+none chosen as active (needs_you says so); 3 outside one.`,
 		Args: cobra.NoArgs,
 		RunE: runNow,
 	}
@@ -112,13 +113,18 @@ func runNow(_ *cobra.Command, _ []string) error {
 	applyEpicFileFlag()
 	taskFilePath, err := engine.DiscoverTaskFile(".", flagFile)
 	if err != nil {
-		if errors.Is(err, engine.ErrMultipleTaskFiles) || errors.Is(err, engine.ErrExplicitTaskFileMissing) {
+		if errors.Is(err, engine.ErrExplicitTaskFileMissing) {
 			exitNow(err.Error(), "pass --file <task file>, or set the active one with tp use <file>")
 		}
-		if engine.DiscoverTPDir(".") == "" {
+		several := errors.Is(err, engine.ErrMultipleTaskFiles)
+		if !several && engine.DiscoverTPDir(".") == "" {
 			exitNow("no tp project found: no task file and no .tp/ directory up to the git boundary", "run tp init <spec> in the project")
 		}
 		res := emptyNow(engine.ProjectRoot("."))
+		if several {
+			// The pane cannot pass --file: it says what is missing instead.
+			res.NeedsYou = append(res.NeedsYou, noActiveFileNeed())
+		}
 		res.Epics = nowEpics(".", flagEpicFile)
 		return output.JSON(res)
 	}
