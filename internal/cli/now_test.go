@@ -283,6 +283,21 @@ func TestNow_ReportsAWaitingLandRequest(t *testing.T) {
 	assertPlainWords(t, need["text"])
 }
 
+// A land request record that cannot be read is named on stderr, as tp land
+// names it, rather than passed over in silence.
+func TestNow_UnreadableLandRequestIsNamed(t *testing.T) {
+	t.Parallel()
+	dir := claimsRepo(t)
+	landDir := engine.LandDir(filepath.Join(dir, "spec.tasks.json"))
+	require.NoError(t, os.MkdirAll(landDir, 0o750))
+	bad := filepath.Join(landDir, "t1.json")
+	require.NoError(t, os.WriteFile(bad, []byte("{not json"), 0o600))
+
+	_, stderr, code := runTP(t, dir, "now")
+	require.Equal(t, 0, code, "tp now: %s", stderr)
+	assert.Contains(t, stderr, bad, "the unreadable request is named")
+}
+
 // needOf returns the needs_you entry of kind, failing when there is none.
 func needOf(t *testing.T, out map[string]any, kind string) map[string]any {
 	t.Helper()
