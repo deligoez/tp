@@ -79,6 +79,19 @@ func TestReviewNextAction_BlockingNamesTheRepairPath(t *testing.T) {
 	assert.Contains(t, got, "--resolve <index> wontfix|duplicate", "acceptance stays named")
 }
 
+// TestReviewNextAction_BlockingInsideARunStopsAtTheResolve: a review-resolve
+// unit under tp run (TP_ROUND set) disposes and stops; the driver emits the
+// next round. A next-round command there would emit into the recorded round's
+// directory and exit 2, so the branch names none.
+func TestReviewNextAction_BlockingInsideARunStopsAtTheResolve(t *testing.T) {
+	t.Setenv(EnvRound, "3")
+	got := ReviewNextAction("spec.md", notDone, true /*blockingUnresolved*/, nil, roundFile, CheckVerdict{})
+	assert.Contains(t, got, "tp review "+roundFile+" --resolve <index> fixed \"<evidence>\"", "the repair is still resolved fixed")
+	assert.Contains(t, got, "--resolve <index> wontfix|duplicate", "acceptance stays named")
+	assert.NotContains(t, got, "tp review spec.md,", "no emission of the next round")
+	assert.NotContains(t, got, "--record-inbox", "no record of it either")
+}
+
 func TestReviewNextAction_Mechanize(t *testing.T) {
 	got := ReviewNextAction("spec.md", notDone, false, []string{"naming"}, roundFile, CheckVerdict{})
 	assert.Contains(t, got, "tp set --workflow checks", "branch 3 names the register-a-check command")
