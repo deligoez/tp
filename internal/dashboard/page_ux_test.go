@@ -918,8 +918,8 @@ func TestPage_TheMapsLabelsReadAtALowerZoom(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
 	for _, s := range []string{
-		`map: { w: 200, h: 48, col: 224, row: 68, fs: 18, chars: 20, lineGap: 288, minPx: 14, font: "Inter, system-ui, sans-serif" },`,
-		"G.detail = pure.detailLevel(P.geo.fs * scale, P.geo.minPx);",
+		`w: 200, h: 48, col: 224, row: 68, fs: 18, chars: 20, lineGap: 220, minPx: 14, font: "Inter, system-ui, sans-serif",`,
+		"G.detail = pure.detailLevel(P.geo.fs * scale, P.geo.minPx, (P.geo.shortFs || 0) * scale);",
 		`fontFamily: P.geo.font || "ui-monospace, SFMono-Regular, Menlo, monospace",`,
 	} {
 		assert.Contains(t, script, s)
