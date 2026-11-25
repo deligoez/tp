@@ -134,7 +134,7 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 	removeRoundInbox(specPath, engine.PhaseAudit, round)
 	clean = st.AuditRounds[round-1].Clean
 
-	wf, _ := engine.ResolveWorkflow(specPath, flagFile)
+	wf, taskFilePath := engine.ResolveWorkflow(specPath, flagFile)
 	// converged and stale are computed once, so the payload and §2.4's
 	// conditions 3 and 4 read the same two values and the divergence object can
 	// never be emitted beside a payload that contradicts it. Both read each
@@ -158,6 +158,7 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 		// answer that says an accepted finding's file moved.
 		"carried": carried,
 	}
+	addFoundOpen(result, taskFilePath, converged)
 	// §2.5: the signal is computed AFTER the round is stored, so "the latest
 	// recorded round" is the round just recorded — the convention harness_stale
 	// already follows on this path. Condition 5 reads back the corpus hash
