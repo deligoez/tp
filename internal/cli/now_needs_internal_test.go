@@ -10,7 +10,8 @@ import (
 
 // Every needs_you text tp now can write is a plain sentence: no tp command
 // and no flag, for every blocker code resume emits (with and without an
-// operator decision in its data) and every decision a unit can escalate.
+// operator decision in its data), every decision a unit can escalate, and
+// every way a run can stop waiting for a person.
 // The blocker messages themselves name commands, which is why the texts are
 // written per code rather than copied.
 func TestNowNeedTextsCarryNoCommand(t *testing.T) {
@@ -31,10 +32,20 @@ func TestNowNeedTextsCarryNoCommand(t *testing.T) {
 		needs = append(needs, escalationNeed(&engine.Escalation{Decision: decision, UnitID: "u",
 			Evidence: "tp set --workflow audit_max_rounds=5"}))
 	}
+	stopped := &engine.RunState{Units: []engine.RunUnitRow{{ID: "u"}}}
+	needs = append(needs, runNeeds(stopped, runStateCrashed, nil)...)
+	for _, reason := range []engine.StopReason{engine.StopCapUnits, engine.StopCapWallClock, engine.StopCapBudget,
+		engine.StopEscalation, engine.StopUnitFailure, engine.StopInterrupted, engine.StopDriverError,
+		engine.StopWorktreeSetupFailed, "a-future-reason"} {
+		stopped.StopReason = &reason
+		runNeed := runNeeds(stopped, runStateStopped, nil)
+		assert.Len(t, runNeed, 1, "stop reason %s waits for a person", reason)
+		needs = append(needs, runNeed...)
+	}
 	for _, n := range needs {
 		assert.NotEmpty(t, n.Text, "every need has a text: %+v", n)
 		assert.NotContains(t, n.Text, "tp ", "no tp command in %q", n.Text)
 		assert.NotContains(t, n.Text, "--", "no flag in %q", n.Text)
-		assert.Contains(t, []string{needBlocker, needEscalation, needDecision, needCap, needLand}, n.Kind)
+		assert.Contains(t, []string{needBlocker, needEscalation, needDecision, needCap, needLand, needRun}, n.Kind)
 	}
 }
