@@ -163,3 +163,19 @@ func TestMapRows_IsStable(t *testing.T) {
 		assert.Equal(t, first, MapRows(&in))
 	}
 }
+
+// TestMapRows_AVeryWideLayerWidensPastTheCap: a layer of 27 epics would
+// take four sub-lines at eight columns, so its block widens to
+// ceil(27/3) = 9 columns and folds onto three.
+func TestMapRows_AVeryWideLayerWidensPastTheCap(t *testing.T) {
+	t.Parallel()
+	var nodes []mapNode
+	for i := range 27 {
+		nodes = append(nodes, mapNode{fmt.Sprintf("w%02d", i), "W", 0, float64(i)})
+	}
+	in := mapInput(30, []LayoutBand{{Name: "W", From: 0, To: 0}}, nodes...)
+	got := MapRows(&in)
+	w := mapBlockOf(t, got.Blocks, "W")
+	assert.InDelta(t, 8.0, w.ToCol-w.FromCol, 0)
+	assert.InDelta(t, 2.0, w.ToY-w.FromY, 0)
+}
