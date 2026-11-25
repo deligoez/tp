@@ -120,10 +120,7 @@ func runReviewRecordInbox(specPath, harnessNote string) error {
 	}
 	if len(missing) > 0 {
 		roles := strings.Join(missing, ", ")
-		read := engine.RoleInboxDirAt(namedInbox(), specPath, engine.PhaseReview)
-		if abs, absErr := filepath.Abs(read); absErr == nil {
-			read = abs
-		}
+		read := absPath(engine.RoleInboxDirAt(namedInbox(), specPath, engine.PhaseReview))
 		output.Error(ExitFile, fmt.Sprintf("review round %d cannot be recorded from the inbox %s: no findings file from roles %s", inbox.Round, read, roles),
 			fmt.Sprintf("run the prompts of roles %s (%s --role <role>), each writing its file, empty when it finds nothing, then %s --record-inbox; a round emitted with --inbox <dir> is recorded with the same --inbox <dir>", roles, emit, emit))
 		os.Exit(ExitFile)
