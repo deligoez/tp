@@ -50,6 +50,23 @@ func TestLandUndo_AbortsAPickLeftInProgress(t *testing.T) {
 	assert.Empty(t, op)
 }
 
+// TestLandUndo_TakesACompletedPickBack: a landing whose pick went through is
+// taken back to pre, though no cherry-pick is left to abort.
+func TestLandUndo_TakesACompletedPickBack(t *testing.T) {
+	root, _, _, _ := batchProject(t, wipAlpha)
+	gitIn(t, root, "switch", "-q", "-c", "unit")
+	unit := commitIn(t, root, "a1.txt", "1\n")
+	gitIn(t, root, "switch", "-q", "main")
+	pre := gitIn(t, root, "rev-parse", "HEAD")
+	gitIn(t, root, "cherry-pick", unit)
+	require.NotEqual(t, pre, gitIn(t, root, "rev-parse", "HEAD"), "the fixture lands the pick")
+
+	require.NoError(t, LandUndo(root, pre))
+	assert.Equal(t, pre, gitIn(t, root, "rev-parse", "HEAD"))
+	op, _ := gitOperationInProgress(root)
+	assert.Empty(t, op)
+}
+
 // tp land removes only the request it read: one the agent wrote while the
 // landing ran stays for the next tp land.
 func TestRemovingALandRequestKeepsOneWrittenSince(t *testing.T) {
