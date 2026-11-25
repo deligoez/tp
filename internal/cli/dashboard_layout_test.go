@@ -337,3 +337,45 @@ func TestDashboard_ThePlanMapsEachMilestoneAsABlock(t *testing.T) {
 		}
 	}
 }
+
+// foldedLayerGraph is a synthetic plan of one milestone of twelve roots:
+// the forest is twelve columns wide, while the map folds that layer into a
+// block eight columns wide.
+const foldedLayerGraph = `{
+  "version": 1,
+  "milestones": [["A"]],
+  "epics": [
+    {"id": "a01", "title": "A1", "milestone": "A"}, {"id": "a02", "title": "A2", "milestone": "A"},
+    {"id": "a03", "title": "A3", "milestone": "A"}, {"id": "a04", "title": "A4", "milestone": "A"},
+    {"id": "a05", "title": "A5", "milestone": "A"}, {"id": "a06", "title": "A6", "milestone": "A"},
+    {"id": "a07", "title": "A7", "milestone": "A"}, {"id": "a08", "title": "A8", "milestone": "A"},
+    {"id": "a09", "title": "A9", "milestone": "A"}, {"id": "a10", "title": "A10", "milestone": "A"},
+    {"id": "a11", "title": "A11", "milestone": "A"}, {"id": "a12", "title": "A12", "milestone": "A"}
+  ]
+}
+`
+
+// TestDashboard_ThePlansColumnsAreTheMapsWidth: in the plan view columns
+// is the width the map lays out, its blocks from column 0 to columns - 1,
+// not the forest's, so nothing sized from it trails empty columns.
+func TestDashboard_ThePlansColumnsAreTheMapsWidth(t *testing.T) {
+	t.Parallel()
+	srv := startDashboard(t, epicGraphDir(t, foldedLayerGraph), freePort(t))
+	status, body := getPage(t, strings.TrimSuffix(srv.url, "/")+"/api/layout?view=plan")
+	require.Equal(t, http.StatusOK, status, body)
+	var got struct {
+		Columns float64 `json:"columns"`
+		Blocks  []struct {
+			FromCol float64 `json:"from_col"`
+			ToCol   float64 `json:"to_col"`
+		} `json:"blocks"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(body), &got))
+	require.NotEmpty(t, got.Blocks, body)
+	lo, hi := got.Blocks[0].FromCol, got.Blocks[0].ToCol
+	for _, b := range got.Blocks {
+		lo, hi = min(lo, b.FromCol), max(hi, b.ToCol)
+	}
+	assert.InDelta(t, 0.0, lo, 0, body)
+	assert.InDelta(t, hi+1, got.Columns, 0, body)
+}
