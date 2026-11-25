@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -364,6 +365,9 @@ func fixedClause(n int, specPath string, atCap bool) string {
 	clause := fmt.Sprintf("%d carried blocking %s a review round that reads the fix", n, noun)
 	if atCap {
 		return clause + "; the round cap admits none, so raising review_max_rounds for one is the operator's decision (" + EscalateRaiseReviewCap + ")"
+	}
+	if os.Getenv(EnvRound) != "" {
+		return clause + ": the run emits the next review round, which reads it"
 	}
 	return clause + ": run the next review round — tp review " + specPath + ", then tp review " + specPath + " --record-inbox"
 }
