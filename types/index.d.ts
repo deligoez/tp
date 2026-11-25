@@ -19,6 +19,7 @@ export type RunView = {
   phase: string
   run_state: string
   stop_reason: string | null
+  started_at: string | null
   units_done: number
   wall_clock_seconds: number
   spend_usd: number

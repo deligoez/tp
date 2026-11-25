@@ -18,7 +18,7 @@ const IDLE_EVERY = 12
 // Change the tag when RunView's fields change: it declines what an earlier
 // version stored, which outlives a reload.
 const run = atom({ plugin: 'tp', key: 'run' } as const, null as RunView | null, {
-  shape: 'run-1',
+  shape: 'run-2',
 })
 
 // toView keeps the fields the panel draws from `tp run --status`'s payload,
@@ -32,6 +32,7 @@ export function toView(payload: Record<string, unknown>, now: number): RunView |
     phase: String(payload.phase ?? ''),
     run_state: String(payload.run_state ?? ''),
     stop_reason: typeof payload.stop_reason === 'string' ? payload.stop_reason : null,
+    started_at: typeof payload.started_at === 'string' ? payload.started_at : null,
     units_done: Number(payload.units_done ?? 0),
     wall_clock_seconds: Number(payload.wall_clock_seconds ?? 0),
     spend_usd: Number(payload.spend_usd ?? 0),
@@ -80,11 +81,25 @@ function ofCap(value: string, cap: number, capText: string): string {
 // drawing so the words are testable without a surface.
 export function panelRows(view: RunView, now: number): PanelRow[] {
   const caps = view.caps
+  const live = view.run_state === 'in_flight'
+  // units_done counts started attempts, the same count run_max_units caps, so
+  // a live run says how many of them have finished.
+  const busy = view.running.length
+  const units = ofCap(String(view.units_done), caps.max_units, String(caps.max_units))
+  // tp writes wall_clock_seconds only when a unit starts or ends, so a live
+  // run counts its own time from its start.
+  const started = view.started_at ? Date.parse(view.started_at) : NaN
+  const elapsed =
+    live && !Number.isNaN(started)
+      ? Math.max(view.wall_clock_seconds, (now - started) / 1000)
+      : view.wall_clock_seconds
   const rows: PanelRow[] = [
     { text: `${view.phase} phase, ${STATE[view.run_state] ?? view.run_state}`, tone: 'head' },
-    { text: `Units ${ofCap(String(view.units_done), caps.max_units, String(caps.max_units))}` },
     {
-      text: `Time ${ofCap(duration(view.wall_clock_seconds), caps.max_wall_clock_seconds, duration(caps.max_wall_clock_seconds))}`,
+      text: busy > 0 ? `Units ${units} (${view.units_done - busy} finished, ${busy} running)` : `Units ${units}`,
+    },
+    {
+      text: `Time ${ofCap(duration(elapsed), caps.max_wall_clock_seconds, duration(caps.max_wall_clock_seconds))}`,
     },
     {
       text: `Spend ${ofCap(`$${view.spend_usd.toFixed(2)}`, caps.max_budget_usd, `$${caps.max_budget_usd.toFixed(2)}`)} (estimate)`,
@@ -95,9 +110,10 @@ export function panelRows(view: RunView, now: number): PanelRow[] {
     const age = slotAge(slot, now)
     rows.push({ text: `${slot.id} ${slot.kind}, attempt ${slot.attempt}${age ? `, ${age}` : ''}` })
   }
+  // A last unit still running is already a row under Running now.
   const last = view.last_unit
-  if (last) {
-    const ended = last.exit_code === null ? 'still running' : `exit ${last.exit_code}`
+  if (last && last.exit_code !== null) {
+    const ended = `exit ${last.exit_code}`
     const took = last.duration_seconds === null ? '' : ` after ${duration(last.duration_seconds)}`
     rows.push({ text: `Last: ${last.id} ${last.kind}, ${ended}${took}`, tone: 'quiet' })
   }
