@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -8,6 +10,53 @@ import (
 
 	"github.com/deligoez/tp/internal/model"
 )
+
+// foundRunningProject is a project root with a .tp directory and the path of
+// a task file under it; no run state is written.
+func foundRunningProject(t *testing.T) (root, taskFile string) {
+	t.Helper()
+	root = t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(root, ".tp"), 0o750))
+	return root, filepath.Join(root, "spec.tasks.json")
+}
+
+// §4: a cycle no run has touched holds only the caller's own unit.
+func TestFoundRunningUnits_NoRunStateNamesOnlySelf(t *testing.T) {
+	root, taskFile := foundRunningProject(t)
+
+	running, err := FoundRunningUnits(root, taskFile, "me")
+
+	require.NoError(t, err)
+	assert.Equal(t, map[string]bool{"me": true}, running)
+}
+
+// §4, round-4 findings 7 and 11: a probe that could not be performed is not
+// "no unit runs". A corrupt run state and a run lock that cannot be stat'ed
+// are returned as errors, so apply never reopens a finder a live unit holds.
+func TestFoundRunningUnits_AFailedProbeIsAnError(t *testing.T) {
+	live := `{"run_id":"r","started_at":"2026-11-18T00:00:00Z","phase":"implement","stop_reason":null,` +
+		`"totals":{"units":1,"wall_clock_seconds":1,"spend_usd":0},"units":[` +
+		`{"seq":1,"kind":"implement","id":"finder","attempt":1,"exit_code":null,"duration_seconds":null,"spend_usd":null,"log_path":"x"}]}`
+	t.Run("corrupt run state", func(t *testing.T) {
+		root, taskFile := foundRunningProject(t)
+		require.NoError(t, os.WriteFile(RunStatePath(root, taskFile), []byte("{not json"), 0o600))
+
+		_, err := FoundRunningUnits(root, taskFile, "")
+
+		require.Error(t, err)
+	})
+	t.Run("run lock cannot be probed", func(t *testing.T) {
+		root, taskFile := foundRunningProject(t)
+		require.NoError(t, os.WriteFile(RunStatePath(root, taskFile), []byte(live), 0o600))
+		// .tp/locks is a regular file, so stat'ing the lock under it fails
+		// with ENOTDIR rather than ENOENT.
+		require.NoError(t, os.WriteFile(filepath.Join(root, ".tp", "locks"), nil, 0o600))
+
+		_, err := FoundRunningUnits(root, taskFile, "")
+
+		require.Error(t, err)
+	})
+}
 
 // §4: a blocking request queued past found_max has no task outcome, so its
 // entry holds the finder; a non-blocking one's entry holds nothing.
