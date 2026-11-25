@@ -112,6 +112,34 @@ func TestImplementUnits_AProjectConfigTaskRunsInTheMainTree(t *testing.T) {
 	assert.Equal(t, []string{"a", "b", "c"}, ImplementUnits(elsewhere, 3, nil), "other .tp paths and a task without touches still pool")
 }
 
+// TestClaimOverlap: only a held claim, wip with a spawn or a session, keeps
+// an overlapping task back; a wip task without a claim, a claim holding only
+// retired tokens, a task without touches and the claimed task itself do not
+// (spec/backlog/worktree-dispatch.md §2.3).
+func TestClaimOverlap(t *testing.T) {
+	t.Parallel()
+	wip := func(task model.Task, claim *model.ClaimedBy) model.Task {
+		task.Status, task.ClaimedBy = model.StatusWIP, claim
+		return task
+	}
+	tf := &model.TaskFile{Tasks: []model.Task{
+		wip(batchTask("held", "go.mod"), &model.ClaimedBy{Spawn: "toolu_1"}),
+		wip(batchTask("run", "x/"), nil),
+		wip(batchTask("retired", "y/"), &model.ClaimedBy{Retired: []string{"tok"}}),
+		batchTask("lock", "go.mod", "go.sum"),
+		batchTask("bare"),
+		batchTask("inx", "x/a.go"),
+		batchTask("iny", "y/a.go"),
+	}}
+	got := ClaimOverlap(tf, &tf.Tasks[3])
+	require.NotNil(t, got)
+	assert.Equal(t, "held", got.ID)
+	assert.Nil(t, ClaimOverlap(tf, &tf.Tasks[4]), "a task without touches is unscreened")
+	assert.Nil(t, ClaimOverlap(tf, &tf.Tasks[5]), "a wip task no one claimed holds nothing")
+	assert.Nil(t, ClaimOverlap(tf, &tf.Tasks[6]), "a retired-only claim is no claim")
+	assert.Nil(t, ClaimOverlap(tf, &tf.Tasks[0]), "a claim does not overlap itself")
+}
+
 // TestImplementUnits_RefillsAroundARunningPool: with the pool's tasks named
 // as running, the oracle leaves them out, takes only tasks disjoint from
 // theirs, and fills the free slots alone (spec/backlog/rolling-implement.md
