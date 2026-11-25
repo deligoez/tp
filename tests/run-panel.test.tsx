@@ -220,6 +220,32 @@ test('a task opened from a list shows who holds it, since when, where, and what 
   ])
 })
 
+test('run units that hold no task are in progress too', async () => {
+  const slot = (id: string, seq: number) => ({ seq, kind: 'review-role', id, attempt: 1, started_at: '2026-11-25T10:00:00Z' })
+  const review = toNow(
+    {
+      ...NOW,
+      phase: 'review',
+      task_file: null,
+      tasks: null,
+      held: [],
+      landing: [],
+      ready: [],
+      needs_you: [],
+      epics: null,
+      run: { ...NOW.run, phase: 'review', running: [slot('clarity', 1), slot('scope', 2)] },
+    },
+    0,
+  )!
+  expect(nowRows(review.now, review.run, 'en', AT, 40).map(row => row.text)).toEqual([
+    'Review phase · run in progress (4m 5s)',
+    'In progress',
+    'clarity review role, attempt 1, 4m 5s',
+    'scope review role, attempt 1, 4m 5s',
+    'No task file yet',
+  ])
+})
+
 test('a stopped run names why it stopped', async () => {
   const view = toView({ ...STATUS, run_state: 'stopped', stop_reason: 'converged', running: [] }, 0)
   const rows = runRows(view!, 'en', 0).map(row => row.text)
