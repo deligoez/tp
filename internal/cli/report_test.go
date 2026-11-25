@@ -143,9 +143,11 @@ func TestReopenClearsStartedAt(t *testing.T) {
 	addTaskWithEstimate(t, dir, "t1", 5)
 
 	// Claim, close, then reopen
-	runTP(t, dir, "claim", "t1")
-	runTP(t, dir, "close", "t1", "t1 acceptance criteria met completely")
-	_, _, code := runTP(t, dir, "reopen", "t1")
+	_, _, code := runTP(t, dir, "claim", "t1")
+	require.Equal(t, 0, code)
+	_, _, code = runTP(t, dir, "close", "t1", "t1 acceptance criteria met completely")
+	require.Equal(t, 0, code)
+	_, _, code = runTP(t, dir, "reopen", "t1")
 	require.Equal(t, 0, code)
 
 	stdout, _, _ := runTP(t, dir, "show", "t1")
@@ -166,8 +168,10 @@ func TestReopenAndReclaimGetsNewStartedAt(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(stdout), &first))
 	firstStarted := first["started_at"].(string)
 
-	runTP(t, dir, "close", "t1", "t1 acceptance criteria met completely")
-	runTP(t, dir, "reopen", "t1")
+	_, _, code := runTP(t, dir, "close", "t1", "t1 acceptance criteria met completely")
+	require.Equal(t, 0, code)
+	_, _, code = runTP(t, dir, "reopen", "t1")
+	require.Equal(t, 0, code)
 
 	time.Sleep(10 * time.Millisecond)
 
@@ -199,7 +203,8 @@ func TestBatchDoneAcceptsStartedAt(t *testing.T) {
 	var task map[string]any
 	require.NoError(t, json.Unmarshal([]byte(stdout), &task))
 
-	parsedStart, _ := time.Parse(time.RFC3339Nano, task["started_at"].(string))
+	parsedStart, err := time.Parse(time.RFC3339Nano, task["started_at"].(string))
+	require.NoError(t, err)
 	assert.WithinDuration(t, startTime, parsedStart, time.Second, "batch should use provided started_at")
 }
 
@@ -222,7 +227,8 @@ func TestBatchDoneWithoutStartedAtUsesNow(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(stdout), &task))
 	assert.NotNil(t, task["started_at"], "batch without started_at should still set it")
 
-	parsedStart, _ := time.Parse(time.RFC3339Nano, task["started_at"].(string))
+	parsedStart, err := time.Parse(time.RFC3339Nano, task["started_at"].(string))
+	require.NoError(t, err)
 	assert.True(t, parsedStart.After(before.Add(-time.Second)), "fallback started_at should be recent")
 }
 
@@ -259,9 +265,11 @@ func TestReportBasic(t *testing.T) {
 	addTaskWithEstimate(t, dir, "t1", 5)
 
 	// Claim, then close
-	runTP(t, dir, "claim", "t1")
+	_, _, code := runTP(t, dir, "claim", "t1")
+	require.Equal(t, 0, code)
 	time.Sleep(10 * time.Millisecond)
-	runTP(t, dir, "close", "t1", "t1 acceptance criteria met completely")
+	_, _, code = runTP(t, dir, "close", "t1", "t1 acceptance criteria met completely")
+	require.Equal(t, 0, code)
 
 	stdout, _, code := runTP(t, dir, "report")
 	require.Equal(t, 0, code)
@@ -360,7 +368,8 @@ func TestReportWithBatchStartedAt(t *testing.T) {
 	ndjsonPath := filepath.Join(dir, "results.ndjson")
 	require.NoError(t, os.WriteFile(ndjsonPath, []byte(ndjson+"\n"), 0o600))
 
-	runTP(t, dir, "done", "--batch", ndjsonPath)
+	_, _, code := runTP(t, dir, "done", "--batch", ndjsonPath)
+	require.Equal(t, 0, code)
 
 	stdout, _, code := runTP(t, dir, "report")
 	require.Equal(t, 0, code)
