@@ -432,12 +432,37 @@
     return P.pickTheme(c);
   };
 
-  // regionsOf is what the map outlines and labels as regions of layout L:
-  // its blocks when it lists them (the plan, one per milestone with its own
-  // layers and count, so milestones sharing a band or its layers each get
-  // their own), else its bands.
+  // regionsOf is what the map draws as regions of layout L: its rows when it
+  // lists them (the plan's map, one background per run of bands sharing
+  // layers, its milestones as blocks inside), else its bands.
   P.regionsOf = function (L) {
-    return L.blocks && L.blocks.length ? L.blocks : L.bands || [];
+    return L.rows && L.rows.length ? L.rows : L.bands || [];
+  };
+
+  // mapPlace is node n's place in column and row units: the final x and y
+  // the plan's map gives it, else its forest column and layer.
+  P.mapPlace = function (n) {
+    return typeof n.x === "number" && typeof n.y === "number" ? { col: n.x, row: n.y } : { col: n.col, row: n.layer };
+  };
+
+  // spreadLabels lays one line's labels ({ x, w }, in order) apart: each is
+  // pushed right past the one before it with gap, those past right are
+  // pulled back in from the right edge, and a last pass from the left keeps
+  // the order, dropping (null) a label that still does not fit.
+  P.spreadLabels = function (items, right, gap) {
+    const xs = items.map((b) => b.x);
+    for (let i = 1; i < xs.length; i++) xs[i] = Math.max(xs[i], xs[i - 1] + items[i - 1].w + gap);
+    for (let i = xs.length - 1; i >= 0; i--) {
+      const limit = i === xs.length - 1 ? right : xs[i + 1] - gap;
+      xs[i] = Math.min(xs[i], limit - items[i].w);
+    }
+    let end = -Infinity;
+    return xs.map((x, i) => {
+      const at = Math.max(x, end === -Infinity ? 0 : end + gap);
+      if (at + items[i].w > right) return null;
+      end = at + items[i].w;
+      return at;
+    });
   };
 
   // placeLabels places band labels in the order given, each box { x, y, w,
