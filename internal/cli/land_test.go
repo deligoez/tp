@@ -154,6 +154,38 @@ func TestLandReopensATaskWhosePickConflicts(t *testing.T) {
 	assert.Empty(t, gitRun(t, wt, "status", "--porcelain"), "the agent's copy is not closed")
 }
 
+// A pick that conflicts keeps the agent's work (spec/backlog/worktree-dispatch.md
+// §2.2): the reopened task names the agent's branch as its conflict_branch,
+// the branch stays, and the next agent's brief carries it, so the conflict is
+// resolved rather than the task redone.
+func TestLandKeepsTheWorkOfAPickThatConflicts(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "")
+	sha := agentCommit(t, wt)
+	_, stderr, code := runTP(t, wt, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "agent.txt"), []byte("other\n"), 0o600))
+	gitIn(t, dir, "add", "agent.txt")
+	gitIn(t, dir, "commit", "-q", "-m", "other")
+
+	stdout, stderr, code := runTP(t, dir, "land")
+	require.Equal(t, 0, code, stderr)
+	assert.Contains(t, stdout, "agent-t1", "the reopened item names the branch the work stays on")
+	assert.Equal(t, "agent-t1", taskState(t, dir, "t1")["conflict_branch"])
+	assert.NotEmpty(t, gitRun(t, dir, "branch", "--list", "agent-t1"), "the branch is kept")
+	assert.Equal(t, "agent-t1", committedTaskField(t, dir, "conflict_branch"), "the reopen commit records it")
+
+	stdout, stderr, code = runTP(t, dir, "brief", "t1")
+	require.Equal(t, 0, code, stderr)
+	var brief struct {
+		Task struct {
+			ConflictBranch string `json:"conflict_branch"`
+		} `json:"task"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &brief), stdout)
+	assert.Equal(t, "agent-t1", brief.Task.ConflictBranch, "the brief's Earlier work section names it")
+}
+
 // A tp land that crashed after its pick left the work on HEAD under a new
 // sha; the rerun must close on it, not refuse the redundant pick forever.
 func TestLandClosesOverAPickACrashLeftBehind(t *testing.T) {
