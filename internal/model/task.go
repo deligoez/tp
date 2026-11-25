@@ -105,6 +105,11 @@ type Task struct {
 	// Solo is managed by tp: a task whose side-by-side unit failed to
 	// integrate runs alone from then on (spec/backlog/parallel-implement.md).
 	Solo bool `json:"solo,omitempty"`
+	// ConflictBranch is managed by tp: the unit branch whose commits did not
+	// apply to the main branch when tp run integrated them. The next unit
+	// brings that branch onto the main branch instead of redoing the task
+	// (spec/backlog/worktree-dispatch.md §2.2); its close clears it.
+	ConflictBranch string `json:"conflict_branch,omitempty"`
 	// Waiting says what a task is waiting on. On a wip task it is a parked
 	// claim (a background job, a person), so tp resume can tell one from an
 	// abandoned claim; on an open task it is a hold, a gate that is not a
