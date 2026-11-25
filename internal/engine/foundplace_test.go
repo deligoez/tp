@@ -33,3 +33,15 @@ func TestPlanFoundApply_ANonBlockingFoundTaskDependsOnItsFinder(t *testing.T) {
 	assert.Empty(t, plan.Entries)
 }
 
+// §4: after a blocking request the finder depends on the found task, and the
+// found task does not depend on the finder: placement adds at most one edge.
+func TestPlanFoundApply_ABlockingRequestMakesTheFinderDependOnItsFoundTask(t *testing.T) {
+	tasks := []model.Task{finderTask("finder", "earlier")}
+
+	plan := PlanFoundApply([]FoundRequest{applyRequest(1, true)}, tasks, nil, 5)
+
+	require.Len(t, plan.Tasks, 1)
+	assert.Equal(t, []string{}, plan.Tasks[0].DependsOn)
+	assert.Equal(t, []FoundEdge{{Task: "finder", DependsOn: "found-f1"}}, plan.Edges)
+}
+
