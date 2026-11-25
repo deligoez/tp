@@ -1007,3 +1007,24 @@ func TestLandKeepsADirtyLandedWorktree(t *testing.T) {
 	assert.DirExists(t, wt)
 	assert.NotEmpty(t, gitRun(t, dir, "branch", "--list", "agent-t1"))
 }
+
+// A landed worktree a process holds locked is kept, with the reason.
+func TestLandKeepsALockedLandedWorktree(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "")
+	sha := agentCommit(t, wt)
+	_, stderr, code := runTP(t, wt, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	gitIn(t, dir, "worktree", "lock", "--reason", "claude agent agent-t1 (pid 4242)", wt)
+
+	stdout, stderr, code := runTP(t, dir, "land")
+	require.Equal(t, 0, code, stdout+stderr)
+	var res landPrunes
+	require.NoError(t, json.Unmarshal([]byte(stdout), &res), stdout)
+	assert.Empty(t, res.Pruned, stdout)
+	require.Len(t, res.Kept, 1, stdout)
+	assert.Contains(t, res.Kept[0].Reason, "locked")
+	assert.Contains(t, res.Kept[0].Reason, "pid 4242", "git's lock reason is named")
+	assert.DirExists(t, wt)
+	assert.NotEmpty(t, gitRun(t, dir, "branch", "--list", "agent-t1"))
+}
