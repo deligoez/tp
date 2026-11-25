@@ -222,3 +222,12 @@ func TestPure_ADrawerOverAGraphLeavesItsChainUndimmed(t *testing.T) {
 P.drawerDims("milestone", "steps"), P.drawerDims("task", "board"), P.drawerDims(null, "steps")]);`)
 	assert.JSONEq(t, `[false, false, false, true, true, false]`, got)
 }
+
+// TestPure_AViewCanAskForALargerFirstLabel: a view that names the size its
+// labels first show at (the plan's map: 14 pixels, DESIGN.md's tiny type)
+// draws no text below it; one that names none keeps the 9-pixel floor.
+func TestPure_AViewCanAskForALargerFirstLabel(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([P.detailLevel(13.9, 14), P.detailLevel(14, 14), P.detailLevel(8.9), P.detailLevel(9)]);`)
+	assert.JSONEq(t, `["far", "near", "far", "near"]`, got)
+}
