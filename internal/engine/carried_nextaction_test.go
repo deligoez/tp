@@ -141,3 +141,13 @@ func TestReviewNextAction_AnUnresolvedCarriedRowIsResolvedBeforeTheNextRound(t *
 	atCap := ReviewNextAction("spec.md", LoopDone{CapReached: true, CarriedBlocking: carried}, false, nil, "r3.ndjson", CheckVerdict{})
 	assert.NotContains(t, atCap, "before the next review round", atCap)
 }
+
+// TestReviewNextAction_AnUndisposedLatestRoundStillResolvesEarlierRowsFirst:
+// the latest round holds an undisposed finding that does not block, and an
+// earlier round's high stands unresolved. The step offered is the next round,
+// so it says to resolve the earlier row before it.
+func TestReviewNextAction_AnUndisposedLatestRoundStillResolvesEarlierRowsFirst(t *testing.T) {
+	t.Parallel()
+	next := ReviewNextAction("spec.md", LoopDone{CarriedBlocking: []CarriedRow{earlierHigh()}, Undisposed: 1}, false, nil, "r3.ndjson", CheckVerdict{})
+	assert.Contains(t, next, "; resolve those before the next review round is emitted or recorded, since "+lateFixReason, next)
+}
