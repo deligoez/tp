@@ -113,10 +113,12 @@ type mapBlock struct {
 // a sub-line the nodes keep their forest-column order and are centred in
 // the block. Blocks sit mapBlockGap columns apart and wrap onto another
 // line of the row where the next would pass Width, each line centred in
-// Width. Every line keeps mapHeaderRows above its first layer, and each
-// layer of a line one y per sub-line its fullest block needs, so a layer
-// keeps one y across the line; a layer none of the line's blocks takes
-// takes no y in it. One input always lays out alike.
+// Width. Every line keeps mapHeaderRows above its first layer, and every
+// block of a line starts at the line's first y below it, whatever layer
+// its first node takes: its own layers follow in order, one y per sub-line
+// each needs, so the block keeps its shape and an edge between two blocks
+// of a line can point up. A line is as tall as its tallest block. One
+// input always lays out alike.
 func MapRows(in *MapRowsInput) MapRowsLayout {
 	file := make(map[string]int, len(in.IDs))
 	for i, id := range in.IDs {
@@ -256,35 +258,36 @@ func mapWrap(blocks []*mapBlock, width float64) [][]*mapBlock {
 }
 
 // mapPlaceLine places one line of a row, the row's index and the line's in
-// at, from y: its header unit, then each layer of span with the sub-lines
-// its fullest block needs (none where no block of the line takes the
-// layer), the line centred in in.Width. It records the
-// line's blocks and dividers in out and returns the y after the line.
+// at, from y: its header unit, then each block from the line's first y
+// down, its own layers of span in order with the sub-lines each takes (a
+// layer the block lacks takes none), the line centred in in.Width. The
+// line is as tall as its tallest block. It records the line's blocks and
+// dividers in out and returns the y after the line.
 func mapPlaceLine(in *MapRowsInput, out *MapRowsLayout, line []*mapBlock, span, at [2]int, y float64) float64 {
 	last := line[len(line)-1]
 	shift := max(0, (in.Width-(last.x+float64(last.width)))/2)
 	top := y
-	y += mapHeaderRows
-	layerY := map[int]float64{}
-	for l := span[0]; l <= span[1]; l++ {
-		layerY[l] = y
-		lines := 0
-		for _, b := range line {
-			lines = max(lines, b.lines[l])
+	end := top + mapHeaderRows
+	blocks := make([]MapBlock, 0, len(line))
+	for _, b := range line {
+		layerY := map[int]float64{}
+		by := top + mapHeaderRows
+		for l := span[0]; l <= span[1]; l++ {
+			layerY[l] = by
+			by += float64(b.lines[l])
 		}
-		y += float64(lines)
-	}
-	for i, b := range line {
+		end = max(end, by)
 		blk := mapPlaceBlock(out, b, shift, layerY, at)
 		blk.LineY = top
-		out.Blocks = append(out.Blocks, blk)
-		if i > 0 {
-			prev := line[i-1]
-			x := shift + (prev.x+float64(prev.width)+b.x)/2 - 0.5
-			out.Dividers = append(out.Dividers, MapDivider{Row: at[0], Line: at[1], X: x, FromY: top, ToY: y - 1})
-		}
+		blocks = append(blocks, blk)
 	}
-	return y
+	out.Blocks = append(out.Blocks, blocks...)
+	for i := 1; i < len(line); i++ {
+		prev, b := line[i-1], line[i]
+		x := shift + (prev.x+float64(prev.width)+b.x)/2 - 0.5
+		out.Dividers = append(out.Dividers, MapDivider{Row: at[0], Line: at[1], X: x, FromY: top, ToY: end - 1})
+	}
+	return end
 }
 
 // mapPlaceBlock places b's nodes, shifted by shift, each layer from its y
