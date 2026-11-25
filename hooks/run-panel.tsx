@@ -37,6 +37,9 @@ const detailState = atom({ plugin: 'tp', key: 'detail' } as const, null as TaskD
   shape: 'detail-1',
 })
 const langState = atom({ plugin: 'tp', key: 'lang' } as const, 'en' as Lang, { shape: 'lang-1' })
+// The run the pane last opened itself for, kept past a reload so a pane the
+// person closed does not come back for the same run.
+const openedState = atom({ plugin: 'tp', key: 'opened' } as const, '', { shape: 'opened-1' })
 
 // lastFinished is the latest unit with an exit code: `tp now`'s
 // last_finished, or `tp run --status`'s last_unit once it has ended.
@@ -248,9 +251,6 @@ const CHROME_ROWS = 4
 // A reload starts the module over, its old timer gone with it.
 let polling = false
 
-// The run the pane last opened itself for.
-let autoOpened = ''
-
 // startPolling reads the project on a timer: every few seconds while work
 // is live, else once a minute.
 function startPolling($: EngineInterface): void {
@@ -263,8 +263,8 @@ function startPolling($: EngineInterface): void {
     if (!minute && !(await isLive($))) return
     const view = await refresh($, minute)
     // A run that starts while the session is open shows itself once.
-    if (view?.run_state === 'in_flight' && autoOpened !== view.run_id) {
-      autoOpened = view.run_id
+    if (view?.run_state === 'in_flight' && (await read($, openedState)) !== view.run_id) {
+      await update($, openedState, () => view.run_id)
       void $.ui.open({ id: PANE, title: TITLE })
     }
   })

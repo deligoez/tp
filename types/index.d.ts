@@ -103,6 +103,8 @@ declare module 'claude-code' {
       screen: Shaped<Screen>
       detail: Shaped<TaskDetail | null>
       lang: Shaped<Lang>
+      // The run id the pane last opened itself for.
+      opened: Shaped<string>
     }
   }
 }
