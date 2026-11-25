@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -177,6 +178,14 @@ func ReviewNextAction(specPath string, done LoopDone, blockingUnresolved bool, m
 	case done.CapReached:
 		return "the review round cap is reached: disposition each remaining finding in " + roundFile +
 			" — tp review " + roundFile + " --resolve <index> wontfix|duplicate \"<evidence>\" (fixed only for a medium or low finding: no round past the cap verifies a fix); accepting a critical or high finding is the operator's decision — then " + importStep + earlier
+	case blockingUnresolved && os.Getenv(EnvRound) != "":
+		// A review-resolve unit under tp run disposes and stops: the driver
+		// emits the next round, and an emission from inside the unit would
+		// write into the recorded round's directory and exit 2.
+		return "revise the spec where a blocking finding is a defect and resolve it fixed — tp review " + roundFile +
+			" --resolve <index> fixed \"<evidence>\" (or accept it — tp review " + roundFile +
+			" --resolve <index> wontfix|duplicate \"<evidence>\", the operator's decision for a critical or high finding); the run emits the next review round, which verifies the repair" +
+			earlier + resolveEarlierFirst(done.CarriedBlocking)
 	case blockingUnresolved:
 		// The usual way out is the repair: fixed does not clean its round,
 		// the next round reads the repair and verifies it.
