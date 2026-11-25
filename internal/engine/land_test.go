@@ -37,6 +37,19 @@ func TestRepoRelativePathIsFromTheWorktreeRoot(t *testing.T) {
 	assert.Equal(t, "proj/spec.tasks.json", RepoRelativePath(filepath.Join(home, "proj", "spec.tasks.json")))
 }
 
+// TestLandUndo_AbortsAPickLeftInProgress: a landing taken back over a pick
+// still stopped on a conflict aborts it first, since reset --keep refuses an
+// unmerged index; the branch is back at pre with no cherry-pick in progress.
+func TestLandUndo_AbortsAPickLeftInProgress(t *testing.T) {
+	root, _, _, _ := batchProject(t, wipAlpha)
+	pre := conflictingPickInProgress(t, root)
+
+	require.NoError(t, LandUndo(root, pre))
+	assert.Equal(t, pre, gitIn(t, root, "rev-parse", "HEAD"))
+	op, _ := gitOperationInProgress(root)
+	assert.Empty(t, op)
+}
+
 // tp land removes only the request it read: one the agent wrote while the
 // landing ran stays for the next tp land.
 func TestRemovingALandRequestKeepsOneWrittenSince(t *testing.T) {
