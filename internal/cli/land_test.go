@@ -918,3 +918,31 @@ func TestLandUnderHCSaysTheTaskFileChanged(t *testing.T) {
 	assert.NotContains(t, stdout, `"commit"`)
 	assert.NotEmpty(t, gitRun(t, dir, "status", "--porcelain", "--", "spec.tasks.json"))
 }
+
+// One tp land that closes two tasks makes one task-file commit beside the
+// two picks, not one per task.
+func TestALandOfTwoTasksMakesOneTaskFileCommit(t *testing.T) {
+	t.Parallel()
+	dir := claimsRepo(t)
+	_, stderr, code := runTP(t, dir, "set", "--workflow", "--project", "quality_gate=true")
+	require.Equal(t, 0, code, stderr)
+	gitIn(t, dir, "add", "-A")
+	gitIn(t, dir, "commit", "-q", "-m", "gate")
+	for _, id := range []string{"t1", "t2"} {
+		spawnClaim(t, dir, id, "toolu_"+id, "sessC")
+		wt := filepath.Join(t.TempDir(), id)
+		gitIn(t, dir, "worktree", "add", "-q", "-b", "agent-"+id, wt)
+		require.NoError(t, os.WriteFile(filepath.Join(wt, id+".txt"), []byte(id+"\n"), 0o600))
+		gitIn(t, wt, "add", "-A")
+		gitIn(t, wt, "commit", "-q", "-m", id+" work")
+		sha := strings.TrimSpace(gitRun(t, wt, "rev-parse", "HEAD"))
+		_, stderr, code = runTP(t, wt, "done", id, "--commit", sha, "--", id+" acceptance criteria met")
+		require.Equal(t, 0, code, stderr)
+	}
+	before := strings.TrimSpace(gitRun(t, dir, "rev-parse", "HEAD"))
+
+	stdout, stderr, code := runTP(t, dir, "land")
+	require.Equal(t, 0, code, stdout+stderr)
+	assert.Equal(t, "3", strings.TrimSpace(gitRun(t, dir, "rev-list", "--count", before+"..HEAD")), "two picks and one task-file commit")
+	assert.Empty(t, gitRun(t, dir, "status", "--porcelain", "--", "spec.tasks.json"))
+}
