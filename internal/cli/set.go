@@ -133,6 +133,9 @@ func runSet(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 	field, value := parts[0], parts[1]
+	if field == "depends_on" {
+		fenceTaskGraphWrite("tp set depends_on")
+	}
 
 	if hint, managed := managedFields[field]; managed {
 		output.Error(ExitUsage, fmt.Sprintf("field %q is managed — %s", field, hint))
