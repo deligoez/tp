@@ -112,10 +112,12 @@
     // them, and drawn from minPx (DESIGN.md's tiny type, 14px) on screen.
     // A fit cancels any growth that is the same everywhere, so what makes a
     // label read sooner is its size against the gaps: the gaps stay tight
-    // while the type grows, and the ids read about 0.4 of a zoom unit
-    // closer to the fit than 11-unit monospace did at 12px, and never
-    // smaller than 14px.
-    map: { w: 200, h: 48, col: 224, row: 68, fs: 18, chars: 20, lineGap: 288, minPx: 14, font: "Inter, system-ui, sans-serif" },
+    // while the type grows. Before the whole id reads, each box shows a
+    // short one (tpPure.shortId, shortChars characters) at shortFs, one
+    // line twice the whole id's size, so a label reads a zoom unit sooner.
+    map: {
+      w: 200, h: 48, col: 224, row: 68, fs: 18, chars: 20, lineGap: 220, minPx: 14, font: "Inter, system-ui, sans-serif",
+      shortFs: 32, shortChars: 11 },
   };
   // The neighbourhood opens no further out than this, where an epic's
   // 11-unit id reads at 12 pixels, its whole id drawn (tpPure.detailLevel).
@@ -311,6 +313,7 @@
     const fitted = pure.fitId(out.label, geo.chars);
     out.text = fitted.lines.join("\n");
     out.fit = fitted.fit;
+    out.short = geo.shortFs ? pure.shortId(out.label, geo.shortChars) : "";
     out.band = -1;
     const { w, h } = out;
     out.poly = out.cond
@@ -578,7 +581,7 @@
     const { PolygonLayer, PathLayer, TextLayer } = window.deck;
     const c = G.colors;
     const scale = Math.pow(2, G.vs.zoom);
-    G.detail = pure.detailLevel(P.geo.fs * scale, P.geo.minPx);
+    G.detail = pure.detailLevel(P.geo.fs * scale, P.geo.minPx, (P.geo.shortFs || 0) * scale);
     const hits = matches(P);
     const v = [P.ver, G.q, G.detail, pure.crossShown(G), G.whole, [...G.hiddenMarks].join(), [...G.hiddenEdges].join(), G.themeVer, app.stage(), pure.ownerSelKey(G.ownerSel), G.ownerColour];
     const fontSettings = { sdf: true, fontSize: 64, buffer: 6, radius: 12, cutoff: 0.22 };
@@ -607,12 +610,14 @@
         lineWidthUnits: "pixels", updateTriggers: { getFillColor: v, getLineColor: v, getLineWidth: v },
       }),
       new TextLayer({
-        id: "ids", data: P.nodes, visible: G.detail !== "far", getPosition: (n) => [n.x, n.y + n.h / 2], getText: nodeText,
+        id: "ids", data: P.nodes, visible: G.detail === "near", getPosition: (n) => [n.x, n.y + n.h / 2], getText: nodeText,
         getSize: (n) => P.geo.fs * n.fit, sizeUnits: "common", getTextAnchor: "middle", getAlignmentBaseline: "center", lineHeight: 1.25,
         getColor: (n) => [...c.ink, nodeAlpha(P, hits, n) >= 170 ? 255 : 70],
-        fontFamily: P.geo.font || "ui-monospace, SFMono-Regular, Menlo, monospace", characterSet: P.charSet, fontSettings,
-        updateTriggers: { getColor: v, getText: v },
+        fontFamily: P.geo.font || "ui-monospace, SFMono-Regular, Menlo, monospace", fontWeight: P.geo.font ? 500 : "normal",
+        characterSet: P.charSet, fontSettings, updateTriggers: { getColor: v, getText: v },
       }),
+      // A box's short id, one line before its whole id reads; the whole
+      // one stays a hover away (tooltip).
       new TextLayer({
         id: "band-names", data: bandLabels(P, scale), getPosition: (l) => [l.wx, l.wy], getText: (l) => l.text,
         getPixelOffset: [6, 3], getSize: 13, sizeUnits: "pixels", getTextAnchor: "start", getAlignmentBaseline: "top", getColor: [...c.ink, 235],
