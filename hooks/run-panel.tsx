@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { FinishedUnit, Lang, NowView, RunSlot, RunView, Screen, TaskDetail, ViewName } from '../types'
-import { detailRows, epicsRows, glanceRows, nowRows, runRows, tasksRows } from './panel-rows'
+import { detailRows, epicsRows, fitRow, glanceRows, nowRows, runRows, tasksRows } from './panel-rows'
 import type { PanelRow } from './panel-rows'
 import { resolveLanguage, WORDS } from './panel-words'
 
@@ -214,13 +214,6 @@ async function openTask($: EngineInterface, id: string): Promise<void> {
   if (current.view === 'detail' && current.task === id) await update($, detailState, () => detail)
 }
 
-// fit cuts a row to the pane's width, so a long title never wraps the rows
-// below it out of place.
-function fit(text: string, columns: number): string {
-  const chars = Array.from(text)
-  return columns > 1 && chars.length > columns ? `${chars.slice(0, columns - 1).join('')}…` : text
-}
-
 // The folder's last path segment: the project the pane is about.
 function projectName(folder: string): string {
   return folder.split('/').filter(Boolean).pop() ?? ''
@@ -282,17 +275,19 @@ export const register: Register = on => {
     const now = await read($, nowState)
     const view = await read($, run)
     const columns = e.props.bodyColumns
+    // A task row is one line a press opens, its title shortened to fit; any
+    // other row wraps whole, so a sentence is never cut.
     const line = (row: PanelRow) =>
       row.task ? (
         <Box key={`row-${row.key}`} marginTop={row.gap ? 1 : 0}>
-          <Button key={row.key} label={row.text} plain onPress={() => openTask($, row.task!)}>
-            {fit(row.text, columns)}
+          <Button key={row.key} plain onPress={() => openTask($, row.task!)}>
+            {fitRow(row, columns)}
           </Button>
         </Box>
       ) : (
         <Box marginTop={row.gap ? 1 : 0}>
           <Text bold={row.tone === 'head'} dimColor={row.tone === 'quiet'}>
-            {fit(row.text, columns)}
+            {row.text}
           </Text>
         </Box>
       )
@@ -359,7 +354,7 @@ export const register: Register = on => {
     } else if (screen.view === 'tasks') rows = tasksRows(now, lang, at)
     else if (screen.view === 'epics') rows = epicsRows(now, lang, columns)
     else if (screen.view === 'run') rows = view ? runRows(view, lang, at) : [{ text: w.noRun, tone: 'quiet' }]
-    else rows = nowRows(now, view, lang, at, Math.max(1, e.props.scroll.bodyRows - CHROME_ROWS))
+    else rows = nowRows(now, view, lang, at, Math.max(1, e.props.scroll.bodyRows - CHROME_ROWS), columns)
     return (
       <Box flexDirection="column">
         {brand}

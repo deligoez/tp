@@ -5,9 +5,17 @@ import { capital, WORDS } from './panel-words'
 // view is testable in each language without a surface.
 
 // A PanelRow is one line of the pane: its words, how loud they are, and the
-// task a press on it opens (with the key that addresses it).
-// gap asks for an empty row above it, between groups.
-export type PanelRow = { text: string; tone?: 'head' | 'quiet'; task?: string; key?: string; gap?: boolean }
+// task a press on it opens (with the key that addresses it). gap asks for an
+// empty row above it, between groups; parts are a task row's pieces, so a
+// narrow pane can shorten its title alone.
+export type PanelRow = {
+  text: string
+  tone?: 'head' | 'quiet'
+  task?: string
+  key?: string
+  gap?: boolean
+  parts?: { id: string; title: string; tail: string }
+}
 
 // ageOf says how long ago an RFC 3339 time was, or nothing without one.
 export function ageOf(since: string | null | undefined, now: number, lang: Lang): string {
@@ -56,17 +64,35 @@ export function runRows(view: RunView, lang: Lang, now: number): PanelRow[] {
 }
 
 // A Section is a group of rows under an optional heading. The heading is
-// drawn with a gap above it, so it costs two rows of the pane.
+// drawn with a gap above it, a row of its own.
 type Section = { heading?: PanelRow; items: PanelRow[]; keep?: boolean }
-
-const HEADING_ROWS = 2
 
 function heading(text: string): PanelRow {
   return { text, tone: 'head', gap: true }
 }
 
 function taskRow(section: string, id: string, title: string, tail: string): PanelRow {
-  return { text: `${id}  ${title}${tail ? ` · ${tail}` : ''}`, task: id, key: `${section}:${id}` }
+  return { text: `${id}  ${title}${tail ? ` · ${tail}` : ''}`, task: id, key: `${section}:${id}`, parts: { id, title, tail } }
+}
+
+// fitRow says a row in at most columns cells. A task row is one line: its
+// title gives way first, then is left out, so the id and who holds it stay;
+// only then is its end cut. Any other row is returned whole, to wrap.
+export function fitRow(row: PanelRow, columns: number): string {
+  const chars = (s: string) => Array.from(s).length
+  if (!row.parts || chars(row.text) <= columns) return row.text
+  const { id, title, tail } = row.parts
+  const tailText = tail ? ` · ${tail}` : ''
+  const room = columns - chars(id) - 2 - chars(tailText)
+  const text = room >= 4 ? `${id}  ${Array.from(title).slice(0, room - 1).join('')}…${tailText}` : `${id}${tailText}`
+  return chars(text) <= columns ? text : `${Array.from(text).slice(0, columns - 1).join('')}…`
+}
+
+// rowsTall is how many lines of the pane a row takes at columns cells: a
+// task row one, any other as many as it wraps to, its gap one more.
+function rowsTall(row: PanelRow, columns: number): number {
+  const lines = row.parts ? 1 : Math.max(1, Math.ceil(Array.from(row.text).length / Math.max(1, columns)))
+  return lines + (row.gap ? 1 : 0)
 }
 
 // bar draws done of total as a row of filled and empty cells; the numbers
@@ -76,27 +102,38 @@ export function bar(done: number, total: number, width: number): string {
   return '█'.repeat(filled) + '░'.repeat(width - filled)
 }
 
-// fitSection gives a section the rows it can have: all of it, or as many
-// items as fit with a last row counting the rest; none when not even its
-// heading and one row fit.
-function fitSection(section: Section, room: number, lang: Lang): { rows: PanelRow[]; cost: number } {
+// fitSection gives a section the rows it can have in room lines: all of it,
+// or as many items as fit with a last row counting the rest; none when not
+// even its heading and one row fit.
+function fitSection(section: Section, room: number, lang: Lang, columns: number): { rows: PanelRow[]; cost: number } {
   const head = section.heading ? [section.heading] : []
-  const headCost = section.heading ? HEADING_ROWS : 0
+  const headCost = section.heading ? rowsTall(section.heading, columns) : 0
+  const heights = section.items.map(row => rowsTall(row, columns))
+  const total = headCost + heights.reduce((a, b) => a + b, 0)
+  if (head.length === 0 && section.items.length === 0) return { rows: [], cost: 0 }
+  if (total <= room) return { rows: [...head, ...section.items], cost: total }
   const avail = room - headCost
-  if (avail < (section.items.length > 0 ? 1 : 0) || (head.length === 0 && section.items.length === 0)) {
-    return { rows: [], cost: 0 }
-  }
-  if (section.items.length <= avail) return { rows: [...head, ...section.items], cost: headCost + section.items.length }
-  const kept = section.items.slice(0, avail - 1)
-  const more: PanelRow = { text: WORDS[lang].more(section.items.length - kept.length), tone: 'quiet' }
-  return { rows: [...head, ...kept, more], cost: room }
+  if (avail < 1 || section.items.length === 0) return { rows: [], cost: 0 }
+  let used = 0
+  let kept = 0
+  while (kept < heights.length && used + heights[kept]! + 1 <= avail) used += heights[kept++]!
+  const more: PanelRow = { text: WORDS[lang].more(section.items.length - kept), tone: 'quiet' }
+  return { rows: [...head, ...section.items.slice(0, kept), more], cost: headCost + used + 1 }
 }
 
 // nowRows answers the three questions in one screen: what is happening now,
-// what needs the person, how far along it is. Trimmed to budget rows, the
-// first answers kept longest: the phase, what needs you, the held work, the
-// land requests, the task counts, the epics, the ready queue.
-export function nowRows(now: NowView, run: RunView | null, lang: Lang, at: number, budget: number): PanelRow[] {
+// what needs the person, how far along it is. Trimmed to budget lines at
+// columns cells, the first answers kept longest: the phase, what needs you,
+// the work in progress, the land requests, the task counts, the epics, the
+// ready queue.
+export function nowRows(
+  now: NowView,
+  run: RunView | null,
+  lang: Lang,
+  at: number,
+  budget: number,
+  columns = Number.MAX_SAFE_INTEGER,
+): PanelRow[] {
   const w = WORDS[lang]
   const live = run?.run_state === 'in_flight'
   const head = capital(w.phase(now.phase), lang) + (live ? ` · ${w.runLive(ageOf(run?.started_at, at, lang))}` : '')
@@ -105,18 +142,23 @@ export function nowRows(now: NowView, run: RunView | null, lang: Lang, at: numbe
   const sections: Section[] = [
     { items: [{ text: head, tone: 'head' }] },
     { heading: now.needs_you.length > 0 ? heading(w.needsYou) : undefined, items: now.needs_you.map(n => ({ text: `${w.need(n.kind)}: ${n.text}` })) },
-    heldSection(now, lang, at),
+    heldSection(now, run, lang, at),
     landingSection(now, lang, at),
     countsSection(now, lang),
     { heading: heading(w.epics), items: openEpics.map(e => ({ text: `${e.name}  ${bar(e.done, e.total, 10)} ${e.done}/${e.total}` })) },
     readySection(now, lang),
   ]
-  return fitSections(sections, budget, lang)
+  return fitSections(sections, budget, lang, columns)
 }
 
-function heldSection(now: NowView, lang: Lang, at: number): Section {
+// heldSection is the work in progress: every held task, then each unit a
+// live run holds that no held task names (a review or audit role).
+function heldSection(now: NowView, run: RunView | null, lang: Lang, at: number): Section {
   const w = WORDS[lang]
-  const items = now.held.map(t => taskRow('held', t.id, t.title, w.held(w.holder(t.holder), t.attempt, ageOf(t.since, at, lang))))
+  const held = now.held.map(t => taskRow('held', t.id, t.title, w.held(w.holder(t.holder), t.attempt, ageOf(t.since, at, lang))))
+  const ids = new Set(now.held.map(t => t.id))
+  const slots = run?.run_state === 'in_flight' ? run.running.filter(slot => !ids.has(slot.id)).map(slot => slotRow(slot, at, lang)) : []
+  const items = [...held, ...slots]
   return { heading: heading(w.inProgress), items: items.length > 0 ? items : [{ text: w.nothingHeld, tone: 'quiet' }] }
 }
 
@@ -139,12 +181,12 @@ function countsSection(now: NowView, lang: Lang): Section {
 
 // fitSections lays sections out in order within budget rows, an empty one
 // (no items, not kept) drawing nothing, its heading included.
-function fitSections(sections: Section[], budget: number, lang: Lang): PanelRow[] {
+function fitSections(sections: Section[], budget: number, lang: Lang, columns: number): PanelRow[] {
   const rows: PanelRow[] = []
   let room = budget
   for (const section of sections) {
     if (section.items.length === 0 && !section.keep) continue
-    const fitted = fitSection(section, room, lang)
+    const fitted = fitSection(section, room, lang, columns)
     rows.push(...fitted.rows)
     room -= fitted.cost
   }
@@ -156,8 +198,8 @@ function fitSections(sections: Section[], budget: number, lang: Lang): PanelRow[
 // tasksRows is the work in the task file: its counts, what is held, what
 // waits to land and what is ready, every row of each (the pane scrolls).
 export function tasksRows(now: NowView, lang: Lang, at: number): PanelRow[] {
-  const sections = [countsSection(now, lang), heldSection(now, lang, at), landingSection(now, lang, at), readySection(now, lang)]
-  return fitSections(sections, Number.MAX_SAFE_INTEGER, lang)
+  const sections = [countsSection(now, lang), heldSection(now, null, lang, at), landingSection(now, lang, at), readySection(now, lang)]
+  return fitSections(sections, Number.MAX_SAFE_INTEGER, lang, Number.MAX_SAFE_INTEGER)
 }
 
 // epicsRows draws one bar per epic, as wide as the pane spares, its numbers
