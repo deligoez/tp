@@ -8,13 +8,21 @@ import (
 	"time"
 )
 
-// ReadTaskFile reads and parses a .tasks.json file.
+// ReadTaskFile reads and parses a .tasks.json file, with the holds of the
+// found queue beside it (markQueueHolds).
 func ReadTaskFile(path string) (*TaskFile, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read task file: %w", err)
 	}
-	return ParseTaskFile(data)
+	tf, err := ParseTaskFile(data)
+	if err != nil {
+		return nil, err
+	}
+	if err := markQueueHolds(tf, path); err != nil {
+		return nil, err
+	}
+	return tf, nil
 }
 
 // ParseTaskFile parses the bytes of a .tasks.json file, for a caller that

@@ -105,6 +105,10 @@ type Task struct {
 	// spec/backlog/filled-pool.md). A close, a claim, an unclaim or a reopen
 	// clears it.
 	Waiting string `json:"waiting,omitempty"`
+	// QueueEntry is the open found-queue entry that holds this task as a
+	// finder (spec/1.31.0.md §4), derived from the queue file when the task
+	// file is read and never stored: settling the entry is what lifts it.
+	QueueEntry string `json:"-"`
 	// ClaimedBy is managed by tp: the spawn whose agent holds this task,
 	// set by `tp claim --spawn` and cleared with started_at by an unclaim,
 	// a reopen or a run's release (spec/backlog/agent-bound-claims.md).
@@ -241,15 +245,16 @@ func (t *Task) SetCommitFiles(files []string) {
 }
 
 // Held reports whether t is an open task held by a gate that is not a task:
-// waiting set while open. A held task is never ready.
+// waiting set while open, or an open found-queue entry holding it as a
+// finder (QueueEntry). A held task is never ready.
 func (t *Task) Held() bool {
-	return t.Status == StatusOpen && t.Waiting != ""
+	return t.Status == StatusOpen && (t.Waiting != "" || t.QueueEntry != "")
 }
 
 // Startable reports whether t is open, not held, and every dependency is in
 // done: the ready set every picker reads.
 func (t *Task) Startable(done map[string]bool) bool {
-	return t.Status == StatusOpen && t.Waiting == "" && t.DepsDone(done)
+	return t.Status == StatusOpen && !t.Held() && t.DepsDone(done)
 }
 
 // DepsDone reports whether every dependency of t is in done.
