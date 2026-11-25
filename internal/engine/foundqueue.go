@@ -34,6 +34,10 @@ type FoundQueueEntry struct {
 	Observed     string   `json:"observed,omitempty"`
 	Finders      []string `json:"finders,omitempty"`
 	Answer       string   `json:"answer,omitempty"`
+	// Cited and Quote are a decision answer's evidence (spec/1.31.0.md §5):
+	// the file it cited and the quote tp found there.
+	Cited string `json:"cited,omitempty"`
+	Quote string `json:"quote,omitempty"`
 }
 
 // foundQueueFile is the queue file's shape.
