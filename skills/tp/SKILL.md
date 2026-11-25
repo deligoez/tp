@@ -230,7 +230,7 @@ unit has finished.
 6. **Dependencies**: types before logic, logic before CLI, CLI before tests
 7. **A change and the test it invalidates belong to the SAME task.** The quality gate runs at every `tp done`, so "a later task fixes that test" is impossible — the earlier close is already red. A dependency graph that separates them looks correct and cannot be executed. Decompose by *what the gate sees*, not by concern.
 8. **A test task's acceptance names its mutant and both counts.** Write the mutant before the assertion, and drop the test if the mutant cannot make it red. The acceptance quotes the fixture and **both** counts — the value at `HEAD` and the value under the mutant — because a mutant paired with the wrong fixture reads exactly like one that works, and the two counts are the only place the difference shows. They are confirmable only once the code lands, which is why they live here and not in the spec.
-9. **`touches` keeps a parallel pool clean.** Under `run_max_parallel` above 1 a free slot takes a ready task whose `touches` overlap no running task's; on a clash the unit that integrates second is discarded and rerun alone. `touches` is a JSON array of globs from the project root (`path.Match`; `dir/` or `dir/**` for a subtree): `"touches": ["internal/engine/lock.go", "internal/engine/lock_test.go"]`. Name the files the commit will change, tests included. A wrong one costs a rerun, never a broken branch.
+9. **`touches` keeps a parallel pool clean.** Under `run_max_parallel` above 1 a free slot takes a ready task whose `touches` overlap no running task's; on a clash the unit that integrates second is discarded and rerun alone. `touches` is a JSON array of globs from the project root (`path.Match`; `dir/` or `dir/**` for a subtree): `"touches": ["internal/engine/lock.go", "internal/engine/lock_test.go"]`. Name the files the commit will change, tests included. A wrong one costs a rerun, never a broken branch. A task whose `touches` overlap `.tp/config.json` never gets a worktree: it runs alone in the main tree, and its brief says so. A unit whose commits conflict with the main branch keeps its branch: the task records it as `conflict_branch`, and its next brief's "Earlier work" section says to bring that branch in and resolve the conflict rather than redo the task.
 10. **Preview before import**: list proposed tasks and ask for confirmation
 
 ### source_sections format
@@ -496,7 +496,7 @@ Where no runner is configured, or a human belongs in the loop, drive the same lo
 **Keep the pool full.** A session that claimed through spawns is a coordinator. Set `run_max_parallel` at the project layer first (`tp set --workflow --project run_max_parallel=<n>`): it is the hand pool's cap too, default 1. The plugin's second `Stop` hook runs `tp pool --stop-hook` when the coordinator's turn ends and refuses the stop once, a finished task first:
 
 - while a land request waits, with `tp land --file <file>`, slot or no slot; a landing that fails reopens the task, and `tp land` names the brief to spawn a fresh agent from;
-- while fewer agents run than `run_max_parallel` allows and a task is ready (or a claim lost its agent), with each task's `tp brief <id> --file <file>` — the tasks `tp run` would start beside the running ones, so one whose `touches` overlap a running task's waits. Spawn them in the background; a claim whose agent is gone is freed with `tp claim <id> --takeover --file <file>` first.
+- while fewer agents run than `run_max_parallel` allows and a task is ready (or a claim lost its agent), with each task's `tp brief <id> --file <file>` — the tasks `tp run` would start beside the running ones, so one whose `touches` overlap a running task's waits: `tp brief <id>` exits 4 for an open task whose `touches` overlap a task a spawn or session holds, naming it, and `tp brief` with no id skips such a task. Spawn them in the background; a claim whose agent is gone is freed with `tp claim <id> --takeover --file <file>` first.
 
 A task that must not start yet for a reason that is not a task (a release tag, a person's decision) is held with `tp set <id> waiting="<why>"` until a claim or `waiting=""` lifts it, and the hook stops asking about it; an agent waiting on its own long job parks its wip task the same way and keeps its slot. The second stop in a row passes, and a session that never claimed is never asked.
 
@@ -551,7 +551,7 @@ refusal and its exit code — is under the same form in [REFERENCE.md](REFERENCE
 | `tp resume [spec]` | Phase, blockers and next action from durable state (read-only) |
 | `tp resume --epic <id>` | The same on the epic's bound task file; `tp next` and `tp ready` take it too |
 | `tp gate` | Run the quality gate on this checkout and close nothing; exit 0 pass, 4 fail |
-| `tp brief [id]` | The unit brief (read-only): scope, prior work, task, close recipe |
+| `tp brief [id]` | The unit brief (read-only): scope, prior work, task, close recipe; refuses (exit 4) an open task whose `touches` overlap a claimed task's |
 | `tp brief <id> --prior <n>` | Prior-work cap (0-20) |
 | `tp run [spec]` | Drive the cycle unattended |
 | `tp run --status` | The current or last run's state |
