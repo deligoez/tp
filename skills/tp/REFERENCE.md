@@ -1200,7 +1200,7 @@ tp owns the review/audit round lifecycle in `<spec-dir>/.tp-review/<spec-base>/`
 | `snapshot-ground-round-<N>.md` | Byte copy of the spec at ground round N emission |
 | `floor-ground-round-<N>.txt` | The floor index that emission derived from that snapshot |
 | `ground-round-<N>.ndjson` | Recorded ground round N dispositions |
-| `audit-inbox/round-<N>.pools.json` | Each code role's file pool and listed `file_check` ids at audit round N emission, removed at `--record` (v1.15.0); a wontfix the round carries without asking stays in its role's pool (v1.32.0) |
+| `audit-inbox/round-<N>.pools.json` | Each code role's file pool and listed `file_check` ids at audit round N emission, removed at `--record` (v1.15.0); a wontfix the round carries without asking stays in its role's pool and is listed under `carried` (v1.32.0) |
 | `audit-inbox/round-<N>.merged.ndjson` | The rows `tp audit --record-inbox` merged from round N's role files, removed with the round (v1.32.0) |
 | `task-audit-<seq>.ndjson` | Recorded task audit seq's rows (v1.22.0) |
 | `task-audit-inbox/batch-<seq>.json` | Task audit seq's frozen emission, removed at `--record-inbox` |
@@ -1332,8 +1332,11 @@ still stands, unless `changed_since` is true; a `fixed` row asks for the repair 
 An audit round's `wontfix` whose `evidence_file` is unchanged (`changed_since: false`) is carried
 without asking (v1.32.0): its item leaves the checklist, the prompt lists it under `## Carried: not
 asked this round`, and `--record` writes its row with the accepted disposition stamped
-`carried_from`, counted in `carried` and as graded in its role's pool. A `duplicate`, a task audit's
-row, a row citing no file and one whose file changed are asked as before.
+`carried_from`, counted in `carried` and as graded in its role's pool. The record writes a row for
+exactly the items the emission carried, the ids its pools file keeps under `carried`, and none for a
+round recorded without one. A `duplicate`, a task audit's row, a row citing no file and one whose
+file changed are asked as before; a change is a commit since the round, a rename away (renames are
+not followed), or an edit in the working tree or index that is not committed yet.
 `tp audit <spec> --record` then gives a new non-`PASS` row with no disposition of its own the accepted
 disposition its `(role, item_id)` holds on its latest graded row, while that row's `evidence_file` is
 unchanged since its round was recorded. The basis is the parent of the commit that added the round
