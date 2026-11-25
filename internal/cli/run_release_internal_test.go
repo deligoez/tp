@@ -108,6 +108,22 @@ func TestRunSoloReopenRecordsTheConflictBranch(t *testing.T) {
 	assert.Equal(t, model.StatusOpen, task.Status)
 }
 
+// TestRunSoloReopenKeepsARecordedConflictBranch: a later reopen that names no
+// branch (a failed gate, tp land) keeps the one recorded, since that branch
+// may still hold the only copy of the work.
+func TestRunSoloReopenKeepsARecordedConflictBranch(t *testing.T) {
+	t.Parallel()
+	taskFile := heldRunTaskFile(t)
+	require.NoError(t, reopenSoloFunc(taskFile)("a", "tp-unit/c/r/a"))
+	require.NoError(t, claimTasksFunc(taskFile)([]string{"a"}))
+	require.NoError(t, reopenSoloFunc(taskFile)("a", ""))
+	tf, err := model.ReadTaskFile(taskFile)
+	require.NoError(t, err)
+	task, _, err := model.FindTask(tf, "a")
+	require.NoError(t, err)
+	assert.Equal(t, "tp-unit/c/r/a", task.ConflictBranch)
+}
+
 func setWaiting(t *testing.T, taskFile, waiting string) {
 	t.Helper()
 	tf, err := model.ReadTaskFile(taskFile)
