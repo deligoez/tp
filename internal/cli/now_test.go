@@ -326,6 +326,22 @@ func TestNow_CrashedRunIsANeed(t *testing.T) {
 	assertPlainWords(t, need["text"])
 }
 
+// A run that stopped on a unit failing every attempt waits for a person:
+// needs_you names the unit in plain words.
+func TestNow_UnitFailureStopIsANeed(t *testing.T) {
+	t.Parallel()
+	dir := runProject(t)
+	writeRunState(t, dir, `{"run_id":"fail","started_at":"2026-11-25T00:00:00Z","phase":"implement","stop_reason":"unit-failure",
+ "totals":{"units":1,"wall_clock_seconds":3,"spend_usd":0},
+ "units":[{"seq":1,"kind":"implement","id":"seed","attempt":1,"exit_code":1,"duration_seconds":3,"spend_usd":null,"log_path":"x"}]}`)
+
+	stdout, stderr, code := runTP(t, dir, "now")
+	require.Equal(t, 0, code, "tp now: %s", stderr)
+	need := needOf(t, decodeNow(t, stdout), "run")
+	assert.Equal(t, "seed", need["id"], "the unit that failed")
+	assertPlainWords(t, need["text"])
+}
+
 // Without an epic graph epics is null; with one it lists each epic by id and
 // title, with the done and total tasks of its bound files and whether it is
 // done.
