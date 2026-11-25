@@ -523,6 +523,30 @@ func epicNowProject(t *testing.T) string {
 	return dir
 }
 
+// Several task files and none chosen as active is not an error to the pane:
+// tp now exits 0 with no task file, says so in needs_you in plain words, and
+// still reports the epics.
+func TestNow_SeveralTaskFilesAndNoneActiveIsANeed(t *testing.T) {
+	t.Parallel()
+	dir := epicNowProject(t)
+	body, err := os.ReadFile(filepath.Join(dir, "spec.tasks.json"))
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "other.tasks.json"), body, 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "now")
+	require.Equal(t, 0, code, "several task files is not an error to tp now: %s", stderr)
+	out := decodeNow(t, stdout)
+	assert.Nil(t, out["task_file"])
+	assert.Empty(t, out["phase"])
+	assert.Nil(t, out["tasks"])
+	need := needOf(t, out, "blocker")
+	assert.Equal(t, "no-active-file", need["code"])
+	assertPlainWords(t, need["text"])
+	epics, ok := out["epics"].([]any)
+	require.True(t, ok, "the epics are still read: %v", out["epics"])
+	assert.Len(t, epics, 2)
+}
+
 // tp now --epic <id> is about that epic: epics lists it alone.
 func TestNow_EpicFlagListsThatEpicAlone(t *testing.T) {
 	t.Parallel()
