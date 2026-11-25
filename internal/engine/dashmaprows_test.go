@@ -182,3 +182,20 @@ func TestMapRows_AVeryWideLayerWidensPastTheCap(t *testing.T) {
 	assert.InDelta(t, 8.0, w.ToCol-w.FromCol, 0)
 	assert.InDelta(t, 2.0, w.ToY-w.FromY, 0)
 }
+
+// TestMapRows_ALineSkipsTheLayersNoneOfItsBlocksTakes: X takes layers 0-3
+// and Y only 2-3 of the same row; Y wraps onto a line of its own, which
+// opens with its header unit and then Y's own layers, not the two empty
+// layers above them.
+func TestMapRows_ALineSkipsTheLayersNoneOfItsBlocksTakes(t *testing.T) {
+	t.Parallel()
+	in := mapInput(2, []LayoutBand{{Name: "X", From: 0, To: 3}, {Name: "Y", From: 2, To: 3}},
+		mapNode{"x0", "X", 0, 0}, mapNode{"x1", "X", 1, 0}, mapNode{"x2", "X", 2, 0}, mapNode{"x3", "X", 3, 0},
+		mapNode{"y2", "Y", 2, 10}, mapNode{"y3", "Y", 3, 10})
+	got := MapRows(&in)
+	y := mapBlockOf(t, got.Blocks, "Y")
+	require.Equal(t, 1, y.Line)
+	assert.InDelta(t, y.LineY+1, got.Places["y2"].Y, 0)
+	assert.InDelta(t, y.LineY+2, got.Places["y3"].Y, 0)
+	assert.InDelta(t, y.LineY+3, got.Height, 0)
+}
