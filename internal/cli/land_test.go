@@ -957,3 +957,31 @@ func TestALandOfTwoTasksMakesOneTaskFileCommit(t *testing.T) {
 	assert.Equal(t, "3", strings.TrimSpace(gitRun(t, dir, "rev-list", "--count", before+"..HEAD")), "two picks and one task-file commit")
 	assert.Empty(t, gitRun(t, dir, "status", "--porcelain", "--", "spec.tasks.json"))
 }
+
+// landPrunes is the worktree part of tp land's output.
+type landPrunes struct {
+	Pruned []struct {
+		ID       string `json:"id"`
+		Worktree string `json:"worktree"`
+		Branch   string `json:"branch"`
+	} `json:"pruned"`
+	Kept []struct {
+		ID       string `json:"id"`
+		Worktree string `json:"worktree"`
+		Reason   string `json:"reason"`
+	} `json:"kept"`
+}
+
+// A landed worktree with nothing left in it goes, and its branch with it.
+func TestLandRemovesACleanLandedWorktreeAndItsBranch(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "")
+	stdout := landOne(t, dir, wt)
+	var res landPrunes
+	require.NoError(t, json.Unmarshal([]byte(stdout), &res), stdout)
+	require.Len(t, res.Pruned, 1, stdout)
+	assert.Equal(t, "t1", res.Pruned[0].ID)
+	assert.Equal(t, "agent-t1", res.Pruned[0].Branch)
+	assert.NoDirExists(t, wt)
+	assert.Empty(t, gitRun(t, dir, "branch", "--list", "agent-t1"), "the branch is deleted")
+}
