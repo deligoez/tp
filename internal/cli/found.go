@@ -272,10 +272,7 @@ func addFoundEdges(tf *model.TaskFile, edges []engine.FoundEdge) {
 // TP_UNIT_ID is a role, not a task, so only the implement kind counts. The task
 // must be wip in the task file, which is read and never written.
 func foundFinderTask(taskFilePath, flagTask string) (string, error) {
-	unitTask := ""
-	if engine.UnitKind(os.Getenv(engine.EnvUnitKind)) == engine.UnitImplement {
-		unitTask = os.Getenv(engine.EnvUnitID)
-	}
+	unitTask := implementUnitTask()
 	if flagTask != "" && unitTask != "" && flagTask != unitTask {
 		return "", fmt.Errorf("--task names %s, but this unit works %s", flagTask, unitTask)
 	}
@@ -302,6 +299,15 @@ func foundFinderTask(taskFilePath, flagTask string) (string, error) {
 		return id, nil
 	}
 	return "", fmt.Errorf("task %s is not in the task file", id)
+}
+
+// implementUnitTask is the task an implement unit of tp run works, from its
+// environment, or "" outside one: a role unit's TP_UNIT_ID is a role.
+func implementUnitTask() string {
+	if engine.UnitKind(os.Getenv(engine.EnvUnitKind)) == engine.UnitImplement {
+		return os.Getenv(engine.EnvUnitID)
+	}
+	return ""
 }
 
 // foundRefusal emits a refusal and exits 2; see escalateRefusal for why it
