@@ -44,6 +44,9 @@ type FoundApplyPlan struct {
 	// Edges are the depends_on edges placement adds to tasks already in the
 	// file (spec/1.31.0.md §4): a blocking request's finder on its outcome.
 	Edges []FoundEdge
+	// Reopened are the waiting finders apply returned to open
+	// (FoundFindersToReopen), set by the caller that applies the plan.
+	Reopened []string
 	// FoundTasks is the count found_max is measured against once the plan
 	// is applied.
 	FoundTasks int
