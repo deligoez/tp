@@ -252,7 +252,8 @@ test('a stopped run names why it stopped', async () => {
   const view = toView({ ...STATUS, run_state: 'stopped', stop_reason: 'converged', running: [] }, 0)
   const rows = runRows(view!, 'en', 0).map(row => row.text)
   expect(rows[0]).toBe('Implement phase, stopped')
-  expect(rows.at(-1)).toBe('Stopped: converged')
+  expect(rows.at(-1)).toBe('Stopped: the work is done')
+  expect(WORDS.en.stop('interrupted')).toBe('the run was interrupted')
 })
 
 test('a task detail reads in Turkish', async () => {
