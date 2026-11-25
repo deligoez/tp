@@ -21,6 +21,10 @@ const foundShapeHint = "file one defect: --location <file:line> --reproduction <
 // foundBlocksHint says who may set --blocks and how a caller names its task.
 const foundBlocksHint = "--blocks marks a request the caller's own task cannot pass without, so it needs a wip task the caller works: an implement unit's own, or --task <id>; drop --blocks to file the request without it"
 
+// foundTaskHint answers a refused --task on a request that does not block:
+// --task only names the finder, so leaving it out files the request too.
+const foundTaskHint = "--task names the wip task the caller works (an implement unit's own by default): name a wip task, or drop --task to file the request without a finder task"
+
 // foundStoreWriteHint answers a store that could not be written: the request
 // lives under the project's .tp/, beside the cycle's run state.
 const foundStoreWriteHint = "check that the project's .tp/ directory exists and is writable, then file the request again"
@@ -205,7 +209,11 @@ func runFoundAdd(f *foundAddFlags) error {
 	}
 	finder, err := foundFinderTask(taskFilePath, f.task)
 	if err != nil {
-		return foundRefusal(err.Error(), foundBlocksHint)
+		hint := foundTaskHint
+		if f.blocks {
+			hint = foundBlocksHint
+		}
+		return foundRefusal(err.Error(), hint)
 	}
 	if f.blocks && finder == "" {
 		return foundRefusal("--blocks needs a task the caller works, and none is named", foundBlocksHint)
