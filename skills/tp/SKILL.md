@@ -171,9 +171,10 @@ Repeat until `tp review <spec> --status --check` exits 0:
 3. `tp review <spec> --record-inbox` — records the round from every role's file, and its
    `round-<N>-<role>.<part>.ndjson` parts, and refuses (exit 3) while a role has none. Roles that
    may not write in the checkout get `--inbox <dir>` on the emission, each `--role` emission and
-   the record. It is the only way to record an emitted round; `--record <file>` is for
-   a round nobody emitted. If you merge role files to read them, use `-o` (never `>`) and `&&`, and
-   never record a merged file of an emitted round.
+   the record; specs may share one, each spec's files under its own `<base>` folder. It is the only
+   way to record an emitted round; `--record <file>` is for a round nobody emitted. If you merge
+   role files to read them, use `-o` (never `>`) and `&&`, and never record a merged file of an
+   emitted round.
 4. Fix the spec, and dispose of every finding in **the recorded round file** `--status` names
    (`review_rounds[].file`, not a merge output): `tp review --resolve <file> <idx> fixed|wontfix|duplicate "evidence"`
    (0-based), or `--resolve-all <file> <disposition> "evidence"` for many.
@@ -662,12 +663,12 @@ refusal and its exit code — is under the same form in [REFERENCE.md](REFERENCE
 | `tp review spec.md --perspective regression` | Standalone regression pass |
 | `tp review spec.md --no-state` | No state reads or writes |
 | `tp review spec.md --role <name>` | One role's prompt |
-| `tp review spec.md --inbox <dir>` | Roles write to `<dir>/review-inbox/`; repeat it on `--role` and `--record-inbox` |
+| `tp review spec.md --inbox <dir>` | Roles write to `<dir>/review-inbox/<base>/`; repeat it on `--role` and `--record-inbox` |
 | `tp audit spec.md` | Post-implementation audit prompts |
 | `tp audit spec.md --affected-files src/a.go` | Manual file selection |
 | `tp audit spec.md --affected-from-tasks` | The files of done tasks' commits |
 | `tp audit spec.md --role <name>` | One role's prompt |
-| `tp audit spec.md --inbox <dir>` | Roles write to `<dir>/audit-inbox/` (also `--task-audit`, every call of the round) |
+| `tp audit spec.md --inbox <dir>` | Roles write to `<dir>/audit-inbox/<base>/` (also `--task-audit`, every call of the round) |
 | `tp audit spec.md --findings review.ndjson` | Also verify review findings were addressed |
 | `tp audit spec.md --record results.ndjson` | Record an audit round |
 | `tp audit spec.md --record-inbox` | Record an audit round from its roles' files and parts |
