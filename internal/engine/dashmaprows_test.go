@@ -154,3 +154,12 @@ func TestMapRows_ADividerSplitsEachGap(t *testing.T) {
 	assert.InDelta(t, got.Rows[0].ToY, d.ToY, 0)
 }
 
+// TestMapRows_IsStable: one input lays out alike.
+func TestMapRows_IsStable(t *testing.T) {
+	t.Parallel()
+	in := threeBands()
+	first := MapRows(&in)
+	for range 20 {
+		assert.Equal(t, first, MapRows(&in))
+	}
+}
