@@ -36,8 +36,8 @@ pane's job.
   claims. Agents keep running tp.
 - **`DESIGN.md` and rule 14.** Built from the design system's tokens as far as a terminal carries
   them (bold, dim, one accent, the theme's status colours), and no tp command or flag in plain view.
-- **Cheap when idle.** A live run or held task is read every 5 seconds, an idle project once a minute,
-  as today.
+- **Cheap when idle.** Work a run or an agent holds is read every 5 seconds, so is the person's own
+  held work while the pane is open; everything else once a minute.
 
 ## Alternatives
 
