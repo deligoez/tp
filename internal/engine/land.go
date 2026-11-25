@@ -232,7 +232,7 @@ func pickOne(root, sha string) (string, error) {
 	if parents, err := gitOut(root, "rev-list", "--parents", "-n", "1", sha); err == nil && len(strings.Fields(parents)) > 2 {
 		return "", fmt.Errorf("commit %s is a merge commit: tp land picks commits with one parent", sha)
 	}
-	out, pickErr := landCherryPick(root, sha)
+	out, pickErr := gitWaitingOutLock(root, "cherry-pick", "--allow-empty", sha)
 	if pickErr == nil {
 		return gitOut(root, "rev-parse", "HEAD")
 	}
@@ -252,19 +252,19 @@ func pickOne(root, sha string) (string, error) {
 	return "", &LandBlockedError{Cause: strings.TrimSpace(string(out))}
 }
 
-// landLockWait bounds how long a pick waits out an index lock another git
+// landLockWait bounds how long a land waits out an index lock another git
 // process holds (an editor, a background fetch, another agent's commit).
 const landLockWait = 2 * time.Second
 
-// landCherryPick cherry-picks sha onto HEAD at root, retrying with a doubling
+// gitWaitingOutLock runs git with args at root, retrying with a doubling
 // backoff while git refuses because another process holds the index lock,
 // until landLockWait runs out. It returns git's combined output.
-func landCherryPick(root, sha string) ([]byte, error) {
+func gitWaitingOutLock(root string, args ...string) ([]byte, error) {
 	deadline := time.Now().Add(landLockWait)
 	for delay := 50 * time.Millisecond; ; delay *= 2 {
-		pick := exec.Command("git", "cherry-pick", "--allow-empty", sha)
-		pick.Dir = root
-		out, err := pick.CombinedOutput()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = root
+		out, err := cmd.CombinedOutput()
 		if err == nil || !bytes.Contains(out, []byte("index.lock': File exists")) || time.Now().Add(delay).After(deadline) {
 			return out, err
 		}
