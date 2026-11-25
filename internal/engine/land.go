@@ -176,6 +176,18 @@ func (e *LandBlockedError) Error() string {
 	return "uncommitted changes in " + strings.Join(e.Paths, ", ") + " stand in the way of the pick"
 }
 
+// LandConflictError is a land request's commit that conflicts with the
+// branch tp land picks onto: the one failure whose work is kept on the
+// agent's branch for the task's next agent to resolve (LandConflictBranch).
+type LandConflictError struct {
+	SHA   string
+	Files []string
+}
+
+func (e *LandConflictError) Error() string {
+	return fmt.Sprintf("commit %s conflicts with this branch in %s", e.SHA, strings.Join(e.Files, ", "))
+}
+
 // LandPick puts a land request's commits on the branch checked out at root
 // and returns the HEAD it started from and the commits now carrying the work.
 // Commits already on HEAD (a hand merge of the same commits, or a pick a
@@ -239,7 +251,7 @@ func pickOne(root, sha string) (string, error) {
 	conflicted, _ := gitOut(root, "diff", "--name-only", "--diff-filter=U")
 	if conflicted != "" {
 		_ = abortPick(root)
-		return "", fmt.Errorf("commit %s conflicts with this branch in %s", sha, strings.Join(strings.Fields(conflicted), ", "))
+		return "", &LandConflictError{SHA: sha, Files: strings.Fields(conflicted)}
 	}
 	if emptyPick(root) {
 		_, _ = gitOut(root, "cherry-pick", "--skip")
