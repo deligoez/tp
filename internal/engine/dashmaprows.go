@@ -78,12 +78,13 @@ type MapDivider struct {
 }
 
 // MapRowsLayout is MapRows' answer: each node's place, the blocks, rows
-// and dividers, and the map's height in y units.
+// and dividers, and the map's width in columns and height in y units.
 type MapRowsLayout struct {
 	Places   map[string]MapPlace
 	Blocks   []MapBlock
 	Rows     []MapRow
 	Dividers []MapDivider
+	Width    float64
 	Height   float64
 }
 
@@ -137,7 +138,32 @@ func MapRows(in *MapRowsInput) MapRowsLayout {
 		out.Rows = append(out.Rows, row)
 	}
 	out.Height = y
+	mapTrim(&out)
 	return out
+}
+
+// mapTrim moves the map left so its first block column is 0 and gives it
+// the width its blocks take, which folding and wrapping can leave narrower
+// than the forest's.
+func mapTrim(out *MapRowsLayout) {
+	if len(out.Blocks) == 0 {
+		return
+	}
+	lo, hi := out.Blocks[0].FromCol, out.Blocks[0].ToCol
+	for _, b := range out.Blocks {
+		lo, hi = min(lo, b.FromCol), max(hi, b.ToCol)
+	}
+	for id, p := range out.Places {
+		out.Places[id] = MapPlace{X: p.X - lo, Y: p.Y}
+	}
+	for i := range out.Blocks {
+		out.Blocks[i].FromCol -= lo
+		out.Blocks[i].ToCol -= lo
+	}
+	for i := range out.Dividers {
+		out.Dividers[i].X -= lo
+	}
+	out.Width = hi - lo + 1
 }
 
 // mapRowSpans is the rows' layer spans in layer order: the bands' spans

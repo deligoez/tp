@@ -522,7 +522,7 @@ func planMap(out *dashboardLayout, bandOf map[string]string) {
 		in.Layer[n.ID], in.Col[n.ID] = n.Layer, n.Col
 	}
 	m := engine.MapRows(&in)
-	out.Height, out.Rows, out.Blocks, out.Dividers = m.Height, m.Rows, m.Blocks, m.Dividers
+	out.Columns, out.Height, out.Rows, out.Blocks, out.Dividers = m.Width, m.Height, m.Rows, m.Blocks, m.Dividers
 	for i := range out.Nodes {
 		p := m.Places[out.Nodes[i].ID]
 		out.Nodes[i].X, out.Nodes[i].Y = &p.X, &p.Y
