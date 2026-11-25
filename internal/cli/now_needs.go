@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/deligoez/tp/internal/engine"
 )
@@ -92,7 +94,7 @@ func escalationNeeds(root string, st *engine.RunState) []nowNeed {
 	if err != nil {
 		return out
 	}
-	sort.Strings(paths)
+	sort.SliceStable(paths, func(i, j int) bool { return escalationSeqLess(paths[i], paths[j]) })
 	for _, path := range paths {
 		e, readErr := engine.ReadEscalation(path)
 		if readErr != nil {
@@ -102,6 +104,25 @@ func escalationNeeds(root string, st *engine.RunState) []nowNeed {
 	}
 	return out
 }
+
+// escalationSeqLess orders two escalation record paths by the unit sequence
+// their names start with, numerically, so unit 2's comes before unit 10's; a
+// name that does not start with a number sorts after those that do, by name.
+func escalationSeqLess(a, b string) bool {
+	seqA, errA := strconv.Atoi(strings.TrimSuffix(filepath.Base(a), escalationSuffix))
+	seqB, errB := strconv.Atoi(strings.TrimSuffix(filepath.Base(b), escalationSuffix))
+	switch {
+	case errA == nil && errB == nil:
+		return seqA < seqB
+	case errA == nil || errB == nil:
+		return errA == nil
+	}
+	return a < b
+}
+
+// escalationSuffix is what an escalation record's name carries after its
+// unit sequence (engine.EscalationPath).
+var escalationSuffix = filepath.Base(engine.EscalationPath("", ""))
 
 // escalationNeed words one escalation record: a named operator decision is
 // of kind decision, everything else (other) of kind escalation.
