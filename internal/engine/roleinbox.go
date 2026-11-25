@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 // RoleInboxPath is the file one review or audit role writes outside a run:
@@ -29,6 +30,28 @@ func RoleInboxPathAt(inbox, specPath, phase string, round int, role string) stri
 		return RoleInboxPath(specPath, phase, round, role)
 	}
 	return filepath.Join(RoleInboxDirAt(inbox, specPath, phase), fmt.Sprintf("round-%d-%s.ndjson", round, role))
+}
+
+// RoleInboxFiles is the files one role of a round wrote in the inbox, in
+// name order: its whole file, RoleInboxPathAt, and its part files,
+// round-<N>-<role>.<part>.ndjson beside it (spec/backlog/
+// audit-round-ergonomics.md §2.3), for a role whose checklist was answered in
+// slices. A dot divides the part because a role id holds hyphens and never a
+// dot, so no part of one role reads as another role's file. Empty when the
+// role wrote nothing.
+func RoleInboxFiles(inbox, specPath, phase string, round int, role string) []string {
+	whole := RoleInboxPathAt(inbox, specPath, phase, round, role)
+	var files []string
+	if info, err := os.Stat(whole); err == nil && !info.IsDir() {
+		files = append(files, whole)
+	}
+	parts, _ := filepath.Glob(strings.TrimSuffix(whole, ".ndjson") + ".*.ndjson")
+	for _, p := range parts {
+		if info, err := os.Stat(p); err == nil && !info.IsDir() {
+			files = append(files, p)
+		}
+	}
+	return files
 }
 
 // RoleInboxDirAt is the directory RoleInboxPathAt puts a phase's role files
