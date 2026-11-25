@@ -251,31 +251,31 @@ func TestPure_AWrapNeverLeavesASuffixAlone(t *testing.T) {
 	assert.JSONEq(t, `[["Alpha Beta", "Gamma-I"], ["Delta", "Epsilon-II"], ["Zeta Eta", "Theta-AI-I"], ["abcdefghijklmnopq-II"], ["abcdefghijklmnopqrstu"]]`, got)
 }
 
-// TestPure_AShortIdKeepsItsHeadAndItsSuffix: a shortened id keeps as much
-// of its head as fits before an ellipsis and its suffix group whole, so
-// "-I" and "-II" siblings still differ; a suffix that leaves under three
-// characters of head is cut with the rest, and an id that fits is left
-// alone.
-func TestPure_AShortIdKeepsItsHeadAndItsSuffix(t *testing.T) {
+// TestPure_AMapIdDrawsWholeInAtMostTwoLines: on the plan's map an id is
+// drawn whole in one line or two, never three and never cut, the break
+// keeping a suffix group on its word; of its forms the one whose widest
+// line (measured) and line count leave the largest font in the box wins,
+// one line where it fits at full size, and of two-line forms that draw as
+// large the more even one, not a short head such as "e-".
+func TestPure_AMapIdDrawsWholeInAtMostTwoLines(t *testing.T) {
 	t.Parallel()
-	got := runPure(t, `out([P.shortId("Alpha Beta Gamma-II", 9), P.shortId("Alpha-I", 9), P.shortId("inventory-export", 9), P.shortId("Zeta Eta Theta-AI-II", 9)]);`)
-	assert.JSONEq(t, `["Alpha…-II", "Alpha-I", "inventor…", "Zeta Eta…"]`, got)
+	got := runPure(t, `const box = { w: 100, h: 50, fs: 20, lineHeight: 1.25 };
+const m = (s) => s.length * 0.5;
+out(["Alpha Beta", "Alpha Beta Gamma-I", "abcdefghijklmnopqrstuvwxyz", "Delta Epsilon Zeta Eta Theta-II"].map((id) => P.fitIdIn(id, box, m))
+  .concat([P.fitIdIn("e-Alpha Bravo-I", { w: 140, h: 50, fs: 20, lineHeight: 1.25 }, m)]));`)
+	assert.JSONEq(t, `[
+  {"lines": ["Alpha Beta"], "fit": 1},
+  {"lines": ["Alpha Beta", "Gamma-I"], "fit": 1},
+  {"lines": ["abcdefghijklmnopqrstuvwxyz"], "fit": 0.3846},
+  {"lines": ["Delta Epsilon", "Zeta Eta Theta-II"], "fit": 0.5882},
+  {"lines": ["e-Alpha", "Bravo-I"], "fit": 1}
+]`, got)
 }
 
-// TestPure_AShortLabelShowsBeforeTheWholeOne: a view with a short label
-// size draws it once that size reaches the minimum on screen and the whole
-// id does not yet; without one it stays far.
-func TestPure_AShortLabelShowsBeforeTheWholeOne(t *testing.T) {
+// TestPure_AMapIdsFitNeverRoundsPastItsBox: a fit of 10/11 is kept as
+// 0.909, not rounded up to 0.9091, so the id stays inside its box.
+func TestPure_AMapIdsFitNeverRoundsPastItsBox(t *testing.T) {
 	t.Parallel()
-	got := runPure(t, `out([P.detailLevel(8, 14, 14), P.detailLevel(8, 14, 13.9), P.detailLevel(14, 14, 25), P.detailLevel(8, 14)]);`)
-	assert.JSONEq(t, `["short", "far", "near", "far"]`, got)
-}
-
-// TestPure_TheFontAtlasHoldsTheShortLabelsEllipsis: the glyphs the graph
-// draws include its short labels', the ellipsis among them, or deck.gl
-// leaves it out of the atlas and draws nothing in its place.
-func TestPure_TheFontAtlasHoldsTheShortLabelsEllipsis(t *testing.T) {
-	t.Parallel()
-	got := runPure(t, `out(P.glyphsOf([{ label: "ab", title: "", text: "ab", short: "a…" }], []).includes("…"));`)
-	assert.Equal(t, "true", got)
+	got := runPure(t, `out(P.fitIdIn("abcdefghijk", { w: 100, h: 50, fs: 20, lineHeight: 1.25 }, (s) => s.length * 0.5).fit);`)
+	assert.Equal(t, "0.909", got)
 }
