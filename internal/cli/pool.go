@@ -57,22 +57,29 @@ func runPool(_ *cobra.Command, _ []string) error {
 }
 
 // poolFromStopHook is --stop-hook: a payload it cannot read, a second stop
-// (stop_hook_active), a payload with no background_tasks (it says nothing of
-// which agents live, so no claim may be called lost) or a pool with nothing
-// to ask prints nothing, since this hook only nudges and must never wedge a
-// session.
+// (stop_hook_active) or a pool with nothing to ask prints nothing, since this
+// hook only nudges and must never wedge a session. A payload with no
+// background_tasks says nothing of which agents live, so no claim may be
+// called lost: it asks only for unapplied found requests (spec/1.31.0.md §2).
 func poolFromStopHook(in io.Reader, out io.Writer) {
 	var payload engine.StopPayload
-	if json.NewDecoder(in).Decode(&payload) != nil || payload.StopHookActive || payload.Cwd == "" ||
-		payload.BackgroundTasks == nil {
+	if json.NewDecoder(in).Decode(&payload) != nil || payload.StopHookActive || payload.Cwd == "" {
 		return
 	}
 	live, unresolved := payload.LiveSpawns()
 	p := engine.PoolOf(engine.PoolInput{Start: payload.Cwd, Session: payload.SessionID, Live: live, Unresolved: unresolved})
-	if !p.Ask {
+	reason := p.Reason
+	if payload.BackgroundTasks == nil {
+		// Unapplied found requests need no agent list to be named.
+		reason = ""
+		if len(p.Unapplied) > 0 {
+			reason = engine.FoundApplyReason(p.Unapplied)
+		}
+	}
+	if !p.Ask || reason == "" {
 		return
 	}
 	enc := json.NewEncoder(out)
 	enc.SetEscapeHTML(false)
-	_ = enc.Encode(map[string]string{"decision": "block", "reason": p.Reason})
+	_ = enc.Encode(map[string]string{"decision": "block", "reason": reason})
 }
