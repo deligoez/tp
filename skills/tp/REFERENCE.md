@@ -405,7 +405,7 @@ empty and it adds `running_units`, as `tp resume` does (Implement pool, below).
 
 ### Unit kinds
 
-A unit is the smallest piece of work that ends in a durable write. `next_units` returns these ten
+A unit is the smallest piece of work that ends in a durable write. `next_units` returns these eleven
 kinds and no others; `(kind, id)` identifies a unit, and `id` is its durable subject.
 
 | Kind | `id` | Durable write | Concurrency | `brief_command` |
@@ -420,6 +420,7 @@ kinds and no others; `(kind, id)` identifies a unit, and `id` is its durable sub
 | `audit-fix` | the finding's `role:item_id` | every non-`PASS` row under that key carries a disposition in the round's results file; when a task audit holds the key's latest grading, in that task audit's round file, with nothing under the key left undisposed in the results file | alone | `tp audit <spec> --status`; for a task-audit row, `tp audit <spec> --status && echo 'fix <key>, graded in <file>, then claim it: tp audit <file> --resolve <key> fixed "<evidence>"'` |
 | `task-audit-role` (v1.22.0) | role id | `$TP_ROUND_DIR/role-$TP_UNIT_ID.ndjson` exists and every content line parses, in the task audit's own round directory (`task-audit-r<seq>`) | parallel with sibling roles | `tp audit <spec> --task-audit --role <id>` |
 | `task-audit-record` (v1.22.0) | the task audit's seq | the state directory holds `task-audit-<seq>.ndjson` | alone | `tp audit <spec> --task-audit --record-inbox` |
+| `decision` (v1.31.0) | up to 5 undecided request ids, comma-joined (`F3,F4`) | none of its requests is still undecided | alone; offered when an undecided request exists and no implement unit is ready or running (in the implement phase, and first in the audit phase) | `tp found decide <ids>` |
 
 An attempt **succeeded** when the child exited 0 **and** the kind's durable write is present; either
 alone is a failed attempt. Every predicate is a state, never a delta, which is what lets the `Stop`
