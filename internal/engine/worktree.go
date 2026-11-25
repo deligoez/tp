@@ -48,6 +48,12 @@ func gitToplevel(start string) string {
 	return strings.TrimSpace(string(out))
 }
 
+// WorktreeRoot is the absolute root of the git worktree holding start, or ""
+// outside git.
+func WorktreeRoot(start string) string {
+	return gitToplevel(start)
+}
+
 // ProjectName is the name the dashboard shows for the repository holding
 // start: its root directory's name, or start's own when start is not inside a
 // git repository, or "" when neither resolves.

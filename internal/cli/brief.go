@@ -103,7 +103,7 @@ func printBrief(tf *model.TaskFile, task *model.Task, taskFilePath, specPath str
 	// worktree is not the working directory.
 	failureRoot := "."
 	if root := donePendingRoot(taskFilePath); root != "" {
-		b.Close = engine.WorktreeCloseRecipeText(effective, wf.QualityGate, task.ID, task.Touches)
+		b.Close = engine.WorktreeCloseRecipeText(effective, wf.QualityGate, task.ID, task.Touches, engine.WorktreeRoot("."))
 		failureRoot = root
 	}
 

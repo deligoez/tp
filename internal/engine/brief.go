@@ -110,11 +110,15 @@ func writeEvidenceContract(b *strings.Builder) {
 // a worktree beside others (spec/backlog/parallel-implement.md §2.4, §2.5):
 // it commits on its branch, runs targeted package tests directly and a full
 // suite only through tp gate (spec/backlog/gate-slots.md), and asks for the
-// close; the driver integrates the commits and runs the gate.
-func WorktreeCloseRecipeText(effectiveStrategy, qualityGate, id string, touches []string) string {
+// close; the driver integrates the commits and runs the gate. worktree is the
+// worktree's absolute root, which file tools take absolute paths under.
+func WorktreeCloseRecipeText(effectiveStrategy, qualityGate, id string, touches []string, worktree string) string {
 	var b strings.Builder
 	b.WriteString("How to close this unit.\n\n")
 	b.WriteString("You work in a worktree of your own while other units run beside you. tp done runs the gate here; the driver then picks your commits onto the main branch, runs the gate there again and closes the task.\n")
+	if worktree != "" {
+		fmt.Fprintf(&b, "Your worktree is %s. Give every file tool an absolute path under it: a relative path can resolve against the main checkout and change the wrong tree.\n", worktree)
+	}
 	if len(touches) > 0 {
 		fmt.Fprintf(&b, "Your task's touches: %s. Keep your change inside them: they are what lets the units beside you run.\n", strings.Join(touches, ", "))
 	}
@@ -149,7 +153,8 @@ func closeRecipeCommand(effectiveStrategy, claimToken, taskFile string) (command
 		if taskFile != "" {
 			file = " --file " + taskFile
 		}
-		worktreeClose = "   tp done <id>" + file + " --commit <sha> --claim-token " + claimToken + " -- \"<evidence>\"   (repeat --commit per sha), and stop.\n"
+		worktreeClose = "   tp done <id>" + file + " --commit <sha> --claim-token " + claimToken + " -- \"<evidence>\"   (repeat --commit per sha), and stop.\n" +
+			"   In that worktree, give every file tool an absolute path under the directory git rev-parse --show-toplevel prints there: a relative path can resolve against the main checkout and change the wrong tree.\n"
 	}
 	switch effectiveStrategy {
 	case CommitStrategyHC:
