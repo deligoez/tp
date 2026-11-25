@@ -187,7 +187,10 @@ type auditPriorRound struct {
 	// carried holds the wontfix rows the round carries without asking
 	// (carriedWontfix): off the checklist, listed apart.
 	carried []priorAuditRow
-	legacy  bool
+	// carriedItems is the checklist item ids withCarried took off the
+	// checklist: still in the role's pool, graded by the row --record writes.
+	carriedItems []string
+	legacy       bool
 }
 
 // carriedWontfix reports whether a prior row is a wontfix the next audit
@@ -217,9 +220,11 @@ func (p *auditPriorRound) withCarried(items []ChecklistItem) (*auditPriorRound, 
 	}
 	kept := make([]ChecklistItem, 0, len(items))
 	for i := range items {
-		if !skip[items[i].ItemID] {
-			kept = append(kept, items[i])
+		if skip[items[i].ItemID] {
+			out.carriedItems = append(out.carriedItems, items[i].ItemID)
+			continue
 		}
+		kept = append(kept, items[i])
 	}
 	return out, kept
 }
@@ -519,7 +524,11 @@ func generateRoleAuditPrompts(auditorRoles []model.Role, specItems []ChecklistIt
 		if f.hasFiles {
 			inlinedContent = frameFileReading(&f, filePaths, &inlinerDone)
 		}
-		prompts = append(prompts, buildRolePrompt(role.ID, role.Focus, items, files, fileCap, fileTotal, specContent, claudeExcerpt, prior, &f, inlinedContent))
+		p := buildRolePrompt(role.ID, role.Focus, items, files, fileCap, fileTotal, specContent, claudeExcerpt, prior, &f, inlinedContent)
+		if prior != nil {
+			p.carriedItems = prior.carriedItems
+		}
+		prompts = append(prompts, p)
 	}
 	return prompts, skipped
 }

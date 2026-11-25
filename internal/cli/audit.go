@@ -76,6 +76,9 @@ type auditPrompt struct {
 	// (spec/backlog/checklist-covers-what-changed.md, decisions 2 and 3).
 	FileCount int `json:"file_count"`
 	FilePool  int `json:"file_pool"`
+	// carriedItems are the item ids the round carries as wontfix without
+	// asking: off the checklist, still in the role's graded pool.
+	carriedItems []string
 }
 
 // auditFileSummary is tp audit's file_summary: the shared affected-file counts
