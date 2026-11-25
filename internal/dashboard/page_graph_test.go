@@ -183,3 +183,15 @@ func TestPure_ANodeSitsAtItsMapPlace(t *testing.T) {
 	got := runPure(t, `out([P.mapPlace({ col: 4, layer: 2, x: 0, y: 5 }), P.mapPlace({ col: 4, layer: 2 })]);`)
 	assert.JSONEq(t, `[{"col": 0, "row": 5}, {"col": 4, "row": 2}]`, got)
 }
+
+// TestPure_TheMapOpensAGapAboveEachLineOfBlocks: the page draws the plan's
+// map roomier than its units, a gap above every line of blocks (the
+// blocks' line_y), so a row's labels have a strip of their own at fit; a
+// place below two line tops sits two gaps lower, one above none of them
+// none.
+func TestPure_TheMapOpensAGapAboveEachLineOfBlocks(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const tops = P.mapLineTops([{ line_y: 4 }, { line_y: 0 }, { line_y: 4 }]);
+out([tops, P.mapY(-1, tops, 10, 100), P.mapY(0, tops, 10, 100), P.mapY(3, tops, 10, 100), P.mapY(4, tops, 10, 100), P.mapY(6, tops, 10, 100)]);`)
+	assert.JSONEq(t, `[[0, 4], -10, 100, 130, 240, 260]`, got)
+}
