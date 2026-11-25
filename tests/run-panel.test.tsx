@@ -686,14 +686,26 @@ test('a task only the person holds is read every 5 seconds while the pane is dra
   expect(ran.filter(line => line === 'tp now --json').length).toBe(12)
 })
 
+// seed stands for a value an earlier module stored under key before a
+// reload: reads answer it until the plugin's first write to that key, which
+// then lands in the kit's own store.
+function seed(on: On, key: string, shape: string, value: unknown): void {
+  let stored = true
+  on('state.set', (_, e, next) => {
+    if (e.plugin === 'tp' && e.key === key) stored = false
+    return next(e)
+  })
+  on('state.get', (_, e, next) =>
+    stored && e.plugin === 'tp' && e.key === key ? { value: { value: { shape, value }, version: 1 } } : next(e),
+  )
+}
+
 test('a run the pane opened itself for is not opened again after a reload', async ($, on) => {
   const clock = mock.clock(on, { now: AT })
   world(on, { 'tp --version': VERSION, 'tp now --json': { exitCode: 0, stdout: JSON.stringify(NOW) } })
   // What the module before the reload stored: it had opened the pane for
   // this run, and the person has closed it since.
-  on('state.get', (_, e, next) =>
-    e.plugin === 'tp' && e.key === 'opened' ? { value: { value: '01RUN', version: 1, shape: 'opened-1' } } : next(e),
-  )
+  seed(on, 'opened', 'opened-1', '01RUN')
   await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
   await clock.advance(10_000)
   expect(opened).toEqual([])
