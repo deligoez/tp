@@ -24,12 +24,13 @@ const DecisionUnitText = " Answer each request with `tp found answer`: `task` or
 	" You never make a rule-9 decision (an operator decision such as raising a cap or accepting a finding): answer `human` instead."
 
 // UndecidedRequestIDs returns the ids of up to limit undecided requests of the
-// task file's cycle, in arrival order. A store that cannot be read holds none
-// the run can act on.
-func UndecidedRequestIDs(taskFile string, limit int) []string {
+// task file's cycle, in arrival order. A missing store holds none; a store that
+// exists but cannot be read or parsed is ReadFoundRequests' error, never an
+// empty store, so a corrupt one cannot pass for a cycle with nothing to decide.
+func UndecidedRequestIDs(taskFile string, limit int) ([]string, error) {
 	reqs, err := ReadFoundRequests(CanonicalProjectRoot(filepath.Dir(taskFile)), taskFile)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	sort.SliceStable(reqs, func(i, j int) bool { return reqs[i].Seq < reqs[j].Seq })
 	var ids []string
@@ -41,17 +42,19 @@ func UndecidedRequestIDs(taskFile string, limit int) []string {
 			ids = append(ids, reqs[i].ID)
 		}
 	}
-	return ids
+	return ids, nil
 }
 
 // decisionUnits returns the one decision unit the cycle owes, or none when no
-// request is undecided (spec/1.31.0.md §5).
-func decisionUnits(target UnitTarget) []NextUnit {
-	ids := UndecidedRequestIDs(target.TaskFile, DecisionBatchMax)
-	if len(ids) == 0 {
-		return nil
+// request is undecided (spec/1.31.0.md §5). A store it cannot read is the
+// error: the caller hands out no unit rather than the ones that would follow
+// (tp resume has already reported it, through resumeBlockers).
+func decisionUnits(target UnitTarget) ([]NextUnit, error) {
+	ids, err := UndecidedRequestIDs(target.TaskFile, DecisionBatchMax)
+	if err != nil || len(ids) == 0 {
+		return nil, err
 	}
-	return []NextUnit{newNextUnit(UnitDecision, strings.Join(ids, decisionIDSep), target)}
+	return []NextUnit{newNextUnit(UnitDecision, strings.Join(ids, decisionIDSep), target)}, nil
 }
 
 // DecisionRequestIDs splits a decision unit's id into its request ids.

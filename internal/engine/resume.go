@@ -264,6 +264,10 @@ func resumeBlockers(taskFilePath, shownSpec string, changes []string, tf *model.
 			notice = block.Notice
 		}
 	}
+	undecided, err := undecidedRequestsBlock(taskFilePath, loops.phase)
+	if err != nil {
+		return nil, "", err
+	}
 	wf := &loops.wf
 	return BuildBlockers(&BlockerInputs{
 		Phase:           loops.phase,
@@ -279,7 +283,7 @@ func resumeBlockers(taskFilePath, shownSpec string, changes []string, tf *model.
 		ReviewStale:     loops.reviewStale,
 		EpicBlock:       epicBlock,
 
-		UndecidedRequests: loops.phase == PhaseImplement && len(UndecidedRequestIDs(taskFilePath, 1)) > 0,
+		UndecidedRequests: undecided,
 
 		ReviewInFlightRound:       loops.reviewInFlight,
 		ReviewInFlightOverOldText: loops.reviewInFlightOld,
@@ -293,6 +297,22 @@ func resumeBlockers(taskFilePath, shownSpec string, changes []string, tf *model.
 		AuditCarriedBlocking:  loops.auditDone.CarriedBlocking,
 		AuditUndisposedAtCap:  loops.auditDone.Undisposed,
 	}), notice, nil
+}
+
+// undecidedRequestsBlock reports whether an undecided found request holds the
+// implement phase's no-ready-task blocker back. The implement and audit phases
+// both hand out a decision unit from the store, so in either a store that
+// cannot be read is an error here, before BuildNextUnits would quietly give
+// out none.
+func undecidedRequestsBlock(taskFilePath, phase string) (bool, error) {
+	if phase != PhaseImplement && phase != PhaseAudit {
+		return false, nil
+	}
+	ids, err := UndecidedRequestIDs(taskFilePath, 1)
+	if err != nil {
+		return false, err
+	}
+	return phase == PhaseImplement && len(ids) > 0, nil
 }
 
 // readResumeLoops derives a task file's lifecycle phase the one way tp resume

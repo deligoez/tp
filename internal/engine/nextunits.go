@@ -82,7 +82,8 @@ func BuildNextUnitsRunning(root, taskFilePath, specPath, phase string, tf *model
 		// With no implement unit ready or running, an undecided request
 		// gets its decision unit before the run stops (spec/1.31.0.md §4, §5).
 		if len(ids) == 0 && len(running) == 0 {
-			return decisionUnits(target), round
+			decision, _ := decisionUnits(target) // unreadable: no unit, reported by resumeBlockers
+			return decision, round
 		}
 		for _, id := range ids {
 			units = append(units, newNextUnit(UnitImplement, id, target))
@@ -93,7 +94,13 @@ func BuildNextUnitsRunning(root, taskFilePath, specPath, phase string, tf *model
 	case PhaseAudit:
 		// No implement unit runs in the audit phase, so an undecided request
 		// is decided first: a task answer brings the cycle back to implement.
-		if decision := decisionUnits(target); len(decision) > 0 {
+		// A store that cannot be read hands out no unit at all, never the
+		// audit units as if nothing were undecided.
+		decision, err := decisionUnits(target)
+		if err != nil {
+			return units, round
+		}
+		if len(decision) > 0 {
 			return decision, round
 		}
 		// The task audits owed, fixed and re-graded come before the release

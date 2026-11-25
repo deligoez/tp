@@ -47,7 +47,8 @@ func TestDecisionUnits_TakeAtMostFiveUndecidedRequestsInArrivalOrder(t *testing.
 	taskFile := decisionFixture(t, FoundStateApplied, u, u, u, u, u, u)
 	target := UnitTarget{TaskFile: taskFile}
 
-	units := decisionUnits(target)
+	units, err := decisionUnits(target)
+	require.NoError(t, err)
 	require.Len(t, units, 1)
 	assert.Equal(t, UnitDecision, units[0].Kind)
 	assert.Equal(t, "F2,F3,F4,F5,F6", units[0].ID)
@@ -63,13 +64,17 @@ func TestDecisionUnits_TakeAtMostFiveUndecidedRequestsInArrivalOrder(t *testing.
 		return reqs, nil
 	}))
 	assert.True(t, UnitDecision.DurableWrite(target), "every request it named is answered")
-	assert.Equal(t, "F7", decisionUnits(UnitTarget{TaskFile: taskFile})[0].ID, "the rest go to the next unit")
+	units, err = decisionUnits(UnitTarget{TaskFile: taskFile})
+	require.NoError(t, err)
+	assert.Equal(t, "F7", units[0].ID, "the rest go to the next unit")
 	assert.False(t, UnitDecision.DurableWrite(UnitTarget{TaskFile: taskFile}), "a unit naming no request answered nothing")
 }
 
 // No undecided request, no decision unit.
 func TestDecisionUnits_NoneWithoutAnUndecidedRequest(t *testing.T) {
-	assert.Empty(t, decisionUnits(UnitTarget{TaskFile: decisionFixture(t, FoundStateApplied, FoundStateUnapplied)}))
+	units, err := decisionUnits(UnitTarget{TaskFile: decisionFixture(t, FoundStateApplied, FoundStateUnapplied)})
+	require.NoError(t, err)
+	assert.Empty(t, units)
 }
 
 // spec/1.31.0.md §4: an undecided request holds no-ready-task back, so the
