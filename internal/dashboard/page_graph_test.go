@@ -195,3 +195,19 @@ func TestPure_TheMapOpensAGapAboveEachLineOfBlocks(t *testing.T) {
 out([tops, P.mapY(-1, tops, 10, 100), P.mapY(0, tops, 10, 100), P.mapY(3, tops, 10, 100), P.mapY(4, tops, 10, 100), P.mapY(6, tops, 10, 100)]);`)
 	assert.JSONEq(t, `[[0, 4], -10, 100, 130, 240, 260]`, got)
 }
+
+// TestPure_ASelectionLightsOnlyItsOwnChain: selecting an epic draws the
+// edges from what it waits on into it and from it out to what waits on
+// it, and no other: an edge from an ancestor to a node off the chain, one
+// from a descendant's other parent, and one between two nodes off the
+// chain stay unlit, wherever the map places them.
+func TestPure_ASelectionLightsOnlyItsOwnChain(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `// 0 -> 1 -> 2 (selected) -> 3 -> 4; 0 -> 5; 6 -> 3; 5 -> 6
+const edges = [[0, 1], [1, 2], [2, 3], [3, 4], [0, 5], [6, 3], [5, 6]];
+const preds = (v) => edges.filter((e) => e[1] === v).map((e) => e[0]);
+const succs = (v) => edges.filter((e) => e[0] === v).map((e) => e[1]);
+const anc = P.hops(2, preds), desc = P.hops(2, succs);
+out(edges.map((e) => P.onChain(2, anc, desc, e[0], e[1])));`)
+	assert.JSONEq(t, `[true, true, true, true, false, false, false]`, got)
+}
