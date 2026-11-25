@@ -178,8 +178,12 @@ func ReviewNextAction(specPath string, done LoopDone, blockingUnresolved bool, m
 		return "the review round cap is reached: disposition each remaining finding in " + roundFile +
 			" — tp review " + roundFile + " --resolve <index> wontfix|duplicate \"<evidence>\" (fixed only for a medium or low finding: no round past the cap verifies a fix); accepting a critical or high finding is the operator's decision — then " + importStep + earlier
 	case blockingUnresolved:
-		return "revise the spec where a blocking finding is a defect, or disposition it — tp review " + roundFile +
-			" --resolve <index> wontfix|duplicate \"<evidence>\", the operator's decision for a critical or high finding — then run the next review round" + earlier + resolveEarlierFirst(done.CarriedBlocking)
+		// The usual way out is the repair: fixed does not clean its round,
+		// the next round reads the repair and verifies it.
+		return "revise the spec where a blocking finding is a defect and resolve it fixed — tp review " + roundFile +
+			" --resolve <index> fixed \"<evidence>\" — then run the next review round, which verifies the repair: tp review " + specPath +
+			", then tp review " + specPath + " --record-inbox; or accept it — tp review " + roundFile +
+			" --resolve <index> wontfix|duplicate \"<evidence>\", the operator's decision for a critical or high finding" + earlier + resolveEarlierFirst(done.CarriedBlocking)
 	default:
 		return mechanizeOrNextRound(specPath, mechanizeClasses, &checks) + earlier + resolveEarlierFirst(done.CarriedBlocking)
 	}
