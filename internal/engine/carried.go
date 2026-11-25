@@ -328,6 +328,11 @@ func CarriedBlockingClause(rows []CarriedRow, specPath string, atCap bool) strin
 	return strings.Join(parts, "; ")
 }
 
+// lateFixReason is why an earlier round's unresolved rows are resolved before
+// the next review round: a row's prompts carry it under "DO NOT re-report",
+// so only a round emitted after its fixed disposition reads the repair.
+const lateFixReason = "a fix resolved after a later round stays fixed-unverified until a round emitted after the resolution reads the repair"
+
 func unresolvedClause(rows []CarriedRow, specPath string, atCap bool) string {
 	noun, pronoun := "finding stands", "it"
 	if len(rows) > 1 {
@@ -335,13 +340,15 @@ func unresolvedClause(rows []CarriedRow, specPath string, atCap bool) string {
 	}
 	// At the cap a fix cannot end the loop, since no round may verify it.
 	statuses, fixNote := "fixed|wontfix|duplicate", ""
+	before := " before the next review round is emitted or recorded, since " + lateFixReason
 	if atCap {
+		before = ""
 		statuses = "wontfix|duplicate"
 		fixNote = "; a fix needs a round to verify it, which the cap admits only once the operator raises it (" + EscalateRaiseReviewCap + ")"
 	}
 	first := &rows[0]
-	clause := fmt.Sprintf("%d carried blocking %s unresolved, and the next round's roles are told not to re-report %s: resolve each — the first, %s %s in round %d: tp review %s --resolve %d %s \"<evidence>\"",
-		len(rows), noun, pronoun, first.Severity, rowString(first.Row, "location"), first.Round, first.File, first.Index, statuses) + fixNote
+	clause := fmt.Sprintf("%d carried blocking %s unresolved, and the next round's roles are told not to re-report %s: resolve each%s — the first, %s %s in round %d: tp review %s --resolve %d %s \"<evidence>\"",
+		len(rows), noun, pronoun, before, first.Severity, rowString(first.Row, "location"), first.Round, first.File, first.Index, statuses) + fixNote
 	if len(rows) > 1 {
 		clause += fmt.Sprintf("; %d more are listed by tp review %s --status", len(rows)-1, specPath)
 	}

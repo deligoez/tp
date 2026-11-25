@@ -179,10 +179,21 @@ func ReviewNextAction(specPath string, done LoopDone, blockingUnresolved bool, m
 			" — tp review " + roundFile + " --resolve <index> wontfix|duplicate \"<evidence>\" (fixed only for a medium or low finding: no round past the cap verifies a fix); accepting a critical or high finding is the operator's decision — then " + importStep + earlier
 	case blockingUnresolved:
 		return "revise the spec where a blocking finding is a defect, or disposition it — tp review " + roundFile +
-			" --resolve <index> wontfix|duplicate \"<evidence>\", the operator's decision for a critical or high finding — then run the next review round" + earlier
+			" --resolve <index> wontfix|duplicate \"<evidence>\", the operator's decision for a critical or high finding — then run the next review round" + earlier + resolveEarlierFirst(done.CarriedBlocking)
 	default:
 		return mechanizeOrNextRound(specPath, mechanizeClasses, &checks)
 	}
+}
+
+// resolveEarlierFirst asks for the unresolved carried rows of earlier rounds
+// to be resolved before the next round (lateFixReason); "" when none is.
+func resolveEarlierFirst(rows []CarriedRow) string {
+	for i := range rows {
+		if rows[i].Earlier && rows[i].Disposition == CarryUnresolved {
+			return "; resolve those before the next review round is emitted or recorded, since " + lateFixReason
+		}
+	}
+	return ""
 }
 
 // carriedEarlierNote is the count of carried blocking rows from rounds before
