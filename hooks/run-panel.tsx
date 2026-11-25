@@ -223,17 +223,38 @@ async function isLive($: EngineInterface): Promise<boolean> {
 }
 
 // openTask shows one task and asks `tp show` for what the lists do not
-// carry; an answer for a task the person has since left is dropped.
+// carry.
 async function openTask($: EngineInterface, id: string): Promise<void> {
   const screen = await read($, screenState)
   const back: ViewName = screen.view === 'detail' ? screen.back : screen.view
   await update($, screenState, (): Screen => ({ view: 'detail', task: id, back }))
   await update($, detailState, () => null)
+  await readDetail($, id)
+}
+
+// The task whose `tp show` is being read, so a tick does not ask twice.
+let detailReading = ''
+
+// readDetail asks `tp show` for one task; an answer for a task the person
+// has since left is dropped.
+async function readDetail($: EngineInterface, id: string): Promise<void> {
+  detailReading = id
   // An id is tp's own, but never let one read as a flag.
   const payload = id.startsWith('-') ? undefined : await runJSON($, ['tp', 'show', id, '--json'])
+  if (detailReading === id) detailReading = ''
   const detail = payload ? toDetail(id, payload) : { ...toDetail(id, {}), failed: true }
   const current = await read($, screenState)
   if (current.view === 'detail' && current.task === id) await update($, detailState, () => detail)
+}
+
+// resumeDetail reads the detail the screen shows when nothing holds it: a
+// reload cut its read off and kept the screen. Called from the timer and the
+// command, never while drawing.
+async function resumeDetail($: EngineInterface): Promise<void> {
+  const screen = await read($, screenState)
+  if (screen.view !== 'detail' || !screen.task || detailReading === screen.task) return
+  const detail = await read($, detailState)
+  if (detail?.id !== screen.task) await readDetail($, screen.task)
 }
 
 // The folder's last path segment: the project the pane is about.
@@ -259,6 +280,8 @@ function startPolling($: EngineInterface): void {
   let tick = 0
   $.clock.every(LIVE_MS, async () => {
     tick++
+    // Ahead of the idle skip, so an open detail never waits for the minute.
+    await resumeDetail($)
     const minute = tick % IDLE_EVERY === 1
     if (!minute && !(await isLive($))) return
     const view = await refresh($, minute)
@@ -295,6 +318,7 @@ export const register: Register = on => {
     const lang = await readLanguage($, cwd)
     await update($, langState, () => lang)
     const view = await refresh($, true)
+    await resumeDetail($)
     const now = await read($, nowState)
     await $.ui.open({ id: PANE, title: TITLE })
     startPolling($)
