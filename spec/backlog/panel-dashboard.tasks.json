@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/backlog/panel-dashboard.md",
   "created_at": "2026-11-25T13:47:09.155402Z",
-  "updated_at": "2026-11-25T14:10:42.594003Z",
+  "updated_at": "2026-11-25T14:22:00.683542Z",
   "workflow": {},
   "coverage": {
     "total_sections": 6,
@@ -84,7 +84,7 @@
     {
       "id": "merge",
       "title": "Land both branches on main",
-      "status": "wip",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "tp-now",
@@ -97,15 +97,24 @@
       ],
       "started_at": "2026-11-25T14:10:42.594003Z",
       "duration_source": "claimed",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-11-25T14:21:57.038221Z",
+      "closed_reason": "- both worktree branches are on main by cherry-pick without a conflict (tp now 26 commits, panel 31)\n- the full gate passed when tp-now and panel closed; the plugin's 29 tests pass and validate shows no TS error\n- the panel read the real tp now in a live session: the operator saw merge held by you, 2 of 6 done",
+      "gate_passed_at": "2026-11-25T14:21:57.038221Z",
+      "commit_sha": "445d4667",
+      "commit_shas": [
+        "445d4667"
+      ],
+      "commit_files": [
+        "tests/run-panel.test.tsx"
+      ],
+      "task_audit_owed": [
+        "go-safety"
+      ]
     },
     {
       "id": "review",
       "title": "Review the dashboard diff",
-      "status": "open",
+      "status": "wip",
       "tags": [],
       "depends_on": [
         "merge"
@@ -115,7 +124,8 @@
       "source_sections": [
         "## Rules it keeps"
       ],
-      "started_at": null,
+      "started_at": "2026-11-25T14:22:00.683542Z",
+      "duration_source": "claimed",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,
