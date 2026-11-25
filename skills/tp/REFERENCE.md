@@ -3275,7 +3275,9 @@ the rest inclusive spans and `count` its own epics; and `dividers` `[{row, line,
 one through the middle of each gap between two blocks of a line. `nodes` lists each node by layer, then
 column: `{id, title?, state?, status?, hold?, downstream?, layer, col, x?, y?}`, `layer` a small integer from
 0, `col` a column from 0, fractional under `pack=tree`, and in `plan` `x` and `y` its place on the
-map. On an epic node, and never on a milestone
+map: `x` a column index from 0 (below `columns`, `.5` where a block centres a layer), `y` a whole
+row, a line's label header one row. A block's `from_col`/`to_col` are its leftmost and rightmost
+nodes' `x`, and a divider's `x` the middle of the gap. On an epic node, and never on a milestone
 node (v1.28.0): `title`; `state` its lifecycle, `tp epic export`'s `status` (`planned`, `claimed`,
 `specced`, `in_progress`, `done`); `status` the mark the dashboard's map colours it by, derived from
 the export's fields as the page derives it: past `planned` the lifecycle itself (`claimed`,
