@@ -134,3 +134,65 @@ func TestFoundApply_AQuestionIsUndecidedAndASecondApplyIsANoOp(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, string(before), string(after), "nothing is left to apply")
 }
+
+// An apply whose request store cannot be written leaves nothing of the apply
+// on disk: the task file it wrote first is put back, so the request stays
+// recorded and applying again opens found-f1, not a second found-f1-2 that
+// dedup could not see.
+func TestFoundApply_AFailedStoreWriteLeavesNoTaskBehind(t *testing.T) {
+	t.Parallel()
+	dir := foundApplyFixture(t, `{}`)
+	fileFixRequest(t, dir, 1)
+	store := engine.FoundRequestsPath(dir, filepath.Join(dir, "spec.tasks.json"))
+	storeDir := filepath.Dir(store)
+	// The store's lock directory exists before its parent is made read-only,
+	// so apply gets past the lock and writes the task file, and only the
+	// store write that follows fails.
+	require.NoError(t, os.MkdirAll(filepath.Dir(engine.LockFilePath(store)), 0o755))
+	require.NoError(t, os.Chmod(storeDir, 0o555))
+	t.Cleanup(func() { _ = os.Chmod(storeDir, 0o755) }) //nolint:gosec // restores a test directory
+
+	stdout, stderr, code := runTPEnv(t, dir, nil, "found", "apply")
+	require.Equal(t, 3, code, "stdout=%s stderr=%s", stdout, stderr)
+	assert.Empty(t, foundTasksIn(t, dir), "the task written before the store is put back")
+
+	require.NoError(t, os.Chmod(storeDir, 0o755)) //nolint:gosec // restores a test directory
+	assert.Equal(t, []any{map[string]any{"request": "F1", "task": "found-f1"}}, foundApply(t, dir)["opened"])
+	assert.Equal(t, []string{"found-f1"}, foundTasksIn(t, dir))
+}
+
+// §12.2: tp found apply holds the task-file lock, then the store's, and tp
+// found add the store's. A lock held past lock_timeout_seconds exits 4
+// (STATE) with LockTimeoutError's message and hint, not the exit 3 of a
+// failed write.
+func TestFoundApplyAndAdd_LockContentionTimeoutExitsFour(t *testing.T) {
+	t.Parallel()
+	taskFile := func(dir string) string { return filepath.Join(dir, "spec.tasks.json") }
+	store := func(dir string) string { return engine.FoundRequestsPath(dir, taskFile(dir)) }
+	apply := []string{"found", "apply"}
+	add := []string{"found", "add", "--location", "internal/f2.go:3", "--reproduction", "go test ./internal -run TestF2",
+		"--expected", "exit 0", "--observed", "exit 1"}
+	for _, tc := range []struct {
+		name   string
+		target func(dir string) string
+		args   []string
+	}{
+		{"apply, task file", taskFile, apply},
+		{"apply, request store", store, apply},
+		{"add, request store", store, add},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			dir := foundApplyFixture(t, `{"lock_timeout_seconds":1}`)
+			fileFixRequest(t, dir, 1)
+			foundApply(t, dir)
+
+			release := holdTaskFileLock(t, tc.target(dir))
+			defer release()
+
+			_, stderr, code := runTPEnv(t, dir, nil, tc.args...)
+			assert.Equal(t, 4, code, "a lock held past lock_timeout_seconds exits 4 (STATE): %s", stderr)
+			assertLockTimeoutErrorObject(t, stderr)
+		})
+	}
+}
