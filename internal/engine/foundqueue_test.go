@@ -25,6 +25,20 @@ func queueFixture(t *testing.T) (root, taskFile string) {
 	return root, taskFile
 }
 
+// A new entry is numbered after the highest Q<n> already in the queue.
+func TestFoundQueue_ANewEntryIsNumberedAfterTheHighest(t *testing.T) {
+	_, taskFile := queueFixture(t)
+	require.NoError(t, WriteFoundQueue(taskFile, []FoundQueueEntry{
+		{ID: "Q2", Request: "F1", Location: "a.go:1"},
+		{Request: "F2", Location: "b.go:1"},
+	}))
+
+	entries, err := ReadFoundQueue(taskFile)
+	require.NoError(t, err)
+	require.Len(t, entries, 2)
+	assert.Equal(t, "Q3", entries[1].ID)
+}
+
 func TestFoundQueue_AnOpenAndADecidedEntryRoundTripBesideTheTaskFile(t *testing.T) {
 	root, taskFile := queueFixture(t)
 	open := FoundQueueEntry{
