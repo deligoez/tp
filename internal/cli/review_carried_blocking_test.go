@@ -184,22 +184,28 @@ func TestCarriedBlocking_ARoundInFlightAtTheFixDoesNotVerifyIt(t *testing.T) {
 }
 
 // TestCarriedBlocking_AFixResolvedAfterTheRoundThatReadItIsVerified is the
-// BUGS.md repro: round 2 read the repaired spec and did not raise the finding
-// again, and round 1 was resolved fixed only afterwards. The later round over
-// newer text verifies the fix, so the loop converges without another round.
+// BUGS.md repro: rounds 2 and 3 read the repaired spec and did not raise the
+// finding again, and round 1 was resolved fixed only afterwards. The later
+// rounds over the repaired text verify the fix, so the loop converges without
+// another round.
 func TestCarriedBlocking_AFixResolvedAfterTheRoundThatReadItIsVerified(t *testing.T) {
 	t.Parallel()
 	dir := carriedWithCap(t, "5")
 	_, stderr, code := recordRound(t, dir, carriedHighRow)
 	require.Equal(t, 0, code, stderr)
 	writeSpec(t, dir, strings.Replace(carriedSpec, "Rule 1 applies to every row.", "Rule 1 applies to every row of the file.", 1))
-	_, stderr, code = recordRound(t, dir, "")
-	require.Equal(t, 0, code, "record round 2 over the repaired text: %s", stderr)
+	for range 2 {
+		_, stderr, code = recordRound(t, dir, "")
+		require.Equal(t, 0, code, "record a round over the repaired text: %s", stderr)
+	}
+	_, code = reviewStatusCheck(t, dir)
+	require.Equal(t, 1, code, "round 1's high is still unresolved")
 	_, stderr, code = runTP(t, dir, "review", carriedRoundFile, "--resolve", "0", "fixed", "reworded rule 1")
 	require.Equal(t, 0, code, stderr)
 
-	out, _ := reviewStatusCheck(t, dir)
-	assert.NotContains(t, out, "carried_fixed_unverified", "round 2 read the repaired text: %v", out["next_action"])
+	out, code := reviewStatusCheck(t, dir)
+	assert.Equal(t, 0, code, "rounds 2 and 3 read the repaired text: %v", out["next_action"])
+	assert.NotContains(t, out, "carried_fixed_unverified")
 	assert.NotContains(t, out, "carried_blocking")
 	assert.NotContains(t, out["next_action"], "marked fixed")
 }
