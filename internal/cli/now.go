@@ -171,8 +171,29 @@ func buildNow(taskFilePath string, tf *model.TaskFile) (*nowResult, error) {
 	res.NextAction = resume.NextAction.Summary
 	res.Tasks = nowTaskCounts(tf)
 	res.Ready = nowReady(tf)
-	res.Held = nowHeldTasks(tf)
+	run, slots := nowRunOf(root, taskFilePath)
+	res.Run = run
+	res.Held = nowHeldTasks(tf, slots)
 	return res, nil
+}
+
+// nowRunOf is the current or last run of the task file as tp run --status
+// reports it, and the slots it runs now; nil and none when no run was ever
+// driven over it. A run state that cannot be read is said on stderr and
+// reported as no run, so the rest of the payload still reaches the pane.
+func nowRunOf(root, taskFilePath string) (run map[string]any, slots []runningSlot) {
+	st, err := engine.ReadRunState(root, taskFilePath)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			output.Notice("warning: the run state cannot be read: " + err.Error())
+		}
+		return nil, nil
+	}
+	wf := engine.EffectiveWorkflowForTaskFile(taskFilePath)
+	run = runStatusPayload(st, taskFilePath, &wf)
+	run["last_finished"] = nil
+	slots, _ = run["running"].([]runningSlot)
+	return run, slots
 }
 
 // nowReadyLimit is how many ready tasks tp now names.
@@ -196,19 +217,36 @@ func nowReady(tf *model.TaskFile) []nowTask {
 	return out
 }
 
-// nowHeldTasks lists tf's wip tasks in file order, each with who holds it.
-func nowHeldTasks(tf *model.TaskFile) []nowHeld {
+// nowHeldTasks lists tf's wip tasks in file order, each with who holds it:
+// the run when one of slots, a live run's, runs it; an agent when a spawn's
+// claim holds it; else you.
+func nowHeldTasks(tf *model.TaskFile, slots []runningSlot) []nowHeld {
+	byTask := map[string]*runningSlot{}
+	for i := range slots {
+		if slots[i].Kind == engine.UnitImplement {
+			byTask[slots[i].ID] = &slots[i]
+		}
+	}
 	out := []nowHeld{}
 	for i := range tf.Tasks {
 		t := &tf.Tasks[i]
 		if t.Status != model.StatusWIP {
 			continue
 		}
-		holder := "you"
-		if t.ClaimedBy != nil && t.ClaimedBy.Spawn != "" {
-			holder = "agent"
+		row := nowHeld{ID: t.ID, Title: t.Title, Holder: "you", Since: rfc3339(t.StartedAt)}
+		switch slot := byTask[t.ID]; {
+		case slot != nil:
+			row.Holder, row.Attempt = "run", &slot.Attempt
+			if slot.Worktree != "" {
+				row.Worktree = &slot.Worktree
+			}
+			if row.Since == nil && slot.StartedAt != "" {
+				row.Since = &slot.StartedAt
+			}
+		case t.ClaimedBy != nil && t.ClaimedBy.Spawn != "":
+			row.Holder = "agent"
 		}
-		out = append(out, nowHeld{ID: t.ID, Title: t.Title, Holder: holder, Since: rfc3339(t.StartedAt)})
+		out = append(out, row)
 	}
 	return out
 }
