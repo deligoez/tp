@@ -353,7 +353,7 @@ func runConfigExtract() error {
 	for _, f := range files {
 		o, loadErr := engine.LoadTaskWorkflowOverride(f)
 		if loadErr != nil {
-			rel, _ := filepath.Rel(root, f)
+			rel := relOrSelf(root, f)
 			var mce *engine.MalformedConfigError
 			if errors.As(loadErr, &mce) {
 				output.Error(ExitFile, fmt.Sprintf("malformed task file %s during --extract", rel), mce.Hint())
