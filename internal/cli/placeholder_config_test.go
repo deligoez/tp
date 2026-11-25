@@ -133,3 +133,23 @@ func TestConfigExtract_KeepsTheThresholdPlaceholder(t *testing.T) {
 	assert.JSONEq(t, `{"review_max_rounds":5}`, string(cfg["workflow"]), "the extract ran")
 	assert.JSONEq(t, `{"threshold_placeholder":"^draft:"}`, string(cfg["epic"]))
 }
+
+// TestConfigExtract_KeepsThePanelBlock: tp config --extract --force rewrites
+// .tp/config.json with the hoisted workflow and the plugin panel's block
+// intact.
+func TestConfigExtract_KeepsThePanelBlock(t *testing.T) {
+	t.Parallel()
+	dir := writePlaceholderConfig(t, `{"workflow":{},"panel":{"language":"tr"}}`)
+	for _, name := range []string{"a", "b"} {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name+".tasks.json"),
+			[]byte(`{"spec":"`+name+`.md","tasks":[],"workflow":{"review_max_rounds":5}}`), 0o600))
+	}
+	_, stderr, code := runTP(t, dir, "config", "--extract", "--force")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	data, err := os.ReadFile(filepath.Join(dir, ".tp", "config.json"))
+	require.NoError(t, err)
+	var cfg map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(data, &cfg))
+	assert.JSONEq(t, `{"review_max_rounds":5}`, string(cfg["workflow"]), "the extract ran")
+	assert.JSONEq(t, `{"language":"tr"}`, string(cfg["panel"]), "the panel block survives the write")
+}
