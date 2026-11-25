@@ -32,6 +32,9 @@ const (
 	// round directory, keyed by its seq (TaskAuditRoundPhase).
 	UnitTaskAuditRole   UnitKind = "task-audit-role"
 	UnitTaskAuditRecord UnitKind = "task-audit-record"
+	// The decision unit (spec/1.31.0.md §5) answers up to DecisionBatchMax
+	// undecided found requests with tp found answer.
+	UnitDecision UnitKind = "decision"
 )
 
 // unitKindOrder lists the ten kinds in REFERENCE.md's table order. It is the single
@@ -48,6 +51,7 @@ var unitKindOrder = []UnitKind{
 	UnitAuditFix,
 	UnitTaskAuditRole,
 	UnitTaskAuditRecord,
+	UnitDecision,
 }
 
 // UnitKinds returns the ten kinds in REFERENCE.md's table order, for callers that
@@ -188,6 +192,8 @@ func (k UnitKind) DurableWrite(t UnitTarget) bool {
 		return taskFileHasTasks(t.TaskFile)
 	case UnitAuditFix:
 		return auditFixDisposed(t)
+	case UnitDecision:
+		return decisionAnswered(t)
 	default:
 		return false
 	}

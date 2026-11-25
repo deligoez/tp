@@ -353,5 +353,8 @@ func briefPrompt(kind UnitKind, brief string) string {
 	if filesRequests(kind) {
 		prompt += foundRequestText
 	}
+	if kind == UnitDecision {
+		prompt += DecisionUnitText
+	}
 	return prompt
 }

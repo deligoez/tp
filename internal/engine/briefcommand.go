@@ -39,6 +39,8 @@ func (k UnitKind) BriefCommand(t UnitTarget) string {
 		return "tp audit " + t.Spec + " --task-audit --record-inbox"
 	case UnitDecompose:
 		return "tp resume"
+	case UnitDecision:
+		return "tp found decide " + t.ID
 	default:
 		return ""
 	}
