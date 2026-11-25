@@ -62,3 +62,19 @@ func TestMapRows_BandsSharingALayerMakeOneRow(t *testing.T) {
 	assert.Equal(t, 1, mapBlockOf(t, got.Blocks, "C").Count)
 }
 
+// TestMapRows_BlocksFollowTheirMeanForestColumn: B's epics sit left of A's
+// in the forest, so B's block comes first, two empty columns before A's,
+// every node inside its own block.
+func TestMapRows_BlocksFollowTheirMeanForestColumn(t *testing.T) {
+	t.Parallel()
+	in := threeBands()
+	got := MapRows(&in)
+	a, b := mapBlockOf(t, got.Blocks, "A"), mapBlockOf(t, got.Blocks, "B")
+	assert.Less(t, b.ToCol, a.FromCol)
+	assert.InDelta(t, 2.0, a.FromCol-b.ToCol-1, 0, "two empty columns between blocks")
+	for _, id := range in.IDs {
+		blk, p := mapBlockOf(t, got.Blocks, in.Group[id]), got.Places[id]
+		assert.True(t, blk.FromCol <= p.X && p.X <= blk.ToCol && blk.FromY <= p.Y && p.Y <= blk.ToY, "%s at %+v outside %+v", id, p, blk)
+	}
+}
+
