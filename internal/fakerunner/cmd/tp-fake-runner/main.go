@@ -119,6 +119,11 @@ func scriptedWrites(dir, id string, seq int) error {
 	if listed(fakerunner.EnvBlockIDs, id) && !attemptedBefore(dir, id) {
 		return fileFoundRequest(id, true)
 	}
+	if need := requiredFile(id); need != "" {
+		if _, err := os.Stat(need); err != nil {
+			return fmt.Errorf("unit %s needs %s: %w", id, need, err)
+		}
+	}
 	if listed(fakerunner.EnvFoundIDs, id) && !attemptedBefore(dir, id) {
 		if err := fileFoundRequest(id, false); err != nil {
 			return err
@@ -146,6 +151,16 @@ func sleepFor(id string) int {
 		}
 	}
 	return intEnv(fakerunner.EnvSleepMS)
+}
+
+// requiredFile is the file EnvRequireByID says this unit needs, or "".
+func requiredFile(id string) string {
+	for entry := range strings.SplitSeq(os.Getenv(fakerunner.EnvRequireByID), ",") {
+		if name, file, ok := strings.Cut(strings.TrimSpace(entry), "="); ok && name == id {
+			return file
+		}
+	}
+	return ""
 }
 
 // listed reports whether the comma-separated knob names id.

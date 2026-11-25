@@ -89,6 +89,10 @@ const (
 	// whose first attempt marks its task wip, files a blocking Fix-shaped
 	// request with that task as the finder, and exits 0 without closing.
 	EnvBlockIDs = "TP_FAKE_RUNNER_BLOCK_IDS"
+	// EnvRequireByID gives units a file they need, `seed=fix.txt` by
+	// TP_UNIT_ID: an attempt whose working directory lacks it fails having
+	// written nothing, as a unit whose tree misses a fix it waited for.
+	EnvRequireByID = "TP_FAKE_RUNNER_REQUIRE_BY_ID"
 )
 
 // LeaveBehindSeconds is how long an EnvLeaveBehindIDs process outlives its
