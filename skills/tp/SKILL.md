@@ -563,6 +563,7 @@ refusal and its exit code — is under the same form in [REFERENCE.md](REFERENCE
 | `tp found answer <request> task --expected <text> --observed <text> --cite <file> --quote <text>` | The decision unit's answer to an undecided request: applied like a Fix-shaped request (never a duplicate of the one it answers; past `found_max` an open queue entry); `--location`/`--reproduction` default to the request's; exit 2 when the quote is not in the cited file |
 | `tp found answer <request> conforms --reproduction <cmd> --cite <file> --quote <text>` | The expected behaviour already holds: no task, a decided queue entry; `--cite` is the spec, a `CLAUDE.md`, `CONVENTIONS.md` or `REFERENCE.md`, quoted verbatim (whitespace-normalised) |
 | `tp found answer <request> human` | Everything else: an open queue entry with the request's question and alternatives |
+| `tp found settle --task <entry> --reject <entry>=<reason>` | The person settles open queue entries in one batch: a task in the spec's task file (not counted against `found_max`; the entry's finders now depend on it) or a rejection with its reason (its finders are ready again); each flag repeatable; an entry without expected/observed also takes `--expected <entry>=<text> --observed <entry>=<text>`; exit 2 and nothing written on an unknown, non-open or repeated entry |
 
 ### Incremental
 | Command | Purpose |
