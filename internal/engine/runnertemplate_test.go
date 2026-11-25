@@ -287,3 +287,21 @@ func TestUnitPrompt_NamesTheBriefCommandAndStops(t *testing.T) {
 	assert.Empty(t, engine.UnitPrompt(engine.UnitKind("nonesuch"), target),
 		"a kind with no brief command has no prompt, the same defensive direction BriefCommand takes")
 }
+
+// The implement and audit-role prompts are the ones whose units can file
+// requests (spec/1.31.0.md §1): each names `tp found add` and carries the
+// no-sweep sentence, so a unit reports what its own work ran into and never
+// hunts for defects.
+func TestUnitPrompt_RequestFilingKindsCarryTheNoSweepSentence(t *testing.T) {
+	const (
+		fileSentence    = "A defect your work runs into outside the work you were given is filed with `tp found add`, one defect per request."
+		noSweepSentence = "Report only what your own work ran into; never sweep code for defects."
+	)
+	target := engine.UnitTarget{TaskFile: "spec/0.35.0.tasks.json", Spec: "spec/0.35.0.md", ID: "x", Round: 2}
+
+	for _, kind := range []engine.UnitKind{engine.UnitImplement, engine.UnitAuditRole} {
+		prompt := engine.UnitPrompt(kind, target)
+		assert.Contains(t, prompt, fileSentence, "%s names tp found add", kind)
+		assert.Contains(t, prompt, noSweepSentence, "%s carries the no-sweep sentence", kind)
+	}
+}
