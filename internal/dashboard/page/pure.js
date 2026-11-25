@@ -702,16 +702,32 @@
     return px < (min || 9) ? "far" : "near";
   };
 
+  // keepFrom is where an id's last word starts when a short suffix group
+  // ("-I", "-II", "-AI-I") ends it, so no break falls after it and the
+  // suffix stays on its word; an id without one keeps nothing (its length).
+  const keepFrom = (s) => {
+    const m = /(?:-[^\s.:-]{1,3})+$/.exec(s);
+    if (!m) return s.length;
+    let k = m.index;
+    while (k > 0 && !" .-:".includes(s[k - 1])) k--;
+    return k;
+  };
+
   // wrapId is an id as lines of at most per characters: a break after the
   // last ".", "-", ":" or space in the line's second half (the space
-  // dropped), else at the line's end. Nothing else is cut.
+  // dropped), else at the line's end, never inside the word a suffix group
+  // keeps (keepFrom): there it breaks at the space before that word. A
+  // break that would leave a last line of three characters or fewer, or
+  // has nowhere left to fall, is not made: the rest stays one longer line.
+  // Nothing else is cut.
   P.wrapId = function (id, per) {
     const lines = [];
     let rest = id;
     while (rest.length > per) {
-      let cut = per;
+      const keep = keepFrom(rest);
+      let cut = -1;
       let drop = 0;
-      for (let i = per + 1; i >= Math.ceil(per / 2); i--) {
+      for (let i = Math.min(per + 1, keep); i >= Math.ceil(per / 2); i--) {
         if (rest[i - 1] === " ") {
           cut = i - 1;
           drop = 1;
@@ -722,6 +738,12 @@
           break;
         }
       }
+      if (cut < 0 && keep >= per) cut = per;
+      else if (cut < 0 && keep > 0) {
+        drop = rest[keep - 1] === " " ? 1 : 0;
+        cut = keep - drop;
+      }
+      if (cut <= 0 || rest.length - cut - drop <= 3) break;
       lines.push(rest.slice(0, cut));
       rest = rest.slice(cut + drop);
     }
