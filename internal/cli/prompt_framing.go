@@ -96,6 +96,25 @@ func removeNamedInboxFiles(files map[string][]string) {
 	}
 }
 
+// flatInboxHint is the hint of a --record-inbox that found no role file in
+// the spec's folder of the named inbox while round's files sit flat in
+// <inbox>/<phase>-inbox/, the layout before v1.34.0: the roles ran, so the
+// way forward is moving their files, not running them again. "" when there
+// is no named inbox or no flat file.
+func flatInboxHint(specPath, phase string, round int, emit string) string {
+	inbox := namedInbox()
+	flat := engine.FlatNamedInboxFiles(inbox, phase, round)
+	if len(flat) == 0 {
+		return ""
+	}
+	names := make([]string, len(flat))
+	for i, f := range flat {
+		names[i] = filepath.Base(f)
+	}
+	return fmt.Sprintf("round %d's role files sit flat in %s, the layout before v1.34.0 (%s): move them into %s, then %s --record-inbox --inbox %s",
+		round, filepath.Dir(flat[0]), strings.Join(names, ", "), engine.RoleInboxDirAt(inbox, specPath, phase), emit, inbox)
+}
+
 // namedInbox is --inbox made absolute, so the prompt names a path that holds
 // from any working directory; "" when --inbox is not given.
 func namedInbox() string {

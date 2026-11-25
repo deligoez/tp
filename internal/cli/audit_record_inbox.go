@@ -63,10 +63,12 @@ func runAuditRecordInbox(specPath, harnessNote string) error {
 	}
 	files := make(map[string][]string, len(pools))
 	var missing []string
+	owed := 0
 	for _, p := range pools {
 		if p.Unprompted {
 			continue // asked nothing, so it owes no file
 		}
+		owed++
 		files[p.Role] = engine.RoleInboxFiles(namedInbox(), specPath, engine.PhaseAudit, round, p.Role)
 		if len(files[p.Role]) == 0 {
 			missing = append(missing, p.Role)
@@ -74,8 +76,13 @@ func runAuditRecordInbox(specPath, harnessNote string) error {
 	}
 	if len(missing) > 0 {
 		roles := strings.Join(missing, ", ")
-		output.Error(ExitFile, fmt.Sprintf("audit round %d cannot be recorded from the inbox %s: no results file from roles %s", round, absPath(engine.RoleInboxDirAt(namedInbox(), specPath, engine.PhaseAudit)), roles),
-			fmt.Sprintf("run the prompts of roles %s (%s --role <role>), each writing its file, then %s --record-inbox; a round emitted with --inbox <dir> is recorded with the same --inbox <dir>", roles, emit, emit))
+		hint := fmt.Sprintf("run the prompts of roles %s (%s --role <role>), each writing its file, then %s --record-inbox; a round emitted with --inbox <dir> is recorded with the same --inbox <dir>", roles, emit, emit)
+		if len(missing) == owed {
+			if flat := flatInboxHint(specPath, engine.PhaseAudit, round, emit); flat != "" {
+				hint = flat
+			}
+		}
+		output.Error(ExitFile, fmt.Sprintf("audit round %d cannot be recorded from the inbox %s: no results file from roles %s", round, absPath(engine.RoleInboxDirAt(namedInbox(), specPath, engine.PhaseAudit)), roles), hint)
 		os.Exit(ExitFile)
 	}
 	data, conflicts, problems := auditInboxRows(pools, files)

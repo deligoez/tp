@@ -98,6 +98,25 @@ func InboxSpecKey(specPath string) string {
 	return SpecBaseName(specPath) + "-" + hex.EncodeToString(sum[:4])
 }
 
+// FlatNamedInboxFiles is round's role files in a named inbox's layout
+// before v1.34.0, flat in <inbox>/<phase>-inbox/ with no spec folder, in name
+// order; nil when there are none. They are never read, since that layout
+// cannot say which spec a file belongs to: a record that finds only these
+// names the spec folder to move them into.
+func FlatNamedInboxFiles(inbox, phase string, round int) []string {
+	if inbox == "" {
+		return nil
+	}
+	matches, _ := filepath.Glob(filepath.Join(inbox, phase+"-inbox", fmt.Sprintf("round-%d-*.ndjson", round)))
+	var files []string
+	for _, m := range matches {
+		if info, err := os.Stat(m); err == nil && !info.IsDir() {
+			files = append(files, m)
+		}
+	}
+	return files
+}
+
 // roleInboxDir is a phase's inbox in the spec's state directory.
 func roleInboxDir(specPath, phase string) string {
 	return filepath.Join(ReviewStateDir(specPath), phase+"-inbox")
