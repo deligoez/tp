@@ -121,6 +121,23 @@ func TestDeriveEpicStates_SpecEditedAfterReleaseFallsBack(t *testing.T) {
 	assert.Equal(t, EpicStatusInProgress, epicStatusIn(t, g, root, "b"))
 }
 
+// TestDeriveEpicStatesOf_ReadsNoParsedFileAgain: the bound files a reader
+// already parsed are derived from as parsed, not read again: with the file on
+// disk broken after the parse, the derive still succeeds from the parsed copy.
+func TestDeriveEpicStatesOf_ReadsNoParsedFileAgain(t *testing.T) {
+	root := boundFilesRepo(t)
+	g := statusChain()
+	writeStatusFile(t, root, "b", model.StatusWIP, model.StatusOpen)
+	bound, parsed, skipped := EpicBoundTaskFiles(root)
+	require.Empty(t, skipped)
+	require.Len(t, bound["b"], 1)
+	require.NoError(t, os.WriteFile(bound["b"][0], []byte("{not json"), 0o600))
+
+	states, err := DeriveEpicStatesOf(g, bound, parsed)
+	require.NoError(t, err, "a parsed bound file is not read again")
+	assert.Equal(t, EpicStatusInProgress, states["b"].Status)
+}
+
 // epicDoneAtIn derives every epic of g against the files bound under root and
 // returns id's done_at, nil when it has none.
 func epicDoneAtIn(t *testing.T, g *model.EpicGraph, root, id string) *time.Time {
