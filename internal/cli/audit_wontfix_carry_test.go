@@ -144,3 +144,16 @@ func TestWontfixCarry_TheCarriedItemCountsAsGraded(t *testing.T) {
 	assert.Equal(t, 2, security.Pool)
 	assert.Equal(t, 2, security.Graded, "the carried item counts as graded")
 }
+
+// TestWontfixCarry_AnUncommittedEditIsAskedAgain: code.go edited in the
+// working tree after its round and not committed is a change too, so the
+// accepted wontfix on it is not carried and the item is asked again.
+func TestWontfixCarry_AnUncommittedEditIsAskedAgain(t *testing.T) {
+	t.Parallel()
+	dir, codeID := wontfixCarryRepo(t, "2021-01-01T00:00:00Z")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "code.go"), []byte("package main\n\n// edited, not committed\n"), 0o600))
+
+	prompt, ids := emitSecurityPrompt(t, dir)
+	assert.Contains(t, ids, codeID, "a wontfix on an uncommitted edit is asked again")
+	assert.NotContains(t, prompt, "## Carried")
+}
