@@ -82,10 +82,11 @@ func TestPlanFoundApply_OnlyABlockingAttachmentAddsAnEdge(t *testing.T) {
 	assert.Equal(t, []FoundEdge{{Task: "finder", DependsOn: "t1"}}, plan.Edges)
 }
 
-// Round-4 finding 14: finder files a non-blocking request, whose found task
-// depends on it, then the same defect as blocking. Its edge would close the
-// cycle finder -> found-f1 -> finder, so no edge is added and an open queue
-// entry naming the cycle holds the finder instead.
+// §4 and round-4 finding 14 (cycle-entry-shape): finder files a non-blocking
+// request, whose found task depends on it, then the same defect as blocking.
+// Its edge would close the cycle finder -> found-f1 -> finder, so no edge is
+// added and an open queue entry naming the cycle, the outcome task included,
+// holds the finder instead. The duplicate keeps found-f1 as its outcome.
 func TestPlanFoundApply_ABlockingEdgeThatClosesACycleQueuesInstead(t *testing.T) {
 	tasks := []model.Task{finderTask("finder")}
 	plan := PlanFoundApply([]FoundRequest{applyRequest(1, false)}, tasks, nil, 5)
@@ -106,6 +107,7 @@ func TestPlanFoundApply_ABlockingEdgeThatClosesACycleQueuesInstead(t *testing.T)
 	assert.Equal(t, []string{"finder"}, entry.Finders)
 	assert.Contains(t, entry.Question, "finder -> found-f1 -> finder")
 	assert.Equal(t, again.Reproduction, entry.Reproduction)
+	assert.Equal(t, "found-f1", plan.Requests[1].Outcome)
 }
 
 // The cycle check follows the whole graph, not one hop: t1 depends on t2,
