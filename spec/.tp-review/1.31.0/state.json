@@ -1338,6 +1338,23 @@
       "recorded_at": "2026-11-25T07:23:33Z",
       "file": "task-audit-29.ndjson",
       "findings": 1
+    },
+    {
+      "seq": 30,
+      "files": [
+        "internal/cli/found_settle.go"
+      ],
+      "roles": [
+        "go-safety"
+      ],
+      "head": "dee0c4750d530fdd95b3848c75d66b1f06ac1a83",
+      "regrade": true,
+      "fix_pass": true,
+      "emitted_at": "2026-11-25T07:48:08.405389Z",
+      "after_audit_round": 1,
+      "recorded_at": "2026-11-25T07:49:30Z",
+      "file": "task-audit-30.ndjson",
+      "findings": 1
     }
   ]
 }
