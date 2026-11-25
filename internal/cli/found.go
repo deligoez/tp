@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -93,6 +94,12 @@ func runFoundApply() error {
 		return nil
 	}
 	plan, err := applyFoundRequests(root, taskFilePath, foundMax, running)
+	var lockErr *engine.LockTimeoutError
+	if errors.As(err, &lockErr) {
+		// §12.2: either lock timing out is a state error (exit 4), which the
+		// root dispatcher maps with the lock's own hint.
+		return err
+	}
 	if err != nil {
 		output.Error(ExitFile, "cannot apply the requests: "+err.Error(), foundStoreWriteHint)
 		os.Exit(ExitFile)
@@ -212,6 +219,12 @@ func runFoundAdd(f *foundAddFlags) error {
 
 	root := engine.CanonicalProjectRoot(filepath.Dir(taskFilePath))
 	stored, err := engine.AddFoundRequest(root, taskFilePath, req)
+	var lockErr *engine.LockTimeoutError
+	if errors.As(err, &lockErr) {
+		// §12.2: the store's lock timing out is a state error (exit 4), which
+		// the root dispatcher maps with the lock's own hint.
+		return err
+	}
 	if err != nil {
 		output.Error(ExitFile, "cannot record the request: "+err.Error(), foundStoreWriteHint)
 		os.Exit(ExitFile)
