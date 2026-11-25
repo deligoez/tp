@@ -432,6 +432,12 @@
     return P.pickTheme(c);
   };
 
+  // mapPlace is node n's place in column and row units: the final x and y
+  // the plan's map gives it, else its forest column and layer.
+  P.mapPlace = function (n) {
+    return typeof n.x === "number" && typeof n.y === "number" ? { col: n.x, row: n.y } : { col: n.col, row: n.layer };
+  };
+
   // placeLabels places band labels in the order given, each box { x, y, w,
   // h, sw, alts } its left edge, top, full width, height, width with the
   // name alone, and further places to try ({ x, y }, the strip above the
