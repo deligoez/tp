@@ -57,6 +57,19 @@ export type Words = {
   counts: (c: TaskCounts) => string
   more: (n: number) => string
   held: (holder: string, attempt: number, age: string) => string
+  noTaskFile: string
+  noEpics: string
+  epicDone: string
+  heldBy: (holder: string) => string
+  since: (age: string) => string
+  worktree: (path: string) => string
+  waitingToLand: (age: string) => string
+  readyToStart: string
+  acceptance: string
+  touches: string
+  reading: string
+  unreadable: string
+  inProgressCount: (n: number) => string
 }
 
 function clock(seconds: number, s: string, m: string, h: string): string {
@@ -174,6 +187,19 @@ const EN: Words = {
   counts: c => `Tasks: ${c.done} of ${c.total} done, ${c.wip} in progress, ${c.ready} ready, ${c.blocked} blocked`,
   more: n => `${n} more`,
   held: (holder, attempt, age) => [holder, attempt > 1 ? `attempt ${attempt}` : '', age].filter(Boolean).join(', '),
+  noTaskFile: 'No task file yet',
+  noEpics: 'This project has no epics.',
+  epicDone: 'done',
+  heldBy: holder => `Held by: ${holder}`,
+  since: age => `Since: ${age} ago`,
+  worktree: path => `Worktree: ${path}`,
+  waitingToLand: age => `Waiting to land${age ? `: ${age}` : ''}`,
+  readyToStart: 'Ready to start',
+  acceptance: 'Acceptance',
+  touches: 'Touches',
+  reading: 'Reading the task…',
+  unreadable: 'This task could not be read.',
+  inProgressCount: n => `${n} in progress`,
 }
 
 const TR: Words = {
@@ -204,6 +230,19 @@ const TR: Words = {
   counts: c => `Görevler: ${c.done}/${c.total} bitti, ${c.wip} devam ediyor, ${c.ready} hazır, ${c.blocked} engelli`,
   more: n => `${n} tane daha`,
   held: (holder, attempt, age) => [holder, attempt > 1 ? `${attempt}. deneme` : '', age].filter(Boolean).join(', '),
+  noTaskFile: 'Henüz görev dosyası yok',
+  noEpics: 'Bu projede epik yok.',
+  epicDone: 'bitti',
+  heldBy: holder => `Tutan: ${holder}`,
+  since: age => `Başlangıç: ${age} önce`,
+  worktree: path => `Çalışma ağacı: ${path}`,
+  waitingToLand: age => `Birleştirilmeyi bekliyor${age ? `: ${age}` : ''}`,
+  readyToStart: 'Başlamaya hazır',
+  acceptance: 'Kabul ölçütleri',
+  touches: 'Dokunduğu dosyalar',
+  reading: 'Görev okunuyor…',
+  unreadable: 'Bu görev okunamadı.',
+  inProgressCount: n => `${n} iş devam ediyor`,
 }
 
 export const WORDS: Record<Lang, Words> = { en: EN, tr: TR }

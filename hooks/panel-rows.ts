@@ -1,4 +1,4 @@
-import type { Lang, NowView, RunSlot, RunView } from '../types'
+import type { Lang, NowView, RunSlot, RunView, TaskDetail } from '../types'
 import { capital, WORDS } from './panel-words'
 
 // The pane's views as rows of words, kept apart from the drawing so each
@@ -100,23 +100,41 @@ export function nowRows(now: NowView, run: RunView | null, lang: Lang, at: numbe
   const w = WORDS[lang]
   const live = run?.run_state === 'in_flight'
   const head = capital(w.phase(now.phase), lang) + (live ? ` · ${w.runLive(ageOf(run?.started_at, at, lang))}` : '')
-  const held: Section = {
-    heading: heading(w.inProgress),
-    items: now.held.map(t => taskRow('held', t.id, t.title, w.held(w.holder(t.holder), t.attempt, ageOf(t.since, at, lang)))),
-  }
-  if (held.items.length === 0) held.items.push({ text: w.nothingHeld, tone: 'quiet' })
   const openEpics = (now.epics ?? []).filter(e => e.state !== 'done')
   // In display order, which is also the order a short pane keeps them in.
   const sections: Section[] = [
     { items: [{ text: head, tone: 'head' }] },
     { heading: now.needs_you.length > 0 ? heading(w.needsYou) : undefined, items: now.needs_you.map(n => ({ text: `${w.need(n.kind)}: ${n.text}` })) },
-    held,
-    { heading: heading(w.landing), items: now.landing.map(t => taskRow('landing', t.id, t.title, ageOf(t.since, at, lang))) },
-    { heading: now.tasks ? heading(w.counts(now.tasks)) : undefined, items: [], keep: true },
+    heldSection(now, lang, at),
+    landingSection(now, lang, at),
+    countsSection(now, lang),
     { heading: heading(w.epics), items: openEpics.map(e => ({ text: `${e.name}  ${bar(e.done, e.total, 10)} ${e.done}/${e.total}` })) },
-    { heading: heading(w.readyNext), items: now.ready.map(t => taskRow('ready', t.id, t.title, '')) },
+    readySection(now, lang),
   ]
   return fitSections(sections, budget, lang)
+}
+
+function heldSection(now: NowView, lang: Lang, at: number): Section {
+  const w = WORDS[lang]
+  const items = now.held.map(t => taskRow('held', t.id, t.title, w.held(w.holder(t.holder), t.attempt, ageOf(t.since, at, lang))))
+  return { heading: heading(w.inProgress), items: items.length > 0 ? items : [{ text: w.nothingHeld, tone: 'quiet' }] }
+}
+
+function landingSection(now: NowView, lang: Lang, at: number): Section {
+  return {
+    heading: heading(WORDS[lang].landing),
+    items: now.landing.map(t => taskRow('landing', t.id, t.title, ageOf(t.since, at, lang))),
+  }
+}
+
+function readySection(now: NowView, lang: Lang): Section {
+  return { heading: heading(WORDS[lang].readyNext), items: now.ready.map(t => taskRow('ready', t.id, t.title, '')) }
+}
+
+// countsSection is one row, drawn as a heading: no task file says so.
+function countsSection(now: NowView, lang: Lang): Section {
+  const w = WORDS[lang]
+  return { heading: heading(now.tasks ? w.counts(now.tasks) : w.noTaskFile), items: [], keep: true }
 }
 
 // fitSections lays sections out in order within budget rows, an empty one
@@ -132,5 +150,69 @@ function fitSections(sections: Section[], budget: number, lang: Lang): PanelRow[
   }
   // The first row of the pane needs no gap above it.
   if (rows[0]?.gap) rows[0] = { ...rows[0], gap: false }
+  return rows
+}
+
+// tasksRows is the work in the task file: its counts, what is held, what
+// waits to land and what is ready, every row of each (the pane scrolls).
+export function tasksRows(now: NowView, lang: Lang, at: number): PanelRow[] {
+  const sections = [countsSection(now, lang), heldSection(now, lang, at), landingSection(now, lang, at), readySection(now, lang)]
+  return fitSections(sections, Number.MAX_SAFE_INTEGER, lang)
+}
+
+// epicsRows draws one bar per epic, as wide as the pane spares, its numbers
+// beside it and a done epic marked in words.
+export function epicsRows(now: NowView, lang: Lang, columns: number): PanelRow[] {
+  const w = WORDS[lang]
+  const epics = now.epics ?? []
+  if (epics.length === 0) return [{ text: w.noEpics, tone: 'quiet' }]
+  const nameWidth = Math.max(...epics.map(e => e.name.length))
+  const width = Math.max(5, Math.min(20, columns - nameWidth - 16))
+  return epics.map(e => ({
+    text: `${e.name.padEnd(nameWidth)}  ${bar(e.done, e.total, width)} ${e.done}/${e.total}${e.state === 'done' ? ` · ${w.epicDone}` : ''}`,
+  }))
+}
+
+// detailRows is one task opened from a list: its title and id, who holds it
+// and since when, its worktree, then what `tp show` adds (acceptance and
+// touches) once it has answered.
+export function detailRows(id: string, now: NowView | null, detail: TaskDetail | null, lang: Lang, at: number): PanelRow[] {
+  const w = WORDS[lang]
+  const held = now?.held.find(t => t.id === id)
+  const landing = now?.landing.find(t => t.id === id)
+  const ready = now?.ready.find(t => t.id === id)
+  const title = held?.title ?? landing?.title ?? ready?.title ?? detail?.title ?? id
+  const rows: PanelRow[] = [{ text: title, tone: 'head' }, { text: id, tone: 'quiet' }]
+  if (held) {
+    rows.push({ text: w.heldBy(w.held(w.holder(held.holder), held.attempt, '')) })
+    const age = ageOf(held.since, at, lang)
+    if (age) rows.push({ text: w.since(age) })
+    if (held.worktree) rows.push({ text: w.worktree(held.worktree) })
+  } else if (landing) {
+    rows.push({ text: w.waitingToLand(ageOf(landing.since, at, lang)) })
+  } else if (ready) {
+    rows.push({ text: w.readyToStart })
+  }
+  if (!detail) return [...rows, { text: w.reading, tone: 'quiet' }]
+  if (detail.failed) return [...rows, { text: w.unreadable }]
+  const list = (head: string, items: string[]): PanelRow[] =>
+    items.length > 0 ? [heading(head), ...items.map(text => ({ text }))] : []
+  return [...rows, ...list(w.acceptance, detail.acceptance), ...list(w.touches, detail.touches)]
+}
+
+// glanceRows is the widget's glance: the phase, how much is in progress (held
+// tasks and run slots no held task names), and the first thing that needs
+// the person.
+export function glanceRows(now: NowView | null, run: RunView | null, lang: Lang): PanelRow[] {
+  const w = WORDS[lang]
+  const phase = now?.phase ?? run?.phase
+  const heldIds = new Set((now?.held ?? []).map(t => t.id))
+  const live = run?.run_state === 'in_flight' ? run.running.filter(slot => !heldIds.has(slot.id)).length : 0
+  const busy = heldIds.size + live
+  const rows: PanelRow[] = []
+  if (phase) rows.push({ text: capital(w.phase(phase), lang), tone: 'head' })
+  rows.push({ text: busy > 0 ? w.inProgressCount(busy) : w.nothingHeld })
+  const need = now?.needs_you[0]
+  if (need) rows.push({ text: `${w.need(need.kind)}: ${need.text}` })
   return rows
 }
