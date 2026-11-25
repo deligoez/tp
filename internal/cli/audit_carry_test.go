@@ -329,3 +329,22 @@ func TestAuditCarry_ARecordInTheFirstCommitMeasuresFromTheEmptyTree(t *testing.T
 	assert.Equal(t, float64(0), out["carried"], "against the empty tree every tracked path reads as changed")
 	assert.Equal(t, false, out["clean"])
 }
+
+// TestAuditCarry_ARenamedAwayEvidenceFileBreaksTheCarry: code.go is moved to
+// another path in a commit after the record. With rename detection the delta
+// names only the new path, and the acceptance on code.go would carry over a
+// file that no longer holds the code it accepted.
+//
+// Branch: the round file IS tracked, so the record-commit delta runs.
+func TestAuditCarry_ARenamedAwayEvidenceFileBreaksTheCarry(t *testing.T) {
+	t.Parallel()
+	dir := carryRepo(t, "2021-01-01T00:00:00Z", carryFailRow, carryWontfix)
+	commitRoundFile(t, dir, carryRoundRel)
+	git(t, dir, "mv", "code.go", "moved.go")
+	git(t, dir, "commit", "-m", "move the evidence file")
+
+	out, stderr, code := auditRecord(t, dir, carryFailRow)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.Equal(t, float64(0), out["carried"], "a renamed-away evidence file is a change")
+	assert.Equal(t, false, out["clean"])
+}
