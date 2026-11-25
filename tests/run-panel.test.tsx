@@ -626,3 +626,28 @@ test('a folder that becomes a tp project after the session started is polled onc
   await clock.advance(60_000)
   expect(ran.filter(line => line === 'tp now --json').length).toBeGreaterThanOrEqual(12)
 })
+
+test('one failed tp now after a good one keeps the views and asks again on the next tick', async ($, on) => {
+  const clock = mock.clock(on, { now: AT })
+  const answers: Record<string, Answer> = {
+    'tp --version': VERSION,
+    'tp now --json': { exitCode: 0, stdout: JSON.stringify(NOW) },
+    'tp run --status': { exitCode: 0, stdout: JSON.stringify(NOW.run) },
+  }
+  const ran = world(on, answers)
+  const reads = () => ran.filter(line => line === 'tp now --json').length
+  await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
+  await clock.advance(5_000)
+  answers['tp now --json'] = { exitCode: 1, stdout: '' }
+  await clock.advance(5_000)
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ key: 'view-now' })).toBeTruthy()
+  expect(await ui.find({ type: 'Text', text: 'Needs you' })).toBeTruthy()
+  await ui.unmount()
+  // The tp it answered before is not taken for an older one.
+  expect(ran).not.toContain('tp run --status')
+  answers['tp now --json'] = { exitCode: 0, stdout: JSON.stringify(NOW) }
+  const before = reads()
+  await clock.advance(5_000)
+  expect(reads()).toBe(before + 1)
+})
