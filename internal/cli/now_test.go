@@ -65,6 +65,25 @@ func TestNow_ProjectWithoutTaskFile(t *testing.T) {
 	assert.Equal(t, 3, code, "outside a project tp now exits 3")
 }
 
+// A project with an epic graph and no task file yet still reports its epics.
+func TestNow_EpicsWithoutATaskFile(t *testing.T) {
+	t.Parallel()
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	gitIn(t, dir, "init", "-q")
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".tp"), 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".tp", "epics.json"), []byte(epicNowGraph), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "now")
+	require.Equal(t, 0, code, "tp now: %s", stderr)
+	out := decodeNow(t, stdout)
+	assert.Nil(t, out["task_file"])
+	assert.Equal(t, []any{
+		map[string]any{"id": "payments", "name": "Payment flow", "done": 0.0, "total": 0.0, "state": "open"},
+		map[string]any{"id": "later", "name": "Later", "done": 0.0, "total": 0.0, "state": "open"},
+	}, out["epics"])
+}
+
 // A wip task claimed by hand is held by you; tasks counts as tp status does,
 // and ready lists the startable tasks in tp ready's order.
 func TestNow_PlainWipTaskIsHeldByYou(t *testing.T) {
