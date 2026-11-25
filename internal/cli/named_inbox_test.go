@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -63,4 +64,19 @@ func TestNamedInbox_TheRunsRoundDirStillWins(t *testing.T) {
 	for _, pm := range prompts {
 		assert.Equal(t, engine.RoleFindingsPartPath(roundDir, pm["role"].(string)), pm["output_path"].(string))
 	}
+}
+
+// TestNamedInbox_RecordInboxReadsTheNamedInbox: a review round emitted with
+// --inbox records from that inbox with --record-inbox --inbox.
+func TestNamedInbox_RecordInboxReadsTheNamedInbox(t *testing.T) {
+	t.Parallel()
+	dir, _ := inboxSpec(t)
+	prompts := emittedPrompts(t, dir, noRoundDir(), "review", "spec.md", "--inbox", "outside")
+	for _, pm := range prompts {
+		require.NoError(t, os.WriteFile(pm["output_path"].(string), nil, 0o600))
+	}
+
+	_, stderr, code := runTPEnv(t, dir, noRoundDir(), "review", "spec.md", "--record-inbox", "--inbox", "outside")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.FileExists(t, filepath.Join(dir, ".tp-review", "spec", "review-round-1.ndjson"))
 }
