@@ -379,6 +379,23 @@ func TestNow_UnitFailureStopIsANeed(t *testing.T) {
 	assertPlainWords(t, need["text"])
 }
 
+// A task file that cannot be parsed may bind no epic at all: it is skipped
+// with a notice, and the epics the readable files bind are still reported.
+func TestNow_AnUnreadableTaskFileKeepsTheEpics(t *testing.T) {
+	t.Parallel()
+	dir := epicNowProject(t)
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "other"), 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "other", "broken.tasks.json"), []byte("{not json"), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "now")
+	require.Equal(t, 0, code, "tp now: %s", stderr)
+	epics, ok := decodeNow(t, stdout)["epics"].([]any)
+	require.True(t, ok, "one unreadable file does not null the epics: %s", stderr)
+	require.Len(t, epics, 2)
+	assert.Equal(t, 1.0, epics[0].(map[string]any)["total"], "payments' bound file is still counted")
+	assert.Contains(t, stderr, "broken.tasks.json", "the skipped file is named on stderr")
+}
+
 // Without an epic graph epics is null; with one it lists each epic by id and
 // title, with the done and total tasks of its bound files and whether it is
 // done.
