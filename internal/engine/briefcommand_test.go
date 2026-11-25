@@ -44,6 +44,7 @@ func TestUnitKind_BriefCommand_DocumentedPerKind(t *testing.T) {
 		UnitAuditFix:        "tp audit spec/0.35.0.md --status",
 		UnitTaskAuditRole:   "tp audit spec/0.35.0.md --task-audit --role implementer",
 		UnitTaskAuditRecord: "tp audit spec/0.35.0.md --task-audit --record-inbox",
+		UnitDecision:        "tp found decide implementer",
 	}
 	// Every one of the ten is covered, and nothing else is asserted about.
 	require.Len(t, want, len(UnitKinds()))

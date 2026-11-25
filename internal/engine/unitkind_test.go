@@ -35,9 +35,9 @@ func TestUnitKinds_EightKindsInTableOrder(t *testing.T) {
 	want := []UnitKind{
 		"implement", "review-role", "review-record", "review-resolve",
 		"decompose", "audit-role", "audit-record", "audit-fix",
-		"task-audit-role", "task-audit-record",
+		"task-audit-role", "task-audit-record", "decision",
 	}
-	assert.Equal(t, want, UnitKinds(), "the §3.3 kinds in table order, then the task audit's two")
+	assert.Equal(t, want, UnitKinds(), "the §3.3 kinds in table order, then the task audit's two, then the decision unit")
 
 	// The accessor hands out a copy: a caller cannot reorder the shared set.
 	got := UnitKinds()

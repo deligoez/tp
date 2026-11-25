@@ -121,7 +121,7 @@ func runStopHook(t *testing.T, unit *stopUnitEnv, active bool) preToolUseRun {
 
 // roleKinds are the three kinds §6.2 scopes the hook to — the review and
 // audit roles and a task audit's role, each ending in its findings file;
-// nonRoleKinds are the seven whose predicates need tp's own state readers and
+// nonRoleKinds are the eight whose predicates need tp's own state readers and
 // are therefore the driver's job, not a hook's.
 func roleKinds(t *testing.T) (role, nonRole []string) {
 	t.Helper()
@@ -133,7 +133,7 @@ func roleKinds(t *testing.T) (role, nonRole []string) {
 		nonRole = append(nonRole, string(kind))
 	}
 	require.Len(t, role, 3, "§6.2 scopes the Stop hook to the role kinds")
-	require.Len(t, nonRole, 7)
+	require.Len(t, nonRole, 8)
 	return role, nonRole
 }
 

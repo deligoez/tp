@@ -193,7 +193,7 @@ func TestUnmeteredKinds(t *testing.T) {
 			`{"implement":"claude","default":"opencode"}`,
 			[]UnitKind{UnitReviewRole, UnitReviewRecord, UnitReviewResolve,
 				UnitDecompose, UnitAuditRole, UnitAuditRecord, UnitAuditFix,
-				UnitTaskAuditRole, UnitTaskAuditRecord},
+				UnitTaskAuditRole, UnitTaskAuditRecord, UnitDecision},
 		},
 		{"a runner value no shape accepts reports nothing", `{"nope":1}`, nil},
 	}

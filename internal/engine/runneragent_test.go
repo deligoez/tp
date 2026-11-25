@@ -25,6 +25,9 @@ var agentForKind = map[engine.UnitKind]string{
 	engine.UnitAuditFix:        "",
 	engine.UnitTaskAuditRole:   "tp-auditor",
 	engine.UnitTaskAuditRecord: "",
+	// The decision agent is the decision-agent task's; until it lands the
+	// decision unit runs with the ordinary tool set.
+	engine.UnitDecision: "",
 }
 
 // agentlessKind is one of the six kinds §6.3 leaves with the ordinary tool
