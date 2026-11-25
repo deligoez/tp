@@ -182,6 +182,15 @@
     return st.milestone ? "milestone" : null;
   };
 
+  // drawerDims says whether the drawer of kind dims the page behind it.
+  // Over a graph that draws the selection's chain (an epic's drawer, a
+  // task's beside the Steps graph or the Map, tview) a backdrop would wash
+  // that chain out, so only a milestone's drawer and a task's over the
+  // Board dim.
+  P.drawerDims = function (kind, tview) {
+    return kind === "milestone" || (kind === "task" && tview === "board");
+  };
+
   // taskView is the Tasks view an address names: Board, or else Steps, the
   // graph, which an old link's tview=graph meant.
   P.taskView = function (v) {

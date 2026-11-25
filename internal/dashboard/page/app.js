@@ -1457,8 +1457,9 @@
     const open = !!kind;
     document.querySelectorAll("#msstate [data-ms]").forEach((b) => b.setAttribute("aria-expanded", String(kind === "milestone" && tpPure.cardExpanded(drawerState(), b.dataset.ms))));
     $("drawer").hidden = !open;
-    // The drawer covers the page; its backdrop dims the rest and closes it.
-    $("scrim").hidden = !open;
+    // The drawer covers the page; its backdrop dims the rest and closes it,
+    // unless a graph behind it draws the selection's chain (tpPure.drawerDims).
+    $("scrim").hidden = !open || !tpPure.drawerDims(kind, work.tview);
     document.body.classList.toggle("dopen", open);
     // Opening takes focus to the close button, unless the graph's search
     // opened it; closing gives it back.
