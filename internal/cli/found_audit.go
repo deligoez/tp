@@ -45,13 +45,18 @@ func foundAuditUnitFinder(taskFilePath string) engine.FoundFinder {
 	return engine.FoundFinder{AuditRound: round}
 }
 
-// foundSpecPath is the spec of the task file a request is filed against.
+// foundSpecPath is the spec of the task file a request is filed against. A
+// spec that does not resolve is refused: its path would name no audit round,
+// so the request would carry none for tp found apply to hold it on.
 func foundSpecPath(taskFilePath string) string {
 	tf, err := model.ReadTaskFile(taskFilePath)
 	if err != nil {
 		_ = foundRefusal(err.Error(), foundAuditRowHint)
 	}
-	specPath, _ := engine.ResolveSpecPath(taskFilePath, tf.Spec)
+	specPath, found := engine.ResolveSpecPath(taskFilePath, tf.Spec)
+	if !found {
+		_ = foundRefusal(fmt.Sprintf("the spec %s of task file %s does not resolve", tf.Spec, taskFilePath), "fix the task file's spec field or restore the spec")
+	}
 	return specPath
 }
 
