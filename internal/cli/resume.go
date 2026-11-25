@@ -253,6 +253,9 @@ func printResumeSummary(r *engine.ResumeResult) {
 	if r.Guidance != "" {
 		fmt.Printf("guidance: %s\n", r.Guidance)
 	}
+	if q := r.FoundQueue; q != nil {
+		fmt.Printf("queue: %d open entries hold %d tasks\n", q.Open, q.Holds)
+	}
 	if len(r.Bookkeeping) > 0 {
 		fmt.Printf("bookkeeping: %d tp-owned file(s) to commit\n", len(r.Bookkeeping))
 	}
