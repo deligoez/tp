@@ -663,12 +663,12 @@ refusal and its exit code — is under the same form in [REFERENCE.md](REFERENCE
 | `tp review spec.md --perspective regression` | Standalone regression pass |
 | `tp review spec.md --no-state` | No state reads or writes |
 | `tp review spec.md --role <name>` | One role's prompt |
-| `tp review spec.md --inbox <dir>` | Roles write to `<dir>/review-inbox/<base>/`; repeat it on `--role` and `--record-inbox` |
+| `tp review spec.md --inbox <dir>` | Roles write to `<dir>/review-inbox/<base>-<hash>/`; repeat it on `--role` and `--record-inbox` |
 | `tp audit spec.md` | Post-implementation audit prompts |
 | `tp audit spec.md --affected-files src/a.go` | Manual file selection |
 | `tp audit spec.md --affected-from-tasks` | The files of done tasks' commits |
 | `tp audit spec.md --role <name>` | One role's prompt |
-| `tp audit spec.md --inbox <dir>` | Roles write to `<dir>/audit-inbox/<base>/` (also `--task-audit`, every call of the round) |
+| `tp audit spec.md --inbox <dir>` | Roles write to `<dir>/audit-inbox/<base>-<hash>/` (also `--task-audit`, every call of the round) |
 | `tp audit spec.md --findings review.ndjson` | Also verify review findings were addressed |
 | `tp audit spec.md --record results.ndjson` | Record an audit round |
 | `tp audit spec.md --record-inbox` | Record an audit round from its roles' files and parts |
