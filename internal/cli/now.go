@@ -191,9 +191,31 @@ func nowRunOf(root, taskFilePath string) (run map[string]any, slots []runningSlo
 	}
 	wf := engine.EffectiveWorkflowForTaskFile(taskFilePath)
 	run = runStatusPayload(st, taskFilePath, &wf)
-	run["last_finished"] = nil
+	run["last_finished"] = lastFinishedUnit(st)
 	slots, _ = run["running"].([]runningSlot)
 	return run, slots
+}
+
+// nowFinished is the latest unit attempt that exited.
+type nowFinished struct {
+	Kind            engine.UnitKind `json:"kind"`
+	ID              string          `json:"id"`
+	Attempt         int             `json:"attempt"`
+	ExitCode        int             `json:"exit_code"`
+	DurationSeconds *float64        `json:"duration_seconds"`
+}
+
+// lastFinishedUnit is st's latest attempt with an exit code, or nil when
+// none has exited: the row tp run --status's last_unit reports may still be
+// running (spec/1.32.0-measurements.md §4).
+func lastFinishedUnit(st *engine.RunState) *nowFinished {
+	for i := len(st.Units) - 1; i >= 0; i-- {
+		u := &st.Units[i]
+		if u.ExitCode != nil {
+			return &nowFinished{Kind: u.Kind, ID: u.ID, Attempt: u.Attempt, ExitCode: *u.ExitCode, DurationSeconds: u.DurationSeconds}
+		}
+	}
+	return nil
 }
 
 // nowReadyLimit is how many ready tasks tp now names.
