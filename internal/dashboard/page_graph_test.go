@@ -270,3 +270,12 @@ func TestPure_AShortLabelShowsBeforeTheWholeOne(t *testing.T) {
 	got := runPure(t, `out([P.detailLevel(8, 14, 14), P.detailLevel(8, 14, 13.9), P.detailLevel(14, 14, 25), P.detailLevel(8, 14)]);`)
 	assert.JSONEq(t, `["short", "far", "near", "far"]`, got)
 }
+
+// TestPure_TheFontAtlasHoldsTheShortLabelsEllipsis: the glyphs the graph
+// draws include its short labels', the ellipsis among them, or deck.gl
+// leaves it out of the atlas and draws nothing in its place.
+func TestPure_TheFontAtlasHoldsTheShortLabelsEllipsis(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out(P.glyphsOf([{ label: "ab", title: "", text: "ab", short: "a…" }], []).includes("…"));`)
+	assert.Equal(t, "true", got)
+}
