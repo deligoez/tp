@@ -318,3 +318,20 @@ func TestMapRows_ABlockOnTheFirstLayerSpansOnlyIt(t *testing.T) {
 	a := mapBlockOf(t, got.Blocks, "A")
 	assert.Equal(t, [2]int{0, 0}, [2]int{a.FromLayer, a.ToLayer})
 }
+
+// TestMapRows_TheWidthOfAnEmptyAndAOneBlockMap: a plan with no epics lays
+// out nothing, zero wide; a plan of one block is as wide as that block,
+// starting at column 0.
+func TestMapRows_TheWidthOfAnEmptyAndAOneBlockMap(t *testing.T) {
+	t.Parallel()
+	empty := mapInput(6, nil)
+	got := MapRows(&empty)
+	assert.Empty(t, got.Blocks)
+	assert.InDelta(t, 0.0, got.Width, 0)
+	assert.InDelta(t, 0.0, got.Height, 0)
+	one := mapInput(6, []LayoutBand{{Name: "A", From: 0, To: 0}}, mapNode{"a1", "A", 0, 0}, mapNode{"a2", "A", 0, 1}, mapNode{"a3", "A", 0, 2})
+	got = MapRows(&one)
+	a := mapBlockOf(t, got.Blocks, "A")
+	assert.InDelta(t, 0.0, a.FromCol, 0)
+	assert.InDelta(t, 3.0, got.Width, 0)
+}
