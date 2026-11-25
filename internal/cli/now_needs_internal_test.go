@@ -50,6 +50,18 @@ func TestNowNeedTextsCarryNoCommand(t *testing.T) {
 	}
 }
 
+// A run need names its last unit only when that unit works a task: a review
+// or audit unit's id is a round number, which read as a task (seen live: "1
+// failed every attempt").
+func TestNowRunNeedNamesOnlyATaskUnit(t *testing.T) {
+	t.Parallel()
+	failed := engine.StopUnitFailure
+	audit := &engine.RunState{StopReason: &failed, Units: []engine.RunUnitRow{{Kind: engine.UnitAuditRecord, ID: "1"}}}
+	assert.Empty(t, runNeeds(audit, runStateStopped, nil)[0].ID)
+	task := &engine.RunState{StopReason: &failed, Units: []engine.RunUnitRow{{Kind: engine.UnitImplement, ID: "seed"}}}
+	assert.Equal(t, "seed", runNeeds(task, runStateStopped, nil)[0].ID)
+}
+
 // Every needs_you entry carries a code that does not change with its text,
 // so the pane can word it in its own language: a run's stop reason (or
 // crashed), an escalation's decision name, a blocker's code (also when it
