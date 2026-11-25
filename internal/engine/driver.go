@@ -57,6 +57,10 @@ type DriverOptions struct {
 	// worktree add or setup failed spends nothing
 	// (spec/backlog/worktree-setup.md §1).
 	ReleaseTasks func(ids []string) error
+	// ApplyFound applies the found requests the units filed, after every
+	// unit (spec/1.31.0.md §2), with the units still running named, and
+	// returns the finders it returned to open. Nil applies nothing.
+	ApplyFound func(running []string) (reopened []string, err error)
 	// runSetup runs one worktree's setup command: runSetupCommand when
 	// nil, a test's own when it observes what the driver hands over.
 	runSetup setupRunner
@@ -475,10 +479,14 @@ func (d *driver) attemptUnits(res *ResumeResult, units []NextUnit) (iterationOut
 		if recErr := d.record(batch); recErr != nil {
 			return iterationOutcome{}, recErr
 		}
+		reopened, applyErr := d.applyFound(nil)
+		if applyErr != nil {
+			return iterationOutcome{}, applyErr
+		}
 		if asked := lowestEscalation(batch); asked != "" {
 			return iterationOutcome{escalation: asked}, nil
 		}
-		units = failedUnits(batch)
+		units = failedUnits(batch, reopened)
 		if len(units) == 0 {
 			return iterationOutcome{finished: true}, nil
 		}
@@ -894,15 +902,36 @@ func (a *unitAttempt) succeeded() bool {
 //
 // It is the one place an attempt's outcome is turned into "try again", so a
 // later outcome that must not be charged as a failed attempt is added here
-// rather than in the loop.
-func failedUnits(attempts []*unitAttempt) []NextUnit {
+// rather than in the loop. waiting is one: a unit whose task tp found apply
+// just returned to open waits on its blocking request, and the attempt is
+// not counted (spec/1.31.0.md §4).
+func failedUnits(attempts []*unitAttempt, waiting map[string]bool) []NextUnit {
 	failed := make([]NextUnit, 0, len(attempts))
 	for _, a := range attempts {
-		if !a.succeeded() {
+		if !a.succeeded() && !waiting[a.unit.ID] {
 			failed = append(failed, a.unit)
 		}
 	}
 	return failed
+}
+
+// applyFound applies the requests the units filed (spec/1.31.0.md §2), the
+// units still running named, and returns the finders it returned to open. A
+// failure is the driver's: the requests stay unapplied and nothing is charged
+// to a unit.
+func (d *driver) applyFound(running []string) (map[string]bool, error) {
+	if d.opts.ApplyFound == nil {
+		return nil, nil
+	}
+	ids, err := d.opts.ApplyFound(running)
+	if err != nil {
+		return nil, driverErrorf(err, "apply the found requests")
+	}
+	reopened := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		reopened[id] = true
+	}
+	return reopened, nil
 }
 
 // lowestEscalation returns the escalation record an iteration's attempts left,

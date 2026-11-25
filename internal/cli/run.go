@@ -106,6 +106,7 @@ func runRun(_ *cobra.Command, args []string) error {
 		ClaimTasks:   claimTasksFunc(taskFilePath),
 		ReopenSolo:   reopenSoloFunc(taskFilePath),
 		ReleaseTasks: releaseTasksFunc(taskFilePath),
+		ApplyFound:   applyFoundFunc(root, taskFilePath),
 	}
 
 	var result engine.DriverResult

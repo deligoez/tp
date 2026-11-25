@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/deligoez/tp/internal/model"
 	"github.com/deligoez/tp/internal/output"
@@ -263,11 +264,21 @@ func (d *driver) exited(p *pool, a *unitAttempt) {
 		d.endSlot(p, id)
 		return
 	}
+	// Applied with the other running units named: the one that just exited
+	// is still a pool member, and its finder must be free to reopen.
+	reopened, err := d.applyFound(slices.DeleteFunc(p.runningIDs(), func(r string) bool { return r == id }))
+	if err != nil {
+		p.fail(err)
+		d.endSlot(p, id)
+		return
+	}
 	switch {
 	case a.escalated():
 		p.asked = append(p.asked, a)
 		p.stopping = true
-	case a.succeeded():
+	case a.succeeded(), reopened[id]:
+		// A finder apply returned to open waits on its blocking request:
+		// not retried, and the attempt is not counted (spec/1.31.0.md §4).
 	case d.retry(p, a):
 		return
 	}

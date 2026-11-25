@@ -71,6 +71,22 @@ func releaseTasksFunc(taskFile string) func(ids []string) error {
 	}
 }
 
+// applyFoundFunc is how tp run applies the found requests after every unit
+// (spec/1.31.0.md §2): tp found apply's own path, with the running units the
+// driver names rather than read from the run state, where the unit that just
+// exited is still a pool member. It returns the finders apply reopened.
+func applyFoundFunc(root, taskFile string) func(running []string) ([]string, error) {
+	return func(running []string) ([]string, error) {
+		set := make(map[string]bool, len(running))
+		for _, id := range running {
+			set[id] = true
+		}
+		foundMax := engine.EffectiveWorkflowForTaskFile(taskFile).FoundMax
+		plan, err := applyFoundRequests(root, taskFile, foundMax, set)
+		return plan.Reopened, err
+	}
+}
+
 // reopenSoloFunc is how tp run reopens a task whose unit failed to integrate:
 // back to open, marked solo so it runs alone from then on.
 func reopenSoloFunc(taskFile string) func(id string) error {
