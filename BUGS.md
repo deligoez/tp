@@ -15,12 +15,6 @@ None. The 2026-11-25 field reports' decisions are in `spec/backlog/land-lifecycl
 
 Found in this repo (2026-11-25):
 
-- **Resolving a carried finding `fixed` after the round that read the repair leaves it
-  `fixed-unverified`.** Review round 4 of 1.31.0 read the repaired spec and found no high finding, but
-  rounds 1-3 were resolved after round 4 was recorded, so `--status --check` still exits 1 with 16
-  carried rows. Repro: record round N+1 over a repaired spec, then `--resolve-all fixed` round N; the
-  rows stay `fixed-unverified`. Either the next_action tells the agent to resolve before the next round,
-  or a later clean round that read the repaired text verifies them.
 - **Task-audit record units leave their round files uncommitted on main.** Under `tp run`,
   `spec/.tp-review/<v>/task-audit-N.ndjson` and `state.json` stay untracked/modified after each record
   unit, so every later close warns "3 uncommitted change(s) not on the keep-list". Test: after a
