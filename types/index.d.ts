@@ -52,7 +52,8 @@ export type HeldTask = {
   holder: string
   since: string | null
   worktree: string | null
-  attempt: number
+  // null for a task no run attempt holds (an agent's or the person's own).
+  attempt: number | null
 }
 
 export type LandingTask = { id: string; title: string; since: string | null }

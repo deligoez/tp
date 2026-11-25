@@ -56,7 +56,7 @@ export type Words = {
   epics: string
   counts: (c: TaskCounts) => string
   more: (n: number) => string
-  held: (holder: string, attempt: number, age: string) => string
+  held: (holder: string, attempt: number | null, age: string) => string
   noTaskFile: string
   noEpics: string
   epicDone: string
@@ -188,7 +188,7 @@ const EN: Words = {
   epics: 'Epics',
   counts: c => `Tasks: ${c.done} of ${c.total} done, ${c.wip} in progress, ${c.ready} ready, ${c.blocked} blocked`,
   more: n => `${n} more`,
-  held: (holder, attempt, age) => [holder, attempt > 1 ? `attempt ${attempt}` : '', age].filter(Boolean).join(', '),
+  held: (holder, attempt, age) => [holder, (attempt ?? 1) > 1 ? `attempt ${attempt}` : '', age].filter(Boolean).join(', '),
   noTaskFile: 'No task file yet',
   noEpics: 'This project has no epics.',
   epicDone: 'done',
@@ -233,7 +233,7 @@ const TR: Words = {
   epics: 'Epikler',
   counts: c => `Görevler: ${c.done}/${c.total} bitti, ${c.wip} devam ediyor, ${c.ready} hazır, ${c.blocked} engelli`,
   more: n => `${n} tane daha`,
-  held: (holder, attempt, age) => [holder, attempt > 1 ? `${attempt}. deneme` : '', age].filter(Boolean).join(', '),
+  held: (holder, attempt, age) => [holder, (attempt ?? 1) > 1 ? `${attempt}. deneme` : '', age].filter(Boolean).join(', '),
   noTaskFile: 'Henüz görev dosyası yok',
   noEpics: 'Bu projede epik yok.',
   epicDone: 'bitti',
