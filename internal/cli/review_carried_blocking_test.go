@@ -212,6 +212,23 @@ func TestCarriedBlocking_AFixResolvedAfterALaterRoundStaysUnverified(t *testing.
 	assert.NotContains(t, out, "carried_fixed_unverified", "round 4 was emitted after the fix: %v", out["next_action"])
 }
 
+// TestCarriedBlocking_TheNextActionResolvesEarlierRowsBeforeTheNextRound: a
+// round recorded while round 1's high stands unresolved, and --status after
+// it, both say to resolve it before the next round, since a fix resolved
+// after a later round stays fixed-unverified.
+func TestCarriedBlocking_TheNextActionResolvesEarlierRowsBeforeTheNextRound(t *testing.T) {
+	t.Parallel()
+	dir := carriedWithCap(t, "5")
+	_, stderr, code := recordRound(t, dir, carriedHighRow)
+	require.Equal(t, 0, code, stderr)
+	recorded, stderr, code := recordRound(t, dir, "")
+	require.Equal(t, 0, code, stderr)
+	const before = "before the next review round is emitted or recorded, since a fix resolved after a later round stays fixed-unverified"
+	assert.Contains(t, recorded["next_action"], before)
+	status, _ := reviewStatusCheck(t, dir)
+	assert.Contains(t, status["next_action"], before)
+}
+
 // TestCarriedBlocking_TheCapRefusalNamesTheCarriedRow: at the cap with a
 // carried blocking row the loop is not done, so the next emission is refused,
 // and the hint names the row in its own round file instead of the latest
