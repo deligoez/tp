@@ -99,13 +99,14 @@ func TestPlanFoundApply_TwoDefectsInOneFileOfOneBatchOpenTwoTasks(t *testing.T) 
 	assert.Equal(t, []string{"F1", "F2"}, planOpenedRequests(&plan))
 }
 
-// Only a task not yet done takes an attachment, the finder's own task never
-// does, and a task without touches names no files.
-func TestPlanFoundApply_AttachmentSkipsDoneFinderAndTouchlessTasks(t *testing.T) {
+// Only a task whose status is open takes an attachment: not a done one, not a
+// wip one whose unit has already read its brief, and never the finder's own
+// task, even while it is open.
+func TestPlanFoundApply_AttachmentSkipsDoneWipAndFinderTasks(t *testing.T) {
 	tasks := []model.Task{
 		touchingTask("closed", model.StatusDone, "x.go"),
-		touchingTask("finder", model.StatusWIP, "x.go"),
-		touchingTask("bare", model.StatusOpen),
+		touchingTask("running", model.StatusWIP, "x.go"),
+		touchingTask("finder", model.StatusOpen, "x.go"),
 	}
 	req := dedupRequest(1, "x.go:3", "go test -run TestX", FoundStateUnapplied)
 	req.Finder.Task = "finder"
@@ -115,9 +116,27 @@ func TestPlanFoundApply_AttachmentSkipsDoneFinderAndTouchlessTasks(t *testing.T)
 	assert.Empty(t, plan.Attached)
 	assert.Equal(t, []string{"F1"}, planOpenedRequests(&plan))
 
-	tasks = append(tasks, touchingTask("running", model.StatusWIP, "x.go"))
+	tasks = append(tasks, touchingTask("waiting", model.StatusOpen, "x.go"))
 	plan = PlanFoundApply([]FoundRequest{req}, tasks, nil, 5)
-	assert.Equal(t, map[string]string{"F1": "running"}, planAttachedTasks(&plan), "a wip task other than the finder is open")
+	assert.Equal(t, map[string]string{"F1": "waiting"}, planAttachedTasks(&plan), "an open task other than the finder takes it")
+}
+
+// §2 says "a request", so a request that needs a choice is attached as well,
+// not left undecided, and its note carries the question and the alternatives.
+func TestPlanFoundApply_AQuestionInsideAnOpenTasksTouchesAttaches(t *testing.T) {
+	req := dedupRequest(1, "x.go:3", "go test -run TestX", FoundStateUnapplied)
+	req.Expected, req.Observed = "", ""
+	req.Question = "which default?"
+	req.Alternatives = []string{"a", "b"}
+
+	plan := PlanFoundApply([]FoundRequest{req}, []model.Task{touchingTask("t1", model.StatusOpen, "x.go")}, nil, 5)
+
+	assert.Empty(t, plan.Undecided)
+	require.Len(t, plan.Attached, 1)
+	assert.Equal(t, "t1", plan.Attached[0].Task)
+	assert.Equal(t, "which default?", plan.Attached[0].Note.Question)
+	assert.Equal(t, []string{"a", "b"}, plan.Attached[0].Note.Alternatives)
+	assert.Equal(t, "t1", plan.Requests[0].Outcome)
 }
 
 // The text brief lists an attached request with the fields it was filed with.
