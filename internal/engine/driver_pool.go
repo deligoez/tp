@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 
 	"github.com/deligoez/tp/internal/model"
 	"github.com/deligoez/tp/internal/output"
@@ -193,13 +194,13 @@ func (d *driver) startUnit(p *pool, u NextUnit) {
 		p.fail(errors.Join(driverErrorf(err, "claim task %q", u.ID), d.leavePool(u.ID)))
 		return
 	}
-	// A finder tp found apply returned to open (spec/1.31.0.md §4) runs again
-	// in the same run, on the branch its first unit left.
-	add := []string{"worktree", "add", "-q", "-b", tree.branch, tree.worktree, "HEAD"}
-	if _, err := gitOut(d.opts.Root, "rev-parse", "--verify", "--quiet", "refs/heads/"+tree.branch); err == nil {
-		add = []string{"worktree", "add", "-q", tree.worktree, tree.branch}
+	if err := d.setAsideUnitBranch(tree); err != nil {
+		// Released with no branch named: the earlier branch is not this
+		// unit's to delete.
+		p.fail(errors.Join(driverErrorf(err, "set aside the earlier branch of task %q", u.ID), d.releaseUnit(unitTree{id: tree.id, worktree: tree.worktree})))
+		return
 	}
-	if _, err := gitOut(d.opts.Root, add...); err != nil {
+	if _, err := gitOut(d.opts.Root, "worktree", "add", "-q", "-b", tree.branch, tree.worktree, "HEAD"); err != nil {
 		p.fail(errors.Join(driverErrorf(err, "add the worktree for task %q", u.ID), d.releaseUnit(tree)))
 		return
 	}
@@ -224,6 +225,31 @@ func (d *driver) startUnit(p *pool, u NextUnit) {
 	d.trees[u.ID] = tree
 	p.running[u.ID] = &poolSlot{tree: tree, unit: u}
 	d.spawnSlot(p, u.ID)
+}
+
+// setAsideUnitBranch renames the branch an earlier unit of the same task left
+// in this run, so the task's next unit starts a fresh branch from HEAD: a
+// finder tp found apply returned to open (spec/1.31.0.md §4) runs again on a
+// tree that holds the fix it waited for. The earlier unit's commits stay
+// reachable under tp-unit/<cycle>/<run>-<n>/<id>, kept like any unfinished
+// task's branch (keptUnitBranch). With no such branch it does nothing.
+func (d *driver) setAsideUnitBranch(tree unitTree) error {
+	if !gitBranchExists(d.opts.Root, tree.branch) {
+		return nil
+	}
+	for n := 1; ; n++ {
+		aside := unitBranch(d.opts.Root, d.opts.TaskFile, d.runID+"-"+strconv.Itoa(n), tree.id)
+		if !gitBranchExists(d.opts.Root, aside) {
+			_, err := gitOut(d.opts.Root, "branch", "-m", tree.branch, aside)
+			return err
+		}
+	}
+}
+
+// gitBranchExists reports whether root has a local branch of that name.
+func gitBranchExists(root, branch string) bool {
+	_, err := gitOut(root, "rev-parse", "--verify", "--quiet", "refs/heads/"+branch)
+	return err == nil
 }
 
 // spawnSlot spawns the next attempt of a running unit, in its own worktree.
