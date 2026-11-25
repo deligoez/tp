@@ -168,8 +168,10 @@ Repeat until `tp review <spec> --status --check` exits 0:
    `location` and `evidence`, non-empty**; `--record` refuses the whole file otherwise, and `tp review --merge` drops such a row with a stderr
    warning (`inputs[].skipped`), so it never becomes a finding. Row contract:
    REFERENCE.md, "Finding `class` and Report".
-3. `tp review <spec> --record-inbox` — records the round from every role's file and refuses (exit
-   3) while a role has none. It is the only way to record an emitted round; `--record <file>` is for
+3. `tp review <spec> --record-inbox` — records the round from every role's file, and its
+   `round-<N>-<role>.<part>.ndjson` parts, and refuses (exit 3) while a role has none. Roles that
+   may not write in the checkout get `--inbox <dir>` on the emission, each `--role` emission and
+   the record. It is the only way to record an emitted round; `--record <file>` is for
    a round nobody emitted. If you merge role files to read them, use `-o` (never `>`) and `&&`, and
    never record a merged file of an emitted round.
 4. Fix the spec, and dispose of every finding in **the recorded round file** `--status` names
@@ -290,9 +292,11 @@ itself. Details: REFERENCE.md, "Task Audit".
    `tasks-fallback` notice). `--affected-from-tasks` and `--affected-files` name the list instead;
    either named form goes uncut into each code role's one prompt, and a long one is read shallowly.
 2. Spawn one sub-agent per role prompt; each writes one NDJSON line per checklist item (`status` ∈
-   PASS/PARTIAL/FAIL) to its `output_path`.
-3. Merge and record: `tp audit --merge r1.ndjson ... -o results.ndjson && tp audit <spec> --record results.ndjson`.
-   Rows sharing `role`+`item_id` collapse only when their verdicts agree (`conflicts` names the
+   PASS/PARTIAL/FAIL) to its `output_path`. A long checklist may be split across sub-agents, each
+   writing a part file beside it: `round-<N>-<role>.<part>.ndjson`.
+3. Record: `tp audit <spec> --record-inbox` reads every role's file and parts, merges them as
+   `tp audit --merge` does, and refuses while a role has none; a file you merged yourself records
+   with `tp audit <spec> --record results.ndjson`. Rows sharing `role`+`item_id` collapse only when their verdicts agree (`conflicts` names the
    rest). A row not `PASS` is a finding; whether the round is **clean** is `audit_converge_on`'s
    answer (below).
 4. Fix the code for every non-PASS row, then dispose of each in the recorded round file `--status`
@@ -300,10 +304,13 @@ itself. Details: REFERENCE.md, "Task Audit".
    or `--resolve-all`. An evidenced `wontfix`/`duplicate` clears its round; `fixed` waits for the
    next round's re-read. **A non-PASS row stays carried until a later round grades it PASS or it is
    accepted** — empty rounds do not clear it, at the cap too; an acceptance carries onto the same row
-   while its `evidence_file` is unchanged. Accepting an audit finding without a code change is the
+   while its `evidence_file` is unchanged, and an unchanged `wontfix` is not asked again: the next
+   prompt lists it as carried and its record writes the row. Accepting an audit finding without a code change is the
    operator's (`accept-finding`).
 5. Repeat. `--status` reports the verdict, `next_action`, `carried_blocking_rows` and the task-audit
-   counts; field list in REFERENCE.md, "State Directory".
+   counts; field list in REFERENCE.md, "State Directory". With one round left under the cap,
+   `next_action` says so: that round is the last, and dispositioning its findings ends the loop
+   `done_by: cap`.
 6. **Read the divergence signal.** `--status` and `--record` carry `role_streaks`,
    `spec_coverage_clean_rounds` (`null` when the latest round measured no conformance — not `0`) and
    `divergence`, emitted when spec-coverage reached its clean-round threshold while other roles still
@@ -659,6 +666,7 @@ refusal and its exit code — is under the same form in [REFERENCE.md](REFERENCE
 | `tp audit spec.md --inbox <dir>` | Roles write to `<dir>/audit-inbox/` (also `--task-audit`, every call of the round) |
 | `tp audit spec.md --findings review.ndjson` | Also verify review findings were addressed |
 | `tp audit spec.md --record results.ndjson` | Record an audit round |
+| `tp audit spec.md --record-inbox` | Record an audit round from its roles' files and parts |
 | `tp audit spec.md --task-audit [--role <name>]` | Emit the task audit due now |
 | `tp audit spec.md --task-audit --record-inbox` | Record the task audit |
 | `tp audit spec.md --base <git-ref>` | Detect audited files against a ref |
