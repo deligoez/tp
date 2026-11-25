@@ -156,5 +156,6 @@ func TestNamedInbox_TwoSpecsInFlightShareOneInbox(t *testing.T) {
 		for _, p := range paths[tc.spec] {
 			assert.NoFileExists(t, p, "%s's record removes its own files", tc.spec)
 		}
+		assert.NoDirExists(t, filepath.Dir(paths[tc.spec][0]), "and its emptied folder")
 	}
 }
