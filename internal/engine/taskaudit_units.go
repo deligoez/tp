@@ -166,13 +166,14 @@ func TaskAuditFixFile(specPath, key string) string {
 // auditFixDisposed is the audit-fix kind's predicate: every finding under the
 // unit's key is disposed where the oracle emits a fix unit for it — the round's
 // merged file, and the task-audit round file when a task audit holds the key's
-// latest grading. With no such task audit it is the merged file alone, as it
-// always was.
+// latest grading. With no such task audit it is the merged file or the recorded
+// round file, the one `tp audit --status` sends an agent to `--resolve`.
 func auditFixDisposed(t UnitTarget) bool {
 	merged := MergedFindingsPath(t.RoundDir)
 	file := TaskAuditFixFile(t.Spec, t.ID)
 	if file == "" {
-		return rowIsDisposed(merged, t.ID)
+		return rowIsDisposed(merged, t.ID) ||
+			(t.Round > 0 && rowIsDisposed(roundFilePath(t.Spec, PhaseAudit, t.Round), t.ID))
 	}
 	return rowIsDisposed(file, t.ID) && !hasUndisposedFinding(merged, t.ID)
 }

@@ -160,7 +160,7 @@ func roundBasedUnits(root, phase string, recorded int, target UnitTarget, st *Re
 
 	if recorded > 0 {
 		dir := RoundDir(root, target.TaskFile, phase, recorded)
-		if unit, ok := dispositionUnit(phase, dir, target); ok {
+		if unit, ok := dispositionUnit(phase, dir, recorded, target); ok {
 			return []NextUnit{unit}, &recorded
 		}
 	}
@@ -227,15 +227,18 @@ func recordUnit(phase string, round int, target UnitTarget) (NextUnit, bool) {
 //
 // review-resolve is one unit for the whole spec and audit-fix is one unit per
 // row, which is why only the audit side needs a row selector — the `role:item_id`
-// key rowIsDisposed parses back.
-func dispositionUnit(phase, roundDir string, target UnitTarget) (NextUnit, bool) {
+// key rowIsDisposed parses back. An audit row is also disposed when the recorded
+// round file disposes it, since that is the file `tp audit --status` sends an
+// agent to `--resolve`.
+func dispositionUnit(phase, roundDir string, round int, target UnitTarget) (NextUnit, bool) {
 	rows, ok := readNDJSONRows(MergedFindingsPath(roundDir))
 	if !ok {
 		return NextUnit{}, false
 	}
+	recordedFile := roundFilePath(target.Spec, phase, round)
 	for _, row := range rows {
 		if phase == PhaseAudit {
-			if AuditRowIsPass(row) || rowDisposed(row) {
+			if AuditRowIsPass(row) || rowDisposed(row) || rowIsDisposed(recordedFile, auditRowKey(row)) {
 				continue
 			}
 			return newNextUnit(UnitAuditFix, auditRowKey(row), target), true
