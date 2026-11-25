@@ -686,6 +686,86 @@
       "recorded_at": "2026-11-25T02:53:06Z",
       "file": "task-audit-13.ndjson",
       "findings": 2
+    },
+    {
+      "seq": 14,
+      "members": [
+        {
+          "id": "finder-waits",
+          "closed_at": "2026-11-25T02:51:00.263755Z",
+          "piece": 0,
+          "pieces": 1,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/cli/found.go",
+            "internal/cli/found_wait_test.go",
+            "internal/engine/foundapply.go",
+            "internal/engine/foundqueue.go",
+            "internal/engine/foundreopen.go",
+            "internal/engine/foundreopen_test.go",
+            "internal/model/foundqueue.go",
+            "internal/model/io.go",
+            "internal/model/task.go"
+          ]
+        }
+      ],
+      "files": [
+        "internal/cli/found.go",
+        "internal/cli/found_wait_test.go",
+        "internal/engine/foundapply.go",
+        "internal/engine/foundqueue.go",
+        "internal/engine/foundreopen.go",
+        "internal/engine/foundreopen_test.go",
+        "internal/model/foundqueue.go",
+        "internal/model/io.go",
+        "internal/model/task.go"
+      ],
+      "roles": [
+        "go-safety"
+      ],
+      "head": "201a5b0892f942271a5abb177634e2625b821d99",
+      "emitted_at": "2026-11-25T03:22:14.356223Z",
+      "recorded_at": "2026-11-25T03:25:02Z",
+      "file": "task-audit-14.ndjson",
+      "findings": 2
+    },
+    {
+      "seq": 15,
+      "members": [
+        {
+          "id": "found-settle-cmd",
+          "closed_at": "2026-11-25T03:08:43.963163Z",
+          "piece": 0,
+          "pieces": 1,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/cli/command_sides.go",
+            "internal/cli/found_settle.go",
+            "internal/cli/found_settle_test.go",
+            "internal/cli/nongoals_surface_test.go",
+            "internal/engine/foundsettle.go"
+          ]
+        }
+      ],
+      "files": [
+        "internal/cli/command_sides.go",
+        "internal/cli/found_settle.go",
+        "internal/cli/found_settle_test.go",
+        "internal/cli/nongoals_surface_test.go",
+        "internal/engine/foundsettle.go"
+      ],
+      "roles": [
+        "go-safety"
+      ],
+      "head": "201a5b0892f942271a5abb177634e2625b821d99",
+      "emitted_at": "2026-11-25T03:25:20.264231Z",
+      "recorded_at": "2026-11-25T03:26:24Z",
+      "file": "task-audit-15.ndjson",
+      "clean": true
     }
   ]
 }
