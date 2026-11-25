@@ -239,7 +239,7 @@ Each `source_sections` entry MUST match a heading in the spec, in canonical form
 
 Example: spec contains `## 4. Backend Migration` → use `"## 4. Backend Migration"` in source_sections.
 
-`tp import` and `tp add` are lenient — `"4. Backend Migration"` (without prefix) is also accepted when unambiguous and is auto-normalized. Use the full canonical form when the same text appears at multiple heading levels (both `## Setup` and `### Setup` exist) — otherwise the entry is ambiguous. A `tp validate` warning (error under `--strict`) fires for every ambiguous or unresolvable entry, so a typo'd anchor is never silently equivalent to no anchor.
+`tp import` and `tp add` are lenient — `"4. Backend Migration"` (without prefix) is also accepted when unambiguous and is auto-normalized. Use the full canonical form when the same text appears at multiple heading levels (both `## Setup` and `### Setup` exist) — otherwise the entry is ambiguous. A `tp validate` warning (error under `--strict`) fires for every ambiguous or unresolvable entry, and `tp add` refuses (exit 1, v1.31.0) an entry that names no heading of the spec, so a typo'd anchor is never silently equivalent to no anchor.
 
 ### Coverage block: context_only vs unmapped
 
