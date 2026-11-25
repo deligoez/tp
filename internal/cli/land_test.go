@@ -916,7 +916,7 @@ func TestLandCommitsTheTaskFileUnderBuiltin(t *testing.T) {
 	stdout := landOne(t, dir, wt)
 	assert.Contains(t, stdout, `"commit": "`, stdout)
 	assert.Empty(t, gitRun(t, dir, "status", "--porcelain", "--", "spec.tasks.json"), "the task file is committed")
-	assert.Equal(t, "done", committedTaskField(t, dir, "spec.tasks.json", "t1", "status"))
+	assert.Equal(t, "done", committedTaskField(t, dir, "status"))
 }
 
 // Under hc the land commits the task file through hc: a stand-in hc first on
@@ -935,7 +935,7 @@ func TestLandUnderHCCommitsTheTaskFileThroughHC(t *testing.T) {
 	assert.Contains(t, stdout, `"commit": "`, stdout)
 	assert.NotContains(t, stdout, `"task_file_changed"`)
 	assert.Empty(t, gitRun(t, dir, "status", "--porcelain", "--", "spec.tasks.json"))
-	assert.Equal(t, "done", committedTaskField(t, dir, "spec.tasks.json", "t1", "status"))
+	assert.Equal(t, "done", committedTaskField(t, dir, "status"))
 }
 
 // One tp land that closes two tasks makes one task-file commit beside the

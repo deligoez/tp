@@ -22,18 +22,18 @@ func gitRun(t *testing.T, dir string, args ...string) string {
 	return strings.TrimSpace(string(out))
 }
 
-// committedTaskField reads a single field from the task file as committed at
-// HEAD, so a test can assert what the committed tree carries (not the working
-// tree).
-func committedTaskField(t *testing.T, dir, taskFile, id, field string) any {
+// committedTaskField reads a field of task t1 from spec.tasks.json as
+// committed at HEAD, so a test can assert what the committed tree carries
+// (not the working tree).
+func committedTaskField(t *testing.T, dir, field string) any {
 	t.Helper()
-	content := gitRun(t, dir, "show", "HEAD:"+taskFile)
+	content := gitRun(t, dir, "show", "HEAD:spec.tasks.json")
 	var tf struct {
 		Tasks []map[string]any `json:"tasks"`
 	}
 	require.NoError(t, json.Unmarshal([]byte(content), &tf))
 	for _, tk := range tf.Tasks {
-		if tk["id"] == id {
+		if tk["id"] == "t1" {
 			return tk[field]
 		}
 	}
@@ -65,7 +65,7 @@ func TestCloseCheckpoint_CommitFoldsClosure(t *testing.T) {
 	assert.NotEqual(t, c1, head, "C1 (recorded) differs from C2 (HEAD)")
 
 	// The committed task file carries commit_sha = C1 (§5.1c).
-	assert.Equal(t, c1, committedTaskField(t, dir, "spec.tasks.json", "t1", "commit_sha"))
+	assert.Equal(t, c1, committedTaskField(t, dir, "commit_sha"))
 }
 
 // TestCloseCheckpoint_DoneAutoCommitFoldsClosure verifies that tp done
@@ -90,7 +90,7 @@ func TestCloseCheckpoint_DoneAutoCommitFoldsClosure(t *testing.T) {
 	assert.NotEqual(t, c1, head, "recorded sha is C1 (pre-amend), not C2 (HEAD)")
 
 	// The committed task file shows status:done.
-	assert.Equal(t, "done", committedTaskField(t, dir, "spec.tasks.json", "t1", "status"))
+	assert.Equal(t, "done", committedTaskField(t, dir, "status"))
 	// Working tree clean for tp-owned paths.
 	assert.NotContains(t, gitRun(t, dir, "status", "--porcelain"), "spec.tasks.json")
 }
