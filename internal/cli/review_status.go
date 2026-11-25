@@ -170,7 +170,10 @@ func runReviewStatus(specPath string, check bool) error {
 	// convergence-blocking finding (its live severity-aware clean flag is false);
 	// mechanize candidates are derived here from the recorded rounds by the same
 	// threshold --record uses, so the mechanize branch is reachable on --status too.
-	blockingUnresolved := len(rounds) > 0 && !rounds[len(rounds)-1].Clean
+	// A round held open only by findings already resolved fixed has nothing
+	// left to resolve: next_action names the round that verifies them instead.
+	blockingUnresolved := len(rounds) > 0 && !rounds[len(rounds)-1].Clean &&
+		!engine.ReviewRoundAwaitsOnlyFixes(specPath, &rounds[len(rounds)-1], wf.ReviewConvergeOn)
 	result["next_action"] = engine.ReviewNextAction(engine.RepoRelative(specPath), done, blockingUnresolved,
 		mechanizeClassesFromRounds(specPath, rounds, mechanized), engine.LatestRoundFile(specPath, rounds), verdict)
 

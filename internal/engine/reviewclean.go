@@ -97,6 +97,30 @@ func ReviewRoundClean(specPath string, entry *ReviewRound, convergeOn string) bo
 	return survivingBlocking == 0
 }
 
+// ReviewRoundAwaitsOnlyFixes reports whether a recorded review round that is
+// not clean is held open only by findings resolved fixed: every surviving
+// finding that keeps it from clean under review_converge_on carries a fixed
+// disposition. Nothing is left to resolve in it; the next round reads the
+// repairs. False for a clean round, or one whose findings file is missing.
+func ReviewRoundAwaitsOnlyFixes(specPath string, entry *ReviewRound, convergeOn string) bool {
+	rows, found := LoadRoundRows(specPath, entry)
+	if !found {
+		return false
+	}
+	holding := 0
+	for _, row := range rows {
+		if !findingOpen(PhaseReview, row) || (convergeOn != ReviewConvergeOnAll && !reviewSeverityBlocking(row)) {
+			continue
+		}
+		resolved, _ := row["resolved"].(map[string]any)
+		if status, _ := resolved["status"].(string); status != "fixed" {
+			return false
+		}
+		holding++
+	}
+	return holding > 0
+}
+
 // ReviewRoundNonBlockingOpen counts a recorded review round's surviving
 // non-blocking findings — those left in the surviving set (not resolved
 // wontfix/duplicate with evidence) whose severity is a below-blocking value
