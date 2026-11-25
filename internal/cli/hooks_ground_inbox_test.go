@@ -99,6 +99,40 @@ func TestPreToolUseHookAllowsTheTaskAuditInbox(t *testing.T) {
 	}
 }
 
+// TestPreToolUseHookAllowsARolesPartFiles (audit-round-ergonomics.md §2.3):
+// a role answering its checklist in slices writes round-<N>-<role>.<part>.ndjson
+// beside its file, and the fence lets that name through in each phase's
+// inbox; the merged rows tp writes there, and a part outside the charset,
+// stay refused.
+func TestPreToolUseHookAllowsARolesPartFiles(t *testing.T) {
+	t.Parallel()
+	root := repoRoot(t)
+	allowed := []string{
+		".tp-review/a/audit-inbox/round-1-go-safety.a.ndjson",
+		".tp-review/a/review-inbox/round-2-implementer.part-2.ndjson",
+		".tp-review/a/task-audit-inbox/round-1-go-safety.p0.ndjson",
+	}
+	refused := []string{
+		".tp-review/a/audit-inbox/round-1.merged.ndjson",
+		".tp-review/a/audit-inbox/round-1-go-safety..ndjson",
+		".tp-review/a/audit-inbox/round-1-go-safety.A_1.ndjson",
+	}
+	for _, path := range allowed {
+		t.Run("allowed "+path, func(t *testing.T) {
+			t.Parallel()
+			run := runWriteDenyHookIn(t, root, nil, path)
+			assert.Zero(t, run.exitCode, "%s is a role's part file; stderr=%q", path, run.stderr)
+		})
+	}
+	for _, path := range refused {
+		t.Run("refused "+path, func(t *testing.T) {
+			t.Parallel()
+			run := runWriteDenyHookIn(t, root, nil, path)
+			assert.True(t, run.denied(), "%s must stay refused; exit=%d stderr=%q", path, run.exitCode, run.stderr)
+		})
+	}
+}
+
 // TestPreToolUseHookRefusesEveryOtherGroundStatePath is the allowance's other
 // edge: exactly the inbox name passes, so the recorded round, a round 0, a
 // nested or suffixed file, a `..` escape and an inbox with no state directory
