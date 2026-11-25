@@ -212,6 +212,9 @@ func runSetBulk() error {
 		return nil
 	}
 	refuseLandedIDs(taskFilePath, ndjsonIDs(setBulkFile))
+	if ndjsonSetsField(setBulkFile, "depends_on") {
+		fenceTaskGraphWrite("tp set --bulk depends_on")
+	}
 
 	f, err := os.Open(setBulkFile)
 	if err != nil {
@@ -365,6 +368,23 @@ func applyField(task *model.Task, field, value string) error {
 		return fmt.Errorf("unknown field: %s", field)
 	}
 	return nil
+}
+
+// ndjsonSetsField reports whether any line of a tp set --bulk file writes
+// field, so the task-graph fence can refuse the batch before it is applied.
+// An unreadable file or line is left to the bulk loop's own errors.
+func ndjsonSetsField(path, field string) bool {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	for line := range strings.SplitSeq(string(data), "\n") {
+		var row setLine
+		if json.Unmarshal([]byte(line), &row) == nil && row.Field == field {
+			return true
+		}
+	}
+	return false
 }
 
 // listField returns the task's JSON-array field tp set writes, or nil.
