@@ -1,6 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import { duration, panelRows, tpVersion, toView } from '../hooks/run-panel'
+import { resolveLanguage } from '../hooks/panel-words'
 
 const PANE = {
   plugin: 'tp',
@@ -129,4 +130,14 @@ test('the command outside a tp project says so and reads no status', async ($, o
   })
   expect(text).toBe('This folder is not a tp project.')
   expect(ran).toBe(false)
+})
+
+test('the language comes from the project, then Claude Code, then the locale, then English', async () => {
+  expect(resolveLanguage({ project: 'tr', setting: 'english', locale: 'en_US.UTF-8' })).toBe('tr')
+  expect(resolveLanguage({ project: 'en', setting: 'turkish', locale: 'tr_TR.UTF-8' })).toBe('en')
+  expect(resolveLanguage({ setting: 'Türkçe', locale: 'en_US.UTF-8' })).toBe('tr')
+  // A language the pane has no words for passes the choice on.
+  expect(resolveLanguage({ setting: 'japanese', locale: 'tr_TR.UTF-8' })).toBe('tr')
+  expect(resolveLanguage({ locale: 'C' })).toBe('en')
+  expect(resolveLanguage({})).toBe('en')
 })
