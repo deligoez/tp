@@ -18,6 +18,10 @@ import (
 // foundHandbackHint says which tasks a handback takes.
 const foundHandbackHint = "tp found handback takes a found task (one tp found apply opened, carrying origin) that is not done, and the reason its reproduction did not fail; any other task closes with tp done"
 
+// writeHandbackQueue writes the queue a handback appends to; a test swaps it
+// to fail the write that follows the task file's.
+var writeHandbackQueue = engine.WriteFoundQueue
+
 func newFoundHandbackCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "handback <id> <why>",
@@ -70,6 +74,9 @@ func runFoundHandback(id, why string) error {
 // handBackFoundTask closes a found task as handed back and appends its queue
 // entry, both under the task-file lock. A task that is not a found task, or
 // is already done, is refused (errFoundAnswerRefused) and nothing is written.
+// The task file is written before the queue, so when the queue write fails
+// it is put back: a task left done with no entry would release its finders,
+// and a retry would be refused as already done.
 func handBackFoundTask(root, taskFilePath, id, why string) (engine.FoundQueueEntry, error) {
 	var entry engine.FoundQueueEntry
 	reqs, err := engine.ReadFoundRequests(root, taskFilePath)
@@ -96,6 +103,10 @@ func handBackFoundTask(root, taskFilePath, id, why string) (engine.FoundQueueEnt
 			return err
 		}
 		entry = engine.FoundHandbackEntry(task, tf.Tasks, reqs)
+		before, err := snapshotFoundFiles(taskFilePath)
+		if err != nil {
+			return err
+		}
 
 		now := time.Now().UTC()
 		reason := "Handed back: " + why
@@ -110,8 +121,8 @@ func handBackFoundTask(root, taskFilePath, id, why string) (engine.FoundQueueEnt
 			return err
 		}
 		queue = append(queue, entry)
-		if err := engine.WriteFoundQueue(taskFilePath, queue); err != nil {
-			return err
+		if err := writeHandbackQueue(taskFilePath, queue); err != nil {
+			return errors.Join(err, before.restore())
 		}
 		entry = queue[len(queue)-1]
 		return nil
