@@ -181,3 +181,46 @@ func TestWontfixCarry_TheRecordCarriesOnlyWhatTheEmissionCarried(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotContains(t, string(data), codeID, "no carried row for an item no checklist held")
 }
+
+// TestWontfixCarry_ARoleWhoseWholeChecklistIsCarriedStillRecordsIt: round 2
+// is emitted over code.go alone, so the security role's one item is carried
+// and the role is asked nothing. The record still writes its carried row.
+func TestWontfixCarry_ARoleWhoseWholeChecklistIsCarriedStillRecordsIt(t *testing.T) {
+	t.Parallel()
+	dir, codeID := wontfixCarryRepo(t, "2021-01-01T00:00:00Z")
+	stdout, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "code.go")
+	require.Equal(t, 0, code, "emit round 2 over code.go: %s", stderr)
+	assert.Nil(t, auditPromptsByRole(t, stdout)["security"], "the security role has nothing to be asked")
+
+	out, stderr, code := auditRecord(t, dir, "")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.Equal(t, float64(1), out["carried"], "the emission carried code.go's item")
+	data, err := os.ReadFile(filepath.Join(dir, ".tp-review", "spec", "audit-round-2.ndjson"))
+	require.NoError(t, err)
+	assert.Contains(t, string(data), codeID, "the carried row is written")
+}
+
+// TestWontfixCarry_RecordInboxOwesNoFileForARoleAskedNothing: with the
+// security role's whole checklist carried, --record-inbox records the round
+// from the prompted roles' files alone and still writes the carried row.
+func TestWontfixCarry_RecordInboxOwesNoFileForARoleAskedNothing(t *testing.T) {
+	t.Parallel()
+	dir, codeID := wontfixCarryRepo(t, "2021-01-01T00:00:00Z")
+	stdout, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "code.go")
+	require.Equal(t, 0, code, "emit round 2 over code.go: %s", stderr)
+	for role, pm := range auditPromptsByRole(t, stdout) {
+		path := pm["output_path"].(string)
+		if !filepath.IsAbs(path) {
+			path = filepath.Join(dir, path)
+		}
+		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755), role)
+		require.NoError(t, os.WriteFile(path, []byte("[]\n"), 0o600), role)
+	}
+
+	out, stderr, code := runTP(t, dir, "audit", "spec.md", "--record-inbox")
+	require.Equal(t, 0, code, "no file is owed for the security role: %s", stderr)
+	assert.Contains(t, out, `"carried": 1`)
+	data, err := os.ReadFile(filepath.Join(dir, ".tp-review", "spec", "audit-round-2.ndjson"))
+	require.NoError(t, err)
+	assert.Contains(t, string(data), codeID, "the carried row is written")
+}
