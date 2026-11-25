@@ -44,6 +44,18 @@ func runStatus(_ *cobra.Command, _ []string) error {
 		return nil
 	}
 
+	result := countTasks(tf)
+	if result.Total > 0 {
+		result.ProgressPercent = result.Done * 100 / result.Total
+	}
+
+	return output.JSON(result)
+}
+
+// countTasks counts tf's tasks by stored status, and its open tasks by what
+// they wait on: unfinished dependencies (blocked), a waiting hold (held), or
+// nothing (ready). ProgressPercent is left to the caller.
+func countTasks(tf *model.TaskFile) statusResult {
 	done := make(map[string]bool)
 	result := statusResult{Total: len(tf.Tasks)}
 
@@ -59,7 +71,6 @@ func runStatus(_ *cobra.Command, _ []string) error {
 		}
 	}
 
-	// Compute blocked, held and ready
 	for i := range tf.Tasks {
 		t := &tf.Tasks[i]
 		switch {
@@ -72,10 +83,5 @@ func runStatus(_ *cobra.Command, _ []string) error {
 			result.Ready++
 		}
 	}
-
-	if result.Total > 0 {
-		result.ProgressPercent = result.Done * 100 / result.Total
-	}
-
-	return output.JSON(result)
+	return result
 }
