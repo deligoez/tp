@@ -163,6 +163,25 @@ func TestLoadProjectConfig_UnknownKeysWarn(t *testing.T) {
 	assert.Contains(t, warns, "unknown workflow key: bogus")
 }
 
+// TestLoadProjectConfig_PanelLanguage: the plugin's panel reads
+// panel.language from .tp/config.json, so tp accepts the key and names a
+// language the panel has no words for.
+func TestLoadProjectConfig_PanelLanguage(t *testing.T) {
+	tp := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tp, "config.json"), []byte(`{"panel":{"language":"tr"}}`), 0o600))
+	_, warns, err := LoadProjectConfig(tp)
+	require.NoError(t, err)
+	assert.Empty(t, warns, "panel.language is a known key")
+
+	require.NoError(t, os.WriteFile(filepath.Join(tp, "config.json"), []byte(`{"panel":{"language":"de","size":1}}`), 0o600))
+	_, warns, err = LoadProjectConfig(tp)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{
+		`panel.language: "de" is not one of en, tr, ignored`,
+		"unknown panel key: size",
+	}, warns)
+}
+
 func TestLoadProjectConfig_TypeMismatchFallsBack(t *testing.T) {
 	tp := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(tp, "config.json"),
