@@ -180,3 +180,84 @@ func TestPure_ColourDifferenceIsCIE76(t *testing.T) {
 	got := runPure(t, `out([P.deltaE([10, 20, 30], [10, 20, 30]), Math.round(P.deltaE([0, 0, 0], [255, 255, 255]))]);`)
 	assert.JSONEq(t, `[0, 100]`, got)
 }
+
+// designToken says whether name is one of DESIGN.md's colour tokens, the
+// families style.css's first :root block copies from it.
+func designToken(name string) bool {
+	for _, p := range []string{"--text-", "--stroke-", "--fill-", "--background-", "--icon-"} {
+		if strings.HasPrefix(name, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// TestPage_TheGraphDrawsOnlyDesignTokens: every colour the graph reads
+// (tpPure.GRAPH_TOKENS) is one of DESIGN.md's tokens, or a role of
+// style.css's that names one through var(), in both themes, so the map is
+// coloured as the rest of the dashboard is; the owner palette, a
+// categorical one the switch turns on, is the named deviation. graph.js
+// and pure.js write no colour of their own beyond parseColour's fallbacks
+// and the nudge's black and white.
+func TestPage_TheGraphDrawsOnlyDesignTokens(t *testing.T) {
+	t.Parallel()
+	css := string(served(t, "/style.css"))
+	got := runPure(t, `out([P.GRAPH_TOKENS, P.OWNER_TOKENS]);`)
+	var lists [][]string
+	require.NoError(t, json.Unmarshal([]byte(got), &lists))
+	owner := map[string]bool{}
+	for _, n := range lists[1] {
+		owner[n] = true
+	}
+	def := regexp.MustCompile(`(--[\w-]+):\s*([^;]+);`)
+	ref := regexp.MustCompile(`^var\((--[\w-]+)\)$`)
+	raw := map[string][]string{}
+	for _, m := range def.FindAllStringSubmatch(css, -1) {
+		raw[m[1]] = append(raw[m[1]], strings.TrimSpace(m[2]))
+	}
+	for _, name := range lists[0] {
+		if owner[name] {
+			continue
+		}
+		require.NotEmpty(t, raw[name], "%s is defined in style.css", name)
+		for _, v := range raw[name] {
+			at, ok := name, true
+			for range 5 {
+				if designToken(at) {
+					break
+				}
+				r := ref.FindStringSubmatch(v)
+				if r == nil {
+					ok = false
+					break
+				}
+				at = r[1]
+				if len(raw[at]) > 0 {
+					v = raw[at][0]
+				}
+			}
+			assert.True(t, ok && designToken(at), "%s = %s comes from a DESIGN.md token", name, v)
+		}
+	}
+	triple := regexp.MustCompile(`\[\d{1,3}, \d{1,3}, \d{1,3}\]`)
+	allowed := []string{
+		"const to = luminance(bg) < 0.18 ? [255, 255, 255] : [0, 0, 0];",
+		"if (!m) return [128, 128, 128];",
+		"const bg = under || [255, 255, 255];",
+		"const t = vs.target || [0, 0, 0];",
+		"return [1, 3, 5].map(",
+		"tree: [170, 150, 1.4], treeFar: [130, 120, 1.2]",
+	}
+	for _, file := range []string{"/graph.js", "/pure.js"} {
+		for _, line := range strings.Split(string(served(t, file)), "\n") {
+			if !triple.MatchString(line) {
+				continue
+			}
+			ok := false
+			for _, a := range allowed {
+				ok = ok || strings.Contains(line, a)
+			}
+			assert.True(t, ok, "%s writes a colour of its own: %s", file, strings.TrimSpace(line))
+		}
+	}
+}
