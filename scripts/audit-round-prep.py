@@ -22,9 +22,10 @@ findings that do not exist yet, so it is not mechanized here.
 
 What "untouched" means, stated so a disagreement is about the rule and not the
 code: a path is CHANGED when it appears in
-`git diff --name-only <previous record sha>..HEAD` or when it has any
-uncommitted change at all (`git status --porcelain`, renames contributing both
-their old and their new name). Uncommitted changes count because the roles read
+`git diff --no-renames --name-only <previous record sha>..HEAD` (a rename
+listing both its old and its new name, as `tp audit` lists it) or when it has
+any uncommitted change at all (`git status --porcelain`, renames contributing
+both their old and their new name). Uncommitted changes count because the roles read
 the working tree, not `HEAD` — but the clone this script builds is of `HEAD`,
 so the summary reports `working_tree_dirty` and leaves the discrepancy to the
 operator rather than papering over it by copying the dirt into the clone.
@@ -387,7 +388,9 @@ def main(argv: list[str]) -> int:
     sha = args.previous_record or record_sha(root, round_rel)
 
     dirty_paths = status_paths(root)
-    changed = set(git(root, "diff", "--name-only", f"{sha}..HEAD").split("\n"))
+    # --no-renames, as tp audit diffs: under rename detection a moved file
+    # lists only its new path, and a row citing the old one would be carried.
+    changed = set(git(root, "diff", "--no-renames", "--name-only", f"{sha}..HEAD").split("\n"))
     changed.discard("")
     changed.update(dirty_paths)
 
