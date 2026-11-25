@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -371,6 +372,32 @@ func TestLandIsBlockedByAHeldIndexLock(t *testing.T) {
 	require.NoError(t, os.Remove(lock))
 	stdout, stderr, code = runTP(t, dir, "land")
 	require.Equal(t, 0, code, stdout+stderr)
+	assert.Equal(t, "done", taskState(t, dir, "t1")["status"])
+}
+
+// An index lock another git process holds for a moment is waited out: the
+// land retries the pick and lands, rather than reporting the task blocked.
+func TestLandWaitsOutABrieflyHeldIndexLock(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "")
+	sha := agentCommit(t, wt)
+	_, stderr, code := runTP(t, wt, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	lock := filepath.Join(dir, ".git", "index.lock")
+	require.NoError(t, os.WriteFile(lock, nil, 0o600))
+	released := make(chan struct{})
+	go func() {
+		defer close(released)
+		time.Sleep(300 * time.Millisecond)
+		_ = os.Remove(lock)
+	}()
+
+	stdout, stderr, code := runTP(t, dir, "land")
+	<-released
+	require.Equal(t, 0, code, stdout+stderr)
+	assert.Contains(t, stdout, `"landed": [
+    "t1"
+  ]`)
 	assert.Equal(t, "done", taskState(t, dir, "t1")["status"])
 }
 
