@@ -105,7 +105,7 @@ func TestWontfixCarry_TheRecordWritesTheCarriedRow(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join(dir, ".tp-review", "spec", "audit-round-2.ndjson"))
 	require.NoError(t, err)
 	var carried map[string]any
-	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(string(data)), "\n") {
 		var row map[string]any
 		require.NoError(t, json.Unmarshal([]byte(line), &row))
 		if row["item_id"] == codeID {
