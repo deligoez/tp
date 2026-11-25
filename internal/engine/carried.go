@@ -194,10 +194,11 @@ func ReviewCarriedSet(specPath string, st *ReviewState) (rows []CarriedRow, miss
 			})
 		}
 	}
-	latest := latestRecordedRound(reviewRoundsOf(st))
+	rounds := reviewRoundsOf(st)
+	latest := latestRecordedRound(rounds)
 	kept := latestByIdentity(all)
 	for i := range kept {
-		kept[i].Verified = fixVerified(&kept[i], latest)
+		kept[i].Verified = fixVerified(&kept[i], rounds, latest)
 		kept[i].Earlier = kept[i].Round < latest
 	}
 	return kept, missing
@@ -216,17 +217,45 @@ func latestRecordedRound(rounds []ReviewRound) int {
 // (§2.6): a review round numbered above the disposition's resolved_after_round
 // — the review rounds recorded or emitted when it was written — is recorded.
 // A disposition with no recorded order counts as verified if a round later
-// than its row's round is recorded. Any other disposition is not a fix and
-// reports false.
-func fixVerified(r *CarriedRow, latest int) bool {
+// than its row's round is recorded. A fix resolved after the round that read
+// it is verified too: a round later than the row's, recorded over a spec hash
+// other than the row's round's, read the repaired text, and had it raised the
+// finding again that copy would be the row kept. Any other disposition is not
+// a fix and reports false.
+func fixVerified(r *CarriedRow, rounds []ReviewRound, latest int) bool {
 	if r.Disposition != CarryResolved {
 		return false
 	}
 	resolved, _ := r.Row["resolved"].(map[string]any)
 	if after, ok := resolved["resolved_after_round"].(float64); ok {
-		return float64(latest) > after
+		if float64(latest) > after {
+			return true
+		}
+	} else if latest > r.Round {
+		return true
 	}
-	return latest > r.Round
+	return laterRoundReadNewerText(rounds, r.Round)
+}
+
+// laterRoundReadNewerText reports whether a round numbered above round was
+// recorded over a spec hash other than round's own. Rounds with no recorded
+// hash say nothing.
+func laterRoundReadNewerText(rounds []ReviewRound, round int) bool {
+	read := ""
+	for i := range rounds {
+		if rounds[i].Round == round {
+			read = rounds[i].SpecHash
+		}
+	}
+	if read == "" {
+		return false
+	}
+	for i := range rounds {
+		if rounds[i].Round > round && rounds[i].SpecHash != "" && rounds[i].SpecHash != read {
+			return true
+		}
+	}
+	return false
 }
 
 // latestByIdentity keeps each finding's last occurrence in rows, in the order
