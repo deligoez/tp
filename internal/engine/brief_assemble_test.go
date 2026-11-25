@@ -88,6 +88,17 @@ func TestCloseRecipeTextFor_WorktreeCommandNamesTheTaskFile(t *testing.T) {
 		assert.NotContains(t, CloseRecipeTextFor(strategy, "", "k7f2ab01", ""), "--file", strategy)
 	}
 }
+
+// TestMainTreeCloseRecipeText_NamesTheMainTree: the close of a task whose
+// touches name .tp/config.json sends the unit to the main tree by its root;
+// the worktree close says nothing of it.
+func TestMainTreeCloseRecipeText_NamesTheMainTree(t *testing.T) {
+	const where = "work in the main tree at /repo/main, not in a worktree"
+	for _, strategy := range []string{CommitStrategyHC, CommitStrategyBuiltin, CommitStrategyAuto} {
+		assert.Contains(t, MainTreeCloseRecipeText(strategy, "", "/repo/main"), where, strategy)
+		assert.NotContains(t, CloseRecipeTextFor(strategy, "", "k7f2ab01", "spec/a.tasks.json"), "work in the main tree", strategy)
+	}
+}
 func TestBuildBrief_CompactDropsExcerptAndFileLists(t *testing.T) {
 	base := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	prior := doneTask("prior", "Prior", "- prior done", base)
