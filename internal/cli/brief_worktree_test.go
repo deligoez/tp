@@ -45,3 +45,27 @@ func TestPoolBriefCloseNamesTheTaskFile(t *testing.T) {
 	_, stderr, code = runTP(t, wt, args...)
 	assert.Equal(t, 0, code, stderr)
 }
+
+// A brief printed in a unit's worktree names the worktree's absolute path and
+// says file tools take absolute paths under it, since a relative one can
+// resolve against the main checkout; a pool brief, printed before its
+// worktree exists, says how to find that path.
+func TestWorktreeBriefSaysToUseAbsolutePaths(t *testing.T) {
+	t.Parallel()
+	_, worktree, taskFile := pendingProject(t)
+	top, err := filepath.EvalSymlinks(worktree)
+	require.NoError(t, err)
+	stdout, stderr, code := runTPEnv(t, worktree, []string{"TP_FILE=" + taskFile}, "brief", "t1")
+	require.Equal(t, 0, code, stderr)
+	var brief struct {
+		Close string `json:"close"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &brief))
+	assert.Contains(t, brief.Close, "Your worktree is "+top+". Give every file tool an absolute path under it")
+
+	dir := claimsRepo(t)
+	stdout, stderr, code = runTP(t, dir, "brief", "t1")
+	require.Equal(t, 0, code, stderr)
+	require.NoError(t, json.Unmarshal([]byte(stdout), &brief))
+	assert.Contains(t, brief.Close, "give every file tool an absolute path under the directory git rev-parse --show-toplevel prints there")
+}
