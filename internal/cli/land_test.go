@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -1008,6 +1009,7 @@ type landPrunes struct {
 	Kept []struct {
 		ID       string `json:"id"`
 		Worktree string `json:"worktree"`
+		Branch   string `json:"branch"`
 		Reason   string `json:"reason"`
 	} `json:"kept"`
 }
@@ -1106,4 +1108,57 @@ func TestLandNeverPrunesARecordedConflictBranch(t *testing.T) {
 	assert.Contains(t, res.Kept[0].Reason, "t3", "the reason names the task that records the branch")
 	assert.DirExists(t, wt)
 	assert.NotEmpty(t, gitRun(t, dir, "branch", "--list", "agent-t1"))
+}
+
+// conflictThenResolve lands t1 into a conflict, so it reopens with
+// conflict_branch agent-t1 and the old worktree wt left in place, then has a
+// fresh agent claim t1 in its own worktree, cherry-pick the old branch as its
+// brief says, resolve the conflict and request the land.
+func conflictThenResolve(t *testing.T, dir, wt string) {
+	t.Helper()
+	sha := agentCommit(t, wt)
+	_, stderr, code := runTP(t, wt, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "agent.txt"), []byte("other\n"), 0o600))
+	gitIn(t, dir, "add", "agent.txt")
+	gitIn(t, dir, "commit", "-q", "-m", "other")
+	stdout, stderr, code := runTP(t, dir, "land")
+	require.Equal(t, 0, code, stdout+stderr)
+	require.Equal(t, "agent-t1", taskState(t, dir, "t1")["conflict_branch"])
+
+	spawnClaim(t, dir, "t1", "toolu_R", "sessC")
+	wtB := filepath.Join(t.TempDir(), "wtB")
+	gitIn(t, dir, "worktree", "add", "-q", "-b", "agent-t1-b", wtB)
+	pick := exec.Command("git", "cherry-pick", "HEAD..agent-t1")
+	pick.Dir = wtB
+	out, err := pick.CombinedOutput()
+	require.Error(t, err, "the pick conflicts: %s", out)
+	require.NoError(t, os.WriteFile(filepath.Join(wtB, "agent.txt"), []byte("resolved\n"), 0o600))
+	gitIn(t, wtB, "add", "agent.txt")
+	gitIn(t, wtB, "-c", "core.editor=true", "cherry-pick", "--continue")
+	resolved := gitRun(t, wtB, "rev-parse", "HEAD")
+	_, stderr, code = runTP(t, wtB, "done", "t1", "--commit", resolved, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+}
+
+// A conflict branch whose work a fresh agent cherry-picked with a resolution
+// goes once the task lands: every commit on it has a landed commit with its
+// author, author date and message, so its worktree and branch are removed.
+func TestLandPrunesAConflictBranchItsResolutionCarries(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "")
+	conflictThenResolve(t, dir, wt)
+
+	stdout, stderr, code := runTP(t, dir, "land")
+	require.Equal(t, 0, code, stdout+stderr)
+	var res landPrunes
+	require.NoError(t, json.Unmarshal([]byte(stdout), &res), stdout)
+	branches := []string{}
+	for _, p := range res.Pruned {
+		branches = append(branches, p.Branch)
+	}
+	assert.ElementsMatch(t, []string{"agent-t1-b", "agent-t1"}, branches, stdout)
+	assert.Empty(t, res.Kept, stdout)
+	assert.NoDirExists(t, wt, "the old worktree is removed")
+	assert.Empty(t, gitRun(t, dir, "branch", "--list", "agent-t1"), "the conflict branch is deleted")
 }
