@@ -103,6 +103,10 @@ type RunUnitRow struct {
 	// PID is the pooled unit's own child, recorded once it has started: half
 	// of what tells a dead run's unit still running (liveUnits).
 	PID int `json:"pid,omitempty"`
+	// StartedAt is when the attempt's row was appended, just before its child
+	// was spawned, in RFC 3339 UTC: what tells a reader how long a unit the
+	// run still holds has been running. StartUnit stamps it.
+	StartedAt string `json:"started_at,omitempty"`
 	// GateSeconds and WaitSeconds split the attempt's duration: the time its
 	// worktree gates ran, and the time it waited for a gate slot
 	// (spec/backlog/gate-slots.md). Both are null for an attempt that ran no
@@ -187,12 +191,14 @@ func NewRunRecorder(root, taskFile, runID, phase string) (*RunRecorder, error) {
 // does before spawning the child. The three result fields are cleared here
 // rather than trusted from the caller: an appended row reporting an exit code
 // its child has not produced yet is exactly the completion-token fragility the
-// design removes. The row is copied, so the caller's own value is untouched.
+// design removes. The row is copied, so the caller's own value is untouched,
+// and stamped with the moment it was appended.
 func (r *RunRecorder) StartUnit(row *RunUnitRow) error {
 	started := *row
 	started.ExitCode = nil
 	started.DurationSeconds = nil
 	started.SpendUSD = nil
+	started.StartedAt = time.Now().UTC().Format(time.RFC3339)
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
