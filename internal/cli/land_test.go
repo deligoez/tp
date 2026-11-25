@@ -919,15 +919,23 @@ func TestLandCommitsTheTaskFileUnderBuiltin(t *testing.T) {
 	assert.Equal(t, "done", committedTaskField(t, dir, "spec.tasks.json", "t1", "status"))
 }
 
-// Under hc tp makes no commit of its own: the task file stays changed, and
-// the output says so.
-func TestLandUnderHCSaysTheTaskFileChanged(t *testing.T) {
+// Under hc the land commits the task file through hc: a stand-in hc first on
+// PATH makes the commit its plan names, and the close leaves nothing behind.
+func TestLandUnderHCCommitsTheTaskFileThroughHC(t *testing.T) {
 	t.Parallel()
 	dir, wt := landRepo(t, "hc")
-	stdout := landOne(t, dir, wt)
-	assert.Contains(t, stdout, `"task_file_changed": "spec.tasks.json"`, stdout)
-	assert.NotContains(t, stdout, `"commit"`)
-	assert.NotEmpty(t, gitRun(t, dir, "status", "--porcelain", "--", "spec.tasks.json"))
+	bin := t.TempDir()
+	script := "#!/bin/sh\n[ \"$1\" = run ] || exit 9\ncat > /dev/null\ngit commit -q -m land -- spec.tasks.json\n"
+	require.NoError(t, os.WriteFile(filepath.Join(bin, "hc"), []byte(script), 0o755)) //nolint:gosec // an executable stand-in
+	sha := agentCommit(t, wt)
+	_, stderr, code := runTP(t, wt, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	stdout, stderr, code := runTPEnv(t, dir, []string{"PATH=" + bin + string(os.PathListSeparator) + os.Getenv("PATH")}, "land")
+	require.Equal(t, 0, code, stdout+stderr)
+	assert.Contains(t, stdout, `"commit": "`, stdout)
+	assert.NotContains(t, stdout, `"task_file_changed"`)
+	assert.Empty(t, gitRun(t, dir, "status", "--porcelain", "--", "spec.tasks.json"))
+	assert.Equal(t, "done", committedTaskField(t, dir, "spec.tasks.json", "t1", "status"))
 }
 
 // One tp land that closes two tasks makes one task-file commit beside the
