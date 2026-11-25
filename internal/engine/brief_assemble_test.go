@@ -77,6 +77,17 @@ func TestCloseRecipeTextFor_TokenSitsInTheWorktreeCommand(t *testing.T) {
 		assert.NotContains(t, CloseRecipeTextFor(strategy, "", "", ""), "--claim-token", strategy)
 	}
 }
+
+// TestCloseRecipeTextFor_WorktreeCommandNamesTheTaskFile: the worktree close
+// names the task file, so it resolves in a repository with several; without
+// one the recipe names no --file.
+func TestCloseRecipeTextFor_WorktreeCommandNamesTheTaskFile(t *testing.T) {
+	for _, strategy := range []string{CommitStrategyHC, CommitStrategyBuiltin} {
+		got := CloseRecipeTextFor(strategy, "", "k7f2ab01", "spec/a.tasks.json")
+		assert.Contains(t, got, "tp done <id> --file spec/a.tasks.json --commit <sha> --claim-token k7f2ab01 -- ", strategy)
+		assert.NotContains(t, CloseRecipeTextFor(strategy, "", "k7f2ab01", ""), "--file", strategy)
+	}
+}
 func TestBuildBrief_CompactDropsExcerptAndFileLists(t *testing.T) {
 	base := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	prior := doneTask("prior", "Prior", "- prior done", base)
