@@ -792,7 +792,7 @@
   // deck.gl builds its font atlas from: a character left out is not drawn.
   P.glyphsOf = function (nodes, bands) {
     const chars = new Set();
-    nodes.forEach((n) => { for (const ch of n.label + n.title + (n.text || "")) chars.add(ch); });
+    nodes.forEach((n) => { for (const ch of n.label + n.title + (n.text || "") + (n.short || "")) chars.add(ch); });
     bands.forEach((b) => { for (const ch of b.name + " ·0123456789") chars.add(ch); });
     return [...chars].join("");
   };
