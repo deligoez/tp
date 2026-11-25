@@ -118,22 +118,7 @@ func runNext(_ *cobra.Command, _ []string) error {
 	}
 
 	if len(ready) == 0 {
-		// Check if all done or blocked
-		blocked, held, allDone := notReadyIDs(tf, done)
-		if allDone {
-			_ = output.JSON(map[string]any{"done": true, "message": "All tasks complete"})
-		} else {
-			out := map[string]any{
-				"done":    false,
-				"message": fmt.Sprintf("No ready tasks. %d tasks blocked, %d held.", len(blocked), len(held)),
-				"blocked": blocked,
-			}
-			if len(held) > 0 {
-				out["held"] = held
-			}
-			_ = output.JSON(withAgentHeld(tf, out))
-		}
-		os.Exit(ExitState)
+		exitNoReady(tf, done)
 		return nil
 	}
 
@@ -264,11 +249,43 @@ func outputNextBrief(tf *model.TaskFile, task *model.Task, specPath, taskFilePat
 	return nil
 }
 
+// nextOverlap is a task tp next passed over although it is ready: its
+// touches overlap those of HeldBy, a task a spawn or session holds
+// (engine.ClaimOverlap).
+type nextOverlap struct {
+	ID     string `json:"id"`
+	HeldBy string `json:"held_by"`
+}
+
+// exitNoReady prints why a file has no ready task and exits 4, or, when
+// nothing is open or wip, says every task is complete.
+func exitNoReady(tf *model.TaskFile, done map[string]bool) {
+	blocked, held, overlapping, allDone := notReadyIDs(tf, done)
+	if allDone {
+		_ = output.JSON(map[string]any{"done": true, "message": "All tasks complete"})
+		os.Exit(ExitState)
+	}
+	out := map[string]any{
+		"done": false,
+		"message": fmt.Sprintf("No ready tasks. %d tasks blocked, %d held, %d overlapping a held task.",
+			len(blocked), len(held), len(overlapping)),
+		"blocked": blocked,
+	}
+	if len(held) > 0 {
+		out["held"] = held
+	}
+	if len(overlapping) > 0 {
+		out["overlapping"] = overlapping
+	}
+	_ = output.JSON(withAgentHeld(tf, out))
+	os.Exit(ExitState)
+}
+
 // notReadyIDs splits the open tasks of a file with no ready task: blocked by
-// a dependency, or held by a gate that is not a task. An unmet dependency
-// outranks the hold, as in tp status. allDone is true when nothing is open or
-// wip.
-func notReadyIDs(tf *model.TaskFile, done map[string]bool) (blocked, held []string, allDone bool) {
+// a dependency, held by a gate that is not a task, or startable but
+// overlapping a held task's touches. An unmet dependency outranks the hold,
+// as in tp status. allDone is true when nothing is open or wip.
+func notReadyIDs(tf *model.TaskFile, done map[string]bool) (blocked, held []string, overlapping []nextOverlap, allDone bool) {
 	blocked = []string{}
 	allDone = true
 	for i := range tf.Tasks {
@@ -283,7 +300,11 @@ func notReadyIDs(tf *model.TaskFile, done map[string]bool) (blocked, held []stri
 			blocked = append(blocked, t.ID)
 		case t.Held():
 			held = append(held, t.ID)
+		default:
+			if holder := engine.ClaimOverlap(tf, t); holder != nil {
+				overlapping = append(overlapping, nextOverlap{ID: t.ID, HeldBy: holder.ID})
+			}
 		}
 	}
-	return blocked, held, allDone
+	return blocked, held, overlapping, allDone
 }
