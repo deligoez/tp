@@ -103,7 +103,8 @@ test('a live run counts its time from the start and its units as they finish', a
 
 test('a project with no run says so', async $ => {
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect((await ui.find({ type: 'Text' }))?.text).toBe('No run in this project yet.')
+  expect((await ui.find({ type: 'Text' }))?.text).toBe('tp')
+  expect(await ui.find({ type: 'Text', text: 'No run in this project yet.' })).toBeTruthy()
   await ui.unmount()
 })
 
