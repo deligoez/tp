@@ -899,3 +899,13 @@ func TestPage_ThePlanCardDrawsTheMapTpLaysOut(t *testing.T) {
 		assert.Contains(t, script, s)
 	}
 }
+
+// TestPage_ADrawerOverAGraphDrawsNoBackdrop: the drawer shows its backdrop
+// only where tpPure.drawerDims says so, so a click on the graph opens the
+// drawer beside a selection chain drawn at full contrast.
+func TestPage_ADrawerOverAGraphDrawsNoBackdrop(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	assert.Contains(t, script, `$("scrim").hidden = !open || !tpPure.drawerDims(kind, work.tview);`)
+	assert.NotContains(t, script, `$("scrim").hidden = !open;`)
+}
