@@ -915,13 +915,14 @@ func TestPage_ADrawerOverAGraphDrawsNoBackdrop(t *testing.T) {
 // TestPage_TheMapsLabelsReadAtALowerZoom: the plan map's epic boxes take
 // their column and row but for 12-pixel gaps, and carry their whole ids in
 // the page's own face, medium weight, at 22 units in one or two lines
-// measured to fit (tpPure.fitIdIn), shown from 14 pixels on screen for
-// the smallest of them, never smaller.
+// measured to fit (tpPure.fitIdIn), shown from 10 pixels on screen for
+// the smallest of them (the operator's floor, a click before 14 would
+// allow), never smaller.
 func TestPage_TheMapsLabelsReadAtALowerZoom(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
 	for _, s := range []string{
-		`w: 212, h: 56, col: 224, row: 68, fs: 22, pad: 6, lh: 1.15, lineGap: 220, minPx: 14, font: "Inter, system-ui, sans-serif" },`,
+		`w: 212, h: 56, col: 224, row: 68, fs: 22, pad: 6, lh: 1.15, lineGap: 220, minPx: 10, font: "Inter, system-ui, sans-serif" },`,
 		"G.detail = pure.detailLevel(P.geo.fs * P.minFit * scale, P.geo.minPx);",
 		"pure.fitIdIn(out.label, { w: geo.w - 2 * geo.pad, h: geo.h - geo.pad, fs: geo.fs, lineHeight: geo.lh }, measureEm)",
 		`fontFamily: P.geo.font || "ui-monospace, SFMono-Regular, Menlo, monospace", fontWeight: P.geo.font ? 500 : "normal",`,
