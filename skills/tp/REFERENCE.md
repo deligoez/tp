@@ -1609,6 +1609,89 @@ re-grade is a `task_audit` with `regrade: true` and no members; one a fix claim 
 `fix_pass`. A row a fix pass graded after the latest audit round is not asked again before the
 next round, so a fix and a re-grade cannot cycle past the round cap.
 
+## Found Tasks (v1.31.0)
+
+A unit that runs into a defect outside its own task files a **request** (`tp found add`, one defect
+per request); it never sweeps code for defects, and the implement and audit-role unit prompts say
+so. `tp found apply` turns well-formed requests into **found tasks** and places them; a request that
+needs a choice goes to a **decision unit**; what neither settles waits in the spec's **queue** for
+the person. The command contracts are in [Found requests and the queue](#found-requests-and-the-queue-v1310) above.
+
+**The request store** is part of the cycle's run state, `.tp/run-<key>%found.json` beside
+`run-<key>.json`: git-ignored, kept across a run's restart, never the task file. A request carries
+`location` (`file:line`), `reproduction`, and either the Fix fields `expected` and `observed` or a
+`question` with `alternatives`; `blocks`, its finder (a task, or an audit round and `role:item_id`),
+and an arrival `seq` (ids `F1`, `F2`, ...). Filing changes no task.
+
+**Applying.** `tp run` applies after every unit; an audit unit's requests only once its round is
+recorded. In a hand-coordinated session the pool's `Stop` hook (`tp pool --stop-hook`) refuses the
+coordinator's stop once while a task file it coordinates holds an unapplied request, naming
+`tp found apply --file <task file>`. One apply, under the task-file lock:
+
+1. **Dedup.** The key is the location's file (a trailing `:N` stripped) plus the reproduction with
+   whitespace runs collapsed. A request matching one in its batch, or one whose outcome is open, is a
+   duplicate: it opens nothing, and its finder is placed against the kept outcome.
+2. **Attach.** A request whose file is in an open task's `touches` (not its finder's) opens nothing,
+   does not count against `found_max`, and lands in that task's `found_notes`, shown by `tp show` and
+   `tp brief`.
+3. **Open.** A Fix-shaped request (all four Fix fields, no question) becomes an open task `found-<request>` (`found-f1`),
+   blocking requests first, then by arrival, while the task file holds fewer than `found_max` found
+   tasks. Past the cap it becomes an open queue entry carrying the defect.
+4. **Undecided.** A request with a question waits for the decision unit.
+
+**The found task** carries `origin` — `finder_task`, or `audit_round` and `audit_row`, plus the
+request's `location` — in place of `source_sections`, never both; `origin` satisfies the entry check.
+Its brief carries `task.request` `{location, reproduction, expected, observed, first_step}` and no
+`spec_excerpt`. Spec coverage leaves tasks with `origin` out of its denominator; a task audit reaches
+them through their files, and a found task's commit does not reset the audit's clean-round streak.
+When the reproduction does not fail for the stated reason, the unit runs `tp found handback`:
+`handed_back` (managed; cleared by `tp reopen`) marks the close, and an open queue entry holds the
+request. `tp add` refuses (exit 1) a `source_sections` entry that names no heading of the spec.
+
+**Placement** adds at most one edge. A non-blocking found task depends on its task finder (an audit
+row's on nothing); a non-blocking duplicate or attachment adds no edge. A blocking request makes the
+finder depend on the outcome, returns a `wip` finder to `open` and spends none of its retries. A
+blocking request whose edge would close a cycle, or that has no task outcome, becomes an open queue
+entry, and its finder **waits**: open, out of the ready set, until the entry is settled. When only
+waiting tasks remain the decision unit runs first if a request is undecided, and the run stops with
+`no-ready-task` if none is ready after it.
+
+**The decision unit** (unit kind `decision`, agent `tp-decider`, never the finder) takes 1 to 5
+undecided requests in arrival order and answers each once with `tp found answer`: `task` (the Fix
+fields, a reproduction it ran and saw fail, and a quote tp finds verbatim, whitespace-normalised, in
+the cited spec, `CLAUDE.md`, `CONVENTIONS.md` or `REFERENCE.md`; applied like a Fix-shaped request,
+counted against the cap, never a duplicate of the request it answers), `conforms` (the expected
+behaviour already holds, with a quote checked the same way; no task, a decided queue entry) or
+`human` (everything else; an open queue entry with the question and alternatives). When in doubt it
+answers `human`, and a rule-9 decision is never its to make.
+
+**The queue** is `<base>.queue.json` beside `<base>.tasks.json`, committed: `{entries: [...]}`, each
+entry `{id, state, request, location, question, alternatives, reproduction, expected, observed,
+finders, answer, cited, quote, task, reason}` (empty fields omitted), ids `Q1`, `Q2`, .... `state` is
+`open` (awaiting the person), `decided` (a `conforms` answer, kept so it stays auditable), `settled`
+(made into `task`) or `rejected` (with `reason`). `tp found settle` is the person's step: a task it
+makes carries `origin.queue_entry`, does not count against `found_max`, and the entry's finders now
+depend on it; a rejection makes them ready. An open entry holds only its finders: with none, `tp
+review/audit --status --check` and `tp resume`'s phase read as if it were not there. `tp resume`
+reports `found_queue {open, holds}`, and a converged review or audit payload carries `found_open`,
+the open entry count, present at zero. It replaces the deferred `tp note` inbox.
+
+**The cap.** `found_max` (default 5, 0-100; see Workflow Fields) counts the tasks with `origin` the
+task file holds, done ones and `task` answers included, tasks the person settled excluded; it is read
+from the task file, not a run, so a stop and a restart do not lift it. **0 is uncapped**, as `review_max_rounds` reads it; not every `*_max`
+field does. Raising it, or setting 0 over a cap, is an operator decision: under `TP_UNATTENDED` it
+exits 2 and escalates under `raise-found-cap`.
+
+**The audit's part.** A row on an item the round asked keeps the audit-fix path. A Fix-shaped
+finding outside the spec's surface is filed with `tp found add --audit-row <role:item_id>` by the
+audit-role unit; recording the round writes that row's disposition, `{status: wontfix, evidence,
+request: "F<n>"}`, so no unit accepts a finding, and the request is applied after the record.
+
+**The fence holds under `tp run` only.** With both `TP_UNATTENDED` and a non-empty `TP_UNIT_KIND`
+set, a unit of any kind but `decompose` that calls `tp add`, `tp import` or `tp set depends_on`, and a
+unit of any kind that calls `tp found settle`, exits 2 naming `tp found add`. Outside a run — a
+person, or a hand-coordinated session — every one of these commands works as before.
+
 ## Grounding (`tp ground`, v1.0.0)
 
 `tp ground` checks a spec's claims against the world before review is told they hold. The loop and
