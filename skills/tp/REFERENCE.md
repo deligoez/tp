@@ -3331,11 +3331,12 @@ milestone with an epic in a row is one block of it, single-milestone rows includ
 the order of their epics' mean forest column. A block is as wide as its fullest layer, up to 8
 columns; a fuller layer folds onto two or three sub-lines (the block 8 columns wide, or a third
 of that layer where that is wider), and inside a block each layer's epics keep their forest order,
-centred. Blocks sit 2 empty columns apart and wrap, like text, onto another line of the row where
+centred. Blocks sit 1 empty column apart and wrap, like text, onto another line of the row where
 the next would pass `columns`, each line centred, so the map is never wider than the forest. Every
 line keeps one y above its first layer for its labels, and each layer of a line as many y as its
 most folded block needs, so a layer keeps one y across its line and an edge between layers of one
-line points down; an edge into an earlier line of the same row can point up.
+line points down; a layer none of a line's blocks takes has no y in that line. An edge into an
+earlier line of the same row can point up.
 
 The page's graph card draws these views with deck.gl, vendored as
 `/vendor/deckgl-9.3.12.min.js`, the one file served under `/vendor/`, gzip-compressed to a client
