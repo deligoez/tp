@@ -139,3 +139,18 @@ func TestMapRows_BlocksWrapInsideTheWidth(t *testing.T) {
 	assert.Less(t, m0.ToY, m2.FromY)
 }
 
+// TestMapRows_ADividerSplitsEachGap: one divider per pair of neighbouring
+// blocks of a line, half-way across the gap, from the line's header unit
+// to its last y.
+func TestMapRows_ADividerSplitsEachGap(t *testing.T) {
+	t.Parallel()
+	in := threeBands()
+	got := MapRows(&in)
+	require.Len(t, got.Dividers, 1)
+	a, b := mapBlockOf(t, got.Blocks, "A"), mapBlockOf(t, got.Blocks, "B")
+	d := got.Dividers[0]
+	assert.InDelta(t, (b.ToCol+a.FromCol)/2, d.X, 0)
+	assert.InDelta(t, got.Rows[0].FromY, d.FromY, 0)
+	assert.InDelta(t, got.Rows[0].ToY, d.ToY, 0)
+}
+
