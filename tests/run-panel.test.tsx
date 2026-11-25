@@ -129,6 +129,17 @@ test('the now view answers what runs, what needs you and how far along, in Engli
   ])
 })
 
+test('the epics view draws one bar per epic, its numbers beside it', async () => {
+  const read = toNow(NOW, 0)!
+  expect(epicsRows(read.now, 'tr', 60).map(row => row.text)).toEqual([
+    'Payment flow  ████████████████░░░░ 8/10',
+    'Search        ████████████████████ 4/4 · bitti',
+  ])
+  expect(epicsRows({ ...read.now, epics: null }, 'en', 60).map(row => row.text)).toEqual([
+    'This project has no epics.',
+  ])
+})
+
 test('a payload without running still draws', async () => {
   const { running: _drop, ...older } = STATUS
   const view = toView(older, 0)
