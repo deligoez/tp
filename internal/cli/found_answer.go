@@ -199,8 +199,9 @@ func answerFoundRequest(root, taskFilePath string, foundMax int, id string, ans 
 	return plan, err
 }
 
-// fileSnapshot is a file's bytes and mode as they were before an answer
-// wrote it; a file that did not exist has existed false.
+// fileSnapshot is a file's bytes and mode as they were before a found write
+// (an answer, tp found apply or a handback) changed it; a file that did not
+// exist has existed false.
 type fileSnapshot struct {
 	path    string
 	data    []byte
@@ -208,11 +209,12 @@ type fileSnapshot struct {
 	existed bool
 }
 
-// foundFiles are the task file and the queue an answer writes before the
-// store.
+// foundFiles are the task file and the queue a found write changes before
+// the store.
 type foundFiles []fileSnapshot
 
-// snapshotFoundFiles reads the task file and the queue an answer may write.
+// snapshotFoundFiles reads the task file and the queue a found write may
+// change.
 // The caller holds the task-file lock.
 func snapshotFoundFiles(taskFilePath string) (foundFiles, error) {
 	var files foundFiles
@@ -242,7 +244,7 @@ func snapshotFile(path string) (fileSnapshot, error) {
 }
 
 // restore puts the snapshot back, each file by rename so a lock-free reader
-// never sees a partial document, and removes a file the answer created.
+// never sees a partial document, and removes a file the write created.
 func (files foundFiles) restore() error {
 	var errs []error
 	for i := range files {
