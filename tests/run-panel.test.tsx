@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 
 import { toNow, tpVersion, toView } from '../hooks/run-panel'
 import { resolveLanguage, WORDS } from '../hooks/panel-words'
-import { runRows } from '../hooks/panel-rows'
+import { nowRows, runRows } from '../hooks/panel-rows'
 
 const PANE = {
   plugin: 'tp',
@@ -80,6 +80,38 @@ test('the brand reads the version tp prints', async () => {
   expect(tpVersion('tp version v1.32.0\n')).toBe('v1.32.0')
   expect(tpVersion('tp version (devel)')).toBe('(devel)')
   expect(tpVersion('')).toBe('')
+})
+
+// The fixture's clock: the run started at 10:00:00, the pane draws 4m 5s on.
+const AT = Date.parse('2026-11-25T10:00:00Z') + 245_000
+
+test('the now view answers what runs, what needs you and how far along, in English', async () => {
+  const read = toNow(NOW, 0)!
+  const rows = nowRows(read.now, read.run, 'en', AT, 40)
+  expect(rows.map(row => row.text)).toEqual([
+    'Implement phase · run in progress (4m 5s)',
+    'Needs you',
+    'Escalation: The run stopped on a decision only you can make.',
+    'In progress',
+    'auth-refresh  Refresh tokens before expiry · run, attempt 2, 4m 5s',
+    'rate-limit  Limit requests per key · agent',
+    'Waiting to land',
+    'cache-key  Key the cache by tenant · 2m 5s',
+    'Tasks: 14 of 31 done, 2 in progress, 3 ready, 12 blocked',
+    'Epics',
+    'Payment flow  ████████░░ 8/10',
+    'Ready next',
+    'webhook-retry  Retry failed webhooks',
+    'audit-log  Log every admin change',
+  ])
+  // A row naming a task opens it, each under its own key.
+  expect(rows.filter(row => row.task).map(row => row.key)).toEqual([
+    'held:auth-refresh',
+    'held:rate-limit',
+    'landing:cache-key',
+    'ready:webhook-retry',
+    'ready:audit-log',
+  ])
 })
 
 test('a payload without running still draws', async () => {
