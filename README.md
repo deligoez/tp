@@ -202,6 +202,16 @@ tp run [spec]                  # Drive the whole cycle unattended (--status, --d
 tp escalate --decision <name>  # Record an operator-only decision from inside a run and stop the unit
 ```
 
+### Found Tasks
+```bash
+tp found add                   # Record one defect found outside the caller's task as a request (--location, --reproduction, --expected/--observed or --question)
+tp found apply                 # Turn the spec's requests into found tasks within found_max, queue the rest (tp run applies after every unit)
+tp found decide <requests>     # A decision unit's brief over up to 5 requests that need a choice
+tp found answer <request> <a>  # The decision unit's answer: task, conforms or human, with a verbatim quote
+tp found handback <id> <why>   # Hand back a found task whose reproduction does not fail; its request goes to the queue
+tp found settle                # The person settles open queue entries: --task <entry> or --reject <entry>=<reason>
+```
+
 ### Incremental (fallback)
 ```bash
 tp next                        # Resume WIP or claim the next ready task (--minimal, --peek, --brief)
