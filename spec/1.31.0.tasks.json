@@ -3,7 +3,7 @@
   "spec": "spec/1.31.0.md",
   "imported_at": "2026-11-24T21:33:03.666479Z",
   "created_at": "2026-11-24T21:33:03.664126Z",
-  "updated_at": "2026-11-25T02:02:52.819077Z",
+  "updated_at": "2026-11-25T04:39:00.330033Z",
   "workflow": {
     "review_max_rounds": 5,
     "audit_max_rounds": 3
@@ -479,7 +479,7 @@
       "id": "found-placement",
       "title": "Place found tasks on the finder's edge",
       "description": "Apply adds at most one edge: a non-blocking found task depends on its task finder (an audit finder adds none); a blocking request makes the finder depend on its outcome; an edge that would close a cycle becomes an open queue entry whose question names the cycle.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "found"
@@ -493,17 +493,45 @@
         "## 4. Placement",
         "## 2. Applying requests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-25T02:05:26.37291Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-25T02:18:17.605869Z",
+      "closed_reason": "- tp found apply places found tasks on the finder's edge (spec §4): newFoundTask gives a non-blocking found task depends_on [finder task]; an audit-row request (no finder task) gets depends_on []. Engine: TestPlanFoundApply_ANonBlockingFoundTaskDependsOnItsFinder; CLI end-to-end: TestFoundApply_PlacesFoundTasksOnTheFindersEdge (found-f1 depends_on [t1]). Mutant dropping the deps block fails 3 tests.\n- A blocking request with a task outcome (its found task, the attached open task, or a duplicate's kept task) adds plan.Edges {finder -\u003e outcome}, written by addFoundEdges under the task-file lock (engine.placeFoundRequests). CLI end-to-end: t1 depends_on [found-f2] after a --blocks request, tp validate cycles/references pass. Blocking duplicate and blocking attachment are proven on the plan in internal/engine only (TestPlanFoundApply_ABlockingDuplicatesFinderDependsOnTheKeptTask, ..._OnlyABlockingAttachmentAddsAnEdge); an existing edge is not added twice (mutant removing the guard fails that test).\n- A blocking edge that would close a cycle (BFS over depends_on, existing plus batch tasks) adds no edge and appends an open queue entry whose question names the cycle with the outcome task (e.g. 'finder -\u003e found-f1 -\u003e finder'), carrying the Fix fields and Finders [finder]; the request keeps its outcome (round-4 finding 14). Engine only: TestPlanFoundApply_ABlockingEdgeThatClosesACycleQueuesInstead, ..._TheCycleCheckFollowsLongerPaths. Finder status/attempt handling and waiting are left to finder-waits. Gate green via tp gate on the rebuilt binary.",
+      "gate_passed_at": "2026-11-25T02:18:10.093297Z",
+      "commit_sha": "eb2c49e7",
+      "commit_shas": [
+        "eb2c49e7",
+        "53fa599d",
+        "9b8a43f4",
+        "99b804a3",
+        "9a8f80ae",
+        "6a625f6c",
+        "b1579e20",
+        "27168c56",
+        "3d480191",
+        "1f10a164",
+        "55a63c92",
+        "f3ac730d",
+        "117ae8c0",
+        "eac4e101"
+      ],
+      "commit_files": [
+        "internal/cli/found.go",
+        "internal/cli/found_place_test.go",
+        "internal/engine/foundapply.go",
+        "internal/engine/foundapply_test.go",
+        "internal/engine/foundplace.go",
+        "internal/engine/foundplace_test.go"
+      ],
+      "task_audit_owed": [
+        "go-safety"
+      ]
     },
     {
       "id": "finder-waits",
       "title": "Make a blocked finder wait on its request",
       "description": "A blocking request with no task outcome makes its finder wait, open and not ready, until a task outcome, a conforms answer, or a settled entry; apply never moves a wip finder whose unit is still running.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "found"
@@ -517,17 +545,45 @@
         "## 4. Placement",
         "## 10. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "solo": true,
+      "started_at": "2026-11-25T02:44:56.245907Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-25T02:51:00.263755Z",
+      "closed_reason": "- An open found-queue entry holds its finders out of the ready set (model.markQueueHolds sets QueueEntry on each finder an open entry names, read with the task file); a blocking request queued past the cap or on a cycle holds its finder, and tp found apply returns a waiting wip finder to open (engine.FoundFindersToReopen, cli reopenFoundFinders via writeFoundPlan's reopen hook) without counting the attempt. TestFoundApply_AQueuedFinderWaitsUntilItsEntryIsSettled: after apply queues F1 as Q1 the finder t1 is open, tp ready --ids is [t3] and tp next --peek offers t3; after Q1 is rejected the ready set is [t1 t3].\n- Section 10 row 'An entry holds only its finders': TestReady_AnEntryHoldsOnlyItsFinders (one open entry holding 'finder', one unrelated open task 'other'; ready set is [other]). Counts over the five finder-waits cli tests: at HEAD 5 pass, 0 fail; under the mutant 'mark every open task waiting while an entry is open' (built in a scratch worktree) 2 fail (the row test and the queued-finder test), 3 pass.\n- Apply leaves a wip finder under a live spawn claim, the calling implement unit (TP_UNIT_KIND/TP_UNIT_ID) or a live run's main-tree unit unchanged, and a later apply after that unit exits returns it to open (round-4 findings 7, 11): TestFoundApply_LeavesAClaimedFinderWipUntilItsClaimIsGone, TestFoundApply_LeavesTheCallingUnitsFinderWip, TestFoundApply_LeavesALiveRunUnitsFinderWip; engine selection in TestFoundFindersToReopen_ReturnsOnlyAWaitingFinderNoUnitHolds.\n- The earlier attempt's integration failed on a cherry-pick conflict with tp found answer's shared writeFoundPlan; resolved by giving writeFoundPlan an optional reopen hook (tp found answer passes nil). Gate green via tp gate (passed: true).",
+      "gate_passed_at": "2026-11-25T02:50:51.06412Z",
+      "commit_sha": "7e935fd6",
+      "commit_shas": [
+        "7e935fd6",
+        "200fec03",
+        "4538d673",
+        "cdaef7b5",
+        "6b2d6bf7",
+        "3be8eaf9",
+        "0307f1c4",
+        "6cd13b5b",
+        "59557fc2"
+      ],
+      "commit_files": [
+        "internal/cli/found.go",
+        "internal/cli/found_answer.go",
+        "internal/cli/found_wait_test.go",
+        "internal/engine/foundapply.go",
+        "internal/engine/foundqueue.go",
+        "internal/engine/foundreopen.go",
+        "internal/engine/foundreopen_test.go",
+        "internal/model/foundqueue.go",
+        "internal/model/io.go",
+        "internal/model/task.go"
+      ],
+      "task_audit_owed": [
+        "go-safety"
+      ]
     },
     {
       "id": "run-applies-requests",
       "title": "Apply requests after every run unit",
       "description": "tp run applies requests after every unit, after the round is recorded for audit units; a unit that filed a blocking request and exits without closing returns to open without spending an attempt.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "driver",
         "found"
@@ -542,11 +598,37 @@
         "## 4. Placement",
         "## 10. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-25T02:53:19.570038Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-25T03:22:04.809845Z",
+      "closed_reason": "- tp run applies found requests after every unit: DriverOptions.ApplyFound (cli applyFoundFunc, tp found apply's own applyFoundRequests with the driver naming the still-running units) runs after record() in attemptUnits and the pool's exited; TestRunCommand_AnImplementUnitsRequestEndsAsAFoundTask has the fake runner's seed unit file a request (TP_FAKE_RUNNER_FOUND_IDS) and the run ends with found-f1 (depends_on [seed]) in the task file, run as the next unit, the request applied; seen red before wiring.\n- §10 row 'A blocking placement spends no attempt': a unit whose task apply returns to open is not a failed attempt (failedUnits waiting set; pool exited case reopened[id], no retry). TestRunCommand_ABlockingPlacementSpendsNoAttempt (main tree, run_max_unit_retries=0) runs seed, found-f1, seed with seed's rows both attempt 1 and seed done depending on found-f1; ...InAPool does the same in a rolling pool, the rerun requiring found-f1.txt in its tree. Counts at HEAD 184edaed: 4/4 of the run_found tests pass; under the mutant 'count the exit as a failed attempt' (failedUnits ignores waiting and the pool's reopened[id] case disabled) 2 fail (both row tests), 2 pass.\n- tp found apply skips the requests of an audit round not yet recorded: engine.PlanFoundApplyRecorded holds an unapplied request whose finder.audit_round is above the spec's latest recorded audit round (RecordedAuditRound) out of the plan and dedup and keeps it unapplied in the store; TestFoundApply_SkipsTheRequestsOfAnUnrecordedAuditRound sees nothing opened and the request unapplied before round 1 is recorded, then found-f1 opened after.\n- A finder rerun in the same pool now starts from HEAD: setAsideUnitBranch renames its earlier unit branch to tp-unit/\u003ccycle\u003e/\u003crun\u003e-\u003cn\u003e/\u003cid\u003e (commits stay reachable, kept by keptUnitBranch) instead of failing worktree add -b on the existing name; seen red with the require-file knob.\nOut of scope: tp found add does not stamp finder.audit_round for audit units yet (task audit-files-requests owns it); the hold was tested with a request stored through engine.AddFoundRequest.",
+      "gate_passed_at": "2026-11-25T03:22:04.809845Z",
+      "commit_sha": "63acfa500074f4121b3d628321cea5b242aa67d8",
+      "commit_shas": [
+        "63acfa500074f4121b3d628321cea5b242aa67d8",
+        "73fff6e0b16165d7cb992a53818b1d522156f373",
+        "21b4c0d65d8bec092e5eb0d518ba3260ced28f5d",
+        "b03723a4fab243e20cec95c5dac329d918558df0",
+        "adf26f3ad985e1411370be85c0e71dfb0d6f5f45",
+        "b0514cce7aec58966513eac5865b1aa7558a1acb",
+        "d11066f6fd332b9ff8ddbb6918ec4d215d186d15",
+        "12de807dbc4d9f4a3ca40bb763a26ad3274907e8",
+        "201a5b0892f942271a5abb177634e2625b821d99"
+      ],
+      "commit_files": [
+        "internal/cli/found.go",
+        "internal/cli/run.go",
+        "internal/cli/run_close.go",
+        "internal/cli/run_found_test.go",
+        "internal/engine/driver.go",
+        "internal/engine/driver_pool.go",
+        "internal/engine/foundhold.go",
+        "internal/fakerunner/cmd/tp-fake-runner/main.go",
+        "internal/fakerunner/fakerunner.go"
+      ],
+      "task_audit_owed": [
+        "go-safety"
+      ]
     },
     {
       "id": "stop-hook-apply",
@@ -629,7 +711,7 @@
       "id": "found-handback",
       "title": "Add tp found handback",
       "description": "tp found handback \u003cid\u003e \"\u003cwhy\u003e\" closes a found task as done marked handed back, opens a queue entry holding its request, and moves the finders depending on it to wait on that entry.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "found"
@@ -643,11 +725,37 @@
         "## 3. The found task",
         "## 4. Placement"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "solo": true,
+      "started_at": "2026-11-25T04:18:56.136861Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-25T04:23:30.341935Z",
+      "closed_reason": "- tp found handback \u003cid\u003e \u003cwhy\u003e (internal/cli/found_handback.go) closes a found task as done with handed_back true and reason 'Handed back: \u003cwhy\u003e', and appends an open queue entry built by engine.FoundHandbackEntry holding its request (F1, location, reproduction, expected, observed); TestFoundHandback_ClosesTheTaskAndQueuesItsRequest asserts the task state and queue entry Q1 after apply opened found-f1 from a blocking request.\n- Every not-done task depending on the handed-back task becomes a finder of the entry; TestFoundHandback_TheDependentFinderWaitsOnTheEntry: finders [t1], tp ready --ids is [t3] while Q1 is open, [t1 t3] once it is settled.\n- A task without origin is refused with exit 2 and nothing written; TestFoundHandback_ATaskWithoutOriginExitsTwo checks exit 2, 'no origin', unchanged task file and empty queue.\n- Each test was seen red under its own mutant (HandedBack not set; origin check skipped; finders loop disabled) and green at HEAD; tp gate passed. The earlier attempt's commits were cherry-picked onto main with the command_sides/found/nongoals_surface conflicts against found decide/settle resolved to keep all three commands.",
+      "gate_passed_at": "2026-11-25T04:23:23.776539Z",
+      "commit_sha": "6b7b19d2",
+      "commit_shas": [
+        "6b7b19d2",
+        "f5c37074",
+        "7b9cec7d",
+        "84acb05e",
+        "eef4b30d",
+        "3041553b",
+        "528027f3",
+        "4cc710b4"
+      ],
+      "commit_files": [
+        "internal/cli/command_sides.go",
+        "internal/cli/found.go",
+        "internal/cli/found_handback.go",
+        "internal/cli/found_handback_test.go",
+        "internal/cli/nongoals_surface_test.go",
+        "internal/cli/reopen.go",
+        "internal/cli/set.go",
+        "internal/engine/foundhandback.go",
+        "internal/model/task.go"
+      ],
+      "task_audit_owed": [
+        "go-safety"
+      ]
     },
     {
       "id": "coverage-skips-found",
@@ -690,7 +798,7 @@
       "id": "decision-answer-cmd",
       "title": "Record decision answers with the quote check",
       "description": "A command records a decision unit's answer to an undecided request: task (Fix fields, reproduction, quote found verbatim whitespace-normalised in the cited file), conforms (quote checked the same way), or human (queue entry).",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "found"
@@ -705,17 +813,41 @@
         "## 5. The decision unit",
         "## 10. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-25T02:20:40.963694Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-25T02:42:35.454193Z",
+      "closed_reason": "- tp found answer \u003crequest\u003e \u003ctask|conforms|human\u003e [--location --reproduction --expected --observed --cite \u003cfile\u003e --quote \u003ctext\u003e] (internal/cli/found_answer.go, engine.PlanFoundAnswer in internal/engine/foundanswer.go) records a decision answer to an undecided request under the task-file lock then the store lock; a refusal (unknown request, request not undecided, missing Fix fields, bad cite or quote) exits 2 and writes nothing.\n- A task answer whose quote is not in the cited file is refused and the request stays undecided: --cite must resolve inside the project to the spec or a CLAUDE.md/CONVENTIONS.md/REFERENCE.md (engine.FoundCitable), and engine.FoundQuoteIn collapses whitespace on both sides and never finds a blank quote. Section 10 row 'A quote must be in the cited file' (TestFoundAnswer_AQuoteMustBeInTheCitedFile): at HEAD the cli set FoundAnswer is 6 pass / 0 fail; under the mutant 'skip the quote check' it is 5 pass / 1 fail, and the failure is the row test. Section 10 row 'The quote check normalises whitespace' (TestFoundAnswer_TheQuoteCheckNormalisesWhitespace, TestFoundQuoteIn_AQuoteSpanningALineBreakIsFound): at HEAD the engine set FoundQuoteIn|FoundCitable|PlanFoundAnswer is 13/0 and the cli set 6/0; under the mutant 'compare raw bytes' the engine set is 12 pass / 1 fail (the row test) and the cli set 3 pass / 3 fail (the row test among the failures).\n- A conforms answer opens no task and adds a decided queue entry with answer conforms, cited, quote and the passing reproduction (TestFoundAnswer_AConformsAnswerIsDecidedAndOpensNoTask). A human answer adds an open entry with the request's location, question and alternatives, and a blocking request's entry holds its finder (TestFoundAnswer_AHumanAnswerAddsAnOpenEntryWithTheQuestionAndAlternatives, TestPlanFoundAnswer_AHumanAnswer...). Both move the request to applied, so a second answer exits 2.\n- A task answer is applied through PlanFoundApply as a Fix-shaped request: attach, dedup against other requests, the found_max cap and placement all apply. It plans over the answered request alone, now unapplied, so it never matches itself as a duplicate. Mutant 'keep the undecided request beside the answer': engine set 10 pass / 3 fail (TestPlanFoundAnswer_ATaskAnswerIsNeverADuplicateOfItsRequest among them), cli set 4 pass / 2 fail. Past the cap the answer is an open queue entry carrying the quote, cited file and reproduction, and opens no task (TestFoundAnswer_ATaskAnswerPastTheCapAddsAnOpenEntry). FoundQueueEntry gained cited and quote fields; found.go's apply output and writing were extracted to foundPlanOutput and writeFoundPlan for reuse; SKILL.md lists the three answer forms. tp gate passed in this worktree.",
+      "gate_passed_at": "2026-11-25T02:42:35.454193Z",
+      "commit_sha": "7acecf5f05382e3f657dd40a458b02ad1bab9c18",
+      "commit_shas": [
+        "7acecf5f05382e3f657dd40a458b02ad1bab9c18",
+        "856fb3f3b35ebc2f346649fba3d2cd95e4688b8a",
+        "852150c79a33f9f1df00790776cd2fc4151f1f85",
+        "14be8328970994e1276d76444a9d59184d751217",
+        "251e6ae567d4cc2c69f97aa74be2d54aedeaf069",
+        "1b321c6e6f981ed9b834035b0dfeadfdfaf3d206",
+        "38681ea7fd8078c823f258e45d993c715bb9113a"
+      ],
+      "commit_files": [
+        "internal/cli/command_sides.go",
+        "internal/cli/found.go",
+        "internal/cli/found_answer.go",
+        "internal/cli/found_answer_test.go",
+        "internal/cli/nongoals_surface_test.go",
+        "internal/engine/foundanswer.go",
+        "internal/engine/foundanswer_test.go",
+        "internal/engine/foundqueue.go",
+        "skills/tp/SKILL.md"
+      ],
+      "task_audit_owed": [
+        "go-safety"
+      ]
     },
     {
       "id": "decision-unit-kind",
       "title": "Schedule the decision unit in tp run",
       "description": "A decision unit kind takes at most 5 undecided requests and runs when undecided requests exist and no implement unit is ready or running; when only waiting tasks remain it runs first if a request is undecided, then the run stops with no-ready-task if none is ready.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "driver",
         "found"
@@ -730,17 +862,51 @@
         "## 5. The decision unit",
         "## 4. Placement"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-25T03:26:36.077119Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-25T04:02:45.586719Z",
+      "closed_reason": "- tp run schedules a decision unit (new kind \"decision\", brief `tp found decide \u003cids\u003e`) when undecided found requests exist and no implement unit is ready or running (implement phase, and first in the audit phase); it carries at most DecisionBatchMax=5 request ids in arrival order, its durable write is none of them still undecided, and an undecided request holds the no-ready-task blocker back. TestRunCommand_UndecidedRequestsSpawnDecisionUnitsOfAtMostFive: six undecided requests behind a blocked task spawn two decision units, F1,F2,F3,F4,F5 then F6, then the run stops (no-units, resume shows no-ready-task); engine TestDecisionUnits_TakeAtMostFiveUndecidedRequestsInArrivalOrder.\n- With only waiting tasks and no undecided request (an applied one present), the run stops with no-units and resume reports no-ready-task, spawning nothing: TestRunCommand_OnlyWaitingTasksAndNoUndecidedRequestStopWithNoReadyTask; seen red under the mutant 'schedule a decision unit whenever nothing is ready' (both run tests fail), and TestBuildBlockers_AnUndecidedRequestHoldsNoReadyTaskBack.\n- The decision unit's prompt (UnitPrompt via DecisionUnitText) says 'You never make a rule-9 decision' and 'when in doubt, answer `human`', without the finder's tp found add text; tp found decide's brief repeats both: TestUnitPrompt_TheDecisionUnitNeverMakesARule9DecisionAndAnswersHumanWhenInDoubt, TestFoundDecide_BriefsTheNamedUndecidedRequests.\nOut of scope: the decision agent (agentByKind, agents/) is left to decision-agent, so the kind runs with the ordinary tool set; tp found decide is not yet in skills/tp/SKILL.md (found-docs).",
+      "gate_passed_at": "2026-11-25T04:02:45.586719Z",
+      "commit_sha": "c452a60dbb3119c1678e613bc1e67d994991b081",
+      "commit_shas": [
+        "c452a60dbb3119c1678e613bc1e67d994991b081",
+        "ac8c97ecdaa5d0b345d97074e1f6043a49196036",
+        "4008bbd657c18237fde9a665ede2f5fb5c4ba2b8",
+        "53d3f330bf95a2bf7d9ac8fc4cdad0f227a962b8",
+        "a296860e7d52a42befba56bfb45f99c35867ed82",
+        "9ce8085e2711955aee2023b97596b83d905229ea",
+        "4b708dc9af64ad4ab78ca1a1cf8fab674c7e792a"
+      ],
+      "commit_files": [
+        "internal/cli/command_sides.go",
+        "internal/cli/found.go",
+        "internal/cli/found_decide.go",
+        "internal/cli/hooks_stop_test.go",
+        "internal/cli/nongoals_surface_test.go",
+        "internal/cli/run_decision_test.go",
+        "internal/engine/briefcommand.go",
+        "internal/engine/briefcommand_test.go",
+        "internal/engine/decisionunit.go",
+        "internal/engine/decisionunit_test.go",
+        "internal/engine/driver_spend_test.go",
+        "internal/engine/nextunits.go",
+        "internal/engine/resume.go",
+        "internal/engine/resumeblockers.go",
+        "internal/engine/runneragent_test.go",
+        "internal/engine/runnertemplate.go",
+        "internal/engine/unitkind.go",
+        "internal/engine/unitkind_test.go",
+        "internal/fakerunner/cmd/tp-fake-runner/main.go"
+      ],
+      "task_audit_owed": [
+        "go-safety"
+      ]
     },
     {
       "id": "decision-agent",
       "title": "Add the decision plugin agent",
       "description": "A fourth plugin agent runs the decision unit from the prompt tp emits; the plugin inventory and its tests count four agents.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "plugin",
         "found"
@@ -753,17 +919,34 @@
       "source_sections": [
         "## 5. The decision unit"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-25T04:12:20.925425Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-25T04:18:38.315132Z",
+      "closed_reason": "- agents/tp-decider.md declares the fourth plugin agent (name tp-decider, runs a decision unit from the tp found decide brief and answers with tp found answer); TestPluginAgentsDeclareTheFourUnitAgents now expects exactly tp-auditor, tp-decider, tp-implementer, tp-reviewer and checks each name against engine.AgentForKind, and TestRoleAgentsRegisterTheWriteAllowlist pins that tp-decider registers no role write allowlist (a decision unit has no TP_ROUND_DIR, so that hook would refuse every write); TestPluginAgentsValidateWithClaudeCLI (claude plugin validate --strict) passes on agents/.\n- engine.AgentDecider plus agentByKind[UnitDecision] make the claude template append --agent tp-decider for the decision kind; TestBuiltinRunner_ClaudeAppendsTheAgentPerKind and TestBuiltinRunner_ClaudeAgentSurvivesExpansion were seen red (no --agent in the decision argv; cli tests failed to compile on the missing constant) before the change and green after; full gate passed via tp gate.\nOut of scope: README.md, skills/tp/SKILL.md, skills/tp/REFERENCE.md and CLAUDE.md (Agents 3) still name three agents; that update belongs to found-docs.",
+      "gate_passed_at": "2026-11-25T04:18:32.119135Z",
+      "commit_sha": "60de7443",
+      "commit_shas": [
+        "60de7443",
+        "72db1a1f",
+        "d07b6de7",
+        "fbf823f6",
+        "588802b8"
+      ],
+      "commit_files": [
+        "agents/tp-decider.md",
+        "internal/cli/plugin_agents_test.go",
+        "internal/engine/runneragent_test.go",
+        "internal/engine/runnertemplate.go"
+      ],
+      "task_audit_owed": [
+        "go-safety"
+      ]
     },
     {
       "id": "found-settle-cmd",
       "title": "Add tp found settle for the person",
       "description": "tp found settle takes a batch and settles each open entry: make a task in that spec's task file (not counted against the cap) or reject with a reason; settling releases the entry's waiting finders.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "found"
@@ -777,17 +960,42 @@
         "## 6. The queue",
         "## 4. Placement"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-25T02:53:19.213431Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-25T03:08:43.963163Z",
+      "closed_reason": "- tp found settle --task \u003centry\u003e --reject \u003centry\u003e=\u003creason\u003e (internal/cli/found_settle.go, engine.PlanFoundSettle in internal/engine/foundsettle.go) settles a batch of open queue entries under the task-file lock, all or nothing; TestFoundSettle_MakesATaskOfOneEntryAndRejectsAnother makes task found-q1 of Q1 (entry state settled, task found-q1) and rejects Q2 (state rejected, reason stored) in one call; a bad batch (unknown, non-open, repeated entry, empty reason, missing Fix fields) exits 2 with both files byte-identical (TestFoundSettle_RefusesABadBatchAndWritesNothing).\n- A made task carries origin.queue_entry, which CountFoundTasks skips: at found_max=1 after settling Q1 a new Fix-shaped request still opens a found task (seen red with the exclusion removed: it was queued as Q3); the entry's finder t1 gains depends_on [found-q1] and leaves the ready set while found-q1 is open.\n- A rejected entry's finder is ready again: in the same test t2 returns to tp ready, and TestFoundSettle_ARejectedEntrysFinderIsReady rejects the cycle-queued Q1 of the foundWaitFixture through the real command, after which tp ready --ids is [t1 t3].\nOut of scope: the settled task does not become the request store's outcome, so a later identical request is not deduplicated against it.",
+      "gate_passed_at": "2026-11-25T03:08:43.963163Z",
+      "commit_sha": "17b58fa193c35e03b619b393f42f9c0b8dcbd516",
+      "commit_shas": [
+        "17b58fa193c35e03b619b393f42f9c0b8dcbd516",
+        "c49f0d5fc8f02eda3e390dc2f41973c9ce31912b",
+        "52b9d7714180896acf0e16c2ef6ee53e37cb9669",
+        "91cf5846fe5fd4173ab028fd57d7d2f2b6cdd2b8",
+        "30706be71b2ce5953ef16ec645eaf5f4b6ebe76a",
+        "b5581ecfef242b033e3fb8d012939cfdf79f9c66",
+        "fd3b98ce2258a5eacb9063aa67cb64785febdeb4"
+      ],
+      "commit_files": [
+        "internal/cli/command_sides.go",
+        "internal/cli/found.go",
+        "internal/cli/found_settle.go",
+        "internal/cli/found_settle_test.go",
+        "internal/cli/nongoals_surface_test.go",
+        "internal/engine/foundapply.go",
+        "internal/engine/foundqueue.go",
+        "internal/engine/foundsettle.go",
+        "internal/model/task.go",
+        "skills/tp/SKILL.md"
+      ],
+      "task_audit_owed": [
+        "go-safety"
+      ]
     },
     {
       "id": "resume-queue-counts",
       "title": "Show the queue in resume and payloads",
       "description": "tp resume prints the open entry count and how many tasks wait on them; the converged payload carries the open count; an entry holding no finder changes no phase or --check.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "found"
@@ -800,17 +1008,44 @@
       "source_sections": [
         "## 6. The queue"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-25T03:26:34.308807Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-25T03:49:40.550709Z",
+      "closed_reason": "- tp resume reports the spec's queue as found_queue {open, holds} (engine.FoundQueueCounts in internal/engine/foundqueuecounts.go; JSON kept under --compact, TTY line 'queue: N open entries hold M tasks'), absent when no entry is open; holds counts each open task an open entry keeps out of the ready set once (Task.QueueEntry), so a done finder waits on nothing. TestResume_PrintsTheOpenEntriesAndTheTasksTheyHold: 3 open entries (two naming one finder, one naming a done task) and a decided one give {open 3, holds 1}.\n- An open entry holding no finder leaves the loop verdict and resume's phase unchanged: TestFoundQueue_AFinderlessEntryLeavesTheLoopVerdictAndIsCounted compares review and audit --status --check exit code and the whole payload (found_open aside) before and after writing the entry; TestResume_AFinderlessEntryLeavesThePhase compares phase, next_units, next_action, blockers and round. Seen red under the mutant that gates review converged on a zero open count (review subtest fails), reverted.\n- The converged payload carries the open entry count: found_open (present at 0) on review --status/--record and audit --status/--record whenever converged is true (cli addFoundOpen); TestFoundQueue_TheConvergedRecordPayloadCarriesTheOpenCount and the --status test assert 1 open entry counted, the decided one not. tp gate passed.",
+      "gate_passed_at": "2026-11-25T03:49:40.550709Z",
+      "commit_sha": "babf66733c7347dc7cdf58b99dc3b44a8ff9243f",
+      "commit_shas": [
+        "babf66733c7347dc7cdf58b99dc3b44a8ff9243f",
+        "721b7c444bc534e0e041dd53585ee05a84fae8fc",
+        "bc11ec4379e94f25988158094d432e627e7faefd",
+        "a5ff49950be724fe251c2d26217419d125d2a18d",
+        "c5a23b8f1f92c48adf0f5d34b48ad5d177ffbc65",
+        "21aea901a7fbdbeef907435eedeae737e2d93048",
+        "bf649981ba7ebe8b61f5817cc36abfa0cbe94ddd",
+        "a2ad8905ef72d40a81bd7de4898b52be5ea822de",
+        "e2f8f3b9a9764f4a17f8d40815f54526aa36952c",
+        "d09c1ae96228aa4b47cfbe1abb1fd67b1ed2db27",
+        "f6f1a721bdda27386052bc1c698ec47e8cd83e33"
+      ],
+      "commit_files": [
+        "internal/cli/audit_record.go",
+        "internal/cli/found_queue_counts.go",
+        "internal/cli/found_queue_counts_test.go",
+        "internal/cli/resume.go",
+        "internal/cli/review_record.go",
+        "internal/cli/review_status.go",
+        "internal/engine/foundqueuecounts.go",
+        "internal/engine/resume.go"
+      ],
+      "task_audit_owed": [
+        "go-safety"
+      ]
     },
     {
       "id": "audit-files-requests",
       "title": "File out-of-surface audit findings as requests",
       "description": "A Fix-shaped finding outside the spec's surface becomes a request applied after the round is recorded; the row is recorded as out-of-surface under rule 13 naming the request; a found task's commit does not reset the clean-round streak.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "audit",
         "found"
@@ -823,17 +1058,41 @@
       "source_sections": [
         "## 7. The audit's part"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-25T03:26:35.097736Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-25T03:59:18.338274Z",
+      "closed_reason": "- A Fix-shaped out-of-surface audit finding files a request with `tp found add --audit-row \u003crole:item_id\u003e` (internal/cli/found_audit.go, engine.FoundAuditFinder in internal/engine/foundaudit.go): the finder is stamped with the in-flight audit round, so the existing hold applies it only after the round is recorded; at `tp audit --record` (fileFoundAuditRows, after the accept-finding fence and the carry) tp writes the row's disposition from the stored request, {status wontfix, evidence naming it, request: \"F1\"}, so the row does not dirty the round and no unit accepts a finding. An audit-role unit's plain `tp found add` (a finding that is not a row) is stamped with the in-flight round too. Reading chosen for round-4 finding 9: the row is disposed by tp naming the request, the filer is the audit-role unit mid-round, and \"asked\" means an item id in the in-flight round's pool for that role (by id, not by location). TestFoundAudit_AnOutOfSurfaceFindingFilesARequestTheRecordNames (held before record, recorded clean unattended, resolved.request F1, then found-f1 opened) and TestFoundAudit_AnAuditUnitsPlainRequestWaitsForItsRound. Counts over the 34 tests of -run 'TestFoundAudit_|TestFoundAdd|TestFoundApply|TestRecordFences|TestAuditRecord': HEAD 34 pass 0 fail; mutant \"skip the row disposition at record\" 32 pass 2 fail (the row test and the streak test); mutant \"no in-flight stamp for a plain audit-unit request\" 33 pass 1 fail (the plain-request test). Probed: `tp audit --merge` keeps an unasked row's role and item_id.\n- The audit's consecutive clean count reads only recorded rounds' live verdicts, and the filed row's disposition is written at record and never tied to the found task's state: TestFoundAudit_AFoundTasksCloseKeepsTheCleanCount reads consecutive_clean 1 from `tp audit --status` before and after `tp done found-f1`; under the \"skip the row disposition\" mutant it reads 0 before and fails.\n- A row on an asked item keeps the audit-fix path: `--audit-row` naming an item the in-flight round's pool asked that role exits 2 naming the audit-fix path and files nothing, and a recorded FAIL on that item keeps no disposition; a non-Fix-shaped request, a key that is not role:item_id, a round that kept no asked items and no round in flight also exit 2 (TestFoundAudit_AnAskedItemOrANonFixRequestFilesNothing). Mutant \"drop the asked-item check\": 33 pass 1 fail, that test. Surface pin (nongoals_surface_test.go) and SKILL.md inventory list --audit-row; gate passed via tp gate after 947ed505.\nOut of scope: the audit-role unit prompt (engine/runnertemplate.go foundRequestText) names `tp found add` but not `--audit-row`, so a unit will not know to file from its row unless told; REFERENCE.md has no `tp found add` form yet.",
+      "gate_passed_at": "2026-11-25T03:59:18.338274Z",
+      "commit_sha": "edab22668b869c776d8c71296778de69d8127b21",
+      "commit_shas": [
+        "edab22668b869c776d8c71296778de69d8127b21",
+        "552240ef66ed270dc05c8f48970347714bcd0f10",
+        "5839ec40a0a51af9d91e1aa55cdc4015f8d2008a",
+        "4e12a8108dc3de87b3207c2a6d99ebfd19dd5584",
+        "f1770f9de04dea45ea1eea8b672072b727bfa09b",
+        "6e806250c5f2989f46d9d4bfbec9fec3fc1efbb4",
+        "ef3b5c0955d1081345db5ac1b068311723d2893c",
+        "d71d1c525a55cb432dfac27b26fbad8cf665fc85",
+        "54b2a4cfd552e7d87be4b911d73ea5efba328cbc"
+      ],
+      "commit_files": [
+        "internal/cli/audit_record.go",
+        "internal/cli/found.go",
+        "internal/cli/found_audit.go",
+        "internal/cli/found_audit_test.go",
+        "internal/cli/nongoals_surface_test.go",
+        "internal/engine/foundaudit.go",
+        "skills/tp/SKILL.md"
+      ],
+      "task_audit_owed": [
+        "go-safety"
+      ]
     },
     {
       "id": "found-fence",
       "title": "Fence task-graph writes inside run units",
       "description": "Under tp run, a unit of any kind but decompose that calls tp add, tp import, tp set depends_on or tp found settle exits 2 naming tp found add.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "found"
@@ -847,17 +1106,37 @@
         "## 9. The fence",
         "## 10. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-25T03:26:33.746872Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-25T03:34:49.747718Z",
+      "closed_reason": "- Under TP_UNATTENDED with a non-empty TP_UNIT_KIND other than decompose, tp add (including --bulk) exits 2 naming tp found add before reading input (cli fenceTaskGraphWrite/runUnitKind in unattended.go); under TP_UNIT_KIND=decompose it succeeds. §10 row 'The fence': TestFence_TpAddIsRefusedUnderImplementAndLandsUnderDecompose. Counts: at HEAD 7/7 TestFence_ tests pass; under the mutant 'fence keyed on TP_UNATTENDED alone' 4 fail, 3 pass, the row test among the failures.\n- tp import and tp set \u003cid\u003e depends_on=... (and a tp set --bulk batch with a depends_on line) exit 2 the same way under an implement unit and pass under decompose (TestFence_TpImportIsRefusedUnderImplementAndLandsUnderDecompose, TestFence_TpSetDependsOnIsRefusedUnderImplement; other fields of tp set stay writable); tp found settle exits 2 naming tp found add under every unit kind, decompose included (fenceFoundSettle; TestFence_TpFoundSettleIsRefusedUnderEveryUnitKind over implement, decompose, review-role, audit-fix).\n- Outside a run (no TP_UNIT_KIND, or TP_UNATTENDED with no unit kind) tp add, tp set depends_on and tp import exit 0 and tp found settle keeps its own refusal (TestFence_OutsideARunNothingIsFenced); full gate passed via tp gate.",
+      "gate_passed_at": "2026-11-25T03:34:34.787956Z",
+      "commit_sha": "2cda19dfd4fd7d47f9269bb6a11747e8b870fac1",
+      "commit_shas": [
+        "2cda19dfd4fd7d47f9269bb6a11747e8b870fac1",
+        "402cb0f79221240c9bf84883a062b95cbdfa7112",
+        "8f90b86a3adb1875f90b09ed79ee39a324055f0f",
+        "497bc5ea5162d88f128f709b53c9b3747554f50d",
+        "99a1485c0903a0c9b549d37d2d8a00149b1ef463",
+        "1a3203ed20c441148e1e78a510d891e27e6d6406"
+      ],
+      "commit_files": [
+        "internal/cli/add.go",
+        "internal/cli/found_fence_test.go",
+        "internal/cli/found_settle.go",
+        "internal/cli/importcmd.go",
+        "internal/cli/set.go",
+        "internal/cli/unattended.go"
+      ],
+      "task_audit_owed": [
+        "go-safety"
+      ]
     },
     {
       "id": "found-docs",
       "title": "Document found tasks across skill and docs",
       "description": "SKILL.md, REFERENCE.md and README cover tp found add/apply/handback/settle, origin, the queue, found_max and its interview question, the decision unit; CLAUDE.md rule 9 lists raise-found-cap; undecided.md drops the tp note entry; plugin.json bumps.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs",
         "found"
@@ -881,11 +1160,39 @@
         "## 8. The cap",
         "## 5. The decision unit"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-25T04:25:34.638559Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-25T04:39:00.172925Z",
+      "closed_reason": "- SKILL.md's inventory now lists tp found apply, decide and handback beside add/answer/settle, its escalation table names raise-found-cap, and REFERENCE.md gains the 'Found requests and the queue' command contracts (exits 2/3 per form, apply/handback output keys), the 'Found Tasks (v1.31.0)' section (request store, dedup/attach/open, origin, handed_back, found_notes, placement, decision unit, \u003cbase\u003e.queue.json and its states, found_queue/found_open, the cap, the audit's --audit-row part), the decision unit-kind row, found_queue in tp resume, tp-decider among the agents, the found_max fence row, and a found_max workflow-field row saying 0 is uncapped as for review_max_rounds/audit_max_rounds, not as for every *_max field (run_max_units and run_max_parallel take no 0); facts checked against tp found --help, internal/cli and internal/engine.\n- CLAUDE.md rule 9 lists raising found_max or setting it to 0 (raise-found-cap); spec/undecided.md closes the tp note inbox as replaced by v1.31.0's found tasks; REFERENCE.md's TP_UNATTENDED table and Found Tasks section, and SKILL.md's escalation policy, say the task-graph fence (tp add, tp import, tp set depends_on, and tp found settle for every kind) holds under tp run only, with TP_UNATTENDED and TP_UNIT_KIND both set.\n- .claude-plugin/plugin.json is at 1.31.0, already above the latest tag v1.30.0 for this release; go test ./internal/cli -run 'Doc|Skill|Reference|Plugin|README|Inventory|...' and ./internal/engine -run 'UnitKind|Doc|Escalation' pass, and tp gate passed on the committed tree (rerun after one load-sensitive timing failure, filed as found request F1).\nOut of scope: TestRoleWriteHookStaysCheapOnADeepMissingPath failed once under the gate's load (deep 232ms vs shallow 76ms) and passes alone; filed as F1. README's Commands index also gained a Found Tasks block, and CLAUDE.md's post-release check now expects Agents 4.",
+      "gate_passed_at": "2026-11-25T04:38:37.948158Z",
+      "commit_sha": "901f895e",
+      "commit_shas": [
+        "901f895e",
+        "0df70b9d",
+        "6e213945",
+        "f83621c9",
+        "0c810aa8",
+        "d936826b",
+        "54125686",
+        "58e62d16",
+        "c31cdf08",
+        "7e20deb2",
+        "8ee41afa",
+        "1ae219a0",
+        "0308ee5b",
+        "e823cbb8",
+        "8bde26c5"
+      ],
+      "commit_files": [
+        "CLAUDE.md",
+        "README.md",
+        "skills/tp/REFERENCE.md",
+        "skills/tp/SKILL.md",
+        "spec/undecided.md"
+      ],
+      "task_audit_owed": [
+        "go-safety"
+      ]
     }
   ]
 }

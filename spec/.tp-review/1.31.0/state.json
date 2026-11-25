@@ -52,7 +52,42 @@
       "hash_scheme": "snapshot"
     }
   ],
-  "audit_rounds": [],
+  "audit_rounds": [
+    {
+      "round": 1,
+      "findings": 6,
+      "clean": false,
+      "recorded_at": "2026-11-25T07:35:38Z",
+      "file": "audit-round-1.ndjson",
+      "spec_hash": "sha256:a6fb1e6ad7008ca9b19dbbb9bed804a0e4eb8ac85731e0d46d331f13b5b8e56b",
+      "roles_hash": "sha256:730320c4db9d73cde41740c32ebcacba23380e89d7964db005f25085a432b9fd",
+      "id_scheme": "slug",
+      "converge_on": "all",
+      "hash_scheme": "snapshot",
+      "graded": [
+        {
+          "role": "ax-contract",
+          "graded": 10,
+          "pool": 50
+        },
+        {
+          "role": "go-safety",
+          "graded": 10,
+          "pool": 50
+        },
+        {
+          "role": "maintainability-conventions",
+          "graded": 10,
+          "pool": 50
+        },
+        {
+          "role": "spec-coverage",
+          "graded": 34,
+          "pool": 34
+        }
+      ]
+    }
+  ],
   "task_audits": [
     {
       "seq": 1,
@@ -1048,6 +1083,260 @@
       "emitted_at": "2026-11-25T04:23:51.353763Z",
       "recorded_at": "2026-11-25T04:25:07Z",
       "file": "task-audit-21.ndjson",
+      "findings": 1
+    },
+    {
+      "seq": 22,
+      "members": [
+        {
+          "id": "decision-agent",
+          "closed_at": "2026-11-25T04:18:38.315132Z",
+          "piece": 0,
+          "pieces": 1,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/cli/plugin_agents_test.go"
+          ]
+        },
+        {
+          "id": "found-handback",
+          "closed_at": "2026-11-25T04:23:30.341935Z",
+          "piece": 0,
+          "pieces": 1,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/cli/command_sides.go",
+            "internal/cli/found_handback.go",
+            "internal/cli/found_handback_test.go",
+            "internal/cli/reopen.go",
+            "internal/cli/set.go",
+            "internal/engine/foundhandback.go"
+          ]
+        }
+      ],
+      "files": [
+        "internal/cli/plugin_agents_test.go",
+        "internal/cli/command_sides.go",
+        "internal/cli/found_handback.go",
+        "internal/cli/found_handback_test.go",
+        "internal/cli/reopen.go",
+        "internal/cli/set.go",
+        "internal/engine/foundhandback.go"
+      ],
+      "roles": [
+        "go-safety"
+      ],
+      "head": "c8e5656c43064944ed821f353ba69bb69fb19bb5",
+      "emitted_at": "2026-11-25T04:39:27.602984Z",
+      "recorded_at": "2026-11-25T04:45:20Z",
+      "file": "task-audit-22.ndjson",
+      "findings": 1
+    },
+    {
+      "seq": 23,
+      "members": [
+        {
+          "id": "task-origin-field",
+          "closed_at": "2026-11-24T22:35:16.407587Z",
+          "piece": 1,
+          "pieces": 2,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/engine/validate.go"
+          ]
+        }
+      ],
+      "files": [
+        "internal/engine/validate.go"
+      ],
+      "roles": [
+        "go-safety"
+      ],
+      "head": "8b90f8973ce2950bb35d5936ac898c0083b689ff",
+      "emitted_at": "2026-11-25T05:04:24.43508Z",
+      "recorded_at": "2026-11-25T05:05:12Z",
+      "file": "task-audit-23.ndjson",
+      "clean": true
+    },
+    {
+      "seq": 24,
+      "members": [
+        {
+          "id": "finder-waits",
+          "closed_at": "2026-11-25T02:51:00.263755Z",
+          "piece": 1,
+          "pieces": 2,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/cli/found_answer.go"
+          ]
+        }
+      ],
+      "files": [
+        "internal/cli/found_answer.go"
+      ],
+      "roles": [
+        "go-safety"
+      ],
+      "head": "a3c7e40243a32b82331ea58c07ab8b5e388b64f7",
+      "emitted_at": "2026-11-25T05:44:49.364333Z",
+      "recorded_at": "2026-11-25T05:46:09Z",
+      "file": "task-audit-24.ndjson",
+      "clean": true
+    },
+    {
+      "seq": 25,
+      "members": [
+        {
+          "id": "found-handback",
+          "closed_at": "2026-11-25T04:23:30.341935Z",
+          "piece": 1,
+          "pieces": 2,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/cli/found.go"
+          ]
+        }
+      ],
+      "files": [
+        "internal/cli/found.go"
+      ],
+      "roles": [
+        "go-safety"
+      ],
+      "head": "d8adcf18328323674879451361049b657e406853",
+      "emitted_at": "2026-11-25T05:53:15.803395Z",
+      "recorded_at": "2026-11-25T05:54:31Z",
+      "file": "task-audit-25.ndjson",
+      "findings": 1
+    },
+    {
+      "seq": 26,
+      "members": [
+        {
+          "id": "decision-unit-kind",
+          "closed_at": "2026-11-25T04:02:45.586719Z",
+          "piece": 2,
+          "pieces": 3,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/fakerunner/cmd/tp-fake-runner/main.go"
+          ]
+        }
+      ],
+      "files": [
+        "internal/fakerunner/cmd/tp-fake-runner/main.go"
+      ],
+      "roles": [
+        "go-safety"
+      ],
+      "head": "a19743b946ceac95210878042369f677331a681c",
+      "emitted_at": "2026-11-25T06:10:52.858603Z",
+      "recorded_at": "2026-11-25T06:13:26Z",
+      "file": "task-audit-26.ndjson",
+      "findings": 1
+    },
+    {
+      "seq": 27,
+      "members": [
+        {
+          "id": "audit-files-requests",
+          "closed_at": "2026-11-25T03:59:18.338274Z",
+          "piece": 2,
+          "pieces": 3,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/cli/audit_record.go"
+          ]
+        },
+        {
+          "id": "decision-unit-kind",
+          "closed_at": "2026-11-25T04:02:45.586719Z",
+          "piece": 3,
+          "pieces": 4,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/engine/resume.go"
+          ]
+        }
+      ],
+      "files": [
+        "internal/cli/audit_record.go",
+        "internal/engine/resume.go"
+      ],
+      "roles": [
+        "go-safety"
+      ],
+      "head": "086fea410f8bfd3a06c0411ea78d9307fac6cd86",
+      "emitted_at": "2026-11-25T06:36:24.900372Z",
+      "recorded_at": "2026-11-25T06:37:56Z",
+      "file": "task-audit-27.ndjson",
+      "findings": 2
+    },
+    {
+      "seq": 28,
+      "files": [
+        "internal/cli/add.go",
+        "internal/cli/audit_record.go",
+        "internal/cli/commands_test.go",
+        "internal/cli/commit_test.go",
+        "internal/cli/config_extract.go",
+        "internal/cli/found.go",
+        "internal/cli/found_audit.go",
+        "internal/cli/found_handback.go",
+        "internal/cli/lock_timeout_test.go",
+        "internal/cli/next_brief_test.go"
+      ],
+      "roles": [
+        "go-safety"
+      ],
+      "head": "0304bbff788778d01e3565280f5a8d2eff9edbc0",
+      "regrade": true,
+      "fix_pass": true,
+      "emitted_at": "2026-11-25T07:19:24.486914Z",
+      "recorded_at": "2026-11-25T07:21:10Z",
+      "file": "task-audit-28.ndjson",
+      "clean": true
+    },
+    {
+      "seq": 29,
+      "files": [
+        "internal/cli/outofscope_test.go",
+        "internal/cli/report_test.go",
+        "internal/engine/decisionunit.go",
+        "internal/engine/driver_pool.go",
+        "internal/engine/entry.go",
+        "internal/engine/foundqueuecounts.go",
+        "internal/engine/foundreopen.go",
+        "internal/engine/projectconfig.go",
+        "internal/engine/resume.go",
+        "internal/fakerunner/cmd/tp-fake-runner/main.go"
+      ],
+      "roles": [
+        "go-safety"
+      ],
+      "head": "0304bbff788778d01e3565280f5a8d2eff9edbc0",
+      "regrade": true,
+      "fix_pass": true,
+      "emitted_at": "2026-11-25T07:21:28.075822Z",
+      "recorded_at": "2026-11-25T07:23:33Z",
+      "file": "task-audit-29.ndjson",
       "findings": 1
     }
   ]

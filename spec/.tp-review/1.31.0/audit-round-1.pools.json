@@ -1,0 +1,93 @@
+{
+  "round": 1,
+  "pools": [
+    {
+      "role": "ax-contract",
+      "pool": 50,
+      "items": [
+        "file-ax-contract-internal-cli-found-go-apply-the-ax-contr.6d69aac724edfecb",
+        "file-ax-contract-internal-cli-found-answer-go-apply-the-a.7ec8ec6362680ea7",
+        "file-ax-contract-internal-cli-found-answer-test-go-apply.f8a5f17125532750",
+        "file-ax-contract-internal-cli-found-queue-counts-test-go.5c96ae7b4f5b21a2",
+        "file-ax-contract-internal-cli-found-audit-test-go-apply-t.16ecf42afa27ddbe",
+        "file-ax-contract-internal-cli-found-apply-test-go-apply-t.d75c0db0ff28efa0",
+        "file-ax-contract-internal-cli-found-add-test-go-apply-the.ee2f91ad99f37356",
+        "file-ax-contract-internal-cli-found-wait-test-go-apply-th.4544c07815d1d54f",
+        "file-ax-contract-internal-cli-found-settle-go-apply-the-a.11766576c6c7bbc0",
+        "file-ax-contract-internal-cli-found-settle-test-go-apply.19fd44cf59942d15"
+      ]
+    },
+    {
+      "role": "go-safety",
+      "pool": 50,
+      "items": [
+        "file-go-safety-internal-cli-found-go-apply-the-go-safet.6d69aac724edfecb",
+        "file-go-safety-internal-cli-found-answer-go-apply-the-g.7ec8ec6362680ea7",
+        "file-go-safety-internal-cli-found-answer-test-go-apply.f8a5f17125532750",
+        "file-go-safety-internal-cli-found-queue-counts-test-go.5c96ae7b4f5b21a2",
+        "file-go-safety-internal-cli-found-audit-test-go-apply-t.16ecf42afa27ddbe",
+        "file-go-safety-internal-cli-found-apply-test-go-apply-t.d75c0db0ff28efa0",
+        "file-go-safety-internal-cli-found-add-test-go-apply-the.ee2f91ad99f37356",
+        "file-go-safety-internal-cli-found-wait-test-go-apply-th.4544c07815d1d54f",
+        "file-go-safety-internal-cli-found-settle-go-apply-the-g.11766576c6c7bbc0",
+        "file-go-safety-internal-cli-found-settle-test-go-apply.19fd44cf59942d15"
+      ]
+    },
+    {
+      "role": "maintainability-conventions",
+      "pool": 50,
+      "items": [
+        "file-maintainability-conventions-internal-cli-found-go-apply-the-maintain.6d69aac724edfecb",
+        "file-maintainability-conventions-internal-cli-found-answer-go-apply-the-m.7ec8ec6362680ea7",
+        "file-maintainability-conventions-internal-cli-found-answer-test-go-apply.f8a5f17125532750",
+        "file-maintainability-conventions-internal-cli-found-queue-counts-test-go.5c96ae7b4f5b21a2",
+        "file-maintainability-conventions-internal-cli-found-audit-test-go-apply-t.16ecf42afa27ddbe",
+        "file-maintainability-conventions-internal-cli-found-apply-test-go-apply-t.d75c0db0ff28efa0",
+        "file-maintainability-conventions-internal-cli-found-add-test-go-apply-the.ee2f91ad99f37356",
+        "file-maintainability-conventions-internal-cli-found-wait-test-go-apply-th.4544c07815d1d54f",
+        "file-maintainability-conventions-internal-cli-found-settle-go-apply-the-m.11766576c6c7bbc0",
+        "file-maintainability-conventions-internal-cli-found-settle-test-go-apply.19fd44cf59942d15"
+      ]
+    },
+    {
+      "role": "spec-coverage",
+      "pool": 34,
+      "items": [
+        "table-0-0",
+        "table-0-1",
+        "table-0-2",
+        "table-0-3",
+        "table-0-4",
+        "table-0-5",
+        "table-0-6",
+        "table-0-7",
+        "table-0-8",
+        "task-found-request-store",
+        "task-found-add-cmd",
+        "task-unit-prompts-no-sweep",
+        "task-task-origin-field",
+        "task-add-refuses-unresolved-anchor",
+        "task-found-queue-store",
+        "task-found-max-field",
+        "task-found-apply-dedup",
+        "task-found-apply-open",
+        "task-found-apply-attach",
+        "task-found-placement",
+        "task-finder-waits",
+        "task-run-applies-requests",
+        "task-stop-hook-apply",
+        "task-found-brief",
+        "task-found-handback",
+        "task-coverage-skips-found",
+        "task-decision-answer-cmd",
+        "task-decision-unit-kind",
+        "task-decision-agent",
+        "task-found-settle-cmd",
+        "task-resume-queue-counts",
+        "task-audit-files-requests",
+        "task-found-fence",
+        "task-found-docs"
+      ]
+    }
+  ]
+}
