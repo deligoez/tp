@@ -593,6 +593,7 @@
       ...(dash.length && id === "any" ? { extensions: dash, getDashArray: [4, 3], dashJustified: true } : {}),
     });
     const sel = P.sel >= 0 ? P.nodes[P.sel] : null;
+    const names = bandLabels(P, scale);
     const layers = [
       new PolygonLayer({
         id: "bands", data: P.bands, getPolygon: (b) => b.poly, stroked: true, filled: true, pickable: true,
@@ -619,7 +620,14 @@
       // A box's short id, one line before its whole id reads; the whole
       // one stays a hover away (tooltip).
       new TextLayer({
-        id: "band-names", data: bandLabels(P, scale), getPosition: (l) => [l.wx, l.wy], getText: (l) => l.text,
+        id: "ids-short", data: P.nodes, visible: G.detail === "short", getPosition: (n) => [n.x, n.y + n.h / 2], getText: (n) => n.short,
+        getSize: P.geo.shortFs || 0, sizeUnits: "common", sizeMaxPixels: 20, getTextAnchor: "middle", getAlignmentBaseline: "center",
+        getColor: (n) => [...c.ink, nodeAlpha(P, hits, n) >= 170 ? 255 : 70],
+        fontFamily: P.geo.font || "system-ui, sans-serif", fontWeight: 500, characterSet: P.charSet, fontSettings,
+        updateTriggers: { getColor: v },
+      }),
+      new TextLayer({
+        id: "band-names", data: names, getPosition: (l) => [l.wx, l.wy], getText: (l) => l.text,
         getPixelOffset: [6, 3], getSize: 13, sizeUnits: "pixels", getTextAnchor: "start", getAlignmentBaseline: "top", getColor: [...c.ink, 235],
         fontFamily: "system-ui, sans-serif", fontWeight: 700, characterSet: P.charSet, fontSettings,
         background: true, getBackgroundColor: [...c.page, 235], backgroundPadding: [6, 3, 6, 3],
@@ -633,7 +641,7 @@
       }),
     ];
     // What this frame holds, recorded on the card once deck.gl drew it.
-    G.drawing = { mode: P.L.view, nodes: P.nodes.length, edges: sets.drawn, layers: P.L.layers, cols: P.L.columns };
+    G.drawing = { mode: P.L.view, nodes: P.nodes.length, edges: sets.drawn, layers: P.L.layers, cols: P.L.columns, labels: names.length + "/" + P.bands.length };
     G.deck.setProps({ layers, viewState: G.vs });
   }
   // recordDrawn writes what the last frame drew onto the card, so the audit
@@ -650,6 +658,7 @@
     card.dataset.layers = String(d.layers || 0);
     card.dataset.columns = String(d.cols || 0);
     card.dataset.detail = G.detail;
+    card.dataset.bandLabels = d.labels;
     if (G.firstDrawMs === null && d.nodes) {
       G.firstDrawMs = Math.round(performance.now() - G.loadFrom);
       card.dataset.firstDrawMs = String(G.firstDrawMs);
