@@ -368,35 +368,42 @@ func LoadLocalConfig(tpDir string) (model.LocalConfig, []string, error) {
 // is used by tp config --extract to thin a task file after hoisting shared
 // policy to the project config.
 func StripTaskWorkflowFields(path string, fields []string) error {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	var top map[string]json.RawMessage
-	if err := json.Unmarshal(data, &top); err != nil {
-		return err
-	}
-	wfRaw, ok := top["workflow"]
-	if !ok {
-		return nil
-	}
-	var wf map[string]json.RawMessage
-	if err := json.Unmarshal(wfRaw, &wf); err != nil {
-		return err
-	}
-	for _, f := range fields {
-		delete(wf, f)
-	}
-	newWf, err := json.Marshal(wf)
-	if err != nil {
-		return err
-	}
-	top["workflow"] = newWf
-	out, err := json.MarshalIndent(top, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, append(out, '\n'), 0o600)
+	// The caller holds only the project config's lock, which is keyed to a
+	// different path, so the task file's own lock is taken here; and query
+	// commands read task files lock-free, so the rewrite is published by
+	// rename like WriteTaskFile's, never truncated in place.
+	return WithFileLock(path, func() error {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		var top map[string]json.RawMessage
+		if err := json.Unmarshal(data, &top); err != nil {
+			return err
+		}
+		wfRaw, ok := top["workflow"]
+		if !ok {
+			return nil
+		}
+		var wf map[string]json.RawMessage
+		if err := json.Unmarshal(wfRaw, &wf); err != nil {
+			return err
+		}
+		for _, f := range fields {
+			delete(wf, f)
+		}
+		newWf, err := json.Marshal(wf)
+		if err != nil {
+			return err
+		}
+		top["workflow"] = newWf
+		out, err := json.MarshalIndent(top, "", "  ")
+		if err != nil {
+			return err
+		}
+		// os.CreateTemp creates the temp file 0600, the mode task files keep.
+		return writeFileAtomic(path, append(out, '\n'))
+	})
 }
 
 // ProjectConfigDir returns the .tp/ directory that project-config writes target:
