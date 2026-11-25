@@ -85,6 +85,12 @@ func runFoundApply() error {
 		os.Exit(ExitFile)
 		return nil
 	}
+	return output.JSON(foundPlanOutput(&plan, foundMax))
+}
+
+// foundPlanOutput is what tp found apply and tp found answer print of a plan:
+// the counts, and only the outcomes the plan produced.
+func foundPlanOutput(plan *engine.FoundApplyPlan, foundMax int) map[string]any {
 	out := map[string]any{"found_tasks": plan.FoundTasks, "found_max": foundMax}
 	if len(plan.Opened) > 0 {
 		out["opened"] = plan.Opened
@@ -109,7 +115,7 @@ func runFoundApply() error {
 		}
 		out["duplicates"] = dups
 	}
-	return output.JSON(out)
+	return out
 }
 
 func newFoundAddCmd() *cobra.Command {
@@ -210,25 +216,32 @@ func applyFoundRequests(root, taskFilePath string, foundMax int) (engine.FoundAp
 		}
 		return engine.UpdateFoundRequests(root, taskFilePath, func(reqs []engine.FoundRequest) ([]engine.FoundRequest, error) {
 			plan = engine.PlanFoundApply(reqs, tf.Tasks, queue, foundMax)
-			if len(plan.Tasks) > 0 || len(plan.Attached) > 0 || len(plan.Edges) > 0 {
-				attachFoundNotes(tf, plan.Attached)
-				addFoundEdges(tf, plan.Edges)
-				tf.Tasks = append(tf.Tasks, plan.Tasks...)
-				if err := model.WriteTaskFile(taskFilePath, tf); err != nil {
-					return nil, err
-				}
-			}
-			if len(plan.Entries) > 0 {
-				queue = append(queue, plan.Entries...)
-				if err := engine.WriteFoundQueue(taskFilePath, queue); err != nil {
-					return nil, err
-				}
-				plan.Entries = queue[len(queue)-len(plan.Entries):]
-			}
-			return plan.Requests, nil
+			return plan.Requests, writeFoundPlan(taskFilePath, tf, queue, &plan)
 		})
 	})
 	return plan, err
+}
+
+// writeFoundPlan writes a plan's tasks, notes and edges to the task file and
+// its entries to the queue, numbering the plan's entries as written. The
+// caller holds the task-file lock.
+func writeFoundPlan(taskFilePath string, tf *model.TaskFile, queue []engine.FoundQueueEntry, plan *engine.FoundApplyPlan) error {
+	if len(plan.Tasks) > 0 || len(plan.Attached) > 0 || len(plan.Edges) > 0 {
+		attachFoundNotes(tf, plan.Attached)
+		addFoundEdges(tf, plan.Edges)
+		tf.Tasks = append(tf.Tasks, plan.Tasks...)
+		if err := model.WriteTaskFile(taskFilePath, tf); err != nil {
+			return err
+		}
+	}
+	if len(plan.Entries) > 0 {
+		queue = append(queue, plan.Entries...)
+		if err := engine.WriteFoundQueue(taskFilePath, queue); err != nil {
+			return err
+		}
+		plan.Entries = queue[len(queue)-len(plan.Entries):]
+	}
+	return nil
 }
 
 // attachFoundNotes adds each attached request's note to its task.
