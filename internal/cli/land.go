@@ -133,19 +133,28 @@ func runLand(_ *cobra.Command, _ []string) error {
 }
 
 // commitTaskFile commits what this land wrote to the task file, once for
-// every task it landed or reopened (spec/backlog/land-lifecycle.md §2.1).
-// tp makes the commit only under builtin, as tp done --auto-commit does, and
-// only in the main worktree, where claims may be committed freely; otherwise
-// the output names the task file left changed for the agent to commit.
+// every task it landed or reopened (spec/backlog/land-lifecycle.md §2.1),
+// under the effective commit_strategy: tp's own commit under builtin, a
+// one-commit hc plan under hc. It commits only in the main worktree, where
+// claims may be committed freely; otherwise the output names the task file
+// left changed for the agent to commit.
 func (l *lander) commitTaskFile() {
 	if len(l.res.Landed)+len(l.res.Reopened) == 0 || !engine.TaskFileChanged(l.root, l.taskFile) {
 		return
 	}
-	if resolveEffectiveStrategy(l.taskFile) != engine.CommitStrategyBuiltin || engine.InLinkedWorktree(l.root) {
+	commit := engine.LandCommitTaskFile
+	switch resolveEffectiveStrategy(l.taskFile) {
+	case engine.CommitStrategyBuiltin:
+	case engine.CommitStrategyHC:
+		commit = engine.LandCommitTaskFileHC
+	default:
+		commit = nil
+	}
+	if commit == nil || engine.InLinkedWorktree(l.root) {
 		l.res.TaskFileChanged = l.relFile()
 		return
 	}
-	sha, err := engine.LandCommitTaskFile(l.root, l.taskFile, landCommitMessage(l.res))
+	sha, err := commit(l.root, l.taskFile, landCommitMessage(l.res))
 	if err != nil {
 		l.res.TaskFileChanged = l.relFile()
 		l.res.CommitError = err.Error()
