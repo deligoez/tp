@@ -967,13 +967,15 @@ child, before the driver's rename) alongside `$TP_RUN_DIR/$TP_UNIT_SEQ-escalatio
 `stop_hook_active`, and blocks at most once per unit. **Every hook declares a `timeout` of 10
 seconds** and exits non-zero rather than hanging.
 
-`agents/` declares `tp-implementer`, `tp-reviewer` and `tp-auditor`, carrying **tool restrictions
+`agents/` declares `tp-implementer`, `tp-reviewer`, `tp-auditor` and (v1.31.0) `tp-decider`, the
+`decision` unit's agent, carrying **tool restrictions
 only** — role content stays in the corpus and reaches the unit through the prompt `tp review`/`tp
 audit` already emits. The reviewer and auditor register their own `PreToolUse` allowlist permitting
 exactly `$TP_ROUND_DIR/role-$TP_UNIT_ID.ndjson.part` and `$TP_RUN_DIR/$TP_UNIT_SEQ-escalation.json`
 and refusing every other path, with a `batch` judged op by op as the plugin hook judges it (both use
 `hooks/drop-batch-reads.awk`; without it a hook keeps the whole payload); the implementer registers none, because an implement unit's durable
-write is code. A runner that cannot load a plugin gets no agent definitions and the unit runs without
+write is code, and the decider none, because a decision unit has no round directory and its durable
+write is the `tp found answer` command. A runner that cannot load a plugin gets no agent definitions and the unit runs without
 them: the restrictions are defence in depth, and the durable contract is the brief and the tp
 commands the unit runs, which are identical in both paths.
 
