@@ -47,10 +47,14 @@ func newFoundApplyCmd() *cobra.Command {
 		Long: `Apply every recorded, unapplied request of the spec under the task-file lock.
 
 A duplicate (same file and reproduction as a request still open) opens
-nothing. A Fix-shaped request becomes a found task, blocking ones first, then
-by arrival, while the task file holds fewer than found_max found tasks (0 is
-uncapped); past it the request becomes an open queue entry. A request that
-needs a choice waits, undecided, for the decision unit.`,
+nothing. A request whose file lies inside the touches of a task not yet done
+(not its finder) opens nothing, does not count against found_max, and is
+attached to that task as a note shown by tp show and tp brief. A found task's
+origin location is not one of its files. Any other Fix-shaped request becomes
+a found task, blocking ones first, then by arrival, while the task file holds
+fewer than found_max found tasks (0 is uncapped); past it the request becomes
+an open queue entry. A request that needs a choice waits, undecided, for the
+decision unit.`,
 		Args: cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return runFoundApply()
@@ -79,6 +83,9 @@ func runFoundApply() error {
 	out := map[string]any{"found_tasks": plan.FoundTasks, "found_max": foundMax}
 	if len(plan.Opened) > 0 {
 		out["opened"] = plan.Opened
+	}
+	if len(plan.Attached) > 0 {
+		out["attached"] = plan.Attached
 	}
 	if len(plan.Entries) > 0 {
 		queued := make([]map[string]string, 0, len(plan.Entries))
@@ -198,7 +205,8 @@ func applyFoundRequests(root, taskFilePath string, foundMax int) (engine.FoundAp
 		}
 		return engine.UpdateFoundRequests(root, taskFilePath, func(reqs []engine.FoundRequest) ([]engine.FoundRequest, error) {
 			plan = engine.PlanFoundApply(reqs, tf.Tasks, queue, foundMax)
-			if len(plan.Tasks) > 0 {
+			if len(plan.Tasks) > 0 || len(plan.Attached) > 0 {
+				attachFoundNotes(tf, plan.Attached)
 				tf.Tasks = append(tf.Tasks, plan.Tasks...)
 				if err := model.WriteTaskFile(taskFilePath, tf); err != nil {
 					return nil, err
@@ -215,6 +223,17 @@ func applyFoundRequests(root, taskFilePath string, foundMax int) (engine.FoundAp
 		})
 	})
 	return plan, err
+}
+
+// attachFoundNotes adds each attached request's note to its task.
+func attachFoundNotes(tf *model.TaskFile, attached []engine.FoundAttached) {
+	for _, a := range attached {
+		for i := range tf.Tasks {
+			if tf.Tasks[i].ID == a.Task {
+				tf.Tasks[i].FoundNotes = append(tf.Tasks[i].FoundNotes, a.Note)
+			}
+		}
+	}
 }
 
 // foundFinderTask returns the task the caller works, or "" when it names none:
