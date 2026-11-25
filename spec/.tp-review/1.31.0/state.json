@@ -120,6 +120,40 @@
           "pool": 35
         }
       ]
+    },
+    {
+      "round": 3,
+      "findings": 0,
+      "clean": true,
+      "recorded_at": "2026-11-25T08:21:46Z",
+      "file": "audit-round-3.ndjson",
+      "spec_hash": "sha256:a6fb1e6ad7008ca9b19dbbb9bed804a0e4eb8ac85731e0d46d331f13b5b8e56b",
+      "roles_hash": "sha256:730320c4db9d73cde41740c32ebcacba23380e89d7964db005f25085a432b9fd",
+      "id_scheme": "slug",
+      "converge_on": "all",
+      "hash_scheme": "snapshot",
+      "graded": [
+        {
+          "role": "ax-contract",
+          "graded": 10,
+          "pool": 50
+        },
+        {
+          "role": "go-safety",
+          "graded": 10,
+          "pool": 50
+        },
+        {
+          "role": "maintainability-conventions",
+          "graded": 10,
+          "pool": 50
+        },
+        {
+          "role": "spec-coverage",
+          "graded": 35,
+          "pool": 35
+        }
+      ]
     }
   ],
   "task_audits": [
