@@ -175,8 +175,9 @@ func buildNow(taskFilePath string, tf *model.TaskFile) (*nowResult, error) {
 	res.Run = run
 	res.Held = nowHeldTasks(tf, slots)
 	res.Landing = nowLandings(taskFilePath, tf)
+	res.NeedsYou = blockerNeeds(resume.Blockers)
 	for _, l := range res.Landing {
-		res.NeedsYou = append(res.NeedsYou, nowNeed{Kind: "land", ID: l.ID,
+		res.NeedsYou = append(res.NeedsYou, nowNeed{Kind: needLand, ID: l.ID,
 			Text: "A finished task waits to be landed onto this branch."})
 	}
 	return res, nil
