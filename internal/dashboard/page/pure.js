@@ -432,6 +432,14 @@
     return P.pickTheme(c);
   };
 
+  // regionsOf is what the map outlines and labels as regions of layout L:
+  // its blocks when it lists them (the plan, one per milestone with its own
+  // layers and count, so milestones sharing a band or its layers each get
+  // their own), else its bands.
+  P.regionsOf = function (L) {
+    return L.blocks && L.blocks.length ? L.blocks : L.bands || [];
+  };
+
   // placeLabels places band labels in the order given, each box { x, y, w,
   // h, sw, alts } its left edge, top, full width, height, width with the
   // name alone, and further places to try ({ x, y }, the strip above the
