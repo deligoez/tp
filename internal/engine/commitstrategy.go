@@ -35,7 +35,8 @@ func ResolveCommitStrategy(taskOverride, project *string) (name, warning string)
 // EffectiveCommitStrategy resolves the concrete committing behavior — builtin or
 // hc — for a resolved strategy name, given whether hc is available on PATH. An
 // auto name resolves to hc when hc is present, otherwise to builtin. An explicit
-// hc name stays hc regardless of presence: tp never runs hc (§5.3), so hc's
+// hc name stays hc regardless of presence: tp runs hc only for tp land's
+// task-file commit (LandCommitTaskFileHC; §5.3 otherwise holds), so hc's
 // absence changes no behavior, only the courtesy warning. A builtin name (and
 // any value already mapped to builtin) stays builtin. hcMissing is true only
 // when the effective strategy is hc while hc is absent, so the caller can print
@@ -55,7 +56,8 @@ func EffectiveCommitStrategy(name string, hcAvailable bool) (effective string, h
 }
 
 // HasHC reports whether the hc (hunk-commit) binary is available. It is the
-// probe the auto strategy uses to decide its effective behavior; tp itself
+// otherwise never invokes hc (§5.3; tp land's task-file commit is the one
+// exception). The TP_HC environment variable overrides detection
 // never invokes hc (§5.3). The TP_HC environment variable overrides detection
 // for tests and CI — "1"/"true" forces available, any other value forces absent
 // — while an unset TP_HC falls back to probing PATH with exec.LookPath.
