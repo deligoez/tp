@@ -379,7 +379,7 @@ func TestPage_TheGraphDrawsByLabelSizeWithItsOwnZoomAndKeys(t *testing.T) {
 	t.Parallel()
 	page, script := pageText(t)
 	for _, s := range []string{
-		"G.detail = pure.detailLevel(P.geo.fs * scale);", "pure.fitId(out.label, geo.chars)", "const nodeText = (n) => n.text;", "getSize: (n) => P.geo.fs * n.fit,", `getAlignmentBaseline: "center", lineHeight: 1.25,`,
+		"G.detail = pure.detailLevel(P.geo.fs * scale, P.geo.minPx);", "pure.fitId(out.label, geo.chars)", "const nodeText = (n) => n.text;", "getSize: (n) => P.geo.fs * n.fit,", `getAlignmentBaseline: "center", lineHeight: 1.25,`,
 		"epic: { w: 150, h: 32, col: 172, row: 44, fs: 11, chars: 20 },",
 		"return [...(c.fill[n.mark] || c.surface), nodeAlpha(P, hits, n)];", "G.colors = pure.graphPalette(tok);",
 		"background: true, getBackgroundColor: [...c.page, 235]", "pure.fitFloor(P.nodes.length, P.L.view, P.geo.fs)",

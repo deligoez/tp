@@ -696,9 +696,10 @@
   };
 
   // detailLevel is how much a graph node draws at a label size of px
-  // pixels on screen: "far", no text, below 9; "near", its whole id, from 9.
-  P.detailLevel = function (px) {
-    return px < 9 ? "far" : "near";
+  // pixels on screen: "far", no text, below min (9 unless the view names
+  // its own); "near", its whole id, from min.
+  P.detailLevel = function (px, min) {
+    return px < (min || 9) ? "far" : "near";
   };
 
   // wrapId is an id as lines of at most per characters: a break after the

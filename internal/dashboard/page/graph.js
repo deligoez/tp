@@ -105,12 +105,15 @@
     milestone: { w: 200, h: 60, col: 240, row: 110, fs: 22, chars: 14 },
     // The plan's map (layout blocks) is drawn roomier than the forest, as
     // DESIGN.md's spacing asks (the gap inside a group smaller than the
-    // gap between groups, and the larger option when unsure): an epic box
-    // keeps its size while a column and a row unit grow, so epics of one
-    // block sit 50px apart side by side and 32px apart in height, two
-    // blocks of a line 450px apart, and each line of blocks opens lineGap
-    // lower (tpPure.mapY), a strip its labels keep at fit.
-    map: { w: 150, h: 32, col: 200, row: 64, fs: 11, chars: 20, lineGap: 256 },
+    // gap between groups, and the larger option when unsure): epics of one
+    // block sit 40px apart side by side and 28px apart in height, and each
+    // line of blocks opens lineGap lower (tpPure.mapY), a strip its labels
+    // keep at fit. Its ids are set in the page's own face at 18 units, in
+    // boxes grown to hold two lines of them, and drawn from minPx
+    // (DESIGN.md's tiny type, 14px) on screen, so a label reads about half
+    // a zoom unit sooner than the forest's 11-unit monospace one did, and
+    // is never drawn too small to read.
+    map: { w: 200, h: 52, col: 240, row: 80, fs: 18, chars: 20, lineGap: 320, minPx: 14, font: "Inter, system-ui, sans-serif" },
   };
   // The neighbourhood opens no further out than this, where an epic's
   // 11-unit id reads at 12 pixels, its whole id drawn (tpPure.detailLevel).
@@ -573,7 +576,7 @@
     const { PolygonLayer, PathLayer, TextLayer } = window.deck;
     const c = G.colors;
     const scale = Math.pow(2, G.vs.zoom);
-    G.detail = pure.detailLevel(P.geo.fs * scale);
+    G.detail = pure.detailLevel(P.geo.fs * scale, P.geo.minPx);
     const hits = matches(P);
     const v = [P.ver, G.q, G.detail, pure.crossShown(G), G.whole, [...G.hiddenMarks].join(), [...G.hiddenEdges].join(), G.themeVer, app.stage(), pure.ownerSelKey(G.ownerSel), G.ownerColour];
     const fontSettings = { sdf: true, fontSize: 64, buffer: 6, radius: 12, cutoff: 0.22 };
@@ -605,7 +608,7 @@
         id: "ids", data: P.nodes, visible: G.detail !== "far", getPosition: (n) => [n.x, n.y + n.h / 2], getText: nodeText,
         getSize: (n) => P.geo.fs * n.fit, sizeUnits: "common", getTextAnchor: "middle", getAlignmentBaseline: "center", lineHeight: 1.25,
         getColor: (n) => [...c.ink, nodeAlpha(P, hits, n) >= 170 ? 255 : 70],
-        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", characterSet: P.charSet, fontSettings,
+        fontFamily: P.geo.font || "ui-monospace, SFMono-Regular, Menlo, monospace", characterSet: P.charSet, fontSettings,
         updateTriggers: { getColor: v, getText: v },
       }),
       new TextLayer({
