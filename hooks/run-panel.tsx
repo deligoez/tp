@@ -231,9 +231,33 @@ const VIEWS: readonly ViewName[] = ['now', 'tasks', 'epics', 'run']
 // gap, the view buttons and theirs.
 const CHROME_ROWS = 4
 
-export const register: Register = on => {
-  let autoOpened = ''
+// Set once the timer runs, so session.start and the command start it once.
+// A reload starts the module over, its old timer gone with it.
+let polling = false
 
+// The run the pane last opened itself for.
+let autoOpened = ''
+
+// startPolling reads the project on a timer: every few seconds while work
+// is live, else once a minute.
+function startPolling($: EngineInterface): void {
+  if (polling) return
+  polling = true
+  let tick = 0
+  $.clock.every(LIVE_MS, async () => {
+    tick++
+    const minute = tick % IDLE_EVERY === 1
+    if (!minute && !(await isLive($))) return
+    const view = await refresh($, minute)
+    // A run that starts while the session is open shows itself once.
+    if (view?.run_state === 'in_flight' && autoOpened !== view.run_id) {
+      autoOpened = view.run_id
+      void $.ui.open({ id: PANE, title: TITLE })
+    }
+  })
+}
+
+export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const started = await next(e)
     await $.command.register({
@@ -241,24 +265,13 @@ export const register: Register = on => {
       description: 'Show what tp is doing in this project in a pane',
     })
     sessionCwd = e.cwd
-    // Only a tp project gets the timer.
+    // Only a tp project gets the timer; a folder that becomes one later gets
+    // it from the command.
     if (!(await isProject($, e.cwd))) return started
     version = await readVersion($)
     const lang = await readLanguage($, e.cwd)
     await update($, langState, () => lang)
-
-    let tick = 0
-    $.clock.every(LIVE_MS, async () => {
-      tick++
-      const minute = tick % IDLE_EVERY === 1
-      if (!minute && !(await isLive($))) return
-      const view = await refresh($, minute)
-      // A run that starts while the session is open shows itself once.
-      if (view?.run_state === 'in_flight' && autoOpened !== view.run_id) {
-        autoOpened = view.run_id
-        void $.ui.open({ id: PANE, title: TITLE })
-      }
-    })
+    startPolling($)
     return started
   })
 
@@ -271,6 +284,7 @@ export const register: Register = on => {
     const view = await refresh($, true)
     const now = await read($, nowState)
     await $.ui.open({ id: PANE, title: TITLE })
+    startPolling($)
     return { text: now || view ? 'The tp pane is open.' : 'No tp run in this project yet.' }
   })
 
