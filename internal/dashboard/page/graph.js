@@ -105,15 +105,17 @@
     milestone: { w: 200, h: 60, col: 240, row: 110, fs: 22, chars: 14 },
     // The plan's map (layout blocks) is drawn roomier than the forest, as
     // DESIGN.md's spacing asks (the gap inside a group smaller than the
-    // gap between groups, and the larger option when unsure): epics of one
-    // block sit 40px apart side by side and 28px apart in height, and each
-    // line of blocks opens lineGap lower (tpPure.mapY), a strip its labels
-    // keep at fit. Its ids are set in the page's own face at 18 units, in
-    // boxes grown to hold two lines of them, and drawn from minPx
-    // (DESIGN.md's tiny type, 14px) on screen, so a label reads about half
-    // a zoom unit sooner than the forest's 11-unit monospace one did, and
-    // is never drawn too small to read.
-    map: { w: 200, h: 52, col: 240, row: 80, fs: 18, chars: 20, lineGap: 320, minPx: 14, font: "Inter, system-ui, sans-serif" },
+    // gap between groups): epics of one block sit 24px apart side by side
+    // and 20px apart in height, and each line of blocks opens lineGap lower
+    // (tpPure.mapY), a strip its labels keep at fit. Its ids are set in the
+    // page's own face at 18 units, in boxes grown to hold two lines of
+    // them, and drawn from minPx (DESIGN.md's tiny type, 14px) on screen.
+    // A fit cancels any growth that is the same everywhere, so what makes a
+    // label read sooner is its size against the gaps: the gaps stay tight
+    // while the type grows, and the ids read about 0.4 of a zoom unit
+    // closer to the fit than 11-unit monospace did at 12px, and never
+    // smaller than 14px.
+    map: { w: 200, h: 48, col: 224, row: 68, fs: 18, chars: 20, lineGap: 288, minPx: 14, font: "Inter, system-ui, sans-serif" },
   };
   // The neighbourhood opens no further out than this, where an epic's
   // 11-unit id reads at 12 pixels, its whole id drawn (tpPure.detailLevel).
