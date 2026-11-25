@@ -139,10 +139,12 @@ physical() {
 # .tp-review/<base>/ground-inbox/round-<N>.ndjson, beside the recorded ground
 # rounds and apart from them. So are review, audit and task-audit role files
 # outside a run (spec/backlog/role-files-in-state-dir.md, v1.22.0):
-# .tp-review/<base>/{review,audit,task-audit}-inbox/round-<N>-<role>.ndjson.
+# .tp-review/<base>/{review,audit,task-audit}-inbox/round-<N>-<role>.ndjson,
+# and a role's part files beside it, round-<N>-<role>.<part>.ndjson, a part
+# spelled like a role id (spec/backlog/audit-round-ergonomics.md section 2.3).
 inbox_name() {
 	printf '%s\n' "$1" |
-		grep -Eq '(^|/)\.tp/epic-review/[0-9a-f]{64}/inbox/[a-z0-9]+(-[a-z0-9]+)*-r[1-9][0-9]*\.ndjson$|(^|/)\.tp-review/[^/]+/ground-inbox/round-[1-9][0-9]*\.ndjson$|(^|/)\.tp-review/[^/]+/(review|audit|task-audit)-inbox/round-[1-9][0-9]*-[a-z0-9]+(-[a-z0-9]+)*\.ndjson$'
+		grep -Eq '(^|/)\.tp/epic-review/[0-9a-f]{64}/inbox/[a-z0-9]+(-[a-z0-9]+)*-r[1-9][0-9]*\.ndjson$|(^|/)\.tp-review/[^/]+/ground-inbox/round-[1-9][0-9]*\.ndjson$|(^|/)\.tp-review/[^/]+/(review|audit|task-audit)-inbox/round-[1-9][0-9]*-[a-z0-9]+(-[a-z0-9]+)*(\.[a-z0-9]+(-[a-z0-9]+)*)?\.ndjson$'
 }
 
 # inbox_allowed reports whether a write may pass the fence as an epic review
