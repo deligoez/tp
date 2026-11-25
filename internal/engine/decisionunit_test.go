@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"os"
 	"path/filepath"
 	"strconv"
 	"testing"
@@ -84,4 +85,40 @@ func TestBuildBlockers_AnUndecidedRequestHoldsNoReadyTaskBack(t *testing.T) {
 
 	assert.Equal(t, []string{"no-ready-task"}, blockerCodes(BuildBlockers(&BlockerInputs{Phase: PhaseImplement, TaskFile: tf})))
 	assert.Empty(t, BuildBlockers(&BlockerInputs{Phase: PhaseImplement, TaskFile: tf, UndecidedRequests: true}))
+}
+
+// A found request store that exists but cannot be parsed is an error, never
+// a store with no undecided request: the oracle does not skip the decision
+// unit for the audit units, and tp resume says why it stops. A missing store
+// still reads as empty.
+func TestUndecidedRequestIDs_AnUnparsableStoreIsAnError(t *testing.T) {
+	taskFile := decisionFixture(t, FoundStateUndecided)
+	store := FoundRequestsPath(CanonicalProjectRoot(filepath.Dir(taskFile)), taskFile)
+	require.NoError(t, os.WriteFile(store, []byte("{bad"), 0o600))
+
+	_, err := UndecidedRequestIDs(taskFile, 1)
+	require.ErrorContains(t, err, "parse found requests")
+	for _, phase := range []string{PhaseImplement, PhaseAudit} {
+		_, _, err = resumeBlockers(taskFile, "spec.md", nil, &model.TaskFile{}, &resumeLoops{phase: phase})
+		require.ErrorContains(t, err, "parse found requests", "%s reads the store", phase)
+	}
+
+	require.NoError(t, os.Remove(store))
+	ids, err := UndecidedRequestIDs(taskFile, 1)
+	require.NoError(t, err)
+	assert.Empty(t, ids)
+}
+
+// The audit phase asks the store for a decision unit before its audit units;
+// a store it cannot read hands out neither.
+func TestBuildNextUnits_AnUnparsableStoreHandsTheAuditPhaseNoUnit(t *testing.T) {
+	root, taskFile, spec := nextUnitsRepo(t)
+	tf := &model.TaskFile{Spec: spec, Tasks: []model.Task{}}
+	require.NotEmpty(t, func() []NextUnit { u, _ := BuildNextUnits(root, taskFile, spec, PhaseAudit, tf, nil, nil); return u }())
+
+	store := FoundRequestsPath(CanonicalProjectRoot(filepath.Dir(taskFile)), taskFile)
+	require.NoError(t, os.MkdirAll(filepath.Dir(store), 0o755))
+	require.NoError(t, os.WriteFile(store, []byte("{bad"), 0o600))
+	units, _ := BuildNextUnits(root, taskFile, spec, PhaseAudit, tf, nil, nil)
+	assert.Empty(t, units)
 }
