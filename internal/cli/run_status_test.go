@@ -189,6 +189,63 @@ func TestRunStatus_ReportsInFlightCrashedAndStopped(t *testing.T) {
 		"and that file is still there, so the arm above is not passing on its absence")
 }
 
+// poolRunState is a run holding two unit attempts beside one that finished:
+// the rows with a null exit_code are what `running` lists.
+const poolRunState = `{"run_id":"01HZZZZZZZZZZZZZZZZZZZZZZZ","started_at":"2026-08-30T00:00:00Z",
+ "phase":"implement","stop_reason":null,
+ "totals":{"units":3,"wall_clock_seconds":12,"spend_usd":0},
+ "units":[{"seq":1,"kind":"implement","id":"done-one","attempt":1,"exit_code":0,
+           "duration_seconds":3,"spend_usd":null,"log_path":"/tmp/run/1.jsonl","started_at":"2026-08-30T00:00:01Z"},
+          {"seq":2,"kind":"implement","id":"pooled","attempt":2,"exit_code":null,"duration_seconds":null,
+           "spend_usd":null,"log_path":"/tmp/run/2.jsonl","worktree":"/tmp/wt/pooled","started_at":"2026-08-30T00:00:02Z"},
+          {"seq":3,"kind":"review-role","id":"architect","attempt":1,"exit_code":null,"duration_seconds":null,
+           "spend_usd":null,"log_path":"/tmp/run/3.jsonl","started_at":"2026-08-30T00:00:03Z"}]}`
+
+// `running` names the unit attempts a live run holds now, the rows whose
+// exit_code is still null, and only while the run is in flight: a dead
+// driver's null rows are attempts that never finished, not ones running. It
+// is present under --compact too, as the one list a reader acts on.
+func TestRunStatus_RunningListsTheHeldAttemptsOnlyWhileInFlight(t *testing.T) {
+	t.Parallel()
+	dir := runProject(t)
+	writeRunState(t, dir, poolRunState)
+	taskFile := filepath.Join(dir, "spec.tasks.json")
+
+	stdout, stderr, code := runTP(t, dir, "run", "--status")
+	require.Equal(t, 0, code, "--status: %s", stderr)
+	crashed := decodeStatus(t, stdout)
+	require.Equal(t, "crashed", crashed["run_state"])
+	assert.Equal(t, []any{}, crashed["running"], "a crashed run holds nothing, and says so with an empty list")
+
+	acquired := make(chan struct{})
+	release := make(chan struct{})
+	held := make(chan struct{})
+	go func() {
+		defer close(held)
+		assert.NoError(t, engine.WithRunLock(taskFile, func() error {
+			close(acquired)
+			<-release
+			return nil
+		}))
+	}()
+	<-acquired
+	defer func() { close(release); <-held }()
+
+	want := []any{
+		map[string]any{"seq": 2.0, "kind": "implement", "id": "pooled", "attempt": 2.0,
+			"worktree": "/tmp/wt/pooled", "started_at": "2026-08-30T00:00:02Z"},
+		map[string]any{"seq": 3.0, "kind": "review-role", "id": "architect", "attempt": 1.0,
+			"started_at": "2026-08-30T00:00:03Z"},
+	}
+	for _, args := range [][]string{{"run", "--status"}, {"run", "--status", "--compact"}} {
+		stdout, stderr, code = runTP(t, dir, args...)
+		require.Equal(t, 0, code, "%v: %s", args, stderr)
+		st := decodeStatus(t, stdout)
+		require.Equal(t, "in_flight", st["run_state"])
+		assert.Equal(t, want, st["running"], "%v lists the null-exit rows, finished ones left out", args)
+	}
+}
+
 // §1/§3.5: the divergence signal — spec_coverage_clean_rounds, role_streaks and
 // divergence — travels in `tp run --status` on any audit-phase stop, verbatim
 // from `tp audit --status` (test 14).
