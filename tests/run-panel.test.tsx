@@ -478,6 +478,21 @@ test('the run view reads in Turkish', async () => {
   ])
 })
 
+test('with no project or Claude Code setting the system locale chooses', async ($, on) => {
+  mock.clock(on, { now: AT })
+  mock.env(on, { LANG: 'tr_TR.UTF-8' })
+  world(on, { 'tp --version': VERSION, 'tp now --json': { exitCode: 0, stdout: JSON.stringify(NOW) } })
+  on('fs.read', () => {
+    throw new Error('ENOENT: no such file or directory')
+  })
+  on('settings.read', () => ({ value: {} }))
+  await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
+  await runCommand($)
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: 'Senden bekleyen' })).toBeTruthy()
+  await ui.unmount()
+})
+
 test('a short pane keeps what needs you and the held work, and counts what it leaves out', async () => {
   const read = toNow(NOW, 0)!
   // A section's heading takes a row and the gap above it another.
