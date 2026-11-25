@@ -195,3 +195,18 @@ test('the tp now payload keeps what the pane draws, its run included', async () 
   expect(idle?.now.epics).toBe(null)
   expect(toNow({ error: 'not a tp project' }, 0)).toBe(null)
 })
+
+test('the run view reads in Turkish', async () => {
+  const start = Date.parse('2026-11-25T10:00:00Z')
+  const read = toNow(NOW, 0)
+  const rows = runRows(read!.run!, 'tr', start + 245_000).map(row => row.text)
+  expect(rows).toEqual([
+    'Uygulama aşaması, çalışıyor',
+    'Birimler 3 / 100 (2 bitti, 1 çalışıyor)',
+    'Süre 4dk 5sn / 8sa 0dk',
+    'Harcama $0.42 (tahmini)',
+    'Şu an çalışan',
+    'auth-refresh uygulama, 2. deneme, 4dk 5sn',
+    'Son: alpha uygulama, çıkış 0, 45sn sürdü',
+  ])
+})
