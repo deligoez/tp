@@ -184,7 +184,58 @@ type auditPriorRound struct {
 	// path digest (isCurrentFileCheckID): they name no item of this round, so
 	// they are listed apart and matched by evidence_file.
 	earlier []priorAuditRow
+	// carried holds the wontfix rows the round carries without asking
+	// (carriedWontfix): off the checklist, listed apart.
+	carried []priorAuditRow
 	legacy  bool
+}
+
+// carriedWontfix reports whether a prior row is a wontfix the next audit
+// round carries without asking the auditor (spec/backlog/
+// audit-round-ergonomics.md §2.1): an audit round's row accepted wontfix
+// whose cited file is unchanged since that round. A row citing no file, or
+// one whose file changed, is asked again.
+func carriedWontfix(r *priorAuditRow) bool {
+	return r.Disposition == "wontfix" && r.TaskAudit == 0 && r.ChangedSince != nil && !*r.ChangedSince
+}
+
+// withCarried returns p with its carried wontfix rows moved apart, and items
+// without the items those rows grade. p itself is left as it is.
+func (p *auditPriorRound) withCarried(items []ChecklistItem) (*auditPriorRound, []ChecklistItem) {
+	if p == nil {
+		return nil, items
+	}
+	out := &auditPriorRound{earlier: p.earlier, legacy: p.legacy}
+	skip := make(map[string]bool)
+	for i := range p.rows {
+		if carriedWontfix(&p.rows[i]) {
+			out.carried = append(out.carried, p.rows[i])
+			skip[p.rows[i].ItemID] = true
+			continue
+		}
+		out.rows = append(out.rows, p.rows[i])
+	}
+	kept := make([]ChecklistItem, 0, len(items))
+	for i := range items {
+		if !skip[items[i].ItemID] {
+			kept = append(kept, items[i])
+		}
+	}
+	return out, kept
+}
+
+// renderCarriedSection lists the items the round carries as wontfix and does
+// not ask about, or "" when it carries none.
+func renderCarriedSection(prior *auditPriorRound) string {
+	if prior == nil || len(prior.carried) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("\n## Carried: not asked this round\n")
+	b.WriteString("The operator accepted these rows wontfix, and the file each cites is unchanged since. tp records each with its disposition: grade none of them and write no row for them.\n\n")
+	writePriorRows(&b, prior.carried)
+	b.WriteString("\n")
+	return b.String()
 }
 
 // add files one prior row under rows or earlier by its id's derivation.
@@ -349,6 +400,7 @@ func buildRolePrompt(role string, rules []string, items []ChecklistItem, files [
 	}
 
 	b.WriteString(renderPriorRoundSection(prior, items))
+	b.WriteString(renderCarriedSection(prior))
 
 	// §2.6: the header states the role's own cap, or the applied count against
 	// the pre-cap total once the cap has bitten — never a fixed literal 20. A
@@ -442,6 +494,10 @@ func generateRoleAuditPrompts(auditorRoles []model.Role, specItems []ChecklistIt
 				fileCap = 0 // a named list: buildRolePrompt states no cap
 			}
 		}
+		prior := priorByRole[role.ID]
+		if phase == engine.PhaseAudit {
+			prior, items = prior.withCarried(items)
+		}
 		if len(items) == 0 {
 			skipped = append(skipped, engine.SkippedRole{Role: role.ID, Reason: engine.SkipNoChecklistItems})
 			continue
@@ -482,7 +538,7 @@ func generateRoleAuditPrompts(auditorRoles []model.Role, specItems []ChecklistIt
 				f.filePaths = filePaths
 			}
 		}
-		prompts = append(prompts, buildRolePrompt(role.ID, role.Focus, items, files, fileCap, fileTotal, specContent, claudeExcerpt, priorByRole[role.ID], &f, inlinedContent))
+		prompts = append(prompts, buildRolePrompt(role.ID, role.Focus, items, files, fileCap, fileTotal, specContent, claudeExcerpt, prior, &f, inlinedContent))
 	}
 	return prompts, skipped
 }
