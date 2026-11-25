@@ -147,6 +147,11 @@ out({ raw, near });`)
 		}
 		require.NoError(t, json.Unmarshal([]byte(got), &res))
 		for _, r := range res.Raw {
+			// moot is DESIGN.md's disabled text, faint by design; the nudge
+			// lifts it and the colour difference below keeps it apart.
+			if r[0] == "moot" {
+				continue
+			}
 			assert.GreaterOrEqual(t, r[1].(float64), 2.0, "theme %q: the %s token before the nudge", over, r[0])
 		}
 		assert.GreaterOrEqual(t, res.Near[0].(float64), 12.0, "theme %q: the closest marks %s", over, res.Near[1])

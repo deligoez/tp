@@ -207,12 +207,14 @@ out([sel, P.ownerResolve(dropped, sel) === undefined, P.ownerResolve(moved, sel)
 }
 
 // TestPage_OwnerColourKeepsTheStateBorderFarOut: with the fill in the
-// owner's colour the border is the only state mark, so the far view, which
-// otherwise draws no border, keeps one while owners paint the nodes.
+// owner's colour the border is the only state mark, so the far view keeps
+// one while owners paint the nodes; since the quiet fills it keeps one
+// whatever paints them.
 func TestPage_OwnerColourKeepsTheStateBorderFarOut(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
-	assert.Contains(t, script, `return G.detail === "far" && !ownerPainted(P) ? 0 : 1;`)
+	assert.Contains(t, script, "if ((hits && hits.has(n.i)) || n.hold || n.centre) return 2;\n      return 1;")
+	assert.NotContains(t, script, `G.detail === "far" && !ownerPainted(P) ? 0 : 1`)
 }
 
 // TestPage_TheSelectionWinsOverTheOwnerDim: a selected epic and its chain
