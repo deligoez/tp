@@ -275,6 +275,8 @@ func resumeBlockers(taskFilePath, shownSpec string, changes []string, tf *model.
 		ReviewStale:     loops.reviewStale,
 		EpicBlock:       epicBlock,
 
+		UndecidedRequests: loops.phase == PhaseImplement && len(UndecidedRequestIDs(taskFilePath, 1)) > 0,
+
 		ReviewInFlightRound:       loops.reviewInFlight,
 		ReviewInFlightOverOldText: loops.reviewInFlightOld,
 

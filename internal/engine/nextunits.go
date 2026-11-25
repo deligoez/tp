@@ -79,6 +79,11 @@ func BuildNextUnitsRunning(root, taskFilePath, specPath, phase string, tf *model
 		// take ready tasks with touches disjoint from the running ones, each
 		// brief naming its own task (spec/backlog/rolling-implement.md §2).
 		ids := ImplementUnits(tf, implementMaxParallel(taskFilePath, tf), running)
+		// With no implement unit ready or running, an undecided request
+		// gets its decision unit before the run stops (spec/1.31.0.md §4, §5).
+		if len(ids) == 0 && len(running) == 0 {
+			return decisionUnits(target), round
+		}
 		for _, id := range ids {
 			units = append(units, newNextUnit(UnitImplement, id, target))
 		}
@@ -86,6 +91,11 @@ func BuildNextUnitsRunning(root, taskFilePath, specPath, phase string, tf *model
 	case PhaseDecompose:
 		units = append(units, newNextUnit(UnitDecompose, SpecBaseName(specPath), target))
 	case PhaseAudit:
+		// No implement unit runs in the audit phase, so an undecided request
+		// is decided first: a task answer brings the cycle back to implement.
+		if decision := decisionUnits(target); len(decision) > 0 {
+			return decision, round
+		}
 		// The task audits owed, fixed and re-graded come before the release
 		// audit's own units.
 		if taskAudit, seq := auditTaskAuditUnits(root, target, tf, st, recorded); len(taskAudit) > 0 {

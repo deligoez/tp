@@ -73,6 +73,10 @@ type BlockerInputs struct {
 	// EpicBlock is the task file's epic block (EpicBlockFor), nil for an
 	// unbound file or outside the implement phase.
 	EpicBlock *EpicBlock
+
+	// UndecidedRequests is whether a found request awaits the decision unit,
+	// which runs before no-ready-task stops the run (spec/1.31.0.md §4).
+	UndecidedRequests bool
 }
 
 // BuildBlockers derives the blockers array in the fixed code order of §4.6:
@@ -96,7 +100,7 @@ func BuildBlockers(in *BlockerInputs) []Blocker {
 	// no-ready-task — escalate: implement with open tasks but none ready (payload.task is null).
 	// Held tasks are named with what holds them, so the operator sees the
 	// gates that are not tasks (spec/backlog/filled-pool.md).
-	if in.Phase == PhaseImplement {
+	if in.Phase == PhaseImplement && !in.UndecidedRequests {
 		if _, _, hasTask := ImplementPreview(in.TaskFile); !hasTask && HasOpenTasks(in.TaskFile) && len(AgentHeld(in.TaskFile)) == 0 {
 			blockers = append(blockers, noReadyTaskBlocker(in.TaskFile))
 		}
