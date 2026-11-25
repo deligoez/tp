@@ -47,6 +47,13 @@ export function toView(payload: Record<string, unknown>, now: number): RunView |
   }
 }
 
+// tpVersion takes the version out of `tp --version`'s line ("tp version
+// v1.32.0"), or nothing when tp printed something else.
+export function tpVersion(printed: string): string {
+  const match = /^tp version (\S+)/.exec(printed.trim())
+  return match?.[1] ?? ''
+}
+
 // duration says a number of seconds the way a person reads it.
 export function duration(seconds: number): string {
   const s = Math.max(0, Math.round(seconds))
@@ -145,6 +152,19 @@ async function isProject($: EngineInterface, folder: string): Promise<boolean> {
 // of its own on this engine, and a reload runs session.start again.
 let sessionCwd = ''
 
+// The tp binary's version, read once per session for the pane's brand line.
+let version = ''
+
+async function readVersion($: EngineInterface): Promise<string> {
+  const done = await $.process.run(['tp', '--version'], { timeoutMs: 10_000 }).catch(() => undefined)
+  return done && done.exitCode === 0 ? tpVersion(done.stdout) : ''
+}
+
+// The folder's last path segment: the project the pane is about.
+function projectName(folder: string): string {
+  return folder.split('/').filter(Boolean).pop() ?? ''
+}
+
 export const register: Register = on => {
   let autoOpened = ''
 
@@ -157,6 +177,7 @@ export const register: Register = on => {
     sessionCwd = e.cwd
     // Only a tp project gets the timer.
     if (!(await isProject($, e.cwd))) return started
+    version = await readVersion($)
 
     let tick = 0
     $.clock.every(LIVE_MS, async () => {
@@ -177,6 +198,7 @@ export const register: Register = on => {
   on('command.run', { command: 'tp-run' }, async ($, e) => {
     const cwd = 'cwd' in e && typeof e.cwd === 'string' ? e.cwd : sessionCwd
     if (!(await isProject($, cwd))) return { text: 'This folder is not a tp project.' }
+    if (!version) version = await readVersion($)
     await update($, run, () => null)
     const view = await readStatus($)
     await update($, run, () => view)
@@ -187,9 +209,20 @@ export const register: Register = on => {
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const { Box, Text } = $.ui.resolve(e)
     const view = await read($, run)
+    // The brand line: tp and its version in the theme's accent, then the
+    // project, quiet.
+    const brand = (
+      <Box flexDirection="row" marginBottom={1}>
+        <Text bold color="suggestion">
+          {version ? `tp ${version}` : 'tp'}
+        </Text>
+        <Text dimColor>{`  ${projectName(sessionCwd)}`}</Text>
+      </Box>
+    )
     if (!view) {
       return (
         <Box flexDirection="column">
+          {brand}
           <Text dimColor>No run in this project yet.</Text>
         </Box>
       )
@@ -197,6 +230,7 @@ export const register: Register = on => {
     const rows = panelRows(view, await $.clock.now())
     return (
       <Box flexDirection="column">
+        {brand}
         {rows.map(row => (
           <Text bold={row.tone === 'head'} dimColor={row.tone === 'quiet'}>
             {row.text}
