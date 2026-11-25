@@ -985,3 +985,25 @@ func TestLandRemovesACleanLandedWorktreeAndItsBranch(t *testing.T) {
 	assert.NoDirExists(t, wt)
 	assert.Empty(t, gitRun(t, dir, "branch", "--list", "agent-t1"), "the branch is deleted")
 }
+
+// A landed worktree that still holds an uncommitted change is kept, with
+// the reason, and so is its branch.
+func TestLandKeepsADirtyLandedWorktree(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "")
+	sha := agentCommit(t, wt)
+	_, stderr, code := runTP(t, wt, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	require.NoError(t, os.WriteFile(filepath.Join(wt, "notes.txt"), []byte("left over\n"), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "land")
+	require.Equal(t, 0, code, stdout+stderr)
+	var res landPrunes
+	require.NoError(t, json.Unmarshal([]byte(stdout), &res), stdout)
+	assert.Empty(t, res.Pruned, stdout)
+	require.Len(t, res.Kept, 1, stdout)
+	assert.Equal(t, "t1", res.Kept[0].ID)
+	assert.Contains(t, res.Kept[0].Reason, "uncommitted")
+	assert.DirExists(t, wt)
+	assert.NotEmpty(t, gitRun(t, dir, "branch", "--list", "agent-t1"))
+}
