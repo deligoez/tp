@@ -209,11 +209,15 @@ func (in *BlockerInputs) reviewCapReached(recorded int) bool {
 
 // atReviewCap rewords a spec-stale blocker with no round in flight once the
 // review budget is spent: the emission exits 4, so it is no command for the
-// agent, and raising the cap is the operator's decision (SKILL.md, "Gate,
-// Budget & Escalation Policy").
+// agent. It names both ways forward (spec/backlog/audit-round-ergonomics.md
+// §2.4): revert the change and keep the decision in the spec's measurements
+// file, <spec dir>/<base>-measurements.md, which the agent may do; or raise
+// the cap, the operator's decision (SKILL.md, "Gate, Budget & Escalation
+// Policy").
 func atReviewCap(in *BlockerInputs, b *Blocker, emit, record string) {
-	b.Message = fmt.Sprintf("the spec changed after the last recorded review round, and review reached its %d-round cap, so a round over the new text is refused; raising the cap is the operator's decision (%s): then %s, then %s",
-		in.ReviewMaxRounds, EscalateRaiseReviewCap, emit, record)
+	measurements := filepath.Join(filepath.Dir(in.SpecPath), SpecBaseName(in.SpecPath)+"-measurements.md")
+	b.Message = fmt.Sprintf("the spec changed after the last recorded review round, and review reached its %d-round cap, so a round over the new text is refused. Either revert the change to the text the last round read and record the decision in %s, or raise the cap, the operator's decision (%s): then %s, then %s",
+		in.ReviewMaxRounds, measurements, EscalateRaiseReviewCap, emit, record)
 	b.Data["commands"] = []string{}
 	b.Data["operator"] = map[string]any{
 		"decision": EscalateRaiseReviewCap,
