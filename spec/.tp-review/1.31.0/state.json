@@ -983,6 +983,72 @@
       "recorded_at": "2026-11-25T04:11:56Z",
       "file": "task-audit-20.ndjson",
       "findings": 1
+    },
+    {
+      "seq": 21,
+      "members": [
+        {
+          "id": "found-settle-cmd",
+          "closed_at": "2026-11-25T03:08:43.963163Z",
+          "piece": 2,
+          "pieces": 3,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/model/task.go"
+          ]
+        },
+        {
+          "id": "audit-files-requests",
+          "closed_at": "2026-11-25T03:59:18.338274Z",
+          "piece": 1,
+          "pieces": 2,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/cli/found.go"
+          ]
+        },
+        {
+          "id": "decision-unit-kind",
+          "closed_at": "2026-11-25T04:02:45.586719Z",
+          "piece": 1,
+          "pieces": 2,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/cli/found.go",
+            "internal/cli/nongoals_surface_test.go",
+            "internal/engine/resumeblockers.go",
+            "internal/engine/runneragent_test.go",
+            "internal/engine/runnertemplate.go",
+            "internal/engine/unitkind.go",
+            "internal/engine/unitkind_test.go"
+          ]
+        }
+      ],
+      "files": [
+        "internal/model/task.go",
+        "internal/cli/found.go",
+        "internal/cli/found.go",
+        "internal/cli/nongoals_surface_test.go",
+        "internal/engine/resumeblockers.go",
+        "internal/engine/runneragent_test.go",
+        "internal/engine/runnertemplate.go",
+        "internal/engine/unitkind.go",
+        "internal/engine/unitkind_test.go"
+      ],
+      "roles": [
+        "go-safety"
+      ],
+      "head": "4cc710b487551034a8bfa63719016849ce73bbdd",
+      "emitted_at": "2026-11-25T04:23:51.353763Z",
+      "recorded_at": "2026-11-25T04:25:07Z",
+      "file": "task-audit-21.ndjson",
+      "findings": 1
     }
   ]
 }
