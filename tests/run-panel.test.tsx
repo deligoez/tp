@@ -67,6 +67,34 @@ test('a stopped run names why it stopped', async () => {
   expect(rows.at(-1)).toBe('Stopped: converged')
 })
 
+// Seen live: two units 31s in read "Time 0s", "Units 2 of 100" with none
+// finished, and a Last row repeating a running slot.
+test('a live run counts its time from the start and its units as they finish', async () => {
+  const start = Date.parse('2026-11-25T10:00:00Z')
+  const slot = (id: string, seq: number) => ({ seq, kind: 'implement', id, attempt: 1, started_at: '2026-11-25T10:00:00Z' })
+  const view = toView(
+    {
+      ...STATUS,
+      started_at: '2026-11-25T10:00:00Z',
+      units_done: 2,
+      wall_clock_seconds: 0,
+      running: [slot('alpha', 1), slot('beta', 2)],
+      last_unit: { kind: 'implement', id: 'beta', attempt: 1, exit_code: null, duration_seconds: null },
+    },
+    0,
+  )
+  const rows = panelRows(view!, start + 31_000).map(row => row.text)
+  expect(rows).toEqual([
+    'implement phase, running',
+    'Units 2 of 100 (0 finished, 2 running)',
+    'Time 31s of 8h 0m',
+    'Spend $1.20 (estimate)',
+    'Running now',
+    'alpha implement, attempt 1, 31s',
+    'beta implement, attempt 1, 31s',
+  ])
+})
+
 test('a project with no run says so', async $ => {
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect((await ui.find({ type: 'Text' }))?.text).toBe('No run in this project yet.')
