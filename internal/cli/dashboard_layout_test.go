@@ -255,3 +255,85 @@ func TestDashboard_ThePlanKeepsItsPlacesAsEpicsFinish(t *testing.T) {
 		assert.Equal(t, "cross critical", edges["e>x"], pack)
 	}
 }
+
+// sideBySideGraph is a synthetic plan of two tracks whose milestones open
+// at once, so their epics share layers: A holds two epics in a chain, B one
+// root and two dependents. C, after A, is five epics on one layer, which
+// makes the forest wide enough for A's and B's blocks side by side.
+const sideBySideGraph = `{
+  "version": 1,
+  "milestones": [["A", "C"], ["B"]],
+  "opens_after": {"B": []},
+  "epics": [
+    {"id": "a1", "title": "A1", "milestone": "A"},
+    {"id": "a2", "title": "A2", "milestone": "A", "depends_on": [{"id": "a1", "why": "a2 needs a1"}]},
+    {"id": "b1", "title": "B1", "milestone": "B"},
+    {"id": "b2", "title": "B2", "milestone": "B", "depends_on": [{"id": "b1", "why": "b2 needs b1"}]},
+    {"id": "b3", "title": "B3", "milestone": "B", "depends_on": [{"id": "b1", "why": "b3 needs b1"}]},
+    {"id": "c1", "title": "C1", "milestone": "C", "depends_on": [{"id": "a2", "why": "c1 needs a2"}]},
+    {"id": "c2", "title": "C2", "milestone": "C", "depends_on": [{"id": "a2", "why": "c2 needs a2"}]},
+    {"id": "c3", "title": "C3", "milestone": "C", "depends_on": [{"id": "a2", "why": "c3 needs a2"}]},
+    {"id": "c4", "title": "C4", "milestone": "C", "depends_on": [{"id": "a2", "why": "c4 needs a2"}]},
+    {"id": "c5", "title": "C5", "milestone": "C", "depends_on": [{"id": "a2", "why": "c5 needs a2"}]}
+  ]
+}
+`
+
+// TestDashboard_ThePlanMapsEachMilestoneAsABlock: A and B share layers,
+// so they make one row of two blocks with a divider between them, and C a
+// row of its own; every epic has a final place inside its own
+// milestone's block, and the map is no wider than the forest.
+func TestDashboard_ThePlanMapsEachMilestoneAsABlock(t *testing.T) {
+	t.Parallel()
+	srv := startDashboard(t, epicGraphDir(t, sideBySideGraph), freePort(t))
+	status, body := getPage(t, strings.TrimSuffix(srv.url, "/")+"/api/layout?view=plan")
+	require.Equal(t, http.StatusOK, status, body)
+	var got struct {
+		Columns float64 `json:"columns"`
+		Height  float64 `json:"height"`
+		Rows    []struct {
+			Milestones int `json:"milestones"`
+			Count      int `json:"count"`
+		} `json:"rows"`
+		Blocks []struct {
+			Milestone string  `json:"milestone"`
+			Row       int     `json:"row"`
+			FromCol   float64 `json:"from_col"`
+			ToCol     float64 `json:"to_col"`
+			FromY     float64 `json:"from_y"`
+			ToY       float64 `json:"to_y"`
+			Count     int     `json:"count"`
+		} `json:"blocks"`
+		Dividers []struct {
+			X float64 `json:"x"`
+		} `json:"dividers"`
+		Nodes []struct {
+			ID        string   `json:"id"`
+			Milestone string   `json:"milestone"`
+			X         *float64 `json:"x"`
+			Y         *float64 `json:"y"`
+		} `json:"nodes"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(body), &got))
+	require.Len(t, got.Rows, 2, body)
+	assert.Equal(t, 2, got.Rows[0].Milestones)
+	assert.Equal(t, 5, got.Rows[0].Count)
+	require.Len(t, got.Blocks, 3, body)
+	require.Len(t, got.Dividers, 1, body)
+	count := map[string]int{}
+	for _, b := range got.Blocks {
+		count[b.Milestone] = b.Count
+		assert.LessOrEqual(t, b.ToCol, got.Columns-1, "a block inside the forest width")
+	}
+	assert.Equal(t, map[string]int{"A": 2, "B": 3, "C": 5}, count)
+	assert.Positive(t, got.Height)
+	for _, n := range got.Nodes {
+		require.NotNil(t, n.X, n.ID)
+		require.NotNil(t, n.Y, n.ID)
+		for _, b := range got.Blocks {
+			if b.Milestone == n.Milestone {
+				assert.True(t, b.FromCol <= *n.X && *n.X <= b.ToCol && b.FromY <= *n.Y && *n.Y <= b.ToY, "%s outside its block", n.ID)
+			}
+		}
+	}
+}
