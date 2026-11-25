@@ -1174,6 +1174,11 @@ A field in a task file's `workflow` block counts as an override only when presen
 
 Malformed `.tp/config.json` or `.tp/local.json` aborts with exit 3 and a repair hint; unknown keys and out-of-range values warn (to stderr) and fall back.
 
+**`panel.language`** (v1.33.0): `{"panel": {"language": "tr"}}` in `.tp/config.json` sets the language
+of the Claude Code plugin's panel, `en` or `tr`. tp acts on nothing in the block; it names an unknown
+key or another language and leaves it out. Absent, the panel follows Claude Code's language setting,
+then the system locale, then English.
+
 **`epic.threshold_placeholder`** (v1.8.0): a top-level `epic` block in `.tp/config.json`,
 `{"epic": {"threshold_placeholder": "<Go regexp>"}}`, sets the pattern that marks a gate threshold as
 a placeholder (`gate-threshold-unwritten`, `operator.threshold_rewrites`, the export's
