@@ -255,6 +255,7 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 		"mechanize_candidates":  candidates,
 		"mechanized_classes":    mechanizedClasses,
 	}
+	addFoundOpen(result, taskFilePath, converged)
 	// The checks recordChecks ran, in the --status --check shape, so a reader
 	// sees what moved mechanized_classes and next_action. Absent when it ran
 	// none; [] when it tried and no task file resolved for them to run in.
