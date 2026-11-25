@@ -174,7 +174,7 @@ func answerFoundRequest(root, taskFilePath string, foundMax int, id string, ans 
 			if err != nil {
 				return nil, fmt.Errorf("%w: %w", err, errFoundAnswerRefused)
 			}
-			return plan.Requests, writeFoundPlan(taskFilePath, tf, queue, &plan)
+			return plan.Requests, writeFoundPlan(taskFilePath, tf, queue, &plan, nil)
 		})
 	})
 	return plan, err

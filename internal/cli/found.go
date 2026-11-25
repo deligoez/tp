@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/spf13/cobra"
 
@@ -108,6 +109,9 @@ func foundPlanOutput(plan *engine.FoundApplyPlan, foundMax int) map[string]any {
 	if len(plan.Undecided) > 0 {
 		out["undecided"] = plan.Undecided
 	}
+	if len(plan.Reopened) > 0 {
+		out["reopened"] = plan.Reopened
+	}
 	if len(plan.Duplicates) > 0 {
 		dups := make([]map[string]string, 0, len(plan.Duplicates))
 		for _, d := range plan.Duplicates {
@@ -205,6 +209,7 @@ func runFoundAdd(f *foundAddFlags) error {
 // store. It returns the plan with its queue entries numbered.
 func applyFoundRequests(root, taskFilePath string, foundMax int) (engine.FoundApplyPlan, error) {
 	var plan engine.FoundApplyPlan
+	running := engine.FoundRunningUnits(root, taskFilePath, implementUnitTask())
 	err := engine.WithFileLock(taskFilePath, func() error {
 		tf, err := model.ReadTaskFile(taskFilePath)
 		if err != nil {
@@ -216,20 +221,29 @@ func applyFoundRequests(root, taskFilePath string, foundMax int) (engine.FoundAp
 		}
 		return engine.UpdateFoundRequests(root, taskFilePath, func(reqs []engine.FoundRequest) ([]engine.FoundRequest, error) {
 			plan = engine.PlanFoundApply(reqs, tf.Tasks, queue, foundMax)
-			return plan.Requests, writeFoundPlan(taskFilePath, tf, queue, &plan)
+			reopen := func(tasks []model.Task, entries []engine.FoundQueueEntry) []string {
+				return engine.FoundFindersToReopen(reqs, tasks, append(slices.Clone(queue), entries...), running)
+			}
+			return plan.Requests, writeFoundPlan(taskFilePath, tf, queue, &plan, reopen)
 		})
 	})
 	return plan, err
 }
 
 // writeFoundPlan writes a plan's tasks, notes and edges to the task file and
-// its entries to the queue, numbering the plan's entries as written. The
-// caller holds the task-file lock.
-func writeFoundPlan(taskFilePath string, tf *model.TaskFile, queue []engine.FoundQueueEntry, plan *engine.FoundApplyPlan) error {
-	if len(plan.Tasks) > 0 || len(plan.Attached) > 0 || len(plan.Edges) > 0 {
-		attachFoundNotes(tf, plan.Attached)
-		addFoundEdges(tf, plan.Edges)
-		tf.Tasks = append(tf.Tasks, plan.Tasks...)
+// its entries to the queue, numbering the plan's entries as written. When
+// reopen is not nil it names, over the placed tasks and the plan's new
+// entries, the waiting finders to return to open (plan.Reopened). The caller
+// holds the task-file lock.
+func writeFoundPlan(taskFilePath string, tf *model.TaskFile, queue []engine.FoundQueueEntry, plan *engine.FoundApplyPlan, reopen func([]model.Task, []engine.FoundQueueEntry) []string) error {
+	attachFoundNotes(tf, plan.Attached)
+	addFoundEdges(tf, plan.Edges)
+	tf.Tasks = append(tf.Tasks, plan.Tasks...)
+	if reopen != nil {
+		plan.Reopened = reopen(tf.Tasks, plan.Entries)
+		reopenFoundFinders(tf, plan.Reopened)
+	}
+	if len(plan.Tasks) > 0 || len(plan.Attached) > 0 || len(plan.Edges) > 0 || len(plan.Reopened) > 0 {
 		if err := model.WriteTaskFile(taskFilePath, tf); err != nil {
 			return err
 		}
@@ -253,6 +267,23 @@ func attachFoundNotes(tf *model.TaskFile, attached []engine.FoundAttached) {
 				tf.Tasks[i].FoundNotes = append(tf.Tasks[i].FoundNotes, a.Note)
 			}
 		}
+	}
+}
+
+// reopenFoundFinders returns each waiting finder to open (spec/1.31.0.md
+// §4), releasing its claim the way a run's release does. The attempt is
+// not counted against the task's retries.
+func reopenFoundFinders(tf *model.TaskFile, ids []string) {
+	for _, id := range ids {
+		task, _, err := model.FindTask(tf, id)
+		if err != nil {
+			continue
+		}
+		task.Status = model.StatusOpen
+		task.Waiting = ""
+		task.StartedAt = nil
+		task.DurationSource = ""
+		task.ClaimedBy = task.ClaimedBy.Released()
 	}
 }
 
