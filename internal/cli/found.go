@@ -70,7 +70,7 @@ func runFoundApply() error {
 	}
 	foundMax := engine.EffectiveWorkflowForTaskFile(taskFilePath).FoundMax
 	root := engine.CanonicalProjectRoot(filepath.Dir(taskFilePath))
-	plan, err := engine.ApplyFoundRequests(root, taskFilePath, foundMax)
+	plan, err := applyFoundRequests(root, taskFilePath, foundMax)
 	if err != nil {
 		output.Error(ExitFile, "cannot apply the requests: "+err.Error(), foundStoreWriteHint)
 		os.Exit(ExitFile)
@@ -178,6 +178,43 @@ func runFoundAdd(f *foundAddFlags) error {
 		"blocks": stored.Blocks,
 		"finder": stored.Finder,
 	})
+}
+
+// applyFoundRequests applies a spec's requests under the task-file lock
+// (spec/1.31.0.md §2): it plans over the requests read under the store's
+// lock, so a request filed meanwhile is either in this batch or left
+// unapplied for the next, then writes the task file, the queue and the
+// store. It returns the plan with its queue entries numbered.
+func applyFoundRequests(root, taskFilePath string, foundMax int) (engine.FoundApplyPlan, error) {
+	var plan engine.FoundApplyPlan
+	err := engine.WithFileLock(taskFilePath, func() error {
+		tf, err := model.ReadTaskFile(taskFilePath)
+		if err != nil {
+			return err
+		}
+		queue, err := engine.ReadFoundQueue(taskFilePath)
+		if err != nil {
+			return err
+		}
+		return engine.UpdateFoundRequests(root, taskFilePath, func(reqs []engine.FoundRequest) ([]engine.FoundRequest, error) {
+			plan = engine.PlanFoundApply(reqs, tf.Tasks, queue, foundMax)
+			if len(plan.Tasks) > 0 {
+				tf.Tasks = append(tf.Tasks, plan.Tasks...)
+				if err := model.WriteTaskFile(taskFilePath, tf); err != nil {
+					return nil, err
+				}
+			}
+			if len(plan.Entries) > 0 {
+				queue = append(queue, plan.Entries...)
+				if err := engine.WriteFoundQueue(taskFilePath, queue); err != nil {
+					return nil, err
+				}
+				plan.Entries = queue[len(queue)-len(plan.Entries):]
+			}
+			return plan.Requests, nil
+		})
+	})
+	return plan, err
 }
 
 // foundFinderTask returns the task the caller works, or "" when it names none:

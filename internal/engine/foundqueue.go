@@ -84,13 +84,13 @@ func UpdateFoundQueue(taskFile string, fn func([]FoundQueueEntry) ([]FoundQueueE
 		if err != nil {
 			return err
 		}
-		return writeFoundQueue(taskFile, next)
+		return WriteFoundQueue(taskFile, next)
 	})
 }
 
-// writeFoundQueue numbers entries and writes them as the spec's queue. The
+// WriteFoundQueue numbers entries and writes them as the spec's queue. The
 // caller holds the task-file lock.
-func writeFoundQueue(taskFile string, entries []FoundQueueEntry) error {
+func WriteFoundQueue(taskFile string, entries []FoundQueueEntry) error {
 	numberQueueEntries(entries)
 	data, err := json.MarshalIndent(foundQueueFile{Entries: entries}, "", "  ")
 	if err != nil {
