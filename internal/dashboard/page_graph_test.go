@@ -261,3 +261,12 @@ func TestPure_AShortIdKeepsItsHeadAndItsSuffix(t *testing.T) {
 	got := runPure(t, `out([P.shortId("Alpha Beta Gamma-II", 9), P.shortId("Alpha-I", 9), P.shortId("inventory-export", 9), P.shortId("Zeta Eta Theta-AI-II", 9)]);`)
 	assert.JSONEq(t, `["Alpha…-II", "Alpha-I", "inventor…", "Zeta Eta…"]`, got)
 }
+
+// TestPure_AShortLabelShowsBeforeTheWholeOne: a view with a short label
+// size draws it once that size reaches the minimum on screen and the whole
+// id does not yet; without one it stays far.
+func TestPure_AShortLabelShowsBeforeTheWholeOne(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([P.detailLevel(8, 14, 14), P.detailLevel(8, 14, 13.9), P.detailLevel(14, 14, 25), P.detailLevel(8, 14)]);`)
+	assert.JSONEq(t, `["short", "far", "near", "far"]`, got)
+}
