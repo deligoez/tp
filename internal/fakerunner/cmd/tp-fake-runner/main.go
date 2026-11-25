@@ -80,11 +80,6 @@ func run() int {
 			fmt.Fprintln(os.Stderr, err)
 			return exitSetup
 		}
-	case listed(fakerunner.EnvBlockIDs, id) && !attemptedBefore(dir, id):
-		if err := fileFoundRequest(id, true); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return exitSetup
-		}
 	default:
 		if err := scriptedWrites(dir, id, seq); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -117,9 +112,13 @@ func run() int {
 	return code
 }
 
-// scriptedWrites performs the writes EnvFoundIDs, EnvDurable and EnvEscalate
-// script for this invocation, the request first and the durable write next.
+// scriptedWrites performs the writes EnvBlockIDs, EnvFoundIDs, EnvDurable and
+// EnvEscalate script for this invocation, the request first and the durable
+// write next. A blocking request is the invocation's only write.
 func scriptedWrites(dir, id string, seq int) error {
+	if listed(fakerunner.EnvBlockIDs, id) && !attemptedBefore(dir, id) {
+		return fileFoundRequest(id, true)
+	}
 	if listed(fakerunner.EnvFoundIDs, id) && !attemptedBefore(dir, id) {
 		if err := fileFoundRequest(id, false); err != nil {
 			return err
