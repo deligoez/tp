@@ -182,6 +182,26 @@ func TestLoadProjectConfig_PanelLanguage(t *testing.T) {
 	}, warns)
 }
 
+// TestLoadProjectConfig_PanelWarningsInKeyOrder: the panel block's warnings
+// come in key order, so two reads of one file say the same thing in the same
+// order.
+func TestLoadProjectConfig_PanelWarningsInKeyOrder(t *testing.T) {
+	tp := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tp, "config.json"),
+		[]byte(`{"panel":{"zeta":1,"language":"de","alpha":1,"mid":1}}`), 0o600))
+	want := []string{
+		"unknown panel key: alpha",
+		`panel.language: "de" is not one of en, tr, ignored`,
+		"unknown panel key: mid",
+		"unknown panel key: zeta",
+	}
+	for range 20 {
+		_, warns, err := LoadProjectConfig(tp)
+		require.NoError(t, err)
+		require.Equal(t, want, warns)
+	}
+}
+
 func TestLoadProjectConfig_TypeMismatchFallsBack(t *testing.T) {
 	tp := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(tp, "config.json"),
