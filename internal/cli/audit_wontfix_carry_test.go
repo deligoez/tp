@@ -71,6 +71,21 @@ func TestWontfixCarry_AChangedFileIsAskedAgain(t *testing.T) {
 	assert.NotContains(t, prompt, "## Carried")
 }
 
+// TestWontfixCarry_ARowCitingNoFileIsAskedAgain (decision §2.1): a wontfix
+// whose row cites no file has nothing to stay unchanged, so its item is asked
+// again as before.
+func TestWontfixCarry_ARowCitingNoFileIsAskedAgain(t *testing.T) {
+	t.Parallel()
+	codeID := engine.FileCheckItemID("security", "code.go")
+	row := `{"item_id":"` + codeID + `","status":"FAIL","role":"security","category":"security","severity":"error","notes":""}` + "\n"
+	dir := carryRepo(t, "2021-01-01T00:00:00Z", row, carryWontfix)
+	commitFile(t, dir, "other.go", "add other")
+
+	prompt, ids := emitSecurityPrompt(t, dir)
+	assert.Contains(t, ids, codeID, "a wontfix citing no file is asked again")
+	assert.NotContains(t, prompt, "## Carried")
+}
+
 // TestWontfixCarry_TheRecordWritesTheCarriedRow (decision §2.1): the round's
 // results hold no row for the carried item, since nobody was asked, and
 // recording the round writes it with its disposition, carried_from naming the
