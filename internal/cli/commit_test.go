@@ -228,8 +228,7 @@ func TestDoneAutoCommit_AFailedLockUnstageExitsThree(t *testing.T) {
 	out, err := log.Output()
 	require.NoError(t, err)
 	assert.NotContains(t, string(out), "feat(t1)", "nothing is committed")
-	stdout, _, _ := runTP(t, dir, "show", "t1")
-	assert.NotContains(t, stdout, `"status": "done"`, "the task stays open")
+	assert.Equal(t, "open", taskState(t, dir, "t1")["status"], "the task stays open")
 }
 
 // TestCommit_AFailedLockUnstageExitsThree is tp commit's twin of
