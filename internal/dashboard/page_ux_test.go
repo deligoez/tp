@@ -393,7 +393,7 @@ func TestPage_OneGraphCardDrawsEveryMode(t *testing.T) {
 	for _, s := range []string{"function drawMap(", "function drawGraph(", "function makePort(", "tpPure.placeLayout("} {
 		assert.NotContains(t, script, s)
 	}
-	for _, s := range []string{`"/api/layout?"`, "L.bands", ".critical", ".any_of", ".centre", ".inbound"} {
+	for _, s := range []string{`"/api/layout?"`, "pure.regionsOf(L)", ".critical", ".any_of", ".centre", ".inbound"} {
 		assert.Contains(t, script, s)
 	}
 	chain := strings.Index(page, `id="chaintext"`)
