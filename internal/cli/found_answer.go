@@ -164,6 +164,12 @@ func canonicalFile(path string) string {
 // answerFoundRequest records an answer under the task-file lock, then the
 // store's, the order tp found apply takes them in, and returns the plan with
 // its queue entries numbered. A plan error is a refusal and writes nothing.
+// answerFoundRequest records an answer under the task-file lock, then the
+// store's, the order tp found apply takes them in, and returns the plan with
+// its queue entries numbered. A plan error is a refusal and writes nothing.
+// The task file and queue are written before the store, so when the store
+// write fails they are put back: a task left on disk beside a request still
+// undecided is one dedup cannot see, and answering again would open a second.
 func answerFoundRequest(root, taskFilePath string, foundMax int, id string, ans *engine.FoundAnswer) (engine.FoundApplyPlan, error) {
 	var plan engine.FoundApplyPlan
 	err := engine.WithFileLock(taskFilePath, func() error {
@@ -175,13 +181,109 @@ func answerFoundRequest(root, taskFilePath string, foundMax int, id string, ans 
 		if err != nil {
 			return err
 		}
-		return engine.UpdateFoundRequests(root, taskFilePath, func(reqs []engine.FoundRequest) ([]engine.FoundRequest, error) {
+		before, err := snapshotFoundFiles(taskFilePath)
+		if err != nil {
+			return err
+		}
+		wrote := false
+		err = engine.UpdateFoundRequests(root, taskFilePath, func(reqs []engine.FoundRequest) ([]engine.FoundRequest, error) {
 			plan, err = engine.PlanFoundAnswer(reqs, tf.Tasks, queue, foundMax, id, ans)
 			if err != nil {
 				return nil, fmt.Errorf("%w: %w", err, errFoundAnswerRefused)
 			}
+			wrote = true
 			return plan.Requests, writeFoundPlan(taskFilePath, tf, queue, &plan, nil)
 		})
+		if err != nil && wrote {
+			return errors.Join(err, before.restore())
+		}
+		return err
 	})
 	return plan, err
+}
+
+// fileSnapshot is a file's bytes and mode as they were before an answer
+// wrote it; a file that did not exist has existed false.
+type fileSnapshot struct {
+	path    string
+	data    []byte
+	mode    os.FileMode
+	existed bool
+}
+
+// foundFiles are the task file and the queue an answer writes before the
+// store.
+type foundFiles []fileSnapshot
+
+// snapshotFoundFiles reads the task file and the queue an answer may write.
+// The caller holds the task-file lock.
+func snapshotFoundFiles(taskFilePath string) (foundFiles, error) {
+	var files foundFiles
+	for _, path := range []string{taskFilePath, engine.FoundQueuePath(taskFilePath)} {
+		snap, err := snapshotFile(path)
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, snap)
+	}
+	return files, nil
+}
+
+func snapshotFile(path string) (fileSnapshot, error) {
+	info, err := os.Stat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return fileSnapshot{path: path}, nil
+	}
+	if err != nil {
+		return fileSnapshot{}, err
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fileSnapshot{}, err
+	}
+	return fileSnapshot{path: path, data: data, mode: info.Mode().Perm(), existed: true}, nil
+}
+
+// restore puts the snapshot back, each file by rename so a lock-free reader
+// never sees a partial document, and removes a file the answer created.
+func (files foundFiles) restore() error {
+	var errs []error
+	for i := range files {
+		f := &files[i]
+		if !f.existed {
+			if err := os.Remove(f.path); err != nil && !errors.Is(err, os.ErrNotExist) {
+				errs = append(errs, err)
+			}
+			continue
+		}
+		if err := replaceFileByRename(f.path, f.data, f.mode); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if err := errors.Join(errs...); err != nil {
+		return fmt.Errorf("put back the task file and queue: %w", err)
+	}
+	return nil
+}
+
+// replaceFileByRename writes data to a temporary file beside path and renames
+// it over path with mode.
+func replaceFileByRename(path string, data []byte, mode os.FileMode) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".*.tmp")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	defer func() { _ = os.Remove(tmpName) }()
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Chmod(tmpName, mode); err != nil {
+		return err
+	}
+	return os.Rename(tmpName, path)
 }
