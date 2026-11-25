@@ -80,3 +80,22 @@ func TestNamedInbox_RecordInboxReadsTheNamedInbox(t *testing.T) {
 	require.Equal(t, 0, code, "stderr: %s", stderr)
 	assert.FileExists(t, filepath.Join(dir, ".tp-review", "spec", "review-round-1.ndjson"))
 }
+
+// TestNamedInbox_ARecordThatForgetsTheInboxNamesTheDirectoryRead: the files
+// are in the named inbox, and a --record-inbox without --inbox reads the
+// default one; it refuses, recording nothing, and names the directory it read
+// so the missing flag is visible.
+func TestNamedInbox_ARecordThatForgetsTheInboxNamesTheDirectoryRead(t *testing.T) {
+	t.Parallel()
+	dir, spec := inboxSpec(t)
+	prompts := emittedPrompts(t, dir, noRoundDir(), "review", "spec.md", "--inbox", "outside")
+	for _, pm := range prompts {
+		require.NoError(t, os.WriteFile(pm["output_path"].(string), nil, 0o600))
+	}
+
+	_, stderr, code := runTPEnv(t, dir, noRoundDir(), "review", "spec.md", "--record-inbox")
+	assert.Equal(t, 3, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, realPath(t, filepath.Dir(engine.RoleInboxPath(spec, engine.PhaseReview, 1, "x"))), "the refusal names the inbox it read, absolute")
+	assert.Contains(t, stderr, "--inbox", "and says how to read another")
+	assert.NoFileExists(t, filepath.Join(dir, ".tp-review", "spec", "review-round-1.ndjson"))
+}
