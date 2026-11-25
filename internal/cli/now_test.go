@@ -230,3 +230,18 @@ func assertPlainWords(t *testing.T, text any) {
 	assert.NotContains(t, s, "tp ", "no tp command in %q", s)
 	assert.NotContains(t, s, "--", "no flag in %q", s)
 }
+
+// A resume blocker reaches needs_you as a plain sentence: here no task is
+// ready because the only one is held by something that is not a task.
+func TestNow_BlockerBecomesAPlainNeed(t *testing.T) {
+	t.Parallel()
+	dir := runProject(t)
+	_, stderr, code := runTP(t, dir, "set", "seed", "waiting=the release tag")
+	require.Equal(t, 0, code, "set waiting: %s", stderr)
+
+	stdout, stderr, code := runTP(t, dir, "now")
+	require.Equal(t, 0, code, "tp now: %s", stderr)
+	need := needOf(t, decodeNow(t, stdout), "blocker")
+	assertPlainWords(t, need["text"])
+	assert.Contains(t, need["text"], "No task is ready")
+}
