@@ -158,3 +158,23 @@ func TestWontfixCarry_AnUncommittedEditIsAskedAgain(t *testing.T) {
 	assert.Contains(t, ids, codeID, "a wontfix on an uncommitted edit is asked again")
 	assert.NotContains(t, prompt, "## Carried")
 }
+
+// TestWontfixCarry_TheRecordCarriesOnlyWhatTheEmissionCarried: round 2 is
+// emitted over other.go alone, so code.go's accepted wontfix was on no
+// checklist and the emission carried nothing for it. The record writes no
+// carried row for it either: it carries exactly the items the emission did.
+func TestWontfixCarry_TheRecordCarriesOnlyWhatTheEmissionCarried(t *testing.T) {
+	t.Parallel()
+	dir, codeID := wontfixCarryRepo(t, "2021-01-01T00:00:00Z")
+	_, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "other.go")
+	require.Equal(t, 0, code, "emit round 2 over other.go: %s", stderr)
+	otherPass := `{"item_id":"` + engine.FileCheckItemID("security", "other.go") + `","status":"PASS","role":"security",` +
+		`"evidence_file":"other.go","evidence_lines":"1-2","category":null,"severity":null,"notes":""}` + "\n"
+
+	out, stderr, code := auditRecord(t, dir, otherPass)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.Equal(t, float64(0), out["carried"], "the emission carried nothing")
+	data, err := os.ReadFile(filepath.Join(dir, ".tp-review", "spec", "audit-round-2.ndjson"))
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), codeID, "no carried row for an item no checklist held")
+}
