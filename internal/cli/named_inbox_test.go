@@ -26,7 +26,7 @@ func realPath(t *testing.T, dir string) string {
 }
 
 // TestNamedInbox_EmissionNamesTheInbox: with --inbox, each emitted prompt's
-// output_path is <dir>/<phase>-inbox/round-<N>-<role>.ndjson, absolute even
+// output_path is <dir>/<phase>-inbox/<spec base>/round-<N>-<role>.ndjson, absolute even
 // when the flag was relative, and the prompt's own line names the same file.
 func TestNamedInbox_EmissionNamesTheInbox(t *testing.T) {
 	t.Parallel()
@@ -41,7 +41,7 @@ func TestNamedInbox_EmissionNamesTheInbox(t *testing.T) {
 		t.Run(tc.phase, func(t *testing.T) {
 			prompts := emittedPrompts(t, dir, noRoundDir(), tc.args...)
 			require.NotEmpty(t, prompts)
-			inbox := filepath.Join(dir, "outside", tc.phase+"-inbox")
+			inbox := filepath.Join(dir, "outside", tc.phase+"-inbox", engine.SpecBaseName(specPath))
 			require.DirExists(t, inbox, "the emission makes the inbox a role can write into")
 			for _, pm := range prompts {
 				got := pm["output_path"].(string)
@@ -100,8 +100,8 @@ func TestNamedInbox_ARecordThatForgetsTheInboxNamesTheDirectoryRead(t *testing.T
 	assert.NoFileExists(t, filepath.Join(dir, ".tp-review", "spec", "review-round-1.ndjson"))
 }
 
-// TestNamedInbox_ARecordedRoundLeavesNoFileForTheNext: a named inbox names no
-// spec, so the files a record read leave with it; another spec's round 1
+// TestNamedInbox_ARecordedRoundLeavesNoFileForTheNext: the files a record
+// read leave the named inbox with it; another spec's round 1
 // emitted into the same inbox finds none of them and is refused until its own
 // roles write theirs.
 func TestNamedInbox_ARecordedRoundLeavesNoFileForTheNext(t *testing.T) {
