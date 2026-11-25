@@ -327,6 +327,8 @@ Acceptance: Model exists. Migration runs.
 
 **`waiting` (v1.24.0).** Free text saying what a task waits on: `tp set <id> waiting="<what>"`, and `waiting=""` unsets it. On a `wip` task it marks a parked claim (a background job, a person) and blocks nothing: when the task is the next implement unit, `tp resume`'s `guidance` names it, so after a reset a parked claim does not read as an abandoned one. On an `open` task (v1.29.0) it is a hold, a gate that is not a task: `tp ready`, `tp next`, `tp brief`, `tp claim --all-ready` and `tp run`'s pick skip the task, `tp show` gives it `is_ready: false`, `tp status` counts it under `held` (a held task with an undone dependency counts as `blocked`), `tp export` gives it state `held`, and when no task is ready `tp resume`'s `no-ready-task` blocker names each held task with its reason. A gate that is a task stays a `depends_on`. Every close, every claim and every path back to `open` clear it (`tp unclaim`, `tp reopen`, `tp run`'s release and solo reopen), so a stale value never hides a task. It must be one line of at most 200 bytes. On a `done` task, or past that limit, `tp validate` reports it, so `tp set`, `tp add` and `tp import` refuse it. A unit's brief does not carry it.
 
+**`conflict_branch`.** The unit branch (`tp-unit/<cycle tag>/<run id>/<id>`) whose commits did not apply to the main branch when `tp run` integrated them. Managed: `tp run` sets it on the solo reopen after a conflicting pick, a later reopen that names no branch (a failed gate, `tp land`) keeps it, and every close clears it; `tp set` rejects it. While it is set the branch outlives the run, and the task's brief carries it as `task.conflict_branch` plus an "Earlier work" section: bring the branch onto the current one (`git cherry-pick HEAD..<branch>` or `git merge <branch>`), resolve the conflicts, re-run its tests and close as usual.
+
 **`claimed_by` (v1.29.0).** `{session, spawn, token, retired}` on a task claimed for an agent spawn: `spawn` is the Agent call's `tool_use_id`, `session` the calling session's id when the caller passed `--session` (omitted otherwise; tp never reads it from the environment), and `token` the claim token of the brief the spawn was made from when the caller passed `--claim-token`, and `retired` the tokens takeovers cleared (v1.29.2). Managed: `tp set` rejects it. `tp unclaim`, `tp reopen` and `tp run`'s release clear it with `started_at`, keeping only `retired`; a close keeps it, so `tp claims` can see the spawn's work as done.
 
 **`tp claim <id> --spawn <tool_use_id> [--session <id>] [--claim-token <token>]` (v1.29.0).** One id only; `--file` selects the task file as for any write. Each value must be 1-128 of `A-Z a-z 0-9 _ -` (exit 2 otherwise, an explicit empty `--session` included, and `--session` or `--claim-token` without `--spawn` exits 2).
@@ -547,8 +549,8 @@ by `tp validate` and `tp set`.
   main branch to before the pick with `git reset --keep` (the task file's other closes survive),
   writes `last_failure`, reopens the task and sets `solo: true`, so it runs alone next. A conflict is
   reported as `commit <sha> conflicts with the main branch in <paths>`, and it is resolved, not
-  redone: the unit's branch is kept and the task records it as `conflict_branch` (managed; set only
-  on a conflict, cleared by every close), so it survives a driver restart, and the next brief for
+  redone: the unit's branch is kept and the task records it as `conflict_branch` (managed, above;
+  set only on a conflict, kept by a later reopen, cleared by every close), so it survives a driver restart, and the next brief for
   the task carries `task.conflict_branch` and an "Earlier work" section telling the unit to bring
   that branch onto its own (`git cherry-pick HEAD..<branch>` or `git merge <branch>`), resolve the
   conflicts, re-run its tests and close as usual. A close that fails
