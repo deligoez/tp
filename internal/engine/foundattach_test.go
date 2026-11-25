@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -137,6 +138,23 @@ func TestPlanFoundApply_AQuestionInsideAnOpenTasksTouchesAttaches(t *testing.T) 
 	assert.Equal(t, "which default?", plan.Attached[0].Note.Question)
 	assert.Equal(t, []string{"a", "b"}, plan.Attached[0].Note.Alternatives)
 	assert.Equal(t, "t1", plan.Requests[0].Outcome)
+}
+
+// The text brief carries the found_notes block only for a task with an
+// attached request, and carries it for one.
+func TestBriefText_TheFoundNotesBlockOnlyWithARequest(t *testing.T) {
+	for _, tc := range []struct {
+		notes []model.FoundNote
+		want  bool
+	}{
+		{nil, false},
+		{[]model.FoundNote{{Request: "F1", Location: "x.go:3", Reproduction: "r"}}, true},
+	} {
+		tasks := []model.Task{{ID: "unit", Title: "Unit", Status: model.StatusOpen, Acceptance: "done", FoundNotes: tc.notes}}
+		b, err := BuildBrief(&model.TaskFile{Tasks: tasks}, &tasks[0], "", CommitStrategyBuiltin, "", 0, false, true)
+		require.NoError(t, err)
+		assert.Equal(t, tc.want, strings.Contains(b.Text(), "found_notes ("), "%d notes", len(tc.notes))
+	}
 }
 
 // The text brief lists an attached request with the fields it was filed with.
