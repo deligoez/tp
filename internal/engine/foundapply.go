@@ -21,6 +21,14 @@ type FoundOpened struct {
 	Task    string `json:"task"`
 }
 
+// FoundAttached names a request apply attached to an open task, the task, and
+// the note it adds there (spec/1.31.0.md §2).
+type FoundAttached struct {
+	Request string          `json:"request"`
+	Task    string          `json:"task"`
+	Note    model.FoundNote `json:"-"`
+}
+
 // FoundApplyPlan is what tp found apply does to one batch (spec/1.31.0.md
 // §2, §8): the found tasks to append to the task file, the open queue entries
 // to append to the queue (numbered when written), and the store's requests
@@ -30,6 +38,7 @@ type FoundApplyPlan struct {
 	Tasks      []model.Task
 	Entries    []FoundQueueEntry
 	Opened     []FoundOpened
+	Attached   []FoundAttached
 	Undecided  []string
 	Duplicates []FoundDuplicate
 	// FoundTasks is the count found_max is measured against once the plan
@@ -58,7 +67,9 @@ func foundApplyShaped(req *FoundRequest) bool {
 }
 
 // PlanFoundApply plans one tp found apply over a spec's requests, task file
-// tasks and queue (spec/1.31.0.md §2, §8). Duplicates open nothing. Fix-shaped
+// tasks and queue (spec/1.31.0.md §2, §8). Duplicates open nothing. A request
+// inside an open task's touches is attached to that task, whatever its shape
+// and outside the cap (foundAttachTarget). Other Fix-shaped
 // requests become found tasks, blocking ones first and then by arrival, while
 // the task file holds fewer than foundMax found tasks (0 is uncapped); the
 // ones past the cap become open queue entries. Requests that are not
@@ -83,7 +94,11 @@ func PlanFoundApply(reqs []FoundRequest, tasks []model.Task, queue []FoundQueueE
 	outcomes := map[string]FoundRequest{}
 	for i := range kept {
 		req := kept[i]
-		switch {
+		switch attachTo := foundAttachTarget(&req, tasks); {
+		case attachTo != "":
+			plan.Attached = append(plan.Attached, FoundAttached{Request: req.ID, Task: attachTo, Note: foundNote(&req)})
+			req.State = FoundStateApplied
+			req.Outcome = attachTo
 		case !foundApplyShaped(&req):
 			req.State = FoundStateUndecided
 			plan.Undecided = append(plan.Undecided, req.ID)
@@ -115,6 +130,42 @@ func PlanFoundApply(reqs []FoundRequest, tasks []model.Task, queue []FoundQueueE
 		}
 	}
 	return plan
+}
+
+// foundAttachTarget is the open task a request is attached to in place of a
+// task of its own (spec/1.31.0.md §2), or "" when there is none: the first
+// task, in task-file order, that is not done, is not the request's finder, and
+// whose touches hold the location's file. A task's files are its touches, so
+// a task without touches, a found task among them, names no files: a found
+// task's origin location is the defect it fixes, and a second defect in that
+// file opens its own task rather than merging into it (§2, Rejected). tasks is
+// the task file before the batch, so a task opened in the same batch never
+// takes an attachment.
+func foundAttachTarget(req *FoundRequest, tasks []model.Task) string {
+	file := strings.TrimPrefix(trailingLine.ReplaceAllString(strings.TrimSpace(req.Location), ""), "./")
+	for i := range tasks {
+		t := &tasks[i]
+		if t.Status == model.StatusDone || t.ID == req.Finder.Task || len(t.Touches) == 0 {
+			continue
+		}
+		if TouchesMatch(t.Touches, file) {
+			return t.ID
+		}
+	}
+	return ""
+}
+
+// foundNote is the note an attached request leaves on its task.
+func foundNote(req *FoundRequest) model.FoundNote {
+	return model.FoundNote{
+		Request:      req.ID,
+		Location:     req.Location,
+		Reproduction: req.Reproduction,
+		Expected:     req.Expected,
+		Observed:     req.Observed,
+		Question:     req.Question,
+		Alternatives: req.Alternatives,
+	}
 }
 
 // pastCapEntry is the open queue entry of a Fix-shaped request past the cap.
