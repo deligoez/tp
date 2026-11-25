@@ -651,3 +651,21 @@ test('one failed tp now after a good one keeps the views and asks again on the n
   await clock.advance(5_000)
   expect(reads()).toBe(before + 1)
 })
+
+// A task the person holds themselves, no run in flight: tp now writes its
+// attempt as null.
+const MINE = {
+  ...NOW,
+  needs_you: [],
+  run: null,
+  held: [{ id: 'review', title: 'Review the diff', holder: 'you', since: '2026-11-25T10:00:00Z', worktree: null, attempt: null }],
+}
+
+test('a task only the person holds, the pane never opened, is read once a minute', async ($, on) => {
+  const clock = mock.clock(on, { now: AT })
+  const ran = world(on, { 'tp --version': VERSION, 'tp now --json': { exitCode: 0, stdout: JSON.stringify(MINE) } })
+  on('ui.panes', () => ({ value: [] }))
+  await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
+  await clock.advance(600_000)
+  expect(ran.filter(line => line === 'tp now --json').length).toBeLessThanOrEqual(20)
+})
