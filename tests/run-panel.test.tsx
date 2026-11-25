@@ -1,4 +1,6 @@
-import { expect, test } from 'claude-code/testing'
+import type { On } from 'claude-code'
+import { expect, mock, test } from 'claude-code/testing'
+import type { Engine } from 'claude-code/testing'
 
 import { toNow, tpVersion, toView } from '../hooks/run-panel'
 import { resolveLanguage, WORDS } from '../hooks/panel-words'
@@ -296,6 +298,55 @@ test('a project with no run says so', async $ => {
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect((await ui.find({ type: 'Text' }))?.text).toBe('tp')
   expect(await ui.find({ type: 'Text', text: 'No run in this project yet.' })).toBeTruthy()
+  await ui.unmount()
+})
+
+type Answer = { exitCode: number; stdout: string }
+
+// world answers what the pane calls beneath it: a tp project, each tp command
+// by its arguments (any other exits 1), and records every command it ran.
+function world(on: On, answers: Record<string, Answer>): string[] {
+  const ran: string[] = []
+  on('command.register', () => ({ value: { command: 'tp-run' } }))
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('fs.stat', () => ({ value: { kind: 'dir', size: 0, mtimeMs: 0, isLink: false } }))
+  on('process.run', (_, e) => {
+    const line = e.argv.join(' ')
+    ran.push(line)
+    const answer = answers[line] ?? { exitCode: 1, stdout: '' }
+    return { value: { ...answer, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+  })
+  return ran
+}
+
+async function runCommand($: Engine): Promise<string> {
+  const { text } = await $.command.run({
+    command: 'tp-run',
+    args: '',
+    origin: { kind: 'composer' },
+    presentation: { isFullscreen: false, columns: 120 },
+  })
+  return text ?? ''
+}
+
+const VERSION = { exitCode: 0, stdout: 'tp version v1.32.1\n' }
+
+test('an older tp without tp now falls back to the run status and draws the run view alone', async ($, on) => {
+  mock.clock(on, { now: AT })
+  const ran = world(on, {
+    'tp --version': VERSION,
+    'tp run --status': { exitCode: 0, stdout: JSON.stringify({ ...NOW.run, last_finished: undefined, last_unit: NOW.run.last_finished }) },
+  })
+  await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
+  await runCommand($)
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: 'Implement phase, running' })).toBeTruthy()
+  expect(await ui.find({ type: 'Text', text: 'Last: alpha implement, exit 0 after 45s' })).toBeTruthy()
+  // No views to switch to: the run is all an older tp tells.
+  expect(await ui.findAll({ type: 'Button' })).toHaveLength(0)
+  // Read-only: nothing but the version, tp now and the run status was run.
+  expect([...new Set(ran)].sort()).toEqual(['tp --version', 'tp now --json', 'tp run --status'])
   await ui.unmount()
 })
 
