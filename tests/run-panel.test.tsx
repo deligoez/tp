@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 
 import { toNow, tpVersion, toView } from '../hooks/run-panel'
 import { resolveLanguage, WORDS } from '../hooks/panel-words'
-import { nowRows, runRows } from '../hooks/panel-rows'
+import { detailRows, epicsRows, glanceRows, nowRows, runRows, tasksRows } from '../hooks/panel-rows'
 
 const PANE = {
   plugin: 'tp',
@@ -74,6 +74,21 @@ test('a duration reads in seconds, minutes and hours', async () => {
   expect(duration(42)).toBe('42s')
   expect(duration(754)).toBe('12m 34s')
   expect(duration(28800)).toBe('8h 0m')
+})
+
+test('the tasks view lists the counts, the held work, the land requests and the ready queue', async () => {
+  const read = toNow(NOW, 0)!
+  expect(tasksRows(read.now, 'en', AT).map(row => row.text)).toEqual([
+    'Tasks: 14 of 31 done, 2 in progress, 3 ready, 12 blocked',
+    'In progress',
+    'auth-refresh  Refresh tokens before expiry · run, attempt 2, 4m 5s',
+    'rate-limit  Limit requests per key · agent',
+    'Waiting to land',
+    'cache-key  Key the cache by tenant · 2m 5s',
+    'Ready next',
+    'webhook-retry  Retry failed webhooks',
+    'audit-log  Log every admin change',
+  ])
 })
 
 test('the brand reads the version tp prints', async () => {
