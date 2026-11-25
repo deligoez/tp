@@ -143,7 +143,7 @@ func newFoundTask(req *FoundRequest, taken map[string]bool) model.Task {
 	return model.Task{
 		ID:              id,
 		Title:           "Fix " + req.Location,
-		Description:     fmt.Sprintf("Reproduction: %s\nExpected: %s\nObserved: %s", req.Reproduction, req.Expected, req.Observed),
+		Description:     foundTaskDescription(req.Reproduction, req.Expected, req.Observed),
 		Status:          model.StatusOpen,
 		Tags:            []string{"found"},
 		DependsOn:       []string{},
