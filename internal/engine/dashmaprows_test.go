@@ -118,8 +118,8 @@ func TestMapRows_AWideLayerFoldsAndEveryLayerKeepsOneY(t *testing.T) {
 
 // TestMapRows_BlocksWrapInsideTheWidth: five two-column blocks sharing
 // layers do not fit nine columns, so they wrap onto lines of three blocks
-// and two, each line centred, no block past the width, the lines stacked
-// down.
+// and two, the lines centred on each other, no block past the width, the
+// lines stacked down.
 func TestMapRows_BlocksWrapInsideTheWidth(t *testing.T) {
 	t.Parallel()
 	var nodes []mapNode
@@ -138,7 +138,8 @@ func TestMapRows_BlocksWrapInsideTheWidth(t *testing.T) {
 	}
 	m0, m2, m3 := mapBlockOf(t, got.Blocks, "M0"), mapBlockOf(t, got.Blocks, "M2"), mapBlockOf(t, got.Blocks, "M3")
 	assert.Equal(t, []int{0, 0, 1}, []int{m0.Line, m2.Line, m3.Line})
-	assert.InDelta(t, 0.5, m0.FromCol, 0, "an eight-column line centred in nine")
+	assert.InDelta(t, 0.0, m0.FromCol, 0, "the widest line starts the map")
+	assert.InDelta(t, 1.5, m3.FromCol, 0, "a five-column line centred under an eight-column one")
 	assert.Less(t, m0.ToY, m3.FromY)
 }
 
