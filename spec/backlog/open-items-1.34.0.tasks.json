@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/backlog/open-items-1.34.0.md",
   "created_at": "2026-11-25T17:40:14.990311Z",
-  "updated_at": "2026-11-25T18:28:25.306114Z",
+  "updated_at": "2026-11-25T18:46:01.401875Z",
   "workflow": {},
   "coverage": {
     "total_sections": 2,
@@ -157,7 +157,7 @@
     {
       "id": "release",
       "title": "Release 1.34.0",
-      "status": "wip",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "review"
@@ -169,10 +169,19 @@
       ],
       "started_at": "2026-11-25T18:28:25.306114Z",
       "duration_source": "claimed",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-11-25T18:46:01.391027Z",
+      "closed_reason": "- mutation run done, both escapes killed; measurements in spec/1.34.0-measurements.md\n- CI green, v1.34.0 tagged at c42ec21f and released, six assets match checksums.txt\n- go install @v1.34.0 reports v1.34.0 and claude plugin details reports 1.34.0 with Skills 1 / Agents 4 / Hooks 4",
+      "gate_passed_at": "2026-11-25T18:46:01.391027Z",
+      "commit_sha": "c42ec21f",
+      "commit_shas": [
+        "c42ec21f"
+      ],
+      "commit_files": [
+        "spec/1.34.0-measurements.md"
+      ],
+      "task_audit_owed": [
+        "go-safety"
+      ]
     }
   ]
 }
