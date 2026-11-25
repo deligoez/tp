@@ -387,6 +387,36 @@ func TestIntegrate_AConflictingUnitIsReportedAsAConflict(t *testing.T) {
 	assert.NotContains(t, f.Summary, "exit status")
 }
 
+// TestIntegrate_AConflictKeepsTheBranchForItsResolution: a unit whose commits
+// conflict with the main branch keeps its branch, and the task reopens naming
+// it, so the next unit resolves the conflict rather than redoing the work
+// (spec/backlog/worktree-dispatch.md §2.2). The branch is found from the
+// commits, so one an earlier run cut is named too; a failed gate names none.
+func TestIntegrate_AConflictKeepsTheBranchForItsResolution(t *testing.T) {
+	root, spec, taskFile, _ := batchProject(t, wipAlpha)
+	branch := unitBranch(root, taskFile, "r0", "alpha")
+	gitIn(t, root, "switch", "-q", "-c", branch)
+	unit := commitIn(t, root, "s.md", "# changed by the unit\n")
+	gitIn(t, root, "switch", "-q", "main")
+	commitIn(t, root, "s.md", "# changed on main\n")
+	require.NoError(t, WritePendingClose(root, taskFile, &PendingClose{ID: "alpha", Commits: []string{unit}}))
+	reopened := map[string]string{}
+	d := recoveryDriver(root, spec, taskFile, &fakeCloser{closed: map[string][]string{}})
+	d.opts.ReopenSolo = func(id, conflictBranch string) error { reopened[id] = conflictBranch; return nil }
+
+	require.NoError(t, d.integratePending())
+	assert.Equal(t, map[string]string{"alpha": branch}, reopened)
+	assert.Equal(t, unit, gitIn(t, root, "rev-parse", branch), "the branch is kept")
+	assert.True(t, keptUnitBranch(root, taskFile, branch), "and outlives the next run's reconcile")
+
+	clean := commitIn(t, root, "a1.txt", "1\n")
+	gitIn(t, root, "reset", "-q", "--hard", "HEAD~1")
+	require.NoError(t, WritePendingClose(root, taskFile, &PendingClose{ID: "alpha", Commits: []string{clean}}))
+	d.opts.CloseTask = func(string, string, []string, string) error { return errors.New("quality gate failed") }
+	require.NoError(t, d.integratePending())
+	assert.Equal(t, map[string]string{"alpha": ""}, reopened, "a failed gate names no branch")
+}
+
 // TestCycleUnitBranches_NamesOnlyKeptBranches: a branch whose task is done is
 // not reported as unfinished work, though no run has deleted it yet.
 func TestCycleUnitBranches_NamesOnlyKeptBranches(t *testing.T) {
