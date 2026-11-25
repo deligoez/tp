@@ -97,6 +97,67 @@ func TestFoundQueue_TheConvergedRecordPayloadCarriesTheOpenCount(t *testing.T) {
 	assert.Equal(t, float64(1), out["found_open"])
 }
 
+// writeMistypedQueue writes a queue beside dir's task file that the task-file
+// reader accepts (it decodes only id, state and finders) and the full queue
+// reader rejects: an open entry whose question is a number.
+func writeMistypedQueue(t *testing.T, dir string) {
+	t.Helper()
+	require.NoError(t, os.WriteFile(engine.FoundQueuePath(filepath.Join(dir, "spec.tasks.json")),
+		[]byte(`{"entries":[{"id":"Q1","state":"open","location":"x.go:1","question":5}]}`), 0o600))
+}
+
+// A queue file that cannot be parsed fails a converged --status payload, as it
+// fails tp found list, instead of reporting an empty queue as found_open: 0.
+func TestFoundQueue_AnUnparsableQueueFailsTheConvergedStatus(t *testing.T) {
+	t.Parallel()
+	for _, phase := range []string{"review", "audit"} {
+		t.Run(phase, func(t *testing.T) {
+			t.Parallel()
+			dir := setupConvergeOnProject(t)
+			if phase == "review" {
+				_, stderr, code := recordRound(t, dir, "")
+				require.Equal(t, 0, code, stderr)
+			} else {
+				for range 2 {
+					_, stderr, code := auditRecord(t, dir, auditAllPassRound)
+					require.Equal(t, 0, code, stderr)
+				}
+			}
+			before, _ := statusCheck(t, dir, phase)
+			require.Equal(t, true, before["converged"], "the fixture converges, or the count is not on the payload")
+			writeMistypedQueue(t, dir)
+
+			stdout, stderr, code := runTPFence(t, dir, false, phase, "spec.md", "--status")
+			assert.Equal(t, 3, code, "exit 3 (file error), as tp found list exits; stdout=%s stderr=%s", stdout, stderr)
+			assert.Contains(t, stderr, "cannot read found queue")
+			assert.NotContains(t, stdout, `"found_open"`, "no count is reported for a queue that was not read")
+		})
+	}
+}
+
+// On --record the round is already stored, so an unparsable queue is a
+// notice and the count is left out; the record still succeeds.
+func TestFoundQueue_AnUnparsableQueueIsANoticeOnTheConvergedRecord(t *testing.T) {
+	t.Parallel()
+	dir := setupConvergeOnProject(t)
+	writeMistypedQueue(t, dir)
+	out, stderr, code := recordRound(t, dir, "")
+	require.Equal(t, 0, code, stderr)
+	require.Equal(t, true, out["converged"])
+	assert.NotContains(t, out, "found_open")
+	assert.Contains(t, stderr, "cannot read found queue")
+
+	audited := setupConvergeOnProject(t)
+	writeMistypedQueue(t, audited)
+	for range 2 {
+		out, stderr, code = auditRecord(t, audited, auditAllPassRound)
+		require.Equal(t, 0, code, stderr)
+	}
+	require.Equal(t, true, out["converged"])
+	assert.NotContains(t, out, "found_open")
+	assert.Contains(t, stderr, "cannot read found queue")
+}
+
 // resumeQueueFixture is a task file with a finder, an unrelated open task and
 // a done task, each task named by some queue entry.
 func resumeQueueFixture(t *testing.T) string {
