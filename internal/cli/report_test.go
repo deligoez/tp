@@ -57,7 +57,8 @@ func TestClaimBatchSetsStartedAt(t *testing.T) {
 	assert.Len(t, claimed, 2)
 
 	// Verify both tasks have started_at set via list
-	stdout, _, _ = runTP(t, dir, "list", "--status", "wip")
+	stdout, stderr, code := runTP(t, dir, "list", "--status", "wip")
+	require.Equal(t, 0, code, stderr)
 	var tasks []map[string]any
 	require.NoError(t, json.Unmarshal([]byte(stdout), &tasks))
 	require.Len(t, tasks, 2)
@@ -106,7 +107,8 @@ func TestDoneImplicitClaimSetsStartedAt(t *testing.T) {
 	require.Equal(t, 0, code)
 
 	// Verify started_at was set via show (show embeds Task at root)
-	stdout, _, _ := runTP(t, dir, "show", "t1")
+	stdout, stderr, code := runTP(t, dir, "show", "t1")
+	require.Equal(t, 0, code, stderr)
 	var task map[string]any
 	require.NoError(t, json.Unmarshal([]byte(stdout), &task))
 	assert.NotNil(t, task["started_at"], "implicit claim in done should set started_at")
@@ -119,7 +121,8 @@ func TestDoneOnAlreadyClaimedPreservesStartedAt(t *testing.T) {
 	addTaskWithEstimate(t, dir, "t1", 5)
 
 	// Claim first
-	stdout, _, _ := runTP(t, dir, "claim", "t1")
+	stdout, stderr, code := runTP(t, dir, "claim", "t1")
+	require.Equal(t, 0, code, stderr)
 	var claimed map[string]any
 	require.NoError(t, json.Unmarshal([]byte(stdout), &claimed))
 	originalStartedAt := claimed["started_at"].(string)
@@ -128,10 +131,11 @@ func TestDoneOnAlreadyClaimedPreservesStartedAt(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	// Done should NOT overwrite started_at
-	_, _, code := runTP(t, dir, "done", "t1", "t1 acceptance criteria met completely", "--gate-passed")
+	_, _, code = runTP(t, dir, "done", "t1", "t1 acceptance criteria met completely", "--gate-passed")
 	require.Equal(t, 0, code)
 
-	stdout, _, _ = runTP(t, dir, "show", "t1")
+	stdout, stderr, code = runTP(t, dir, "show", "t1")
+	require.Equal(t, 0, code, stderr)
 	var task map[string]any
 	require.NoError(t, json.Unmarshal([]byte(stdout), &task))
 	assert.Equal(t, originalStartedAt, task["started_at"], "done should preserve original started_at from claim")
@@ -150,7 +154,8 @@ func TestReopenClearsStartedAt(t *testing.T) {
 	_, _, code = runTP(t, dir, "reopen", "t1")
 	require.Equal(t, 0, code)
 
-	stdout, _, _ := runTP(t, dir, "show", "t1")
+	stdout, stderr, code := runTP(t, dir, "show", "t1")
+	require.Equal(t, 0, code, stderr)
 	var task map[string]any
 	require.NoError(t, json.Unmarshal([]byte(stdout), &task))
 	assert.Nil(t, task["started_at"], "reopen should clear started_at")
@@ -163,19 +168,21 @@ func TestReopenAndReclaimGetsNewStartedAt(t *testing.T) {
 	addTaskWithEstimate(t, dir, "t1", 5)
 
 	// Claim → close → reopen → claim again
-	stdout, _, _ := runTP(t, dir, "claim", "t1")
+	stdout, stderr, code := runTP(t, dir, "claim", "t1")
+	require.Equal(t, 0, code, stderr)
 	var first map[string]any
 	require.NoError(t, json.Unmarshal([]byte(stdout), &first))
 	firstStarted := first["started_at"].(string)
 
-	_, _, code := runTP(t, dir, "close", "t1", "t1 acceptance criteria met completely")
+	_, _, code = runTP(t, dir, "close", "t1", "t1 acceptance criteria met completely")
 	require.Equal(t, 0, code)
 	_, _, code = runTP(t, dir, "reopen", "t1")
 	require.Equal(t, 0, code)
 
 	time.Sleep(10 * time.Millisecond)
 
-	stdout, _, _ = runTP(t, dir, "claim", "t1")
+	stdout, stderr, code = runTP(t, dir, "claim", "t1")
+	require.Equal(t, 0, code, stderr)
 	var second map[string]any
 	require.NoError(t, json.Unmarshal([]byte(stdout), &second))
 	secondStarted := second["started_at"].(string)
@@ -199,7 +206,8 @@ func TestBatchDoneAcceptsStartedAt(t *testing.T) {
 	_, _, code := runTP(t, dir, "done", "--batch", ndjsonPath)
 	require.Equal(t, 0, code)
 
-	stdout, _, _ := runTP(t, dir, "show", "t1")
+	stdout, stderr, code := runTP(t, dir, "show", "t1")
+	require.Equal(t, 0, code, stderr)
 	var task map[string]any
 	require.NoError(t, json.Unmarshal([]byte(stdout), &task))
 
@@ -222,7 +230,8 @@ func TestBatchDoneWithoutStartedAtUsesNow(t *testing.T) {
 	_, _, code := runTP(t, dir, "done", "--batch", ndjsonPath)
 	require.Equal(t, 0, code)
 
-	stdout, _, _ := runTP(t, dir, "show", "t1")
+	stdout, stderr, code := runTP(t, dir, "show", "t1")
+	require.Equal(t, 0, code, stderr)
 	var task map[string]any
 	require.NoError(t, json.Unmarshal([]byte(stdout), &task))
 	assert.NotNil(t, task["started_at"], "batch without started_at should still set it")
@@ -238,7 +247,8 @@ func TestBatchDonePreservesClaimedStartedAt(t *testing.T) {
 	addTaskWithEstimate(t, dir, "t1", 5)
 
 	// Claim first to set started_at
-	stdout, _, _ := runTP(t, dir, "claim", "t1")
+	stdout, stderr, code := runTP(t, dir, "claim", "t1")
+	require.Equal(t, 0, code, stderr)
 	var claimed map[string]any
 	require.NoError(t, json.Unmarshal([]byte(stdout), &claimed))
 	originalStarted := claimed["started_at"].(string)
@@ -248,10 +258,11 @@ func TestBatchDonePreservesClaimedStartedAt(t *testing.T) {
 	ndjsonPath := filepath.Join(dir, "results.ndjson")
 	require.NoError(t, os.WriteFile(ndjsonPath, []byte(ndjson+"\n"), 0o600))
 
-	_, _, code := runTP(t, dir, "done", "--batch", ndjsonPath)
+	_, _, code = runTP(t, dir, "done", "--batch", ndjsonPath)
 	require.Equal(t, 0, code)
 
-	stdout, _, _ = runTP(t, dir, "show", "t1")
+	stdout, stderr, code = runTP(t, dir, "show", "t1")
+	require.Equal(t, 0, code, stderr)
 	var showResult map[string]any
 	require.NoError(t, json.Unmarshal([]byte(stdout), &showResult))
 	assert.Equal(t, originalStarted, showResult["started_at"], "batch done on wip should preserve original started_at")
