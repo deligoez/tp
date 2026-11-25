@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { RunSlot, RunView } from '../types'
+import type { FinishedUnit, NowView, RunSlot, RunView } from '../types'
 
 // The run panel (spec/backlog/run-panel.md): a pane that shows the tp run of
 // the session's project, read from `tp run --status`. It reads and never
@@ -15,18 +15,28 @@ const TITLE = 'tp run'
 const LIVE_MS = 5_000
 const IDLE_EVERY = 12
 
-// Change the tag when RunView's fields change: it declines what an earlier
+// Change a tag when its value's fields change: it declines what an earlier
 // version stored, which outlives a reload.
 const run = atom({ plugin: 'tp', key: 'run' } as const, null as RunView | null, {
-  shape: 'run-2',
+  shape: 'run-3',
+})
+const nowState = atom({ plugin: 'tp', key: 'now' } as const, null as NowView | null, {
+  shape: 'now-1',
 })
 
-// toView keeps the fields the panel draws from `tp run --status`'s payload,
-// tolerating a tp that predates `running`.
+// lastFinished is the latest unit with an exit code: `tp now`'s
+// last_finished, or `tp run --status`'s last_unit once it has ended.
+function lastFinished(payload: Record<string, unknown>): FinishedUnit | null {
+  const last = (payload.last_finished ?? payload.last_unit ?? null) as FinishedUnit | null
+  if (!last || typeof last !== 'object' || last.exit_code === null || last.exit_code === undefined) return null
+  return last
+}
+
+// toView keeps the fields the panel draws from a run's payload (`tp now`'s
+// run or `tp run --status`), tolerating a tp that predates `running`.
 export function toView(payload: Record<string, unknown>, now: number): RunView | null {
   if (typeof payload.run_id !== 'string') return null
   const caps = (payload.caps ?? {}) as RunView['caps']
-  const last = (payload.last_unit ?? null) as RunView['last_unit']
   return {
     run_id: payload.run_id,
     phase: String(payload.phase ?? ''),
@@ -42,8 +52,34 @@ export function toView(payload: Record<string, unknown>, now: number): RunView |
       max_budget_usd: Number(caps.max_budget_usd ?? 0),
     },
     running: Array.isArray(payload.running) ? (payload.running as RunSlot[]) : [],
-    last_unit: last,
+    last_finished: lastFinished(payload),
     read_at: now,
+  }
+}
+
+function list<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : []
+}
+
+// toNow keeps what the pane draws from `tp now --json`, its run apart as a
+// RunView; a payload that is not one (no project) reads as nothing.
+export function toNow(payload: Record<string, unknown>, at: number): { now: NowView; run: RunView | null } | null {
+  if (typeof payload.project !== 'string') return null
+  const runPayload = payload.run && typeof payload.run === 'object' ? (payload.run as Record<string, unknown>) : null
+  return {
+    now: {
+      project: payload.project,
+      task_file: typeof payload.task_file === 'string' ? payload.task_file : null,
+      phase: String(payload.phase ?? ''),
+      needs_you: list(payload.needs_you),
+      tasks: payload.tasks && typeof payload.tasks === 'object' ? (payload.tasks as NowView['tasks']) : null,
+      held: list(payload.held),
+      landing: list(payload.landing),
+      ready: list(payload.ready),
+      epics: Array.isArray(payload.epics) ? (payload.epics as NowView['epics']) : null,
+      read_at: at,
+    },
+    run: runPayload ? toView(runPayload, at) : null,
   }
 }
 
@@ -117,9 +153,8 @@ export function panelRows(view: RunView, now: number): PanelRow[] {
     const age = slotAge(slot, now)
     rows.push({ text: `${slot.id} ${slot.kind}, attempt ${slot.attempt}${age ? `, ${age}` : ''}` })
   }
-  // A last unit still running is already a row under Running now.
-  const last = view.last_unit
-  if (last && last.exit_code !== null) {
+  const last = view.last_finished
+  if (last) {
     const ended = `exit ${last.exit_code}`
     const took = last.duration_seconds === null ? '' : ` after ${duration(last.duration_seconds)}`
     rows.push({ text: `Last: ${last.id} ${last.kind}, ${ended}${took}`, tone: 'quiet' })
