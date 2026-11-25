@@ -60,7 +60,10 @@ decision unit.
 A non-blocking found task depends on the task that filed it (an audit row's
 on nothing). A blocking request makes its finder depend on the task it ended
 in; when that edge would close a cycle it adds no edge and becomes an open
-queue entry naming the cycle.`,
+queue entry naming the cycle. An open entry holds its finders out of the
+ready set until it is settled. A wip finder that waits returns to open,
+unless a spawn claims it or a unit runs it now; a later apply returns it
+once that unit has exited without closing it.`,
 		Args: cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return runFoundApply()
