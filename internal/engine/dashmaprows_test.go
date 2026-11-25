@@ -263,3 +263,13 @@ func TestMapRows_BlocksThatFillTheWidthExactlyShareALine(t *testing.T) {
 	assert.InDelta(t, a.ToCol+2, b.FromCol, 0)
 	assert.InDelta(t, 5.0, got.Width, 0)
 }
+
+// TestMapRows_ARowsLinesCentreOnEachOther: C's line, narrower than A and
+// B's, sits centred under it.
+func TestMapRows_ARowsLinesCentreOnEachOther(t *testing.T) {
+	t.Parallel()
+	in := fillingRow()
+	got := MapRows(&in)
+	a, b, c := mapBlockOf(t, got.Blocks, "A"), mapBlockOf(t, got.Blocks, "B"), mapBlockOf(t, got.Blocks, "C")
+	assert.InDelta(t, (a.FromCol+b.ToCol)/2, (c.FromCol+c.ToCol)/2, 0)
+}
