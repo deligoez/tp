@@ -72,6 +72,12 @@ func runFoundSettle(f *foundSettleFlags) error {
 	if errors.Is(err, errFoundSettleRefused) {
 		return foundRefusal(strings.TrimSuffix(err.Error(), ": "+errFoundSettleRefused.Error()), foundSettleHint)
 	}
+	var lockErr *engine.LockTimeoutError
+	if errors.As(err, &lockErr) {
+		// §12.2: the task-file lock timing out is a state error (exit 4), which
+		// the root dispatcher maps with the lock's own hint.
+		return err
+	}
 	if err != nil {
 		output.Error(ExitFile, "cannot settle the entries: "+err.Error(), foundStoreWriteHint)
 		os.Exit(ExitFile)
