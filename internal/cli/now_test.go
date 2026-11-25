@@ -158,6 +158,46 @@ func TestNow_LiveRunHoldsItsRunningSlot(t *testing.T) {
 	assert.Equal(t, 1.0, row["attempt"])
 }
 
+// Under an in-flight run every pool member is the run's, not only the ones
+// whose attempt is still running: a member whose unit exited stays pooled
+// through integration and the main gate. Its worktree and attempt come from
+// its latest row.
+func TestNow_LiveRunHoldsEveryPoolMember(t *testing.T) {
+	t.Parallel()
+	dir := runProject(t)
+	taskFile := filepath.Join(dir, "spec.tasks.json")
+	for _, args := range [][]string{
+		{"add", `{"id":"grow","title":"Grow","estimate_minutes":5,"acceptance":"Grown.","source_sections":["### 1.1 Seed"],"depends_on":[]}`},
+		{"claim", "seed", "grow"},
+	} {
+		_, stderr, code := runTP(t, dir, args...)
+		require.Equal(t, 0, code, "%v: %s", args, stderr)
+	}
+	writeRunState(t, dir, `{"run_id":"pool","started_at":"2026-11-25T00:00:00Z","phase":"implement","stop_reason":null,
+ "pool":["seed","grow"],
+ "totals":{"units":2,"wall_clock_seconds":9,"spend_usd":0},
+ "units":[
+  {"seq":1,"kind":"implement","id":"seed","attempt":1,"exit_code":0,"duration_seconds":4,"spend_usd":null,"log_path":"x","worktree":"/wt/seed"},
+  {"seq":2,"kind":"implement","id":"grow","attempt":1,"exit_code":null,"duration_seconds":null,"spend_usd":null,"log_path":"y","worktree":"/wt/grow"}]}`)
+	holdLock(t, taskFile)
+
+	stdout, stderr, code := runTP(t, dir, "now")
+	require.Equal(t, 0, code, "tp now: %s", stderr)
+	held, ok := decodeNow(t, stdout)["held"].([]any)
+	require.True(t, ok)
+	require.Len(t, held, 2)
+	byID := map[string]map[string]any{}
+	for _, h := range held {
+		row := h.(map[string]any)
+		byID[row["id"].(string)] = row
+	}
+	assert.Equal(t, "run", byID["seed"]["holder"], "an exited pool member is still the run's")
+	assert.Equal(t, "/wt/seed", byID["seed"]["worktree"])
+	assert.Equal(t, 1.0, byID["seed"]["attempt"])
+	assert.Equal(t, "run", byID["grow"]["holder"])
+	assert.Equal(t, "/wt/grow", byID["grow"]["worktree"])
+}
+
 // A run driven through the runner seam leaves exited units: last_finished is
 // the latest of them, with its exit code and duration.
 func TestNow_RunReportsTheLastFinishedUnit(t *testing.T) {
