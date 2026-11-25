@@ -230,6 +230,29 @@ func TestCarriedBlocking_ARoundThatWasNotCleanDoesNotVerifyAFix(t *testing.T) {
 	assert.Equal(t, float64(1), out["carried_fixed_unverified"], "round 2 was not clean, so it verifies nothing: %v", out["next_action"])
 }
 
+// TestCarriedBlocking_ARoundCleanOnceItsOwnFindingIsAcceptedVerifiesAFix:
+// round 2 read the repaired text and raised a high of its own, accepted
+// wontfix afterwards. Convergence grades the round live, so it is clean now,
+// and it verifies a fix resolved after it as any clean round does.
+func TestCarriedBlocking_ARoundCleanOnceItsOwnFindingIsAcceptedVerifiesAFix(t *testing.T) {
+	t.Parallel()
+	dir := carriedWithCap(t, "5")
+	_, stderr, code := recordRound(t, dir, carriedHighRow)
+	require.Equal(t, 0, code, stderr)
+	writeSpec(t, dir, strings.Replace(carriedSpec, "Rule 1 applies to every row.", "Rule 1 applies to every row of the file.", 1))
+	other := strings.Replace(strings.Replace(carriedHighRow, "Rule 1 is ambiguous", "The input format is unnamed", 1), "§2", "§1", 1)
+	_, stderr, code = recordRound(t, dir, other)
+	require.Equal(t, 0, code, "record a round over the repaired text: %s", stderr)
+	round2 := strings.Replace(carriedRoundFile, "round-1", "round-2", 1)
+	_, stderr, code = runTP(t, dir, "review", round2, "--resolve", "0", "wontfix", "the format is named in section 1")
+	require.Equal(t, 0, code, stderr)
+	_, stderr, code = runTP(t, dir, "review", carriedRoundFile, "--resolve", "0", "fixed", "reworded rule 1")
+	require.Equal(t, 0, code, stderr)
+
+	out, _ := reviewStatusCheck(t, dir)
+	assert.NotContains(t, out, "carried_fixed_unverified", "round 2 is clean once its own high is accepted: %v", out["next_action"])
+}
+
 // TestCarriedBlocking_ARoundOverOtherNewerTextDoesNotVerifyAFix: round 2 was
 // emitted over an unrelated edit, before the repair, so the text it read is
 // newer than round 1's and still not the repaired text. Recording it verifies
