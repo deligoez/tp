@@ -89,8 +89,8 @@ func applyFoundFunc(root, taskFile string) func(running []string) ([]string, err
 
 // reopenSoloFunc is how tp run reopens a task whose unit failed to integrate:
 // back to open, marked solo so it runs alone from then on.
-func reopenSoloFunc(taskFile string) func(id string) error {
-	return func(id string) error {
+func reopenSoloFunc(taskFile string) func(id, conflictBranch string) error {
+	return func(id, conflictBranch string) error {
 		return engine.WithFileLock(taskFile, func() error {
 			tf, err := model.ReadTaskFile(taskFile)
 			if err != nil {
@@ -106,6 +106,7 @@ func reopenSoloFunc(taskFile string) func(id string) error {
 			task.DurationSource = ""
 			task.ClaimedBy = task.ClaimedBy.Released()
 			task.Solo = true
+			task.ConflictBranch = conflictBranch
 			tf.UpdatedAt = time.Now().UTC()
 			return model.WriteTaskFile(taskFile, tf)
 		})

@@ -272,7 +272,7 @@ func rollingOptions(root, spec, taskFile string, wf *model.Workflow) *DriverOpti
 				}
 			})
 		},
-		ReopenSolo: func(id string) error {
+		ReopenSolo: func(id, _ string) error {
 			return editTasks(taskFile, []string{id}, func(task *model.Task) {
 				task.Status, task.Solo = model.StatusOpen, true
 			})

@@ -90,6 +90,25 @@ func keptUnitBranch(root, taskFile, branch string) bool {
 	return err == nil && task.Status != model.StatusDone
 }
 
+// unitBranchOf returns the cycle's unit branch of task id that holds sha,
+// whichever run cut it: a pending close a restarted driver integrates was
+// left by an earlier run. "" when none does.
+func unitBranchOf(root, taskFile, id, sha string) string {
+	if !SafeGitRev(sha) {
+		return ""
+	}
+	refs, err := gitOut(root, "for-each-ref", "--contains", sha, "--format=%(refname:short)", "refs/heads/"+unitBranchPrefix+cycleTag(root, taskFile)+"/")
+	if err != nil {
+		return ""
+	}
+	for branch := range strings.FieldsSeq(refs) {
+		if strings.HasSuffix(branch, "/"+id) {
+			return branch
+		}
+	}
+	return ""
+}
+
 // CycleUnitBranches lists the unit branches the task file's pools left that
 // still hold unfinished work: a pending request, or a task not yet done
 // (tp resume's unit_branches). A branch whose task is done is deleted by the
@@ -322,8 +341,10 @@ func (d *driver) deferUnit(p *PendingClose, pre string) error {
 }
 
 // discardUnit takes a pick that conflicted or failed its gate back off the
-// main branch, records why for the unit that redoes it, and reopens the task
-// to run alone.
+// main branch, records why for the next unit, and reopens the task to run
+// alone. A conflict is resolved, not redone (spec/backlog/worktree-dispatch.md
+// §2.2): the unit's branch outlives its worktree while the task is not done
+// (keptUnitBranch), and the task names it for the next unit.
 func (d *driver) discardUnit(id, pre string, cause error, logPath string) error {
 	// --keep, not --hard: the task file's uncommitted closes of the pool's
 	// earlier units must survive, and a unit's commits never touch it
@@ -332,15 +353,22 @@ func (d *driver) discardUnit(id, pre string, cause error, logPath string) error 
 	if err := restoreHead(d.opts.Root, pre); err != nil {
 		return driverErrorf(err, "restore the main branch after task %q", id)
 	}
-	output.Notice(fmt.Sprintf("task %s did not integrate (%v); it reopens to run alone", id, cause))
+	branch, kept := "", ""
+	if conflict := (*PickConflictError)(nil); errors.As(cause, &conflict) {
+		branch = unitBranchOf(d.opts.Root, d.opts.TaskFile, id, conflict.SHA)
+	}
+	if branch != "" {
+		kept = "; its work stays on branch " + branch + " for the next unit to bring onto the main branch"
+	}
+	output.Notice(fmt.Sprintf("task %s did not integrate (%v); it reopens to run alone%s", id, cause, kept))
 	_ = WriteLastFailure(d.opts.Root, d.opts.TaskFile, &LastFailure{
 		UnitKind: UnitImplement, UnitID: id, Phase: PhaseImplement, ExitCode: 1,
-		Summary: fmt.Sprintf("integration onto the main branch failed: %v; log: %s", cause, logPath),
+		Summary: fmt.Sprintf("integration onto the main branch failed: %v%s; log: %s", cause, kept, logPath),
 	})
 	if d.opts.ReopenSolo == nil {
 		return driverErrorf(fmt.Errorf("no reopen function"), "reopen task %q", id)
 	}
-	if err := d.opts.ReopenSolo(id); err != nil {
+	if err := d.opts.ReopenSolo(id, branch); err != nil {
 		return driverErrorf(err, "reopen task %q", id)
 	}
 	return nil

@@ -48,10 +48,13 @@ type DriverOptions struct {
 	// §2.4). Only a pool calls it.
 	CloseTask CloseFunc
 	// ClaimTasks claims a pool unit's task as it starts, and ReopenSolo
-	// reopens a task that failed to integrate and marks it solo. Both write
-	// the task file, which only internal/cli does, so tp run supplies them.
+	// reopens a task that failed to integrate and marks it solo, recording
+	// conflictBranch, the unit branch whose commits conflicted with the main
+	// branch ("" for any other failure), for the unit that resolves it
+	// (spec/backlog/worktree-dispatch.md §2.2). Both write the task file,
+	// which only internal/cli does, so tp run supplies them.
 	ClaimTasks func(ids []string) error
-	ReopenSolo func(id string) error
+	ReopenSolo func(id, conflictBranch string) error
 	// ReleaseTasks puts a unit that failed to start back to open: every
 	// named task still wip goes back, solo untouched, so a unit whose
 	// worktree add or setup failed spends nothing

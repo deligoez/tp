@@ -87,7 +87,7 @@ func TestRunSoloReopenClearsWaiting(t *testing.T) {
 	taskFile := heldRunTaskFile(t)
 	require.NoError(t, claimTasksFunc(taskFile)([]string{"a"}))
 	setWaiting(t, taskFile, "a long run")
-	require.NoError(t, reopenSoloFunc(taskFile)("a"))
+	require.NoError(t, reopenSoloFunc(taskFile)("a", ""))
 	assert.Empty(t, waitingOf(t, taskFile))
 }
 

@@ -67,7 +67,7 @@ func driveSetupBatch(t *testing.T, root, spec, taskFile string, mods ...func(*Dr
 				}
 			})
 		},
-		ReopenSolo: func(id string) error {
+		ReopenSolo: func(id, _ string) error {
 			return editTasks(taskFile, []string{id}, func(task *model.Task) {
 				task.Status, task.Solo = model.StatusOpen, true
 			})

@@ -74,7 +74,7 @@ type landKept struct {
 type lander struct {
 	root, taskFile, dir string
 	close               engine.CloseFunc
-	reopen              func(id string) error
+	reopen              func(id, conflictBranch string) error
 	res                 *landResult
 	// landed are the requests landed, whose worktrees may be pruned.
 	landed []engine.LandRequest
@@ -289,7 +289,7 @@ func (l *lander) reopenAfter(r *engine.LandRequest, session, pre, cause, logPath
 	}
 	item := landItem{ID: r.ID, Error: cause, Log: logPath,
 		Hint: fmt.Sprintf("task %s is open again: spawn a fresh agent from tp brief %s --file %s, and tell it this error", r.ID, r.ID, l.relFile())}
-	if err := l.reopen(r.ID); err != nil {
+	if err := l.reopen(r.ID, ""); err != nil {
 		item.Error += "; reopening failed: " + err.Error()
 		item.Hint = "the request is kept for the next tp land"
 		l.res.Blocked = append(l.res.Blocked, item)

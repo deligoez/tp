@@ -102,7 +102,7 @@ func driveBatch(t *testing.T, root, spec, taskFile string, closer *fakeCloser) D
 					}
 				})
 			},
-			ReopenSolo: func(id string) error {
+			ReopenSolo: func(id, _ string) error {
 				return editTasks(taskFile, []string{id}, func(task *model.Task) {
 					task.Status, task.Solo = model.StatusOpen, true
 				})
@@ -206,7 +206,7 @@ func TestRunDriver_APickACrashLeftIsClosedNotRedone(t *testing.T) {
 // recoveryDriver is a driver whose closes succeed by marking the task done.
 func recoveryDriver(root, spec, taskFile string, closer *fakeCloser) *driver {
 	return &driver{
-		opts:  &DriverOptions{Root: root, TaskFile: taskFile, Spec: spec, CloseTask: closer.close(taskFile), ReopenSolo: func(string) error { return nil }},
+		opts:  &DriverOptions{Root: root, TaskFile: taskFile, Spec: spec, CloseTask: closer.close(taskFile), ReopenSolo: func(string, string) error { return nil }},
 		runID: "r1",
 		sig:   &interrupts{ch: make(chan os.Signal, 1)},
 	}
@@ -374,7 +374,7 @@ func TestIntegrate_AConflictingUnitIsReportedAsAConflict(t *testing.T) {
 	require.NoError(t, WritePendingClose(root, taskFile, &PendingClose{ID: "alpha", Commits: []string{first, second}}))
 	reopened := ""
 	d := recoveryDriver(root, spec, taskFile, &fakeCloser{closed: map[string][]string{}})
-	d.opts.ReopenSolo = func(id string) error { reopened = id; return nil }
+	d.opts.ReopenSolo = func(id, _ string) error { reopened = id; return nil }
 
 	require.NoError(t, d.integratePending())
 	assert.Equal(t, "alpha", reopened, "the task reopens")
@@ -430,7 +430,7 @@ func TestIntegrate_AFailedCloseAfterASignalLeavesThePendingClose(t *testing.T) {
 	d := &driver{
 		opts: &DriverOptions{Root: root, TaskFile: taskFile, Spec: spec,
 			CloseTask:  func(string, string, []string, string) error { return errors.New("signal: interrupt") },
-			ReopenSolo: func(string) error { reopened = true; return nil },
+			ReopenSolo: func(string, string) error { reopened = true; return nil },
 		},
 		runID: "r1",
 		sig:   &interrupts{ch: make(chan os.Signal, 1), seen: true},
@@ -462,7 +462,7 @@ func TestIntegrate_AFailedCloseThatClosedTheTaskKeepsThePick(t *testing.T) {
 				require.NoError(t, editTasks(taskFile, []string{id}, func(task *model.Task) { task.Status = model.StatusDone }))
 				return errors.New("signal: killed")
 			},
-			ReopenSolo: func(string) error { reopened = true; return nil },
+			ReopenSolo: func(string, string) error { reopened = true; return nil },
 		},
 		runID: "r1",
 		sig:   &interrupts{ch: make(chan os.Signal, 1), seen: true},
@@ -589,7 +589,7 @@ func TestIntegrate_ADiscardedUnitLeavesItsLastFailure(t *testing.T) {
 	d := &driver{
 		opts: &DriverOptions{Root: root, TaskFile: taskFile, Spec: spec,
 			CloseTask:  func(string, string, []string, string) error { return errors.New("quality gate failed") },
-			ReopenSolo: func(string) error { return nil },
+			ReopenSolo: func(string, string) error { return nil },
 		},
 		runID: "r1",
 		sig:   &interrupts{ch: make(chan os.Signal, 1)},
