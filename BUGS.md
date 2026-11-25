@@ -60,11 +60,6 @@ Field report of 2026-11-25 (a requesting project, Agent-tool pool, v1.30.0):
 - **`tp land` exits 0 when a task is blocked.** A land that hit `.git/index.lock: File exists` listed
   the task under `blocked` and exited 0; the coordinator committed the task file as if it had landed.
   Test: a land with a non-empty `blocked` exits non-zero, and an index.lock is retried.
-- **An audit-fix unit that finds its row already fixed stops the run.** Run
-  01M8872QBM85KNHN5N9VX22C34: unit 84 found its finding fixed by unit 83 and exited without a change;
-  the driver stopped with `unit-failure` (exit 4), and `tp resume` kept naming the same unit while the
-  round file still had undisposed rows. Test: a fix unit whose row is already disposed is not
-  dispatched, and a no-change exit does not stop the run.
 
 Field report of 2026-11-25 (a requesting project, worktree pool then audit to the cap, v1.30.0). Look
 at these after 1.31.0 ships. The land exit code, the brief's `touches` and the absolute-path note are
