@@ -299,6 +299,25 @@ func TestNow_ReportsAWaitingLandRequest(t *testing.T) {
 	assertPlainWords(t, need["text"])
 }
 
+// A task whose land request waits is in landing, not also in held; tasks
+// still counts it as wip.
+func TestNow_ALandingTaskIsNotAlsoHeld(t *testing.T) {
+	t.Parallel()
+	dir := claimsRepo(t)
+	spawnClaim(t, dir, "t1", "toolu_L", "sessL")
+	spawnClaim(t, dir, "t2", "toolu_M", "sessL")
+	require.NoError(t, engine.WriteLandRequest(filepath.Join(dir, "spec.tasks.json"), &engine.LandRequest{
+		ID: "t1", Reason: "done", Commits: []string{"0123abcd"}, Worktree: filepath.Join(dir, "wt"), Spawn: "toolu_L",
+	}))
+
+	stdout, stderr, code := runTP(t, dir, "now")
+	require.Equal(t, 0, code, "tp now: %s", stderr)
+	out := decodeNow(t, stdout)
+	require.Len(t, out["landing"], 1)
+	assert.Equal(t, "t2", nowHeldOne(t, out)["id"], "t1 waits to land, so only t2 is held")
+	assert.Equal(t, 2.0, out["tasks"].(map[string]any)["wip"], "both tasks are still wip")
+}
+
 // A land request record that cannot be read is named on stderr, as tp land
 // names it, rather than passed over in silence.
 func TestNow_UnreadableLandRequestIsNamed(t *testing.T) {
