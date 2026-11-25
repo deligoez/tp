@@ -17,10 +17,17 @@ import (
 // t3, an unrelated open task.
 func foundHandbackFixture(t *testing.T) string {
 	t.Helper()
+	return foundHandbackFixtureWith(t, `{}`)
+}
+
+// foundHandbackFixtureWith is foundHandbackFixture with workflow as the task
+// file's workflow override.
+func foundHandbackFixtureWith(t *testing.T, workflow string) string {
+	t.Helper()
 	dir, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# S\n"), 0o600))
-	writeTaskFile(t, dir, `{"version":1,"spec":"spec.md","tasks":[
+	writeTaskFile(t, dir, `{"version":1,"spec":"spec.md","workflow":`+workflow+`,"tasks":[
 		{"id":"t1","title":"T1","status":"wip","depends_on":[],"estimate_minutes":5,"acceptance":"One.","source_sections":["# S"]},
 		{"id":"t3","title":"T3","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"One.","source_sections":["# S"]}
 	]}`)
@@ -101,4 +108,19 @@ func TestFoundHandback_ATaskWithoutOriginExitsTwo(t *testing.T) {
 	queue, err := engine.ReadFoundQueue(taskFile)
 	require.NoError(t, err)
 	assert.Empty(t, queue, "no entry is queued")
+}
+
+// §12.2: tp found handback holds the task-file lock. A lock held past
+// lock_timeout_seconds exits 4 (STATE) with LockTimeoutError's message and
+// hint, not the exit 3 of a failed write.
+func TestFoundHandback_LockContentionTimeoutExitsFour(t *testing.T) {
+	t.Parallel()
+	dir := foundHandbackFixtureWith(t, `{"lock_timeout_seconds":1}`)
+
+	release := holdTaskFileLock(t, filepath.Join(dir, "spec.tasks.json"))
+	defer release()
+
+	_, stderr, code := runTPEnv(t, dir, nil, "found", "handback", "found-f1", "TestA passes at HEAD")
+	assert.Equal(t, 4, code, "a lock held past lock_timeout_seconds exits 4 (STATE): %s", stderr)
+	assertLockTimeoutErrorObject(t, stderr)
 }
