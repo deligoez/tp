@@ -1,0 +1,130 @@
+{
+  "version": 1,
+  "spec": "spec/backlog/open-items-1.34.0.md",
+  "created_at": "2026-11-25T17:40:14.990311Z",
+  "updated_at": "2026-11-25T17:40:15.082629Z",
+  "workflow": {},
+  "coverage": {
+    "total_sections": 2,
+    "mapped_sections": 1,
+    "context_only": [
+      "# Close the items 1.32.0 and 1.33.0 left open"
+    ],
+    "unmapped": []
+  },
+  "tasks": [
+    {
+      "id": "tp-now",
+      "title": "Fix the tp now open items",
+      "status": "wip",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 90,
+      "acceptance": "A landing task is not held; --epic narrows epics; no active file is a need; one read per bound file.",
+      "source_sections": [
+        "## Decision"
+      ],
+      "started_at": "2026-11-25T17:40:15.047068Z",
+      "duration_source": "claimed",
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "worktrees",
+      "title": "Screen touches and prune conflict branches",
+      "status": "wip",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 90,
+      "acceptance": "tp claim and tp next screen touches; a landed task prunes its empty conflict branch.",
+      "source_sections": [
+        "## Decision"
+      ],
+      "started_at": "2026-11-25T17:40:15.065327Z",
+      "duration_source": "claimed",
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "audit-run",
+      "title": "Fix the audit, review and run items",
+      "status": "wip",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 90,
+      "acceptance": "Named inbox keeps specs apart; blocking next_action names the repair; prep diffs without renames; run --status has last_finished.",
+      "source_sections": [
+        "## Decision"
+      ],
+      "started_at": "2026-11-25T17:40:15.082629Z",
+      "duration_source": "claimed",
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "merge",
+      "title": "Land the three branches on main",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "tp-now",
+        "worktrees",
+        "audit-run"
+      ],
+      "estimate_minutes": 30,
+      "acceptance": "All three branches are on main and the full gate passes.",
+      "source_sections": [
+        "## Decision"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "review",
+      "title": "Review the whole diff twice",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "merge"
+      ],
+      "estimate_minutes": 60,
+      "acceptance": "Two independent reviewers read the diff; every finding is fixed or recorded.",
+      "source_sections": [
+        "## Decision"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "release",
+      "title": "Release 1.34.0",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "review"
+      ],
+      "estimate_minutes": 60,
+      "acceptance": "Mutation run, measurements, CI green, tag, release, install and plugin verified.",
+      "source_sections": [
+        "## Decision"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
+}
