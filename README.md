@@ -686,6 +686,13 @@ findings file is still missing and it has written no escalation record. `agents/
 lives in the corpus and reaches the unit through the prompt tp emits. Every hook is bounded by a
 `timeout` of 10 seconds.
 
+The plugin also carries a run panel (`hooks/run-panel.tsx`, a Claude Code hooks module). In a project
+with a `.tp/` folder it reads the run's status every few seconds while a run is live, and once a minute
+otherwise. When a run starts it opens a pane showing the phase, the units, time and estimated spend
+against each cap, every slot the run holds and the last unit's exit. `/tp-run` opens it by hand. The
+panel only reads: it never starts, stops or retries a unit. Claude Code versions that do not load hooks
+modules skip it and run the shell hooks as before.
+
 ## Research
 
 tp's design is backed by:
