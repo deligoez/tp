@@ -1,0 +1,197 @@
+package engine
+
+import (
+	"cmp"
+	"fmt"
+	"slices"
+	"strconv"
+	"strings"
+
+	"github.com/deligoez/tp/internal/model"
+)
+
+// foundTaskEstimateMinutes is a found task's estimate: one defect with its
+// reproduction already written, at the top of the atomicity range tp
+// validate warns outside of.
+const foundTaskEstimateMinutes = 15
+
+// FoundOpened names a request and the found task apply opened for it.
+type FoundOpened struct {
+	Request string `json:"request"`
+	Task    string `json:"task"`
+}
+
+// FoundApplyPlan is what tp found apply does to one batch (spec/1.31.0.md
+// §2, §8): the found tasks to append to the task file, the open queue entries
+// to append to the queue (numbered when written), and the store's requests
+// with every unapplied one moved out of the unapplied state.
+type FoundApplyPlan struct {
+	Requests   []FoundRequest
+	Tasks      []model.Task
+	Entries    []FoundQueueEntry
+	Opened     []FoundOpened
+	Undecided  []string
+	Duplicates []FoundDuplicate
+	// FoundTasks is the count found_max is measured against once the plan
+	// is applied.
+	FoundTasks int
+}
+
+// CountFoundTasks counts the found tasks a task file holds, the count
+// found_max caps (spec/1.31.0.md §8). It is read from the task file, not
+// from a run, so a stop and a restart do not reset it.
+func CountFoundTasks(tasks []model.Task) int {
+	n := 0
+	for i := range tasks {
+		if tasks[i].Origin != nil {
+			n++
+		}
+	}
+	return n
+}
+
+// foundApplyShaped reports whether apply opens a task for req: the four Fix
+// fields and no question (spec/1.31.0.md §2). Anything else is the decision
+// unit's.
+func foundApplyShaped(req *FoundRequest) bool {
+	return req.FixShaped() && strings.TrimSpace(req.Question) == ""
+}
+
+// PlanFoundApply plans one tp found apply over a spec's requests, task file
+// tasks and queue (spec/1.31.0.md §2, §8). Duplicates open nothing. Fix-shaped
+// requests become found tasks, blocking ones first and then by arrival, while
+// the task file holds fewer than foundMax found tasks (0 is uncapped); the
+// ones past the cap become open queue entries. Requests that are not
+// Fix-shaped wait, undecided, for the decision unit.
+func PlanFoundApply(reqs []FoundRequest, tasks []model.Task, queue []FoundQueueEntry, foundMax int) FoundApplyPlan {
+	kept, dups := DedupFoundRequests(reqs, tasks, queue)
+	plan := FoundApplyPlan{Duplicates: dups, FoundTasks: CountFoundTasks(tasks)}
+	slices.SortStableFunc(kept, func(a, b FoundRequest) int {
+		if a.Blocks != b.Blocks {
+			if a.Blocks {
+				return -1
+			}
+			return 1
+		}
+		return cmp.Compare(a.Seq, b.Seq)
+	})
+
+	taken := make(map[string]bool, len(tasks))
+	for i := range tasks {
+		taken[tasks[i].ID] = true
+	}
+	outcomes := map[string]FoundRequest{}
+	for i := range kept {
+		req := kept[i]
+		switch {
+		case !foundApplyShaped(&req):
+			req.State = FoundStateUndecided
+			plan.Undecided = append(plan.Undecided, req.ID)
+		case foundMax != 0 && plan.FoundTasks >= foundMax:
+			req.State = FoundStateApplied
+			plan.Entries = append(plan.Entries, pastCapEntry(&req, foundMax))
+		default:
+			task := newFoundTask(&req, taken)
+			taken[task.ID] = true
+			plan.Tasks = append(plan.Tasks, task)
+			plan.Opened = append(plan.Opened, FoundOpened{Request: req.ID, Task: task.ID})
+			plan.FoundTasks++
+			req.State = FoundStateApplied
+			req.Outcome = task.ID
+		}
+		outcomes[req.ID] = req
+	}
+	slices.SortStableFunc(plan.Undecided, func(a, b string) int { return cmp.Compare(outcomes[a].Seq, outcomes[b].Seq) })
+	for _, dup := range dups {
+		outcomes[dup.Request] = FoundRequest{State: FoundStateApplied, Outcome: cmp.Or(dup.KeptTask, outcomes[dup.KeptRequest].Outcome)}
+	}
+
+	plan.Requests = make([]FoundRequest, len(reqs))
+	for i := range reqs {
+		plan.Requests[i] = reqs[i]
+		if o, ok := outcomes[reqs[i].ID]; ok {
+			plan.Requests[i].State = o.State
+			plan.Requests[i].Outcome = o.Outcome
+		}
+	}
+	return plan
+}
+
+// pastCapEntry is the open queue entry of a Fix-shaped request past the cap.
+// The queue is committed and the request store is not, so the entry carries
+// the Fix fields itself.
+func pastCapEntry(req *FoundRequest, foundMax int) FoundQueueEntry {
+	return FoundQueueEntry{
+		State:        FoundQueueOpen,
+		Request:      req.ID,
+		Location:     req.Location,
+		Question:     fmt.Sprintf("found_max (%d) is reached: open a task for this defect?", foundMax),
+		Reproduction: req.Reproduction,
+		Expected:     req.Expected,
+		Observed:     req.Observed,
+	}
+}
+
+// newFoundTask is the found task a Fix-shaped request opens: open, anchored
+// by origin in place of source_sections, with an id no task in taken has.
+func newFoundTask(req *FoundRequest, taken map[string]bool) model.Task {
+	base := "found-" + strings.ToLower(req.ID)
+	id := base
+	for n := 2; taken[id]; n++ {
+		id = base + "-" + strconv.Itoa(n)
+	}
+	return model.Task{
+		ID:              id,
+		Title:           "Fix " + req.Location,
+		Description:     fmt.Sprintf("Reproduction: %s\nExpected: %s\nObserved: %s", req.Reproduction, req.Expected, req.Observed),
+		Status:          model.StatusOpen,
+		Tags:            []string{"found"},
+		DependsOn:       []string{},
+		EstimateMinutes: foundTaskEstimateMinutes,
+		Acceptance:      fmt.Sprintf("- %#q shows %s, where it showed %s", req.Reproduction, req.Expected, req.Observed),
+		SourceSections:  []string{},
+		Origin: &model.Origin{
+			FinderTask: req.Finder.Task,
+			AuditRound: req.Finder.AuditRound,
+			AuditRow:   req.Finder.RowKey,
+			Location:   req.Location,
+		},
+	}
+}
+
+// ApplyFoundRequests runs tp found apply for a spec's task file under the
+// task-file lock (spec/1.31.0.md §2): it plans over the requests read under
+// the store's lock, so a request filed meanwhile is either in this batch or
+// left unapplied for the next, then writes the task file, the queue and the
+// store. It returns the plan with the queue entries numbered.
+func ApplyFoundRequests(root, taskFile string, foundMax int) (FoundApplyPlan, error) {
+	var plan FoundApplyPlan
+	err := WithFileLock(taskFile, func() error {
+		tf, err := model.ReadTaskFile(taskFile)
+		if err != nil {
+			return err
+		}
+		queue, err := ReadFoundQueue(taskFile)
+		if err != nil {
+			return err
+		}
+		return UpdateFoundRequests(root, taskFile, func(reqs []FoundRequest) ([]FoundRequest, error) {
+			plan = PlanFoundApply(reqs, tf.Tasks, queue, foundMax)
+			if len(plan.Tasks) > 0 {
+				tf.Tasks = append(tf.Tasks, plan.Tasks...)
+				if err := model.WriteTaskFile(taskFile, tf); err != nil {
+					return nil, err
+				}
+			}
+			if len(plan.Entries) > 0 {
+				queue = append(queue, plan.Entries...)
+				if err := writeFoundQueue(taskFile, queue); err != nil {
+					return nil, err
+				}
+				plan.Entries = queue[len(queue)-len(plan.Entries):]
+			}
+			return plan.Requests, nil
+		})
+	})
+	return plan, err
+}
