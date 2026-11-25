@@ -267,7 +267,6 @@ func newDisposition(roundFile, status, evidence, at string) map[string]any {
 	return d
 }
 
-// allFindingsResolved checks if all findings in the slice have a "resolved" field.
 // reviewResolvedNextStep is the step after every finding of a file is
 // disposed, worded as next_action words it. A fixed finding waits for the
 // round that reads the repair; under tp run (TP_ROUND set) the unit stops and
@@ -289,6 +288,7 @@ func reviewResolvedNextStep(findings []map[string]any) string {
 	return "tp review <spec> --status, whose next_action names the next step"
 }
 
+// allFindingsResolved checks if all findings in the slice have a "resolved" field.
 func allFindingsResolved(findings []map[string]any) bool {
 	for _, f := range findings {
 		if _, ok := f["resolved"]; !ok {
