@@ -506,7 +506,7 @@ Where no runner is configured, or a human belongs in the loop, drive the same lo
 **Keep the pool full.** A session that claimed through spawns is a coordinator. Set `run_max_parallel` at the project layer first (`tp set --workflow --project run_max_parallel=<n>`): it is the hand pool's cap too, default 1. The plugin's second `Stop` hook runs `tp pool --stop-hook` when the coordinator's turn ends and refuses the stop once, a finished task first:
 
 - while a land request waits, with `tp land --file <file>`, slot or no slot; a landing that fails reopens the task, and `tp land` names the brief to spawn a fresh agent from;
-- while fewer agents run than `run_max_parallel` allows and a task is ready (or a claim lost its agent), with each task's `tp brief <id> --file <file>` — the tasks `tp run` would start beside the running ones, so one whose `touches` overlap a running task's waits: `tp brief <id>` exits 4 for an open task whose `touches` overlap a task a spawn or session holds, naming it, and `tp brief` with no id skips such a task. Spawn them in the background; a claim whose agent is gone is freed with `tp claim <id> --takeover --file <file>` first.
+- while fewer agents run than `run_max_parallel` allows and a task is ready (or a claim lost its agent), with each task's `tp brief <id> --file <file>` — the tasks `tp run` would start beside the running ones, so one whose `touches` overlap a running task's waits: `tp brief <id>` exits 4 for an open task whose `touches` overlap a task a spawn or session holds, naming it, and `tp brief` with no id skips such a task; `tp claim <id>` refuses it the same way (exit 4) and `tp next` passes over it. Spawn them in the background; a claim whose agent is gone is freed with `tp claim <id> --takeover --file <file>` first.
 
 A task that must not start yet for a reason that is not a task (a release tag, a person's decision) is held with `tp set <id> waiting="<why>"` until a claim or `waiting=""` lifts it, and the hook stops asking about it; an agent waiting on its own long job parks its wip task the same way and keeps its slot. The second stop in a row passes, and a session that never claimed is never asked.
 
@@ -583,7 +583,7 @@ refusal and its exit code — is under the same form in [REFERENCE.md](REFERENCE
 ### Incremental
 | Command | Purpose |
 |---------|---------|
-| `tp next` | Resume WIP or claim the next ready task; never resumes an agent-held task |
+| `tp next` | Resume WIP or claim the next ready task; never resumes an agent-held task, and passes over a task whose `touches` overlap a claimed task's |
 | `tp next --minimal` | {id, acceptance} only |
 | `tp next --peek` | Preview without claiming |
 | `tp next --brief` | Claim and return the brief |
@@ -592,7 +592,7 @@ refusal and its exit code — is under the same form in [REFERENCE.md](REFERENCE
 ### Task state
 | Command | Purpose |
 |---------|---------|
-| `tp claim <id> [id...]` | open -> wip |
+| `tp claim <id> [id...]` | open -> wip; refuses (exit 4) a task whose `touches` overlap a claimed task's |
 | `tp claim --all-ready` | Claim every ready task |
 | `tp claim <id> --spawn <tool_use_id> [--session <id>] [--claim-token <token>]` | Claim for an agent spawn (the plugin's Agent hook runs it); `--takeover` frees another spawn's task |
 | `tp claims --spawn <tool_use_id>` | A spawn's claimed tasks and which are `unaccounted` |
