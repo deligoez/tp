@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/deligoez/tp/internal/engine"
@@ -51,7 +52,32 @@ func roleOutputPath(phase, specPath string, round int, role string) string {
 	if roundDir := os.Getenv(engine.EnvRoundDir); roundDir != "" {
 		return engine.RoleFindingsPartPath(roundDir, role)
 	}
-	return engine.RoleInboxPath(specPath, phase, round, role)
+	inbox := namedInbox()
+	if inbox != "" {
+		// Made so a role can write straight into it; a failure surfaces as
+		// the role's own write failing, naming the path.
+		_ = os.MkdirAll(engine.RoleInboxDirAt(inbox, specPath, phase), 0o755)
+	}
+	return engine.RoleInboxPathAt(inbox, specPath, phase, round, role)
+}
+
+// flagInbox is tp review's and tp audit's --inbox <dir>: the directory a
+// round's role files are written to and read from in place of the spec's
+// state directory (spec/backlog/audit-round-ergonomics.md §2.2), for roles
+// that may not write inside the checkout. Every call of the round names it:
+// the emission, each sibling --role emission, and the --record-inbox.
+var flagInbox string
+
+// namedInbox is --inbox made absolute, so the prompt names a path that holds
+// from any working directory; "" when --inbox is not given.
+func namedInbox() string {
+	if flagInbox == "" {
+		return ""
+	}
+	if abs, err := filepath.Abs(flagInbox); err == nil {
+		return abs
+	}
+	return flagInbox
 }
 
 // renderFraming produces the framing block appended to a role prompt. It states
