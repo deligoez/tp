@@ -167,6 +167,22 @@ func poolSafeID(id string) bool {
 		!strings.HasSuffix(id, ".lock") && !strings.HasSuffix(id, ".")
 }
 
+// ClaimOverlap returns the claimed task, wip with claimed_by set, whose
+// touches overlap t's under the rule tp run's pool screens with
+// (disjointFromAll); nil when none does. tp brief does not hand out such a
+// task while that claim stands (spec/backlog/worktree-dispatch.md §2.3).
+func ClaimOverlap(tf *model.TaskFile, t *model.Task) *model.Task {
+	for i := range tf.Tasks {
+		c := &tf.Tasks[i]
+		// A claimed_by holding only retired tokens is no claim.
+		held := c.ClaimedBy != nil && (c.ClaimedBy.Spawn != "" || c.ClaimedBy.Session != "")
+		if c.ID != t.ID && c.Status == model.StatusWIP && held && !disjointFromAll(t, []*model.Task{c}) {
+			return c
+		}
+	}
+	return nil
+}
+
 // disjointFromAll reports whether t's touches overlap no pool member's;
 // only touches both tasks name can be compared, so a task without them is
 // disjoint from every other.
