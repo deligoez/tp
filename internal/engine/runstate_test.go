@@ -134,6 +134,24 @@ func TestRunRecorder_RowIsNullBeforeTheChildExitsAndUpdatedAfter(t *testing.T) {
 	assert.InDelta(t, 0.42, totals["spend_usd"], 0.0001)
 }
 
+// The run panel shows how long each held unit has run, so the appended row
+// carries when its attempt started, stamped by the recorder in RFC 3339 UTC.
+func TestRunRecorder_StartUnitStampsWhenTheAttemptStarted(t *testing.T) {
+	root, taskFile, rec := newTestRun(t)
+
+	before := time.Now().UTC().Add(-time.Second)
+	require.NoError(t, rec.StartUnit(startedRow(1, 1, "architect")))
+
+	rows := rawUnits(t, readRunStateRaw(t, root, taskFile))
+	require.Len(t, rows, 1)
+	stamp, ok := rows[0]["started_at"].(string)
+	require.True(t, ok, "the appended row carries started_at: %v", rows[0])
+	at, err := time.Parse(time.RFC3339Nano, stamp)
+	require.NoError(t, err, "started_at is RFC 3339")
+	assert.True(t, stamp[len(stamp)-1] == 'Z', "started_at is UTC: %s", stamp)
+	assert.False(t, at.Before(before), "started_at is the moment the row was appended")
+}
+
 func TestRunRecorder_UnmeteredUnitStaysNullAndAccruesNothing(t *testing.T) {
 	root, taskFile, rec := newTestRun(t)
 
