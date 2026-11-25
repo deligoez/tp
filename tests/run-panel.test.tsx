@@ -756,6 +756,27 @@ test('a project with no phase yet leads with what it has, never a bare phase wor
   expect(nowRows(empty.now, run, 'tr', AT, 20)[0]?.text).toBe('Koşu sürüyor (4dk 5sn)')
 })
 
+// tp now in a project with several task files and none active: no task file,
+// and a need that says why. The counts row does not claim there is none yet.
+test('several task files and none active says so, in both languages', async () => {
+  const need = { kind: 'blocker', code: 'no-active-file', text: 'Several task files and none is chosen as active.' }
+  const several = toNow({ ...NOW, phase: '', task_file: null, tasks: null, held: [], landing: [], ready: [], needs_you: [need], epics: null, run: null }, 0)!
+  expect(nowRows(several.now, null, 'en', AT, 20).map(row => row.text)).toEqual([
+    'Needs you',
+    'Blocked: Several task files and none is chosen as active.',
+    'In progress',
+    'Nothing in progress',
+    'No task file chosen',
+  ])
+  expect(nowRows(several.now, null, 'tr', AT, 20).map(row => row.text)).toEqual([
+    'Seni bekleyen',
+    'Engel: Birkaç görev dosyası var, hiçbiri etkin olarak seçilmemiş.',
+    'Devam eden',
+    'Devam eden iş yok',
+    'Görev dosyası seçilmedi',
+  ])
+})
+
 // Seen live: a stopped run's need drew as "run: …", tp's own kind name.
 test('every need tp now can send has a label in both languages', async () => {
   for (const kind of ['blocker', 'escalation', 'decision', 'cap', 'land', 'run']) {
