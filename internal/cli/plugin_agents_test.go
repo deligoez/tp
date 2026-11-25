@@ -30,6 +30,7 @@ const (
 	agentImplementerFile = "agents/tp-implementer.md"
 	agentReviewerFile    = "agents/tp-reviewer.md"
 	agentAuditorFile     = "agents/tp-auditor.md"
+	agentDeciderFile     = "agents/tp-decider.md"
 )
 
 // agentDefinition is the frontmatter subset §6.3 constrains: identity, and the
@@ -66,17 +67,19 @@ func readAgentDefinition(t *testing.T, rel string) agentDefinition {
 	return def
 }
 
-// TestPluginAgentsDeclareTheThreeUnitAgents is §6.3's first sentence: agents/
-// holds exactly the three agents the claude template dispatches to, each named
-// by the string tp passes to --agent, and nothing else. The name is checked
-// against engine.AgentForKind rather than against a literal, so the flag and
-// the file it loads can never drift apart.
-func TestPluginAgentsDeclareTheThreeUnitAgents(t *testing.T) {
+// TestPluginAgentsDeclareTheFourUnitAgents is §6.3's first sentence, with the
+// decision agent spec/1.31.0.md §5 adds: agents/ holds exactly the agents the
+// claude template dispatches to, each named by the string tp passes to
+// --agent, and nothing else. The name is checked against engine.AgentForKind
+// rather than against a literal, so the flag and the file it loads can never
+// drift apart.
+func TestPluginAgentsDeclareTheFourUnitAgents(t *testing.T) {
 	t.Parallel()
 	want := map[string]engine.UnitKind{
 		engine.AgentImplementer: engine.UnitImplement,
 		engine.AgentReviewer:    engine.UnitReviewRole,
 		engine.AgentAuditor:     engine.UnitAuditRole,
+		engine.AgentDecider:     engine.UnitDecision,
 	}
 
 	entries, err := os.ReadDir(filepath.Join(repoRoot(t), pluginAgentsDir))
@@ -89,10 +92,10 @@ func TestPluginAgentsDeclareTheThreeUnitAgents(t *testing.T) {
 		}
 	}
 	sort.Strings(files)
-	assert.Equal(t, []string{"tp-auditor.md", "tp-implementer.md", "tp-reviewer.md"}, files,
-		"§6.3 declares three agents; a fourth would run units under a restriction nobody chose")
+	assert.Equal(t, []string{"tp-auditor.md", "tp-decider.md", "tp-implementer.md", "tp-reviewer.md"}, files,
+		"§6.3 and spec/1.31.0.md §5 declare four agents; another would run units under a restriction nobody chose")
 
-	for _, rel := range []string{agentImplementerFile, agentReviewerFile, agentAuditorFile} {
+	for _, rel := range []string{agentImplementerFile, agentReviewerFile, agentAuditorFile, agentDeciderFile} {
 		def := readAgentDefinition(t, rel)
 
 		kind, known := want[def.Name]
