@@ -95,6 +95,11 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 	// accepted on the item's latest graded row is graded with that
 	// acceptance, and the round file written below holds it.
 	data, carried := carryAuditAcceptances(specPath, stPre, data, rows)
+	// The wontfix rows the emission carried without asking are written here,
+	// so the round file holds every item's latest grading.
+	data, rows, unasked := appendCarriedWontfix(specPath, stPre, data, rows)
+	carried += unasked
+	findings += unasked
 	// After the fence, like the carry: the disposition of a row a request was
 	// filed from is tp's, written from the request (spec/1.31.0.md §7).
 	recordRound, _ := engine.RecordRound(len(preRounds))

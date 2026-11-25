@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"cmp"
 	"encoding/json"
 	"maps"
+	"slices"
 	"strings"
 
 	"github.com/deligoez/tp/internal/engine"
@@ -86,6 +88,10 @@ func carryAuditAcceptances(specPath string, st *engine.ReviewState, data []byte,
 type acceptedAuditSource struct {
 	resolved map[string]any
 	round    int
+	// row is the accepted row itself, and taskAudit the task audit that
+	// graded it (0 for an audit round).
+	row       map[string]any
+	taskAudit int
 }
 
 // acceptedAuditRows returns the carried set's accepted rows whose
@@ -118,9 +124,60 @@ func acceptedAuditRows(specPath string, st *engine.ReviewState) map[auditCarryKe
 			}
 		}
 		resolved, _ := row["resolved"].(map[string]any)
-		source[auditCarryKeyOf(row)] = acceptedAuditSource{resolved: resolved, round: set[i].Round}
+		source[auditCarryKeyOf(row)] = acceptedAuditSource{resolved: resolved, round: set[i].Round, row: row, taskAudit: set[i].TaskAudit}
 	}
 	return source
+}
+
+// appendCarriedWontfix writes the rows the round carried without asking
+// (spec/backlog/audit-round-ergonomics.md §2.1): an audit round's row
+// accepted wontfix whose evidence_file is unchanged since, which the emission
+// took off the checklist (carriedWontfix), is appended to the round's rows
+// and to data, a copy of the accepted row stamped carried_from, unless the
+// results already grade that item. It returns the new data and rows and how
+// many it appended, every one a non-PASS row.
+func appendCarriedWontfix(specPath string, st *engine.ReviewState, data []byte, rows []map[string]any) (outData []byte, outRows []map[string]any, added int) {
+	source := acceptedAuditRows(specPath, st)
+	graded := make(map[auditCarryKey]bool, len(rows))
+	for _, row := range rows {
+		graded[auditCarryKeyOf(row)] = true
+	}
+	keys := slices.SortedFunc(maps.Keys(source), func(a, b auditCarryKey) int {
+		return cmp.Or(cmp.Compare(a.role, b.role), cmp.Compare(a.itemID, b.itemID))
+	})
+	var b strings.Builder
+	b.Write(data)
+	for _, key := range keys {
+		src := source[key]
+		if graded[key] || src.taskAudit != 0 || rowString(src.resolved, "status") != "wontfix" || rowString(src.row, "evidence_file") == "" {
+			continue
+		}
+		row := maps.Clone(src.row)
+		resolved := maps.Clone(src.resolved)
+		if _, has := resolved["carried_from"]; !has {
+			resolved["carried_from"] = src.round
+		}
+		row["resolved"] = resolved
+		// A row decoded from JSON always re-encodes.
+		encoded, _ := json.Marshal(row)
+		if b.Len() > 0 && !strings.HasSuffix(b.String(), "\n") {
+			b.WriteByte('\n')
+		}
+		b.Write(encoded)
+		b.WriteByte('\n')
+		rows = append(rows, row)
+		added++
+	}
+	if added == 0 {
+		return data, rows, 0
+	}
+	return []byte(b.String()), rows, added
+}
+
+// rowString is a row's string field, "" when absent or not a string.
+func rowString(row map[string]any, key string) string {
+	s, _ := row[key].(string)
+	return s
 }
 
 // carriedDisposition returns the disposition row inherits from source: a copy
