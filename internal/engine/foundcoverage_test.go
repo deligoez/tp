@@ -53,5 +53,8 @@ func TestLineCoverageCountsOnlySpecTasksWhenNoneIsAnchored(t *testing.T) {
 	require.NotEmpty(t, before)
 
 	tf.Tasks = append(tf.Tasks, foundTask())
-	assert.Equal(t, before, ValidateLineCoverage(tf, spec))
+	after := ValidateLineCoverage(tf, spec)
+	assert.Equal(t, before, after)
+	require.Len(t, after, 1)
+	assert.Contains(t, after[0].Message, "1 tasks have no usable source anchors", "the count is the spec's one task")
 }
