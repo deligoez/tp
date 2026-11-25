@@ -9,6 +9,7 @@
   "homepage": "https://github.com/deligoez/tp",
   "repository": "https://github.com/deligoez/tp",
   "license": "MIT",
+  "types": "./types/index.d.ts",
   "keywords": [
     "spec",
     "tasks",
