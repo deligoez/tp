@@ -624,6 +624,7 @@ refusal and its exit code — is under the same form in [REFERENCE.md](REFERENCE
 | `tp ready --epic <id>` | The same on the epic's bound task file |
 | `tp show <id>` | Full details + spec_excerpt + blocks |
 | `tp status` | Progress summary |
+| `tp now [--epic <id>]` | What runs, what needs you and how far along the work is, in one read-only payload (the plugin's pane polls it) |
 | `tp report` | Per-task duration + estimation accuracy |
 | `tp blocked` | Tasks waiting on deps |
 | `tp graph` | Dependency tree (--tag, --from) |
