@@ -19,6 +19,10 @@ const foundShapeHint = "file one defect: --location <file:line> --reproduction <
 // foundBlocksHint says who may set --blocks and how a caller names its task.
 const foundBlocksHint = "--blocks marks a request the caller's own task cannot pass without, so it needs a wip task the caller works: an implement unit's own, or --task <id>; drop --blocks to file the request without it"
 
+// foundStoreWriteHint answers a store that could not be written: the request
+// lives under the project's .tp/, beside the cycle's run state.
+const foundStoreWriteHint = "check that the project's .tp/ directory exists and is writable, then file the request again"
+
 // foundAddFlags are tp found add's inputs: the request's fields as flags.
 type foundAddFlags struct {
 	location, reproduction, expected, observed, question, task string
@@ -87,6 +91,7 @@ func runFoundAdd(f *foundAddFlags) error {
 
 	taskFilePath, err := discoverWriteTarget()
 	if err != nil {
+		// task-file-hint: no task file resolved, so the request has no cycle.
 		output.Error(ExitFile, err.Error())
 		os.Exit(ExitFile)
 		return nil
@@ -103,7 +108,7 @@ func runFoundAdd(f *foundAddFlags) error {
 	root := engine.CanonicalProjectRoot(filepath.Dir(taskFilePath))
 	stored, err := engine.AddFoundRequest(root, taskFilePath, req)
 	if err != nil {
-		output.Error(ExitFile, "cannot record the request: "+err.Error())
+		output.Error(ExitFile, "cannot record the request: "+err.Error(), foundStoreWriteHint)
 		os.Exit(ExitFile)
 		return nil
 	}
@@ -136,6 +141,7 @@ func foundFinderTask(taskFilePath, flagTask string) (string, error) {
 	}
 	tf, err := model.ReadTaskFile(taskFilePath)
 	if err != nil {
+		// task-file-hint: the task file that names the finder is unreadable.
 		output.Error(ExitFile, err.Error())
 		os.Exit(ExitFile)
 	}
