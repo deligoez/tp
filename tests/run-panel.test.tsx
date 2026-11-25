@@ -342,13 +342,20 @@ test('a project with no run says so', async $ => {
 
 type Answer = { exitCode: number; stdout: string }
 
+// Every pane the plugin opened in the current test, by id; world empties it.
+const opened: string[] = []
+
 // world answers what the pane calls beneath it: a tp project (while isTp
 // says so), each tp command by its arguments (any other exits 1), and
-// records every command it ran.
+// records every command it ran (and in opened, every pane it opened).
 function world(on: On, answers: Record<string, Answer>, isTp: () => boolean = () => true): string[] {
   const ran: string[] = []
+  opened.length = 0
   on('command.register', () => ({ value: { command: 'tp-run' } }))
-  on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('ui.open', (_, e) => {
+    opened.push(e.id)
+    return { value: { isPlaced: true } }
+  })
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('fs.stat', () => {
     if (!isTp()) throw new Error('ENOENT: no such file or directory')
@@ -677,4 +684,17 @@ test('a task only the person holds is read every 5 seconds while the pane is dra
   await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
   await clock.advance(60_000)
   expect(ran.filter(line => line === 'tp now --json').length).toBe(12)
+})
+
+test('a run the pane opened itself for is not opened again after a reload', async ($, on) => {
+  const clock = mock.clock(on, { now: AT })
+  world(on, { 'tp --version': VERSION, 'tp now --json': { exitCode: 0, stdout: JSON.stringify(NOW) } })
+  // What the module before the reload stored: it had opened the pane for
+  // this run, and the person has closed it since.
+  on('state.get', (_, e, next) =>
+    e.plugin === 'tp' && e.key === 'opened' ? { value: { value: '01RUN', version: 1, shape: 'opened-1' } } : next(e),
+  )
+  await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
+  await clock.advance(10_000)
+  expect(opened).toEqual([])
 })
