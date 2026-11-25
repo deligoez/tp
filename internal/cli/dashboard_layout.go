@@ -76,16 +76,17 @@ type layoutQuery struct {
 // layer then order with the edges between them, a dependency's edge from it
 // to its dependent.
 type dashboardLayout struct {
-	View      string              `json:"view"`
-	Milestone string              `json:"milestone,omitempty"`
-	Epic      string              `json:"epic,omitempty"`
-	Depth     int                 `json:"depth,omitempty"`
-	Layers    int                 `json:"layers"`
-	Packing   string              `json:"packing"`
-	Columns   float64             `json:"columns"`
-	Bands     []engine.LayoutBand `json:"bands,omitempty"`
-	Nodes     []layoutNode        `json:"nodes"`
-	Edges     []layoutEdge        `json:"edges"`
+	View      string               `json:"view"`
+	Milestone string               `json:"milestone,omitempty"`
+	Epic      string               `json:"epic,omitempty"`
+	Depth     int                  `json:"depth,omitempty"`
+	Layers    int                  `json:"layers"`
+	Packing   string               `json:"packing"`
+	Columns   float64              `json:"columns"`
+	Bands     []engine.LayoutBand  `json:"bands,omitempty"`
+	Blocks    []engine.ForestBlock `json:"blocks,omitempty"`
+	Nodes     []layoutNode         `json:"nodes"`
+	Edges     []layoutEdge         `json:"edges"`
 }
 
 // layoutNode is one node and its place. A neighbourhood's epic node names
@@ -452,10 +453,10 @@ func epicEdges(g *model.EpicGraph, in map[string]bool, path []string) ([]string,
 }
 
 // layoutOf lays ids and edges out, bands, bandOf, groupOf, laneOf and pack
-// as engine.ForestLayout takes them, the edges between two consecutive
-// epics of path preferred as primary parents, and lists the nodes by
-// layer, then column, then graph order, each with its layer and forest
-// column, each edge with its role.
+// as engine.ForestLayout takes them, the plan's groups as blocks, the
+// edges between two consecutive epics of path preferred as primary
+// parents, and lists the nodes by layer, then column, then graph order,
+// each with its layer and forest column, each edge with its role.
 func layoutOf(view string, ids []string, edges []layoutEdge, path, bands []string, bandOf, groupOf, laneOf map[string]string, pack engine.ForestPacking) dashboardLayout {
 	in := make([]engine.LayoutEdge, len(edges))
 	onPath := make([]bool, len(edges))
@@ -467,8 +468,12 @@ func layoutOf(view string, ids []string, edges []layoutEdge, path, bands []strin
 		in[i] = engine.LayoutEdge{From: e.From, To: e.To}
 		onPath[i] = next[e.From] == e.To
 	}
-	f := engine.ForestLayout(&engine.ForestInput{IDs: ids, Edges: in, Bands: bands, BandOf: bandOf, GroupOf: groupOf, LaneOf: laneOf, OnPath: onPath, Pack: pack})
+	fin := engine.ForestInput{IDs: ids, Edges: in, Bands: bands, BandOf: bandOf, GroupOf: groupOf, LaneOf: laneOf, OnPath: onPath, Pack: pack, Blocks: view == layoutViewPlan}
+	f := engine.ForestLayout(&fin)
 	out := dashboardLayout{View: view, Layers: f.Layers, Packing: string(pack), Columns: f.Columns, Bands: f.Bands, Nodes: make([]layoutNode, 0, len(ids)), Edges: edges}
+	if fin.Blocks {
+		out.Blocks = engine.ForestBlocks(&fin, &f)
+	}
 	if out.Edges == nil {
 		out.Edges = []layoutEdge{}
 	}
@@ -485,7 +490,9 @@ func layoutOf(view string, ids []string, edges []layoutEdge, path, bands []strin
 }
 
 // planLayout is the whole graph: every epic, banded by milestone in track
-// order, its roots grouped by track, the graph's critical path marked.
+// order, each milestone its own group laid out as a block of columns, so
+// milestones that share layers sit side by side, the graph's critical path
+// marked.
 func planLayout(g *model.EpicGraph, states map[string]engine.EpicState, pack engine.ForestPacking) dashboardLayout {
 	in := map[string]bool{}
 	bandOf := map[string]string{}
@@ -497,7 +504,7 @@ func planLayout(g *model.EpicGraph, states map[string]engine.EpicState, pack eng
 	// node; the marks are the live path's.
 	whole := engine.GraphCriticalPath(g, map[string]engine.EpicState{})
 	ids, edges := epicEdges(g, in, engine.GraphCriticalPath(g, states))
-	out := layoutOf(layoutViewPlan, ids, edges, whole, trackedMilestones(g), bandOf, trackGroups(g), milestoneTracks(g), pack)
+	out := layoutOf(layoutViewPlan, ids, edges, whole, trackedMilestones(g), bandOf, bandOf, milestoneTracks(g), pack)
 	for i := range out.Nodes {
 		out.Nodes[i].Milestone = bandOf[out.Nodes[i].ID]
 	}
