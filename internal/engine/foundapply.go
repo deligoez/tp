@@ -54,11 +54,12 @@ type FoundApplyPlan struct {
 
 // CountFoundTasks counts the found tasks a task file holds, the count
 // found_max caps (spec/1.31.0.md §8). It is read from the task file, not
-// from a run, so a stop and a restart do not reset it.
+// from a run, so a stop and a restart do not reset it. A task the person
+// settled from a queue entry is not counted.
 func CountFoundTasks(tasks []model.Task) int {
 	n := 0
 	for i := range tasks {
-		if tasks[i].Origin != nil {
+		if tasks[i].Origin != nil && tasks[i].Origin.QueueEntry == "" {
 			n++
 		}
 	}
