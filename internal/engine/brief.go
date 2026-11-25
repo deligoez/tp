@@ -496,6 +496,9 @@ type BriefTask struct {
 	SourceSections []string `json:"source_sections,omitempty"`
 	SourceLines    string   `json:"source_lines,omitempty"`
 	SpecExcerpt    string   `json:"spec_excerpt,omitempty"`
+	// Request is a found task's request, in place of spec_excerpt
+	// (spec/1.31.0.md §3); nil for a spec task.
+	Request *BriefFoundRequest `json:"request,omitempty"`
 }
 
 // Brief is the structured machine-readable parts of an implementation brief
@@ -553,7 +556,9 @@ func BuildBrief(tf *model.TaskFile, task *model.Task, specPath, effectiveStrateg
 		SourceSections: task.SourceSections,
 		SourceLines:    task.SourceLines,
 	}
-	if !compact {
+	if task.Origin != nil {
+		bt.Request = foundBriefRequest(task)
+	} else if !compact {
 		bt.SpecExcerpt = ExtractSpecExcerptForTask(specPath, task.SourceLines, task.SourceSections)
 	}
 
@@ -690,6 +695,9 @@ func renderBriefTaskText(t *BriefTask) string {
 	fmt.Fprintf(&s, "id: %s\n", t.ID)
 	if t.Title != "" {
 		fmt.Fprintf(&s, "title: %s\n", t.Title)
+	}
+	if t.Request != nil {
+		s.WriteString(renderFoundRequestText(t.Request))
 	}
 	fmt.Fprintf(&s, "\nacceptance (verbatim):\n%s\n", t.Acceptance)
 	if len(t.SourceSections) > 0 || t.SourceLines != "" {
