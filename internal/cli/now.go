@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -168,5 +169,51 @@ func buildNow(taskFilePath string, tf *model.TaskFile) (*nowResult, error) {
 	}
 	res.Phase = resume.Phase
 	res.NextAction = resume.NextAction.Summary
+	res.Tasks = nowTaskCounts(tf)
+	res.Ready = nowReady(tf)
+	res.Held = nowHeldTasks(tf)
 	return res, nil
+}
+
+// nowReadyLimit is how many ready tasks tp now names.
+const nowReadyLimit = 5
+
+// nowTaskCounts is tp status's counts of tf.
+func nowTaskCounts(tf *model.TaskFile) *nowCounts {
+	c := countTasks(tf)
+	return &nowCounts{Total: c.Total, Done: c.Done, WIP: c.WIP, Open: c.Open, Ready: c.Ready, Blocked: c.Blocked, Held: c.Held}
+}
+
+// nowReady names the first ready tasks of tf in tp ready's order.
+func nowReady(tf *model.TaskFile) []nowTask {
+	out := []nowTask{}
+	for _, t := range engine.ReadyTasks(tf) {
+		if len(out) == nowReadyLimit {
+			break
+		}
+		out = append(out, nowTask{ID: t.ID, Title: t.Title})
+	}
+	return out
+}
+
+// nowHeldTasks lists tf's wip tasks in file order, each with who holds it.
+func nowHeldTasks(tf *model.TaskFile) []nowHeld {
+	out := []nowHeld{}
+	for i := range tf.Tasks {
+		t := &tf.Tasks[i]
+		if t.Status != model.StatusWIP {
+			continue
+		}
+		out = append(out, nowHeld{ID: t.ID, Title: t.Title, Holder: "you", Since: rfc3339(t.StartedAt)})
+	}
+	return out
+}
+
+// rfc3339 formats at in RFC 3339, or nil when it is unset.
+func rfc3339(at *time.Time) *string {
+	if at == nil {
+		return nil
+	}
+	s := at.UTC().Format(time.RFC3339)
+	return &s
 }
