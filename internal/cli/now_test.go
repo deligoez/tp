@@ -122,3 +122,35 @@ func TestNow_ClaimedTaskIsHeldByAnAgent(t *testing.T) {
 	assert.Equal(t, "agent", row["holder"], "a spawn's claim holds the task")
 	assert.NotNil(t, row["since"])
 }
+
+// A live run's slot: run reports it under running, and the task it runs is
+// held by the run, in the run's worktree, at the run's attempt.
+func TestNow_LiveRunHoldsItsRunningSlot(t *testing.T) {
+	t.Parallel()
+	dir, taskFile := liveRunProject(t, true)
+	holdLock(t, taskFile)
+
+	stdout, stderr, code := runTP(t, dir, "now")
+	require.Equal(t, 0, code, "tp now: %s", stderr)
+	out := decodeNow(t, stdout)
+
+	run, ok := out["run"].(map[string]any)
+	require.True(t, ok, "a run state gives a run: %v", out["run"])
+	assert.Equal(t, "in_flight", run["run_state"])
+	assert.Equal(t, "live", run["run_id"])
+	assert.Contains(t, run, "caps")
+	assert.Contains(t, run, "last_finished")
+	assert.Nil(t, run["last_finished"], "no unit of this run has exited")
+	running, ok := run["running"].([]any)
+	require.True(t, ok)
+	require.Len(t, running, 1)
+	slot := running[0].(map[string]any)
+	assert.Equal(t, "seed", slot["id"])
+	assert.Equal(t, "implement", slot["kind"])
+
+	row := nowHeldOne(t, out)
+	assert.Equal(t, "seed", row["id"])
+	assert.Equal(t, "run", row["holder"], "a live run holds the task it runs")
+	assert.Equal(t, "/elsewhere/seed", row["worktree"])
+	assert.Equal(t, 1.0, row["attempt"])
+}
