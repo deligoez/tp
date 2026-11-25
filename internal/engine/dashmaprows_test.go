@@ -200,3 +200,19 @@ func TestMapRows_ALineSkipsTheLayersNoneOfItsBlocksTakes(t *testing.T) {
 	assert.InDelta(t, y.LineY+2, got.Places["y3"].Y, 0)
 	assert.InDelta(t, y.LineY+3, got.Height, 0)
 }
+
+// TestMapRows_ReportsTheWidthItLaysOut: threeBands' blocks take far less
+// than the forest's twenty columns, so the map starts at column 0 and its
+// width is its widest line, not the forest's.
+func TestMapRows_ReportsTheWidthItLaysOut(t *testing.T) {
+	t.Parallel()
+	in := threeBands()
+	got := MapRows(&in)
+	lo, hi := got.Blocks[0].FromCol, got.Blocks[0].ToCol
+	for _, b := range got.Blocks {
+		lo, hi = min(lo, b.FromCol), max(hi, b.ToCol)
+	}
+	assert.InDelta(t, 0.0, lo, 0)
+	assert.InDelta(t, hi+1, got.Width, 0)
+	assert.Less(t, got.Width, in.Width)
+}
