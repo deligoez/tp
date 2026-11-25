@@ -63,25 +63,12 @@ type Forest struct {
 	Columns float64
 }
 
-// ForestBlock is one group's block of a forest laid out in blocks
-// (ForestBlocks): the group, the layers its nodes take, the columns they
-// take, inclusive, and how many nodes it holds.
-type ForestBlock struct {
-	Group     string  `json:"milestone"`
-	FromLayer int     `json:"from_layer"`
-	ToLayer   int     `json:"to_layer"`
-	FromCol   float64 `json:"from_col"`
-	ToCol     float64 `json:"to_col"`
-	Count     int     `json:"count"`
-}
-
 // ForestInput is what ForestLayout lays out: IDs in file order, Edges
 // between them, Bands and BandOf naming the bands and each node's band,
 // naming each node's group (nil for one group), LaneOf naming each band's
 // lane (nil to stack every band after the last), OnPath marking, per edge
 // in Edges, the edges of the path the picture keeps straight (nil for
-// none), Pack, and Blocks, which lays each group out as its own block of
-// columns.
+// none) and Pack.
 type ForestInput struct {
 	IDs     []string
 	Edges   []LayoutEdge
@@ -91,7 +78,6 @@ type ForestInput struct {
 	LaneOf  map[string]string
 	OnPath  []bool
 	Pack    ForestPacking
-	Blocks  bool
 }
 
 // ForestLayout lays in.IDs out as a forest packed into columns, after
@@ -110,11 +96,9 @@ type ForestInput struct {
 // pointing down is RoleCross and one that does not is RoleBack. The
 // forest's roots are grouped by GroupOf, groups in the order of their
 // first node and roots inside a group by layer then file order, and packed
-// left to right as Pack says. With Blocks each group is instead packed on
-// its own into a block of columns, and the blocks are placed as
-// placeBlocks says, so groups sharing layers sit side by side. An edge
-// naming an id not in IDs, or a node to itself, is laid out as no edge and
-// its role is RoleBack. One input always lays out alike.
+// left to right as Pack says. An edge naming an id not in IDs, or a node to
+// itself, is laid out as no edge and its role is RoleBack. One input always
+// lays out alike.
 func ForestLayout(in *ForestInput) Forest {
 	ids, edges := in.IDs, in.Edges
 	file := make(map[string]int, len(ids))
@@ -129,47 +113,20 @@ func ForestLayout(in *ForestInput) Forest {
 		}
 		out.Layers = max(out.Layers, s.To+1)
 	}
-	t := forestTree{layer: layer}
-	t.parent = primaryParents(edges, in.OnPath, file, layer, in.GroupOf)
-	out.Roles, t.children = forestRoles(edges, file, layer, t.parent)
-	t.up, t.spine = pathSpine(edges, in.OnPath, file, t.parent)
-	var col []float64
-	if in.Blocks {
-		col, out.Columns = blockColumns(in, &t, out.Bands)
-	} else {
-		col, out.Columns = forestColumns(in, &t, out.Layers)
+	parent := primaryParents(edges, in.OnPath, file, layer, in.GroupOf)
+	var children [][]int
+	out.Roles, children = forestRoles(edges, file, layer, parent)
+	up, spine := pathSpine(edges, in.OnPath, file, parent)
+	col := packForest(ids, layer, parent, children, spine, in.GroupOf)
+	out.Columns = col[len(ids)]
+	col = col[:len(ids)]
+	if in.Pack == PackRows {
+		out.Columns = squeezeRows(ids, layer, col, up, math.Ceil(forestColumnsPerLayer*float64(out.Layers)))
 	}
 	for i, id := range ids {
 		out.Places[id] = ForestPlace{Layer: layer[id], Col: col[i]}
 	}
 	return out
-}
-
-// forestTree is what the column packing reads: each node's layer, and per
-// node in file order its primary parent's edge, its children, and the
-// path's up and spine (pathSpine).
-type forestTree struct {
-	layer    map[string]int
-	parent   []int
-	children [][]int
-	up       []int
-	spine    []int
-}
-
-// forestColumns is every node's column and the width: the forest packed
-// group by group, then squeezed into rows under PackRows.
-func forestColumns(in *ForestInput, t *forestTree, layers int) (col []float64, width float64) {
-	col = packForest(in.IDs, t.layer, t.parent, t.children, t.spine, in.GroupOf)
-	width = col[len(in.IDs)]
-	col = col[:len(in.IDs)]
-	if in.Pack == PackRows {
-		all := make([]int, len(in.IDs))
-		for v := range all {
-			all[v] = v
-		}
-		width = squeezeRows(all, in.IDs, t.layer, col, t.up, math.Ceil(forestColumnsPerLayer*float64(layers)))
-	}
-	return col, width
 }
 
 // forestLayers is each node's layer and the bands' spans: in.Bands run as
@@ -404,23 +361,21 @@ func packTree(root int, children [][]int, spine []int, col []float64, cursor *fl
 	}
 }
 
-// squeezeRows squeezes every layer of the nodes vs (indices into ids) into
-// the width of the fullest one, or aim when that is wider and the tree is
-// wider still, and returns that
+// squeezeRows squeezes every layer into the width of the fullest one, or
+// aim when that is wider and the tree is wider still, and returns that
 // width. Layers are squeezed top to bottom. Inside a layer nodes keep their
 // tree order; each aims at its tree column scaled into the new width, or a
 // node on the path (up) at its parent's squeezed column, a left-to-right
 // sweep pushes overlapping nodes one column apart and a right-to-left sweep
 // pulls back what ran past the right edge.
-func squeezeRows(vs []int, ids []string, layer map[string]int, col []float64, up []int, aim float64) float64 {
+func squeezeRows(ids []string, layer map[string]int, col []float64, up []int, aim float64) float64 {
 	rows := map[int][]int{}
 	treeWidth := 0.0
 	fullest := 0
-	for _, v := range vs {
-		l := layer[ids[v]]
-		rows[l] = append(rows[l], v)
+	for v, id := range ids {
+		rows[layer[id]] = append(rows[layer[id]], v)
 		treeWidth = max(treeWidth, col[v]+1)
-		fullest = max(fullest, len(rows[l]))
+		fullest = max(fullest, len(rows[layer[id]]))
 	}
 	width := max(float64(fullest), min(aim, math.Ceil(treeWidth)))
 	scale := 0.0
