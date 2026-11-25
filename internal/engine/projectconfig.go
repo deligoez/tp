@@ -3,6 +3,7 @@ package engine
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -231,13 +232,15 @@ var panelLanguages = []string{"en", "tr"}
 
 // panelWarnings checks the panel block, which only the plugin's panel reads:
 // tp itself acts on nothing in it, so a bad value is named and left alone.
+// The warnings come in key order, so every read of one file words them alike.
 func panelWarnings(raw json.RawMessage) []string {
 	var panel map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &panel); err != nil {
 		return []string{"panel: expected an object, ignored"}
 	}
 	var warnings []string
-	for k, v := range panel {
+	for _, k := range slices.Sorted(maps.Keys(panel)) {
+		v := panel[k]
 		if k != "language" {
 			warnings = append(warnings, "unknown panel key: "+k)
 			continue
