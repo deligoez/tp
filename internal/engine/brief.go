@@ -709,14 +709,15 @@ func (b *Brief) Text() string {
 
 // conflictResolutionText tells the unit that inherits a conflicting unit's
 // branch to finish that work: bring the branch onto the current branch,
-// resolving the conflicts, re-run its tests and close as usual. The commands
-// leave HEAD on the branch the close is made on: a rebase would check the
-// unit branch out instead.
+// resolving the conflicts, re-run its tests and close as usual. The command
+// leaves HEAD on the branch the close is made on (a rebase would check the
+// unit branch out instead), and it makes no merge commit, which tp land's
+// pick refuses.
 func conflictResolutionText(branch string) string {
 	return fmt.Sprintf("An earlier unit did this task on branch %s, but its commits did not apply to the main branch. "+
 		"Resolve that conflict; do not start the task again: bring the branch onto the current branch with "+
-		"git cherry-pick HEAD..%s (or git merge %s), resolve the conflicts, re-run its tests, and close as usual "+
-		"with the commits that now carry the work.\n", branch, branch, branch)
+		"git cherry-pick HEAD..%s, resolve the conflicts, re-run its tests, and close as usual "+
+		"with the commits that now carry the work.\n", branch, branch)
 }
 
 // renderPriorWorkText renders the prior-work section body. The first unit states
