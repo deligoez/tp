@@ -302,18 +302,19 @@ func auditPriorSecurityPrompt(t *testing.T, round string) string {
 }
 
 // TestAuditPriorRound_AcceptedRowCarriesItsDisposition: a prior row accepted
-// wontfix with evidence carries that disposition and evidence into the next
-// round's block and keeps its changed_since. Unless changed_since is true the
+// duplicate with evidence carries that disposition and evidence into the next
+// round's block and keeps its changed_since (an unchanged wontfix is carried
+// without asking, audit_wontfix_carry_test.go). Unless changed_since is true the
 // auditor records it as before and tp carries the acceptance at --record; a
 // FAIL recorded without that framing reads as a re-opened finding.
 func TestAuditPriorRound_AcceptedRowCarriesItsDisposition(t *testing.T) {
 	t.Parallel()
 	sec := auditPriorSecurityPrompt(t,
 		`{"item_id":"prior-accepted","status":"FAIL","role":"security","evidence_file":"auth_helper.go",`+
-			`"resolved":{"status":"wontfix","evidence":"vendored code, out of scope","resolved_at":"2024-01-02T00:00:00Z"}}`+"\n")
+			`"resolved":{"status":"duplicate","evidence":"vendored code, out of scope","resolved_at":"2024-01-02T00:00:00Z"}}`+"\n")
 
 	assert.Contains(t, sec, `{"role":"security","item_id":"prior-accepted","status":"FAIL","evidence_file":"auth_helper.go",`+
-		`"changed_since":false,"disposition":"wontfix","disposition_evidence":"vendored code, out of scope"}`,
+		`"changed_since":false,"disposition":"duplicate","disposition_evidence":"vendored code, out of scope"}`,
 		"the accepted row carries its disposition and evidence beside changed_since")
 	assert.NotContains(t, sec, "resolved_at", "the block carries the disposition, not the whole resolved record")
 	assert.Contains(t, sec, "Unless changed_since is true: if it still stands, record it as before; tp carries the acceptance.",
