@@ -193,7 +193,13 @@ func (d *driver) startUnit(p *pool, u NextUnit) {
 		p.fail(errors.Join(driverErrorf(err, "claim task %q", u.ID), d.leavePool(u.ID)))
 		return
 	}
-	if _, err := gitOut(d.opts.Root, "worktree", "add", "-q", "-b", tree.branch, tree.worktree, "HEAD"); err != nil {
+	// A finder tp found apply returned to open (spec/1.31.0.md §4) runs again
+	// in the same run, on the branch its first unit left.
+	add := []string{"worktree", "add", "-q", "-b", tree.branch, tree.worktree, "HEAD"}
+	if _, err := gitOut(d.opts.Root, "rev-parse", "--verify", "--quiet", "refs/heads/"+tree.branch); err == nil {
+		add = []string{"worktree", "add", "-q", tree.worktree, tree.branch}
+	}
+	if _, err := gitOut(d.opts.Root, add...); err != nil {
 		p.fail(errors.Join(driverErrorf(err, "add the worktree for task %q", u.ID), d.releaseUnit(tree)))
 		return
 	}
