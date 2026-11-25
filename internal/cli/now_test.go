@@ -86,6 +86,22 @@ func TestNow_EpicsWithoutATaskFile(t *testing.T) {
 
 // A wip task claimed by hand is held by you; tasks counts as tp status does,
 // and ready lists the startable tasks in tp ready's order.
+// tp now names the first five ready tasks and counts them all.
+func TestNow_NamesTheFirstFiveReadyTasks(t *testing.T) {
+	t.Parallel()
+	dir := runProject(t)
+	for _, id := range []string{"t1", "t2", "t3", "t4", "t5", "t6"} {
+		task := `{"id":"` + id + `","title":"T","estimate_minutes":5,"acceptance":"Done.","source_sections":["### 1.1 Seed"],"depends_on":[]}`
+		_, stderr, code := runTP(t, dir, "add", task)
+		require.Equal(t, 0, code, "add %s: %s", id, stderr)
+	}
+	stdout, stderr, code := runTP(t, dir, "now")
+	require.Equal(t, 0, code, "tp now: %s", stderr)
+	out := decodeNow(t, stdout)
+	assert.Len(t, out["ready"], 5)
+	assert.InDelta(t, 7.0, out["tasks"].(map[string]any)["ready"], 0)
+}
+
 func TestNow_PlainWipTaskIsHeldByYou(t *testing.T) {
 	t.Parallel()
 	dir := runProject(t)
