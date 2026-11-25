@@ -60,6 +60,41 @@ Field report of 2026-11-25 (a requesting project, Agent-tool pool, v1.30.0):
 - **`tp land` exits 0 when a task is blocked.** A land that hit `.git/index.lock: File exists` listed
   the task under `blocked` and exited 0; the coordinator committed the task file as if it had landed.
   Test: a land with a non-empty `blocked` exits non-zero, and an index.lock is retried.
+- **An audit-fix unit that finds its row already fixed stops the run.** Run
+  01M8872QBM85KNHN5N9VX22C34: unit 84 found its finding fixed by unit 83 and exited without a change;
+  the driver stopped with `unit-failure` (exit 4), and `tp resume` kept naming the same unit while the
+  round file still had undisposed rows. Test: a fix unit whose row is already disposed is not
+  dispatched, and a no-change exit does not stop the run.
+
+Field report of 2026-11-25 (a requesting project, worktree pool then audit to the cap, v1.30.0). Look
+at these after 1.31.0 ships. The land exit code, the brief's `touches` and the absolute-path note are
+the entries above.
+
+- **`tp brief` claims two tasks whose `touches` overlap.** Two tasks that both touched the package
+  manifest and its lockfile were claimed at once; the coordinator serialized them by hand. Test: a
+  claim whose `touches` overlap a claimed task's (a lockfile at least) is refused or waits.
+- **A sentence added to a spec after the review cap raises `spec-stale`, with no way forward but to
+  revert.** The operator's decision text, added during the audit phase, got "raising the cap is the
+  operator's decision". Choice: an addendum recorded without a new review round, or a message that says
+  "revert, or raise the cap".
+- **`next_action` before the last audit round reads as if convergence were impossible.** After round
+  2 of 3 (not clean, `audit_clean_rounds` 2) it said "address the findings, then re-audit" with
+  `rounds_remaining` 1, and nothing said the loop can still end `done_by: cap` once round 3's findings
+  are dispositioned. Test: at `rounds_remaining` 1, `next_action` says the next round is the last and
+  ends by disposition.
+- **A row resolved `wontfix` comes back as an item to grade in the next audit round.** Two round-2
+  rows resolved `wontfix` by operator decision returned in round 3 with `changed_since: true` though
+  the cited code was untouched; one auditor graded them PASS to avoid a live finding at the cap.
+  Choice: carry a `wontfix` while its evidence files are unchanged, or tell the auditor how to grade an
+  accepted deviation.
+- **The audit prompt names an inbox inside the repository, and the coordinator's auditors are told
+  the checkout is read-only.** They wrote to paths outside the repo instead, and one flagged the
+  conflict. Choice: an output-path override in the emitted prompt, or an inbox outside the repo.
+- **A long `--affected-files` list gets one prompt per code role, and tp itself warns that past 10
+  files a role skims.** With 26 files the coordinator sliced `checklist_items` by hand and merged with
+  `tp audit --merge`. Choice: built-in slicing (`prompts[]` per slice), or `--record-inbox` taking
+  several files per role. Weigh against *The divisible round* (closed, below).
+
 ## Decided elsewhere, not a fix
 
 - **An auto-detected file list beyond 10 is cut per code role, and an inline spec excerpt stops at
