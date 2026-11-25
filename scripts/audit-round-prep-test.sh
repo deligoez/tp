@@ -379,6 +379,26 @@ python3 "$script" spec/e.md --no-build --out "$out" >"$summary" 2>"$out/err.txt"
 check_eq "a bool epoch position run exit code" 0 "$?"
 check_eq "a bool epoch position cuts nothing" 1 "$(field '["roles"]["go-safety"]["carried"]')"
 
+# A file renamed after the record is changed under its old name too. Under git's
+# rename detection `diff --name-only` lists only the new path, so a PASS row
+# citing the old one reads as untouched and is carried over a file that no
+# longer exists; tp audit lists both (`--no-renames`), and so must the script.
+mkdir -p spec/.tp-review/r
+printf '# r\n' >spec/r.md
+printf 'package src // r, renamed after the record\n' >src/r-old.go
+id_r=file-go-safety-src-r-old-go.0000eeee3333ffff
+printf '%s\n' '{"role":"go-safety","status":"PASS","item_id":"'"$id_r"'","evidence_file":"src/r-old.go","evidence_lines":"1-1","notes":"its evidence file is renamed after the record"}' \
+	>spec/.tp-review/r/audit-round-1.ndjson
+git add -A
+git commit -qm "record audit round 1 of r"
+git mv src/r-old.go src/r-new.go
+git commit -qm "rename src/r-old.go"
+python3 "$script" spec/r.md --no-build --out "$out" >"$summary" 2>"$out/err.txt"
+check_eq "renamed evidence run exit code" 0 "$?"
+check_eq "a rename lists its old path as changed" True \
+	"$(field '["changed_files"] and "src/r-old.go" in d["changed_files"]')"
+check_eq "the evidence file renamed away is not carried" 0 "$(field '["roles"]["go-safety"]["carried"]')"
+
 if [ "$failures" != 0 ]; then
 	printf '%s assertion(s) failed\n' "$failures"
 	exit 1
