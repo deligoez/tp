@@ -119,6 +119,16 @@ async function readStatus($: EngineInterface): Promise<RunView | null> {
   }
 }
 
+// isProject reports whether folder holds a tp project (its .tp directory).
+async function isProject($: EngineInterface, folder: string): Promise<boolean> {
+  if (!folder) return false
+  return (await $.fs.stat(`${folder}/.tp`).catch(() => undefined)) !== undefined
+}
+
+// The session's folder, kept from session.start: command.run carries no cwd
+// of its own on this engine, and a reload runs session.start again.
+let sessionCwd = ''
+
 export const register: Register = on => {
   let autoOpened = ''
 
@@ -128,9 +138,9 @@ export const register: Register = on => {
       name: 'tp-run',
       description: 'Show the tp run of this project in a pane',
     })
+    sessionCwd = e.cwd
     // Only a tp project gets the timer.
-    const project = await $.fs.stat(`${e.cwd}/.tp`).catch(() => undefined)
-    if (!project) return started
+    if (!(await isProject($, e.cwd))) return started
 
     let tick = 0
     $.clock.every(LIVE_MS, async () => {
@@ -148,7 +158,9 @@ export const register: Register = on => {
     return started
   })
 
-  on('command.run', { command: 'tp-run' }, async $ => {
+  on('command.run', { command: 'tp-run' }, async ($, e) => {
+    const cwd = 'cwd' in e && typeof e.cwd === 'string' ? e.cwd : sessionCwd
+    if (!(await isProject($, cwd))) return { text: 'This folder is not a tp project.' }
     await update($, run, () => null)
     const view = await readStatus($)
     await update($, run, () => view)
