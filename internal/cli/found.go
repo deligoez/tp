@@ -36,8 +36,68 @@ func newFoundCmd() *cobra.Command {
 		Short: "File requests for defects found outside the caller's task",
 		Args:  cobra.NoArgs,
 	}
-	cmd.AddCommand(newFoundAddCmd())
+	cmd.AddCommand(newFoundAddCmd(), newFoundApplyCmd())
 	return cmd
+}
+
+func newFoundApplyCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "apply",
+		Short: "Apply the spec's recorded requests: open found tasks within found_max",
+		Long: `Apply every recorded, unapplied request of the spec under the task-file lock.
+
+A duplicate (same file and reproduction as a request still open) opens
+nothing. A Fix-shaped request becomes a found task, blocking ones first, then
+by arrival, while the task file holds fewer than found_max found tasks (0 is
+uncapped); past it the request becomes an open queue entry. A request that
+needs a choice waits, undecided, for the decision unit.`,
+		Args: cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return runFoundApply()
+		},
+	}
+}
+
+// runFoundApply implements tp found apply (spec/1.31.0.md §2, §8). Only the
+// outcomes it produced are printed; an empty batch prints the counts alone.
+func runFoundApply() error {
+	taskFilePath, err := discoverWriteTarget()
+	if err != nil {
+		// task-file-hint: no task file resolved, so there are no requests to apply.
+		output.Error(ExitFile, err.Error())
+		os.Exit(ExitFile)
+		return nil
+	}
+	foundMax := engine.EffectiveWorkflowForTaskFile(taskFilePath).FoundMax
+	root := engine.CanonicalProjectRoot(filepath.Dir(taskFilePath))
+	plan, err := engine.ApplyFoundRequests(root, taskFilePath, foundMax)
+	if err != nil {
+		output.Error(ExitFile, "cannot apply the requests: "+err.Error(), foundStoreWriteHint)
+		os.Exit(ExitFile)
+		return nil
+	}
+	out := map[string]any{"found_tasks": plan.FoundTasks, "found_max": foundMax}
+	if len(plan.Opened) > 0 {
+		out["opened"] = plan.Opened
+	}
+	if len(plan.Entries) > 0 {
+		queued := make([]map[string]string, 0, len(plan.Entries))
+		for i := range plan.Entries {
+			queued = append(queued, map[string]string{"request": plan.Entries[i].Request, "entry": plan.Entries[i].ID})
+		}
+		out["queued"] = queued
+	}
+	if len(plan.Undecided) > 0 {
+		out["undecided"] = plan.Undecided
+	}
+	if len(plan.Duplicates) > 0 {
+		dups := make([]map[string]string, 0, len(plan.Duplicates))
+		for _, d := range plan.Duplicates {
+			dups = append(dups, map[string]string{"request": d.Request, "kept": d.KeptRequest})
+		}
+		out["duplicates"] = dups
+	}
+	return output.JSON(out)
 }
 
 func newFoundAddCmd() *cobra.Command {

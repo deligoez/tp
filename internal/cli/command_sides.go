@@ -75,6 +75,7 @@ var commandSides = map[string]string{
 	"tp brief":        sideFile,
 	"tp claim":        sideFile,
 	"tp found add":    sideFile,
+	"tp found apply":  sideFile,
 	// tp claims takes no task file: it reads every task file of every
 	// worktree of the working directory's repository.
 	"tp claims":   sideNone,
