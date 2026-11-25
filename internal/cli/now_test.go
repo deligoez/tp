@@ -389,3 +389,38 @@ func TestNow_EpicsNullWithoutAGraphAndFilledWithOne(t *testing.T) {
 		map[string]any{"id": "later", "name": "Later", "done": 0.0, "total": 0.0, "state": "open"},
 	}, decodeNow(t, stdout)["epics"])
 }
+
+// epicNowGraph is a two-epic graph whose root is payments.
+const epicNowGraph = `{"version":1,"milestones":[["m1"]],
+"epics":[
+{"id":"payments","title":"Payment flow","milestone":"m1","root":true},
+{"id":"later","title":"Later","milestone":"m1","depends_on":[{"id":"payments","why":"w"}]}]}`
+
+// epicNowProject is runProject in a git repository with epicNowGraph, its
+// task file bound to payments.
+func epicNowProject(t *testing.T) string {
+	t.Helper()
+	dir := runProject(t)
+	gitIn(t, dir, "init", "-q")
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".tp"), 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".tp", "epics.json"), []byte(epicNowGraph), 0o600))
+	_, stderr, code := runTP(t, dir, "set", "--epic", "payments")
+	require.Equal(t, 0, code, "set --epic: %s", stderr)
+	return dir
+}
+
+// The epics are the task file's project's, not the working directory's: tp
+// now --file pointing into another project reports that project's graph.
+func TestNow_EpicsComeFromTheTaskFilesProject(t *testing.T) {
+	t.Parallel()
+	other := epicNowProject(t)
+	here := runProject(t)
+
+	stdout, stderr, code := runTP(t, here, "now", "--file", filepath.Join(other, "spec.tasks.json"))
+	require.Equal(t, 0, code, "tp now: %s", stderr)
+	epics, ok := decodeNow(t, stdout)["epics"].([]any)
+	require.True(t, ok, "the other project's graph is read: %s", stderr)
+	require.Len(t, epics, 2)
+	assert.Equal(t, "payments", epics[0].(map[string]any)["id"])
+	assert.Equal(t, 1.0, epics[0].(map[string]any)["total"])
+}
