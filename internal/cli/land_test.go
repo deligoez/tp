@@ -1162,3 +1162,26 @@ func TestLandPrunesAConflictBranchItsResolutionCarries(t *testing.T) {
 	assert.NoDirExists(t, wt, "the old worktree is removed")
 	assert.Empty(t, gitRun(t, dir, "branch", "--list", "agent-t1"), "the conflict branch is deleted")
 }
+
+// A conflict branch holding a commit the resolution did not carry is kept
+// once the task lands, and tp land names the branch and the commit.
+func TestLandKeepsAConflictBranchWithAnUnpickedCommit(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "")
+	conflictThenResolve(t, dir, wt)
+	require.NoError(t, os.WriteFile(filepath.Join(wt, "late.txt"), []byte("late\n"), 0o600))
+	gitIn(t, wt, "add", "late.txt")
+	gitIn(t, wt, "commit", "-q", "-m", "late work")
+	late := gitRun(t, wt, "rev-parse", "HEAD")
+
+	stdout, stderr, code := runTP(t, dir, "land")
+	require.Equal(t, 0, code, stdout+stderr)
+	var res landPrunes
+	require.NoError(t, json.Unmarshal([]byte(stdout), &res), stdout)
+	require.Len(t, res.Kept, 1, stdout)
+	assert.Equal(t, "t1", res.Kept[0].ID)
+	assert.Equal(t, "agent-t1", res.Kept[0].Branch)
+	assert.Contains(t, res.Kept[0].Reason, late)
+	assert.DirExists(t, wt)
+	assert.NotEmpty(t, gitRun(t, dir, "branch", "--list", "agent-t1"), "the conflict branch is kept")
+}
