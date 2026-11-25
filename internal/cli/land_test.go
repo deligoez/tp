@@ -133,7 +133,8 @@ func TestLandReopensATaskWhosePickConflicts(t *testing.T) {
 	assert.NotContains(t, stdout+stderr, "--skip-gate")
 	assert.NotContains(t, stdout+stderr, "--force")
 	assert.Equal(t, "open", taskState(t, dir, "t1")["status"])
-	assert.Equal(t, head, gitRun(t, dir, "rev-parse", "HEAD"), "the pick is taken back")
+	assert.Equal(t, head, gitRun(t, dir, "rev-parse", "HEAD~1"), "the pick is taken back")
+	assert.Equal(t, "spec.tasks.json", gitRun(t, dir, "diff", "--name-only", "HEAD~1", "HEAD"), "only the reopen is committed")
 	assert.Contains(t, stdout, "conflicts with this branch in agent.txt")
 	stdout, _, _ = runTP(t, dir, "land")
 	assert.Contains(t, stdout, `"landed": []`, "the request is gone")
@@ -323,8 +324,6 @@ func TestACloseBesideALandedWorktreeClosesItsOwnCopy(t *testing.T) {
 	require.Equal(t, 0, code, stderr)
 	_, stderr, code = runTP(t, dir, "land")
 	require.Equal(t, 0, code, stderr)
-	gitIn(t, dir, "add", "-A")
-	gitIn(t, dir, "commit", "-q", "-m", "landed")
 	gitIn(t, dir, "worktree", "add", "-q", "-b", "later", filepath.Join(t.TempDir(), "later"))
 
 	_, stderr, code = runTP(t, dir, "reopen", "t1")
