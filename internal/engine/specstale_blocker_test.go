@@ -80,6 +80,18 @@ func TestSpecStaleBlocker_AtTheReviewCapNamesTheRaiseAsTheOperators(t *testing.T
 	assert.NotContains(t, under.Data, "operator")
 }
 
+// TestSpecStaleBlocker_AtTheReviewCapNamesBothWaysForward
+// (audit-round-ergonomics.md §2.4): a sentence added after the cap has two
+// ways out, and the message names both: revert it and record the decision in
+// the spec's measurements file, which the agent may do, or raise the cap,
+// which is the operator's.
+func TestSpecStaleBlocker_AtTheReviewCapNamesBothWaysForward(t *testing.T) {
+	t.Parallel()
+	b := builtSpecStale(t, &BlockerInputs{ReviewRounds: 3, ReviewMaxRounds: 3})
+	assert.Contains(t, b.Message, "revert the change to the text the last round read and record the decision in spec-measurements.md")
+	assert.Contains(t, b.Message, "or raise the cap, the operator's decision (raise-review-cap)")
+}
+
 // TestSpecStaleBlocker_AtTheCapAfterTheRecordNamesTheRecordAlone: a round in
 // flight over the old text whose record spends the budget leaves the record
 // as the agent's only command, since the emission after it would exit 4; its
