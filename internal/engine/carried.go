@@ -238,12 +238,16 @@ func fixVerified(r *CarriedRow, rounds []ReviewRound, latest int, current string
 	return laterRoundReadRepair(rounds, r.Round, current)
 }
 
-// laterRoundReadRepair reports whether a round numbered above round was
+// laterRoundReadRepair reports whether a clean round numbered above round was
 // emitted from the spec as it stands now (current), text other than round's
-// own: that round read the repaired text, and had it raised the finding again
-// its copy would be the row kept. Only a round whose hash is of its own
-// emission snapshot counts, since only that hash names text a prompt carried;
-// a round over newer text that is not the current text read something else.
+// own: that round read the repaired text and raised nothing blocking, so the
+// repair held (BUGS.md, 2026-11-25: "a later clean round that read the
+// repaired text verifies them"). Cleanness is what carries the proof: a
+// round's prompts list unresolved carried rows as not to re-report, so its
+// silence on the finding alone shows nothing. Only a round whose hash is of
+// its own emission snapshot counts, since only that hash names text a prompt
+// carried; a round over newer text that is not the current text read
+// something else.
 func laterRoundReadRepair(rounds []ReviewRound, round int, current string) bool {
 	if current == "" {
 		return false
@@ -258,7 +262,7 @@ func laterRoundReadRepair(rounds []ReviewRound, round int, current string) bool 
 		return false
 	}
 	for i := range rounds {
-		if rounds[i].Round > round && rounds[i].HashScheme == HashSchemeSnapshot && rounds[i].SpecHash == current {
+		if r := &rounds[i]; r.Round > round && r.Clean && r.HashScheme == HashSchemeSnapshot && r.SpecHash == current {
 			return true
 		}
 	}
