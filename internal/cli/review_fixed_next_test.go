@@ -53,3 +53,15 @@ func TestReviewStatus_EveryBlockingFixedNamesOnlyTheNextRound(t *testing.T) {
 	assert.Contains(t, next, "--record-inbox", "the next round verifies the repair")
 	assert.NotContains(t, next, "--resolve <index> fixed", "the finding is already resolved fixed")
 }
+
+// TestReviewResolve_FixedNextStepNamesTheNextRound: a fixed disposition waits
+// for the round that reads the repair, so --resolve's next_step names that
+// round, as next_action does, and not --verify, the tail protocol's check of
+// disputed findings before a record.
+func TestReviewResolve_FixedNextStepNamesTheNextRound(t *testing.T) {
+	t.Parallel()
+	dir, roundFile := recordedHighRound(t)
+	next, _ := resolveFixed(t, dir, roundFile, noRoundDir())["next_step"].(string)
+	assert.Contains(t, next, "tp review <spec>, then tp review <spec> --record-inbox")
+	assert.NotContains(t, next, "--verify")
+}
