@@ -1258,10 +1258,12 @@ graded lower does not downgrade it; the prompt tags it with that severity. A car
 evidence, and *unresolved* otherwise — no disposition, or an acceptance with blank evidence. A fix is
 *verified* once a review round numbered above the disposition's `resolved_after_round` is recorded;
 a disposition with no recorded order counts as verified if a round later than its row's round is
-recorded. A fix resolved after the round that read it is verified too (v1.32.0): a clean round
-numbered above the row's, emitted from the spec as it now stands (its `snapshot` hash is the current
-spec's) and from text other than the row's round read, verifies it, since its prompts list the
-carried row as not to re-report and only a clean verdict shows the repair held. The prompt and convergence read this one set.
+recorded. A fix resolved after a later round was emitted stays unverified until a round emitted
+after the resolution is recorded: the later round's prompts list the carried row as not to
+re-report, so its silence, clean or not, shows nothing about the repair. Below the cap
+`next_action` on `--record` and `--status` therefore asks for an earlier round's unresolved carried
+rows to be resolved before the next round is emitted or recorded (v1.32.0). The prompt and
+convergence read this one set.
 
 A review loop is not converged, and not done at its cap either, while the carried set holds a row
 that blocks under `review_converge_on` (critical, high or ungradable under `blocking`; any under
