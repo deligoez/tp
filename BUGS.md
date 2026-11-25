@@ -89,6 +89,11 @@ the entries above.
   files a role skims.** With 26 files the coordinator sliced `checklist_items` by hand and merged with
   `tp audit --merge`. Choice: built-in slicing (`prompts[]` per slice), or `--record-inbox` taking
   several files per role. Weigh against *The divisible round* (closed, below).
+- **`tp land` never removes a landed task's worktree or branch.** After 26 tasks and 3 audit repairs,
+  29 worktrees and their branches remained (the harness cleans only a worktree with no changes), and
+  one was still locked by the coordinator's pid. Choice: remove both once land has verified the
+  picks, or a `--prune` flag. The check reads tp's own landed record, not `git cherry`: a land that
+  resolved a conflict changes the patch ids, so `git cherry` still shows those commits as `+`.
 
 ## Decided elsewhere, not a fix
 
