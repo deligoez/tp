@@ -804,6 +804,7 @@ test('every code tp now sends has a sentence in both languages that names no com
     ['cap', 'review_max_rounds'],
     ['cap', 'audit_max_rounds'],
     ['land', 'land-request'],
+    ['blocker', 'no-active-file'],
   ]
   for (const [kind, code] of codes) {
     for (const lang of ['en', 'tr'] as const) {
