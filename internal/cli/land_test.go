@@ -1036,3 +1036,20 @@ func TestLandKeepsALockedLandedWorktree(t *testing.T) {
 	assert.DirExists(t, wt)
 	assert.NotEmpty(t, gitRun(t, dir, "branch", "--list", "agent-t1"))
 }
+
+// A landed worktree whose branch a task records as its conflict_branch is
+// kept, branch and all: that branch may hold the only copy of the work the
+// task's next agent resolves (spec/backlog/worktree-dispatch.md §2.2).
+func TestLandNeverPrunesARecordedConflictBranch(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "")
+	setConflictBranch(t, dir, "t3", "agent-t1")
+	stdout := landOne(t, dir, wt)
+	var res landPrunes
+	require.NoError(t, json.Unmarshal([]byte(stdout), &res), stdout)
+	assert.Empty(t, res.Pruned, stdout)
+	require.Len(t, res.Kept, 1, stdout)
+	assert.Contains(t, res.Kept[0].Reason, "t3", "the reason names the task that records the branch")
+	assert.DirExists(t, wt)
+	assert.NotEmpty(t, gitRun(t, dir, "branch", "--list", "agent-t1"))
+}
