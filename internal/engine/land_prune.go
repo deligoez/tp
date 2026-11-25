@@ -86,14 +86,8 @@ func LandConflictBranch(root, worktree, sha string) string {
 // landWorktreeHold is why the worktree wt must stay: a lock, an uncommitted
 // change, or a commit on its branch the land did not pick; "" when none.
 func landWorktreeHold(wt *landWorktree, commits []string) string {
-	if wt.locked {
-		if wt.lockReason != "" {
-			return "the worktree is locked: " + wt.lockReason
-		}
-		return "the worktree is locked"
-	}
-	if status, err := gitOut(wt.path, "status", "--porcelain"); err != nil || status != "" {
-		return "the worktree has uncommitted changes"
+	if reason := worktreeStateHold(wt); reason != "" {
+		return reason
 	}
 	picked := map[string]bool{}
 	for _, sha := range commits {
@@ -126,14 +120,37 @@ func landWorktreeHold(wt *landWorktree, commits []string) string {
 	return ""
 }
 
+// worktreeStateHold is why the worktree wt must stay whatever its commits:
+// a lock or an uncommitted change; "" when neither.
+func worktreeStateHold(wt *landWorktree) string {
+	if wt.locked {
+		if wt.lockReason != "" {
+			return "the worktree is locked: " + wt.lockReason
+		}
+		return "the worktree is locked"
+	}
+	if status, err := gitOut(wt.path, "status", "--porcelain"); err != nil || status != "" {
+		return "the worktree has uncommitted changes"
+	}
+	return ""
+}
+
 // findLandWorktree is the entry of `git worktree list --porcelain` at
 // root whose path is worktree.
 func findLandWorktree(root, worktree string) (landWorktree, bool) {
+	want := CanonicalPath(worktree)
+	return findWorktreeWhere(root, func(wt *landWorktree) bool {
+		return wt.path != "" && CanonicalPath(wt.path) == want
+	})
+}
+
+// findWorktreeWhere is the first entry of `git worktree list --porcelain`
+// at root that match accepts; main is set on the list's first entry.
+func findWorktreeWhere(root string, match func(*landWorktree) bool) (landWorktree, bool) {
 	list, err := gitOut(root, "worktree", "list", "--porcelain")
 	if err != nil {
 		return landWorktree{}, false
 	}
-	want := CanonicalPath(worktree)
 	for i, block := range strings.Split(list, "\n\n") {
 		var wt landWorktree
 		for line := range strings.SplitSeq(block, "\n") {
@@ -149,8 +166,8 @@ func findLandWorktree(root, worktree string) (landWorktree, bool) {
 				wt.locked, wt.lockReason = true, value
 			}
 		}
-		if wt.path != "" && CanonicalPath(wt.path) == want {
-			wt.main = i == 0
+		wt.main = i == 0
+		if match(&wt) {
 			return wt, true
 		}
 	}
