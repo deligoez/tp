@@ -179,3 +179,54 @@ func TestNow_RunReportsTheLastFinishedUnit(t *testing.T) {
 	assert.Contains(t, last, "exit_code")
 	assert.NotNil(t, last["duration_seconds"])
 }
+
+// A land request made under the task's claim waits for tp land: landing names
+// it, and needs_you says so in words that carry no command.
+func TestNow_ReportsAWaitingLandRequest(t *testing.T) {
+	t.Parallel()
+	dir := claimsRepo(t)
+	spawnClaim(t, dir, "t1", "toolu_L", "sessL")
+	require.NoError(t, engine.WriteLandRequest(filepath.Join(dir, "spec.tasks.json"), &engine.LandRequest{
+		ID: "t1", Reason: "done", Commits: []string{"0123abcd"}, Worktree: filepath.Join(dir, "wt"), Spawn: "toolu_L",
+	}))
+
+	stdout, stderr, code := runTP(t, dir, "now")
+	require.Equal(t, 0, code, "tp now: %s", stderr)
+	out := decodeNow(t, stdout)
+	landing, ok := out["landing"].([]any)
+	require.True(t, ok)
+	require.Len(t, landing, 1)
+	row := landing[0].(map[string]any)
+	assert.Equal(t, "t1", row["id"])
+	assert.Equal(t, "Task t1", row["title"])
+	assert.NotNil(t, row["since"], "since is when the request was made")
+
+	need := needOf(t, out, "land")
+	assert.Equal(t, "t1", need["id"])
+	assertPlainWords(t, need["text"])
+}
+
+// needOf returns the needs_you entry of kind, failing when there is none.
+func needOf(t *testing.T, out map[string]any, kind string) map[string]any {
+	t.Helper()
+	needs, ok := out["needs_you"].([]any)
+	require.True(t, ok, "needs_you is a list: %v", out["needs_you"])
+	for _, n := range needs {
+		if entry, isMap := n.(map[string]any); isMap && entry["kind"] == kind {
+			return entry
+		}
+	}
+	require.Failf(t, "no needs_you entry", "kind %q in %v", kind, needs)
+	return nil
+}
+
+// assertPlainWords checks a needs_you text is a sentence a person reads: no
+// tp command and no flag (CLAUDE.md rule 14).
+func assertPlainWords(t *testing.T, text any) {
+	t.Helper()
+	s, ok := text.(string)
+	require.True(t, ok, "text is a string: %v", text)
+	assert.NotEmpty(t, s)
+	assert.NotContains(t, s, "tp ", "no tp command in %q", s)
+	assert.NotContains(t, s, "--", "no flag in %q", s)
+}
