@@ -196,9 +196,12 @@ func ReviewCarriedSet(specPath string, st *ReviewState) (rows []CarriedRow, miss
 	}
 	rounds := reviewRoundsOf(st)
 	latest := latestRecordedRound(rounds)
+	// The spec as it stands: the text a fix resolved after its round was read
+	// must be, for a later round to have read the repair.
+	current, _ := SpecHash(specPath)
 	kept := latestByIdentity(all)
 	for i := range kept {
-		kept[i].Verified = fixVerified(&kept[i], rounds, latest)
+		kept[i].Verified = fixVerified(&kept[i], rounds, latest, current)
 		kept[i].Earlier = kept[i].Round < latest
 	}
 	return kept, missing
@@ -218,11 +221,9 @@ func latestRecordedRound(rounds []ReviewRound) int {
 // — the review rounds recorded or emitted when it was written — is recorded.
 // A disposition with no recorded order counts as verified if a round later
 // than its row's round is recorded. A fix resolved after the round that read
-// it is verified too: a round later than the row's, recorded over a spec hash
-// other than the row's round's, read the repaired text, and had it raised the
-// finding again that copy would be the row kept. Any other disposition is not
-// a fix and reports false.
-func fixVerified(r *CarriedRow, rounds []ReviewRound, latest int) bool {
+// it is verified too (laterRoundReadRepair). Any other disposition is not a
+// fix and reports false.
+func fixVerified(r *CarriedRow, rounds []ReviewRound, latest int, current string) bool {
 	if r.Disposition != CarryResolved {
 		return false
 	}
@@ -234,24 +235,30 @@ func fixVerified(r *CarriedRow, rounds []ReviewRound, latest int) bool {
 	} else if latest > r.Round {
 		return true
 	}
-	return laterRoundReadNewerText(rounds, r.Round)
+	return laterRoundReadRepair(rounds, r.Round, current)
 }
 
-// laterRoundReadNewerText reports whether a round numbered above round was
-// recorded over a spec hash other than round's own. Rounds with no recorded
-// hash say nothing.
-func laterRoundReadNewerText(rounds []ReviewRound, round int) bool {
+// laterRoundReadRepair reports whether a round numbered above round was
+// emitted from the spec as it stands now (current), text other than round's
+// own: that round read the repaired text, and had it raised the finding again
+// its copy would be the row kept. Only a round whose hash is of its own
+// emission snapshot counts, since only that hash names text a prompt carried;
+// a round over newer text that is not the current text read something else.
+func laterRoundReadRepair(rounds []ReviewRound, round int, current string) bool {
+	if current == "" {
+		return false
+	}
 	read := ""
 	for i := range rounds {
 		if rounds[i].Round == round {
 			read = rounds[i].SpecHash
 		}
 	}
-	if read == "" {
+	if read == "" || read == current {
 		return false
 	}
 	for i := range rounds {
-		if rounds[i].Round > round && rounds[i].SpecHash != "" && rounds[i].SpecHash != read {
+		if rounds[i].Round > round && rounds[i].HashScheme == HashSchemeSnapshot && rounds[i].SpecHash == current {
 			return true
 		}
 	}
