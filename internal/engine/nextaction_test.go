@@ -68,6 +68,17 @@ func TestReviewNextAction_Blocking(t *testing.T) {
 	assert.NotContains(t, got, "--verify")
 }
 
+// TestReviewNextAction_BlockingNamesTheRepairPath: below the cap the usual
+// way out of a blocking finding is a repair — resolve it fixed and run the
+// next round, which reads the repair — so the branch names that command, not
+// only the acceptances.
+func TestReviewNextAction_BlockingNamesTheRepairPath(t *testing.T) {
+	got := ReviewNextAction("spec.md", notDone, true /*blockingUnresolved*/, nil, roundFile, CheckVerdict{})
+	assert.Contains(t, got, "tp review "+roundFile+" --resolve <index> fixed \"<evidence>\"", "the repair is resolved fixed")
+	assert.Contains(t, got, "tp review spec.md, then tp review spec.md --record-inbox", "and the next round reads it")
+	assert.Contains(t, got, "--resolve <index> wontfix|duplicate", "acceptance stays named")
+}
+
 func TestReviewNextAction_Mechanize(t *testing.T) {
 	got := ReviewNextAction("spec.md", notDone, false, []string{"naming"}, roundFile, CheckVerdict{})
 	assert.Contains(t, got, "tp set --workflow checks", "branch 3 names the register-a-check command")
