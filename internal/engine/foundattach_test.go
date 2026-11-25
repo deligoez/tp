@@ -16,8 +16,8 @@ func touchingTask(id, status string, globs ...string) model.Task {
 
 func planAttachedTasks(plan *FoundApplyPlan) map[string]string {
 	got := map[string]string{}
-	for _, a := range plan.Attached {
-		got[a.Request] = a.Task
+	for i := range plan.Attached {
+		got[plan.Attached[i].Request] = plan.Attached[i].Task
 	}
 	return got
 }
