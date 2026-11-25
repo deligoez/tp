@@ -84,6 +84,10 @@ type dashboardLayout struct {
 	Packing   string              `json:"packing"`
 	Columns   float64             `json:"columns"`
 	Bands     []engine.LayoutBand `json:"bands,omitempty"`
+	Height    float64             `json:"height,omitempty"`
+	Rows      []engine.MapRow     `json:"rows,omitempty"`
+	Blocks    []engine.MapBlock   `json:"blocks,omitempty"`
+	Dividers  []engine.MapDivider `json:"dividers,omitempty"`
 	Nodes     []layoutNode        `json:"nodes"`
 	Edges     []layoutEdge        `json:"edges"`
 }
@@ -103,6 +107,8 @@ type layoutNode struct {
 	Downstream *epicExportDownstream `json:"downstream,omitempty"`
 	Layer      int                   `json:"layer"`
 	Col        float64               `json:"col"`
+	X          *float64              `json:"x,omitempty"`
+	Y          *float64              `json:"y,omitempty"`
 	Milestone  string                `json:"milestone,omitempty"`
 	Deferrable bool                  `json:"deferrable,omitempty"`
 	Centre     bool                  `json:"centre,omitempty"`
@@ -501,7 +507,26 @@ func planLayout(g *model.EpicGraph, states map[string]engine.EpicState, pack eng
 	for i := range out.Nodes {
 		out.Nodes[i].Milestone = bandOf[out.Nodes[i].ID]
 	}
+	planMap(&out, bandOf)
 	return out
+}
+
+// planMap lays the plan's nodes out on its map (engine.MapRows): rows of
+// side-by-side milestone blocks inside the forest's width, each node's
+// final place in X and Y beside its forest layer and column.
+func planMap(out *dashboardLayout, bandOf map[string]string) {
+	in := engine.MapRowsInput{Layer: map[string]int{}, Col: map[string]float64{}, Group: bandOf, Bands: out.Bands, Width: out.Columns}
+	for i := range out.Nodes {
+		n := &out.Nodes[i]
+		in.IDs = append(in.IDs, n.ID)
+		in.Layer[n.ID], in.Col[n.ID] = n.Layer, n.Col
+	}
+	m := engine.MapRows(&in)
+	out.Height, out.Rows, out.Blocks, out.Dividers = m.Height, m.Rows, m.Blocks, m.Dividers
+	for i := range out.Nodes {
+		p := m.Places[out.Nodes[i].ID]
+		out.Nodes[i].X, out.Nodes[i].Y = &p.X, &p.Y
+	}
 }
 
 // trackGroups maps each epic to the track its milestone is first listed in,
