@@ -25,7 +25,7 @@ func PruneLandedWorktree(root, worktree string, commits []string) (branch, reaso
 	if !ok || wt.main || SameProjectRoot(wt.path, gitToplevel(root)) {
 		return "", "", false
 	}
-	if reason = landWorktreeHold(wt, commits); reason != "" {
+	if reason = landWorktreeHold(&wt, commits); reason != "" {
 		return wt.branch, reason, true
 	}
 	if out, err := gitWaitingOutLock(root, "worktree", "remove", wt.path); err != nil {
@@ -41,7 +41,7 @@ func PruneLandedWorktree(root, worktree string, commits []string) (branch, reaso
 
 // landWorktreeHold is why the worktree wt must stay: a lock, an uncommitted
 // change, or a commit on its branch the land did not pick; "" when none.
-func landWorktreeHold(wt landWorktree, commits []string) string {
+func landWorktreeHold(wt *landWorktree, commits []string) string {
 	if wt.locked {
 		if wt.lockReason != "" {
 			return "the worktree is locked: " + wt.lockReason
