@@ -41,3 +41,21 @@ func TestFoundMax_ProjectLayerParsesAndClamps(t *testing.T) {
 	assert.NotEmpty(t, warnings, "a negative found_max is out of range")
 	assert.Equal(t, 5, wf.FoundMax, "an out-of-range value falls back to the default")
 }
+
+// found_max accepts 0 through 100 and warns outside it.
+func TestFoundMax_TheRangeIsZeroToOneHundred(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		raw  string
+		want int
+		warn bool
+	}{
+		{`{"found_max": 0}`, 0, false},
+		{`{"found_max": 100}`, 100, false},
+		{`{"found_max": 101}`, 5, true},
+	} {
+		wf, warnings := resolveProjectWorkflow(t, tc.raw)
+		assert.Equal(t, tc.want, wf.FoundMax, tc.raw)
+		assert.Equal(t, tc.warn, len(warnings) > 0, tc.raw)
+	}
+}
