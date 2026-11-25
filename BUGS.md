@@ -8,8 +8,8 @@ fix needs a design choice leaves this file for a decision note.
 
 ## Needs an operator decision
 
-None. The 2026-11-25 field reports' decisions are in `spec/backlog/land-lifecycle.md`,
-`spec/backlog/worktree-dispatch.md` and `spec/backlog/audit-round-ergonomics.md`.
+None. The 2026-11-25 field reports' decisions shipped in v1.32.0 (`spec/backlog/ARCHIVE.md`); what
+they left open is in `spec/1.32.0-measurements.md` §4.
 
 ## Fix track
 
