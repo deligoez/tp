@@ -272,6 +272,35 @@ func gitWaitingOutLock(root string, args ...string) ([]byte, error) {
 	}
 }
 
+// TaskFileChanged reports whether the task file at taskFile differs from
+// HEAD in the tree at root, or is not yet tracked there.
+func TaskFileChanged(root, taskFile string) bool {
+	out, err := gitOut(root, "status", "--porcelain", "--", taskFile)
+	return err == nil && out != ""
+}
+
+// LandCommitTaskFile commits the task file at taskFile alone, with msg, on
+// the branch checked out at root (spec/backlog/land-lifecycle.md §2.1):
+// anything else staged stays staged and out of the commit. It waits out a
+// briefly held index lock and returns the new commit's short sha.
+func LandCommitTaskFile(root, taskFile, msg string) (string, error) {
+	if out, err := gitWaitingOutLock(root, "commit", "-q", "-m", msg, "--", taskFile); err != nil {
+		return "", fmt.Errorf("git commit of %s failed: %s", filepath.Base(taskFile), strings.TrimSpace(string(out)))
+	}
+	return gitOut(root, "rev-parse", "--short", "HEAD")
+}
+
+// InLinkedWorktree reports whether dir is in a linked worktree rather than
+// the repository's main one.
+func InLinkedWorktree(dir string) bool {
+	gitDir, err := gitOut(dir, "rev-parse", "--path-format=absolute", "--git-dir")
+	if err != nil {
+		return false
+	}
+	common := gitCommonDir(dir)
+	return common != "" && CanonicalPath(gitDir) != common
+}
+
 // emptyPick reports a cherry-pick stopped because its change is already on
 // HEAD: one is in progress and nothing is staged against HEAD.
 func emptyPick(root string) bool {

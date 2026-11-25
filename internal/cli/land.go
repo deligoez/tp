@@ -44,6 +44,12 @@ type landResult struct {
 	Blocked  []landItem `json:"blocked"`
 	Dropped  []string   `json:"dropped"`
 	Unlanded []landItem `json:"unlanded"`
+	// Commit is tp's own commit of the task file this land wrote
+	// (spec/backlog/land-lifecycle.md §2.1); TaskFileChanged names the task
+	// file when it is left changed for the agent to commit instead.
+	Commit          string `json:"commit,omitempty"`
+	TaskFileChanged string `json:"task_file_changed,omitempty"`
+	CommitError     string `json:"commit_error,omitempty"`
 }
 
 // lander carries what landing one request needs.
@@ -56,7 +62,8 @@ type lander struct {
 
 // runLand is the coordinator's half of a worktree agent's close
 // (spec/backlog/worktree-land.md). It exits 4 when a request is blocked,
-// since that needs this tree's own changes committed first.
+// since that needs this tree's own changes committed first, and 3 when its
+// commit of the task file fails.
 func runLand(_ *cobra.Command, _ []string) error {
 	taskFilePath, err := engine.DiscoverTaskFile(".", flagFile)
 	if err != nil {
@@ -91,13 +98,56 @@ func runLand(_ *cobra.Command, _ []string) error {
 	for i := range requests {
 		l.land(&requests[i])
 	}
+	l.commitTaskFile()
 	if jsonErr := output.JSON(l.res); jsonErr != nil {
 		output.Error(ExitFile, jsonErr.Error(), internalEncodeHint)
+	}
+	if l.res.CommitError != "" {
+		os.Exit(ExitFile)
 	}
 	if len(l.res.Blocked) > 0 {
 		os.Exit(ExitState)
 	}
 	return nil
+}
+
+// commitTaskFile commits what this land wrote to the task file, once for
+// every task it landed or reopened (spec/backlog/land-lifecycle.md §2.1).
+// tp makes the commit only under builtin, as tp done --auto-commit does, and
+// only in the main worktree, where claims may be committed freely; otherwise
+// the output names the task file left changed for the agent to commit.
+func (l *lander) commitTaskFile() {
+	if len(l.res.Landed)+len(l.res.Reopened) == 0 || !engine.TaskFileChanged(l.root, l.taskFile) {
+		return
+	}
+	if resolveEffectiveStrategy(l.taskFile) != engine.CommitStrategyBuiltin || engine.InLinkedWorktree(l.root) {
+		l.res.TaskFileChanged = l.relFile()
+		return
+	}
+	sha, err := engine.LandCommitTaskFile(l.root, l.taskFile, landCommitMessage(l.res))
+	if err != nil {
+		l.res.TaskFileChanged = l.relFile()
+		l.res.CommitError = err.Error()
+		return
+	}
+	l.res.Commit = sha
+}
+
+// landCommitMessage is the message of a land's task-file commit, naming the
+// tasks it closed and those it reopened.
+func landCommitMessage(res *landResult) string {
+	reopened := make([]string, 0, len(res.Reopened))
+	for _, item := range res.Reopened {
+		reopened = append(reopened, item.ID)
+	}
+	if len(res.Landed) == 0 {
+		return "chore(tp): reopen " + strings.Join(reopened, ", ") + " after a failed land"
+	}
+	msg := "chore(tp): record " + strings.Join(res.Landed, ", ") + " closure"
+	if len(reopened) > 0 {
+		msg += "\n\nReopened: " + strings.Join(reopened, ", ")
+	}
+	return msg
 }
 
 // refuseLandOutsideHolder exits 2 before anything is touched when another
