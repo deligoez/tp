@@ -82,3 +82,29 @@ func TestPlanFoundApply_OnlyABlockingAttachmentAddsAnEdge(t *testing.T) {
 	assert.Equal(t, []FoundEdge{{Task: "finder", DependsOn: "t1"}}, plan.Edges)
 }
 
+// Round-4 finding 14: finder files a non-blocking request, whose found task
+// depends on it, then the same defect as blocking. Its edge would close the
+// cycle finder -> found-f1 -> finder, so no edge is added and an open queue
+// entry naming the cycle holds the finder instead.
+func TestPlanFoundApply_ABlockingEdgeThatClosesACycleQueuesInstead(t *testing.T) {
+	tasks := []model.Task{finderTask("finder")}
+	plan := PlanFoundApply([]FoundRequest{applyRequest(1, false)}, tasks, nil, 5)
+	require.Len(t, plan.Tasks, 1)
+	tasks = append(tasks, plan.Tasks...)
+
+	again := applyRequest(1, true)
+	again.ID, again.Seq = "F2", 2
+	again.State = FoundStateUnapplied
+	plan = PlanFoundApply(append(plan.Requests, again), tasks, nil, 5)
+
+	assert.Empty(t, plan.Edges, "no edge closes the cycle")
+	assert.Empty(t, plan.Tasks)
+	require.Len(t, plan.Entries, 1)
+	entry := plan.Entries[0]
+	assert.Equal(t, FoundQueueOpen, entry.State)
+	assert.Equal(t, "F2", entry.Request)
+	assert.Equal(t, []string{"finder"}, entry.Finders)
+	assert.Contains(t, entry.Question, "finder -> found-f1 -> finder")
+	assert.Equal(t, again.Reproduction, entry.Reproduction)
+}
+
