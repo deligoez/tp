@@ -106,6 +106,7 @@ func TestPlanFoundApply_ABlockingEdgeThatClosesACycleQueuesInstead(t *testing.T)
 	assert.Equal(t, "F2", entry.Request)
 	assert.Equal(t, []string{"finder"}, entry.Finders)
 	assert.Contains(t, entry.Question, "finder -> found-f1 -> finder")
+	assert.Contains(t, entry.Question, "finder is blocked on found-f1,", "the question names the task the finder waits on")
 	assert.Equal(t, again.Reproduction, entry.Reproduction)
 	assert.Equal(t, "found-f1", plan.Requests[1].Outcome)
 }
