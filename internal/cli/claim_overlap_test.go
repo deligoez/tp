@@ -94,3 +94,26 @@ func TestClaim_RefusesASpawnClaimOverlappingAClaim(t *testing.T) {
 	assert.Equal(t, "open", taskState(t, dir, "t2")["status"])
 }
 
+// TestClaim_BatchFailsOnlyTheOverlappingTask: tp claim t2 t4 claims t4 and
+// lists t2 under failed with the overlap message.
+func TestClaim_BatchFailsOnlyTheOverlappingTask(t *testing.T) {
+	t.Parallel()
+	dir := overlapRepo(t)
+	holdT1(t, dir)
+
+	stdout, stderr, code := runTP(t, dir, "claim", "t2", "t4")
+	require.Equal(t, 0, code, stderr)
+	var res struct {
+		Claimed []string `json:"claimed"`
+		Failed  []struct {
+			ID    string `json:"id"`
+			Error string `json:"error"`
+		} `json:"failed"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &res), stdout)
+	assert.Equal(t, []string{"t4"}, res.Claimed)
+	require.Len(t, res.Failed, 1)
+	assert.Equal(t, "t2", res.Failed[0].ID)
+	assert.Contains(t, res.Failed[0].Error, `"t1"`)
+}
+
