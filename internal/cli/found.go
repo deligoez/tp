@@ -47,8 +47,8 @@ func newFoundApplyCmd() *cobra.Command {
 		Long: `Apply every recorded, unapplied request of the spec under the task-file lock.
 
 A duplicate (same file and reproduction as a request still open) opens
-nothing. A request whose file lies inside the touches of a task not yet done
-(not its finder) opens nothing, does not count against found_max, and is
+nothing. A request whose file lies inside the touches of an open task (not
+its finder) opens nothing, does not count against found_max, and is
 attached to that task as a note shown by tp show and tp brief. A found task's
 origin location is not one of its files. Any other Fix-shaped request becomes
 a found task, blocking ones first, then by arrival, while the task file holds
