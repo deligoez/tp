@@ -48,6 +48,13 @@ func agentCommit(t *testing.T, wt string) string {
 	return strings.TrimSpace(gitRun(t, wt, "rev-parse", "HEAD"))
 }
 
+// lockAgentWorktree locks the agent's worktree wt, as a harness does while
+// its agent still runs, so tp land keeps it for the test to run tp in.
+func lockAgentWorktree(t *testing.T, dir, wt string) {
+	t.Helper()
+	gitIn(t, dir, "worktree", "lock", "--reason", "agent still running", wt)
+}
+
 func isReady(t *testing.T, dir, id string) bool {
 	t.Helper()
 	stdout, _, _ := runTP(t, dir, "ready")
@@ -96,6 +103,7 @@ func TestAWorktreeAgentsCloseLandsThroughTheCoordinator(t *testing.T) {
 			assert.True(t, p.Ask)
 			assert.Contains(t, p.Reason, "`tp land --file spec.tasks.json`")
 
+			lockAgentWorktree(t, dir, wt)
 			stdout, stderr, code = runTP(t, dir, "land")
 			require.Equal(t, 0, code, stderr)
 			var res struct {
@@ -545,6 +553,7 @@ func TestACommittedClaimsCloseAfterLandingIsRefused(t *testing.T) {
 	sha := agentCommit(t, wt)
 	_, stderr, code := runTP(t, wt, "done", "t1", "--commit", sha, "--claim-token", "tokA0001", "--", "t1 acceptance criteria met")
 	require.Equal(t, 0, code, stderr)
+	lockAgentWorktree(t, dir, wt)
 	stdout, stderr, code := runTP(t, dir, "land")
 	require.Equal(t, 0, code, stdout+stderr)
 
@@ -819,6 +828,7 @@ func TestASetInTheAgentsWorktreeAfterLandingIsRefused(t *testing.T) {
 	sha := agentCommit(t, wt)
 	_, stderr, code := runTP(t, wt, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
 	require.Equal(t, 0, code, stderr)
+	lockAgentWorktree(t, dir, wt)
 	_, stderr, code = runTP(t, dir, "land")
 	require.Equal(t, 0, code, stderr)
 
@@ -840,6 +850,7 @@ func TestEveryTaskWriterRefusesALandedCopy(t *testing.T) {
 	sha := agentCommit(t, wt)
 	_, stderr, code := runTP(t, wt, "done", "t1", "--commit", sha, "--", "t1 acceptance criteria met")
 	require.Equal(t, 0, code, stderr)
+	lockAgentWorktree(t, dir, wt)
 	_, stderr, code = runTP(t, dir, "land")
 	require.Equal(t, 0, code, stderr)
 
