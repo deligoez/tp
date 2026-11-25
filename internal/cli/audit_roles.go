@@ -203,15 +203,22 @@ func carriedWontfix(r *priorAuditRow) bool {
 }
 
 // withCarried returns p with its carried wontfix rows moved apart, and items
-// without the items those rows grade. p itself is left as it is.
+// without the items those rows grade. Only a row whose item is on items is
+// carried: the prompt lists as carried, and the record writes, exactly the
+// items taken off this checklist; a row naming an item the checklist does not
+// hold stays in the Prior Round rows. p itself is left as it is.
 func (p *auditPriorRound) withCarried(items []ChecklistItem) (*auditPriorRound, []ChecklistItem) {
 	if p == nil {
 		return nil, items
 	}
+	listed := make(map[string]bool, len(items))
+	for i := range items {
+		listed[items[i].ItemID] = true
+	}
 	out := &auditPriorRound{earlier: p.earlier, legacy: p.legacy}
 	skip := make(map[string]bool)
 	for i := range p.rows {
-		if carriedWontfix(&p.rows[i]) {
+		if carriedWontfix(&p.rows[i]) && listed[p.rows[i].ItemID] {
 			out.carried = append(out.carried, p.rows[i])
 			skip[p.rows[i].ItemID] = true
 			continue
