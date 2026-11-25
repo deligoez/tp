@@ -262,3 +262,24 @@ test('the run view reads in Turkish', async () => {
     'Son: alpha uygulama, çıkış 0, 45sn sürdü',
   ])
 })
+
+test('a short pane keeps what needs you and the held work, and counts what it leaves out', async () => {
+  const read = toNow(NOW, 0)!
+  // A section's heading takes a row and the gap above it another.
+  expect(nowRows(read.now, read.run, 'en', AT, 10).map(row => row.text)).toEqual([
+    'Implement phase · run in progress (4m 5s)',
+    'Needs you',
+    'Escalation: The run stopped on a decision only you can make.',
+    'In progress',
+    'auth-refresh  Refresh tokens before expiry · run, attempt 2, 4m 5s',
+    'rate-limit  Limit requests per key · agent',
+    'Tasks: 14 of 31 done, 2 in progress, 3 ready, 12 blocked',
+  ])
+  expect(nowRows(read.now, read.run, 'en', AT, 7).map(row => row.text)).toEqual([
+    'Implement phase · run in progress (4m 5s)',
+    'Needs you',
+    'Escalation: The run stopped on a decision only you can make.',
+    'In progress',
+    '2 more',
+  ])
+})
