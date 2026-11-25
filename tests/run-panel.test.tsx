@@ -776,3 +776,32 @@ test('a need whose code the pane has no words for, or with no code, shows tp\'s 
     }
   }
 })
+
+test('every code tp now sends has a sentence in both languages that names no command', async () => {
+  const codes: [string, string][] = [
+    ...['crashed', 'cap-units', 'cap-wall-clock', 'cap-budget', 'escalation', 'unit-failure', 'interrupted', 'driver-error',
+      'worktree-setup-failed'].map((code): [string, string] => ['run', code]),
+    ...['skip-gate', 'raise-review-cap', 'raise-audit-cap', 'raise-found-cap', 'import-force', 'audit-converge-on',
+      'accept-finding', 'discard-emission', 'epic-done', 'gate-met', 'epic-binding', 'grant-round',
+      'rewrite-past-blocking'].map((code): [string, string] => ['decision', code]),
+    ['escalation', 'other'],
+    ...['no-ready-task', 'epic-blocked', 'review-carried-blocking', 'spec-stale'].flatMap((code): [string, string][] => [
+      ['blocker', code],
+      ['decision', code],
+    ]),
+    ['cap', 'review_max_rounds'],
+    ['cap', 'audit_max_rounds'],
+    ['land', 'land-request'],
+  ]
+  for (const [kind, code] of codes) {
+    for (const lang of ['en', 'tr'] as const) {
+      for (const id of ['x', undefined]) {
+        const said = WORDS[lang].needText({ kind, code, id, text: 'tp text' })
+        expect(said).toBeTruthy()
+        expect(said).not.toContain('tp ')
+        expect(said).not.toContain('--')
+        expect(said).not.toContain('undefined')
+      }
+    }
+  }
+})
