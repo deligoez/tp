@@ -179,8 +179,8 @@ func buildNow(taskFilePath string, tf *model.TaskFile) (*nowResult, error) {
 	res.Ready = nowReady(tf)
 	run, runHeld, escalations := nowRunOf(root, taskFilePath)
 	res.Run = run
-	res.Held = nowHeldTasks(tf, runHeld)
 	res.Landing = nowLandings(taskFilePath, tf)
+	res.Held = nowHeldTasks(tf, runHeld, res.Landing)
 	res.NeedsYou = append(blockerNeeds(resume.Blockers), escalations...)
 	for _, l := range res.Landing {
 		res.NeedsYou = append(res.NeedsYou, landNeed(l.ID))
@@ -348,12 +348,17 @@ func nowReady(tf *model.TaskFile) []nowTask {
 
 // nowHeldTasks lists tf's wip tasks in file order, each with who holds it:
 // the run when runHeld names it, with the worktree and attempt of its latest
-// row; an agent when a spawn's claim holds it; else you.
-func nowHeldTasks(tf *model.TaskFile, runHeld map[string]*engine.RunUnitRow) []nowHeld {
+// row; an agent when a spawn's claim holds it; else you. A task in landing
+// waits to land, not on its holder, so it is listed there alone.
+func nowHeldTasks(tf *model.TaskFile, runHeld map[string]*engine.RunUnitRow, landing []nowLand) []nowHeld {
+	lands := make(map[string]bool, len(landing))
+	for _, l := range landing {
+		lands[l.ID] = true
+	}
 	out := []nowHeld{}
 	for i := range tf.Tasks {
 		t := &tf.Tasks[i]
-		if t.Status != model.StatusWIP {
+		if t.Status != model.StatusWIP || lands[t.ID] {
 			continue
 		}
 		row := nowHeld{ID: t.ID, Title: t.Title, Holder: "you", Since: rfc3339(t.StartedAt)}
