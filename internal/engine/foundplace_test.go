@@ -45,3 +45,22 @@ func TestPlanFoundApply_ABlockingRequestMakesTheFinderDependOnItsFoundTask(t *te
 	assert.Equal(t, []FoundEdge{{Task: "finder", DependsOn: "found-f1"}}, plan.Edges)
 }
 
+// §2 acceptance: a blocking duplicate of an applied request opens nothing; its
+// finder depends on the kept task.
+func TestPlanFoundApply_ABlockingDuplicatesFinderDependsOnTheKeptTask(t *testing.T) {
+	first := dedupRequest(1, "x.go:40", "go test -run TestX", FoundStateUnapplied)
+	first.Finder.Task = "a"
+	plan := PlanFoundApply([]FoundRequest{first}, []model.Task{finderTask("a"), finderTask("b")}, nil, 5)
+	require.Len(t, plan.Tasks, 1)
+	tasks := append([]model.Task{finderTask("a"), finderTask("b")}, plan.Tasks...)
+
+	dup := dedupRequest(2, "x.go:44", "go  test -run TestX", FoundStateUnapplied)
+	dup.Finder.Task = "b"
+	dup.Blocks = true
+	plan = PlanFoundApply(append(plan.Requests, dup), tasks, nil, 5)
+
+	assert.Empty(t, plan.Tasks)
+	assert.Equal(t, []FoundEdge{{Task: "b", DependsOn: "found-f1"}}, plan.Edges)
+	assert.Equal(t, "found-f1", plan.Requests[1].Outcome)
+}
+
