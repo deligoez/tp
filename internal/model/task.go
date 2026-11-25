@@ -98,6 +98,10 @@ type Task struct {
 	// this task because their location falls inside its touches
 	// (spec/1.31.0.md §2).
 	FoundNotes []FoundNote `json:"found_notes,omitempty"`
+	// HandedBack is managed by tp: `tp found handback` closed this found task
+	// because its reproduction did not fail, and its request went to the
+	// queue (spec/1.31.0.md §3). Cleared by tp reopen.
+	HandedBack bool `json:"handed_back,omitempty"`
 	// Solo is managed by tp: a task whose side-by-side unit failed to
 	// integrate runs alone from then on (spec/backlog/parallel-implement.md).
 	Solo bool `json:"solo,omitempty"`
