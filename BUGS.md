@@ -15,9 +15,6 @@ None. The 2026-11-25 field reports' decisions are in `spec/backlog/land-lifecycl
 
 Field report of 2026-11-25 (v1.30.0 worktree pool): reproduce each before fixing.
 
-- **The brief's close recipe omits `--file`.** In a repo with more than one task file, `tp done <id>
-  --commit <sha> --claim-token <t>` run inside a worktree exits 3 (task file not found); it works with
-  `--file <path>`. Test: the recipe a worktree brief prints names the task file.
 - **`tp brief` carries no `touches`.** `.task` holds acceptance, id, source_sections, spec_excerpt and
   title, while the task file holds narrowed `touches` globs the pool uses. Test: a task with `touches`
   briefs them.
