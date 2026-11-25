@@ -47,7 +47,8 @@ export function runRows(view: RunView, lang: Lang, now: number): PanelRow[] {
     live && !Number.isNaN(started) ? Math.max(view.wall_clock_seconds, (now - started) / 1000) : view.wall_clock_seconds
   const usd = (n: number) => `$${n.toFixed(2)}`
   const rows: PanelRow[] = [
-    { text: capital(`${w.phase(view.phase)}, ${w.state(view.run_state)}`, lang), tone: 'head' },
+    // A run with no phase (no task file yet) says its state alone.
+    { text: capital(view.phase ? `${w.phase(view.phase)}, ${w.state(view.run_state)}` : w.state(view.run_state), lang), tone: 'head' },
     { text: w.units(units, view.units_done - busy, busy) },
     { text: w.time(ofCap(w.duration(elapsed), caps.max_wall_clock_seconds, w.duration(caps.max_wall_clock_seconds))) },
     { text: w.spend(ofCap(usd(view.spend_usd), caps.max_budget_usd, usd(caps.max_budget_usd))) },
@@ -136,11 +137,14 @@ export function nowRows(
 ): PanelRow[] {
   const w = WORDS[lang]
   const live = run?.run_state === 'in_flight'
-  const head = capital(w.phase(now.phase), lang) + (live ? ` · ${w.runLive(ageOf(run?.started_at, at, lang))}` : '')
+  // With no phase (no task file yet) the head is the live run alone, or
+  // nothing: the counts row says there is no task file.
+  const parts = [now.phase ? w.phase(now.phase) : '', live ? w.runLive(ageOf(run?.started_at, at, lang)) : ''].filter(Boolean)
+  const head = capital(parts.join(' · '), lang)
   const openEpics = (now.epics ?? []).filter(e => e.state !== 'done')
   // In display order, which is also the order a short pane keeps them in.
   const sections: Section[] = [
-    { items: [{ text: head, tone: 'head' }] },
+    { items: head ? [{ text: head, tone: 'head' }] : [] },
     { heading: now.needs_you.length > 0 ? heading(w.needsYou) : undefined, items: now.needs_you.map(n => ({ text: `${w.need(n.kind)}: ${n.text}` })) },
     heldSection(now, run, lang, at),
     landingSection(now, lang, at),
