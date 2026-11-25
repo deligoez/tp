@@ -59,6 +59,18 @@ func TestWontfixCarry_TheEmissionDoesNotAskAnUnchangedWontfix(t *testing.T) {
 	assert.NotContains(t, prior, codeID, "the carried item is not listed to re-check")
 }
 
+// TestWontfixCarry_AChangedFileIsAskedAgain (decision §4, non-goal): the same
+// wontfix with code.go committed after its round is not carried; the item is
+// back on the checklist and nothing is marked carried.
+func TestWontfixCarry_AChangedFileIsAskedAgain(t *testing.T) {
+	t.Parallel()
+	dir, codeID := wontfixCarryRepo(t, "2019-01-01T00:00:00Z")
+
+	prompt, ids := emitSecurityPrompt(t, dir)
+	assert.Contains(t, ids, codeID, "a wontfix on a changed file is asked again")
+	assert.NotContains(t, prompt, "## Carried")
+}
+
 // TestWontfixCarry_TheRecordWritesTheCarriedRow (decision §2.1): the round's
 // results hold no row for the carried item, since nobody was asked, and
 // recording the round writes it with its disposition, carried_from naming the
