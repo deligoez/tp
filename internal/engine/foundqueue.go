@@ -26,6 +26,12 @@ type FoundQueueEntry struct {
 	Location     string   `json:"location"`
 	Question     string   `json:"question,omitempty"`
 	Alternatives []string `json:"alternatives,omitempty"`
+	// Reproduction, Expected and Observed carry a Fix-shaped request queued
+	// past the cap (spec/1.31.0.md §8): the request store is not committed,
+	// so the entry holds the defect itself.
+	Reproduction string   `json:"reproduction,omitempty"`
+	Expected     string   `json:"expected,omitempty"`
+	Observed     string   `json:"observed,omitempty"`
 	Finders      []string `json:"finders,omitempty"`
 	Answer       string   `json:"answer,omitempty"`
 }
