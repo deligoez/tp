@@ -335,3 +335,14 @@ func TestMapRows_TheWidthOfAnEmptyAndAOneBlockMap(t *testing.T) {
 	assert.InDelta(t, 0.0, a.FromCol, 0)
 	assert.InDelta(t, 3.0, got.Width, 0)
 }
+
+// TestMapRows_ADividerNamesItsRowAndLine: the divider between the two
+// blocks of the second row's first line names row 1, line 0.
+func TestMapRows_ADividerNamesItsRowAndLine(t *testing.T) {
+	t.Parallel()
+	in := mapInput(10, []LayoutBand{{Name: "A", From: 0, To: 0}, {Name: "B", From: 1, To: 1}, {Name: "C", From: 1, To: 1}},
+		mapNode{"a1", "A", 0, 0}, mapNode{"b1", "B", 1, 0}, mapNode{"c1", "C", 1, 5})
+	got := MapRows(&in)
+	require.Len(t, got.Dividers, 1)
+	assert.Equal(t, [2]int{1, 0}, [2]int{got.Dividers[0].Row, got.Dividers[0].Line})
+}
