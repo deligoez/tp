@@ -3335,10 +3335,11 @@ of that layer where that is wider), and inside a block each layer's epics keep t
 centred. Blocks sit 1 empty column apart and wrap, like text, onto another line of the row where
 the next would pass the forest's width, each line centred, so the map is never wider than the
 forest; its widest line then starts at column 0. Every
-line keeps one y above its first layer for its labels, and each layer of a line as many y as its
-most folded block needs, so a layer keeps one y across its line and an edge between layers of one
-line points down; a layer none of a line's blocks takes has no y in that line. An edge into an
-earlier line of the same row can point up.
+line keeps one y above its first layer for its labels, and the blocks of a line start level: each
+starts at the line's first y below it, whatever layer its first epic takes, and its own layers
+follow in order, as many y each as its folds need, so a block keeps its shape and the line is as
+tall as its tallest block. An edge inside a block points down; an edge between two blocks of a line,
+or into an earlier line of the same row, can point up.
 
 The page's graph card draws these views with deck.gl, vendored as
 `/vendor/deckgl-9.3.12.min.js`, the one file served under `/vendor/`, gzip-compressed to a client
