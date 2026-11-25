@@ -210,6 +210,28 @@ func TestCarriedBlocking_AFixResolvedAfterTheRoundThatReadItIsVerified(t *testin
 	assert.NotContains(t, out["next_action"], "marked fixed")
 }
 
+// TestCarriedBlocking_ARoundOverOtherNewerTextDoesNotVerifyAFix: round 2 was
+// emitted over an unrelated edit, before the repair, so the text it read is
+// newer than round 1's and still not the repaired text. Recording it verifies
+// nothing.
+func TestCarriedBlocking_ARoundOverOtherNewerTextDoesNotVerifyAFix(t *testing.T) {
+	t.Parallel()
+	dir := carriedWithCap(t, "5")
+	_, stderr, code := recordRound(t, dir, carriedHighRow)
+	require.Equal(t, 0, code, stderr)
+	writeSpec(t, dir, strings.Replace(carriedSpec, "The tool reads one file.", "The tool reads one input file.", 1))
+	_, stderr, code = runTP(t, dir, "review", "spec.md")
+	require.Equal(t, 0, code, "emit round 2: %s", stderr)
+	writeSpec(t, dir, strings.Replace(carriedSpec, "Rule 1 applies to every row.", "Rule 1 applies to every row of the file.", 1))
+	_, stderr, code = runTP(t, dir, "review", carriedRoundFile, "--resolve", "0", "fixed", "reworded rule 1")
+	require.Equal(t, 0, code, stderr)
+	_, stderr, code = recordRound(t, dir, "")
+	require.Equal(t, 0, code, "record round 2: %s", stderr)
+
+	out, _ := reviewStatusCheck(t, dir)
+	assert.Equal(t, float64(1), out["carried_fixed_unverified"], "round 2 read text before the repair")
+}
+
 // TestCarriedBlocking_TheCapRefusalNamesTheCarriedRow: at the cap with a
 // carried blocking row the loop is not done, so the next emission is refused,
 // and the hint names the row in its own round file instead of the latest
