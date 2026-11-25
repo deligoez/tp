@@ -114,7 +114,7 @@ func runReviewRecordInbox(specPath, harnessNote string) error {
 	files := reviewRoleFiles(specPath, inbox)
 	var missing []string
 	for _, role := range inbox.Roles {
-		if files[role] == "" {
+		if len(files[role]) == 0 {
 			missing = append(missing, role)
 		}
 	}
@@ -142,58 +142,73 @@ func runReviewRecordInbox(specPath, harnessNote string) error {
 	return runReviewRecord(specPath, merged, harnessNote)
 }
 
-// reviewRoleFiles finds each owed role's findings file: in the round's inbox,
-// or, for a round a tp run collected and stopped before recording, in the
-// run's round directory ($TP_ROUND_DIR/role-<role>.ndjson), which the driver
-// keeps per task file and round. A role with neither maps to "".
-func reviewRoleFiles(specPath string, inbox engine.ReviewInboxRound) map[string]string {
+// reviewRoleFiles finds each owed role's findings files: its whole file and
+// part files in the round's inbox (engine.RoleInboxFiles), or, for a round a
+// tp run collected and stopped before recording, its file in the run's round
+// directory ($TP_ROUND_DIR/role-<role>.ndjson), which the driver keeps per
+// task file and round. A role with none maps to nothing.
+func reviewRoleFiles(specPath string, inbox engine.ReviewInboxRound) map[string][]string {
 	runDir := ""
 	if _, taskFile := engine.ResolveWorkflow(specPath, flagFile); taskFile != "" {
 		root := engine.CanonicalProjectRoot(filepath.Dir(taskFile))
 		runDir = engine.RoundDir(root, taskFile, engine.PhaseReview, inbox.Round)
 	}
-	files := make(map[string]string, len(inbox.Roles))
+	files := make(map[string][]string, len(inbox.Roles))
 	for _, role := range inbox.Roles {
-		candidates := []string{engine.RoleInboxPathAt(namedInbox(), specPath, engine.PhaseReview, inbox.Round, role)}
-		if runDir != "" {
-			candidates = append(candidates, engine.RoleFindingsPath(runDir, role))
+		if found := engine.RoleInboxFiles(namedInbox(), specPath, engine.PhaseReview, inbox.Round, role); len(found) > 0 {
+			files[role] = found
+			continue
 		}
-		for _, path := range candidates {
-			if info, err := os.Stat(path); err == nil && !info.IsDir() {
-				files[role] = path
-				break
-			}
+		if runDir == "" {
+			continue
+		}
+		if path := engine.RoleFindingsPath(runDir, role); isRegularFile(path) {
+			files[role] = []string{path}
 		}
 	}
 	return files
 }
 
-// reviewInboxRows reads each role's file through the reader --merge applies,
+// isRegularFile reports whether path names a file that is not a directory.
+func isRegularFile(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
+}
+
+// reviewInboxRows reads each role's files through the reader --merge applies,
 // stamping every row with its file's role, and names each skipped line and each
 // row that names another role.
-func reviewInboxRows(inbox engine.ReviewInboxRound, files map[string]string) (data []byte, problems []string) {
+func reviewInboxRows(inbox engine.ReviewInboxRound, files map[string][]string) (data []byte, problems []string) {
 	var buf bytes.Buffer
 	for _, role := range inbox.Roles {
-		path := files[role]
-		rows, counts := loadMergeRows([]string{path}, reviewMergeRule)
-		for _, c := range counts {
-			for _, s := range c.skips {
-				problems = append(problems, fmt.Sprintf("%s (role %s) %s: %s", filepath.Base(path), role, lineList(s.lines), s.reason))
-			}
-		}
-		for i, row := range rows {
-			if named, _ := row["role"].(string); named != "" && named != role {
-				problems = append(problems, fmt.Sprintf("%s row %d names role %q, but the file is role %s's", filepath.Base(path), i, named, role))
-				continue
-			}
-			row["role"] = role
-			line, err := json.Marshal(row)
-			if err != nil {
-				problems = append(problems, fmt.Sprintf("%s row %d: %v", filepath.Base(path), i, err))
-				continue
-			}
-			buf.Write(append(line, '\n'))
+		for _, path := range files[role] {
+			problems = append(problems, appendRoleFileRows(&buf, path, role)...)
 		}
 	}
 	return buf.Bytes(), problems
+}
+
+// appendRoleFileRows writes one role file's rows to buf, each stamped with
+// the file's role, and returns the problems it found in the file.
+func appendRoleFileRows(buf *bytes.Buffer, path, role string) (problems []string) {
+	rows, counts := loadMergeRows([]string{path}, reviewMergeRule)
+	for _, c := range counts {
+		for _, s := range c.skips {
+			problems = append(problems, fmt.Sprintf("%s (role %s) %s: %s", filepath.Base(path), role, lineList(s.lines), s.reason))
+		}
+	}
+	for i, row := range rows {
+		if named, _ := row["role"].(string); named != "" && named != role {
+			problems = append(problems, fmt.Sprintf("%s row %d names role %q, but the file is role %s's", filepath.Base(path), i, named, role))
+			continue
+		}
+		row["role"] = role
+		line, err := json.Marshal(row)
+		if err != nil {
+			problems = append(problems, fmt.Sprintf("%s row %d: %v", filepath.Base(path), i, err))
+			continue
+		}
+		buf.Write(append(line, '\n'))
+	}
+	return problems
 }
