@@ -194,14 +194,10 @@ func ReviewCarriedSet(specPath string, st *ReviewState) (rows []CarriedRow, miss
 			})
 		}
 	}
-	rounds := reviewRoundsOf(st)
-	latest := latestRecordedRound(rounds)
-	// The spec as it stands: the text a fix resolved after its round was read
-	// must be, for a later round to have read the repair.
-	current, _ := SpecHash(specPath)
+	latest := latestRecordedRound(reviewRoundsOf(st))
 	kept := latestByIdentity(all)
 	for i := range kept {
-		kept[i].Verified = fixVerified(&kept[i], rounds, latest, current)
+		kept[i].Verified = fixVerified(&kept[i], latest)
 		kept[i].Earlier = kept[i].Round < latest
 	}
 	return kept, missing
@@ -220,53 +216,17 @@ func latestRecordedRound(rounds []ReviewRound) int {
 // (§2.6): a review round numbered above the disposition's resolved_after_round
 // — the review rounds recorded or emitted when it was written — is recorded.
 // A disposition with no recorded order counts as verified if a round later
-// than its row's round is recorded. A fix resolved after the round that read
-// it is verified too (laterRoundReadRepair). Any other disposition is not a
-// fix and reports false.
-func fixVerified(r *CarriedRow, rounds []ReviewRound, latest int, current string) bool {
+// than its row's round is recorded. Any other disposition is not a fix and
+// reports false.
+func fixVerified(r *CarriedRow, latest int) bool {
 	if r.Disposition != CarryResolved {
 		return false
 	}
 	resolved, _ := r.Row["resolved"].(map[string]any)
 	if after, ok := resolved["resolved_after_round"].(float64); ok {
-		if float64(latest) > after {
-			return true
-		}
-	} else if latest > r.Round {
-		return true
+		return float64(latest) > after
 	}
-	return laterRoundReadRepair(rounds, r.Round, current)
-}
-
-// laterRoundReadRepair reports whether a clean round numbered above round was
-// emitted from the spec as it stands now (current), text other than round's
-// own: that round read the repaired text and raised nothing blocking, so the
-// repair held (BUGS.md, 2026-11-25: "a later clean round that read the
-// repaired text verifies them"). Cleanness is what carries the proof: a
-// round's prompts list unresolved carried rows as not to re-report, so its
-// silence on the finding alone shows nothing. Only a round whose hash is of
-// its own emission snapshot counts, since only that hash names text a prompt
-// carried; a round over newer text that is not the current text read
-// something else.
-func laterRoundReadRepair(rounds []ReviewRound, round int, current string) bool {
-	if current == "" {
-		return false
-	}
-	read := ""
-	for i := range rounds {
-		if rounds[i].Round == round {
-			read = rounds[i].SpecHash
-		}
-	}
-	if read == "" || read == current {
-		return false
-	}
-	for i := range rounds {
-		if r := &rounds[i]; r.Round > round && r.Clean && r.HashScheme == HashSchemeSnapshot && r.SpecHash == current {
-			return true
-		}
-	}
-	return false
+	return latest > r.Round
 }
 
 // latestByIdentity keeps each finding's last occurrence in rows, in the order
