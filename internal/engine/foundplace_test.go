@@ -108,3 +108,20 @@ func TestPlanFoundApply_ABlockingEdgeThatClosesACycleQueuesInstead(t *testing.T)
 	assert.Equal(t, again.Reproduction, entry.Reproduction)
 }
 
+// The cycle check follows the whole graph, not one hop: t1 depends on t2,
+// which depends on the finder, so a blocking attachment to t1 queues.
+func TestPlanFoundApply_TheCycleCheckFollowsLongerPaths(t *testing.T) {
+	t1 := touchingTask("t1", model.StatusOpen, "x.go")
+	t1.DependsOn = []string{"t2"}
+	t2 := touchingTask("t2", model.StatusOpen)
+	t2.DependsOn = []string{"finder"}
+	req := dedupRequest(1, "x.go:3", "go test -run TestX", FoundStateUnapplied)
+	req.Blocks = true
+
+	plan := PlanFoundApply([]FoundRequest{req}, []model.Task{finderTask("finder"), t1, t2}, nil, 5)
+
+	assert.Empty(t, plan.Edges)
+	require.Len(t, plan.Entries, 1)
+	assert.Contains(t, plan.Entries[0].Question, "finder -> t1 -> t2 -> finder")
+}
+
