@@ -825,6 +825,8 @@ agent:
 | `tp done --skip-gate` (and its other sinks: a `--batch` row's `skip_gate`, `tp close --skip-gate`) | exit 2, hint naming it a user-approved decision and pointing at `tp escalate` |
 | `tp set --workflow review_max_rounds=` / `audit_max_rounds=` **above** the resolved value | exit 2, same shape |
 | `tp set --workflow run_max_*=` **above** the resolved value | exit 2, same shape |
+| `tp set --workflow found_max=` **above** the resolved value, or `0` over a non-zero one, at either layer (v1.31.0) | exit 2, same shape, escalates under `--decision raise-found-cap` |
+| a task-graph write from a run unit — `tp add` (`--bulk` too), `tp import`, `tp set depends_on` (`--bulk` too) from any unit kind but `decompose`, and `tp found settle` from any unit kind (v1.31.0) | exit 2 before any input is read, the hint naming `tp found add`. The fence keys on the unit kind: it holds under `tp run` only, with both `TP_UNATTENDED` and a non-empty `TP_UNIT_KIND` set, and a hand-run session outside a run keeps every one of these commands |
 | `tp import --force` | exit 2, same shape |
 | accepting a finding without a change — `wontfix`/`duplicate` on a critical or high review finding, or on any audit finding, at `--resolve` or `--resolve-all`, or carried in by a row that arrives at `--record`/`--record-inbox` already resolved so (v1.29.4) | exit 2, escalates under `--decision accept-finding`; `fixed` is not fenced, nor is `tp audit --record` carrying an earlier acceptance forward (see Dispositions) |
 | `--force` on a `tp ground`/`tp review`/`tp audit` emission that would discard an unrecorded round, and `tp epic review <slice> --discard` | exit 2, escalates under `--decision discard-emission`: sibling role units grade one emission concurrently |
