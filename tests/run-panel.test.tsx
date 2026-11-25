@@ -710,3 +710,22 @@ test('a run the pane opened itself for is not opened again after a reload', asyn
   await clock.advance(10_000)
   expect(opened).toEqual([])
 })
+
+test('a task detail whose read a reload cut off is read again on the next tick', async ($, on) => {
+  const clock = mock.clock(on, { now: AT })
+  const ran = world(on, {
+    'tp --version': VERSION,
+    'tp now --json': { exitCode: 0, stdout: JSON.stringify(NOW) },
+    'tp show auth-refresh --json': { exitCode: 0, stdout: JSON.stringify(SHOWN) },
+  })
+  // Stored before the reload: the detail was open, its read never answered.
+  seed(on, 'screen', 'screen-1', { view: 'detail', task: 'auth-refresh', back: 'now' })
+  await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
+  await clock.advance(5_000)
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: 'A failed refresh logs the user out' })).toBeTruthy()
+  await ui.unmount()
+  await clock.advance(10_000)
+  // Read once: an answered detail is not asked again.
+  expect(ran.filter(line => line === 'tp show auth-refresh --json')).toHaveLength(1)
+})
