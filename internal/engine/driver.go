@@ -294,10 +294,11 @@ func (d *driver) checkpoint(res *ResumeResult, prev *iterationOutcome) StopReaso
 // readCycle reads the cycle exactly as tp resume does: the task file from disk
 // on every iteration, then the oracle over it.
 //
-// A task file that cannot be read is treated as an empty task set rather than
+// A task file that does not exist is treated as an empty task set rather than
 // as an error, matching tp resume's own handling of a spec whose adjacent task
 // file does not exist yet — a cycle before decomposition has no task file, and
-// refusing to drive it would refuse the phase that creates one.
+// refusing to drive it would refuse the phase that creates one. A task file
+// that is there but does not read or parse is an error, as it is in tp resume.
 func readCycle(o *DriverOptions) (ResumeResult, error) {
 	return readCycleRunning(o, nil)
 }

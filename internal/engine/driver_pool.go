@@ -424,8 +424,11 @@ func (d *driver) releaseUnit(u unitTree) error {
 // oracle fills only the free slots.
 func readCycleRunning(o *DriverOptions, running []string) (ResumeResult, error) {
 	tf, err := model.ReadTaskFile(o.TaskFile)
-	if err != nil {
+	switch {
+	case errors.Is(err, os.ErrNotExist):
 		tf = &model.TaskFile{Spec: o.Spec, Tasks: []model.Task{}}
+	case err != nil:
+		return ResumeResult{}, driverErrorf(err, "read the task file")
 	}
 	return AssembleResumeRunning(o.Root, o.TaskFile, o.Spec, tf, running)
 }
