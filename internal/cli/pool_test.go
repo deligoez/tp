@@ -293,6 +293,49 @@ func TestPoolStopHookStaysSilent(t *testing.T) {
 	}
 }
 
+// A coordinator whose pool has nothing else to ask still has its stop refused
+// once while its task file holds unapplied found requests (spec/1.31.0.md §2);
+// the second stop goes through, and once applied the hook is silent.
+func TestPoolStopHookRefusesWhileFoundRequestsAreUnapplied(t *testing.T) {
+	t.Parallel()
+	dir := poolRepo(t)
+	spawnClaim(t, dir, "t1", "toolu_A", "sessC")
+	for _, id := range []string{"t2", "t4", "t5", "t6", "t7"} {
+		_, _, code := runTP(t, dir, "set", id, "waiting=the release tag")
+		require.Equal(t, 0, code)
+	}
+	stdout, _, code := hookRun(t, poolHook, true, poolStopPayload(t, dir, false))
+	require.Equal(t, 0, code)
+	require.Empty(t, stdout, "no request is filed and the pool has nothing to ask")
+
+	_, stderr, code := runTP(t, dir, "found", "add", "--location", "x.go:3", "--reproduction", "go test ./x",
+		"--expected", "a", "--observed", "b")
+	require.Equal(t, 0, code, stderr)
+
+	stdout, _, code = hookRun(t, poolHook, true, poolStopPayload(t, dir, false))
+	require.Equal(t, 0, code)
+	var out map[string]string
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out), stdout)
+	assert.Equal(t, "block", out["decision"])
+	assert.Contains(t, out["reason"], "`tp found apply --file spec.tasks.json`")
+
+	noTasks := poolStopPayload(t, dir, false)
+	delete(noTasks, "background_tasks")
+	stdout, _, code = hookRun(t, poolHook, true, noTasks)
+	require.Equal(t, 0, code)
+	assert.Contains(t, stdout, "tp found apply", "an unapplied request needs no agent list to be named")
+
+	stdout, _, code = hookRun(t, poolHook, true, poolStopPayload(t, dir, true))
+	require.Equal(t, 0, code)
+	assert.Empty(t, stdout, "stop_hook_active lets the second stop through")
+
+	_, stderr, code = runTP(t, dir, "found", "apply")
+	require.Equal(t, 0, code, stderr)
+	stdout, _, code = hookRun(t, poolHook, true, poolStopPayload(t, dir, false))
+	require.Equal(t, 0, code)
+	assert.NotContains(t, stdout, "tp found apply", "no unapplied request is left")
+}
+
 // A coordinator whose only claim a failed landing reopened is still a
 // coordinator: the Stop hook asks for a fresh agent on the task.
 func TestPoolAsksForAFreshAgentAfterAFailedLanding(t *testing.T) {
