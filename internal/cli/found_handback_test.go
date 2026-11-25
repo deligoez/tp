@@ -66,3 +66,20 @@ func TestFoundHandback_ClosesTheTaskAndQueuesItsRequest(t *testing.T) {
 	assert.Equal(t, "exit 1", queue[0].Observed)
 }
 
+// §3/§4: a finder that depended on the handed-back task is a finder of the
+// entry and waits on it, out of the ready set, though its dependency is done.
+func TestFoundHandback_TheDependentFinderWaitsOnTheEntry(t *testing.T) {
+	t.Parallel()
+	dir := foundHandbackFixture(t)
+
+	stdout, stderr, code := runTPEnv(t, dir, nil, "found", "handback", "found-f1", "TestA passes at HEAD")
+
+	require.Equal(t, 0, code, "stdout=%s stderr=%s", stdout, stderr)
+	assert.Equal(t, []any{"t1"}, parseJSON(t, stdout)["finders"], stdout)
+	assert.Equal(t, []string{"t3"}, readySet(t, dir), "t1 waits on the entry")
+
+	settleQueueEntry(t, dir, "Q1")
+
+	assert.Equal(t, []string{"t1", "t3"}, readySet(t, dir), "a settled entry releases its finder")
+}
+
