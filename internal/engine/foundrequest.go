@@ -47,6 +47,10 @@ type FoundRequest struct {
 	Finder       FoundFinder `json:"finder"`
 	FiledAt      string      `json:"filed_at"`
 	State        string      `json:"state"`
+	// Outcome is the task an applied request ended in: its found task, the
+	// open task it was attached to, or the found task of the request it
+	// duplicated (spec/1.31.0.md §4). Empty until apply gives it one.
+	Outcome string `json:"outcome,omitempty"`
 }
 
 // FixShaped reports whether req carries all four Fix fields — location,
