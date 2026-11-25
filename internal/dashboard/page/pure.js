@@ -697,30 +697,14 @@
 
   // detailLevel is how much a graph node draws at a label size of px
   // pixels on screen: "near", its whole id, from min (9 unless the view
-  // names its own); below it "short", its shortened id, where the view has
-  // a short label and that label's size shortPx reaches min; else "far",
-  // no text.
-  P.detailLevel = function (px, min, shortPx) {
-    if (px >= (min || 9)) return "near";
-    return shortPx >= (min || 9) ? "short" : "far";
+  // names its own); below it "far", no text.
+  P.detailLevel = function (px, min) {
+    return px >= (min || 9) ? "near" : "far";
   };
 
   // ID_SUFFIX is an id's trailing suffix group: one or more "-" each with
   // one to three characters, "-I", "-II", "-AI-I".
   const ID_SUFFIX = /(?:-[^\s.:-]{1,3})+$/;
-
-  // shortId is id in at most n characters: whole when it fits, else as
-  // much of its head as fits, an ellipsis and its suffix group (keepFrom's
-  // "-I", "-II", "-AI-I"), so siblings still differ; a suffix that would
-  // leave under three characters of head is cut with the rest.
-  P.shortId = function (id, n) {
-    if (id.length <= n) return id;
-    const m = ID_SUFFIX.exec(id);
-    const suffix = m ? m[0] : "";
-    const keep = n - 1 - suffix.length;
-    if (keep < 3) return id.slice(0, n - 1).trimEnd() + "…";
-    return id.slice(0, id.length - suffix.length).slice(0, keep).trimEnd() + "…" + suffix;
-  };
 
   // keepFrom is where an id's last word starts when a short suffix group
   // ("-I", "-II", "-AI-I") ends it, so no break falls after it and the
@@ -788,11 +772,46 @@
     return best;
   };
 
+  // idLines is every form an id takes in one line or two: whole, or broken
+  // once after a ".", "-" or ":" or at a space (dropped), never inside the
+  // word a suffix group keeps (keepFrom) and never leaving a second line of
+  // three characters or fewer. Nothing is cut.
+  P.idLines = function (id) {
+    const forms = [[id]];
+    const keep = keepFrom(id);
+    for (let i = 1; i < id.length && i <= keep; i++) {
+      const ch = id[i - 1];
+      if (ch !== " " && !".-:".includes(ch)) continue;
+      const a = ch === " " ? id.slice(0, i - 1) : id.slice(0, i);
+      const b = id.slice(i);
+      if (a && b.length > 3) forms.push([a, b]);
+    }
+    return forms;
+  };
+
+  // fitIdIn is an id whole in a box of box.w by box.h at box.fs and
+  // box.lineHeight, in at most two lines: of its forms (idLines) the one
+  // drawn largest, fit the fraction of the font, no larger than 1, that its
+  // widest line (measure, in font sizes) and its line count leave in the
+  // box; on a tie the fewer lines, then the narrower widest line, so two
+  // lines break evenly rather than after a short head.
+  P.fitIdIn = function (id, box, measure) {
+    let best = null;
+    P.idLines(id).forEach((lines) => {
+      const widest = Math.max(...lines.map(measure));
+      // Floored, so a fit never rounds up past the box.
+      const fit = Math.floor(Math.min(1, box.w / (box.fs * widest), box.h / (box.fs * box.lineHeight * lines.length)) * 10000) / 10000;
+      const better = !best || fit > best.fit || (fit === best.fit && lines.length === best.lines.length && widest < best.widest);
+      if (better) best = { lines, fit, widest };
+    });
+    return { lines: best.lines, fit: best.fit };
+  };
+
   // glyphsOf is every character the graph's text layers draw, the set
   // deck.gl builds its font atlas from: a character left out is not drawn.
   P.glyphsOf = function (nodes, bands) {
     const chars = new Set();
-    nodes.forEach((n) => { for (const ch of n.label + n.title + (n.text || "") + (n.short || "")) chars.add(ch); });
+    nodes.forEach((n) => { for (const ch of n.label + n.title + (n.text || "")) chars.add(ch); });
     bands.forEach((b) => { for (const ch of b.name + " ·0123456789") chars.add(ch); });
     return [...chars].join("");
   };

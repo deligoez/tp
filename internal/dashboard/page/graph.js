@@ -107,17 +107,32 @@
     // DESIGN.md's spacing asks (the gap inside a group smaller than the
     // gap between groups): epics of one block sit 24px apart side by side
     // and 20px apart in height, and each line of blocks opens lineGap lower
-    // (tpPure.mapY), a strip its labels keep at fit. Its ids are set in the
-    // page's own face at 18 units, in boxes grown to hold two lines of
-    // them, and drawn from minPx (DESIGN.md's tiny type, 14px) on screen.
-    // A fit cancels any growth that is the same everywhere, so what makes a
-    // label read sooner is its size against the gaps: the gaps stay tight
-    // while the type grows. Before the whole id reads, each box shows a
-    // short one (tpPure.shortId, shortChars characters) at shortFs, one
-    // line twice the whole id's size, so a label reads a zoom unit sooner.
+    // (tpPure.mapY), a strip its labels keep at fit. A fit cancels any
+    // growth that is the same everywhere, so what makes a label read sooner
+    // is its size against the gaps: a box takes its column and row but for
+    // a 12-unit gap, and its id is set in the page's own face, medium, at
+    // fs units, whole in one or two lines measured to fit inside pad
+    // (tpPure.fitIdIn), never cut. The ids show once the smallest of them
+    // reaches minPx (DESIGN.md's tiny type, 14px) on screen.
     map: {
-      w: 200, h: 48, col: 224, row: 68, fs: 18, chars: 20, lineGap: 220, minPx: 14, font: "Inter, system-ui, sans-serif",
-      shortFs: 32, shortChars: 11 },
+      w: 212, h: 56, col: 224, row: 68, fs: 22, pad: 6, lh: 1.15, lineGap: 220, minPx: 14, font: "Inter, system-ui, sans-serif" },
+  };
+  // measureEm is a map label's width in font sizes, the sum of its
+  // characters' advances in the map's face at medium weight, as deck.gl's
+  // text layer lays them out; without a canvas, 0.6 of a size each.
+  const advances = {};
+  let measureCtx;
+  const measureEm = (s) => {
+    if (measureCtx === undefined) {
+      measureCtx = document.createElement("canvas").getContext("2d") || null;
+      if (measureCtx) measureCtx.font = `500 100px ${GEO.map.font}`;
+    }
+    let w = 0;
+    for (const ch of s) {
+      if (advances[ch] === undefined) advances[ch] = measureCtx ? measureCtx.measureText(ch).width / 100 : 0.6;
+      w += advances[ch];
+    }
+    return w;
   };
   // The neighbourhood opens no further out than this, where an epic's
   // 11-unit id reads at 12 pixels, its whole id drawn (tpPure.detailLevel).
@@ -309,11 +324,13 @@
     }
     // The id whole in its fixed-width box: wrapped at punctuation marks, and
     // drawn smaller in more lines when two would not hold it (tpPure.fitId);
-    // the box never widened, the id never cut.
-    const fitted = pure.fitId(out.label, geo.chars);
+    // on the map in at most two lines, measured in its face (fitIdIn). The
+    // box is never widened, the id never cut.
+    const fitted = geo.pad
+      ? pure.fitIdIn(out.label, { w: geo.w - 2 * geo.pad, h: geo.h - geo.pad, fs: geo.fs, lineHeight: geo.lh }, measureEm)
+      : pure.fitId(out.label, geo.chars);
     out.text = fitted.lines.join("\n");
     out.fit = fitted.fit;
-    out.short = geo.shortFs ? pure.shortId(out.label, geo.shortChars) : "";
     out.band = -1;
     const { w, h } = out;
     out.poly = out.cond
@@ -390,7 +407,10 @@
       if (l.critical) counts.edges.critical = (counts.edges.critical || 0) + 1;
       if (l.any) counts.edges.any = (counts.edges.any || 0) + 1;
     });
-    return { L, geo, nodes, links, preds, succs, bands, bounds, counts, index, described, owners, charSet: pure.glyphsOf(nodes, bands), sel: -1, anc: null, desc: null, ver: 0 };
+    // minFit is the smallest id's share of the font, which decides when the
+    // map's ids show; the other views keep their font's own size.
+    const minFit = geo.pad ? nodes.reduce((m, n) => Math.min(m, n.fit), 1) : 1;
+    return { L, geo, nodes, links, preds, succs, bands, bounds, counts, index, described, owners, minFit, charSet: pure.glyphsOf(nodes, bands), sel: -1, anc: null, desc: null, ver: 0 };
   }
 
   // curve is an edge's path: a cubic from the bottom of its dependency to
@@ -581,7 +601,7 @@
     const { PolygonLayer, PathLayer, TextLayer } = window.deck;
     const c = G.colors;
     const scale = Math.pow(2, G.vs.zoom);
-    G.detail = pure.detailLevel(P.geo.fs * scale, P.geo.minPx, (P.geo.shortFs || 0) * scale);
+    G.detail = pure.detailLevel(P.geo.fs * P.minFit * scale, P.geo.minPx);
     const hits = matches(P);
     const v = [P.ver, G.q, G.detail, pure.crossShown(G), G.whole, [...G.hiddenMarks].join(), [...G.hiddenEdges].join(), G.themeVer, app.stage(), pure.ownerSelKey(G.ownerSel), G.ownerColour];
     const fontSettings = { sdf: true, fontSize: 64, buffer: 6, radius: 12, cutoff: 0.22 };
@@ -612,19 +632,10 @@
       }),
       new TextLayer({
         id: "ids", data: P.nodes, visible: G.detail === "near", getPosition: (n) => [n.x, n.y + n.h / 2], getText: nodeText,
-        getSize: (n) => P.geo.fs * n.fit, sizeUnits: "common", getTextAnchor: "middle", getAlignmentBaseline: "center", lineHeight: 1.25,
+        getSize: (n) => P.geo.fs * n.fit, sizeUnits: "common", getTextAnchor: "middle", getAlignmentBaseline: "center", lineHeight: P.geo.lh || 1.25,
         getColor: (n) => [...c.ink, nodeAlpha(P, hits, n) >= 170 ? 255 : 70],
         fontFamily: P.geo.font || "ui-monospace, SFMono-Regular, Menlo, monospace", fontWeight: P.geo.font ? 500 : "normal",
         characterSet: P.charSet, fontSettings, updateTriggers: { getColor: v, getText: v },
-      }),
-      // A box's short id, one line before its whole id reads; the whole
-      // one stays a hover away (tooltip).
-      new TextLayer({
-        id: "ids-short", data: P.nodes, visible: G.detail === "short", getPosition: (n) => [n.x, n.y + n.h / 2], getText: (n) => n.short,
-        getSize: P.geo.shortFs || 0, sizeUnits: "common", sizeMaxPixels: 20, getTextAnchor: "middle", getAlignmentBaseline: "center",
-        getColor: (n) => [...c.ink, nodeAlpha(P, hits, n) >= 170 ? 255 : 70],
-        fontFamily: P.geo.font || "system-ui, sans-serif", fontWeight: 500, characterSet: P.charSet, fontSettings,
-        updateTriggers: { getColor: v },
       }),
       new TextLayer({
         id: "band-names", data: names, getPosition: (l) => [l.wx, l.wy], getText: (l) => l.text,
