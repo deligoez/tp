@@ -418,6 +418,21 @@ test('the language comes from the project, then Claude Code, then the locale, th
   expect(resolveLanguage({})).toBe('en')
 })
 
+test('the widget seat draws the glance and no buttons', async ($, on) => {
+  mock.clock(on, { now: AT })
+  world(on, { 'tp --version': VERSION, 'tp now --json': { exitCode: 0, stdout: JSON.stringify(NOW) } })
+  await $.session.start({ cwd: '/p', surface: 'desktop', isInteractive: true })
+  await runCommand($)
+  const ui = await $.ui.mount({ ...PANE, props: { ...PANE.props, placement: 'widget' }, surface: 'desktop' })
+  expect((await ui.findAll({ type: 'Text' })).map(t => t.text)).toEqual([
+    'Implement phase',
+    '2 in progress',
+    'Escalation: The run stopped on a decision only you can make.',
+  ])
+  expect(await ui.findAll({ type: 'Button' })).toHaveLength(0)
+  await ui.unmount()
+})
+
 test('the tp now payload keeps what the pane draws, its run included', async () => {
   const read = toNow(NOW, 7)
   expect(read?.now.project).toBe('orders-api')
