@@ -13,12 +13,7 @@ None. The 2026-11-25 field reports' decisions are in `spec/backlog/land-lifecycl
 
 ## Fix track
 
-Found in this repo (2026-11-25):
-
-- **Task-audit record units leave their round files uncommitted on main.** Under `tp run`,
-  `spec/.tp-review/<v>/task-audit-N.ndjson` and `state.json` stay untracked/modified after each record
-  unit, so every later close warns "3 uncommitted change(s) not on the keep-list". Test: after a
-  task-audit record unit, `git status` on main shows no round file.
+None.
 
 ## Decided elsewhere, not a fix
 
