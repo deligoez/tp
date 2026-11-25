@@ -96,3 +96,29 @@ func TestNow_PlainWipTaskIsHeldByYou(t *testing.T) {
 	assert.Nil(t, seed["worktree"])
 	assert.Nil(t, seed["attempt"])
 }
+
+// nowHeldOne returns the single held row of a tp now payload.
+func nowHeldOne(t *testing.T, out map[string]any) map[string]any {
+	t.Helper()
+	held, ok := out["held"].([]any)
+	require.True(t, ok, "held is a list: %v", out["held"])
+	require.Len(t, held, 1)
+	row, ok := held[0].(map[string]any)
+	require.True(t, ok)
+	return row
+}
+
+// A task a spawn's claim holds is held by an agent.
+func TestNow_ClaimedTaskIsHeldByAnAgent(t *testing.T) {
+	t.Parallel()
+	dir := runProject(t)
+	_, stderr, code := runTP(t, dir, "claim", "seed", "--spawn", "toolu_now1", "--session", "s1")
+	require.Equal(t, 0, code, "claim --spawn: %s", stderr)
+
+	stdout, stderr, code := runTP(t, dir, "now")
+	require.Equal(t, 0, code, "tp now: %s", stderr)
+	row := nowHeldOne(t, decodeNow(t, stdout))
+	assert.Equal(t, "seed", row["id"])
+	assert.Equal(t, "agent", row["holder"], "a spawn's claim holds the task")
+	assert.NotNil(t, row["since"])
+}
