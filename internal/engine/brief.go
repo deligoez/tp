@@ -501,7 +501,10 @@ type BriefTask struct {
 	Acceptance     string   `json:"acceptance"`
 	SourceSections []string `json:"source_sections,omitempty"`
 	SourceLines    string   `json:"source_lines,omitempty"`
-	SpecExcerpt    string   `json:"spec_excerpt,omitempty"`
+	// Touches are the task's path globs, which the pool holds a running
+	// unit to; kept under --compact.
+	Touches     []string `json:"touches,omitempty"`
+	SpecExcerpt string   `json:"spec_excerpt,omitempty"`
 	// Request is a found task's request, in place of spec_excerpt
 	// (spec/1.31.0.md §3); nil for a spec task.
 	Request *BriefFoundRequest `json:"request,omitempty"`
@@ -565,6 +568,7 @@ func BuildBrief(tf *model.TaskFile, task *model.Task, specPath, effectiveStrateg
 		Acceptance:     task.Acceptance,
 		SourceSections: task.SourceSections,
 		SourceLines:    task.SourceLines,
+		Touches:        task.Touches,
 		FoundNotes:     task.FoundNotes,
 	}
 	if task.Origin != nil {
@@ -718,6 +722,12 @@ func renderBriefTaskText(t *BriefTask) string {
 		}
 		if t.SourceLines != "" {
 			fmt.Fprintf(&s, "- source_lines: %s\n", t.SourceLines)
+		}
+	}
+	if len(t.Touches) > 0 {
+		s.WriteString("\ntouches:\n")
+		for _, g := range t.Touches {
+			fmt.Fprintf(&s, "- %s\n", g)
 		}
 	}
 	if t.SpecExcerpt != "" {
