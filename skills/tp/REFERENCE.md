@@ -764,7 +764,10 @@ spend key from the final line and never reads a log into any context.
 
 `tp run --status` reports `{phase, run_id, started_at, units_done, wall_clock_seconds, spend_usd,
 caps: {max_units, max_wall_clock_seconds, max_budget_usd}, running: [{seq, kind, id, attempt,
-worktree?, started_at}], last_unit: {…the whole row…}, stop_reason, run_state}`. `running` lists the
+worktree?, started_at}], last_unit: {…the whole row…}, last_finished: {kind, id, attempt, exit_code,
+duration_seconds}, stop_reason, run_state}`. `last_unit` is the latest attempt to start, often still
+running; `last_finished` is the exited attempt that ended last by `started_at` plus `duration_seconds`,
+by sequence within a second, and null while none has exited. `running` lists the
 attempts whose `exit_code` is still null, each with the RFC 3339 UTC time its row was appended, and
 only while `run_state` is `in_flight`: a stopped or crashed run holds nothing, so it is `[]`.
 `run_state` is `stopped` once `stop_reason` is set, otherwise `in_flight`
@@ -772,7 +775,7 @@ when `.tp/locks/run-<key>.lock` is held and `crashed` when it is not — the loc
 separating the last two. On a stop in the audit phase it also carries `spec_coverage_clean_rounds`,
 `role_streaks` and `divergence`, verbatim from `tp audit --status`; when the auditor role corpus
 cannot be read those three are left out and `audit_signals_omitted` names the read error. Under `--compact` `stop_reason`,
-the cap totals and `running` survive and `last_unit` — its log path with it — is stripped.
+the cap totals, `running` and `last_finished` survive and `last_unit` — its log path with it — is stripped.
 
 ### The child environment
 
