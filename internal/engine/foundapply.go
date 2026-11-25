@@ -181,12 +181,18 @@ func pastCapEntry(req *FoundRequest, foundMax int) FoundQueueEntry {
 }
 
 // newFoundTask is the found task a Fix-shaped request opens: open, anchored
-// by origin in place of source_sections, with an id no task in taken has.
+// by origin in place of source_sections, with an id no task in taken has. A
+// non-blocking one depends on its task finder (spec/1.31.0.md §4); a blocking
+// one and an audit row's depend on nothing.
 func newFoundTask(req *FoundRequest, taken map[string]bool) model.Task {
 	base := "found-" + strings.ToLower(req.ID)
 	id := base
 	for n := 2; taken[id]; n++ {
 		id = base + "-" + strconv.Itoa(n)
+	}
+	deps := []string{}
+	if !req.Blocks && req.Finder.Task != "" {
+		deps = append(deps, req.Finder.Task)
 	}
 	return model.Task{
 		ID:              id,
@@ -194,7 +200,7 @@ func newFoundTask(req *FoundRequest, taken map[string]bool) model.Task {
 		Description:     foundTaskDescription(req.Reproduction, req.Expected, req.Observed),
 		Status:          model.StatusOpen,
 		Tags:            []string{"found"},
-		DependsOn:       []string{},
+		DependsOn:       deps,
 		EstimateMinutes: foundTaskEstimateMinutes,
 		Acceptance:      fmt.Sprintf("- %#q shows %s, where it showed %s", req.Reproduction, req.Expected, req.Observed),
 		SourceSections:  []string{},
