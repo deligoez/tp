@@ -320,6 +320,17 @@ test('the widget glance says the phase, how much is in progress and the first th
   expect(glanceRows(null, null, 'en').map(row => row.text)).toEqual(['Nothing in progress'])
 })
 
+test('a narrow pane shortens a title, never the id or who holds it, and wraps a sentence whole', async ($, on) => {
+  mock.clock(on, { now: AT })
+  world(on, { 'tp --version': VERSION, 'tp now --json': { exitCode: 0, stdout: JSON.stringify(NOW) } })
+  await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
+  await runCommand($)
+  const ui = await $.ui.mount({ ...PANE, props: { ...PANE.props, bodyColumns: 50 }, surface: 'terminal' })
+  expect((await ui.find({ key: 'held:auth-refresh' }))?.text).toBe('auth-refresh  Refresh tok… · run, attempt 2, 4m 5s')
+  expect(await ui.find({ type: 'Text', text: 'Escalation: The run stopped on a decision only you can make.' })).toBeTruthy()
+  await ui.unmount()
+})
+
 test('a project with no run says so', async $ => {
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect((await ui.find({ type: 'Text' }))?.text).toBe('tp')
