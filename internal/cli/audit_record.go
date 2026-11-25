@@ -41,7 +41,7 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 	}
 
 	// Round-budget refusal comes before line parsing and any state write
-	wfPre, _ := engine.ResolveWorkflow(specPath, flagFile)
+	wfPre, taskFilePath := engine.ResolveWorkflow(specPath, flagFile)
 
 	// A consuming command validates the resolved audit_converge_on: an illegal
 	// value winning from a stored layer (.tp/config.json or a task override) is
@@ -95,6 +95,10 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 	// accepted on the item's latest graded row is graded with that
 	// acceptance, and the round file written below holds it.
 	data, carried := carryAuditAcceptances(specPath, stPre, data, rows)
+	// After the fence, like the carry: the disposition of a row a request was
+	// filed from is tp's, written from the request (spec/1.31.0.md §7).
+	recordRound, _ := engine.RecordRound(len(preRounds))
+	data = fileFoundAuditRows(taskFilePath, recordRound, data, rows)
 	// §2: `clean` is stamped here, once, under the policy in force at record
 	// time, and nothing downstream recomputes it. The policy comes from wfPre
 	// and not from the wf resolved after recordAuditRoundEntry, for the reason
