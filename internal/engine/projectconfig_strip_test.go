@@ -53,3 +53,22 @@ func TestStripTaskWorkflowFields_WaitsForTheTaskFileLock(t *testing.T) {
 	assert.NotContains(t, string(data), "quality_gate")
 }
 
+// Query commands read task files lock-free, so the strip must publish its
+// rewrite by rename rather than truncating the file in place.
+func TestStripTaskWorkflowFields_ReplacesTheFileAtomically(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "a.tasks.json")
+	require.NoError(t, os.WriteFile(path, []byte(`{"workflow":{"quality_gate":"x"},"tasks":[]}`+"\n"), 0o600))
+	before, err := os.Stat(path)
+	require.NoError(t, err)
+
+	require.NoError(t, StripTaskWorkflowFields(path, []string{"quality_gate"}))
+
+	after, err := os.Stat(path)
+	require.NoError(t, err)
+	assert.False(t, os.SameFile(before, after), "the rewrite replaced the file by rename, not in place")
+	assert.Equal(t, os.FileMode(0o600), after.Mode().Perm())
+	leftovers, err := filepath.Glob(filepath.Join(dir, "*.tmp"))
+	require.NoError(t, err)
+	assert.Empty(t, leftovers)
+}
