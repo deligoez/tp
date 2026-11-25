@@ -225,6 +225,28 @@ test('a stopped run names why it stopped', async () => {
   expect(rows.at(-1)).toBe('Stopped: converged')
 })
 
+test('a task detail reads in Turkish', async () => {
+  const read = toNow(NOW, 0)!
+  expect(detailRows('auth-refresh', read.now, SHOWN, 'tr', AT).map(row => row.text)).toEqual([
+    'Refresh tokens before expiry',
+    'auth-refresh',
+    'Tutan: koşu, 2. deneme',
+    'Başlangıç: 4dk 5sn önce',
+    'Çalışma ağacı: /w/auth-refresh',
+    'Kabul ölçütleri',
+    'Tokens refresh 60s before expiry',
+    'A failed refresh logs the user out',
+    'Dokunduğu dosyalar',
+    'internal/auth/**',
+  ])
+  expect(detailRows('webhook-retry', read.now, { ...SHOWN, id: 'webhook-retry', failed: true }, 'tr', AT).map(row => row.text)).toEqual([
+    'Retry failed webhooks',
+    'webhook-retry',
+    'Başlamaya hazır',
+    'Bu görev okunamadı.',
+  ])
+})
+
 // Seen live: two units 31s in read "Time 0s", "Units 2 of 100" with none
 // finished, and a Last row repeating a running slot.
 test('a live run counts its time from the start and its units as they finish', async () => {
