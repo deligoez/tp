@@ -118,3 +118,43 @@ func TestNamedInbox_ARecordedRoundLeavesNoFileForTheNext(t *testing.T) {
 	_, stderr, code = runTPEnv(t, dir, noRoundDir(), "review", "other.md", "--record-inbox", "--inbox", "outside")
 	assert.Equal(t, 3, code, "spec.md's recorded files are not other.md's: %s", stderr)
 }
+
+// TestNamedInbox_TwoSpecsInFlightShareOneInbox: two specs' rounds emitted into
+// one named inbox before either is recorded write apart, and each record reads
+// and removes only its own spec's role files.
+func TestNamedInbox_TwoSpecsInFlightShareOneInbox(t *testing.T) {
+	t.Parallel()
+	dir, _ := inboxSpec(t)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "other.md"), []byte("# Other\n## 1. B\ncontent\n"), 0o600))
+	paths := map[string][]string{}
+	for _, spec := range []string{"spec.md", "other.md"} {
+		for _, pm := range emittedPrompts(t, dir, noRoundDir(), "review", spec, "--inbox", "outside") {
+			paths[spec] = append(paths[spec], pm["output_path"].(string))
+		}
+		require.NotEmpty(t, paths[spec], spec)
+	}
+	for _, p := range paths["spec.md"] {
+		assert.NotContains(t, paths["other.md"], p, "two specs' role files never share a path")
+	}
+	for spec, ps := range paths {
+		for i, p := range ps {
+			body := ""
+			if i == 0 {
+				body = `{"severity":"low","finding":"only in ` + spec + `","location":"§1","evidence":"e"}` + "\n"
+			}
+			require.NoError(t, os.WriteFile(p, []byte(body), 0o600))
+		}
+	}
+
+	for _, tc := range []struct{ spec, other, base string }{{"spec.md", "other.md", "spec"}, {"other.md", "spec.md", "other"}} {
+		_, stderr, code := runTPEnv(t, dir, noRoundDir(), "review", tc.spec, "--record-inbox", "--inbox", "outside")
+		require.Equal(t, 0, code, "%s: %s", tc.spec, stderr)
+		round, err := os.ReadFile(filepath.Join(dir, ".tp-review", tc.base, "review-round-1.ndjson"))
+		require.NoError(t, err)
+		assert.Contains(t, string(round), "only in "+tc.spec, "%s records its own row", tc.spec)
+		assert.NotContains(t, string(round), "only in "+tc.other, "%s records none of %s's rows", tc.spec, tc.other)
+		for _, p := range paths[tc.spec] {
+			assert.NoFileExists(t, p, "%s's record removes its own files", tc.spec)
+		}
+	}
+}
