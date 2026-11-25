@@ -111,7 +111,10 @@ func landWorktreeHold(wt *landWorktree, commits []string) string {
 	if tip == "" {
 		return "the worktree's HEAD cannot be read"
 	}
-	revs, err := gitOut(wt.path, "rev-list", tip, "--not", "--exclude=refs/heads/"+wt.branch, "--branches")
+	// --exclude before --branches matches the branch's short name: a
+	// refs/heads/ prefix excludes nothing, the tip stays among --branches
+	// and every commit beyond the request's reads as reachable.
+	revs, err := gitOut(wt.path, "rev-list", tip, "--not", "--exclude="+wt.branch, "--branches")
 	if err != nil {
 		return "the worktree's commits cannot be read"
 	}
