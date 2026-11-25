@@ -15,9 +15,6 @@ None. The 2026-11-25 field reports' decisions are in `spec/backlog/land-lifecycl
 
 Field report of 2026-11-25 (v1.30.0 worktree pool): reproduce each before fixing.
 
-- **`tp brief` carries no `touches`.** `.task` holds acceptance, id, source_sections, spec_excerpt and
-  title, while the task file holds narrowed `touches` globs the pool uses. Test: a task with `touches`
-  briefs them.
 - **The worktree brief does not say to use absolute paths.** A unit's MCP file tool resolved a
   relative path against the main checkout and edited the wrong tree. Test: the worktree brief's runtime
   notes name the worktree's absolute path.
