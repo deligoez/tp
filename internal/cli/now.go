@@ -270,17 +270,51 @@ type nowFinished struct {
 	DurationSeconds *float64        `json:"duration_seconds"`
 }
 
-// lastFinishedUnit is st's latest attempt with an exit code, or nil when
+// lastFinishedUnit is st's exited attempt that ended last, or nil when
 // none has exited: the row tp run --status's last_unit reports may still be
 // running (spec/1.32.0-measurements.md §4).
 func lastFinishedUnit(st *engine.RunState) *nowFinished {
-	for i := len(st.Units) - 1; i >= 0; i-- {
-		u := &st.Units[i]
-		if u.ExitCode != nil {
-			return &nowFinished{Kind: u.Kind, ID: u.ID, Attempt: u.Attempt, ExitCode: *u.ExitCode, DurationSeconds: u.DurationSeconds}
+	var best *engine.RunUnitRow
+	for i := range st.Units {
+		if u := &st.Units[i]; u.ExitCode != nil && (best == nil || finishedAfter(u, best)) {
+			best = u
 		}
 	}
-	return nil
+	if best == nil {
+		return nil
+	}
+	return &nowFinished{Kind: best.Kind, ID: best.ID, Attempt: best.Attempt, ExitCode: *best.ExitCode, DurationSeconds: best.DurationSeconds}
+}
+
+// finishedAfter reports whether exited row a ended after exited row b: by
+// started_at plus duration_seconds when both rows carry them, which orders
+// parallel units by when they ended; else, and within a second, by seq.
+func finishedAfter(a, b *engine.RunUnitRow) bool {
+	aEnd, aOK := unitEnd(a)
+	bEnd, bOK := unitEnd(b)
+	if aOK && bOK {
+		// started_at is stamped to the second, so an end is known only to
+		// within one: a nearer pair keeps seq order.
+		switch {
+		case aEnd.Sub(bEnd) >= time.Second:
+			return true
+		case bEnd.Sub(aEnd) >= time.Second:
+			return false
+		}
+	}
+	return a.Seq > b.Seq
+}
+
+// unitEnd is when row u's attempt ended, and whether its row says.
+func unitEnd(u *engine.RunUnitRow) (time.Time, bool) {
+	if u.DurationSeconds == nil {
+		return time.Time{}, false
+	}
+	start, err := time.Parse(time.RFC3339, u.StartedAt)
+	if err != nil {
+		return time.Time{}, false
+	}
+	return start.Add(time.Duration(*u.DurationSeconds * float64(time.Second))), true
 }
 
 // nowReadyLimit is how many ready tasks tp now names.
