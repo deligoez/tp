@@ -460,6 +460,31 @@ func TestBuildNextUnits_AuditFixOneRowAtATime(t *testing.T) {
 	assert.Equal(t, 2, *round)
 }
 
+// TestBuildNextUnits_AuditFixReadsTheRecordedRoundsDisposition: `tp audit
+// --status` sends an agent to `--resolve` the recorded round file, not the
+// round directory's merged file. A row disposed there is disposed: the oracle
+// emitted the same audit-fix unit for it run after run, and the driver stopped
+// on a fix unit that had nothing left to change.
+func TestBuildNextUnits_AuditFixReadsTheRecordedRoundsDisposition(t *testing.T) {
+	root, taskFile, spec := nextUnitsRepo(t)
+	tf := &model.TaskFile{Spec: spec, Tasks: []model.Task{}}
+	st := &ReviewState{AuditRounds: []ReviewRound{{Round: 1}}}
+
+	open := `{"role":"security","item_id":"i3","status":"FAIL"}`
+	merged := writeRoundFile(t, root, taskFile, PhaseAudit, 1, "merged.ndjson", ndjson(open))
+	resolved := `{"role":"security","item_id":"i3","status":"FAIL","resolved":{"status":"fixed","evidence":"abc123"}}`
+	recorded := roundFilePath(spec, PhaseAudit, 1)
+	require.NoError(t, os.MkdirAll(filepath.Dir(recorded), 0o755))
+	require.NoError(t, os.WriteFile(recorded, []byte(ndjson(resolved)), 0o600))
+
+	units, round := BuildNextUnits(root, taskFile, spec, PhaseAudit, tf, st, nil)
+	assert.NotContains(t, unitIDs(units), "security:i3", "a row the recorded round disposes owes no fix unit")
+	require.NotNil(t, round)
+	assert.Equal(t, 2, *round, "the phase collects the next round")
+	assert.True(t, UnitAuditFix.DurableWrite(UnitTarget{Spec: spec, RoundDir: filepath.Dir(merged), Round: 1, ID: "security:i3"}),
+		"the kind's own predicate agrees")
+}
+
 // TestBuildNextUnits_RecordUnitOnceEveryRoleAnswered is test 45a: §4.1's record
 // emission. A round whose panel is non-empty and whose every role satisfies
 // §3.3's predicate returns exactly one record unit for that round — the step
