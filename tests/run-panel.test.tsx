@@ -408,6 +408,25 @@ test('the pane opens on now, switches views by its buttons and opens a task from
   await ui.unmount()
 })
 
+test('held work is read every 5 seconds, an idle project once a minute', async ($, on) => {
+  const clock = mock.clock(on, { now: AT })
+  // An agent holds a task outside any run: held work alone keeps it live.
+  const answers = { 'tp --version': VERSION, 'tp now --json': { exitCode: 0, stdout: JSON.stringify({ ...NOW, run: null }) } }
+  const ran = world(on, answers)
+  const reads = () => ran.filter(line => line === 'tp now --json').length
+  await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
+  await clock.advance(10_000)
+  expect(reads()).toBe(2)
+  answers['tp now --json'] = { exitCode: 0, stdout: JSON.stringify({ ...NOW, run: null, held: [] }) }
+  await clock.advance(5_000)
+  expect(reads()).toBe(3)
+  // Idle now: nothing until the minute comes round.
+  await clock.advance(45_000)
+  expect(reads()).toBe(3)
+  await clock.advance(5_000)
+  expect(reads()).toBe(4)
+})
+
 test('the language comes from the project, then Claude Code, then the locale, then English', async () => {
   expect(resolveLanguage({ project: 'tr', setting: 'english', locale: 'en_US.UTF-8' })).toBe('tr')
   expect(resolveLanguage({ project: 'en', setting: 'turkish', locale: 'tr_TR.UTF-8' })).toBe('en')
