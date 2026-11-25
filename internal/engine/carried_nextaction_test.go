@@ -119,3 +119,25 @@ func TestCarriedEarlierNote_CountsOnlyEarlierRowsInTheRightNumber(t *testing.T) 
 	assert.Equal(t, "; 2 carried blocking findings from earlier rounds also hold the loop (tp review spec.md --status lists them)",
 		carriedEarlierNote([]CarriedRow{earlierHigh(), earlierHigh()}, "spec.md"))
 }
+
+// TestReviewNextAction_AnUnresolvedCarriedRowIsResolvedBeforeTheNextRound: a
+// fix resolved after a later round stays unverified until a round emitted
+// after it reads the repair, so below the cap both the carried branch and the
+// latest round's blocking branch say to resolve the earlier rows before the
+// next round. At the cap no round follows, so neither says it.
+func TestReviewNextAction_AnUnresolvedCarriedRowIsResolvedBeforeTheNextRound(t *testing.T) {
+	t.Parallel()
+	carried := []CarriedRow{earlierHigh()}
+	carriedBranch := ReviewNextAction("spec.md", LoopDone{CarriedBlocking: carried}, false, nil, "r3.ndjson", CheckVerdict{})
+	assert.Contains(t, carriedBranch, "resolve each before the next review round is emitted or recorded, since "+lateFixReason+" — the first,", carriedBranch)
+	blocking := ReviewNextAction("spec.md", LoopDone{CarriedBlocking: carried}, true, nil, "r3.ndjson", CheckVerdict{})
+	assert.Contains(t, blocking, "; resolve those before the next review round is emitted or recorded, since "+lateFixReason, blocking)
+	assert.Equal(t, "a fix resolved after a later round stays fixed-unverified until a round emitted after the resolution reads the repair", lateFixReason)
+
+	fixed := earlierHigh()
+	fixed.Disposition = CarryResolved
+	onlyFixed := ReviewNextAction("spec.md", LoopDone{CarriedBlocking: []CarriedRow{fixed}}, true, nil, "r3.ndjson", CheckVerdict{})
+	assert.NotContains(t, onlyFixed, "resolve those", "a row already resolved needs no resolving: %s", onlyFixed)
+	atCap := ReviewNextAction("spec.md", LoopDone{CapReached: true, CarriedBlocking: carried}, false, nil, "r3.ndjson", CheckVerdict{})
+	assert.NotContains(t, atCap, "before the next review round", atCap)
+}
