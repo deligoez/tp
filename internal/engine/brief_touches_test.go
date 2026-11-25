@@ -39,3 +39,16 @@ func TestBuildBrief_CarriesTheTasksTouches(t *testing.T) {
 	assert.NotContains(t, got.Task, "touches")
 	assert.NotContains(t, b.Text(), "touches:")
 }
+
+// TestBuildBrief_ListsASingleTouchesGlob: a task with exactly one touches
+// glob shows it in the text brief, as it does a longer list.
+func TestBuildBrief_ListsASingleTouchesGlob(t *testing.T) {
+	tasks := []model.Task{
+		{ID: "unit", Title: "Unit", Status: model.StatusOpen, Acceptance: "done", Touches: []string{"internal/x/**"}},
+	}
+	tf := &model.TaskFile{Tasks: tasks}
+
+	b, err := BuildBrief(tf, &tasks[0], "", CommitStrategyBuiltin, "", 0, false, false)
+	require.NoError(t, err)
+	assert.Contains(t, b.Text(), "\ntouches:\n- internal/x/**\n")
+}
