@@ -83,3 +83,22 @@ func TestFoundHandback_TheDependentFinderWaitsOnTheEntry(t *testing.T) {
 	assert.Equal(t, []string{"t1", "t3"}, readySet(t, dir), "a settled entry releases its finder")
 }
 
+// §3: handback on a task without origin exits 2 and writes nothing.
+func TestFoundHandback_ATaskWithoutOriginExitsTwo(t *testing.T) {
+	t.Parallel()
+	dir := foundHandbackFixture(t)
+	taskFile := filepath.Join(dir, "spec.tasks.json")
+	before, err := os.ReadFile(taskFile)
+	require.NoError(t, err)
+
+	stdout, stderr, code := runTPEnv(t, dir, nil, "found", "handback", "t3", "not a found task")
+
+	assert.Equal(t, 2, code, "stdout=%s stderr=%s", stdout, stderr)
+	assert.Contains(t, stdout+stderr, "no origin")
+	after, err := os.ReadFile(taskFile)
+	require.NoError(t, err)
+	assert.Equal(t, string(before), string(after), "the task file is untouched")
+	queue, err := engine.ReadFoundQueue(taskFile)
+	require.NoError(t, err)
+	assert.Empty(t, queue, "no entry is queued")
+}
