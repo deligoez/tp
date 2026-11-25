@@ -146,6 +146,21 @@ func TestFoundAdd_BlocksWithoutATaskTheCallerWorksExits2(t *testing.T) {
 	}
 }
 
+// A --task refused without --blocks is answered about --task: telling the
+// caller to drop a --blocks it never passed names a step that does not apply.
+func TestFoundAdd_TaskRefusedWithoutBlocksHintsAtTask(t *testing.T) {
+	t.Parallel()
+	dir, before := foundFixture(t)
+
+	stdout, stderr, code := foundAdd(t, dir, nil, append(append([]string{}, fixFlags...), "--task", "t2")...)
+	assert.Equal(t, 2, code, "stdout=%s stderr=%s", stdout, stderr)
+	assert.Contains(t, stdout+stderr, "task t2 is open")
+	assert.NotContains(t, stdout+stderr, "drop --blocks", "no --blocks was passed")
+	assert.Contains(t, stdout+stderr, "drop --task")
+	assert.Empty(t, storedRequests(t, dir))
+	assertTaskFileUnchanged(t, dir, before)
+}
+
 func TestFoundAdd_BlocksUnderAnImplementUnitNamesItsTask(t *testing.T) {
 	t.Parallel()
 	dir, before := foundFixture(t)
