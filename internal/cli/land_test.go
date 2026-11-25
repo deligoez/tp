@@ -907,3 +907,14 @@ func TestLandCommitsTheTaskFileUnderBuiltin(t *testing.T) {
 	assert.Empty(t, gitRun(t, dir, "status", "--porcelain", "--", "spec.tasks.json"), "the task file is committed")
 	assert.Equal(t, "done", committedTaskField(t, dir, "spec.tasks.json", "t1", "status"))
 }
+
+// Under hc tp makes no commit of its own: the task file stays changed, and
+// the output says so.
+func TestLandUnderHCSaysTheTaskFileChanged(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "hc")
+	stdout := landOne(t, dir, wt)
+	assert.Contains(t, stdout, `"task_file_changed": "spec.tasks.json"`, stdout)
+	assert.NotContains(t, stdout, `"commit"`)
+	assert.NotEmpty(t, gitRun(t, dir, "status", "--porcelain", "--", "spec.tasks.json"))
+}
