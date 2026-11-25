@@ -203,6 +203,12 @@ func TaskSchemaErrors(t *model.Task) []string {
 	if t.Origin != nil && len(t.SourceSections) > 0 {
 		msgs = append(msgs, fmt.Sprintf("task %s: origin and source_sections are exclusive; a found task carries origin in place of source_sections", t.ID))
 	}
+	// origin anchors a found task to its request's location; an origin
+	// without one (`"origin":{}`) anchors nothing yet would pass the anchor
+	// check and drop the task out of spec coverage.
+	if t.Origin != nil && strings.TrimSpace(t.Origin.Location) == "" {
+		msgs = append(msgs, fmt.Sprintf("task %s: origin needs a location (file:line) of the request it answers", t.ID))
+	}
 	// task_audit_owed is tp done's record of the audit a close owed; on
 	// a task that is not done it can only have been written by hand.
 	if len(t.TaskAuditOwed) > 0 && t.Status != model.StatusDone {
