@@ -81,3 +81,16 @@ func TestClaim_RefusesATaskOverlappingAClaim(t *testing.T) {
 	assert.Equal(t, "open", taskState(t, dir, "t2")["status"])
 }
 
+// TestClaim_RefusesASpawnClaimOverlappingAClaim: the Agent hook's claim is
+// screened too, so two briefs read before either claim cannot both start.
+func TestClaim_RefusesASpawnClaimOverlappingAClaim(t *testing.T) {
+	t.Parallel()
+	dir := overlapRepo(t)
+	holdT1(t, dir)
+
+	_, stderr, code := runTP(t, dir, "claim", "t2", "--spawn", "toolu_B", "--session", "sessC")
+	assert.Equal(t, 4, code, stderr)
+	assert.Contains(t, stderr, `\"t1\" is claimed`)
+	assert.Equal(t, "open", taskState(t, dir, "t2")["status"])
+}
+
