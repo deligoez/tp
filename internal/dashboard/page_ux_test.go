@@ -917,12 +917,14 @@ func TestPage_ADrawerOverAGraphDrawsNoBackdrop(t *testing.T) {
 // the page's own face, medium weight, at 22 units in one or two lines
 // measured to fit (tpPure.fitIdIn), shown from 10 pixels on screen for
 // the smallest of them (the operator's floor, a click before 14 would
-// allow), never smaller.
+// allow), never smaller, and never larger than 13 pixels, so a box
+// zoomed in keeps padding round its id.
 func TestPage_TheMapsLabelsReadAtALowerZoom(t *testing.T) {
 	t.Parallel()
 	_, script := pageText(t)
 	for _, s := range []string{
-		`w: 212, h: 56, col: 224, row: 68, fs: 22, pad: 6, lh: 1.15, lineGap: 220, minPx: 10, font: "Inter, system-ui, sans-serif" },`,
+		`w: 212, h: 56, col: 224, row: 68, fs: 22, pad: 6, lh: 1.15, lineGap: 220, minPx: 10, maxPx: 13, font: "Inter, system-ui, sans-serif" },`,
+		"sizeMaxPixels: P.geo.maxPx || Number.MAX_SAFE_INTEGER,",
 		"G.detail = pure.detailLevel(P.geo.fs * P.minFit * scale, P.geo.minPx);",
 		"pure.fitIdIn(out.label, { w: geo.w - 2 * geo.pad, h: geo.h - geo.pad, fs: geo.fs, lineHeight: geo.lh }, measureEm)",
 		`fontFamily: P.geo.font || "ui-monospace, SFMono-Regular, Menlo, monospace", fontWeight: P.geo.font ? 500 : "normal",`,
