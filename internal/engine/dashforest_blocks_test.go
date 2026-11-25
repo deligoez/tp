@@ -82,3 +82,16 @@ func TestForestLayout_BlocksSharingLayersTakeDisjointColumns(t *testing.T) {
 	}
 }
 
+// TestForestLayout_ABlockSharingNoLayersStartsAtTheLeftEdge: C shares no
+// layer with B, so it starts at column 0 under A rather than beside B.
+func TestForestLayout_ABlockSharingNoLayersStartsAtTheLeftEdge(t *testing.T) {
+	t.Parallel()
+	for _, pack := range []ForestPacking{PackRows, PackTree} {
+		in := twoLanes(pack)
+		got := ForestLayout(&in)
+		c := blockNamed(t, ForestBlocks(&in, &got), "C")
+		assert.InDelta(t, 0.0, c.FromCol, 0, "%s", pack)
+		assert.Equal(t, 1, c.Count, "%s", pack)
+	}
+}
+
