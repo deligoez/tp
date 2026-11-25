@@ -3,6 +3,7 @@ package cli_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -21,7 +22,9 @@ func TestMain(m *testing.M) {
 	// A tp run unit runs this suite from its own shell: without its variables,
 	// in-process tests and every spawned binary run as a call by hand.
 	for _, name := range engine.RunEnvVars {
-		_ = os.Unsetenv(name)
+		if err := os.Unsetenv(name); err != nil {
+			panic("failed to unset " + name + ": " + err.Error())
+		}
 	}
 
 	// Build the binary to a temp location
@@ -38,7 +41,12 @@ func TestMain(m *testing.M) {
 	}
 
 	code := m.Run()
-	os.RemoveAll(tmp)
+	if err := os.RemoveAll(tmp); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to remove test binary dir %s: %v\n", tmp, err)
+		if code == 0 {
+			code = 1
+		}
+	}
 	os.Exit(code)
 }
 
