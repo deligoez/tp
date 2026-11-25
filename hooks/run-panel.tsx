@@ -2,6 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { FinishedUnit, NowView, RunSlot, RunView } from '../types'
+import { runRows } from './panel-rows'
 
 // The run panel (spec/backlog/run-panel.md): a pane that shows the tp run of
 // the session's project, read from `tp run --status`. It reads and never
@@ -88,79 +89,6 @@ export function toNow(payload: Record<string, unknown>, at: number): { now: NowV
 export function tpVersion(printed: string): string {
   const match = /^tp version (\S+)/.exec(printed.trim())
   return match?.[1] ?? ''
-}
-
-// duration says a number of seconds the way a person reads it.
-export function duration(seconds: number): string {
-  const s = Math.max(0, Math.round(seconds))
-  if (s < 60) return `${s}s`
-  const m = Math.floor(s / 60)
-  if (m < 60) return `${m}m ${s % 60}s`
-  return `${Math.floor(m / 60)}h ${m % 60}m`
-}
-
-// The words a person reads for run_state and the unit kinds: the panel never
-// shows tp's own vocabulary where a plain phrase says it.
-const STATE: Record<string, string> = {
-  in_flight: 'running',
-  stopped: 'stopped',
-  crashed: 'stopped without a reason (the driver died)',
-}
-
-function slotAge(slot: RunSlot, now: number): string {
-  if (!slot.started_at) return ''
-  const at = Date.parse(slot.started_at)
-  return Number.isNaN(at) ? '' : duration((now - at) / 1000)
-}
-
-// A PanelRow is one line of the pane: its words and how loud they are.
-export type PanelRow = { text: string; tone?: 'head' | 'quiet' }
-
-function ofCap(value: string, cap: number, capText: string): string {
-  return cap > 0 ? `${value} of ${capText}` : value
-}
-
-// panelRows says a run in the lines the pane draws, kept apart from the
-// drawing so the words are testable without a surface.
-export function panelRows(view: RunView, now: number): PanelRow[] {
-  const caps = view.caps
-  const live = view.run_state === 'in_flight'
-  // units_done counts started attempts, the same count run_max_units caps, so
-  // a live run says how many of them have finished.
-  const busy = view.running.length
-  const units = ofCap(String(view.units_done), caps.max_units, String(caps.max_units))
-  // tp writes wall_clock_seconds only when a unit starts or ends, so a live
-  // run counts its own time from its start.
-  const started = view.started_at ? Date.parse(view.started_at) : NaN
-  const elapsed =
-    live && !Number.isNaN(started)
-      ? Math.max(view.wall_clock_seconds, (now - started) / 1000)
-      : view.wall_clock_seconds
-  const rows: PanelRow[] = [
-    { text: `${view.phase} phase, ${STATE[view.run_state] ?? view.run_state}`, tone: 'head' },
-    {
-      text: busy > 0 ? `Units ${units} (${view.units_done - busy} finished, ${busy} running)` : `Units ${units}`,
-    },
-    {
-      text: `Time ${ofCap(duration(elapsed), caps.max_wall_clock_seconds, duration(caps.max_wall_clock_seconds))}`,
-    },
-    {
-      text: `Spend ${ofCap(`$${view.spend_usd.toFixed(2)}`, caps.max_budget_usd, `$${caps.max_budget_usd.toFixed(2)}`)} (estimate)`,
-    },
-  ]
-  if (view.running.length > 0) rows.push({ text: 'Running now', tone: 'head' })
-  for (const slot of view.running) {
-    const age = slotAge(slot, now)
-    rows.push({ text: `${slot.id} ${slot.kind}, attempt ${slot.attempt}${age ? `, ${age}` : ''}` })
-  }
-  const last = view.last_finished
-  if (last) {
-    const ended = `exit ${last.exit_code}`
-    const took = last.duration_seconds === null ? '' : ` after ${duration(last.duration_seconds)}`
-    rows.push({ text: `Last: ${last.id} ${last.kind}, ${ended}${took}`, tone: 'quiet' })
-  }
-  if (view.stop_reason) rows.push({ text: `Stopped: ${view.stop_reason}` })
-  return rows
 }
 
 // readStatus runs `tp run --status` in the session's folder; any failure (no
@@ -262,7 +190,7 @@ export const register: Register = on => {
         </Box>
       )
     }
-    const rows = panelRows(view, await $.clock.now())
+    const rows = runRows(view, 'en', await $.clock.now())
     return (
       <Box flexDirection="column">
         {brand}
