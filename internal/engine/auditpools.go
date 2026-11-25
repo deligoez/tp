@@ -16,6 +16,10 @@ type AuditRolePool struct {
 	// Items are the file_check item ids the role's prompt listed; only a row
 	// naming one of them counts as graded.
 	Items []string `json:"items"`
+	// Carried are the item ids the emission took off the role's checklist as
+	// wontfix carried without asking; --record writes a carried row for
+	// exactly these.
+	Carried []string `json:"carried,omitempty"`
 }
 
 // RoleGraded is "graded N of M" for one code role of a recorded audit round

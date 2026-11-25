@@ -134,9 +134,16 @@ func acceptedAuditRows(specPath string, st *engine.ReviewState) map[auditCarryKe
 // accepted wontfix whose evidence_file is unchanged since, which the emission
 // took off the checklist (carriedWontfix), is appended to the round's rows
 // and to data, a copy of the accepted row stamped carried_from, unless the
-// results already grade that item. It returns the new data and rows and how
-// many it appended, every one a non-PASS row.
-func appendCarriedWontfix(specPath string, st *engine.ReviewState, data []byte, rows []map[string]any) (outData []byte, outRows []map[string]any, added int) {
+// results already grade that item. Only the items round's emission recorded
+// as carried in its pools (engine.AuditRolePool.Carried) are written, so the
+// record carries exactly what the emission did; with no pools it writes none.
+// It returns the new data and rows and how many it appended, every one a
+// non-PASS row.
+func appendCarriedWontfix(specPath string, st *engine.ReviewState, round int, data []byte, rows []map[string]any) (outData []byte, outRows []map[string]any, added int) {
+	emitted := emittedCarried(specPath, round)
+	if len(emitted) == 0 {
+		return data, rows, 0
+	}
 	source := acceptedAuditRows(specPath, st)
 	graded := make(map[auditCarryKey]bool, len(rows))
 	for _, row := range rows {
@@ -149,7 +156,7 @@ func appendCarriedWontfix(specPath string, st *engine.ReviewState, data []byte, 
 	b.Write(data)
 	for _, key := range keys {
 		src := source[key]
-		if graded[key] || src.taskAudit != 0 || rowString(src.resolved, "status") != "wontfix" || rowString(src.row, "evidence_file") == "" {
+		if !emitted[key] || graded[key] || src.taskAudit != 0 || rowString(src.resolved, "status") != "wontfix" || rowString(src.row, "evidence_file") == "" {
 			continue
 		}
 		row := maps.Clone(src.row)
@@ -172,6 +179,22 @@ func appendCarriedWontfix(specPath string, st *engine.ReviewState, data []byte, 
 		return data, rows, 0
 	}
 	return []byte(b.String()), rows, added
+}
+
+// emittedCarried is the (role, item_id) set round's emission carried without
+// asking, read from the pools it kept; empty when it kept none.
+func emittedCarried(specPath string, round int) map[auditCarryKey]bool {
+	pools, _, err := engine.ReadAuditPools(specPath, round)
+	if err != nil {
+		return nil
+	}
+	set := make(map[auditCarryKey]bool)
+	for _, p := range pools {
+		for _, id := range p.Carried {
+			set[auditCarryKey{role: p.Role, itemID: id}] = true
+		}
+	}
+	return set
 }
 
 // rowString is a row's string field, "" when absent or not a string.

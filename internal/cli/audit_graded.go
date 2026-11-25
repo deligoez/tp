@@ -27,7 +27,7 @@ func auditRolePools(prompts []auditPrompt) []engine.AuditRolePool {
 		}
 		items := checklistIDs(&prompts[i], func(it *ChecklistItem) bool { return it.Type == "file_check" })
 		items = append(items, prompts[i].carriedItems...)
-		pools = append(pools, engine.AuditRolePool{Role: prompts[i].Role, Pool: prompts[i].FilePool, Items: items})
+		pools = append(pools, engine.AuditRolePool{Role: prompts[i].Role, Pool: prompts[i].FilePool, Items: items, Carried: prompts[i].carriedItems})
 	}
 	return pools
 }
