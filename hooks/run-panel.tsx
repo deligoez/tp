@@ -334,10 +334,12 @@ export const register: Register = on => {
             label={w.tabs[name]}
             hotkey={String(index + 1)}
             plain
-            dimColor={screen.view !== name}
+            dimColor={shown !== name}
             onPress={() => update($, screenState, () => ({ view: name, task: null, back: name }))}
           >
-            {w.tabs[name]}
+            {/* The view shown is bold as well as at full strength, so it is
+                not told by brightness alone. */}
+            <Text bold={shown === name}>{w.tabs[name]}</Text>
           </Button>
         ))}
       </Box>
