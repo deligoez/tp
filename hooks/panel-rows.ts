@@ -177,10 +177,14 @@ function readySection(now: NowView, lang: Lang): Section {
   return { heading: heading(WORDS[lang].readyNext), items: now.ready.map(t => taskRow('ready', t.id, t.title, '')) }
 }
 
-// countsSection is one row, drawn as a heading: no task file says so.
+// countsSection is one row, drawn as a heading: no task file says so, or,
+// with several and none chosen as active (tp now's no-active-file need),
+// that none is chosen.
 function countsSection(now: NowView, lang: Lang): Section {
   const w = WORDS[lang]
-  return { heading: heading(now.tasks ? w.counts(now.tasks) : w.noTaskFile), items: [], keep: true }
+  const unchosen = now.needs_you.some(need => need.code === 'no-active-file')
+  const none = unchosen ? w.noFileChosen : w.noTaskFile
+  return { heading: heading(now.tasks ? w.counts(now.tasks) : none), items: [], keep: true }
 }
 
 // fitSections lays sections out in order within budget rows, an empty one

@@ -61,6 +61,8 @@ export type Words = {
   more: (n: number) => string
   held: (holder: string, attempt: number | null, age: string) => string
   noTaskFile: string
+  // noFileChosen: several task files, none chosen as active.
+  noFileChosen: string
   noEpics: string
   epicDone: string
   heldBy: (holder: string) => string
@@ -292,6 +294,7 @@ const EN: Words = {
   more: n => `${n} more`,
   held: (holder, attempt, age) => [holder, (attempt ?? 1) > 1 ? `attempt ${attempt}` : '', age].filter(Boolean).join(', '),
   noTaskFile: 'No task file yet',
+  noFileChosen: 'No task file chosen',
   noEpics: 'This project has no epics.',
   epicDone: 'done',
   heldBy: holder => `Held by: ${holder}`,
@@ -341,6 +344,7 @@ const TR: Words = {
   more: n => `${n} tane daha`,
   held: (holder, attempt, age) => [holder, (attempt ?? 1) > 1 ? `${attempt}. deneme` : '', age].filter(Boolean).join(', '),
   noTaskFile: 'Henüz görev dosyası yok',
+  noFileChosen: 'Görev dosyası seçilmedi',
   noEpics: 'Bu projede epik yok.',
   epicDone: 'bitti',
   heldBy: holder => `Üzerinde çalışan: ${holder}`,
