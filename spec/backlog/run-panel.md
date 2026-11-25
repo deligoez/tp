@@ -31,11 +31,17 @@ driver and its gate, budget and retry logic do not change.
   default branch rather than `HEAD`.
 - **A monitor**: costs the model's context per line and shows the person nothing.
 
-## 4. Measure first
+## 4. Measured (2026-11-25, Claude Code 2.1.332)
 
-- Whether a mod can refresh from a command on a timer, or only on hook events.
-- What the panel shows on a Claude Code older than v2.1.287, and in agents that use the skill without
-  the plugin (none: the panel is Claude Code only).
+- A mod refreshes on a timer: `$.clock.every` runs a callback on a period, and `$.process.run`
+  runs `tp run --status` from it. The pane redraws when the value it reads changes.
+- A module in an installed plugin loads with no setting (a probe plugin installed from a local
+  marketplace ran its `session.start` hook). Claude Code 2.1.280 skips the module with a debug line
+  (early access there), and 2.1.150 and 2.1.280 both pass `claude plugin validate` on tp's plugin
+  with `modules` and `types` in it: the shell hooks run as before. Agents that use the skill without
+  the plugin get no panel.
+- `tp run --status` names only the last unit, so it gains `running`: the attempts the run holds now,
+  each with its task, kind, attempt and start time.
 
 ## 5. Non-goals
 
