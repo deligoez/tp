@@ -195,6 +195,10 @@ func assembleResume(start, taskFilePath, specPath string, tf *model.TaskFile, ru
 	if phase == PhaseImplement {
 		guidance = implementGuidance(guidance, tf, wf.RunMaxParallel, nextUnits)
 	}
+	foundQueue, err := FoundQueueCounts(taskFilePath, tf)
+	if err != nil {
+		return ResumeResult{}, err
+	}
 
 	res := ResumeResult{
 		Phase:       phase,
@@ -213,7 +217,7 @@ func assembleResume(start, taskFilePath, specPath string, tf *model.TaskFile, ru
 		Blockers:      blockers,
 		PendingCloses: pendingCloseIDs(taskFilePath),
 		RunningUnits:  running,
-		FoundQueue:    FoundQueueCounts(taskFilePath, tf),
+		FoundQueue:    foundQueue,
 		EpicNotice:    epicNotice,
 	}
 	if !reads.noUnitBranches {

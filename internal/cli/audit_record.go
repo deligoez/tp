@@ -162,7 +162,7 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 		// answer that says an accepted finding's file moved.
 		"carried": carried,
 	}
-	addFoundOpen(result, taskFilePath, converged)
+	noteFoundOpen(result, taskFilePath, converged)
 	// §2.5: the signal is computed AFTER the round is stored, so "the latest
 	// recorded round" is the round just recorded — the convention harness_stale
 	// already follows on this path. Condition 5 reads back the corpus hash
@@ -484,7 +484,10 @@ func runAuditStatus(specPath string, check bool) error {
 		"roles_stale":           engine.RolesStale(rounds, rolesHash),
 	}
 	addLoopDone(result, done)
-	addFoundOpen(result, taskFilePath, converged)
+	if err := addFoundOpen(result, taskFilePath, converged); err != nil {
+		exitFoundQueueError(err)
+		return nil
+	}
 	addTaskAudits(result, specPath, st)
 	addEpochs(result, st)
 	// §2.5: the three fields are written HERE, before the --check exit-code
