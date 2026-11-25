@@ -767,3 +767,12 @@ test('a Turkish pane words a need from its code, with none of tp\'s English', as
   expect(need?.text).toBe(want)
   expect(glanceRows(read.now, read.run, 'tr').at(-1)?.text).toBe(want)
 })
+
+test('a need whose code the pane has no words for, or with no code, shows tp\'s text', async () => {
+  for (const need of [{ kind: 'blocker', code: 'a-future-code', text: 'Something.' }, { kind: 'run', text: 'Something.' }]) {
+    const read = toNow({ ...NOW, needs_you: [need] }, 0)!
+    for (const lang of ['en', 'tr'] as const) {
+      expect(nowRows(read.now, read.run, lang, AT, 40).some(r => r.text === `${WORDS[lang].need(need.kind)}: Something.`)).toBe(true)
+    }
+  }
+})
