@@ -743,3 +743,16 @@ test('a project with no phase yet leads with what it has, never a bare phase wor
   expect(nowRows(empty.now, run, 'en', AT, 20)[0]?.text).toBe('Run in progress (4m 5s)')
   expect(nowRows(empty.now, run, 'tr', AT, 20)[0]?.text).toBe('Koşu sürüyor (4dk 5sn)')
 })
+
+// Seen live: a stopped run's need drew as "run: …", tp's own kind name.
+test('every need tp now can send has a label in both languages', async () => {
+  for (const kind of ['blocker', 'escalation', 'decision', 'cap', 'land', 'run']) {
+    const read = toNow({ ...NOW, needs_you: [{ kind, text: 'Something.' }] }, 0)!
+    for (const lang of ['en', 'tr'] as const) {
+      const row = nowRows(read.now, read.run, lang, AT, 40).find(r => r.text.endsWith('Something.'))
+      expect(row?.text.startsWith(`${kind}:`)).toBe(false)
+    }
+  }
+  const run = toNow({ ...NOW, needs_you: [{ kind: 'run', text: 'Something.' }] }, 0)!
+  expect(nowRows(run.now, run.run, 'tr', AT, 40).some(r => r.text === 'Koşu: Something.')).toBe(true)
+})
