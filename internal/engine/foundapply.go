@@ -41,6 +41,9 @@ type FoundApplyPlan struct {
 	Attached   []FoundAttached
 	Undecided  []string
 	Duplicates []FoundDuplicate
+	// Edges are the depends_on edges placement adds to tasks already in the
+	// file (spec/1.31.0.md §4): a blocking request's finder on its outcome.
+	Edges []FoundEdge
 	// FoundTasks is the count found_max is measured against once the plan
 	// is applied.
 	FoundTasks int
@@ -73,7 +76,8 @@ func foundApplyShaped(req *FoundRequest) bool {
 // requests become found tasks, blocking ones first and then by arrival, while
 // the task file holds fewer than foundMax found tasks (0 is uncapped); the
 // ones past the cap become open queue entries. Requests that are not
-// Fix-shaped wait, undecided, for the decision unit.
+// Fix-shaped wait, undecided, for the decision unit. Placement (§4) then adds
+// each blocking request's finder edge (placeFoundRequests).
 func PlanFoundApply(reqs []FoundRequest, tasks []model.Task, queue []FoundQueueEntry, foundMax int) FoundApplyPlan {
 	kept, dups := DedupFoundRequests(reqs, tasks, queue)
 	plan := FoundApplyPlan{Duplicates: dups, FoundTasks: CountFoundTasks(tasks)}
@@ -120,6 +124,7 @@ func PlanFoundApply(reqs []FoundRequest, tasks []model.Task, queue []FoundQueueE
 	for _, dup := range dups {
 		outcomes[dup.Request] = FoundRequest{State: FoundStateApplied, Outcome: cmp.Or(dup.KeptTask, outcomes[dup.KeptRequest].Outcome)}
 	}
+	placeFoundRequests(&plan, reqs, tasks, outcomes)
 
 	plan.Requests = make([]FoundRequest, len(reqs))
 	for i := range reqs {
