@@ -95,3 +95,22 @@ func TestForestLayout_ABlockSharingNoLayersStartsAtTheLeftEdge(t *testing.T) {
 	}
 }
 
+// TestForestLayout_ACycleMergedRunGivesOneBlockPerMilestone: P, Q and R
+// share one band, which lists Q and R with P, yet lay out as three blocks,
+// each with its own count, apart wherever their layers meet.
+func TestForestLayout_ACycleMergedRunGivesOneBlockPerMilestone(t *testing.T) {
+	t.Parallel()
+	for _, pack := range []ForestPacking{PackRows, PackTree} {
+		in := cycleRun(pack)
+		got := ForestLayout(&in)
+		require.Len(t, got.Bands, 1, "%s", pack)
+		assert.Equal(t, []string{"Q", "R"}, got.Bands[0].With, "%s", pack)
+		counts := map[string]int{}
+		for _, b := range ForestBlocks(&in, &got) {
+			counts[b.Group] = b.Count
+		}
+		assert.Equal(t, map[string]int{"P": 2, "Q": 2, "R": 3}, counts, "%s", pack)
+		assertBlocksApart(t, &in, &got)
+	}
+}
+
