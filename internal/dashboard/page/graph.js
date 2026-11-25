@@ -490,11 +490,7 @@
   // onChain says whether l lies on the selection's chain: into the selection
   // from what it waits on, or out of it to what waits on it.
   function onChain(P, l) {
-    if (P.sel < 0) return false;
-    const { s, d } = l;
-    const up = (d === P.sel || P.anc.has(d)) && P.anc.has(s);
-    const down = (s === P.sel || P.desc.has(s)) && P.desc.has(d);
-    return up || down;
+    return P.sel >= 0 && pure.onChain(P.sel, P.anc, P.desc, l.s, l.d);
   }
   // EDGE_STYLE is each edge's opacity, light page then dark, and width with
   // nothing selected, as the 1.17.1 audit rendered and compared them: cross
