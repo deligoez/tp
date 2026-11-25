@@ -359,6 +359,34 @@ func TestIntegrate_ADiscardAbortsAPickLeftInProgress(t *testing.T) {
 	assert.Empty(t, op, "no cherry-pick is left in progress")
 }
 
+// TestIntegrate_AConflictingUnitIsReportedAsAConflict: a unit whose second
+// commit conflicts with the main branch is taken back whole, the task
+// reopens, and the failure the next unit reads names the conflict and its
+// file rather than git's exit status.
+func TestIntegrate_AConflictingUnitIsReportedAsAConflict(t *testing.T) {
+	root, spec, taskFile, _ := batchProject(t, wipAlpha)
+	gitIn(t, root, "switch", "-q", "-c", "unit")
+	first := commitIn(t, root, "a1.txt", "1\n")
+	second := commitIn(t, root, "s.md", "# changed by the unit\n")
+	gitIn(t, root, "switch", "-q", "main")
+	commitIn(t, root, "s.md", "# changed on main\n")
+	pre := gitIn(t, root, "rev-parse", "HEAD")
+	require.NoError(t, WritePendingClose(root, taskFile, &PendingClose{ID: "alpha", Commits: []string{first, second}}))
+	reopened := ""
+	d := recoveryDriver(root, spec, taskFile, &fakeCloser{closed: map[string][]string{}})
+	d.opts.ReopenSolo = func(id string) error { reopened = id; return nil }
+
+	require.NoError(t, d.integratePending())
+	assert.Equal(t, "alpha", reopened, "the task reopens")
+	assert.Equal(t, pre, gitIn(t, root, "rev-parse", "HEAD"), "the main branch is back at its pre-integration commit")
+	op, _ := gitOperationInProgress(root)
+	assert.Empty(t, op, "no cherry-pick is left in progress")
+	f := ReadLastFailure(root, taskFile)
+	require.NotNil(t, f)
+	assert.Contains(t, f.Summary, "conflicts with the main branch in s.md")
+	assert.NotContains(t, f.Summary, "exit status")
+}
+
 // TestCycleUnitBranches_NamesOnlyKeptBranches: a branch whose task is done is
 // not reported as unfinished work, though no run has deleted it yet.
 func TestCycleUnitBranches_NamesOnlyKeptBranches(t *testing.T) {
