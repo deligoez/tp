@@ -1,6 +1,9 @@
 package cli_test
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -54,4 +57,36 @@ func TestWontfixCarry_TheEmissionDoesNotAskAnUnchangedWontfix(t *testing.T) {
 	assert.Contains(t, prompt, "## Carried", "the prompt marks the carried item")
 	_, prior, _ := strings.Cut(prompt, "## Prior Round")
 	assert.NotContains(t, prior, codeID, "the carried item is not listed to re-check")
+}
+
+// TestWontfixCarry_TheRecordWritesTheCarriedRow (decision §2.1): the round's
+// results hold no row for the carried item, since nobody was asked, and
+// recording the round writes it with its disposition, carried_from naming the
+// round it was decided in. The round stays clean.
+func TestWontfixCarry_TheRecordWritesTheCarriedRow(t *testing.T) {
+	t.Parallel()
+	dir, codeID := wontfixCarryRepo(t, "2021-01-01T00:00:00Z")
+	otherPass := `{"item_id":"` + engine.FileCheckItemID("security", "other.go") + `","status":"PASS","role":"security",` +
+		`"evidence_file":"other.go","evidence_lines":"1-2","category":null,"severity":null,"notes":""}` + "\n"
+
+	out, stderr, code := auditRecord(t, dir, otherPass)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.Equal(t, true, out["clean"], "the carried wontfix leaves the round clean")
+	assert.Equal(t, float64(1), out["carried"])
+
+	data, err := os.ReadFile(filepath.Join(dir, ".tp-review", "spec", "audit-round-2.ndjson"))
+	require.NoError(t, err)
+	var carried map[string]any
+	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+		var row map[string]any
+		require.NoError(t, json.Unmarshal([]byte(line), &row))
+		if row["item_id"] == codeID {
+			carried = row
+		}
+	}
+	require.NotNil(t, carried, "round 2's file holds the carried row")
+	resolved, _ := carried["resolved"].(map[string]any)
+	assert.Equal(t, "wontfix", resolved["status"])
+	assert.Equal(t, float64(1), resolved["carried_from"])
+	assert.Equal(t, "FAIL", carried["status"], "the row is the one the operator accepted")
 }
