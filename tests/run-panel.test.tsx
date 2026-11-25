@@ -51,7 +51,7 @@ test('the rows name the phase, the caps and each running slot', async () => {
   const rows = panelRows(view!, startedAt + 245_000).map(row => row.text)
   expect(rows).toEqual([
     'implement phase, running',
-    'Units 3 of 100',
+    'Units 3 of 100 (2 finished, 1 running)',
     'Time 12m 34s of 8h 0m',
     'Spend $1.20 (estimate)',
     'Running now',
