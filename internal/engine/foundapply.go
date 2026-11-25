@@ -134,21 +134,18 @@ func PlanFoundApply(reqs []FoundRequest, tasks []model.Task, queue []FoundQueueE
 
 // foundAttachTarget is the open task a request is attached to in place of a
 // task of its own (spec/1.31.0.md §2), or "" when there is none: the first
-// task, in task-file order, that is not done, is not the request's finder, and
-// whose touches hold the location's file. A task's files are its touches, so
-// a task without touches, a found task among them, names no files: a found
-// task's origin location is the defect it fixes, and a second defect in that
-// file opens its own task rather than merging into it (§2, Rejected). tasks is
-// the task file before the batch, so a task opened in the same batch never
-// takes an attachment.
+// task, in task-file order, whose status is open, that is not the request's
+// finder, and whose touches hold the location's file. A wip task's unit has
+// already read its brief, so a note would never reach it. A task's files are
+// its touches, so a task without touches names no files; apply sets none on a
+// found task, and its origin location is the defect it fixes, so a second
+// defect in that file opens its own task rather than merging into it (§2,
+// Rejected).
 func foundAttachTarget(req *FoundRequest, tasks []model.Task) string {
 	file := strings.TrimPrefix(trailingLine.ReplaceAllString(strings.TrimSpace(req.Location), ""), "./")
 	for i := range tasks {
 		t := &tasks[i]
-		if t.Status == model.StatusDone || t.ID == req.Finder.Task || len(t.Touches) == 0 {
-			continue
-		}
-		if TouchesMatch(t.Touches, file) {
+		if t.Status == model.StatusOpen && t.ID != req.Finder.Task && TouchesMatch(t.Touches, file) {
 			return t.ID
 		}
 	}
