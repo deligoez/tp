@@ -290,6 +290,36 @@ func LandCommitTaskFile(root, taskFile, msg string) (string, error) {
 	return gitOut(root, "rev-parse", "--short", "HEAD")
 }
 
+// hcBinary is the hc a land under the hc commit_strategy runs; a test points
+// it at a stand-in.
+var hcBinary = "hc"
+
+// LandCommitTaskFileHC is LandCommitTaskFile under the hc commit_strategy: it
+// hands hc a one-commit plan naming the task file alone, the rest of the tree
+// left unplanned, so a project whose every commit goes through hc gets the
+// land's commit the same way (spec/backlog/land-lifecycle.md §2.1). This is
+// the one place tp runs hc; everywhere else the agent does.
+func LandCommitTaskFileHC(root, taskFile, msg string) (string, error) {
+	rel, err := filepath.Rel(root, taskFile)
+	if err != nil {
+		rel = taskFile
+	}
+	plan, err := json.Marshal(map[string]any{
+		"allow_unplanned": []string{"**"},
+		"commits":         []map[string]any{{"message": msg, "files": []map[string]string{{"path": filepath.ToSlash(rel)}}}},
+	})
+	if err != nil {
+		return "", err
+	}
+	cmd := exec.Command(hcBinary, "run", "-")
+	cmd.Dir = root
+	cmd.Stdin = bytes.NewReader(plan)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return "", fmt.Errorf("hc commit of %s failed: %s", filepath.Base(taskFile), strings.TrimSpace(string(out)))
+	}
+	return gitOut(root, "rev-parse", "--short", "HEAD")
+}
+
 // InLinkedWorktree reports whether dir is in a linked worktree rather than
 // the repository's main one.
 func InLinkedWorktree(dir string) bool {
