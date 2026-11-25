@@ -32,12 +32,12 @@ code and nothing else it said, and tp resume remains the single authority on
 whether the cycle is finished.
 
 --status reports the current or last run instead of driving one: phase, units
-done, the accrual against each cap, the last unit's exit code and log path,
-stop_reason once the run has ended, and run_state (in_flight, crashed or
-stopped). It takes no run lock, so it reports on a run still in flight, and it
-exits 3 when no run state exists for the resolved task file. Under --compact the
-stop reason and the cap totals survive and the last unit's row — its log path
-with it — is stripped.
+done, the accrual against each cap, the unit attempts an in-flight run holds
+now (running), the last unit's exit code and log path, stop_reason once the run
+has ended, and run_state (in_flight, crashed or stopped). It takes no run lock,
+so it reports on a run still in flight, and it exits 3 when no run state exists
+for the resolved task file. Under --compact the stop reason, the cap totals and
+running survive and the last unit's row — its log path with it — is stripped.
 
 --dry-run reports the units the driver would execute next instead of driving
 them: the same reading of the cycle the loop opens each iteration with, and the
