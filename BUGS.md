@@ -8,15 +8,8 @@ fix needs a design choice leaves this file for a decision note.
 
 ## Needs an operator decision
 
-- **A task whose work is a `tp set --project` change is dispatched to a worktree unit, then its commit
-  is refused.** Field report (2026-11-25, worktree pool, `run_max_parallel=4`): the unit had to change
-  `.tp/config.json` with `tp set --workflow --project quality_gate=...`; `tp done` refused the commit
-  ("changes .tp/config.json, which only tp writes"), and the coordinator closed it on the main tree.
-  Choice: mark such tasks coordinator-only at dispatch, or accept a commit whose only `.tp/config.json`
-  change is the one `tp set` produced.
-- **`tp land` leaves the task file modified, so under `hc` every land costs a separate close commit.**
-  Field report (2026-11-25): about ten extra commits in a 13-task run. Choice: say so in land's
-  output, or let land commit the task file under the configured `commit_strategy`.
+None. The 2026-11-25 field reports' decisions are in `spec/backlog/land-lifecycle.md`,
+`spec/backlog/worktree-dispatch.md` and `spec/backlog/audit-round-ergonomics.md`.
 
 ## Fix track
 
@@ -34,6 +27,9 @@ Field report of 2026-11-25 (v1.30.0 worktree pool): reproduce each before fixing
 - **The 300-character description limit is enforced only by validate/import.** The skill's
   decomposition rules never state it; a first import failed on 8 descriptions. Test: SKILL.md's
   decomposition rules name the limit.
+- **`tp land` exits 0 when a task is blocked.** A land that hit `.git/index.lock: File exists` listed
+  the task under `blocked` and exited 0; the coordinator committed the task file as if it had landed.
+  Test: a land with a non-empty `blocked` exits non-zero, and an index.lock is retried.
 
 Found in this repo (2026-11-25):
 
@@ -54,46 +50,6 @@ Found in this repo (2026-11-25):
   `spec/.tp-review/<v>/task-audit-N.ndjson` and `state.json` stay untracked/modified after each record
   unit, so every later close warns "3 uncommitted change(s) not on the keep-list". Test: after a
   task-audit record unit, `git status` on main shows no round file.
-
-Field report of 2026-11-25 (a requesting project, Agent-tool pool, v1.30.0):
-
-- **`tp land` exits 0 when a task is blocked.** A land that hit `.git/index.lock: File exists` listed
-  the task under `blocked` and exited 0; the coordinator committed the task file as if it had landed.
-  Test: a land with a non-empty `blocked` exits non-zero, and an index.lock is retried.
-
-Field report of 2026-11-25 (a requesting project, worktree pool then audit to the cap, v1.30.0). Look
-at these after 1.31.0 ships. The land exit code, the brief's `touches` and the absolute-path note are
-the entries above.
-
-- **`tp brief` claims two tasks whose `touches` overlap.** Two tasks that both touched the package
-  manifest and its lockfile were claimed at once; the coordinator serialized them by hand. Test: a
-  claim whose `touches` overlap a claimed task's (a lockfile at least) is refused or waits.
-- **A sentence added to a spec after the review cap raises `spec-stale`, with no way forward but to
-  revert.** The operator's decision text, added during the audit phase, got "raising the cap is the
-  operator's decision". Choice: an addendum recorded without a new review round, or a message that says
-  "revert, or raise the cap".
-- **`next_action` before the last audit round reads as if convergence were impossible.** After round
-  2 of 3 (not clean, `audit_clean_rounds` 2) it said "address the findings, then re-audit" with
-  `rounds_remaining` 1, and nothing said the loop can still end `done_by: cap` once round 3's findings
-  are dispositioned. Test: at `rounds_remaining` 1, `next_action` says the next round is the last and
-  ends by disposition.
-- **A row resolved `wontfix` comes back as an item to grade in the next audit round.** Two round-2
-  rows resolved `wontfix` by operator decision returned in round 3 with `changed_since: true` though
-  the cited code was untouched; one auditor graded them PASS to avoid a live finding at the cap.
-  Choice: carry a `wontfix` while its evidence files are unchanged, or tell the auditor how to grade an
-  accepted deviation.
-- **The audit prompt names an inbox inside the repository, and the coordinator's auditors are told
-  the checkout is read-only.** They wrote to paths outside the repo instead, and one flagged the
-  conflict. Choice: an output-path override in the emitted prompt, or an inbox outside the repo.
-- **A long `--affected-files` list gets one prompt per code role, and tp itself warns that past 10
-  files a role skims.** With 26 files the coordinator sliced `checklist_items` by hand and merged with
-  `tp audit --merge`. Choice: built-in slicing (`prompts[]` per slice), or `--record-inbox` taking
-  several files per role. Weigh against *The divisible round* (closed, below).
-- **`tp land` never removes a landed task's worktree or branch.** After 26 tasks and 3 audit repairs,
-  29 worktrees and their branches remained (the harness cleans only a worktree with no changes), and
-  one was still locked by the coordinator's pid. Choice: remove both once land has verified the
-  picks, or a `--prune` flag. The check reads tp's own landed record, not `git cherry`: a land that
-  resolved a conflict changes the patch ids, so `git cherry` still shows those commits as `+`.
 
 ## Decided elsewhere, not a fix
 
