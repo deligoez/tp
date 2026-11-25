@@ -1329,12 +1329,15 @@ graded carries `task_audit`, its seq, instead), each with its
 `disposition` and `disposition_evidence` beside `status` and `changed_since` (measured from the row's
 own round): an accepted row (`wontfix`/`duplicate` with evidence) is to be recorded as before if it
 still stands, unless `changed_since` is true; a `fixed` row asks for the repair to be verified.
-An audit round's `wontfix` whose `evidence_file` is unchanged (`changed_since: false`) is carried
-without asking (v1.32.0): its item leaves the checklist, the prompt lists it under `## Carried: not
-asked this round`, and `--record` writes its row with the accepted disposition stamped
-`carried_from`, counted in `carried` and as graded in its role's pool. The record writes a row for
-exactly the items the emission carried, the ids its pools file keeps under `carried`, and none for a
-round recorded without one. A `duplicate`, a task audit's row, a row citing no file and one whose
+An audit round's `wontfix` whose `evidence_file` is unchanged (`changed_since: false`) and whose item
+is on this round's checklist is carried without asking (v1.32.0): its item leaves the checklist, the
+prompt lists it under `## Carried: not asked this round`, and `--record` writes its row with the
+accepted disposition stamped `carried_from`, counted in `carried` and as graded in its role's pool. A
+row whose item is on no checklist this round stays in the Prior Round rows. The record writes a row
+for exactly the items the emission carried, the ids its pools file keeps under `carried`, and none
+for a round recorded without one; a role whose whole checklist was carried gets no prompt but keeps a
+pool marked `unprompted`, for which `--record-inbox` owes no file. A `duplicate`, a task audit's
+row, a row citing no file and one whose
 file changed are asked as before; a change is a commit since the round, a rename away (renames are
 not followed), or an edit in the working tree or index that is not committed yet.
 `tp audit <spec> --record` then gives a new non-`PASS` row with no disposition of its own the accepted
