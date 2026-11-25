@@ -1209,3 +1209,60 @@ func TestLandKeepsAConflictBranchAmendedAfterThePick(t *testing.T) {
 	assert.FileExists(t, filepath.Join(wt, "precious.txt"), "the amended work stays")
 	assert.NotEmpty(t, gitRun(t, dir, "branch", "--list", "agent-t1"), "the conflict branch is kept")
 }
+
+// commitAs commits everything in wt with message and a fixed author date, so
+// two commits made this way share the author, author date and message a
+// cherry-pick keeps.
+func commitAs(t *testing.T, wt, file, message string) string {
+	t.Helper()
+	require.NoError(t, os.WriteFile(filepath.Join(wt, file), []byte(file+"\n"), 0o600))
+	gitIn(t, wt, "add", "-A")
+	cmd := exec.Command("git", "commit", "-q", "-m", message)
+	cmd.Dir = wt
+	cmd.Env = append(os.Environ(), "GIT_AUTHOR_DATE=1700000000 +0000")
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, "%s", out)
+	return gitRun(t, wt, "rev-parse", "HEAD")
+}
+
+// Two commits on a conflict branch with the same author, author date and
+// message are carried by two landed commits, never by one: a fresh agent
+// that picked only the first leaves the second's work on the branch, and the
+// branch is kept.
+func TestLandKeepsAConflictBranchWithTwoSameKeyCommitsOnePicked(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "")
+	first := commitAs(t, wt, "agent.txt", "wip")
+	second := commitAs(t, wt, "extra.txt", "wip")
+	_, stderr, code := runTP(t, wt, "done", "t1", "--commit", first, "--commit", second, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "agent.txt"), []byte("other\n"), 0o600))
+	gitIn(t, dir, "add", "agent.txt")
+	gitIn(t, dir, "commit", "-q", "-m", "other")
+	stdout, stderr, code := runTP(t, dir, "land")
+	require.Equal(t, 0, code, stdout+stderr)
+	require.Equal(t, "agent-t1", taskState(t, dir, "t1")["conflict_branch"])
+
+	spawnClaim(t, dir, "t1", "toolu_R", "sessC")
+	wtB := filepath.Join(t.TempDir(), "wtB")
+	gitIn(t, dir, "worktree", "add", "-q", "-b", "agent-t1-b", wtB)
+	pick := exec.Command("git", "cherry-pick", first)
+	pick.Dir = wtB
+	out, err := pick.CombinedOutput()
+	require.Error(t, err, "the pick conflicts: %s", out)
+	require.NoError(t, os.WriteFile(filepath.Join(wtB, "agent.txt"), []byte("resolved\n"), 0o600))
+	gitIn(t, wtB, "add", "agent.txt")
+	gitIn(t, wtB, "-c", "core.editor=true", "cherry-pick", "--continue")
+	resolved := gitRun(t, wtB, "rev-parse", "HEAD")
+	_, stderr, code = runTP(t, wtB, "done", "t1", "--commit", resolved, "--", "t1 acceptance criteria met")
+	require.Equal(t, 0, code, stderr)
+
+	stdout, stderr, code = runTP(t, dir, "land")
+	require.Equal(t, 0, code, stdout+stderr)
+	var res landPrunes
+	require.NoError(t, json.Unmarshal([]byte(stdout), &res), stdout)
+	require.Len(t, res.Kept, 1, stdout)
+	assert.Equal(t, "agent-t1", res.Kept[0].Branch)
+	assert.Contains(t, res.Kept[0].Reason, second, "the reason names the commit the pick left behind")
+	assert.NotEmpty(t, gitRun(t, dir, "branch", "--list", "agent-t1"), "the conflict branch is kept")
+}
