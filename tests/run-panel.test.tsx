@@ -542,6 +542,21 @@ test('the project setting chooses Turkish over an English locale', async ($, on)
   await ui.unmount()
 })
 
+test('with no project setting Claude Code\'s language setting chooses over the locale', async ($, on) => {
+  mock.clock(on, { now: AT })
+  mock.env(on, { LANG: 'en_US.UTF-8' })
+  world(on, { 'tp --version': VERSION, 'tp now --json': { exitCode: 0, stdout: JSON.stringify(NOW) } })
+  on('fs.read', () => {
+    throw new Error('ENOENT: no such file or directory')
+  })
+  on('settings.read', () => ({ value: { language: 'Türkçe' } }))
+  await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
+  await runCommand($)
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: 'Senden bekleyen' })).toBeTruthy()
+  await ui.unmount()
+})
+
 test('the run view reads in Turkish', async () => {
   const start = Date.parse('2026-11-25T10:00:00Z')
   const read = toNow(NOW, 0)
