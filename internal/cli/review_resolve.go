@@ -141,7 +141,7 @@ func runReviewResolve(args []string, force bool) error {
 
 	// Check if all findings are now resolved — if so, include next_step
 	if allFindingsResolved(findings) {
-		result["next_step"] = fmt.Sprintf("tp review --verify <spec> --findings %s", filePath)
+		result["next_step"] = reviewResolvedNextStep(findings)
 	}
 	addRecordedRoundStatement(result, filePath)
 
@@ -192,6 +192,7 @@ func runReviewResolveAll(args []string, force bool) error {
 
 	resolvedCount := 0
 	skippedCount := 0
+	var written []map[string]any
 
 	lockErr := engine.WithFileLock(filePath, func() error {
 		// Read findings
@@ -201,6 +202,7 @@ func runReviewResolveAll(args []string, force bool) error {
 		}
 
 		resolvedCount, skippedCount = resolveEveryFinding(findings, status, evidence, force, filePath)
+		written = findings
 
 		// Write back
 		return writeNDJSON(filePath, findings)
@@ -218,7 +220,7 @@ func runReviewResolveAll(args []string, force bool) error {
 		"skipped_count":  skippedCount,
 		"status":         status,
 		"file":           filePath,
-		"next_step":      fmt.Sprintf("tp review --verify <spec> --findings %s", filePath),
+		"next_step":      reviewResolvedNextStep(written),
 	}
 	addRecordedRoundStatement(result, filePath)
 	return output.JSON(result)
@@ -266,6 +268,27 @@ func newDisposition(roundFile, status, evidence, at string) map[string]any {
 }
 
 // allFindingsResolved checks if all findings in the slice have a "resolved" field.
+// reviewResolvedNextStep is the step after every finding of a file is
+// disposed, worded as next_action words it. A fixed finding waits for the
+// round that reads the repair; under tp run (TP_ROUND set) the unit stops and
+// the driver emits that round, since an emission from inside the unit would
+// write into the recorded round's directory. With no fixed finding the loop's
+// state decides, which --status names. Never --verify: that is the tail
+// protocol's check of disputed findings before a record.
+func reviewResolvedNextStep(findings []map[string]any) string {
+	for _, f := range findings {
+		resolved, _ := f["resolved"].(map[string]any)
+		if status, _ := resolved["status"].(string); status != "fixed" {
+			continue
+		}
+		if os.Getenv(engine.EnvRound) != "" {
+			return "stop: the run emits the next review round, which verifies the repair"
+		}
+		return "run the next review round, which verifies the repair: tp review <spec>, then tp review <spec> --record-inbox"
+	}
+	return "tp review <spec> --status, whose next_action names the next step"
+}
+
 func allFindingsResolved(findings []map[string]any) bool {
 	for _, f := range findings {
 		if _, ok := f["resolved"]; !ok {
