@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -169,4 +170,28 @@ func TestReviewRecordInbox_RefusesARoundWithoutItsList(t *testing.T) {
 	_, stderr, code := runTP(t, dir, "review", "spec.md", "--record-inbox")
 	assert.Equal(t, 3, code, "stderr: %s", stderr)
 	assert.Contains(t, stderr, "emit the round again")
+}
+
+// TestReviewRecordInbox_MergesARolesPartFiles (audit-round-ergonomics.md
+// §2.3): a role that wrote its rows in parts, round-<N>-<role>.<part>.ndjson,
+// and no whole file, is present, and every part's rows are recorded.
+func TestReviewRecordInbox_MergesARolesPartFiles(t *testing.T) {
+	t.Parallel()
+	dir, spec := inboxSpec(t)
+	prompts := emittedPrompts(t, dir, noRoundDir(), "review", "spec.md")
+	sliced := prompts[0]["role"].(string)
+	for _, pm := range prompts[1:] {
+		writeRoleFile(t, spec, pm["role"].(string), "")
+	}
+	whole := engine.RoleInboxPath(spec, engine.PhaseReview, 1, sliced)
+	for part, finding := range map[string]string{"a": "a gap", "b": "another gap"} {
+		body := `{"severity":"low","finding":"` + finding + `","location":"§1","evidence":"line 3"}` + "\n"
+		require.NoError(t, os.WriteFile(strings.TrimSuffix(whole, ".ndjson")+"."+part+".ndjson", []byte(body), 0o600))
+	}
+
+	stdout, stderr, code := runTP(t, dir, "review", "spec.md", "--record-inbox")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var out map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+	assert.Equal(t, float64(2), out["findings"], "both parts' rows are recorded")
 }
