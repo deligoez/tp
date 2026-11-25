@@ -1,4 +1,4 @@
-import type { Lang } from '../types'
+import type { Lang, TaskCounts } from '../types'
 
 // The panel's words in its two languages (spec/backlog/panel-dashboard.md):
 // every word the pane draws comes from here, so a language is one table.
@@ -45,6 +45,18 @@ export type Words = {
   last: (id: string, kind: string, exit: number | null, took: string) => string
   stopped: (reason: string) => string
   noRun: string
+  need: (kind: string) => string
+  holder: (holder: string) => string
+  runLive: (age: string) => string
+  needsYou: string
+  inProgress: string
+  nothingHeld: string
+  landing: string
+  readyNext: string
+  epics: string
+  counts: (c: TaskCounts) => string
+  more: (n: number) => string
+  held: (holder: string, attempt: number, age: string) => string
 }
 
 function clock(seconds: number, s: string, m: string, h: string): string {
@@ -113,6 +125,27 @@ const STOP_TR: Record<string, string> = {
   'worktree-setup-failed': 'çalışma ağacı hazırlanamadı',
 }
 
+// needs_you kinds (blocker, escalation, decision, cap, land): the label a
+// person reads before tp's own sentence.
+const NEED_EN: Record<string, string> = {
+  blocker: 'Blocked',
+  escalation: 'Escalation',
+  decision: 'Decision',
+  cap: 'Cap reached',
+  land: 'Ready to land',
+}
+
+const NEED_TR: Record<string, string> = {
+  blocker: 'Engel',
+  escalation: 'Sana iletildi',
+  decision: 'Karar',
+  cap: 'Sınıra ulaşıldı',
+  land: 'Birleştirmeye hazır',
+}
+
+// holder: who holds a task in wip, a live run, a spawned agent, or the person.
+const HOLDER_TR: Record<string, string> = { run: 'koşu', agent: 'ajan', you: 'sen' }
+
 const EN: Words = {
   phase: phase => `${phase} phase`,
   state: state => STATE_EN[state] ?? state,
@@ -129,6 +162,18 @@ const EN: Words = {
   last: (id, kind, exit, took) => `Last: ${id} ${kind}, exit ${exit}${took ? ` after ${took}` : ''}`,
   stopped: reason => `Stopped: ${reason}`,
   noRun: 'No run in this project yet.',
+  need: kind => NEED_EN[kind] ?? kind,
+  holder: holder => holder,
+  runLive: age => `run in progress${age ? ` (${age})` : ''}`,
+  needsYou: 'Needs you',
+  inProgress: 'In progress',
+  nothingHeld: 'Nothing in progress',
+  landing: 'Waiting to land',
+  readyNext: 'Ready next',
+  epics: 'Epics',
+  counts: c => `Tasks: ${c.done} of ${c.total} done, ${c.wip} in progress, ${c.ready} ready, ${c.blocked} blocked`,
+  more: n => `${n} more`,
+  held: (holder, attempt, age) => [holder, attempt > 1 ? `attempt ${attempt}` : '', age].filter(Boolean).join(', '),
 }
 
 const TR: Words = {
@@ -147,6 +192,18 @@ const TR: Words = {
   last: (id, kind, exit, took) => `Son: ${id} ${kind}, çıkış ${exit}${took ? `, ${took} sürdü` : ''}`,
   stopped: reason => `Durdu: ${reason}`,
   noRun: 'Bu projede henüz koşu yok.',
+  need: kind => NEED_TR[kind] ?? kind,
+  holder: holder => HOLDER_TR[holder] ?? holder,
+  runLive: age => `koşu sürüyor${age ? ` (${age})` : ''}`,
+  needsYou: 'Senden bekleyen',
+  inProgress: 'Devam eden',
+  nothingHeld: 'Devam eden iş yok',
+  landing: 'Birleştirilmeyi bekleyen',
+  readyNext: 'Sırada',
+  epics: 'Epikler',
+  counts: c => `Görevler: ${c.done}/${c.total} bitti, ${c.wip} devam ediyor, ${c.ready} hazır, ${c.blocked} engelli`,
+  more: n => `${n} tane daha`,
+  held: (holder, attempt, age) => [holder, attempt > 1 ? `${attempt}. deneme` : '', age].filter(Boolean).join(', '),
 }
 
 export const WORDS: Record<Lang, Words> = { en: EN, tr: TR }
