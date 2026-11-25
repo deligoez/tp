@@ -42,8 +42,10 @@ export type RunView = {
   read_at: number
 }
 
-// What waits for a person: kind is blocker, escalation, decision, cap or land.
-export type NeedsYou = { kind: string; text: string; id?: string }
+// What waits for a person: kind is blocker, escalation, decision, cap, land
+// or run; code is a word that does not change with tp's English text (a stop
+// reason, a decision's name, a blocker's code), absent from an older tp.
+export type NeedsYou = { kind: string; text: string; id?: string; code?: string }
 
 // A task in wip or claimed; holder is run, agent or you.
 export type HeldTask = {
