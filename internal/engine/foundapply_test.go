@@ -181,3 +181,21 @@ func TestPlanFoundApply_OnlyUnappliedRequestsChange(t *testing.T) {
 	assert.Empty(t, plan.Tasks)
 	assert.Empty(t, plan.Entries)
 }
+
+// A found task whose id is taken takes the next numbered suffix, starting at 2.
+func TestPlanFoundApply_ATakenIDTakesSuffixTwo(t *testing.T) {
+	existing := []model.Task{{ID: "found-f1", Status: model.StatusDone, Origin: &model.Origin{Location: "z.go:1"}}}
+
+	plan := PlanFoundApply([]FoundRequest{applyRequest(1, false)}, existing, nil, 5)
+
+	require.Len(t, plan.Tasks, 1)
+	assert.Equal(t, "found-f1-2", plan.Tasks[0].ID)
+}
+
+// A found task is estimated at the top of the atomicity range: 15 minutes.
+func TestPlanFoundApply_AFoundTaskIsEstimatedAtFifteenMinutes(t *testing.T) {
+	plan := PlanFoundApply([]FoundRequest{applyRequest(1, false)}, nil, nil, 5)
+
+	require.Len(t, plan.Tasks, 1)
+	assert.Equal(t, 15, plan.Tasks[0].EstimateMinutes)
+}
