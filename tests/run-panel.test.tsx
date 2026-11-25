@@ -139,6 +139,26 @@ test('the rows name the phase, the caps and each running slot', async () => {
   ])
 })
 
+test('the now view reads in Turkish, titles as written', async () => {
+  const read = toNow(NOW, 0)!
+  expect(nowRows(read.now, read.run, 'tr', AT, 40).map(row => row.text)).toEqual([
+    'Uygulama aşaması · koşu sürüyor (4dk 5sn)',
+    'Senden bekleyen',
+    'Sana iletildi: The run stopped on a decision only you can make.',
+    'Devam eden',
+    'auth-refresh  Refresh tokens before expiry · koşu, 2. deneme, 4dk 5sn',
+    'rate-limit  Limit requests per key · ajan',
+    'Birleştirilmeyi bekleyen',
+    'cache-key  Key the cache by tenant · 2dk 5sn',
+    'Görevler: 14/31 bitti, 2 devam ediyor, 3 hazır, 12 engelli',
+    'Epikler',
+    'Payment flow  ████████░░ 8/10',
+    'Sırada',
+    'webhook-retry  Retry failed webhooks',
+    'audit-log  Log every admin change',
+  ])
+})
+
 test('a stopped run names why it stopped', async () => {
   const view = toView({ ...STATUS, run_state: 'stopped', stop_reason: 'converged', running: [] }, 0)
   const rows = runRows(view!, 'en', 0).map(row => row.text)
