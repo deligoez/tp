@@ -16,8 +16,9 @@ import (
 // A wip task an agent spawn holds is that agent's: it is passed over, and only
 // a pool that passes it in running counts its slot (tp pool does). A wip task
 // no pool and no agent spawn runs is an interrupted unit, resumed alone before
-// anything new starts; a solo task, or one whose id cannot name a branch, runs
-// alone when it is next in line. Either waits, with nothing returned, while
+// anything new starts; a solo task, one whose id cannot name a branch, or one
+// whose touches name .tp/config.json runs alone, in the main tree, when it is
+// next in line. Either waits, with nothing returned, while
 // the pool still runs, so the pool drains for it. Otherwise the ready tasks
 // fill the free slots under maxParallel in tp next's order, each one's touches
 // overlapping none of the running tasks' or those already taken. Touches are a
@@ -137,9 +138,22 @@ func poolBriefs(units []NextUnit, pooled bool) {
 }
 
 // poolable reports whether a task may run beside another: no failed
-// integration marked it to run alone, and its id is safe in a branch name.
+// integration marked it to run alone, its id is safe in a branch name, and
+// its touches leave .tp/config.json alone.
 func poolable(t *model.Task) bool {
-	return !t.Solo && poolSafeID(t.ID)
+	return !t.Solo && poolSafeID(t.ID) && !TouchesProjectConfig(t)
+}
+
+// projectConfigPath is the project layer's config, which only tp writes and
+// which a unit's worktree commit may not carry (CheckUnitCommits).
+const projectConfigPath = ".tp/config.json"
+
+// TouchesProjectConfig reports whether a task's touches may name
+// .tp/config.json, under the overlap rule the pool screens touches with. Such
+// a task runs in the main tree, never in a worktree
+// (spec/backlog/worktree-dispatch.md §2.1); a task without touches does not.
+func TouchesProjectConfig(t *model.Task) bool {
+	return len(t.Touches) > 0 && TouchesOverlap(t.Touches, []string{projectConfigPath})
 }
 
 // poolSafeIDRe is the id a pool can carry into a branch name, a worktree
