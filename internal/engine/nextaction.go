@@ -181,7 +181,7 @@ func ReviewNextAction(specPath string, done LoopDone, blockingUnresolved bool, m
 		return "revise the spec where a blocking finding is a defect, or disposition it — tp review " + roundFile +
 			" --resolve <index> wontfix|duplicate \"<evidence>\", the operator's decision for a critical or high finding — then run the next review round" + earlier + resolveEarlierFirst(done.CarriedBlocking)
 	default:
-		return mechanizeOrNextRound(specPath, mechanizeClasses, &checks)
+		return mechanizeOrNextRound(specPath, mechanizeClasses, &checks) + earlier + resolveEarlierFirst(done.CarriedBlocking)
 	}
 }
 
