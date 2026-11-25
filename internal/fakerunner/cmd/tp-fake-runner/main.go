@@ -80,8 +80,13 @@ func run() int {
 			fmt.Fprintln(os.Stderr, err)
 			return exitSetup
 		}
+	case listed(fakerunner.EnvBlockIDs, id) && !attemptedBefore(dir, id):
+		if err := fileFoundRequest(id, true); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return exitSetup
+		}
 	default:
-		if err := scriptedWrites(seq); err != nil {
+		if err := scriptedWrites(dir, id, seq); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return exitSetup
 		}
@@ -112,9 +117,14 @@ func run() int {
 	return code
 }
 
-// scriptedWrites performs the writes EnvDurable and EnvEscalate script for this
-// invocation's seq, the durable write first.
-func scriptedWrites(seq int) error {
+// scriptedWrites performs the writes EnvFoundIDs, EnvDurable and EnvEscalate
+// script for this invocation, the request first and the durable write next.
+func scriptedWrites(dir, id string, seq int) error {
+	if listed(fakerunner.EnvFoundIDs, id) && !attemptedBefore(dir, id) {
+		if err := fileFoundRequest(id, false); err != nil {
+			return err
+		}
+	}
 	if durableAt(os.Getenv(fakerunner.EnvDurable), seq) {
 		if err := durableWrite(); err != nil {
 			return err
@@ -257,11 +267,38 @@ func closePending(root, taskFile, id string) error {
 	})
 }
 
+// fileFoundRequest files one Fix-shaped request with the unit's task as its
+// finder, the record tp found add writes. A blocking one first marks the task
+// wip, as tp found add --blocks requires of the task the caller works.
+func fileFoundRequest(id string, blocks bool) error {
+	taskFile := os.Getenv("TP_FILE")
+	if blocks {
+		if err := editTask(taskFile, id, func(task map[string]any) { task["status"] = "wip" }); err != nil {
+			return err
+		}
+	}
+	root := engine.CanonicalProjectRoot(filepath.Dir(taskFile))
+	_, err := engine.AddFoundRequest(root, taskFile, &engine.FoundRequest{
+		Location: id + "-found.go:1", Reproduction: "go test ./" + id, Expected: "exit 0", Observed: "exit 1",
+		Blocks: blocks, Finder: engine.FoundFinder{Task: id},
+	})
+	return err
+}
+
 // markTaskDone flips one task's status to done in the task file, the implement
-// kind's durable write. The document is edited as generic JSON so the fixture
-// carries no opinion about tp's own schema beyond the one field the predicate
-// reads.
+// kind's durable write.
 func markTaskDone(taskFile, id string) error {
+	return editTask(taskFile, id, func(task map[string]any) {
+		task["status"] = "done"
+		task["closed_at"] = time.Now().UTC().Format(time.RFC3339)
+		task["closed_reason"] = "- closed by the fake runner"
+	})
+}
+
+// editTask applies edit to one task of the task file. The document is edited
+// as generic JSON so the fixture carries no opinion about tp's own schema
+// beyond the fields it sets.
+func editTask(taskFile, id string, edit func(task map[string]any)) error {
 	data, err := os.ReadFile(taskFile) //nolint:gosec // a test fixture reading the path its driver exported
 	if err != nil {
 		return fmt.Errorf("read task file: %w", err)
@@ -276,9 +313,7 @@ func markTaskDone(taskFile, id string) error {
 		if !ok || task["id"] != id {
 			continue
 		}
-		task["status"] = "done"
-		task["closed_at"] = time.Now().UTC().Format(time.RFC3339)
-		task["closed_reason"] = "- closed by the fake runner"
+		edit(task)
 	}
 	out, err := json.MarshalIndent(doc, "", "  ")
 	if err != nil {

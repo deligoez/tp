@@ -81,6 +81,14 @@ const (
 	// leave a `sleep` of LeaveBehindSeconds running when they exit, holding
 	// every descriptor they inherited: a daemon the unit started.
 	EnvLeaveBehindIDs = "TP_FAKE_RUNNER_LEAVE_BEHIND_IDS"
+	// EnvFoundIDs names implement units, comma-separated by TP_UNIT_ID,
+	// whose first attempt files one Fix-shaped request into the found store
+	// (what tp found add writes) before its other writes.
+	EnvFoundIDs = "TP_FAKE_RUNNER_FOUND_IDS"
+	// EnvBlockIDs names implement units, comma-separated by TP_UNIT_ID,
+	// whose first attempt marks its task wip, files a blocking Fix-shaped
+	// request with that task as the finder, and exits 0 without closing.
+	EnvBlockIDs = "TP_FAKE_RUNNER_BLOCK_IDS"
 )
 
 // LeaveBehindSeconds is how long an EnvLeaveBehindIDs process outlives its
