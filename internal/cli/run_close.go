@@ -125,6 +125,7 @@ func reopenSoloFunc(taskFile string) func(id, conflictBranch string) error {
 			// branch may still hold the only copy of the work.
 			if conflictBranch != "" {
 				task.ConflictBranch = conflictBranch
+				task.ConflictSHA = engine.BranchTip(filepath.Dir(taskFile), conflictBranch)
 			}
 			tf.UpdatedAt = time.Now().UTC()
 			return model.WriteTaskFile(taskFile, tf)

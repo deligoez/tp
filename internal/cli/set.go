@@ -33,6 +33,7 @@ var (
 		"found_notes":         "set automatically by `tp found apply` from the requests it attaches to a task",
 		"handed_back":         "set automatically by `tp found handback`; cleared by `tp reopen`",
 		"conflict_branch":     "set automatically by `tp run` when a unit's commits conflict with the main branch; cleared by the task's close",
+		"conflict_sha":        "set automatically with conflict_branch to that branch's tip; cleared by the task's close",
 	}
 	setBulkFile     string
 	setWorkflowFlag bool

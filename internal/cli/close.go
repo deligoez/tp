@@ -168,6 +168,7 @@ func runClose(cmd *cobra.Command, args []string) error {
 		task.ClosedAt = &now
 		task.Waiting = ""
 		task.ConflictBranch = ""
+		task.ConflictSHA = ""
 		task.ClosedReason = &reason
 		switch {
 		case closeSkipGate != "":

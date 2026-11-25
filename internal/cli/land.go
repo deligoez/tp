@@ -82,9 +82,18 @@ type lander struct {
 	res                 *landResult
 	// landed are the requests landed, whose worktrees may be pruned.
 	landed []engine.LandRequest
-	// conflicts maps a landed task to the conflict_branch its record held
-	// before the close cleared it.
-	conflicts map[string]string
+	// conflicts maps a landed task to the conflict_branch and conflict_sha
+	// its record held before the close cleared them, and the commits this
+	// land picked for it.
+	conflicts map[string]landConflict
+}
+
+// landConflict is a landed task's earlier conflict: the branch and the tip
+// recorded with it, and the commits this land picked onto HEAD for the task,
+// the only commits that may carry the branch's work.
+type landConflict struct {
+	branch, tip string
+	picked      []string
 }
 
 // runLand is the coordinator's half of a worktree agent's close
@@ -114,7 +123,7 @@ func runLand(_ *cobra.Command, _ []string) error {
 		root: root, taskFile: taskFilePath, dir: dir,
 		close:     closeTaskFunc(root, taskFilePath),
 		reopen:    reopenSoloFunc(taskFilePath),
-		conflicts: map[string]string{},
+		conflicts: map[string]landConflict{},
 		res: &landResult{Landed: []string{}, Reopened: []landItem{}, Blocked: []landItem{},
 			Dropped: []string{}, Unlanded: []landItem{}, Pruned: []landPruned{}, Kept: []landKept{}},
 	}
@@ -193,8 +202,8 @@ func (l *lander) pruneWorktrees() {
 		default:
 			l.res.Pruned = append(l.res.Pruned, landPruned{ID: r.ID, Worktree: r.Worktree, Branch: branch})
 		}
-		if cb := l.conflicts[r.ID]; cb != "" && cb != branch {
-			l.pruneConflictBranch(r.ID, cb)
+		if c := l.conflicts[r.ID]; c.branch != "" && c.branch != branch {
+			l.pruneConflictBranch(r.ID, &c)
 		}
 	}
 }
@@ -202,14 +211,14 @@ func (l *lander) pruneWorktrees() {
 // pruneConflictBranch removes the conflict_branch task id's earlier attempt
 // left, and its worktree, once this land carries its work; otherwise it
 // names the branch kept with why.
-func (l *lander) pruneConflictBranch(id, branch string) {
-	worktree, reason, found := engine.PruneConflictBranch(l.root, l.taskFile, branch)
+func (l *lander) pruneConflictBranch(id string, c *landConflict) {
+	worktree, reason, found := engine.PruneConflictBranch(l.root, l.taskFile, c.branch, c.tip, c.picked)
 	switch {
 	case !found:
 	case reason != "":
-		l.res.Kept = append(l.res.Kept, landKept{ID: id, Worktree: worktree, Branch: branch, Reason: reason})
+		l.res.Kept = append(l.res.Kept, landKept{ID: id, Worktree: worktree, Branch: c.branch, Reason: reason})
 	default:
-		l.res.Pruned = append(l.res.Pruned, landPruned{ID: id, Worktree: worktree, Branch: branch})
+		l.res.Pruned = append(l.res.Pruned, landPruned{ID: id, Worktree: worktree, Branch: c.branch})
 	}
 }
 
@@ -269,8 +278,9 @@ func (l *lander) land(r *engine.LandRequest) {
 		return
 	}
 	session := landClaimSession(l.taskFile, r.ID)
-	// The close clears conflict_branch, so it is read first.
-	conflictBranch := landConflictBranchOf(l.taskFile, r.ID)
+	// The close clears conflict_branch and conflict_sha, so they are read
+	// first.
+	conflict := landConflictOf(l.taskFile, r.ID)
 	pre, landed, err := engine.LandPick(l.root, r.Commits)
 	var blocked *engine.LandBlockedError
 	if errors.As(err, &blocked) {
@@ -302,7 +312,8 @@ func (l *lander) land(r *engine.LandRequest) {
 		l.drop(r)
 		l.res.Landed = append(l.res.Landed, r.ID)
 		l.landed = append(l.landed, *r)
-		l.conflicts[r.ID] = conflictBranch
+		conflict.picked = landed
+		l.conflicts[r.ID] = conflict
 	case errors.As(closeErr, &refused):
 		failure := withUndoFailure("tp done refused the close: "+closeFailure(closeErr, logPath), pre, engine.LandUndo(l.root, pre))
 		l.res.Blocked = append(l.res.Blocked, landItem{ID: r.ID, Error: failure, Log: logPath,
@@ -417,18 +428,18 @@ func landClaimSession(path, id string) string {
 	return task.ClaimedBy.Session
 }
 
-// landConflictBranchOf is the conflict_branch task id records in the task
-// file at path, "" when it has none.
-func landConflictBranchOf(path, id string) string {
+// landConflictOf is the conflict_branch and conflict_sha task id records in
+// the task file at path, empty when it has none.
+func landConflictOf(path, id string) landConflict {
 	tf, err := model.ReadTaskFile(path)
 	if err != nil {
-		return ""
+		return landConflict{}
 	}
 	task, _, err := model.FindTask(tf, id)
 	if err != nil {
-		return ""
+		return landConflict{}
 	}
-	return task.ConflictBranch
+	return landConflict{branch: task.ConflictBranch, tip: task.ConflictSHA}
 }
 
 // closeFailure is why the tp done child failed: the error its log ends

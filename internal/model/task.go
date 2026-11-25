@@ -110,6 +110,11 @@ type Task struct {
 	// brings that branch onto the main branch instead of redoing the task
 	// (spec/backlog/worktree-dispatch.md §2.2); its close clears it.
 	ConflictBranch string `json:"conflict_branch,omitempty"`
+	// ConflictSHA is managed by tp: the tip of ConflictBranch when the
+	// conflict was recorded. tp land prunes the branch only while it still
+	// stands there, so work added to it since (an amend, a commit, a rebase)
+	// is never deleted; set and cleared with ConflictBranch.
+	ConflictSHA string `json:"conflict_sha,omitempty"`
 	// Waiting says what a task is waiting on. On a wip task it is a parked
 	// claim (a background job, a person), so tp resume can tell one from an
 	// abandoned claim; on an open task it is a hold, a gate that is not a
