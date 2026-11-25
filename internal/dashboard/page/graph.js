@@ -304,12 +304,13 @@
       : [[x - w / 2, y], [x + w / 2, y], [x + w / 2, y + h], [x - w / 2, y + h]];
     return out;
   }
-  // bandRegions is each band's region: per layer it spans, the columns its
-  // nodes on that layer take, joined into one outline, so a band in one
-  // track does not reach over a neighbouring track's nodes on other layers.
+  // bandRegions is each region's outline (tpPure.regionsOf: the plan's
+  // milestone blocks, else the bands): per layer it spans, the columns its
+  // nodes on that layer take, joined into one outline, so a region does not
+  // reach over a neighbouring one's nodes on other layers.
   function bandRegions(L, nodes, geo) {
     const pad = 12;
-    return (L.bands || []).map((b, k) => {
+    return pure.regionsOf(L).map((b, k) => {
       const names = [b.milestone].concat(b.with || []);
       const inBand = nodes.filter((n) => names.includes(n.ms));
       if (!inBand.length) return null;
