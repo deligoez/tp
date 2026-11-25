@@ -330,26 +330,23 @@ func runTaskAuditRecord(specPath string) error {
 	})
 }
 
-// taskAuditRoleRows reads every prompted role's file of the task audit and
-// checks each row against the items the batch asked that role.
+// taskAuditRoleRows reads every prompted role's files of the task audit, its
+// whole file and any part files (engine.RoleInboxFiles), and checks the rows
+// of each role against the items the batch asked it.
 func taskAuditRoleRows(specPath string, rec *engine.TaskAuditRecord) []map[string]any {
 	var missing, foreign, ungraded []string
 	var rows []map[string]any
 	for _, p := range taskAuditPrompts(specPath, rec) {
-		path := roleOutputPath(engine.PhaseTaskAudit, specPath, rec.Seq, p.Role)
-		if dir := os.Getenv(engine.EnvRoundDir); dir != "" {
-			path = engine.RoleFindingsPath(dir, p.Role)
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			missing = append(missing, p.Role+" ("+path+")")
+		paths := taskAuditRoleFiles(specPath, rec.Seq, p.Role)
+		if len(paths) == 0 {
+			missing = append(missing, p.Role+" ("+roleOutputPath(engine.PhaseTaskAudit, specPath, rec.Seq, p.Role)+")")
 			continue
 		}
-		parsed, _, err := parseAuditRows(path, data)
-		if err != nil {
-			output.Error(ExitValidation, fmt.Sprintf("%s: %v", path, err), "fix the line the message names in the role's file: every non-blank line is one JSON object the auditor wrote")
-			os.Exit(ExitValidation)
+		var parsed []map[string]any
+		for _, path := range paths {
+			parsed = append(parsed, readTaskAuditRoleFile(path)...)
 		}
+		parsed, _ = dedupAuditRows(parsed)
 		f, u := checkTaskAuditRows(&p, parsed)
 		foreign, ungraded = append(foreign, f...), append(ungraded, u...)
 		rows = append(rows, parsed...)
@@ -368,6 +365,34 @@ func taskAuditRoleRows(specPath string, rec *engine.TaskAuditRecord) []map[strin
 		}
 	}
 	return rows
+}
+
+// taskAuditRoleFiles is the files one role of task audit seq wrote: under tp
+// run its file in the round directory, otherwise its whole file and part
+// files in the inbox.
+func taskAuditRoleFiles(specPath string, seq int, role string) []string {
+	if dir := os.Getenv(engine.EnvRoundDir); dir != "" {
+		if path := engine.RoleFindingsPath(dir, role); isRegularFile(path) {
+			return []string{path}
+		}
+		return nil
+	}
+	return engine.RoleInboxFiles(namedInbox(), specPath, engine.PhaseTaskAudit, seq, role)
+}
+
+// readTaskAuditRoleFile parses one role file's rows, exiting 1 on a line that
+// is not one JSON object.
+func readTaskAuditRoleFile(path string) []map[string]any {
+	data, err := os.ReadFile(path)
+	if err == nil {
+		var parsed []map[string]any
+		if parsed, _, err = parseAuditRows(path, data); err == nil {
+			return parsed
+		}
+	}
+	output.Error(ExitValidation, fmt.Sprintf("%s: %v", path, err), "fix the line the message names in the role's file: every non-blank line is one JSON object the auditor wrote")
+	os.Exit(ExitValidation)
+	return nil
 }
 
 // checkTaskAuditRows is the rows of one role's file that grade no item its
