@@ -72,3 +72,21 @@ test('a project with no run says so', async $ => {
   expect((await ui.find({ type: 'Text' }))?.text).toBe('No run in this project yet.')
   await ui.unmount()
 })
+
+test('the command outside a tp project says so and reads no status', async ($, on) => {
+  let ran = false
+  on('command.register', () => ({ value: { command: 'tp-run' } }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('fs.stat', () => {
+    throw new Error('ENOENT: no such file or directory')
+  })
+  on('process.run', () => {
+    ran = true
+    return { value: { exitCode: 1, stdout: '', stderr: '' } }
+  })
+
+  await $.session.start({ cwd: '/not-tp', surface: 'terminal', isInteractive: true })
+  const { text } = await $.command.run({ command: 'tp-run' })
+  expect(text).toBe('This folder is not a tp project.')
+  expect(ran).toBe(false)
+})
