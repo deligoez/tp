@@ -327,6 +327,38 @@ func TestIntegrate_ACrashInsideAConflictingPickIsAborted(t *testing.T) {
 	assert.Len(t, closer.closed["alpha"], 1, "the unit is picked and closed")
 }
 
+// conflictingPickInProgress commits a change to s.md on main and leaves a
+// cherry-pick of a clashing change to it stopped on the conflict, the state
+// an abort that did not take (another git process held the index lock)
+// leaves behind. It returns main's HEAD before the pick.
+func conflictingPickInProgress(t *testing.T, root string) string {
+	t.Helper()
+	gitIn(t, root, "switch", "-q", "-c", "clash")
+	clash := commitIn(t, root, "s.md", "# changed elsewhere\n")
+	gitIn(t, root, "switch", "-q", "main")
+	commitIn(t, root, "s.md", "# changed on main\n")
+	pre := gitIn(t, root, "rev-parse", "HEAD")
+	cmd := exec.Command("git", "cherry-pick", clash)
+	cmd.Dir = root
+	require.Error(t, cmd.Run(), "the fixture leaves a conflicting pick in progress")
+	return pre
+}
+
+// TestIntegrate_ADiscardAbortsAPickLeftInProgress: reset --keep refuses an
+// unmerged index, so a discard over a pick still in progress must abort it
+// first; the main branch is then back at its pre-integration commit with no
+// cherry-pick in progress.
+func TestIntegrate_ADiscardAbortsAPickLeftInProgress(t *testing.T) {
+	root, spec, taskFile, _ := batchProject(t, wipAlpha)
+	pre := conflictingPickInProgress(t, root)
+
+	d := recoveryDriver(root, spec, taskFile, &fakeCloser{closed: map[string][]string{}})
+	require.NoError(t, d.discardUnit("alpha", pre, errors.New("conflict"), "integrate.log"))
+	assert.Equal(t, pre, gitIn(t, root, "rev-parse", "HEAD"))
+	op, _ := gitOperationInProgress(root)
+	assert.Empty(t, op, "no cherry-pick is left in progress")
+}
+
 // TestCycleUnitBranches_NamesOnlyKeptBranches: a branch whose task is done is
 // not reported as unfinished work, though no run has deleted it yet.
 func TestCycleUnitBranches_NamesOnlyKeptBranches(t *testing.T) {
