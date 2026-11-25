@@ -106,10 +106,7 @@ func runAuditMerge(args []string, outputPath string) error {
 	}
 	// Absent, not empty, when every key holds one verdict: it is a warning,
 	// and the rows are all in the output either way.
-	if len(conflicts) > 0 {
-		summary["conflicts"] = conflicts
-		fmt.Fprintf(os.Stderr, "warning: %d (role, item_id) groups carry disagreeing verdicts; every row is kept (see conflicts)\n", len(conflicts))
-	}
+	noteAuditConflicts(summary, conflicts)
 	// §9.3 / §8.4: the audit overlap_report gives a trim-candidate signal over
 	// non-PASS rows clustered by (item_id, category); it is explanatory and is
 	// omitted under --compact.
@@ -168,6 +165,17 @@ type auditConflict struct {
 	ItemID   string   `json:"item_id"`
 	Rows     int      `json:"rows"`
 	Statuses []string `json:"statuses"`
+}
+
+// noteAuditConflicts puts the disagreeing groups into a payload as conflicts
+// and warns on stderr; absent, not empty, when there are none. tp audit
+// --merge and --record-inbox both report them.
+func noteAuditConflicts(payload map[string]any, conflicts []auditConflict) {
+	if len(conflicts) == 0 {
+		return
+	}
+	payload["conflicts"] = conflicts
+	fmt.Fprintf(os.Stderr, "warning: %d (role, item_id) groups carry disagreeing verdicts; every row is kept (see conflicts)\n", len(conflicts))
 }
 
 // dedupAuditRows collapses (role, item_id) duplicates whose verdict agrees

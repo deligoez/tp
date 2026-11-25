@@ -75,7 +75,7 @@ func runAuditRecordInbox(specPath, harnessNote string) error {
 			fmt.Sprintf("run the prompts of roles %s (%s --role <role>), each writing its file, then %s --record-inbox; a round emitted with --inbox <dir> is recorded with the same --inbox <dir>", roles, emit, emit))
 		os.Exit(ExitFile)
 	}
-	data, problems := auditInboxRows(pools, files)
+	data, conflicts, problems := auditInboxRows(pools, files)
 	if len(problems) > 0 {
 		output.Error(ExitValidation, fmt.Sprintf("audit round %d's inbox cannot be recorded: %s", round, strings.Join(problems, "; ")),
 			"fix the named lines in the role files, then "+emit+" --record-inbox")
@@ -86,7 +86,7 @@ func runAuditRecordInbox(specPath, harnessNote string) error {
 		output.Error(ExitFile, err.Error(), runtimeFailureHint)
 		os.Exit(ExitFile)
 	}
-	if err := runAuditRecord(specPath, merged, harnessNote); err != nil {
+	if err := runAuditRecord(specPath, merged, harnessNote, conflicts); err != nil {
 		return err
 	}
 	removeNamedInboxFiles(files)
@@ -109,8 +109,9 @@ func nextAuditRound(specPath string) int {
 
 // auditInboxRows reads every prompted role's files through the reader
 // tp audit --merge applies, stamps each row with its file's role, and keeps
-// one row of each agreeing (role, item_id) group as --merge does.
-func auditInboxRows(pools []engine.AuditRolePool, files map[string][]string) (data []byte, problems []string) {
+// one row of each agreeing (role, item_id) group as --merge does; conflicts
+// are the groups whose rows disagree, every row of them kept.
+func auditInboxRows(pools []engine.AuditRolePool, files map[string][]string) (data []byte, conflicts []auditConflict, problems []string) {
 	var rows []map[string]any
 	for _, p := range pools {
 		for _, path := range files[p.Role] {
@@ -130,7 +131,7 @@ func auditInboxRows(pools []engine.AuditRolePool, files map[string][]string) (da
 			}
 		}
 	}
-	unique, _ := dedupAuditRows(rows)
+	unique, conflicts := dedupAuditRows(rows)
 	var buf bytes.Buffer
 	for _, row := range unique {
 		line, err := json.Marshal(row)
@@ -140,5 +141,5 @@ func auditInboxRows(pools []engine.AuditRolePool, files map[string][]string) (da
 		}
 		buf.Write(append(line, '\n'))
 	}
-	return buf.Bytes(), problems
+	return buf.Bytes(), conflicts, problems
 }

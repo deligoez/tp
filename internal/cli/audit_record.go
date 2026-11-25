@@ -15,8 +15,10 @@ import (
 // runAuditRecord implements `tp audit <spec> --record <results.ndjson>`.
 // Row counting only: a row is a finding when its status field is absent or
 // not exactly "PASS". The audit round sequence is independent of review
-// rounds; output carries no mechanize_candidates.
-func runAuditRecord(specPath, recordPath, harnessNote string) error {
+// rounds; output carries no mechanize_candidates. conflicts are the
+// disagreeing groups a merge of the round's inputs kept (--record-inbox),
+// reported as tp audit --merge reports them; nil for a file recorded as is.
+func runAuditRecord(specPath, recordPath, harnessNote string, conflicts []auditConflict) error {
 	if _, err := os.Stat(specPath); err != nil {
 		output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), specFileMissingHint)
 		os.Exit(ExitFile)
@@ -173,6 +175,7 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 		"carried": carried,
 	}
 	noteFoundOpen(result, taskFilePath, converged)
+	noteAuditConflicts(result, conflicts)
 	// §2.5: the signal is computed AFTER the round is stored, so "the latest
 	// recorded round" is the round just recorded — the convention harness_stale
 	// already follows on this path. Condition 5 reads back the corpus hash
