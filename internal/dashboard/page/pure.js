@@ -807,14 +807,16 @@
   };
 
   // GRAPH_MARKS are a graph node's marks in legend order, each with the
-  // colour token it is drawn in; FILL_SHARE is how much of its mark a
-  // node's fill takes over the card, more for a ready or held epic so they
-  // stand out, 0.32 for the rest.
+  // token its border is drawn in and the token its fill is: as the Board's
+  // cards are, a node is a quiet card, its fill a status tone's weak fill
+  // (a neutral one for the states with no status tone), and its state is
+  // told by the border.
   P.GRAPH_MARKS = [
-    ["done", "--done"], ["in_progress", "--g-inprog"], ["specced", "--g-specced"], ["claimed", "--g-claimed"],
-    ["ready", "--ready"], ["blocked", "--g-blocked"], ["held", "--held"], ["waiting", "--g-waiting"], ["moot", "--moot"],
+    ["done", "--done", "--fill-success-weak"], ["in_progress", "--g-inprog", "--fill-information-weak"],
+    ["specced", "--g-specced", "--fill-information-weak"], ["claimed", "--g-claimed", "--fill-warning-weak"],
+    ["ready", "--ready", "--fill-weak"], ["blocked", "--g-blocked", "--fill-weak"], ["held", "--held", "--fill-warning-weak"],
+    ["waiting", "--g-waiting", "--fill-weak"], ["moot", "--moot", "--fill-weaker"],
   ];
-  const FILL_SHARE = { ready: 0.5, held: 0.5, waiting: 0.55, moot: 0.55 };
   // foldAt is a list as the rows shown and the rows folded away: its first
   // n, the rest folded, unless only one row would be folded, which shows.
   P.foldAt = function (list, n) {
@@ -824,8 +826,8 @@
   // (P.OWNER_SLOTS of them), then "other" and the unowned.
   P.OWNER_TOKENS = ["--own-0", "--own-1", "--own-2", "--own-3", "--own-4", "--own-5", "--own-6", "--own-7", "--own-other", "--own-none"];
   // GRAPH_TOKENS are every token graphPalette reads.
-  P.GRAPH_TOKENS = ["--sunk", "--surface", "--ink", "--muted", "--line", "--accent", "--crit", "--g-back", "--g-anc", "--g-desc", "--color-paper-3"]
-    .concat(P.GRAPH_MARKS.map((m) => m[1]), P.OWNER_TOKENS);
+  P.GRAPH_TOKENS = ["--sunk", "--surface", "--ink", "--muted", "--line", "--accent", "--crit", "--g-back", "--g-anc", "--g-desc", "--fill-weak", "--fill-weaker"]
+    .concat(P.GRAPH_MARKS.map((m) => m[1]), [...new Set(P.GRAPH_MARKS.map((m) => m[2]))].filter((n) => n !== "--fill-weak" && n !== "--fill-weaker"), P.OWNER_TOKENS);
 
   // parseColour reads "#rrggbb", "rgb(r, g, b)" or "rgba(r, g, b, a)" as
   // [r, g, b], grey for anything else. A colour with alpha is composited
@@ -845,9 +847,10 @@
 
   // graphPalette is the graph's colours from the page's tokens (name to
   // value): every status hue and edge colour nudged until it reads at 3:1
-  // on the canvas, each node fill eased toward the card until the ink
-  // reads on it at 4.5:1, tree edges in the ink and the canvas's own
-  // colours as they are.
+  // on the canvas, each node fill its mark's weak fill over the card, an
+  // owner's fill eased toward the card until the ink reads on it at 4.5:1,
+  // tree edges in the ink, and the regions behind the nodes the weak and
+  // weaker neutral fills over the canvas.
   P.graphPalette = function (tok) {
     // every token is composited over the canvas, the graph's own page
     const page = parseColour(tok["--sunk"]);
@@ -865,16 +868,16 @@
     };
     const mark = {};
     const fill = {};
-    P.GRAPH_MARKS.forEach(([k, name]) => {
+    P.GRAPH_MARKS.forEach(([k, name, tint]) => {
       mark[k] = line(name);
-      fill[k] = fillOf(mark[k], FILL_SHARE[k] || 0.32);
+      fill[k] = parseColour(tok[tint], surface);
     });
     // owner holds the owner palette in OWNER_TOKENS' order: each slot's hue
     // as a border or swatch (line) and as a node's fill.
     const ownLine = P.OWNER_TOKENS.map(line);
     const owner = { line: ownLine, fill: ownLine.map((h) => fillOf(h, 0.5)) };
     return {
-      dark: luminance(page) < 0.18, page, surface, ink, tree: ink, band: rgb("--color-paper-3"), line: rgb("--line"),
+      dark: luminance(page) < 0.18, page, surface, ink, tree: ink, band: [rgb("--fill-weak"), rgb("--fill-weaker")], line: rgb("--line"),
       muted: line("--muted"), accent: line("--accent"), crit: line("--crit"), back: line("--g-back"), anc: line("--g-anc"), desc: line("--g-desc"),
       mark, fill, owner,
     };

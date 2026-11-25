@@ -445,19 +445,16 @@
     if (hits && !hits.has(n.i)) return 50;
     return staged(n) ? 255 : 50;
   }
-  // bandFill is band k's area colour, two greys alternating.
-  const bandFill = (c, k) => mix(c.page, c.band, k % 2 ? 0.55 : 0.9);
-  // REGION_TINT is how far a node's fill leans to its band's area colour
-  // when no text is drawn, so the far view reads as regions, not as a
-  // brick texture of boxes.
-  const REGION_TINT = 0.45;
+  // bandFill is band k's area colour, the weak and weaker neutral fills
+  // alternating.
+  const bandFill = (c, k) => c.band[k % 2];
+  // nodeFill is a node's quiet fill, its mark's weak tint at every
+  // distance; the state shows on the border (nodeLine).
   function nodeFill(P, hits) {
     const c = G.colors;
     return (n) => {
       if (ownerPainted(P)) return [...c.owner.fill[ownerSlotOf(P, n)], nodeAlpha(P, hits, n)];
-      const mark = c.mark[n.mark] || c.muted;
-      const fill = G.detail !== "far" ? c.fill[n.mark] || mark : n.band >= 0 ? mix(mark, bandFill(c, n.band), REGION_TINT) : mark;
-      return [...fill, nodeAlpha(P, hits, n)];
+      return [...(c.fill[n.mark] || c.surface), nodeAlpha(P, hits, n)];
     };
   }
   function nodeLine(P, hits) {
@@ -476,15 +473,15 @@
       return [...(c.mark[n.mark] || c.muted), staged(n) ? 230 : 60];
     };
   }
-  // nodeLineWidth draws no border far out but the selection's cone, a
-  // search's matches and the marks a node holds, unless owners paint the
-  // fill: the border is then the only state mark and stays.
+  // nodeLineWidth draws every node's border at every distance, since the
+  // quiet fill leaves the border the state's mark, and a heavier one for
+  // the selection's cone, a search's matches and the marks a node holds.
   function nodeLineWidth(P, hits) {
     return (n) => {
       if (n.i === P.sel) return 3;
       if (P.sel >= 0 && (P.anc.has(n.i) || P.desc.has(n.i))) return stepsOf(P, n.i) <= 2 ? 2 : 1;
       if ((hits && hits.has(n.i)) || n.hold || n.centre) return 2;
-      return G.detail === "far" && !ownerPainted(P) ? 0 : 1;
+      return 1;
     };
   }
   // onChain says whether l lies on the selection's chain: into the selection
@@ -911,7 +908,7 @@
     const owned = painted ? '<span class="lsec">' + escape(t("graph.legend.owner")) + "</span>" + ownerRows(P, rgb) +
       '<span class="lsec">' + escape(t("graph.legend.state")) + "</span>" : "";
     const marks = MARKS.filter(([k]) => P.counts.marks[k]).map(([k]) =>
-      '<button type="button" data-lmark="' + k + '" aria-pressed="' + !G.hiddenMarks.has(k) + '"><i' + (painted ? ' class="bd" style="border-color:' : ' style="background:') + rgb(c.mark[k]) + '"></i>' + escape(app.markWord(k)) + " <b>" + escape(app.tr().num(P.counts.marks[k])) + "</b></button>").join("");
+      '<button type="button" data-lmark="' + k + '" aria-pressed="' + !G.hiddenMarks.has(k) + '"><i class="bd" style="border-color:' + rgb(c.mark[k]) + (painted ? "" : ";background:" + rgb(c.fill[k])) + '"></i>' + escape(app.markWord(k)) + " <b>" + escape(app.tr().num(P.counts.marks[k])) + "</b></button>").join("");
     const ecol = { tree: c.tree, cross: c.muted, back: c.back, critical: c.crit, any: c.accent };
     const edges = EDGE_CLASSES.filter((k) => P.counts.edges[k]).map((k) =>
       '<button type="button" data-ledge="' + k + '" aria-pressed="' + (k === "cross" ? pure.crossShown(G) : !G.hiddenEdges.has(k)) + '"><i class="ln" style="background:' + rgb(ecol[k]) + (k === "cross" ? ";opacity:.45" : "") + '"></i>' + escape(t(EDGE_TEXT[k])) + " <b>" + escape(app.tr().num(P.counts.edges[k])) + "</b></button>").join("");

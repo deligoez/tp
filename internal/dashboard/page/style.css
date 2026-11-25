@@ -56,7 +56,6 @@
   --fill-error-strong: #FF9C9C; --fill-error-weak: rgba(255, 156, 156, 0.08); --fill-warning-strong: #E0BE70; --fill-warning-weak: rgba(224, 190, 112, 0.08);
   --fill-success-strong: #77C7AF; --fill-success-weak: rgba(119, 199, 175, 0.08); --fill-information-strong: #7EC0E5; --fill-information-weak: rgba(126, 192, 229, 0.08);
   --background-base: #12131A; --background-raised: #1D1E26; --background-overlay: #292B33; --background-sunken: #000000; --background-inverse: #FFFFFF;
-  --g-specced: rgba(126, 192, 229, 0.55); --g-claimed: rgba(224, 190, 112, 0.6); --g-waiting: rgba(255, 255, 255, 0.6); --moot: rgba(255, 255, 255, 0.35);
   --own-0: #5aa8ec; --own-1: #f0b43c; --own-2: #3cc59a; --own-3: #ea86c4; --own-4: #4fd1d9; --own-5: #f08a4b; --own-6: #cbb26b; --own-7: #a98ef0; --own-other: #c3c9d0; --own-none: #3a414a;
 }
 @media (prefers-color-scheme: dark) {
@@ -80,7 +79,6 @@
     --fill-error-strong: #FF9C9C; --fill-error-weak: rgba(255, 156, 156, 0.08); --fill-warning-strong: #E0BE70; --fill-warning-weak: rgba(224, 190, 112, 0.08);
     --fill-success-strong: #77C7AF; --fill-success-weak: rgba(119, 199, 175, 0.08); --fill-information-strong: #7EC0E5; --fill-information-weak: rgba(126, 192, 229, 0.08);
     --background-base: #12131A; --background-raised: #1D1E26; --background-overlay: #292B33; --background-sunken: #000000; --background-inverse: #FFFFFF;
-    --g-specced: rgba(126, 192, 229, 0.55); --g-claimed: rgba(224, 190, 112, 0.6); --g-waiting: rgba(255, 255, 255, 0.6); --moot: rgba(255, 255, 255, 0.35);
     --own-0: #5aa8ec; --own-1: #f0b43c; --own-2: #3cc59a; --own-3: #ea86c4; --own-4: #4fd1d9; --own-5: #f08a4b; --own-6: #cbb26b; --own-7: #a98ef0; --own-other: #c3c9d0; --own-none: #3a414a;
   }
 }
@@ -111,12 +109,15 @@
      press this"; the waiting states are greys. Every state also has its own mark shape. */
   --done: var(--text-success); --blocked: var(--text-error); --held: var(--text-warning); --active: var(--text-information);
   --ready: var(--text-strong); --waiting: var(--text-weak); --crit: var(--text-strong);
-  --g-inprog: var(--text-information); --g-blocked: var(--text-error);
+  /* an epic blocked by what it waits on is the neutral grey the Board gives a task waiting on
+     another, not the error tone: most of a plan waits, and that is no fault */
+  --g-inprog: var(--text-information); --g-blocked: var(--icon-neutral);
   --g-anc: var(--text-information); --g-desc: var(--text-success); --g-back: var(--stroke-strong);
-  /* deviation, graph canvas only: specced and claimed are their stage's tone at a lighter
-     alpha, and moot a lighter grey, so the nine node states stay told apart on the canvas
+  /* the graph's other states, each a DESIGN.md token: specced and claimed are their stage's
+     tone in its icon strength, waiting the weak text and moot the disabled one (lifted to 3:1
+     by tpPure.nudgeContrast), so the nine node states stay told apart on the canvas
      (TestPage_TheStatusHuesReadBeforeTheNudgeAndStayApart); each also keeps its mark shape */
-  --g-specced: rgba(26, 116, 168, 0.6); --g-claimed: rgba(143, 108, 26, 0.6); --g-waiting: rgba(0, 9, 51, 0.65); --moot: rgba(0, 17, 102, 0.32);
+  --g-specced: var(--icon-information); --g-claimed: var(--icon-warning); --g-waiting: var(--text-weak); --moot: var(--text-disabled);
   /* deviation, graph canvas and its legend only: colour by owner is a categorical palette of
      eight slots, since an owner is a category and not a status; the switch is off by default */
   --own-0: #0b6fb8; --own-1: #d4860a; --own-2: #0a8f6a; --own-3: #c2418f; --own-4: #00838f; --own-5: #c84f12; --own-6: #7b6a2e; --own-7: #6a4fc0; --own-other: #3d4757; --own-none: #e6dccb;
