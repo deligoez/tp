@@ -12,7 +12,8 @@ import (
 // change to dashboard-ux.md §2: the drawer slides in over the page from
 // the right, a dimmed backdrop behind it, and the page keeps its width;
 // a click on the backdrop closes it, as Esc does; a phone keeps the bottom
-// sheet, which takes its height from below.
+// sheet, which takes its height from below. Over a graph that draws the
+// selection's chain the drawer opens with no backdrop (tpPure.drawerDims).
 func TestPage_TheDrawerIsAnOverlayOverADimmedPage(t *testing.T) {
 	t.Parallel()
 	page, script := pageText(t)
@@ -21,7 +22,7 @@ func TestPage_TheDrawerIsAnOverlayOverADimmedPage(t *testing.T) {
 	assert.Contains(t, page, "@keyframes drawer-in")
 	assert.NotContains(t, page, "body.dopen { padding-right: var(--drawer-w); }")
 	assert.Contains(t, page, "body.dopen { padding-right: 0; padding-bottom: var(--drawer-h); }")
-	for _, s := range []string{`$("scrim").hidden = !open;`, `$("scrim").addEventListener("click", closeDrawer);`} {
+	for _, s := range []string{`$("scrim").hidden = !open || !tpPure.drawerDims(kind, work.tview);`, `$("scrim").addEventListener("click", closeDrawer);`} {
 		assert.Contains(t, script, s)
 	}
 }
