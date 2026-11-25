@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -310,6 +311,10 @@ func LandCommitTaskFile(root, taskFile, msg string) (string, error) {
 // it at a stand-in.
 var hcBinary = "hc"
 
+// ErrHCNotFound is LandCommitTaskFileHC finding no hc to run: the land
+// stands, and the task file is left for the agent to commit.
+var ErrHCNotFound = errors.New("hc is not on PATH")
+
 // LandCommitTaskFileHC is LandCommitTaskFile under the hc commit_strategy: it
 // hands hc a one-commit plan naming the task file alone, the rest of the tree
 // left unplanned, so a project whose every commit goes through hc gets the
@@ -339,7 +344,11 @@ func hcCommitPaths(root string, paths []string, msg, what string) (string, error
 	if err != nil {
 		return "", err
 	}
-	cmd := exec.Command(hcBinary, "run", "-")
+	bin, err := exec.LookPath(hcBinary)
+	if err != nil {
+		return "", ErrHCNotFound
+	}
+	cmd := exec.Command(bin, "run", "-")
 	cmd.Dir = root
 	cmd.Stdin = bytes.NewReader(plan)
 	if out, err := cmd.CombinedOutput(); err != nil {

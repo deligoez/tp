@@ -157,7 +157,11 @@ func (l *lander) commitTaskFile() {
 	sha, err := commit(l.root, l.taskFile, landCommitMessage(l.res))
 	if err != nil {
 		l.res.TaskFileChanged = l.relFile()
-		l.res.CommitError = err.Error()
+		// No hc to run leaves the file for the agent, as before 1.32.0;
+		// only a commit that ran and failed is an error.
+		if !errors.Is(err, engine.ErrHCNotFound) {
+			l.res.CommitError = err.Error()
+		}
 		return
 	}
 	l.res.Commit = sha
