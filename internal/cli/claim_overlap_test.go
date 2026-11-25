@@ -48,3 +48,19 @@ func TestNext_PassesOverATaskOverlappingAClaim(t *testing.T) {
 	assert.Equal(t, "open", taskState(t, dir, "t2")["status"])
 }
 
+// TestNext_ReportsNoneWhenEveryReadyTaskOverlapsAClaim: with t4 done, the
+// only ready task t2 overlaps the held t1, so tp next claims nothing, exits
+// 4 and names t1 as the agent-held task.
+func TestNext_ReportsNoneWhenEveryReadyTaskOverlapsAClaim(t *testing.T) {
+	t.Parallel()
+	dir := overlapRepo(t)
+	_, stderr, code := runTP(t, dir, "done", "t4", "t4 was finished before t1 was claimed", "--gate-passed")
+	require.Equal(t, 0, code, stderr)
+	holdT1(t, dir)
+
+	stdout, _, code := runTP(t, dir, "next")
+	assert.Equal(t, 4, code, "no task is claimable: %s", stdout)
+	assert.Contains(t, stdout, `"t1"`, "the holder is named")
+	assert.Equal(t, "open", taskState(t, dir, "t2")["status"])
+}
+
