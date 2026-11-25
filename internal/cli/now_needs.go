@@ -41,21 +41,22 @@ var runStopTexts = map[engine.StopReason]string{
 // their needs, so it adds none. The id is the last unit's, the one the stop
 // is about.
 func runNeeds(st *engine.RunState, runState string, escalations []nowNeed) []nowNeed {
-	var text string
+	var text, code string
 	switch {
 	case runState == runStateCrashed:
-		text = "The last run stopped without finishing: its driver is gone."
+		text, code = "The last run stopped without finishing: its driver is gone.", runStateCrashed
 	case st.StopReason == nil, *st.StopReason == engine.StopConverged, *st.StopReason == engine.StopNoUnits:
 		return nil
 	case *st.StopReason == engine.StopEscalation && len(escalations) > 0:
 		return nil
 	default:
 		var ok bool
+		code = string(*st.StopReason)
 		if text, ok = runStopTexts[*st.StopReason]; !ok {
 			text = fmt.Sprintf("The run stopped (%s).", *st.StopReason)
 		}
 	}
-	need := nowNeed{Kind: needRun, Text: text}
+	need := nowNeed{Kind: needRun, Text: text, Code: code}
 	if u := lastRunUnit(st); u != nil {
 		need.ID = u.ID
 	}
@@ -131,7 +132,13 @@ func escalationNeed(e *engine.Escalation) nowNeed {
 	if e.Decision == engine.EscalateOther {
 		kind = needEscalation
 	}
-	return nowNeed{Kind: kind, ID: e.UnitID, Text: escalationTexts[e.Decision]}
+	return nowNeed{Kind: kind, ID: e.UnitID, Text: escalationTexts[e.Decision], Code: e.Decision}
+}
+
+// landNeed is the need a land request waiting for tp land leaves: the task
+// it lands.
+func landNeed(id string) nowNeed {
+	return nowNeed{Kind: needLand, ID: id, Text: "A finished task waits to be landed onto this branch.", Code: "land-request"}
 }
 
 // blockerNeeds turns tp resume's blockers into needs_you entries. Each text
@@ -150,9 +157,20 @@ func blockerNeeds(blockers []engine.Blocker) []nowNeed {
 	return out
 }
 
-// blockerNeed words one escalate blocker. A blocker whose data names an
-// operator decision is of kind decision; a round cap, of kind cap.
+// blockerNeed is one escalate blocker's need, coded by the blocker's own
+// code unless its wording names a better one.
 func blockerNeed(b *engine.Blocker) nowNeed {
+	need := blockerNeedText(b)
+	if need.Code == "" {
+		need.Code = b.Code
+	}
+	return need
+}
+
+// blockerNeedText words one escalate blocker. A blocker whose data names an
+// operator decision is of kind decision; a round cap, of kind cap, coded by
+// the workflow field that sets it.
+func blockerNeedText(b *engine.Blocker) nowNeed {
 	kind := needBlocker
 	if _, ok := b.Data["operator"]; ok {
 		kind = needDecision
@@ -172,9 +190,9 @@ func blockerNeed(b *engine.Blocker) nowNeed {
 	case "review-carried-blocking":
 		return nowNeed{Kind: kind, Text: "A blocking review finding from an earlier round is still unresolved."}
 	case "review-budget-exhausted":
-		return nowNeed{Kind: needCap, Text: "The spec review reached its round limit with findings still open."}
+		return nowNeed{Kind: needCap, Code: "review_max_rounds", Text: "The spec review reached its round limit with findings still open."}
 	case "audit-budget-exhausted":
-		return nowNeed{Kind: needCap, Text: "The audit reached its round limit with findings still open."}
+		return nowNeed{Kind: needCap, Code: "audit_max_rounds", Text: "The audit reached its round limit with findings still open."}
 	case "spec-stale":
 		if kind == needDecision {
 			return nowNeed{Kind: kind, Text: "The spec changed after its last review, and the next review round needs your decision."}

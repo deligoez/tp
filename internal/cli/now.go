@@ -39,6 +39,11 @@ type nowNeed struct {
 	Kind string `json:"kind"`
 	Text string `json:"text"`
 	ID   string `json:"id,omitempty"`
+	// Code names what the need is about in a word that does not change with
+	// the text, so a reader can word it in its own language: a run's stop
+	// reason or crashed, a decision's name, a blocker's code, a cap's
+	// workflow field, land-request.
+	Code string `json:"code,omitempty"`
 }
 
 // nowCounts is tp status's counts of the task file.
@@ -178,8 +183,7 @@ func buildNow(taskFilePath string, tf *model.TaskFile) (*nowResult, error) {
 	res.Landing = nowLandings(taskFilePath, tf)
 	res.NeedsYou = append(blockerNeeds(resume.Blockers), escalations...)
 	for _, l := range res.Landing {
-		res.NeedsYou = append(res.NeedsYou, nowNeed{Kind: needLand, ID: l.ID,
-			Text: "A finished task waits to be landed onto this branch."})
+		res.NeedsYou = append(res.NeedsYou, landNeed(l.ID))
 	}
 	res.Epics = nowEpics(root)
 	return res, nil
