@@ -203,11 +203,20 @@ async function refresh($: EngineInterface, retry: boolean): Promise<RunView | nu
   return view
 }
 
-// isLive: a held task or a run in flight is read every few seconds.
+// isLive: a run in flight, or a task a run or an agent holds, is read every
+// few seconds; a task the person holds only while the pane is drawn.
 async function isLive($: EngineInterface): Promise<boolean> {
   const now = await read($, nowState)
   const view = await read($, run)
-  return (now?.held.length ?? 0) > 0 || view?.run_state === 'in_flight'
+  if (view?.run_state === 'in_flight') return true
+  const held = now?.held ?? []
+  if (held.some(task => task.holder === 'run' || task.holder === 'agent')) return true
+  if (held.length === 0) return false
+  // Only the person's own work is held: worth the fast read only while the
+  // pane is drawn. The engine's pane record answers that, and it follows a
+  // reload, a close by hand and a pane that waited undrawn.
+  const panes = await $.ui.panes().catch(() => [])
+  return panes.some(pane => pane.id === PANE && pane.isPlaced)
 }
 
 // openTask shows one task and asks `tp show` for what the lists do not
