@@ -1185,3 +1185,27 @@ func TestLandKeepsAConflictBranchWithAnUnpickedCommit(t *testing.T) {
 	assert.DirExists(t, wt)
 	assert.NotEmpty(t, gitRun(t, dir, "branch", "--list", "agent-t1"), "the conflict branch is kept")
 }
+
+// A conflict branch amended in its old worktree after the fresh agent picked
+// it is kept once the task lands: the amend keeps the author, author date
+// and message a cherry-pick keeps, but moves the branch off the tip recorded
+// with the conflict, and the amended commit holds work no land picked.
+func TestLandKeepsAConflictBranchAmendedAfterThePick(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "")
+	conflictThenResolve(t, dir, wt)
+	require.NoError(t, os.WriteFile(filepath.Join(wt, "precious.txt"), []byte("precious\n"), 0o600))
+	gitIn(t, wt, "add", "precious.txt")
+	gitIn(t, wt, "commit", "-q", "--amend", "--no-edit")
+	amended := gitRun(t, wt, "rev-parse", "HEAD")
+
+	stdout, stderr, code := runTP(t, dir, "land")
+	require.Equal(t, 0, code, stdout+stderr)
+	var res landPrunes
+	require.NoError(t, json.Unmarshal([]byte(stdout), &res), stdout)
+	require.Len(t, res.Kept, 1, stdout)
+	assert.Equal(t, "agent-t1", res.Kept[0].Branch)
+	assert.Contains(t, res.Kept[0].Reason, amended, "the reason names the tip the branch moved to")
+	assert.FileExists(t, filepath.Join(wt, "precious.txt"), "the amended work stays")
+	assert.NotEmpty(t, gitRun(t, dir, "branch", "--list", "agent-t1"), "the conflict branch is kept")
+}
