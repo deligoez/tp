@@ -1266,3 +1266,43 @@ func TestLandKeepsAConflictBranchWithTwoSameKeyCommitsOnePicked(t *testing.T) {
 	assert.Contains(t, res.Kept[0].Reason, second, "the reason names the commit the pick left behind")
 	assert.NotEmpty(t, gitRun(t, dir, "branch", "--list", "agent-t1"), "the conflict branch is kept")
 }
+
+// dropTaskField removes field from task id in dir's spec.tasks.json, as a
+// task file written before tp recorded that field reads.
+func dropTaskField(t *testing.T, dir, id, field string) {
+	t.Helper()
+	path := filepath.Join(dir, "spec.tasks.json")
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	var tf map[string]any
+	require.NoError(t, json.Unmarshal(data, &tf))
+	for _, raw := range tf["tasks"].([]any) {
+		if task := raw.(map[string]any); task["id"] == id {
+			delete(task, field)
+		}
+	}
+	data, err = json.MarshalIndent(tf, "", "  ")
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path, data, 0o600))
+}
+
+// A conflict branch recorded without its tip, by a tp from before
+// conflict_sha, is kept once the task lands and named: nothing says the
+// branch still stands where the conflict left it.
+func TestLandKeepsAConflictBranchRecordedWithoutItsTip(t *testing.T) {
+	t.Parallel()
+	dir, wt := landRepo(t, "")
+	conflictThenResolve(t, dir, wt)
+	require.NotEmpty(t, taskState(t, dir, "t1")["conflict_sha"], "the conflict recorded the branch's tip")
+	dropTaskField(t, dir, "t1", "conflict_sha")
+
+	stdout, stderr, code := runTP(t, dir, "land")
+	require.Equal(t, 0, code, stdout+stderr)
+	var res landPrunes
+	require.NoError(t, json.Unmarshal([]byte(stdout), &res), stdout)
+	require.Len(t, res.Kept, 1, stdout)
+	assert.Equal(t, "agent-t1", res.Kept[0].Branch)
+	assert.Contains(t, res.Kept[0].Reason, "no tip", "the reason says no tip was recorded")
+	assert.DirExists(t, wt)
+	assert.NotEmpty(t, gitRun(t, dir, "branch", "--list", "agent-t1"), "the conflict branch is kept")
+}
