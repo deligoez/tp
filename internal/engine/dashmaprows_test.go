@@ -216,3 +216,23 @@ func TestMapRows_ReportsTheWidthItLaysOut(t *testing.T) {
 	assert.InDelta(t, hi+1, got.Width, 0)
 	assert.Less(t, got.Width, in.Width)
 }
+
+// TestMapRows_BlocksOfARowStartLevel: B's epics depend on A's and sit on
+// the row's later layers, yet B's block starts at the row's first y beside
+// A's, keeping its own shape, and the row ends where its tallest block
+// does.
+func TestMapRows_BlocksOfARowStartLevel(t *testing.T) {
+	t.Parallel()
+	in := mapInput(20, []LayoutBand{{Name: "A", From: 0, To: 1}, {Name: "B", From: 1, To: 3}},
+		mapNode{"a0", "A", 0, 0}, mapNode{"a1", "A", 1, 0},
+		mapNode{"b2", "B", 2, 5}, mapNode{"b3", "B", 3, 5})
+	got := MapRows(&in)
+	require.Len(t, got.Rows, 1)
+	a, b := mapBlockOf(t, got.Blocks, "A"), mapBlockOf(t, got.Blocks, "B")
+	assert.InDelta(t, a.LineY+1, a.FromY, 0)
+	assert.InDelta(t, a.FromY, b.FromY, 0, "both blocks start at the row's first y")
+	assert.InDelta(t, got.Places["b2"].Y+1, got.Places["b3"].Y, 0, "B keeps its own shape")
+	assert.InDelta(t, b.FromY, got.Places["b2"].Y, 0)
+	assert.InDelta(t, max(a.ToY, b.ToY), got.Rows[0].ToY, 0)
+	assert.InDelta(t, got.Rows[0].ToY+1, got.Height, 0)
+}
