@@ -91,6 +91,17 @@ func TestCarriedBlockingClause_CountsAndWordsEachKind(t *testing.T) {
 	assert.NotContains(t, twoFixed, "unresolved")
 }
 
+// Inside a run (TP_ROUND set) a carried fixed row names no next-round commands:
+// the run emits that round, and a unit that ran them would exit 2.
+func TestCarriedBlockingClause_FixedUnderARunNamesNoRoundCommand(t *testing.T) {
+	t.Setenv(EnvRound, "3")
+	fixed := earlierHigh()
+	fixed.Disposition = CarryResolved
+	clause := CarriedBlockingClause([]CarriedRow{fixed}, "spec.md", false)
+	assert.NotContains(t, clause, "tp review spec.md")
+	assert.Contains(t, clause, "the run emits the next review round")
+}
+
 // TestReviewNextAction_AnUnresolvedCarriedRowNamesTheStepAfterIt: with no row
 // marked fixed, the carried clause goes on to the step that follows its
 // disposition — the check gate below the cap, the import at it.
