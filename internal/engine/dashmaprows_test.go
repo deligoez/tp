@@ -273,3 +273,21 @@ func TestMapRows_ARowsLinesCentreOnEachOther(t *testing.T) {
 	a, b, c := mapBlockOf(t, got.Blocks, "A"), mapBlockOf(t, got.Blocks, "B"), mapBlockOf(t, got.Blocks, "C")
 	assert.InDelta(t, (a.FromCol+b.ToCol)/2, (c.FromCol+c.ToCol)/2, 0)
 }
+
+// TestMapRows_AFoldedLayersLastSubLineIsCentred: ten epics on one layer
+// fold onto a full sub-line of eight and a second of two, and those two
+// sit in the middle of the block, not at its left edge.
+func TestMapRows_AFoldedLayersLastSubLineIsCentred(t *testing.T) {
+	t.Parallel()
+	var nodes []mapNode
+	for i := range 10 {
+		nodes = append(nodes, mapNode{fmt.Sprintf("n%d", i), "A", 0, float64(i)})
+	}
+	in := mapInput(10, []LayoutBand{{Name: "A", From: 0, To: 0}}, nodes...)
+	got := MapRows(&in)
+	a := mapBlockOf(t, got.Blocks, "A")
+	assert.InDelta(t, a.FromCol, got.Places["n0"].X, 0)
+	assert.InDelta(t, got.Places["n0"].Y+1, got.Places["n8"].Y, 0)
+	assert.InDelta(t, a.FromCol+3, got.Places["n8"].X, 0)
+	assert.InDelta(t, a.FromCol+4, got.Places["n9"].X, 0)
+}
