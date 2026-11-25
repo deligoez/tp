@@ -93,6 +93,7 @@ func TestWontfixCarry_ARowCitingNoFileIsAskedAgain(t *testing.T) {
 func TestWontfixCarry_TheRecordWritesTheCarriedRow(t *testing.T) {
 	t.Parallel()
 	dir, codeID := wontfixCarryRepo(t, "2021-01-01T00:00:00Z")
+	emitSecurityPrompt(t, dir)
 	otherPass := `{"item_id":"` + engine.FileCheckItemID("security", "other.go") + `","status":"PASS","role":"security",` +
 		`"evidence_file":"other.go","evidence_lines":"1-2","category":null,"severity":null,"notes":""}` + "\n"
 
