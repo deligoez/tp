@@ -117,12 +117,14 @@ const KIND_TR: Record<string, string> = {
 }
 
 const STOP_EN: Record<string, string> = {
+  converged: 'the work is done',
   'cap-units': 'the unit cap was reached',
   'cap-wall-clock': 'the time cap was reached',
   'cap-budget': 'the budget cap was reached',
   escalation: 'a decision waits for you',
   'unit-failure': 'a unit failed',
   'no-units': 'no work was left to start',
+  interrupted: 'the run was interrupted',
   'driver-error': 'the driver failed',
   'worktree-setup-failed': 'a worktree could not be set up',
 }
