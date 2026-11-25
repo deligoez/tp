@@ -1,4 +1,4 @@
-import type { Lang, TaskCounts, ViewName } from '../types'
+import type { Lang, NeedsYou, TaskCounts, ViewName } from '../types'
 
 // The panel's words in its two languages (spec/backlog/panel-dashboard.md):
 // every word the pane draws comes from here, so a language is one table.
@@ -46,6 +46,9 @@ export type Words = {
   stopped: (reason: string) => string
   noRun: string
   need: (kind: string) => string
+  // needText words a need from its code, or nothing for a code it has no
+  // words for (tp's own text is shown then).
+  needText: (need: NeedsYou) => string | undefined
   holder: (holder: string) => string
   runLive: (age: string) => string
   needsYou: string
@@ -162,6 +165,95 @@ const NEED_TR: Record<string, string> = {
   run: 'Koşu',
 }
 
+// A need's sentence by its code, said after the kind's label. A key is
+// `kind:code` where the kind changes the sentence (a run's stop reason, an
+// epic blocker that only you can clear), else the bare code: a decision's
+// name arrives as kind decision or escalation, a blocker's code as blocker or
+// decision. Each takes the need's id, empty when it has none. tp's
+// runStopTexts, escalationTexts and blockerNeed (internal/cli/now_needs.go)
+// say the same in English.
+type Say = (id: string) => string
+
+const NEED_TEXT_EN: Record<string, Say> = {
+  'run:crashed': () => 'Stopped without finishing: its driver is gone.',
+  'run:cap-units': () => 'Stopped at its limit on units.',
+  'run:cap-wall-clock': () => 'Stopped at its time limit.',
+  'run:cap-budget': () => 'Stopped at its spending limit.',
+  'run:escalation': () => 'Stopped on a unit\'s question, and the question cannot be read.',
+  'run:unit-failure': id => `Stopped: ${id || 'a unit'} failed every attempt.`,
+  'run:interrupted': () => 'Interrupted before it finished.',
+  'run:driver-error': () => 'Stopped on an error of its own.',
+  'run:worktree-setup-failed': id => `Stopped: setting up a worktree for ${id || 'a unit'} failed.`,
+  'skip-gate': id => `${id || 'A unit'} asks to skip the quality gate.`,
+  'raise-review-cap': id => `${id || 'A unit'} asks to raise the spec review's round limit.`,
+  'raise-audit-cap': id => `${id || 'A unit'} asks to raise the audit's round limit.`,
+  'raise-found-cap': id => `${id || 'A unit'} asks to raise the limit on found tasks.`,
+  'import-force': id => `${id || 'A unit'} asks to overwrite the task list.`,
+  'audit-converge-on': id => `${id || 'A unit'} asks to let the audit finish on blocking findings only.`,
+  'accept-finding': id => `${id || 'A unit'} asks to accept a finding without a change.`,
+  'discard-emission': id => `${id || 'A unit'} asks to discard a round nobody recorded.`,
+  'epic-done': id => `${id || 'A unit'} asks to mark an epic as done.`,
+  'gate-met': id => `${id || 'A unit'} asks to mark a milestone gate as met.`,
+  'epic-binding': id => `${id || 'A unit'} asks to bind the task file to an epic.`,
+  'grant-round': id => `${id || 'A unit'} asks for one more epic review round.`,
+  'rewrite-past-blocking': id => `${id || 'A unit'} asks to start the spec over past an unresolved blocking finding.`,
+  other: id => `${id || 'A unit'} stopped the run and needs your decision.`,
+  'no-ready-task': () => 'No task is ready: the open tasks wait on unfinished dependencies or a hold.',
+  'blocker:epic-blocked': id => `No task can start: ${id ? `epic ${id}` : 'an epic'} waits on other epics to finish.`,
+  'decision:epic-blocked': id =>
+    `No task can start: ${id ? `epic ${id}` : 'an epic'} waits on a condition only you can mark as met.`,
+  'review-carried-blocking': () => 'A blocking review finding from an earlier round is still unresolved.',
+  'blocker:spec-stale': () => 'The spec changed after its last review and needs a new review round.',
+  'decision:spec-stale': () => 'The spec changed after its last review, and the next review round needs your decision.',
+  'cap:review_max_rounds': () => 'The spec review reached its round limit with findings still open.',
+  'cap:audit_max_rounds': () => 'The audit reached its round limit with findings still open.',
+  'land:land-request': id => `${id || 'A finished task'} waits to be landed onto this branch.`,
+}
+
+const NEED_TEXT_TR: Record<string, Say> = {
+  'run:crashed': () => 'Bitmeden durdu, sürücüsü artık çalışmıyor.',
+  'run:cap-units': () => 'Birim sınırına ulaşınca durdu.',
+  'run:cap-wall-clock': () => 'Süre sınırına ulaşınca durdu.',
+  'run:cap-budget': () => 'Harcama sınırına ulaşınca durdu.',
+  'run:escalation': () => 'Bir birimin sorusu yüzünden durdu, ama soru okunamıyor.',
+  'run:unit-failure': id => `${id || 'Bir birim'} her denemede başarısız olunca durdu.`,
+  'run:interrupted': () => 'Bitmeden yarıda kesildi.',
+  'run:driver-error': () => 'Kendi hatası yüzünden durdu.',
+  'run:worktree-setup-failed': id => `${id || 'Bir birim'} için çalışma ağacı hazırlanamayınca durdu.`,
+  'skip-gate': id => `${id || 'Bir birim'} kalite kapısını atlamak istiyor.`,
+  'raise-review-cap': id => `${id || 'Bir birim'} spec incelemesinin tur sınırını yükseltmek istiyor.`,
+  'raise-audit-cap': id => `${id || 'Bir birim'} denetimin tur sınırını yükseltmek istiyor.`,
+  'raise-found-cap': id => `${id || 'Bir birim'} bulunan görevlerin sınırını yükseltmek istiyor.`,
+  'import-force': id => `${id || 'Bir birim'} görev listesinin üzerine yazmak istiyor.`,
+  'audit-converge-on': id => `${id || 'Bir birim'} denetimin yalnız engelleyici bulgulara bakarak bitmesini istiyor.`,
+  'accept-finding': id => `${id || 'Bir birim'} bir bulguyu değişiklik yapmadan kabul etmek istiyor.`,
+  'discard-emission': id => `${id || 'Bir birim'} kimsenin kaydetmediği bir turu silmek istiyor.`,
+  'epic-done': id => `${id || 'Bir birim'} bir epiği bitti olarak işaretlemek istiyor.`,
+  'gate-met': id => `${id || 'Bir birim'} bir kilometre taşı kapısını karşılandı olarak işaretlemek istiyor.`,
+  'epic-binding': id => `${id || 'Bir birim'} görev dosyasını bir epiğe bağlamak istiyor.`,
+  'grant-round': id => `${id || 'Bir birim'} bir epik inceleme turu daha istiyor.`,
+  'rewrite-past-blocking': id => `${id || 'Bir birim'} çözülmemiş engelleyici bir bulguya rağmen spec'i baştan başlatmak istiyor.`,
+  other: id => `${id || 'Bir birim'} koşuyu durdurdu, kararını bekliyor.`,
+  'no-ready-task': () => 'Hazır görev yok: açık görevler bitmemiş bağımlılıkları ya da bir bekletmenin kalkmasını bekliyor.',
+  'blocker:epic-blocked': id => `Hiçbir görev başlayamıyor: ${id ? `${id} epiği` : 'bir epik'} başka epiklerin bitmesini bekliyor.`,
+  'decision:epic-blocked': id =>
+    `Hiçbir görev başlayamıyor: ${id ? `${id} epiği` : 'bir epik'} yalnız senin karşılandı diyebileceğin bir koşulu bekliyor.`,
+  'review-carried-blocking': () => 'Önceki bir turdan kalan engelleyici bir inceleme bulgusu hâlâ çözülmedi.',
+  'blocker:spec-stale': () => 'Spec son incelemeden sonra değişti, yeni bir inceleme turu gerekiyor.',
+  'decision:spec-stale': () => 'Spec son incelemeden sonra değişti, sıradaki inceleme turu kararını bekliyor.',
+  'cap:review_max_rounds': () => 'Spec incelemesi tur sınırına ulaştı, açık bulgular var.',
+  'cap:audit_max_rounds': () => 'Denetim tur sınırına ulaştı, açık bulgular var.',
+  'land:land-request': id => `${id || 'Biten bir görev'} bu dala birleştirilmeyi bekliyor.`,
+}
+
+// sayNeed finds a need's sentence in table: by its kind and code, then by
+// the code alone; nothing without a code or for one the table lacks.
+function sayNeed(table: Record<string, Say>, need: NeedsYou): string | undefined {
+  if (!need.code) return undefined
+  const say = table[`${need.kind}:${need.code}`] ?? table[need.code]
+  return say?.(need.id ?? '')
+}
+
 // holder: who holds a task in wip, a live run, a spawned agent, or the person.
 const HOLDER_TR: Record<string, string> = { run: 'koşu', agent: 'ajan', you: 'sen' }
 
@@ -182,6 +274,7 @@ const EN: Words = {
   stopped: reason => `Stopped: ${reason}`,
   noRun: 'No run in this project yet.',
   need: kind => NEED_EN[kind] ?? kind,
+  needText: need => sayNeed(NEED_TEXT_EN, need),
   holder: holder => holder,
   runLive: age => `run in progress${age ? ` (${age})` : ''}`,
   needsYou: 'Needs you',
@@ -227,6 +320,7 @@ const TR: Words = {
   stopped: reason => `Durdu: ${reason}`,
   noRun: 'Bu projede henüz koşu yok.',
   need: kind => NEED_TR[kind] ?? kind,
+  needText: need => sayNeed(NEED_TEXT_TR, need),
   holder: holder => HOLDER_TR[holder] ?? holder,
   runLive: age => `koşu sürüyor${age ? ` (${age})` : ''}`,
   needsYou: 'Seni bekleyen',
@@ -261,4 +355,11 @@ export const WORDS: Record<Lang, Words> = { en: EN, tr: TR }
 // ("inceleme" is "İnceleme" in Turkish).
 export function capital(text: string, lang: Lang): string {
   return text.charAt(0).toLocaleUpperCase(lang) + text.slice(1)
+}
+
+// needLine is a need as the pane draws it: the kind's label, then the
+// sentence its code says, or tp's own text for a code without words.
+export function needLine(need: NeedsYou, lang: Lang): string {
+  const w = WORDS[lang]
+  return `${w.need(need.kind)}: ${w.needText(need) ?? need.text}`
 }
