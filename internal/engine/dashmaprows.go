@@ -37,12 +37,14 @@ type MapPlace struct {
 }
 
 // MapBlock is one group's block in one row: the row and the line of it the
-// block sits on, the layers its nodes take, the columns and y units the
-// block takes, inclusive, and its node count.
+// block sits on, that line's header y (where the block's label goes), the
+// layers its nodes take, the columns and y units its nodes take, inclusive,
+// and its node count.
 type MapBlock struct {
 	Milestone string  `json:"milestone"`
 	Row       int     `json:"row"`
 	Line      int     `json:"line"`
+	LineY     float64 `json:"line_y"`
 	FromLayer int     `json:"from_layer"`
 	ToLayer   int     `json:"to_layer"`
 	FromCol   float64 `json:"from_col"`
@@ -245,7 +247,9 @@ func mapPlaceLine(in *MapRowsInput, out *MapRowsLayout, line []*mapBlock, span, 
 		y += float64(lines)
 	}
 	for i, b := range line {
-		out.Blocks = append(out.Blocks, mapPlaceBlock(out, b, shift, layerY, at))
+		blk := mapPlaceBlock(out, b, shift, layerY, at)
+		blk.LineY = top
+		out.Blocks = append(out.Blocks, blk)
 		if i > 0 {
 			prev := line[i-1]
 			x := shift + (prev.x+float64(prev.width)+b.x)/2 - 0.5
