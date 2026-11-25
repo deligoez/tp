@@ -60,6 +60,9 @@ type Origin struct {
 	AuditRound int    `json:"audit_round,omitempty"`
 	AuditRow   string `json:"audit_row,omitempty"`
 	Location   string `json:"location"`
+	// QueueEntry names the queue entry the person settled into this task
+	// (spec/1.31.0.md §6); such a task does not count against found_max.
+	QueueEntry string `json:"queue_entry,omitempty"`
 }
 
 // FoundNote is a request attached to an open task in place of a found task of
