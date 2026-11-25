@@ -83,7 +83,16 @@ func runFoundApply() error {
 	}
 	foundMax := engine.EffectiveWorkflowForTaskFile(taskFilePath).FoundMax
 	root := engine.CanonicalProjectRoot(filepath.Dir(taskFilePath))
-	plan, err := applyFoundRequests(root, taskFilePath, foundMax, engine.FoundRunningUnits(root, taskFilePath, implementUnitTask()))
+	running, err := engine.FoundRunningUnits(root, taskFilePath, implementUnitTask())
+	if err != nil {
+		// Without knowing which units run, apply could reopen a finder a live
+		// unit holds, so it applies nothing.
+		output.Error(ExitFile, "cannot tell which units run now, so nothing was applied: "+err.Error(),
+			"delete "+engine.RunStatePath(root, taskFilePath)+" if the run state is corrupt and no tp run is live, then rerun tp found apply")
+		os.Exit(ExitFile)
+		return nil
+	}
+	plan, err := applyFoundRequests(root, taskFilePath, foundMax, running)
 	if err != nil {
 		output.Error(ExitFile, "cannot apply the requests: "+err.Error(), foundStoreWriteHint)
 		os.Exit(ExitFile)

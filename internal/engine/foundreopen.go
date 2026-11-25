@@ -1,6 +1,10 @@
 package engine
 
 import (
+	"errors"
+	"fmt"
+	"io/fs"
+
 	"github.com/deligoez/tp/internal/model"
 )
 
@@ -52,25 +56,39 @@ func FoundFindersToReopen(reqs []FoundRequest, tasks []model.Task, queue []Found
 // implement units of a live tp run, its rolling pool's (LiveRunningUnits) and
 // a main-tree unit whose row has no exit code while the run holds its lock,
 // plus self, the calling implement unit's own task ("" when it is none).
-func FoundRunningUnits(root, taskFile, self string) map[string]bool {
+//
+// Only a missing run state reads as "no run". A run state that cannot be read
+// or parsed, or a run lock that cannot be probed (RunLockHeld returns that
+// rather than folding it), is an error: a reporting reader may treat a failed
+// probe as "nothing runs", but this answer decides which wip finders apply
+// returns to open, and a false "not running" would pull one from under a live
+// unit (round-4 findings 7 and 11).
+func FoundRunningUnits(root, taskFile, self string) (map[string]bool, error) {
 	running := map[string]bool{}
 	if self != "" {
 		running[self] = true
 	}
+	st, err := ReadRunState(root, taskFile)
+	if errors.Is(err, fs.ErrNotExist) {
+		return running, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read the run state: %w", err)
+	}
+	held, err := RunLockHeld(taskFile)
+	if err != nil {
+		return nil, fmt.Errorf("probe the run lock: %w", err)
+	}
 	for _, id := range LiveRunningUnits(root, taskFile) {
 		running[id] = true
 	}
-	st, err := ReadRunState(root, taskFile)
-	if err != nil || st.StopReason != nil {
-		return running
-	}
-	if held, lockErr := RunLockHeld(taskFile); lockErr != nil || !held {
-		return running
+	if st.StopReason != nil || !held {
+		return running, nil
 	}
 	for i := range st.Units {
 		if st.Units[i].Kind == UnitImplement && st.Units[i].ExitCode == nil {
 			running[st.Units[i].ID] = true
 		}
 	}
-	return running
+	return running, nil
 }
