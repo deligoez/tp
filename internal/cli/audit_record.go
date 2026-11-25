@@ -204,9 +204,19 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 		result["graded"] = graded
 	}
 	result["next_action"] = engine.GradedPrefix(graded) + engine.UnprovenReason(&st.AuditRounds[round-1]) +
-		engine.AuditNextAction(engine.RepoRelative(specPath), done, clean, findings, engine.LatestRoundFile(specPath, st.AuditRounds))
+		engine.AuditNextAction(engine.RepoRelative(specPath), done, clean, findings, engine.LatestRoundFile(specPath, st.AuditRounds)) +
+		lastAuditRound(wf.AuditMaxRounds, len(st.AuditRounds), done)
 	noteRecordWithoutEmission(engine.PhaseAudit, specPath, &st.AuditRounds[round-1], stale)
 	return output.JSON(result)
+}
+
+// lastAuditRound is engine.LastAuditRoundClause for a loop under capRounds
+// with recorded rounds, "" when uncapped.
+func lastAuditRound(capRounds, recorded int, done engine.LoopDone) string {
+	if capRounds <= 0 {
+		return ""
+	}
+	return engine.LastAuditRoundClause(capRounds-recorded, done)
 }
 
 // removeRoundInbox removes the just-recorded round's role files from the
@@ -560,7 +570,8 @@ func runAuditStatus(specPath string, check bool) error {
 		unproven = engine.UnprovenReason(&rounds[n-1])
 	}
 	result["next_action"] = engine.GradedPrefix(latestGraded) + unproven +
-		engine.AuditNextAction(engine.RepoRelative(specPath), done, latestClean, latestFindings, engine.LatestRoundFile(specPath, rounds))
+		engine.AuditNextAction(engine.RepoRelative(specPath), done, latestClean, latestFindings, engine.LatestRoundFile(specPath, rounds)) +
+		lastAuditRound(wf.AuditMaxRounds, len(rounds), done)
 
 	if jsonErr := output.JSON(result); jsonErr != nil {
 		// Exiting, not falling through: without this the process printed a
