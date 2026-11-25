@@ -323,6 +323,11 @@ func runTaskAuditRecord(specPath string) error {
 	}
 	rows := taskAuditRoleRows(specPath, rec)
 	entry := recordTaskAuditRows(specPath, rec, rows)
+	read := make(map[string][]string)
+	for _, role := range rec.Roles {
+		read[role] = taskAuditRoleFiles(specPath, rec.Seq, role)
+	}
+	removeNamedInboxFiles(read)
 	after := loadReviewStateOrExit(specPath)
 	return output.JSON(map[string]any{
 		"spec": specPath, "seq": entry.Seq, "file": entry.File, "findings": entry.Findings,

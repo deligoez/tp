@@ -136,7 +136,11 @@ func runReviewRecordInbox(specPath, harnessNote string) error {
 		output.Error(ExitFile, err.Error(), runtimeFailureHint)
 		os.Exit(ExitFile)
 	}
-	return runReviewRecord(specPath, merged, harnessNote)
+	if err := runReviewRecord(specPath, merged, harnessNote); err != nil {
+		return err
+	}
+	removeNamedInboxFiles(files)
+	return nil
 }
 
 // reviewRoleFiles finds each owed role's findings files: its whole file and

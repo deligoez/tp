@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/deligoez/tp/internal/engine"
+	"github.com/deligoez/tp/internal/output"
 )
 
 // perRoleReadingBudget is the per-role byte threshold (§10.7, default 12 KB)
@@ -67,6 +68,28 @@ func roleOutputPath(phase, specPath string, round int, role string) string {
 // that may not write inside the checkout. Every call of the round names it:
 // the emission, each sibling --role emission, and the --record-inbox.
 var flagInbox string
+
+// removeNamedInboxFiles removes, after a record, the role files it read from
+// a named inbox. The default inbox is the spec's own and is emptied by
+// engine.RemoveRoundInbox; a named one names no spec, so a file left there
+// would read as another spec's round of the same number. A file it cannot
+// remove is a notice: the round is recorded by now.
+func removeNamedInboxFiles(files map[string][]string) {
+	inbox := namedInbox()
+	if inbox == "" {
+		return
+	}
+	for _, paths := range files {
+		for _, p := range paths {
+			if !strings.HasPrefix(p, inbox+string(filepath.Separator)) {
+				continue
+			}
+			if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
+				output.Notice(fmt.Sprintf("warning: the round is recorded but %s could not be removed from the named inbox: %v", p, err))
+			}
+		}
+	}
+}
 
 // namedInbox is --inbox made absolute, so the prompt names a path that holds
 // from any working directory; "" when --inbox is not given.

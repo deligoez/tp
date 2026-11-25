@@ -86,7 +86,11 @@ func runAuditRecordInbox(specPath, harnessNote string) error {
 		output.Error(ExitFile, err.Error(), runtimeFailureHint)
 		os.Exit(ExitFile)
 	}
-	return runAuditRecord(specPath, merged, harnessNote)
+	if err := runAuditRecord(specPath, merged, harnessNote); err != nil {
+		return err
+	}
+	removeNamedInboxFiles(files)
+	return nil
 }
 
 // nextAuditRound is the audit round a record would write: one past the
