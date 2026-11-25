@@ -346,3 +346,18 @@ func TestRunStatus_LastFinishedIsTheLatestToEnd(t *testing.T) {
 	require.True(t, ok, "last_unit stays")
 	assert.Equal(t, "grow", unit["id"], "last_unit is still the latest to start")
 }
+
+// A run whose units have not exited reports last_finished as null.
+func TestRunStatus_LastFinishedIsNullWhileNoUnitExited(t *testing.T) {
+	t.Parallel()
+	dir := runProject(t)
+	writeRunState(t, dir, `{"run_id":"live","started_at":"2026-11-25T00:00:00Z","phase":"implement","stop_reason":"cap-units",
+ "totals":{"units":1,"wall_clock_seconds":0,"spend_usd":0},
+ "units":[{"seq":1,"kind":"implement","id":"seed","attempt":1,"exit_code":null,"duration_seconds":null,"spend_usd":null,"log_path":"x"}]}`)
+
+	stdout, stderr, code := runTP(t, dir, "run", "--status")
+	require.Equal(t, 0, code, "--status: %s", stderr)
+	st := decodeStatus(t, stdout)
+	assert.Contains(t, st, "last_finished", "the key is always present")
+	assert.Nil(t, st["last_finished"], "no unit has exited")
+}
