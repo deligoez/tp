@@ -93,7 +93,7 @@ func TestMapRows_ALayerIsCentredInItsBlock(t *testing.T) {
 }
 
 // TestMapRows_AWideLayerFoldsAndEveryLayerKeepsOneY: a layer of ten epics
-// folds its block to ceil(10/3) = 4 columns on three sub-lines, the next
+// folds onto two sub-lines of a block eight columns wide, the next
 // layer starts below all three for every block of the line, and every
 // edge from a layer to a later one still points down.
 func TestMapRows_AWideLayerFoldsAndEveryLayerKeepsOneY(t *testing.T) {
@@ -106,8 +106,8 @@ func TestMapRows_AWideLayerFoldsAndEveryLayerKeepsOneY(t *testing.T) {
 	in := mapInput(30, []LayoutBand{{Name: "W", From: 0, To: 2}, {Name: "V", From: 0, To: 2}}, nodes...)
 	got := MapRows(&in)
 	w := mapBlockOf(t, got.Blocks, "W")
-	assert.InDelta(t, 3.0, w.ToCol-w.FromCol, 0)
-	assert.InDelta(t, got.Places["w0"].Y+2, got.Places["w9"].Y, 0)
+	assert.InDelta(t, 7.0, w.ToCol-w.FromCol, 0)
+	assert.InDelta(t, got.Places["w0"].Y+1, got.Places["w9"].Y, 0)
 	assert.InDelta(t, got.Places["w9"].Y+1, got.Places["wz"].Y, 0)
 	assert.InDelta(t, got.Places["wz"].Y, got.Places["vz"].Y, 0, "layer 2 keeps one y across the line")
 	assert.Less(t, got.Places["w9"].Y, got.Places["vz"].Y)
