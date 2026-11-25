@@ -249,7 +249,7 @@ func TestPage_TheGraphDrawsOnlyDesignTokens(t *testing.T) {
 		"tree: [170, 150, 1.4], treeFar: [130, 120, 1.2]",
 	}
 	for _, file := range []string{"/graph.js", "/pure.js"} {
-		for _, line := range strings.Split(string(served(t, file)), "\n") {
+		for line := range strings.SplitSeq(string(served(t, file)), "\n") {
 			if !triple.MatchString(line) {
 				continue
 			}
