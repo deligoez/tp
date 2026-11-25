@@ -92,7 +92,7 @@ func allReadyIDs(tf *model.TaskFile, taskFilePath string) []string {
 	}
 	var ids []string
 	for i := range tf.Tasks {
-		if tf.Tasks[i].Startable(done) {
+		if tf.Tasks[i].Startable(done) && engine.ClaimOverlap(tf, &tf.Tasks[i]) == nil {
 			ids = append(ids, tf.Tasks[i].ID)
 		}
 	}
