@@ -211,6 +211,7 @@ const NEED_TEXT_EN: Record<string, Say> = {
   'cap:review_max_rounds': () => 'The spec review reached its round limit with findings still open.',
   'cap:audit_max_rounds': () => 'The audit reached its round limit with findings still open.',
   'land:land-request': id => `${id || 'A finished task'} waits to be landed onto this branch.`,
+  'no-active-file': () => 'Several task files and none is chosen as active.',
 }
 
 const NEED_TEXT_TR: Record<string, Say> = {
@@ -247,6 +248,7 @@ const NEED_TEXT_TR: Record<string, Say> = {
   'cap:review_max_rounds': () => 'Spec incelemesi tur sınırına ulaştı, açık bulgular var.',
   'cap:audit_max_rounds': () => 'Denetim tur sınırına ulaştı, açık bulgular var.',
   'land:land-request': id => `${id || 'Biten bir görev'} bu dala birleştirilmeyi bekliyor.`,
+  'no-active-file': () => 'Birkaç görev dosyası var, hiçbiri etkin olarak seçilmemiş.',
 }
 
 // sayNeed finds a need's sentence in table: by its kind and code, then by
