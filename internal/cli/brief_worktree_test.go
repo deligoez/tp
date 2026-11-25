@@ -41,7 +41,8 @@ func TestPoolBriefCloseNamesTheTaskFile(t *testing.T) {
 
 	// The recipe as printed, with its placeholders filled, closes the task.
 	recipe := strings.NewReplacer("<id>", "t1", "<sha>", sha).Replace("tp done <id> --file spec.tasks.json --commit <sha> --claim-token " + brief.ClaimToken)
-	args := append(strings.Fields(recipe)[1:], "--", "t1 acceptance criteria met")
+	args := strings.Fields(recipe)[1:]
+	args = append(args, "--", "t1 acceptance criteria met")
 	_, stderr, code = runTP(t, wt, args...)
 	assert.Equal(t, 0, code, stderr)
 }
