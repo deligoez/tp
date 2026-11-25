@@ -368,3 +368,24 @@ func TestAdd_RefusesUnresolvedSourceSection(t *testing.T) {
 	_, stderr, code = runTP(t, dir, "add", validEntryTask)
 	assert.Equal(t, 0, code, "an entry naming a real heading must still add: %s", stderr)
 }
+
+// TestAdd_RefusesWhenSpecHeadingsCannotBeParsed pins that the unresolved-anchor
+// refusal fails closed: a spec whose headings cannot be parsed (here one line
+// past bufio.Scanner's 64KB token limit) must refuse a task carrying
+// source_sections instead of skipping the check and writing it with exit 0.
+func TestAdd_RefusesWhenSpecHeadingsCannotBeParsed(t *testing.T) {
+	t.Parallel()
+	dir := initEntryProject(t)
+	long := entryValidationSpec + "\n" + strings.Repeat("x", 70*1024) + "\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(long), 0o600))
+
+	_, stderr, code := runTP(t, dir, "add",
+		`{"id":"t1","title":"T","estimate_minutes":5,"acceptance":"done","source_sections":["## 9. Catch-all"]}`)
+	assert.NotEqual(t, 0, code, "an unparseable spec must not let an unchecked anchor through: %s", stderr)
+	e := errJSON(t, stderr)
+	assert.Contains(t, e["error"], "spec headings", "error must say the spec headings could not be read")
+
+	tasks, _, code := runTP(t, dir, "list", "--json")
+	require.Equal(t, 0, code)
+	assert.NotContains(t, tasks, `"t1"`, "a refused add must write nothing")
+}
