@@ -396,6 +396,59 @@
       "recorded_at": "2026-11-25T00:13:13Z",
       "file": "task-audit-7.ndjson",
       "clean": true
+    },
+    {
+      "seq": 8,
+      "members": [
+        {
+          "id": "found-add-cmd",
+          "closed_at": "2026-11-25T00:43:14.969997Z",
+          "piece": 0,
+          "pieces": 1,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/cli/command_sides.go",
+            "internal/cli/found.go",
+            "internal/cli/found_add_test.go",
+            "internal/cli/nongoals_surface_test.go",
+            "internal/cli/root.go",
+            "internal/engine/foundrequest.go"
+          ]
+        },
+        {
+          "id": "unit-prompts-no-sweep",
+          "closed_at": "2026-11-25T00:56:49.965432Z",
+          "piece": 0,
+          "pieces": 1,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/engine/runnertemplate.go",
+            "internal/engine/runnertemplate_test.go"
+          ]
+        }
+      ],
+      "files": [
+        "internal/cli/command_sides.go",
+        "internal/cli/found.go",
+        "internal/cli/found_add_test.go",
+        "internal/cli/nongoals_surface_test.go",
+        "internal/cli/root.go",
+        "internal/engine/foundrequest.go",
+        "internal/engine/runnertemplate.go",
+        "internal/engine/runnertemplate_test.go"
+      ],
+      "roles": [
+        "go-safety"
+      ],
+      "head": "eba83ff67e1ab1bd77f1afeebb5b314f2365421f",
+      "emitted_at": "2026-11-25T01:01:01.187407Z",
+      "recorded_at": "2026-11-25T01:02:02Z",
+      "file": "task-audit-8.ndjson",
+      "clean": true
     }
   ]
 }
