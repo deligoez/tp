@@ -70,3 +70,37 @@ func TestWorktreeBriefSaysToUseAbsolutePaths(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(stdout), &brief))
 	assert.Contains(t, brief.Close, "give every file tool an absolute path under the directory git rev-parse --show-toplevel prints there")
 }
+
+// TestBrief_AProjectConfigTaskClosesInTheMainTree: a task whose touches name
+// .tp/config.json runs in the main tree (spec/backlog/worktree-dispatch.md
+// §2.1). Its brief, printed in the coordinator's tree or in a worktree,
+// carries no worktree close and says to work and close in the main tree;
+// the spawn hook still claims from the coordinator's brief.
+func TestBrief_AProjectConfigTaskClosesInTheMainTree(t *testing.T) {
+	t.Parallel()
+	var brief struct {
+		ClaimToken string `json:"claim_token"`
+		Close      string `json:"close"`
+	}
+	dir := claimsRepo(t)
+	_, stderr, code := runTP(t, dir, "set", "t1", `touches=[".tp/config.json"]`)
+	require.Equal(t, 0, code, stderr)
+	stdout, stderr, code := runTP(t, dir, "brief", "t1")
+	require.Equal(t, 0, code, stderr)
+	require.NoError(t, json.Unmarshal([]byte(stdout), &brief))
+	assert.NotEmpty(t, brief.ClaimToken)
+	assert.NotContains(t, brief.Close, "worktree of your own")
+	assert.NotContains(t, brief.Close, "--claim-token")
+	assert.Contains(t, brief.Close, "work in the main tree at "+dir)
+
+	root, worktree, taskFile := pendingProject(t)
+	_, stderr, code = runTP(t, root, "set", "t1", `touches=[".tp/"]`)
+	require.Equal(t, 0, code, stderr)
+	main, err := filepath.EvalSymlinks(root)
+	require.NoError(t, err)
+	stdout, stderr, code = runTPEnv(t, worktree, []string{"TP_FILE=" + taskFile}, "brief", "t1")
+	require.Equal(t, 0, code, stderr)
+	require.NoError(t, json.Unmarshal([]byte(stdout), &brief))
+	assert.NotContains(t, brief.Close, "You work in a worktree of your own")
+	assert.Contains(t, brief.Close, "work in the main tree at "+main)
+}
