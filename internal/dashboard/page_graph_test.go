@@ -231,3 +231,12 @@ func TestPure_AViewCanAskForALargerFirstLabel(t *testing.T) {
 	got := runPure(t, `out([P.detailLevel(13.9, 14), P.detailLevel(14, 14), P.detailLevel(8.9), P.detailLevel(9)]);`)
 	assert.JSONEq(t, `["far", "near", "far", "near"]`, got)
 }
+
+// TestPure_AnIdWithWordsWrapsBetweenThem: an id written in words breaks at
+// the last space in the line's second half, the space dropped, before it
+// would break inside a word; ids without spaces wrap as before.
+func TestPure_AnIdWithWordsWrapsBetweenThem(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([P.wrapId("Quiet Harbour Signal-I", 18), P.wrapId("inventory-export-backfill", 20)]);`)
+	assert.JSONEq(t, `[["Quiet Harbour", "Signal-I"], ["inventory-export-", "backfill"]]`, got)
+}
