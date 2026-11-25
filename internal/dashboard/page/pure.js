@@ -696,17 +696,37 @@
   };
 
   // detailLevel is how much a graph node draws at a label size of px
-  // pixels on screen: "far", no text, below min (9 unless the view names
-  // its own); "near", its whole id, from min.
-  P.detailLevel = function (px, min) {
-    return px < (min || 9) ? "far" : "near";
+  // pixels on screen: "near", its whole id, from min (9 unless the view
+  // names its own); below it "short", its shortened id, where the view has
+  // a short label and that label's size shortPx reaches min; else "far",
+  // no text.
+  P.detailLevel = function (px, min, shortPx) {
+    if (px >= (min || 9)) return "near";
+    return shortPx >= (min || 9) ? "short" : "far";
+  };
+
+  // ID_SUFFIX is an id's trailing suffix group: one or more "-" each with
+  // one to three characters, "-I", "-II", "-AI-I".
+  const ID_SUFFIX = /(?:-[^\s.:-]{1,3})+$/;
+
+  // shortId is id in at most n characters: whole when it fits, else as
+  // much of its head as fits, an ellipsis and its suffix group (keepFrom's
+  // "-I", "-II", "-AI-I"), so siblings still differ; a suffix that would
+  // leave under three characters of head is cut with the rest.
+  P.shortId = function (id, n) {
+    if (id.length <= n) return id;
+    const m = ID_SUFFIX.exec(id);
+    const suffix = m ? m[0] : "";
+    const keep = n - 1 - suffix.length;
+    if (keep < 3) return id.slice(0, n - 1).trimEnd() + "…";
+    return id.slice(0, id.length - suffix.length).slice(0, keep).trimEnd() + "…" + suffix;
   };
 
   // keepFrom is where an id's last word starts when a short suffix group
   // ("-I", "-II", "-AI-I") ends it, so no break falls after it and the
   // suffix stays on its word; an id without one keeps nothing (its length).
   const keepFrom = (s) => {
-    const m = /(?:-[^\s.:-]{1,3})+$/.exec(s);
+    const m = ID_SUFFIX.exec(s);
     if (!m) return s.length;
     let k = m.index;
     while (k > 0 && !" .-:".includes(s[k - 1])) k--;
