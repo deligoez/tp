@@ -416,13 +416,15 @@ func TestPage_TheGraphsHelpIsDefinedOnceAndNamesTheTrade(t *testing.T) {
 // TestPage_TheGraphRecordsWhatItDrew is decision 4's draw check at the
 // page: after deck.gl renders a frame the card carries the mode drawn and
 // the nodes and edges it drew, the nodes the layout's and the edges those
-// tpPure.edgeLayers keeps, so a blank canvas reads as zero.
+// tpPure.edgeLayers keeps, so a blank canvas reads as zero, and the block
+// labels it placed of all its blocks.
 func TestPage_TheGraphRecordsWhatItDrew(t *testing.T) {
 	t.Parallel()
 	page, script := pageText(t)
 	assert.Contains(t, page, `data-drawn-nodes="0" data-drawn-edges="0"`)
 	for _, s := range []string{"onAfterRender: recordDrawn", "card.dataset.drawnNodes = String(d.nodes);", "card.dataset.drawnEdges = String(d.edges);",
-		"G.drawing = { mode: P.L.view, nodes: P.nodes.length, edges: sets.drawn, layers: P.L.layers, cols: P.L.columns };", "pure.edgeLayers(P.links,", "card.dataset.firstDrawMs", "card.dataset.layers", "card.dataset.rendererMs"} {
+		"G.drawing = { mode: P.L.view, nodes: P.nodes.length, edges: sets.drawn, layers: P.L.layers, cols: P.L.columns, labels: names.length + \"/\" + P.bands.length };",
+		"card.dataset.bandLabels = d.labels;", "pure.edgeLayers(P.links,", "card.dataset.firstDrawMs", "card.dataset.layers", "card.dataset.rendererMs"} {
 		assert.Contains(t, script, s)
 	}
 }
