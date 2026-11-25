@@ -730,3 +730,15 @@ test('a task detail whose read a reload cut off is read again on the next tick',
   // Read once: an answered detail is not asked again.
   expect(ran.filter(line => line === 'tp show auth-refresh --json')).toHaveLength(1)
 })
+
+test('a project with no phase yet leads with what it has, never a bare phase word', async () => {
+  // tp now in a project with .tp/ and no task file: phase is empty.
+  const empty = toNow({ ...NOW, phase: '', task_file: null, tasks: null, held: [], landing: [], ready: [], needs_you: [], epics: null, run: null }, 0)!
+  expect(nowRows(empty.now, null, 'en', AT, 20).map(row => row.text)).toEqual(['In progress', 'Nothing in progress', 'No task file yet'])
+  expect(nowRows(empty.now, null, 'tr', AT, 20).map(row => row.text)).toEqual(['Devam eden', 'Devam eden iş yok', 'Henüz görev dosyası yok'])
+  const run = toView({ ...NOW.run, phase: '' }, 0)!
+  expect(runRows(run, 'en', AT)[0]?.text).toBe('Running')
+  expect(runRows(run, 'tr', AT)[0]?.text).toBe('Çalışıyor')
+  expect(nowRows(empty.now, run, 'en', AT, 20)[0]?.text).toBe('Run in progress (4m 5s)')
+  expect(nowRows(empty.now, run, 'tr', AT, 20)[0]?.text).toBe('Koşu sürüyor (4dk 5sn)')
+})
