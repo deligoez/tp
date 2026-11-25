@@ -69,11 +69,15 @@ func runRunStatus(args []string) error {
 	}
 
 	wf := engine.EffectiveWorkflowForTaskFile(taskFilePath)
+	runState := runStateOf(st, taskFilePath)
 	result := map[string]any{
-		"run_id":      st.RunID,
-		"started_at":  st.StartedAt,
-		"phase":       st.Phase,
-		"run_state":   runStateOf(st, taskFilePath),
+		"run_id":     st.RunID,
+		"started_at": st.StartedAt,
+		"phase":      st.Phase,
+		"run_state":  runState,
+		// Present under --compact too: it is small, and it is what a reader
+		// watching a live run acts on.
+		"running":     runningUnits(st, runState),
 		"stop_reason": st.StopReason,
 		// The accrual, beside the cap that bounds it. units_done counts
 		// ATTEMPTS, the same number run_max_units is compared against and the
@@ -135,6 +139,34 @@ func lastRunUnit(st *engine.RunState) *engine.RunUnitRow {
 		return nil
 	}
 	return &st.Units[len(st.Units)-1]
+}
+
+// runningSlot is one unit attempt a live run holds, as `running` reports it.
+type runningSlot struct {
+	Seq       int             `json:"seq"`
+	Kind      engine.UnitKind `json:"kind"`
+	ID        string          `json:"id"`
+	Attempt   int             `json:"attempt"`
+	Worktree  string          `json:"worktree,omitempty"`
+	StartedAt string          `json:"started_at,omitempty"`
+}
+
+// runningUnits lists the attempts whose exit code is still null. Only an
+// in-flight run holds any: in a stopped or crashed run's file a null row is an
+// attempt that never finished, and nothing is running it.
+func runningUnits(st *engine.RunState, runState string) []runningSlot {
+	out := make([]runningSlot, 0)
+	if runState != runStateInFlight {
+		return out
+	}
+	for i := range st.Units {
+		u := &st.Units[i]
+		if u.ExitCode == nil {
+			out = append(out, runningSlot{Seq: u.Seq, Kind: u.Kind, ID: u.ID, Attempt: u.Attempt,
+				Worktree: u.Worktree, StartedAt: u.StartedAt})
+		}
+	}
+	return out
 }
 
 // addAuditSignals writes §2.5's three fields onto the status payload from the
