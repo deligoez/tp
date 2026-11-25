@@ -114,7 +114,8 @@ type mapBlock struct {
 // line of the row where the next would pass Width, each line centred in
 // Width. Every line keeps mapHeaderRows above its first layer, and each
 // layer of a line one y per sub-line its fullest block needs, so a layer
-// keeps one y across the line. One input always lays out alike.
+// keeps one y across the line; a layer none of the line's blocks takes
+// takes no y in it. One input always lays out alike.
 func MapRows(in *MapRowsInput) MapRowsLayout {
 	file := make(map[string]int, len(in.IDs))
 	for i, id := range in.IDs {
@@ -230,7 +231,8 @@ func mapWrap(blocks []*mapBlock, width float64) [][]*mapBlock {
 
 // mapPlaceLine places one line of a row, the row's index and the line's in
 // at, from y: its header unit, then each layer of span with the sub-lines
-// its fullest block needs, the line centred in in.Width. It records the
+// its fullest block needs (none where no block of the line takes the
+// layer), the line centred in in.Width. It records the
 // line's blocks and dividers in out and returns the y after the line.
 func mapPlaceLine(in *MapRowsInput, out *MapRowsLayout, line []*mapBlock, span, at [2]int, y float64) float64 {
 	last := line[len(line)-1]
@@ -240,7 +242,7 @@ func mapPlaceLine(in *MapRowsInput, out *MapRowsLayout, line []*mapBlock, span, 
 	layerY := map[int]float64{}
 	for l := span[0]; l <= span[1]; l++ {
 		layerY[l] = y
-		lines := 1
+		lines := 0
 		for _, b := range line {
 			lines = max(lines, b.lines[l])
 		}
