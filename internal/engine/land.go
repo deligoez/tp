@@ -226,7 +226,11 @@ func LandPick(root string, commits []string) (pre string, landed []string, err e
 	for _, sha := range commits {
 		landedAs, pickErr := pickOne(root, sha)
 		if pickErr != nil {
-			_ = LandUndo(root, pre)
+			if undoErr := LandUndo(root, pre); undoErr != nil {
+				// The pick error stays matchable (a conflict keeps its
+				// branch); the message says the branch still carries it.
+				return pre, nil, fmt.Errorf("%w; taking the pick back failed (%v): this branch still carries it, run git reset --keep %s", pickErr, undoErr, pre)
+			}
 			return pre, nil, pickErr
 		}
 		picked = append(picked, landedAs)

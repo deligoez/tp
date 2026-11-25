@@ -272,8 +272,8 @@ func (l *lander) land(r *engine.LandRequest) {
 		l.res.Landed = append(l.res.Landed, r.ID)
 		l.landed = append(l.landed, *r)
 	case errors.As(closeErr, &refused):
-		_ = engine.LandUndo(l.root, pre)
-		l.res.Blocked = append(l.res.Blocked, landItem{ID: r.ID, Error: "tp done refused the close: " + closeFailure(closeErr, logPath), Log: logPath,
+		failure := withUndoFailure("tp done refused the close: "+closeFailure(closeErr, logPath), pre, engine.LandUndo(l.root, pre))
+		l.res.Blocked = append(l.res.Blocked, landItem{ID: r.ID, Error: failure, Log: logPath,
 			Hint: "the request is kept: clear what the error names, then run tp land again"})
 	default:
 		l.reopenAfter(r, session, pre, closeFailure(closeErr, logPath), logPath, "")
@@ -291,13 +291,23 @@ func (l *lander) conflictBranch(r *engine.LandRequest, err error) string {
 	return engine.LandConflictBranch(l.root, r.Worktree, conflict.SHA)
 }
 
+// withUndoFailure adds to cause that taking the pick back to pre failed, and
+// the reset that finishes it, so a land never reports a task reopened or
+// blocked over a branch that silently still carries its picks.
+func withUndoFailure(cause, pre string, undoErr error) string {
+	if undoErr == nil {
+		return cause
+	}
+	return fmt.Sprintf("%s; taking the pick back failed (%v): this branch still carries it, run git reset --keep %s", cause, undoErr, pre)
+}
+
 // reopenAfter takes a failed landing back to pre (when it picked anything),
 // reopens the task to run alone, records the outcome for the agent's
 // worktree under the claim's session, and drops its request. branch is the
 // conflict's branch the task records, "" when there is none.
 func (l *lander) reopenAfter(r *engine.LandRequest, session, pre, cause, logPath, branch string) {
 	if pre != "" {
-		_ = engine.LandUndo(l.root, pre)
+		cause = withUndoFailure(cause, pre, engine.LandUndo(l.root, pre))
 	}
 	item := landItem{ID: r.ID, Error: cause, Log: logPath,
 		Hint: fmt.Sprintf("task %s is open again: spawn a fresh agent from tp brief %s --file %s, and tell it this error", r.ID, r.ID, l.relFile())}
