@@ -69,3 +69,28 @@ func TestOriginAndSourceSectionsAreExclusive(t *testing.T) {
 	assert.Contains(t, f.Msg, "origin")
 	assert.Contains(t, f.Msg, "source_sections")
 }
+
+// TestOriginWithoutLocationIsRefused: an origin is an anchor only when it
+// names the request's location (spec/1.31.0.md §3), so `"origin":{}` fails
+// tp validate and the entry check instead of passing as an anchor and
+// dropping the task out of spec coverage.
+func TestOriginWithoutLocationIsRefused(t *testing.T) {
+	for name, origin := range map[string]*model.Origin{
+		"empty":       {},
+		"blank":       {FinderTask: "t1", Location: "  "},
+		"finder only": {AuditRound: 2, AuditRow: "go-safety:file-a"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			task := foundTask()
+			task.Origin = origin
+
+			msgs := TaskSchemaErrors(&task)
+			require.NotEmpty(t, msgs)
+			assert.Contains(t, strings.Join(msgs, "; "), "origin needs a location")
+
+			f := ValidateTaskEntry(&task, map[string]bool{})
+			require.NotNil(t, f)
+			assert.Contains(t, f.Msg, "origin needs a location")
+		})
+	}
+}
