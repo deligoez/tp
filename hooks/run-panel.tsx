@@ -1,18 +1,22 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { FinishedUnit, NowView, RunSlot, RunView } from '../types'
-import { runRows } from './panel-rows'
+import type { FinishedUnit, Lang, NowView, RunSlot, RunView, Screen, TaskDetail, ViewName } from '../types'
+import { detailRows, epicsRows, glanceRows, nowRows, runRows, tasksRows } from './panel-rows'
+import type { PanelRow } from './panel-rows'
+import { resolveLanguage, WORDS } from './panel-words'
 
-// The run panel (spec/backlog/run-panel.md): a pane that shows the tp run of
-// the session's project, read from `tp run --status`. It reads and never
-// drives: no control here stops, retries or starts a unit.
+// The panel (spec/backlog/run-panel.md, spec/backlog/panel-dashboard.md): a
+// small dashboard of the session's project, read from `tp now --json` (or
+// `tp run --status` on a tp without it). It reads and never drives: its
+// buttons switch views and open a task, nothing here starts, stops, lands,
+// resolves or claims.
 
 const PANE = 'tp-run'
-const TITLE = 'tp run'
+const TITLE = 'tp'
 
-// A live run is read every few seconds; an idle project only once a minute,
-// so a session in a project with no run costs one short tp call a minute.
+// Held work or a live run is read every few seconds; an idle project only
+// once a minute, so a quiet session costs one short tp call a minute.
 const LIVE_MS = 5_000
 const IDLE_EVERY = 12
 
@@ -24,6 +28,15 @@ const run = atom({ plugin: 'tp', key: 'run' } as const, null as RunView | null, 
 const nowState = atom({ plugin: 'tp', key: 'now' } as const, null as NowView | null, {
   shape: 'now-1',
 })
+const screenState = atom(
+  { plugin: 'tp', key: 'screen' } as const,
+  { view: 'now', task: null, back: 'now' } as Screen,
+  { shape: 'screen-1' },
+)
+const detailState = atom({ plugin: 'tp', key: 'detail' } as const, null as TaskDetail | null, {
+  shape: 'detail-1',
+})
+const langState = atom({ plugin: 'tp', key: 'lang' } as const, 'en' as Lang, { shape: 'lang-1' })
 
 // lastFinished is the latest unit with an exit code: `tp now`'s
 // last_finished, or `tp run --status`'s last_unit once it has ended.
@@ -91,17 +104,34 @@ export function tpVersion(printed: string): string {
   return match?.[1] ?? ''
 }
 
-// readStatus runs `tp run --status` in the session's folder; any failure (no
-// tp on PATH, no run yet, a payload it cannot parse) reads as no run.
-async function readStatus($: EngineInterface): Promise<RunView | null> {
-  const done = await $.process
-    .run(['tp', 'run', '--status'], { timeoutMs: 10_000 })
-    .catch(() => undefined)
-  if (!done || done.exitCode !== 0) return null
+// toDetail keeps what the detail adds from `tp show <id> --json`: acceptance
+// is a string of `- ` items or a list, touches a list of globs.
+export function toDetail(id: string, payload: Record<string, unknown>): TaskDetail {
+  const raw = payload.acceptance
+  const acceptance = (Array.isArray(raw) ? raw.map(String) : typeof raw === 'string' ? raw.split('\n') : [])
+    .map(line => line.replace(/^\s*-\s+/, '').trim())
+    .filter(Boolean)
+  return {
+    id,
+    title: typeof payload.title === 'string' ? payload.title : id,
+    status: typeof payload.status === 'string' ? payload.status : '',
+    acceptance,
+    touches: Array.isArray(payload.touches) ? payload.touches.map(String) : [],
+    failed: false,
+  }
+}
+
+// runJSON runs a read-only tp command in the session's folder and parses
+// what it printed; any failure (no tp on PATH, a non-zero exit, a payload it
+// cannot parse) reads as nothing.
+async function runJSON($: EngineInterface, argv: string[]): Promise<Record<string, unknown> | undefined> {
+  const done = await $.process.run(argv, { timeoutMs: 10_000 }).catch(() => undefined)
+  if (!done || done.exitCode !== 0) return undefined
   try {
-    return toView(JSON.parse(done.stdout) as Record<string, unknown>, await $.clock.now())
+    const parsed: unknown = JSON.parse(done.stdout)
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : undefined
   } catch {
-    return null
+    return undefined
   }
 }
 
@@ -118,15 +148,89 @@ let sessionCwd = ''
 // The tp binary's version, read once per session for the pane's brand line.
 let version = ''
 
+// Set once `tp now` has failed: a tp older than it, read through
+// `tp run --status` until the command asks again.
+let nowMissing = false
+
 async function readVersion($: EngineInterface): Promise<string> {
   const done = await $.process.run(['tp', '--version'], { timeoutMs: 10_000 }).catch(() => undefined)
   return done && done.exitCode === 0 ? tpVersion(done.stdout) : ''
+}
+
+// readLanguage takes the first of: `.tp/config.json`'s `panel.language`,
+// Claude Code's `language` setting, the locale (LC_ALL, LC_MESSAGES, LANG).
+// A source that cannot be read is passed over.
+async function readLanguage($: EngineInterface, folder: string): Promise<Lang> {
+  const config = await $.fs
+    .read(`${folder}/.tp/config.json`)
+    .then(text => (JSON.parse(String(text)) as { panel?: { language?: unknown } }).panel?.language)
+    .catch(() => undefined)
+  const setting = await $.settings.read({ key: 'language' }).catch(() => undefined)
+  const env = async (get: () => Promise<string | undefined>) => (await get().catch(() => undefined)) || undefined
+  const locale =
+    (await env(() => $.env.get('LC_ALL'))) ??
+    (await env(() => $.env.get('LC_MESSAGES'))) ??
+    (await env(() => $.env.get('LANG')))
+  return resolveLanguage({ project: config, setting, locale })
+}
+
+// refresh reads the project once: `tp now --json`, or on a tp without it
+// `tp run --status`, whose run is then all the pane draws.
+async function refresh($: EngineInterface): Promise<RunView | null> {
+  const at = await $.clock.now()
+  const payload = nowMissing ? undefined : await runJSON($, ['tp', 'now', '--json'])
+  const read = payload ? toNow(payload, at) : null
+  if (read) {
+    await update($, nowState, () => read.now)
+    await update($, run, () => read.run)
+    return read.run
+  }
+  nowMissing = true
+  const status = await runJSON($, ['tp', 'run', '--status'])
+  const view = status ? toView(status, at) : null
+  await update($, nowState, () => null)
+  await update($, run, () => view)
+  return view
+}
+
+// isLive: a held task or a run in flight is read every few seconds.
+async function isLive($: EngineInterface): Promise<boolean> {
+  const now = await read($, nowState)
+  const view = await read($, run)
+  return (now?.held.length ?? 0) > 0 || view?.run_state === 'in_flight'
+}
+
+// openTask shows one task and asks `tp show` for what the lists do not
+// carry; an answer for a task the person has since left is dropped.
+async function openTask($: EngineInterface, id: string): Promise<void> {
+  const screen = await read($, screenState)
+  const back: ViewName = screen.view === 'detail' ? screen.back : screen.view
+  await update($, screenState, (): Screen => ({ view: 'detail', task: id, back }))
+  await update($, detailState, () => null)
+  // An id is tp's own, but never let one read as a flag.
+  const payload = id.startsWith('-') ? undefined : await runJSON($, ['tp', 'show', id, '--json'])
+  const detail = payload ? toDetail(id, payload) : { ...toDetail(id, {}), failed: true }
+  const current = await read($, screenState)
+  if (current.view === 'detail' && current.task === id) await update($, detailState, () => detail)
+}
+
+// fit cuts a row to the pane's width, so a long title never wraps the rows
+// below it out of place.
+function fit(text: string, columns: number): string {
+  const chars = Array.from(text)
+  return columns > 1 && chars.length > columns ? `${chars.slice(0, columns - 1).join('')}…` : text
 }
 
 // The folder's last path segment: the project the pane is about.
 function projectName(folder: string): string {
   return folder.split('/').filter(Boolean).pop() ?? ''
 }
+
+const VIEWS: readonly ViewName[] = ['now', 'tasks', 'epics', 'run']
+
+// The rows the pane spends on itself above a view: the brand line and its
+// gap, the view buttons and theirs.
+const CHROME_ROWS = 4
 
 export const register: Register = on => {
   let autoOpened = ''
@@ -135,20 +239,20 @@ export const register: Register = on => {
     const started = await next(e)
     await $.command.register({
       name: 'tp-run',
-      description: 'Show the tp run of this project in a pane',
+      description: 'Show what tp is doing in this project in a pane',
     })
     sessionCwd = e.cwd
     // Only a tp project gets the timer.
     if (!(await isProject($, e.cwd))) return started
     version = await readVersion($)
+    const lang = await readLanguage($, e.cwd)
+    await update($, langState, () => lang)
 
     let tick = 0
     $.clock.every(LIVE_MS, async () => {
       tick++
-      const prev = await read($, run)
-      if (prev?.run_state !== 'in_flight' && tick % IDLE_EVERY !== 1) return
-      const view = await readStatus($)
-      await update($, run, () => view)
+      if (!(await isLive($)) && tick % IDLE_EVERY !== 1) return
+      const view = await refresh($)
       // A run that starts while the session is open shows itself once.
       if (view?.run_state === 'in_flight' && autoOpened !== view.run_id) {
         autoOpened = view.run_id
@@ -162,16 +266,42 @@ export const register: Register = on => {
     const cwd = 'cwd' in e && typeof e.cwd === 'string' ? e.cwd : sessionCwd
     if (!(await isProject($, cwd))) return { text: 'This folder is not a tp project.' }
     if (!version) version = await readVersion($)
-    await update($, run, () => null)
-    const view = await readStatus($)
-    await update($, run, () => view)
+    const lang = await readLanguage($, cwd)
+    await update($, langState, () => lang)
+    nowMissing = false
+    const view = await refresh($)
+    const now = await read($, nowState)
     await $.ui.open({ id: PANE, title: TITLE })
-    return { text: view ? 'The tp run pane is open.' : 'No tp run in this project yet.' }
+    return { text: now || view ? 'The tp pane is open.' : 'No tp run in this project yet.' }
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
-    const { Box, Text } = $.ui.resolve(e)
+    const { Box, Text, Button } = $.ui.resolve(e)
+    const lang = await read($, langState)
+    const w = WORDS[lang]
+    const now = await read($, nowState)
     const view = await read($, run)
+    const columns = e.props.bodyColumns
+    const line = (row: PanelRow) =>
+      row.task ? (
+        <Box key={`row-${row.key}`} marginTop={row.gap ? 1 : 0}>
+          <Button key={row.key} label={row.text} plain onPress={() => openTask($, row.task!)}>
+            {fit(row.text, columns)}
+          </Button>
+        </Box>
+      ) : (
+        <Box marginTop={row.gap ? 1 : 0}>
+          <Text bold={row.tone === 'head'} dimColor={row.tone === 'quiet'}>
+            {fit(row.text, columns)}
+          </Text>
+        </Box>
+      )
+
+    // The widget seat is a glance: clicks may not reach it, so no buttons.
+    if (e.props.placement === 'widget') {
+      return <Box flexDirection="column">{glanceRows(now, view, lang).map(line)}</Box>
+    }
+
     // The brand line: tp and its version in the theme's accent, then the
     // project, quiet.
     const brand = (
@@ -179,26 +309,63 @@ export const register: Register = on => {
         <Text bold color="suggestion">
           {version ? `tp ${version}` : 'tp'}
         </Text>
-        <Text dimColor>{`  ${projectName(sessionCwd)}`}</Text>
+        <Text dimColor>{`  ${now?.project ?? projectName(sessionCwd)}`}</Text>
       </Box>
     )
-    if (!view) {
+
+    // A tp without `tp now`: the run view alone, as the panel was.
+    if (!now) {
       return (
         <Box flexDirection="column">
           {brand}
-          <Text dimColor>No run in this project yet.</Text>
+          {view ? runRows(view, lang, await $.clock.now()).map(line) : <Text dimColor>{w.noRun}</Text>}
         </Box>
       )
     }
-    const rows = runRows(view, 'en', await $.clock.now())
+
+    const at = await $.clock.now()
+    const screen = await read($, screenState)
+    const shown: ViewName = screen.view === 'detail' ? screen.back : screen.view
+    // The view buttons sit first, so the window never scrolls them out of
+    // reach of their hotkeys; the current one is drawn at full strength.
+    const tabs = (
+      <Box flexDirection="row" gap={2} marginBottom={1}>
+        {VIEWS.map((name, index) => (
+          <Button
+            key={`view-${name}`}
+            label={w.tabs[name]}
+            hotkey={String(index + 1)}
+            plain
+            dimColor={screen.view !== name}
+            onPress={() => update($, screenState, () => ({ view: name, task: null, back: name }))}
+          >
+            {w.tabs[name]}
+          </Button>
+        ))}
+      </Box>
+    )
+    let rows: PanelRow[]
+    let back = null
+    if (screen.view === 'detail' && screen.task) {
+      const detail = await read($, detailState)
+      rows = detailRows(screen.task, now, detail?.id === screen.task ? detail : null, lang, at)
+      back = (
+        <Box marginBottom={1}>
+          <Button key="back" label={w.back} hotkey="b" onPress={() => update($, screenState, () => ({ view: shown, task: null, back: shown }))}>
+            {w.back}
+          </Button>
+        </Box>
+      )
+    } else if (screen.view === 'tasks') rows = tasksRows(now, lang, at)
+    else if (screen.view === 'epics') rows = epicsRows(now, lang, columns)
+    else if (screen.view === 'run') rows = view ? runRows(view, lang, at) : [{ text: w.noRun, tone: 'quiet' }]
+    else rows = nowRows(now, view, lang, at, Math.max(1, e.props.scroll.bodyRows - CHROME_ROWS))
     return (
       <Box flexDirection="column">
         {brand}
-        {rows.map(row => (
-          <Text bold={row.tone === 'head'} dimColor={row.tone === 'quiet'}>
-            {row.text}
-          </Text>
-        ))}
+        {tabs}
+        {back}
+        {rows.map(line)}
       </Box>
     )
   })

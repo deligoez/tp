@@ -1,4 +1,4 @@
-import type { Lang, TaskCounts } from '../types'
+import type { Lang, TaskCounts, ViewName } from '../types'
 
 // The panel's words in its two languages (spec/backlog/panel-dashboard.md):
 // every word the pane draws comes from here, so a language is one table.
@@ -70,6 +70,8 @@ export type Words = {
   reading: string
   unreadable: string
   inProgressCount: (n: number) => string
+  tabs: Record<ViewName, string>
+  back: string
 }
 
 function clock(seconds: number, s: string, m: string, h: string): string {
@@ -200,6 +202,8 @@ const EN: Words = {
   reading: 'Reading the task…',
   unreadable: 'This task could not be read.',
   inProgressCount: n => `${n} in progress`,
+  tabs: { now: 'Now', tasks: 'Tasks', epics: 'Epics', run: 'Run' },
+  back: 'Back',
 }
 
 const TR: Words = {
@@ -243,6 +247,8 @@ const TR: Words = {
   reading: 'Görev okunuyor…',
   unreadable: 'Bu görev okunamadı.',
   inProgressCount: n => `${n} iş devam ediyor`,
+  tabs: { now: 'Şimdi', tasks: 'Görevler', epics: 'Epikler', run: 'Koşu' },
+  back: 'Geri',
 }
 
 export const WORDS: Record<Lang, Words> = { en: EN, tr: TR }
