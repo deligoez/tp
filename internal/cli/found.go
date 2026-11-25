@@ -227,7 +227,8 @@ func applyFoundRequests(root, taskFilePath string, foundMax int) (engine.FoundAp
 
 // attachFoundNotes adds each attached request's note to its task.
 func attachFoundNotes(tf *model.TaskFile, attached []engine.FoundAttached) {
-	for _, a := range attached {
+	for j := range attached {
+		a := &attached[j]
 		for i := range tf.Tasks {
 			if tf.Tasks[i].ID == a.Task {
 				tf.Tasks[i].FoundNotes = append(tf.Tasks[i].FoundNotes, a.Note)
