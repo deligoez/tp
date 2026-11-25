@@ -789,6 +789,7 @@ run, stop and ask. The `--decision` name to record is in brackets:
 |---|---|
 | `--skip-gate` on `tp done`/`tp close`, or changing `quality_gate` (a rewritten gate is a skipped one) | `skip-gate` |
 | raising `review_max_rounds` / `audit_max_rounds` | `raise-review-cap` / `raise-audit-cap` |
+| raising `found_max`, or setting it to `0` (uncapped) over a cap | `raise-found-cap` |
 | `tp import --force` | `import-force` |
 | `audit_converge_on` resolving to `blocking` | `audit-converge-on` |
 | accepting a critical/high review finding, or any audit finding, without a change | `accept-finding` |
@@ -801,6 +802,16 @@ run, stop and ask. The `--decision` name to record is in brackets:
 Record it with `tp escalate --decision <name> --evidence "<what you found>" [--option "<a way forward>"]`;
 the run stops with `stop_reason: escalation` for the operator. **An escalation is a normal outcome**,
 neither a failed attempt nor a recorded round.
+
+**Found tasks (v1.31.0).** A unit that runs into a defect outside its own task files it with
+`tp found add`, one defect per request, and never sweeps code for defects; it does not add the task
+itself. **The fence holds under `tp run` only**: there a unit of any kind but `decompose` that runs
+`tp add`, `tp import` or `tp set depends_on`, and a unit of any kind that runs `tp found settle`,
+exits 2 naming `tp found add`. By hand, outside a run, those commands work as before. `tp found apply`
+turns requests into found tasks within `found_max` (default 5, `0` uncapped as for the round caps;
+`run_max_units` and `run_max_parallel` take no 0), a decision unit answers the ones that need a choice, and what is
+left waits in `<base>.queue.json` for the person's `tp found settle`; `tp resume` shows
+`found_queue`. Contracts: REFERENCE.md, "Found Tasks".
 
 - **The round cap** (default 3; `0` uncaps): at the cap emission and `--record` refuse (exit 4), and
   the loop is **done** (`done_by: cap`) once every finding of the latest round is dispositioned and
