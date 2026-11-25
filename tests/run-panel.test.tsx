@@ -342,14 +342,18 @@ test('a project with no run says so', async $ => {
 
 type Answer = { exitCode: number; stdout: string }
 
-// world answers what the pane calls beneath it: a tp project, each tp command
-// by its arguments (any other exits 1), and records every command it ran.
-function world(on: On, answers: Record<string, Answer>): string[] {
+// world answers what the pane calls beneath it: a tp project (while isTp
+// says so), each tp command by its arguments (any other exits 1), and
+// records every command it ran.
+function world(on: On, answers: Record<string, Answer>, isTp: () => boolean = () => true): string[] {
   const ran: string[] = []
   on('command.register', () => ({ value: { command: 'tp-run' } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
-  on('fs.stat', () => ({ value: { kind: 'dir', size: 0, mtimeMs: 0, isLink: false } }))
+  on('fs.stat', () => {
+    if (!isTp()) throw new Error('ENOENT: no such file or directory')
+    return { value: { kind: 'dir', size: 0, mtimeMs: 0, isLink: false } }
+  })
   on('process.run', (_, e) => {
     const line = e.argv.join(' ')
     ran.push(line)
@@ -608,4 +612,17 @@ test('a short pane keeps what needs you and the held work, and counts what it le
     'In progress',
     '2 more',
   ])
+})
+
+test('a folder that becomes a tp project after the session started is polled once the command runs', async ($, on) => {
+  const clock = mock.clock(on, { now: AT })
+  let isTp = false
+  // An agent and the run hold tasks: the held work alone keeps it live.
+  const ran = world(on, { 'tp --version': VERSION, 'tp now --json': { exitCode: 0, stdout: JSON.stringify({ ...NOW, run: null }) } }, () => isTp)
+  await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
+  // tp init runs in the folder after the session started.
+  isTp = true
+  await runCommand($)
+  await clock.advance(60_000)
+  expect(ran.filter(line => line === 'tp now --json').length).toBeGreaterThanOrEqual(12)
 })
