@@ -43,6 +43,14 @@ func ReviewInboxMergedPath(specPath string, round int) string {
 	return filepath.Join(roleInboxDir(specPath, PhaseReview), fmt.Sprintf("round-%d.merged.ndjson", round))
 }
 
+// AuditInboxMergedPath is where tp audit --record-inbox writes the rows it
+// merged from a round's role files before recording them, beside those files:
+// <state dir>/audit-inbox/round-<N>.merged.ndjson. RemoveRoundInbox takes it
+// with the round.
+func AuditInboxMergedPath(specPath string, round int) string {
+	return filepath.Join(roleInboxDir(specPath, PhaseAudit), fmt.Sprintf("round-%d.merged.ndjson", round))
+}
+
 // WriteReviewOwedRoles writes
 // --role filter: every prompt it built, the regression prompt included and the
 // roles a --diff-from or a deactivation left out excluded. Sibling emissions

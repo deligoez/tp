@@ -106,7 +106,7 @@ func RemoveRoundInbox(specPath, phase string, round int) error {
 	// An audit round's pools (AuditPoolsPath) are in-flight state of the same
 	// round, recorded into state.json by now.
 	if phase == PhaseAudit {
-		files = append(files, AuditPoolsPath(specPath, round))
+		files = append(files, AuditPoolsPath(specPath, round), AuditInboxMergedPath(specPath, round))
 	}
 	// A review round's owed roles and the rows --record-inbox merged from them.
 	if phase == PhaseReview {
