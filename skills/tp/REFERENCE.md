@@ -487,7 +487,8 @@ by `tp validate` and `tp set`.
   id>`) on a branch `tp-unit/<cycle tag>/<run id>/<task id>` from the main branch's `HEAD`; the
   cycle tag keys both to the task file, so a run over another task file never touches them. The
   child is spawned in its worktree with `TP_FILE` naming the main tree's task file by absolute path,
-  its brief is `tp brief <id>`, and its run-state row carries `worktree`. A failed attempt is retried
+  its brief is `tp brief <id>` (naming the worktree's absolute root, under which its file tools take
+  absolute paths), and its run-state row carries `worktree`. A failed attempt is retried
   in the same worktree while its budget lasts.
 - **Worktree setup (v1.24.0).** When `.tp/config.json`'s `workflow` block sets `worktree_setup_cmd`,
   read there alone as each pool starts, the driver runs it in each new worktree before that unit is
