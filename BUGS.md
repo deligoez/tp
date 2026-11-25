@@ -8,12 +8,29 @@ fix needs a design choice leaves this file for a decision note.
 
 ## Needs an operator decision
 
-None. The 2026-11-25 field reports' decisions shipped in v1.32.0 (`spec/backlog/ARCHIVE.md`); what
-they left open is in `spec/1.32.0-measurements.md` §4.
+- **The next-round text cannot name a named inbox.** After a round recorded with `--record-inbox
+  --inbox <dir>`, review's and audit's `next_action` name `tp review <spec>` and `--record-inbox`
+  without `--inbox <dir>`, so following it writes into the checkout's default inbox. Which inbox a
+  round came from is stored nowhere. Choice: record the inbox path on the recorded round (one
+  optional field; recommended), or leave the text generic. (`spec/1.34.0-measurements.md` §5)
 
 ## Fix track
 
-None.
+- **`tp brief` with no id hides overlaps.** When every ready task overlaps a held task's `touches`,
+  `tp brief` (no id) says only "No ready tasks" (`internal/cli/brief.go`, the no-id path). Test: two
+  ready tasks with overlapping `touches`, one claimed with `--spawn` in a worktree; `tp brief` should
+  name the other under `overlapping {id, held_by}`, as `tp next` does since v1.34.0.
+- **Task-audit `--record-inbox` gives no flat-layout hint.** A round emitted by v1.33 left its role
+  files flat in `<inbox>/task-audit-inbox/`; `tp audit --task-audit … --record-inbox --inbox <dir>`
+  exits 3 telling the person to re-run every role, while review and audit name the folder to move the
+  files into (`d2491c5b`). Test: flat `round-N-<role>.ndjson` files under a named inbox; the hint
+  names the `<base>-<hash>` folder.
+- **A set-aside unit branch leaves `conflict_branch` stale.** Under `tp run`,
+  `engine.setAsideUnitBranch` (`internal/engine/driver_pool.go`) renames an earlier unit branch with
+  `git branch -m` but does not update the task's `conflict_branch`, so the recorded name can point at
+  the new attempt's branch. No work is lost (`conflict_sha` no longer matches, so `tp land` keeps it),
+  but the kept branch it names is the wrong one. Test: a conflict recorded, then a run sets the branch
+  aside; the task's `conflict_branch` names the renamed branch.
 
 ## Decided elsewhere, not a fix
 
