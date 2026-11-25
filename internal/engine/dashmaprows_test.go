@@ -291,3 +291,19 @@ func TestMapRows_AFoldedLayersLastSubLineIsCentred(t *testing.T) {
 	assert.InDelta(t, a.FromCol+3, got.Places["n8"].X, 0)
 	assert.InDelta(t, a.FromCol+4, got.Places["n9"].X, 0)
 }
+
+// TestMapRows_AVeryFullLayerFoldsOntoThreeSubLines: a layer of 25 epics is
+// past three sub-lines of eight, so the block grows to nine columns and
+// the layer still takes three sub-lines, never four.
+func TestMapRows_AVeryFullLayerFoldsOntoThreeSubLines(t *testing.T) {
+	t.Parallel()
+	var nodes []mapNode
+	for i := range 25 {
+		nodes = append(nodes, mapNode{fmt.Sprintf("n%02d", i), "A", 0, float64(i)})
+	}
+	in := mapInput(25, []LayoutBand{{Name: "A", From: 0, To: 0}}, nodes...)
+	got := MapRows(&in)
+	a := mapBlockOf(t, got.Blocks, "A")
+	assert.InDelta(t, 8.0, a.ToCol-a.FromCol, 0)
+	assert.InDelta(t, 2.0, a.ToY-a.FromY, 0)
+}
