@@ -24,7 +24,7 @@ here. Field ranges and schemas follow in the sections after.
 | `tp gate` | Run the resolved quality gate on this checkout and close nothing (v1.26.0): in a unit's worktree it gates the worktree; inside `tp run` it takes a gate slot; a pass there on a committed tree the gate left unchanged is recorded so the unit's `tp done` on the same tree, in its worktree or on the main tree, does not gate again. Exit 0 pass or no `quality_gate` (`gate_configured: false`), 4 fail, timeout or signal, 3 no or foreign task file |
 | `tp brief [id]` | The unit brief (read-only): identity + scope fence + prior work + the task + the close recipe; claims nothing. It hands out work under `tp run`'s `touches` rule: an open task whose `touches` overlap a `wip` task claimed by a spawn or a session exits 4 naming that task, and with no id such a task is skipped |
 | `tp brief <id> --prior <n>` | Override the prior-work recency cap (0-20; 0 = dependency entries only) |
-| `tp run --status` | Report the current or last run: phase, units done, the accrual against each cap, the last unit's exit code and log path, `stop_reason`, and `run_state` (`in_flight`/`crashed`/`stopped`); takes no run lock; exits 3 when no run state exists |
+| `tp run --status` | Report the current or last run: phase, units done, the accrual against each cap, the attempts an in-flight run holds now (`running`), the last unit's exit code and log path, `stop_reason`, and `run_state` (`in_flight`/`crashed`/`stopped`); takes no run lock; exits 3 when no run state exists |
 | `tp run --dry-run` | List the units the driver would execute next as `{phase, round, next_units}` and exit 0; spawns nothing, writes no run state, takes no run lock |
 | `tp escalate --decision <name> --evidence <text>` | Record a decision only the operator can take and stop the unit: writes `$TP_RUN_DIR/$TP_UNIT_SEQ-escalation.json` and exits 2; `--decision` is one of `skip-gate`, `raise-review-cap`, `raise-audit-cap`, `raise-found-cap`, `import-force`, `audit-converge-on`, `accept-finding`, `discard-emission`, `epic-done`, `gate-met`, `epic-binding`, `grant-round`, `rewrite-past-blocking`, `other`; outside a run (no `TP_RUN_DIR`) it is a usage error |
 | `tp escalate ... --option <text>` | Add a way forward the unit saw; repeatable, and `options` is `[]` when none is given |
@@ -762,13 +762,16 @@ same path and owns the file. Both built-in templates take the first form. The dr
 spend key from the final line and never reads a log into any context.
 
 `tp run --status` reports `{phase, run_id, started_at, units_done, wall_clock_seconds, spend_usd,
-caps: {max_units, max_wall_clock_seconds, max_budget_usd}, last_unit: {…the whole row…},
-stop_reason, run_state}`. `run_state` is `stopped` once `stop_reason` is set, otherwise `in_flight`
+caps: {max_units, max_wall_clock_seconds, max_budget_usd}, running: [{seq, kind, id, attempt,
+worktree?, started_at}], last_unit: {…the whole row…}, stop_reason, run_state}`. `running` lists the
+attempts whose `exit_code` is still null, each with the RFC 3339 UTC time its row was appended, and
+only while `run_state` is `in_flight`: a stopped or crashed run holds nothing, so it is `[]`.
+`run_state` is `stopped` once `stop_reason` is set, otherwise `in_flight`
 when `.tp/locks/run-<key>.lock` is held and `crashed` when it is not — the lock is the only evidence
 separating the last two. On a stop in the audit phase it also carries `spec_coverage_clean_rounds`,
 `role_streaks` and `divergence`, verbatim from `tp audit --status`; when the auditor role corpus
-cannot be read those three are left out and `audit_signals_omitted` names the read error. Under `--compact` `stop_reason`
-and the cap totals survive and `last_unit` — its log path with it — is stripped.
+cannot be read those three are left out and `audit_signals_omitted` names the read error. Under `--compact` `stop_reason`,
+the cap totals and `running` survive and `last_unit` — its log path with it — is stripped.
 
 ### The child environment
 
