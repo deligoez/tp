@@ -557,6 +557,9 @@ refusal and its exit code — is under the same form in [REFERENCE.md](REFERENCE
 | `tp run --dry-run` | The units the driver would run next; spawns nothing |
 | `tp escalate --decision <name> --evidence <text>` | Record an operator decision and stop the unit (exit 2); names in "Gate, Budget & Escalation Policy" |
 | `tp escalate ... --option <text>` | A way forward the unit saw; repeatable |
+| `tp found add --location <file:line> --reproduction <cmd> --expected <text> --observed <text>` | Record one request for a defect outside the caller's task; changes no task, prints the request's id; exit 2 on a bad shape |
+| `tp found add ... --question <text> --alternative <text>` | A request that needs a choice, in place of `--expected`/`--observed`; `--alternative` repeatable |
+| `tp found add ... --blocks [--task <id>]` | The caller's task cannot pass without it; needs a wip task the caller works (an implement unit's own, or `--task`) |
 
 ### Incremental
 | Command | Purpose |
