@@ -50,6 +50,24 @@ type landResult struct {
 	Commit          string `json:"commit,omitempty"`
 	TaskFileChanged string `json:"task_file_changed,omitempty"`
 	CommitError     string `json:"commit_error,omitempty"`
+	// Pruned are the landed worktrees removed with their branches, and
+	// kept those left in place, each with why (§2.2).
+	Pruned []landPruned `json:"pruned"`
+	Kept   []landKept   `json:"kept"`
+}
+
+// landPruned is a landed task's worktree tp land removed, with its branch.
+type landPruned struct {
+	ID       string `json:"id"`
+	Worktree string `json:"worktree"`
+	Branch   string `json:"branch,omitempty"`
+}
+
+// landKept is a landed task's worktree tp land left in place, and why.
+type landKept struct {
+	ID       string `json:"id"`
+	Worktree string `json:"worktree"`
+	Reason   string `json:"reason"`
 }
 
 // lander carries what landing one request needs.
@@ -58,6 +76,8 @@ type lander struct {
 	close               engine.CloseFunc
 	reopen              func(id string) error
 	res                 *landResult
+	// landed are the requests landed, whose worktrees may be pruned.
+	landed []engine.LandRequest
 }
 
 // runLand is the coordinator's half of a worktree agent's close
@@ -88,7 +108,7 @@ func runLand(_ *cobra.Command, _ []string) error {
 		close:  closeTaskFunc(root, taskFilePath),
 		reopen: reopenSoloFunc(taskFilePath),
 		res: &landResult{Landed: []string{}, Reopened: []landItem{}, Blocked: []landItem{},
-			Dropped: []string{}, Unlanded: []landItem{}},
+			Dropped: []string{}, Unlanded: []landItem{}, Pruned: []landPruned{}, Kept: []landKept{}},
 	}
 	for _, path := range unreadable {
 		l.res.Blocked = append(l.res.Blocked, landItem{ID: strings.TrimSuffix(filepath.Base(path), ".json"),
@@ -99,6 +119,7 @@ func runLand(_ *cobra.Command, _ []string) error {
 		l.land(&requests[i])
 	}
 	l.commitTaskFile()
+	l.pruneWorktrees()
 	if jsonErr := output.JSON(l.res); jsonErr != nil {
 		output.Error(ExitFile, jsonErr.Error(), internalEncodeHint)
 	}
@@ -131,6 +152,27 @@ func (l *lander) commitTaskFile() {
 		return
 	}
 	l.res.Commit = sha
+}
+
+// pruneWorktrees removes each landed request's worktree and branch when that
+// is safe, and names each one kept with why (spec/backlog/land-lifecycle.md
+// §2.2). Every commit of a landed request was picked: tp land lands a
+// request whole or not at all.
+func (l *lander) pruneWorktrees() {
+	for i := range l.landed {
+		r := &l.landed[i]
+		if r.Worktree == "" {
+			continue
+		}
+		branch, reason, found := engine.PruneLandedWorktree(l.root, r.Worktree, r.Commits)
+		switch {
+		case !found:
+		case reason != "":
+			l.res.Kept = append(l.res.Kept, landKept{ID: r.ID, Worktree: r.Worktree, Reason: reason})
+		default:
+			l.res.Pruned = append(l.res.Pruned, landPruned{ID: r.ID, Worktree: r.Worktree, Branch: branch})
+		}
+	}
 }
 
 // landCommitMessage is the message of a land's task-file commit, naming the
@@ -219,6 +261,7 @@ func (l *lander) land(r *engine.LandRequest) {
 		l.outcome(r, session, "")
 		l.drop(r)
 		l.res.Landed = append(l.res.Landed, r.ID)
+		l.landed = append(l.landed, *r)
 	case errors.As(closeErr, &refused):
 		_ = engine.LandUndo(l.root, pre)
 		l.res.Blocked = append(l.res.Blocked, landItem{ID: r.ID, Error: "tp done refused the close: " + closeFailure(closeErr, logPath), Log: logPath,
