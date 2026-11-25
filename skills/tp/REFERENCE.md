@@ -290,6 +290,7 @@ Resolves the task file by the discovery order (a spec argument wins and uses its
 | `next_units` (v0.35.0) | ordered `[]` of `{kind, id, brief_command}` — the units a driver should execute **now**. `[]` when the phase is blocked, awaiting an operator decision, or `release`. Concurrency is not repeated per entry: it is fixed per kind (see [Unattended Run](#unattended-run-v0350)) |
 | `round` (v0.35.0) | the round `next_units` belongs to — the round being collected for role units, the round just recorded for the resolve/fix kinds — and `null` outside a round-based phase |
 | `last_failure` (v0.35.0) | `{unit_kind, unit_id, phase, exit_code, summary, at}` from `.tp/last_failure-<key>.json`, or `null`. Advisory: it never changes which unit runs next |
+| `found_queue` (v1.31.0) | `{open, holds}`: the open entries of the spec's queue and the open tasks they hold out of the ready set, each counted once; absent when no entry is open, kept under `--compact`. The terminal line reads `queue: N open entries hold M tasks`. It changes neither `phase` nor `next_units`: an entry holding no finder reads as if it were not there ([Found Tasks](#found-tasks-v1310)) |
 
 `next_units`, `round` and `phase` are the whole machine surface — a driver parses those three and nothing else. `next_action` stays the human-facing summary, and its `command`/`brief_command`/`payload` render `next_units[0]` when the array is non-empty. `tp brief` surfaces `last_failure` too, so a fresh unit sees the wall the previous attempt hit.
 
