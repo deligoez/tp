@@ -220,6 +220,24 @@ func TestNow_RunReportsTheLastFinishedUnit(t *testing.T) {
 	assert.NotNil(t, last["duration_seconds"])
 }
 
+// last_finished is the attempt that finished last, not the one that started
+// last: of two parallel units, the earlier-started one that ends later wins.
+func TestNow_LastFinishedIsTheLatestToEnd(t *testing.T) {
+	t.Parallel()
+	dir := runProject(t)
+	writeRunState(t, dir, `{"run_id":"par","started_at":"2026-11-25T00:00:00Z","phase":"implement","stop_reason":"cap-units",
+ "totals":{"units":2,"wall_clock_seconds":10,"spend_usd":0},
+ "units":[
+  {"seq":1,"kind":"implement","id":"seed","attempt":1,"exit_code":0,"duration_seconds":10,"spend_usd":null,"log_path":"x","started_at":"2026-11-25T00:00:00Z"},
+  {"seq":2,"kind":"implement","id":"grow","attempt":1,"exit_code":0,"duration_seconds":3,"spend_usd":null,"log_path":"y","started_at":"2026-11-25T00:00:02Z"}]}`)
+
+	stdout, stderr, code := runTP(t, dir, "now")
+	require.Equal(t, 0, code, "tp now: %s", stderr)
+	last, ok := decodeNow(t, stdout)["run"].(map[string]any)["last_finished"].(map[string]any)
+	require.True(t, ok, "a unit finished")
+	assert.Equal(t, "seed", last["id"], "seed ends at 00:00:10, grow at 00:00:05")
+}
+
 // A land request made under the task's claim waits for tp land: landing names
 // it, and needs_you says so in words that carry no command.
 func TestNow_ReportsAWaitingLandRequest(t *testing.T) {
