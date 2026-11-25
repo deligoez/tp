@@ -15,9 +15,6 @@ None. The 2026-11-25 field reports' decisions are in `spec/backlog/land-lifecycl
 
 Field report of 2026-11-25 (v1.30.0 worktree pool): reproduce each before fixing.
 
-- **The 300-character description limit is enforced only by validate/import.** The skill's
-  decomposition rules never state it; a first import failed on 8 descriptions. Test: SKILL.md's
-  decomposition rules name the limit.
 - **`tp land` exits 0 when a task is blocked.** A land that hit `.git/index.lock: File exists` listed
   the task under `blocked` and exited 0; the coordinator committed the task file as if it had landed.
   Test: a land with a non-empty `blocked` exits non-zero, and an index.lock is retried.
