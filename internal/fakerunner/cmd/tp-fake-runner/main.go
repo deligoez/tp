@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -251,8 +252,25 @@ func durableWrite() error {
 		return markTaskDone(taskFile, os.Getenv("TP_UNIT_ID"))
 	case "review-role", "audit-role":
 		return writeRoleFindings(os.Getenv("TP_ROUND_DIR"), os.Getenv("TP_UNIT_ID"))
+	case "decision":
+		return answerRequests(os.Getenv("TP_FILE"), os.Getenv("TP_UNIT_ID"))
 	}
 	return nil
+}
+
+// answerRequests is a decision unit's durable write: every request its unit
+// id names leaves the undecided state, as tp found answer would leave it.
+func answerRequests(taskFile, unitID string) error {
+	ids := engine.DecisionRequestIDs(unitID)
+	root := engine.CanonicalProjectRoot(filepath.Dir(taskFile))
+	return engine.UpdateFoundRequests(root, taskFile, func(reqs []engine.FoundRequest) ([]engine.FoundRequest, error) {
+		for i := range reqs {
+			if slices.Contains(ids, reqs[i].ID) {
+				reqs[i].State = engine.FoundStateApplied
+			}
+		}
+		return reqs, nil
+	})
 }
 
 // closePending is a batched implement unit's durable write: it commits one
