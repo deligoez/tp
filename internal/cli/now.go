@@ -174,7 +174,36 @@ func buildNow(taskFilePath string, tf *model.TaskFile) (*nowResult, error) {
 	run, slots := nowRunOf(root, taskFilePath)
 	res.Run = run
 	res.Held = nowHeldTasks(tf, slots)
+	res.Landing = nowLandings(taskFilePath, tf)
+	for _, l := range res.Landing {
+		res.NeedsYou = append(res.NeedsYou, nowNeed{Kind: "land", ID: l.ID,
+			Text: "A finished task waits to be landed onto this branch."})
+	}
 	return res, nil
+}
+
+// nowLandings lists the land requests waiting for tp land, in id order: the
+// ones tp land would land, made under the claim of a task still wip.
+func nowLandings(taskFilePath string, tf *model.TaskFile) []nowLand {
+	out := []nowLand{}
+	requests, _, err := engine.ReadLandRequests(engine.LandDir(taskFilePath))
+	if err != nil {
+		output.Notice("warning: the land requests cannot be read: " + err.Error())
+		return out
+	}
+	for i := range requests {
+		r := &requests[i]
+		task, _, findErr := model.FindTask(tf, r.ID)
+		if findErr != nil || task.Status != model.StatusWIP || !r.MadeUnder(task.ClaimedBy) {
+			continue
+		}
+		land := nowLand{ID: r.ID, Title: task.Title}
+		if r.At != "" {
+			land.Since = &r.At
+		}
+		out = append(out, land)
+	}
+	return out
 }
 
 // nowRunOf is the current or last run of the task file as tp run --status
