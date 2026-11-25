@@ -148,8 +148,8 @@ let sessionCwd = ''
 // The tp binary's version, read once per session for the pane's brand line.
 let version = ''
 
-// Set once `tp now` has failed: a tp older than it, read through
-// `tp run --status` until the command asks again.
+// Set while `tp now` fails: a tp older than it, read through
+// `tp run --status` and asked again once a minute.
 let nowMissing = false
 
 async function readVersion($: EngineInterface): Promise<string> {
@@ -175,12 +175,15 @@ async function readLanguage($: EngineInterface, folder: string): Promise<Lang> {
 }
 
 // refresh reads the project once: `tp now --json`, or on a tp without it
-// `tp run --status`, whose run is then all the pane draws.
-async function refresh($: EngineInterface): Promise<RunView | null> {
+// `tp run --status`, whose run is then all the pane draws. Once `tp now` has
+// failed it is asked again only when retry says so (the minute's read), so
+// one slow answer does not cost the pane its views for the session.
+async function refresh($: EngineInterface, retry: boolean): Promise<RunView | null> {
   const at = await $.clock.now()
-  const payload = nowMissing ? undefined : await runJSON($, ['tp', 'now', '--json'])
+  const payload = nowMissing && !retry ? undefined : await runJSON($, ['tp', 'now', '--json'])
   const read = payload ? toNow(payload, at) : null
   if (read) {
+    nowMissing = false
     await update($, nowState, () => read.now)
     await update($, run, () => read.run)
     return read.run
@@ -244,8 +247,9 @@ export const register: Register = on => {
     let tick = 0
     $.clock.every(LIVE_MS, async () => {
       tick++
-      if (!(await isLive($)) && tick % IDLE_EVERY !== 1) return
-      const view = await refresh($)
+      const minute = tick % IDLE_EVERY === 1
+      if (!minute && !(await isLive($))) return
+      const view = await refresh($, minute)
       // A run that starts while the session is open shows itself once.
       if (view?.run_state === 'in_flight' && autoOpened !== view.run_id) {
         autoOpened = view.run_id
@@ -261,8 +265,7 @@ export const register: Register = on => {
     if (!version) version = await readVersion($)
     const lang = await readLanguage($, cwd)
     await update($, langState, () => lang)
-    nowMissing = false
-    const view = await refresh($)
+    const view = await refresh($, true)
     const now = await read($, nowState)
     await $.ui.open({ id: PANE, title: TITLE })
     return { text: now || view ? 'The tp pane is open.' : 'No tp run in this project yet.' }
