@@ -269,6 +269,17 @@ func AuditNextAction(specPath string, done LoopDone, latestRoundClean bool, late
 	}
 }
 
+// LastAuditRoundClause is what next_action adds while one audit round is left
+// under the cap and the loop is open (spec/backlog/audit-round-ergonomics.md
+// §2.5): that round is the last, and dispositioning its findings ends the loop
+// done_by: cap, so the cap is a way to finish, not a dead end. "" otherwise.
+func LastAuditRoundClause(remaining int, done LoopDone) string {
+	if remaining != 1 || done.Done || done.CapReached {
+		return ""
+	}
+	return "; the next audit round is the last the cap allows: once its findings are dispositioned the loop ends done_by: cap"
+}
+
 // blockingFixedAtCap names the one state at the cap that only the operator can
 // end: blocking findings marked fixed that no round will re-read.
 func blockingFixedAtCap(n int) string {
