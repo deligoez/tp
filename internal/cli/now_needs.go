@@ -38,8 +38,8 @@ var runStopTexts = map[engine.StopReason]string{
 // runNeeds is the need a run left behind, if any: a crashed run (its driver
 // gone without a stop reason) and a run stopped for any reason but converged
 // or no-units. An escalation stop whose records were read is already named by
-// their needs, so it adds none. The id is the last unit's, the one the stop
-// is about.
+// their needs, so it adds none. The id is the last unit's task, the one the
+// stop is about, when that unit implements one.
 func runNeeds(st *engine.RunState, runState string, escalations []nowNeed) []nowNeed {
 	var text, code string
 	switch {
@@ -57,7 +57,8 @@ func runNeeds(st *engine.RunState, runState string, escalations []nowNeed) []now
 		}
 	}
 	need := nowNeed{Kind: needRun, Text: text, Code: code}
-	if u := lastRunUnit(st); u != nil {
+	// Only an implement unit's id is a task; a review or audit unit's is a round.
+	if u := lastRunUnit(st); u != nil && u.Kind == engine.UnitImplement {
 		need.ID = u.ID
 	}
 	return []nowNeed{need}
