@@ -6,6 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/deligoez/tp/internal/engine"
 )
 
 // The tests below are spec/backlog/audit-round-ergonomics.md §2.2: --inbox
@@ -48,5 +50,17 @@ func TestNamedInbox_EmissionNamesTheInbox(t *testing.T) {
 				assert.Contains(t, pm["prompt"].(string), "Write this round's findings to: "+got)
 			}
 		})
+	}
+}
+
+// TestNamedInbox_TheRunsRoundDirStillWins: under tp run the driver's round
+// directory is the one path a role may write, so it outranks --inbox.
+func TestNamedInbox_TheRunsRoundDirStillWins(t *testing.T) {
+	t.Parallel()
+	dir, specPath, _ := emissionFixture(t)
+	roundDir := filepath.Join(dir, ".tp", "rounds", "spec", "review-r1")
+	prompts := emittedPrompts(t, dir, []string{engine.EnvRoundDir + "=" + roundDir}, "review", specPath, "--no-state", "--inbox", "outside")
+	for _, pm := range prompts {
+		assert.Equal(t, engine.RoleFindingsPartPath(roundDir, pm["role"].(string)), pm["output_path"].(string))
 	}
 }
