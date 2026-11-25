@@ -74,6 +74,7 @@ var commandSides = map[string]string{
 	"tp blocked":      sideFile,
 	"tp brief":        sideFile,
 	"tp claim":        sideFile,
+	"tp found add":    sideFile,
 	// tp claims takes no task file: it reads every task file of every
 	// worktree of the working directory's repository.
 	"tp claims":   sideNone,
@@ -119,6 +120,7 @@ var commandSides = map[string]string{
 	"tp epic status":        sideNone,
 	"tp epic unlink":        sideNone,
 	"tp escalate":           sideNone,
+	"tp found":              sideNone,
 	"tp ground":             sideNone,
 	"tp keep":               sideNone,
 	"tp lint":               sideNone,
