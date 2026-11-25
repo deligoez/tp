@@ -36,7 +36,7 @@ func newFoundCmd() *cobra.Command {
 		Short: "File requests for defects found outside the caller's task",
 		Args:  cobra.NoArgs,
 	}
-	cmd.AddCommand(newFoundAddCmd(), newFoundApplyCmd())
+	cmd.AddCommand(newFoundAddCmd(), newFoundApplyCmd(), newFoundAnswerCmd())
 	return cmd
 }
 
