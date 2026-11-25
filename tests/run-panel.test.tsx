@@ -1,7 +1,8 @@
 import { expect, test } from 'claude-code/testing'
 
-import { duration, panelRows, toNow, tpVersion, toView } from '../hooks/run-panel'
-import { resolveLanguage } from '../hooks/panel-words'
+import { toNow, tpVersion, toView } from '../hooks/run-panel'
+import { resolveLanguage, WORDS } from '../hooks/panel-words'
+import { runRows } from '../hooks/panel-rows'
 
 const PANE = {
   plugin: 'tp',
@@ -69,6 +70,7 @@ const NOW = {
 }
 
 test('a duration reads in seconds, minutes and hours', async () => {
+  const duration = WORDS.en.duration
   expect(duration(42)).toBe('42s')
   expect(duration(754)).toBe('12m 34s')
   expect(duration(28800)).toBe('8h 0m')
@@ -93,9 +95,9 @@ test('the rows name the phase, the caps and each running slot', async () => {
     { ...STATUS, running: [{ ...STATUS.running[0], started_at: '2026-11-25T10:00:00Z' }] },
     0,
   )
-  const rows = panelRows(view!, startedAt + 245_000).map(row => row.text)
+  const rows = runRows(view!, 'en', startedAt + 245_000).map(row => row.text)
   expect(rows).toEqual([
-    'implement phase, running',
+    'Implement phase, running',
     'Units 3 of 100 (2 finished, 1 running)',
     'Time 12m 34s of 8h 0m',
     'Spend $1.20 (estimate)',
@@ -107,8 +109,8 @@ test('the rows name the phase, the caps and each running slot', async () => {
 
 test('a stopped run names why it stopped', async () => {
   const view = toView({ ...STATUS, run_state: 'stopped', stop_reason: 'converged', running: [] }, 0)
-  const rows = panelRows(view!, 0).map(row => row.text)
-  expect(rows[0]).toBe('implement phase, stopped')
+  const rows = runRows(view!, 'en', 0).map(row => row.text)
+  expect(rows[0]).toBe('Implement phase, stopped')
   expect(rows.at(-1)).toBe('Stopped: converged')
 })
 
@@ -128,9 +130,9 @@ test('a live run counts its time from the start and its units as they finish', a
     },
     0,
   )
-  const rows = panelRows(view!, start + 31_000).map(row => row.text)
+  const rows = runRows(view!, 'en', start + 31_000).map(row => row.text)
   expect(rows).toEqual([
-    'implement phase, running',
+    'Implement phase, running',
     'Units 2 of 100 (0 finished, 2 running)',
     'Time 31s of 8h 0m',
     'Spend $1.20 (estimate)',
