@@ -447,6 +447,22 @@ test('the tp now payload keeps what the pane draws, its run included', async () 
   expect(toNow({ error: 'not a tp project' }, 0)).toBe(null)
 })
 
+test('the project setting chooses Turkish over an English locale', async ($, on) => {
+  mock.clock(on, { now: AT })
+  mock.env(on, { LANG: 'en_US.UTF-8' })
+  world(on, { 'tp --version': VERSION, 'tp now --json': { exitCode: 0, stdout: JSON.stringify(NOW) } })
+  on('fs.read', (_, e) => {
+    if (e.path !== '/p/.tp/config.json') throw new Error('ENOENT: no such file or directory')
+    return { value: JSON.stringify({ workflow: {}, panel: { language: 'tr' } }) }
+  })
+  await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
+  await runCommand($)
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: 'Uygulama aşaması · koşu sürüyor (4dk 5sn)' })).toBeTruthy()
+  expect(await ui.find({ type: 'Button', key: 'view-now', text: 'Şimdi' })).toBeTruthy()
+  await ui.unmount()
+})
+
 test('the run view reads in Turkish', async () => {
   const start = Date.parse('2026-11-25T10:00:00Z')
   const read = toNow(NOW, 0)
