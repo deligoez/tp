@@ -541,6 +541,10 @@ type BriefTask struct {
 	// (spec/1.31.0.md §2); kept under --compact, since each is a defect in
 	// the task's own files.
 	FoundNotes []model.FoundNote `json:"found_notes,omitempty"`
+	// ConflictBranch is the unit branch whose commits did not apply to the
+	// main branch; this unit brings it on rather than redoing the task
+	// (spec/backlog/worktree-dispatch.md §2.2). Kept under --compact.
+	ConflictBranch string `json:"conflict_branch,omitempty"`
 }
 
 // Brief is the structured machine-readable parts of an implementation brief
@@ -599,6 +603,7 @@ func BuildBrief(tf *model.TaskFile, task *model.Task, specPath, effectiveStrateg
 		SourceLines:    task.SourceLines,
 		Touches:        task.Touches,
 		FoundNotes:     task.FoundNotes,
+		ConflictBranch: task.ConflictBranch,
 	}
 	if task.Origin != nil {
 		bt.Request = foundBriefRequest(task)
@@ -674,6 +679,10 @@ func (b *Brief) Text() string {
 			b.LastFailure.UnitKind, b.LastFailure.UnitID, b.LastFailure.ExitCode,
 			b.LastFailure.At, b.LastFailure.Summary)
 	}
+	if b.Task.ConflictBranch != "" {
+		s.WriteString("\n\n## Earlier work\n\n")
+		s.WriteString(conflictResolutionText(b.Task.ConflictBranch))
+	}
 
 	// §4.1 Scope: the acceptance criteria are the boundary, plus the fence (§7).
 	s.WriteString("\n\n## Scope\n\n")
@@ -696,6 +705,18 @@ func (b *Brief) Text() string {
 	s.WriteString("\n")
 
 	return s.String()
+}
+
+// conflictResolutionText tells the unit that inherits a conflicting unit's
+// branch to finish that work: bring the branch onto the current branch,
+// resolving the conflicts, re-run its tests and close as usual. The commands
+// leave HEAD on the branch the close is made on: a rebase would check the
+// unit branch out instead.
+func conflictResolutionText(branch string) string {
+	return fmt.Sprintf("An earlier unit did this task on branch %s, but its commits did not apply to the main branch. "+
+		"Resolve that conflict; do not start the task again: bring the branch onto the current branch with "+
+		"git cherry-pick HEAD..%s (or git merge %s), resolve the conflicts, re-run its tests, and close as usual "+
+		"with the commits that now carry the work.\n", branch, branch, branch)
 }
 
 // renderPriorWorkText renders the prior-work section body. The first unit states
