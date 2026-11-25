@@ -45,14 +45,24 @@ func RoleInboxFiles(inbox, specPath, phase string, round int, role string) []str
 	if info, err := os.Stat(whole); err == nil && !info.IsDir() {
 		files = append(files, whole)
 	}
-	parts, _ := filepath.Glob(strings.TrimSuffix(whole, ".ndjson") + ".*.ndjson")
+	stem := strings.TrimSuffix(whole, ".ndjson")
+	parts, _ := filepath.Glob(stem + ".*.ndjson")
 	for _, p := range parts {
+		// Only a part spelled like a role id, the name the plugin's write
+		// fence lets a role write (hooks/pre-tool-use-write-deny.sh).
+		part := strings.TrimSuffix(strings.TrimPrefix(p, stem+"."), ".ndjson")
+		if !partNameRe.MatchString(part) {
+			continue
+		}
 		if info, err := os.Stat(p); err == nil && !info.IsDir() {
 			files = append(files, p)
 		}
 	}
 	return files
 }
+
+// partNameRe is a part file's part: lowercase words joined by hyphens.
+var partNameRe = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 
 // RoleInboxDirAt is the directory RoleInboxPathAt puts a phase's role files
 // in.
