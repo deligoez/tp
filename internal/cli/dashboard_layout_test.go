@@ -252,3 +252,47 @@ func TestDashboard_ThePlanKeepsItsPlacesAsEpicsFinish(t *testing.T) {
 		assert.Equal(t, "cross critical", edges["e>x"], pack)
 	}
 }
+
+// TestDashboard_ThePlanLaysEachMilestoneOutAsABlock: two milestones of
+// different tracks share layers 0-1, and the plan gives each its own block
+// with its own count and columns, an empty column between them, every
+// node inside its milestone's block.
+func TestDashboard_ThePlanLaysEachMilestoneOutAsABlock(t *testing.T) {
+	t.Parallel()
+	graph := `{"version": 1, "milestones": [["A"], ["B"]], "opens_after": {"B": []}, "epics": [
+  {"id": "a1", "title": "A1", "milestone": "A"},
+  {"id": "a2", "title": "A2", "milestone": "A", "depends_on": [{"id": "a1", "why": "w"}]},
+  {"id": "b1", "title": "B1", "milestone": "B"},
+  {"id": "b2", "title": "B2", "milestone": "B"},
+  {"id": "b3", "title": "B3", "milestone": "B", "depends_on": [{"id": "b1", "why": "w"}]}]}`
+	srv := startDashboard(t, epicGraphDir(t, graph), freePort(t))
+	for _, pack := range []string{"rows", "tree"} {
+		status, body := getPage(t, strings.TrimSuffix(srv.url, "/")+"/api/layout?view=plan&pack="+pack)
+		require.Equal(t, http.StatusOK, status, body)
+		var got struct {
+			Blocks []struct {
+				Milestone string  `json:"milestone"`
+				FromCol   float64 `json:"from_col"`
+				ToCol     float64 `json:"to_col"`
+				Count     int     `json:"count"`
+			} `json:"blocks"`
+			Nodes []struct {
+				Milestone string  `json:"milestone"`
+				Col       float64 `json:"col"`
+			} `json:"nodes"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(body), &got), body)
+		require.Len(t, got.Blocks, 2, body)
+		a, b := got.Blocks[0], got.Blocks[1]
+		assert.Equal(t, []string{"A", "B"}, []string{a.Milestone, b.Milestone}, pack)
+		assert.Equal(t, []int{2, 3}, []int{a.Count, b.Count}, pack)
+		assert.Less(t, a.ToCol+1, b.FromCol, "%s: %s", pack, body)
+		for _, n := range got.Nodes {
+			blk := a
+			if n.Milestone == "B" {
+				blk = b
+			}
+			assert.True(t, blk.FromCol <= n.Col && n.Col <= blk.ToCol, "%s: %s", pack, body)
+		}
+	}
+}
