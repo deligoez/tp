@@ -54,7 +54,12 @@ origin location is not one of its files. Any other Fix-shaped request becomes
 a found task, blocking ones first, then by arrival, while the task file holds
 fewer than found_max found tasks (0 is uncapped); past it the request becomes
 an open queue entry. A request that needs a choice waits, undecided, for the
-decision unit.`,
+decision unit.
+
+A non-blocking found task depends on the task that filed it (an audit row's
+on nothing). A blocking request makes its finder depend on the task it ended
+in; when that edge would close a cycle it adds no edge and becomes an open
+queue entry naming the cycle.`,
 		Args: cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return runFoundApply()
