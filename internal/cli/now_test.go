@@ -273,6 +273,25 @@ func TestNow_LastFinishedIsTheLatestToEnd(t *testing.T) {
 	assert.Equal(t, "seed", last["id"], "seed ends at 00:00:10, grow at 00:00:05")
 }
 
+// Ends less than a second apart are ordered by seq only beside the latest
+// end: a chain of near ends does not walk seq order away from it.
+func TestNow_LastFinishedTieBreaksOnlyNearTheLatestEnd(t *testing.T) {
+	t.Parallel()
+	dir := runProject(t)
+	writeRunState(t, dir, `{"run_id":"chain","started_at":"2026-11-25T00:00:00Z","phase":"implement","stop_reason":"cap-units",
+ "totals":{"units":3,"wall_clock_seconds":12,"spend_usd":0},
+ "units":[
+  {"seq":1,"kind":"implement","id":"a","attempt":1,"exit_code":0,"duration_seconds":12,"spend_usd":null,"log_path":"x","started_at":"2026-11-25T00:00:00Z"},
+  {"seq":2,"kind":"implement","id":"b","attempt":1,"exit_code":0,"duration_seconds":11.2,"spend_usd":null,"log_path":"y","started_at":"2026-11-25T00:00:00Z"},
+  {"seq":3,"kind":"implement","id":"c","attempt":1,"exit_code":0,"duration_seconds":10.5,"spend_usd":null,"log_path":"z","started_at":"2026-11-25T00:00:00Z"}]}`)
+
+	stdout, stderr, code := runTP(t, dir, "now")
+	require.Equal(t, 0, code, "tp now: %s", stderr)
+	last, ok := decodeNow(t, stdout)["run"].(map[string]any)["last_finished"].(map[string]any)
+	require.True(t, ok, "a unit finished")
+	assert.Equal(t, "b", last["id"], "a ends at 12s and b within a second of it; c, at 10.5s, is 1.5s before a")
+}
+
 // A land request made under the task's claim waits for tp land: landing names
 // it, and needs_you says so in words that carry no command.
 func TestNow_ReportsAWaitingLandRequest(t *testing.T) {
