@@ -117,11 +117,16 @@ test('the command outside a tp project says so and reads no status', async ($, o
   })
   on('process.run', () => {
     ran = true
-    return { value: { exitCode: 1, stdout: '', stderr: '' } }
+    return { value: { exitCode: 1, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
   })
 
   await $.session.start({ cwd: '/not-tp', surface: 'terminal', isInteractive: true })
-  const { text } = await $.command.run({ command: 'tp-run' })
+  const { text } = await $.command.run({
+    command: 'tp-run',
+    args: '',
+    origin: { kind: 'composer' },
+    presentation: { isFullscreen: false, columns: 120 },
+  })
   expect(text).toBe('This folder is not a tp project.')
   expect(ran).toBe(false)
 })
