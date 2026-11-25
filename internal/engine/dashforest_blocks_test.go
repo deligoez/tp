@@ -147,3 +147,38 @@ func TestForestLayout_BlocksAreStable(t *testing.T) {
 	}
 }
 
+// TestForestLayout_BlockInvariantsOnARandomGraph: on a seeded random graph
+// of six bands in two lanes, each band its own group, under both packings,
+// no two nodes share a place, every column is inside the width, blocks
+// sharing layers are apart and each node is inside its own block.
+func TestForestLayout_BlockInvariantsOnARandomGraph(t *testing.T) {
+	t.Parallel()
+	r := rand.New(rand.NewPCG(3, 5))
+	var ids []string
+	bandOf := map[string]string{}
+	for i := range 150 {
+		id := fmt.Sprintf("e%03d", i)
+		ids = append(ids, id)
+		bandOf[id] = fmt.Sprintf("M%d", r.IntN(6))
+	}
+	var edges []LayoutEdge
+	for i := 1; i < len(ids); i++ {
+		for range r.IntN(3) {
+			edges = append(edges, LayoutEdge{From: ids[r.IntN(i)], To: ids[i]})
+		}
+	}
+	lanes := map[string]string{"M0": "a", "M1": "b", "M2": "a", "M3": "b", "M4": "a", "M5": "b"}
+	for _, pack := range []ForestPacking{PackTree, PackRows} {
+		in := ForestInput{IDs: ids, Edges: edges, Bands: []string{"M0", "M1", "M2", "M3", "M4", "M5"}, BandOf: bandOf, GroupOf: bandOf, LaneOf: lanes, Pack: pack, Blocks: true}
+		got := ForestLayout(&in)
+		taken := map[[2]float64]string{}
+		for _, id := range ids {
+			p := got.Places[id]
+			key := [2]float64{float64(p.Layer), p.Col}
+			assert.Empty(t, taken[key], "%s: %s and %s share a place", pack, id, taken[key])
+			taken[key] = id
+			assert.True(t, p.Col >= 0 && p.Col < got.Columns, "%s: %s at column %v of %v", pack, id, p.Col, got.Columns)
+		}
+		assertBlocksApart(t, &in, &got)
+	}
+}
