@@ -159,6 +159,13 @@ func runNext(_ *cobra.Command, _ []string) error {
 				os.Exit(ExitState)
 				return nil
 			}
+			// A task claimed between the read and the lock may now hold
+			// this one's files: screen again, as tp claim does.
+			if msg := claimOverlapRefusal(tf2, t); msg != "" {
+				output.Error(ExitState, msg)
+				os.Exit(ExitState)
+				return nil
+			}
 			now := time.Now().UTC()
 			t.Status = model.StatusWIP
 			t.StartedAt = &now
