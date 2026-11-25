@@ -69,3 +69,26 @@ func TestRoundBudget_Escalates(t *testing.T) {
 	assert.Equal(t, 1, code, "an undispositioned finding at the cap blocks import")
 	assert.Contains(t, stderr, "carrying no disposition")
 }
+
+// TestAuditStatus_TheLastRoundIsNamedBeforeItRuns (audit-round-ergonomics.md
+// §2.5): with one round left under audit_max_rounds, next_action says the
+// next round is the last and that the loop ends done_by: cap once its
+// findings are dispositioned, so no agent reads the cap as a dead end.
+func TestAuditStatus_TheLastRoundIsNamedBeforeItRuns(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(normSpec), 0o600))
+	_, _, code := runTP(t, dir, "init", "spec.md")
+	require.Equal(t, 0, code)
+	_, _, code = runTP(t, dir, "set", "--workflow", "audit_max_rounds=2")
+	require.Equal(t, 0, code)
+	_, _, code = auditRecord(t, dir, `{"id":"x","status":"FAIL"}`+"\n")
+	require.Equal(t, 0, code)
+
+	stdout, _, code := runTP(t, dir, "audit", "spec.md", "--status")
+	require.Equal(t, 0, code)
+	var out map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+	require.Equal(t, float64(1), out["rounds_remaining"])
+	assert.Contains(t, out["next_action"], "the next audit round is the last the cap allows: once its findings are dispositioned the loop ends done_by: cap")
+}
