@@ -173,14 +173,14 @@ test('the now view reads in Turkish, titles as written', async () => {
   const read = toNow(NOW, 0)!
   expect(nowRows(read.now, read.run, 'tr', AT, 40).map(row => row.text)).toEqual([
     'Uygulama aşaması · koşu sürüyor (4dk 5sn)',
-    'Senden bekleyen',
+    'Seni bekleyen',
     'Sana iletildi: The run stopped on a decision only you can make.',
     'Devam eden',
     'auth-refresh  Refresh tokens before expiry · koşu, 2. deneme, 4dk 5sn',
     'rate-limit  Limit requests per key · ajan',
     'Birleştirilmeyi bekleyen',
     'cache-key  Key the cache by tenant · 2dk 5sn',
-    'Görevler: 14/31 bitti, 2 devam ediyor, 3 hazır, 12 engelli',
+    'Görevler: 14/31 bitti, 2 devam ediyor, 3 hazır, 12 bloke',
     'Epikler',
     'Payment flow  ████████░░ 8/10',
     'Sırada',
@@ -261,8 +261,8 @@ test('a task detail reads in Turkish', async () => {
   expect(detailRows('auth-refresh', read.now, SHOWN, 'tr', AT).map(row => row.text)).toEqual([
     'Refresh tokens before expiry',
     'auth-refresh',
-    'Tutan: koşu, 2. deneme',
-    'Başlangıç: 4dk 5sn önce',
+    'Üzerinde çalışan: koşu, 2. deneme',
+    '4dk 5sn önce başladı',
     'Çalışma ağacı: /w/auth-refresh',
     'Kabul ölçütleri',
     'Tokens refresh 60s before expiry',
@@ -567,7 +567,7 @@ test('with no project setting Claude Code\'s language setting chooses over the l
   await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
   await runCommand($)
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect(await ui.find({ type: 'Text', text: 'Senden bekleyen' })).toBeTruthy()
+  expect(await ui.find({ type: 'Text', text: 'Seni bekleyen' })).toBeTruthy()
   await ui.unmount()
 })
 
@@ -582,8 +582,9 @@ test('the run view reads in Turkish', async () => {
     'Harcama $0.42 (tahmini)',
     'Şu an çalışan',
     'auth-refresh uygulama, 2. deneme, 4dk 5sn',
-    'Son: alpha uygulama, çıkış 0, 45sn sürdü',
+    'Son: alpha uygulama, çıkış kodu 0, 45sn sürdü',
   ])
+  expect(WORDS.tr.state('crashed')).toBe('beklenmedik biçimde durdu (sürücü çöktü)')
 })
 
 test('with no project or Claude Code setting the system locale chooses', async ($, on) => {
@@ -597,7 +598,7 @@ test('with no project or Claude Code setting the system locale chooses', async (
   await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
   await runCommand($)
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect(await ui.find({ type: 'Text', text: 'Senden bekleyen' })).toBeTruthy()
+  expect(await ui.find({ type: 'Text', text: 'Seni bekleyen' })).toBeTruthy()
   await ui.unmount()
 })
 
