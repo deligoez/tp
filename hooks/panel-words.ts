@@ -75,6 +75,9 @@ export type Words = {
   inProgressCount: (n: number) => string
   tabs: Record<ViewName, string>
   back: string
+  paneOpen: string
+  noRunYet: string
+  notProject: string
 }
 
 function clock(seconds: number, s: string, m: string, h: string): string {
@@ -301,6 +304,9 @@ const EN: Words = {
   inProgressCount: n => `${n} in progress`,
   tabs: { now: 'Now', tasks: 'Tasks', epics: 'Epics', run: 'Run' },
   back: 'Back',
+  paneOpen: 'The tp pane is open.',
+  noRunYet: 'No tp run in this project yet.',
+  notProject: 'This folder is not a tp project.',
 }
 
 const TR: Words = {
@@ -347,6 +353,9 @@ const TR: Words = {
   inProgressCount: n => `${n} iş devam ediyor`,
   tabs: { now: 'Şimdi', tasks: 'Görevler', epics: 'Epikler', run: 'Koşu' },
   back: 'Geri',
+  paneOpen: 'tp paneli açık.',
+  noRunYet: 'Bu projede henüz tp koşusu yok.',
+  notProject: 'Bu klasör bir tp projesi değil.',
 }
 
 export const WORDS: Record<Lang, Words> = { en: EN, tr: TR }
