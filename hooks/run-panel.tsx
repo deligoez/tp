@@ -15,8 +15,9 @@ import { resolveLanguage, WORDS } from './panel-words'
 const PANE = 'tp-run'
 const TITLE = 'tp'
 
-// Held work or a live run is read every few seconds; an idle project only
-// once a minute, so a quiet session costs one short tp call a minute.
+// Live work is read every few seconds (isLive says what is live); an idle
+// project only once a minute, so a quiet session costs one short tp call a
+// minute.
 const LIVE_MS = 5_000
 const IDLE_EVERY = 12
 
@@ -154,8 +155,8 @@ let sessionCwd = ''
 // The tp binary's version, read once per session for the pane's brand line.
 let version = ''
 
-// Set while `tp now` fails: a tp older than it, read through
-// `tp run --status` and asked again once a minute.
+// Set while `tp now` has never answered and fails: a tp older than it, read
+// through `tp run --status` and asked again once a minute.
 let nowMissing = false
 
 async function readVersion($: EngineInterface): Promise<string> {
@@ -269,7 +270,7 @@ const VIEWS: readonly ViewName[] = ['now', 'tasks', 'epics', 'run']
 const CHROME_ROWS = 4
 
 // Set once the timer runs, so session.start and the command start it once.
-// A reload starts the module over, its old timer gone with it.
+// A reload starts the module over, and the flag with it.
 let polling = false
 
 // startPolling reads the project on a timer: every few seconds while work
