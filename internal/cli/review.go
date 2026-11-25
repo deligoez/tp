@@ -480,7 +480,7 @@ Modes (mutually exclusive):
 	cmd.Flags().BoolVar(&forceFlag, "force", false, "With --resolve/--resolve-all: re-resolve already resolved findings; on an emission: discard an unrecorded round's emission when the spec changed since it")
 	cmd.Flags().StringVar(&recordPath, "record", "", "Record a review round from an NDJSON findings file")
 	cmd.Flags().BoolVar(&recordInbox, "record-inbox", false, "Record the collected round from its inbox, refusing while a role of the round has no file")
-	cmd.Flags().StringVar(&flagInbox, "inbox", "", "Directory the roles' files are written to and read from, in place of the spec's state directory (<dir>/review-inbox/<spec base>/round-<N>-<role>.ndjson); name it on the emission, each --role emission and --record-inbox")
+	cmd.Flags().StringVar(&flagInbox, "inbox", "", "Directory the roles' files are written to and read from, in place of the spec's state directory (<dir>/review-inbox/<spec base>-<path hash>/round-<N>-<role>.ndjson); name it on the emission, each --role emission and --record-inbox")
 	cmd.Flags().BoolVar(&statusMode, "status", false, "Show recorded review rounds and convergence state")
 	cmd.Flags().BoolVar(&checkFlag, "check", false, "With --status: run registered mechanical checks")
 	cmd.Flags().StringVar(&harnessNote, "harness-note", "", "With --record: store an optional free-text note on the recorded round")

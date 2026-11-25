@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -22,7 +24,7 @@ func RoleInboxPath(specPath, phase string, round int, role string) string {
 
 // RoleInboxPathAt is RoleInboxPath under a named inbox (--inbox <dir>,
 // spec/backlog/audit-round-ergonomics.md §2.2):
-// <inbox>/<phase>-inbox/<spec base>/round-<N>-<role>.ndjson, the
+// <inbox>/<phase>-inbox/<spec key>/round-<N>-<role>.ndjson, the
 // <phase>-inbox level keeping a review round's files apart from an audit
 // round's of the same number and the spec level one spec's from another's
 // (RoleInboxDirAt). An empty inbox is the default, RoleInboxPath.
@@ -66,14 +68,34 @@ func RoleInboxFiles(inbox, specPath, phase string, round int, role string) []str
 var partNameRe = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 
 // RoleInboxDirAt is the directory RoleInboxPathAt puts a phase's role files
-// in. Under a named inbox it is <inbox>/<phase>-inbox/<spec base>, the base
-// the spec's state directory is named by, so two specs' rounds in flight in
-// one named inbox never share a file (spec/1.32.0-measurements.md §4).
+// in. Under a named inbox it is <inbox>/<phase>-inbox/<InboxSpecKey>, one
+// folder per spec, so two specs' rounds in flight in one named inbox never
+// share a file (spec/1.32.0-measurements.md §4), same-base specs in different
+// directories included.
 func RoleInboxDirAt(inbox, specPath, phase string) string {
 	if inbox == "" {
 		return roleInboxDir(specPath, phase)
 	}
-	return filepath.Join(inbox, phase+"-inbox", SpecBaseName(specPath))
+	return filepath.Join(inbox, phase+"-inbox", InboxSpecKey(specPath))
+}
+
+// InboxSpecKey is a spec's folder name in a named inbox: <base>-<hash>, the
+// readable base first, then the first 8 hex digits of the SHA-256 of the
+// spec's path relative to its repository's top level (absolute outside
+// git). The base alone is not unique: a/x.md and b/x.md share it, and each
+// record would read and remove the other's files. The repository-relative
+// path is the same from every worktree and every working directory, so an
+// emission and its record agree on the key.
+func InboxSpecKey(specPath string) string {
+	id := specPath
+	if abs, err := filepath.Abs(specPath); err == nil {
+		id = abs
+		if rel := RepoRelativePath(abs); rel != abs {
+			id = rel
+		}
+	}
+	sum := sha256.Sum256([]byte(filepath.ToSlash(id)))
+	return SpecBaseName(specPath) + "-" + hex.EncodeToString(sum[:4])
 }
 
 // roleInboxDir is a phase's inbox in the spec's state directory.

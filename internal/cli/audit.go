@@ -283,7 +283,7 @@ Use --findings to also verify review findings were addressed.`,
 	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "Output file path (for --merge; - writes the rows to stdout)")
 	cmd.Flags().BoolVar(&taskAudit, "task-audit", false, "Emit the task audit due now: the code roles of task_audit_roles over a batch of closed tasks' files")
 	cmd.Flags().BoolVar(&recordInbox, "record-inbox", false, "Record the emitted round (with --task-audit: the emitted task audit) from its roles' files, whole or round-<N>-<role>.<part>.ndjson parts, refusing while a role has none")
-	cmd.Flags().StringVar(&flagInbox, "inbox", "", "Directory the roles' files are written to and read from, in place of the spec's state directory (<dir>/<phase>-inbox/<spec base>/round-<N>-<role>.ndjson); name it on every call of the round")
+	cmd.Flags().StringVar(&flagInbox, "inbox", "", "Directory the roles' files are written to and read from, in place of the spec's state directory (<dir>/<phase>-inbox/<spec base>-<path hash>/round-<N>-<role>.ndjson); name it on every call of the round")
 
 	return cmd
 }
