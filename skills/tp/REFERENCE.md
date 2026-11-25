@@ -3248,7 +3248,7 @@ only its own parameters, and every view takes an optional `pack=rows|tree` (defa
 
 | Query | View |
 |-------|------|
-| `?view=plan` | the whole graph: every epic, banded by milestone, tracks side by side, the graph's critical path marked |
+| `?view=plan` | the whole graph: every epic, banded by milestone, tracks side by side, each milestone its own block of columns, the graph's critical path marked |
 | `?view=milestones` | every tracked milestone, an edge from each milestone it opens after |
 | `?view=scope&milestone=<m>` | `tp epic scope <m>`'s closure, banded by milestone, its critical path marked |
 | `?view=neighbourhood&epic=<id>[&depth=<n>]` | the epic, what it depends on and what depends on it, `depth` steps each way (default 2) |
@@ -3262,11 +3262,14 @@ ids, never built into a path, and one the graph does not hold answers 404 with c
 clamped to 1-4, an integer of any size included. An error echoes a value of the query cut to its
 first 80 characters. A graph that cannot be read answers as `tp epic export` exits.
 
-The answer is `{view, milestone?, epic?, depth?, layers, packing, columns, bands?, nodes, edges}`:
+The answer is `{view, milestone?, epic?, depth?, layers, packing, columns, bands?, blocks?, nodes, edges}`:
 `milestone` for `scope`, `epic` and the clamped `depth` for `neighbourhood`; `layers` the number of
 layers; `packing` the `pack` used and `columns` the width in columns; `bands`, for `plan` and
 `scope`, `[{milestone, with?, from_layer, to_layer}]`, each milestone a run of consecutive layers,
-`with` listing the milestones that share the run (below). `nodes` lists each node by layer, then
+`with` listing the milestones that share the run (below); `blocks`, for `plan` only (unreleased),
+`[{milestone, from_layer, to_layer, from_col, to_col, count}]`, one per milestone that holds an
+epic, in band order: the layers and columns (inclusive) its epics take and `count` its own epics,
+so a milestone that shares a run or its layers with others has its own block. `nodes` lists each node by layer, then
 column: `{id, title?, state?, status?, hold?, downstream?, layer, col}`, `layer` a small integer from
 0, `col` a column from 0, fractional under `pack=tree`. On an epic node, and never on a milestone
 node (v1.28.0): `title`; `state` its lifecycle, `tp epic export`'s `status` (`planned`, `claimed`,
@@ -3302,19 +3305,26 @@ after the first in closure order, and its epics' layers come from the longest pa
 edges.
 
 The columns come from a forest. Each node takes one primary parent: of the edges into it from an
-earlier layer and from its own track, one on the critical path, then the one from the deepest
+earlier layer and from its own group (its milestone in `plan`, its track in `scope`), one on the
+critical path, then the one from the deepest
 layer, then the earliest in graph-file order. In `scope` and `neighbourhood` that path is the one
 marked; in `plan` it is the graph's critical path with every epic counted open, so finishing an
 epic never moves a node to another layer or column, while `critical` still marks the live path.
 A parent sits over its child on that path, and under `pack=rows` a node on it takes its parent's
-column, so the path runs down one column.
+column, so the path runs down one column inside a group; in `plan` it steps sideways where it
+crosses from one milestone to another.
 In `milestones` a milestone's track is its group. That edge is a `tree` edge; any other edge pointing down the layers is `cross`, and
 an edge that points up or along a layer, which only a cycle leaves, is `back`. A node with no
-such edge, none into it or all from other tracks, is a root. The roots are grouped by track, and
+such edge, none into it or all from other groups, is a root. The roots are grouped by group, and
 `pack=tree` gives every leaf its own column and centres each parent over its children, so subtrees
 never overlap; `pack=rows` keeps that left-to-right order but squeezes each layer into the width of
-the fullest one, or of 0.4 columns per layer when that is wider and the tree is wider still. One
-graph always lays out alike.
+the fullest one, or of 0.4 columns per layer when that is wider and the tree is wider still. In
+`plan` (unreleased) each milestone is packed and squeezed on its own into a block of columns, 0.4
+columns per layer of its own, and the blocks are placed in band order (a band's milestone, then its
+`with`): each at the leftmost column, from 0, that leaves one empty column to every block placed
+before it whose layers it shares. So milestones that share layers, in different tracks or on one
+cycle, sit side by side and never mix in a row, and a milestone that shares no layer starts at
+column 0. The layers are the same as without blocks. One graph always lays out alike.
 
 The page's graph card draws these views with deck.gl, vendored as
 `/vendor/deckgl-9.3.12.min.js`, the one file served under `/vendor/`, gzip-compressed to a client
