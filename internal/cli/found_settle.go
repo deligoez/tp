@@ -149,14 +149,32 @@ func settleFoundQueue(taskFilePath string, rows []engine.FoundSettleRow) (engine
 		if err != nil {
 			return fmt.Errorf("%w: %w", err, errFoundSettleRefused)
 		}
-		if len(plan.Tasks) > 0 {
-			addFoundEdges(tf, plan.Edges)
-			tf.Tasks = append(tf.Tasks, plan.Tasks...)
-			if err := model.WriteTaskFile(taskFilePath, tf); err != nil {
-				return err
-			}
+		if len(plan.Tasks) == 0 {
+			return writeFoundQueue(taskFilePath, plan.Queue)
 		}
-		return engine.WriteFoundQueue(taskFilePath, plan.Queue)
+		// The made tasks and their settled entries stand together: a queue
+		// write that fails puts the task file back, or a retry would make the
+		// same entry's task a second time.
+		original, err := os.ReadFile(taskFilePath)
+		if err != nil {
+			return err
+		}
+		addFoundEdges(tf, plan.Edges)
+		tf.Tasks = append(tf.Tasks, plan.Tasks...)
+		if err := model.WriteTaskFile(taskFilePath, tf); err != nil {
+			return err
+		}
+		if err := writeFoundQueue(taskFilePath, plan.Queue); err != nil {
+			if restoreErr := os.WriteFile(taskFilePath, original, 0o600); restoreErr != nil {
+				return fmt.Errorf("%w; restoring the task file: %w", err, restoreErr)
+			}
+			return err
+		}
+		return nil
 	})
 	return plan, err
 }
+
+// writeFoundQueue is engine.WriteFoundQueue, a variable so a test can make the
+// queue write fail after the task file was written.
+var writeFoundQueue = engine.WriteFoundQueue
