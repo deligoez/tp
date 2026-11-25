@@ -22,9 +22,10 @@ func RoleInboxPath(specPath, phase string, round int, role string) string {
 
 // RoleInboxPathAt is RoleInboxPath under a named inbox (--inbox <dir>,
 // spec/backlog/audit-round-ergonomics.md §2.2):
-// <inbox>/<phase>-inbox/round-<N>-<role>.ndjson, the <phase>-inbox level
-// keeping a review round's files apart from an audit round's of the same
-// number. An empty inbox is the default, RoleInboxPath.
+// <inbox>/<phase>-inbox/<spec base>/round-<N>-<role>.ndjson, the
+// <phase>-inbox level keeping a review round's files apart from an audit
+// round's of the same number and the spec level one spec's from another's
+// (RoleInboxDirAt). An empty inbox is the default, RoleInboxPath.
 func RoleInboxPathAt(inbox, specPath, phase string, round int, role string) string {
 	if inbox == "" {
 		return RoleInboxPath(specPath, phase, round, role)
@@ -65,12 +66,14 @@ func RoleInboxFiles(inbox, specPath, phase string, round int, role string) []str
 var partNameRe = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 
 // RoleInboxDirAt is the directory RoleInboxPathAt puts a phase's role files
-// in.
+// in. Under a named inbox it is <inbox>/<phase>-inbox/<spec base>, the base
+// the spec's state directory is named by, so two specs' rounds in flight in
+// one named inbox never share a file (spec/1.32.0-measurements.md §4).
 func RoleInboxDirAt(inbox, specPath, phase string) string {
 	if inbox == "" {
 		return roleInboxDir(specPath, phase)
 	}
-	return filepath.Join(inbox, phase+"-inbox")
+	return filepath.Join(inbox, phase+"-inbox", SpecBaseName(specPath))
 }
 
 // roleInboxDir is a phase's inbox in the spec's state directory.

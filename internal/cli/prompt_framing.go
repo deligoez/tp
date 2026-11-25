@@ -70,15 +70,16 @@ func roleOutputPath(phase, specPath string, round int, role string) string {
 var flagInbox string
 
 // removeNamedInboxFiles removes, after a record, the role files it read from
-// a named inbox. The default inbox is the spec's own and is emptied by
-// engine.RemoveRoundInbox; a named one names no spec, so a file left there
-// would read as another spec's round of the same number. A file it cannot
-// remove is a notice: the round is recorded by now.
+// a named inbox, and the spec's folder there once it is empty. The default
+// inbox is the spec's own and is emptied by engine.RemoveRoundInbox; a named
+// one lies outside the state directory, so nothing else would clear it. A file
+// it cannot remove is a notice: the round is recorded by now.
 func removeNamedInboxFiles(files map[string][]string) {
 	inbox := namedInbox()
 	if inbox == "" {
 		return
 	}
+	dirs := map[string]bool{}
 	for _, paths := range files {
 		for _, p := range paths {
 			if !strings.HasPrefix(p, inbox+string(filepath.Separator)) {
@@ -87,7 +88,11 @@ func removeNamedInboxFiles(files map[string][]string) {
 			if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
 				output.Notice(fmt.Sprintf("warning: the round is recorded but %s could not be removed from the named inbox: %v", p, err))
 			}
+			dirs[filepath.Dir(p)] = true
 		}
+	}
+	for d := range dirs {
+		_ = os.Remove(d) // fails, as intended, while another round's file is there
 	}
 }
 
