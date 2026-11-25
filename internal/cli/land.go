@@ -173,7 +173,7 @@ func (l *lander) pruneWorktrees() {
 		if r.Worktree == "" {
 			continue
 		}
-		branch, reason, found := engine.PruneLandedWorktree(l.root, r.Worktree, r.Commits)
+		branch, reason, found := engine.PruneLandedWorktree(l.root, l.taskFile, r.Worktree, r.Commits)
 		switch {
 		case !found:
 		case reason != "":

@@ -2,6 +2,8 @@ package engine
 
 import (
 	"strings"
+
+	"github.com/deligoez/tp/internal/model"
 )
 
 // landWorktree is one entry of `git worktree list --porcelain`.
@@ -15,15 +17,19 @@ type landWorktree struct {
 // PruneLandedWorktree removes the worktree at worktree and its branch once
 // tp land has picked every one of commits from it
 // (spec/backlog/land-lifecycle.md §2.2). It is safe only when the worktree
-// has no uncommitted change, is not locked, and its branch carries no commit
-// beyond commits; otherwise both stay and reason says why. found is false
+// has no uncommitted change, is not locked, its branch carries no commit
+// beyond commits, and no task in taskFile records that branch as its
+// conflict_branch; otherwise both stay and reason says why. found is false
 // when git lists no such linked worktree, so there is nothing to report.
 // The check reads the request's own commits, not `git cherry`: a land that
 // resolved a conflict changes the patch ids.
-func PruneLandedWorktree(root, worktree string, commits []string) (branch, reason string, found bool) {
+func PruneLandedWorktree(root, taskFile, worktree string, commits []string) (branch, reason string, found bool) {
 	wt, ok := findLandWorktree(root, worktree)
 	if !ok || wt.main || SameProjectRoot(wt.path, gitToplevel(root)) {
 		return "", "", false
+	}
+	if owner := conflictBranchOwner(taskFile, wt.branch); owner != "" {
+		return wt.branch, "its branch " + wt.branch + " is task " + owner + "'s conflict_branch: it holds the work that task's next agent resolves", true
 	}
 	if reason = landWorktreeHold(&wt, commits); reason != "" {
 		return wt.branch, reason, true
@@ -37,6 +43,44 @@ func PruneLandedWorktree(root, worktree string, commits []string) (branch, reaso
 		}
 	}
 	return wt.branch, "", true
+}
+
+// conflictBranchOwner is the task in the task file at taskFile that records
+// branch as its conflict_branch, "" when none does. It is read at prune time,
+// after this land's closes cleared theirs.
+func conflictBranchOwner(taskFile, branch string) string {
+	if branch == "" {
+		return ""
+	}
+	tf, err := model.ReadTaskFile(taskFile)
+	if err != nil {
+		return ""
+	}
+	for i := range tf.Tasks {
+		if tf.Tasks[i].ConflictBranch == branch {
+			return tf.Tasks[i].ID
+		}
+	}
+	return ""
+}
+
+// LandConflictBranch is the branch holding a land request's work once its
+// commit sha conflicted: the branch checked out in the request's worktree when
+// it holds sha, else the one local branch that does. "" when neither names one,
+// and the task is then reopened with no branch to resolve.
+func LandConflictBranch(root, worktree, sha string) string {
+	if !SafeGitRev(sha) {
+		return ""
+	}
+	if wt, ok := findLandWorktree(root, worktree); ok && !wt.main && wt.branch != "" {
+		if _, err := gitOut(root, "merge-base", "--is-ancestor", sha, "refs/heads/"+wt.branch); err == nil {
+			return wt.branch
+		}
+	}
+	if branches := branchesContaining(root, sha, "refs/heads/"); len(branches) == 1 {
+		return branches[0]
+	}
+	return ""
 }
 
 // landWorktreeHold is why the worktree wt must stay: a lock, an uncommitted
