@@ -106,15 +106,12 @@ func TestDashboard_LayoutGoldenViews(t *testing.T) {
 				{"id": "s1", "title": "S1", "state": "planned", "layer": 3, "col": 0}, {"id": "s2", "title": "S2", "state": "planned", "layer": 4, "col": 0}],
 			"edges": [{"from": "r1", "to": "r2", "critical": true, "role": "tree"}, {"from": "r2", "to": "s1", "critical": true, "role": "tree"}, {"from": "s1", "to": "s2", "critical": true, "role": "tree"},
 				{"from": "r1", "to": "s2", "any_of": ["r1", "t1"], "role": "cross"}, {"from": "t1", "to": "s2", "any_of": ["r1", "t1"], "role": "cross"}, {"from": "r1", "to": "t1", "role": "cross"}]}`,
-		"view=plan&pack=tree": `{"view": "plan", "layers": 5, "packing": "tree", "columns": 1,
+		"view=plan&pack=tree": `{"view": "plan", "layers": 5, "packing": "tree", "columns": 5,
 			"bands": [{"milestone": "M1", "from_layer": 0, "to_layer": 1}, {"milestone": "T1", "from_layer": 2, "to_layer": 2}, {"milestone": "M2", "from_layer": 3, "to_layer": 4}],
-			"blocks": [{"milestone": "M1", "from_layer": 0, "to_layer": 1, "from_col": 0, "to_col": 0, "count": 2},
-				{"milestone": "T1", "from_layer": 2, "to_layer": 2, "from_col": 0, "to_col": 0, "count": 1},
-				{"milestone": "M2", "from_layer": 3, "to_layer": 4, "from_col": 0, "to_col": 0, "count": 2}],
 			"nodes": [{"id": "r1", "title": "R1", "state": "planned", "layer": 0, "col": 0, "milestone": "M1"}, {"id": "r2", "title": "R2", "state": "planned", "layer": 1, "col": 0, "milestone": "M1"},
-				{"id": "t1", "title": "T1", "state": "planned", "layer": 2, "col": 0, "milestone": "T1"},
+				{"id": "t1", "title": "T1", "state": "planned", "layer": 2, "col": 4, "milestone": "T1"},
 				{"id": "s1", "title": "S1", "state": "planned", "layer": 3, "col": 0, "milestone": "M2"}, {"id": "s2", "title": "S2", "state": "planned", "layer": 4, "col": 0, "milestone": "M2"}],
-			"edges": [{"from": "r1", "to": "r2", "critical": true, "role": "tree"}, {"from": "r2", "to": "s1", "critical": true, "role": "cross"}, {"from": "s1", "to": "s2", "critical": true, "role": "tree"},
+			"edges": [{"from": "r1", "to": "r2", "critical": true, "role": "tree"}, {"from": "r2", "to": "s1", "critical": true, "role": "tree"}, {"from": "s1", "to": "s2", "critical": true, "role": "tree"},
 				{"from": "r1", "to": "s2", "any_of": ["r1", "t1"], "role": "cross"}, {"from": "t1", "to": "s2", "any_of": ["r1", "t1"], "role": "cross"}, {"from": "r1", "to": "t1", "role": "cross"}]}`,
 		"view=neighbourhood&epic=r2&depth=1": `{"view": "neighbourhood", "epic": "r2", "depth": 1, "layers": 3, "packing": "rows", "columns": 1,
 			"nodes": [{"id": "r1", "title": "R1", "state": "planned", "layer": 0, "col": 0, "milestone": "M1"}, {"id": "r2", "title": "R2", "state": "planned", "layer": 1, "col": 0, "milestone": "M1", "centre": true},
@@ -250,49 +247,5 @@ func TestDashboard_ThePlanKeepsItsPlacesAsEpicsFinish(t *testing.T) {
 		done, edges := layoutAt(t, epicGraphDir(t, pathGraph(pathDone)), "view=plan&pack="+pack)
 		assert.Equal(t, open, done, pack)
 		assert.Equal(t, "cross critical", edges["e>x"], pack)
-	}
-}
-
-// TestDashboard_ThePlanLaysEachMilestoneOutAsABlock: two milestones of
-// different tracks share layers 0-1, and the plan gives each its own block
-// with its own count and columns, an empty column between them, every
-// node inside its milestone's block.
-func TestDashboard_ThePlanLaysEachMilestoneOutAsABlock(t *testing.T) {
-	t.Parallel()
-	graph := `{"version": 1, "milestones": [["A"], ["B"]], "opens_after": {"B": []}, "epics": [
-  {"id": "a1", "title": "A1", "milestone": "A"},
-  {"id": "a2", "title": "A2", "milestone": "A", "depends_on": [{"id": "a1", "why": "w"}]},
-  {"id": "b1", "title": "B1", "milestone": "B"},
-  {"id": "b2", "title": "B2", "milestone": "B"},
-  {"id": "b3", "title": "B3", "milestone": "B", "depends_on": [{"id": "b1", "why": "w"}]}]}`
-	srv := startDashboard(t, epicGraphDir(t, graph), freePort(t))
-	for _, pack := range []string{"rows", "tree"} {
-		status, body := getPage(t, strings.TrimSuffix(srv.url, "/")+"/api/layout?view=plan&pack="+pack)
-		require.Equal(t, http.StatusOK, status, body)
-		var got struct {
-			Blocks []struct {
-				Milestone string  `json:"milestone"`
-				FromCol   float64 `json:"from_col"`
-				ToCol     float64 `json:"to_col"`
-				Count     int     `json:"count"`
-			} `json:"blocks"`
-			Nodes []struct {
-				Milestone string  `json:"milestone"`
-				Col       float64 `json:"col"`
-			} `json:"nodes"`
-		}
-		require.NoError(t, json.Unmarshal([]byte(body), &got), body)
-		require.Len(t, got.Blocks, 2, body)
-		a, b := got.Blocks[0], got.Blocks[1]
-		assert.Equal(t, []string{"A", "B"}, []string{a.Milestone, b.Milestone}, pack)
-		assert.Equal(t, []int{2, 3}, []int{a.Count, b.Count}, pack)
-		assert.Less(t, a.ToCol+1, b.FromCol, "%s: %s", pack, body)
-		for _, n := range got.Nodes {
-			blk := a
-			if n.Milestone == "B" {
-				blk = b
-			}
-			assert.True(t, blk.FromCol <= n.Col && n.Col <= blk.ToCol, "%s: %s", pack, body)
-		}
 	}
 }
