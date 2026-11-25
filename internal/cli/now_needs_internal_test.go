@@ -11,7 +11,8 @@ import (
 // Every needs_you text tp now can write is a plain sentence: no tp command
 // and no flag, for every blocker code resume emits (with and without an
 // operator decision in its data), every decision a unit can escalate, and
-// every way a run can stop waiting for a person.
+// every way a run can stop waiting for a person, and a project with several
+// task files and none active.
 // The blocker messages themselves name commands, which is why the texts are
 // written per code rather than copied.
 func TestNowNeedTextsCarryNoCommand(t *testing.T) {
@@ -42,6 +43,7 @@ func TestNowNeedTextsCarryNoCommand(t *testing.T) {
 		assert.Len(t, runNeed, 1, "stop reason %s waits for a person", reason)
 		needs = append(needs, runNeed...)
 	}
+	needs = append(needs, noActiveFileNeed())
 	for _, n := range needs {
 		assert.NotEmpty(t, n.Text, "every need has a text: %+v", n)
 		assert.NotContains(t, n.Text, "tp ", "no tp command in %q", n.Text)
@@ -85,4 +87,5 @@ func TestNowNeedsCarryAStableCode(t *testing.T) {
 	assert.Equal(t, "review_max_rounds", blockerNeed(&engine.Blocker{Code: "review-budget-exhausted"}).Code)
 	assert.Equal(t, "audit_max_rounds", blockerNeed(&engine.Blocker{Code: "audit-budget-exhausted"}).Code)
 	assert.Equal(t, "land-request", landNeed("t1").Code)
+	assert.Equal(t, "no-active-file", noActiveFileNeed().Code)
 }
