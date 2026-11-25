@@ -117,3 +117,30 @@ func TestWontfixCarry_TheRecordWritesTheCarriedRow(t *testing.T) {
 	assert.Equal(t, float64(1), resolved["carried_from"])
 	assert.Equal(t, "FAIL", carried["status"], "the row is the one the operator accepted")
 }
+
+// TestWontfixCarry_TheCarriedItemCountsAsGraded: the carried item is not on
+// the checklist, yet the round grades it by the row the record writes, so the
+// role reads "graded 2 of 2", not a role that skipped a file.
+func TestWontfixCarry_TheCarriedItemCountsAsGraded(t *testing.T) {
+	t.Parallel()
+	dir, _ := wontfixCarryRepo(t, "2021-01-01T00:00:00Z")
+	emitSecurityPrompt(t, dir)
+	otherPass := `{"item_id":"` + engine.FileCheckItemID("security", "other.go") + `","status":"PASS","role":"security",` +
+		`"evidence_file":"other.go","evidence_lines":"1-2","category":null,"severity":null,"notes":""}` + "\n"
+
+	_, stderr, code := auditRecord(t, dir, otherPass)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	st, err := engine.LoadReviewState(filepath.Join(dir, "spec.md"))
+	require.NoError(t, err)
+	var security *engine.RoleGraded
+	for _, r := range st.AuditRounds {
+		for i := range r.Graded {
+			if r.Round == 2 && r.Graded[i].Role == "security" {
+				security = &r.Graded[i]
+			}
+		}
+	}
+	require.NotNil(t, security, "round 2 grades the security role")
+	assert.Equal(t, 2, security.Pool)
+	assert.Equal(t, 2, security.Graded, "the carried item counts as graded")
+}
