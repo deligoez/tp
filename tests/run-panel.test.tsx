@@ -97,6 +97,8 @@ test('the brand reads the version tp prints', async () => {
   expect(tpVersion('tp version v1.32.0\n')).toBe('v1.32.0')
   expect(tpVersion('tp version (devel)')).toBe('(devel)')
   expect(tpVersion('')).toBe('')
+  // A local build's pseudo-version reads as the next release, marked dev.
+  expect(tpVersion('tp version v1.32.2-0.20261125141042-4b4eaa22f3c5+dirty')).toBe('v1.32.2-dev')
 })
 
 // The fixture's clock: the run started at 10:00:00, the pane draws 4m 5s on.
