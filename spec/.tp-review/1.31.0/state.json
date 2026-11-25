@@ -506,6 +506,95 @@
       "recorded_at": "2026-11-25T01:29:32Z",
       "file": "task-audit-9.ndjson",
       "findings": 1
+    },
+    {
+      "seq": 10,
+      "members": [
+        {
+          "id": "stop-hook-apply",
+          "closed_at": "2026-11-25T01:45:40.148278Z",
+          "piece": 0,
+          "pieces": 1,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/cli/pool.go",
+            "internal/cli/pool_test.go",
+            "internal/engine/pool.go"
+          ]
+        },
+        {
+          "id": "found-brief",
+          "closed_at": "2026-11-25T01:51:23.037023Z",
+          "piece": 0,
+          "pieces": 1,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/engine/brief.go",
+            "internal/engine/foundapply.go",
+            "internal/engine/foundbrief.go",
+            "internal/engine/foundbrief_test.go"
+          ]
+        }
+      ],
+      "files": [
+        "internal/cli/pool.go",
+        "internal/cli/pool_test.go",
+        "internal/engine/pool.go",
+        "internal/engine/brief.go",
+        "internal/engine/foundapply.go",
+        "internal/engine/foundbrief.go",
+        "internal/engine/foundbrief_test.go"
+      ],
+      "roles": [
+        "go-safety"
+      ],
+      "head": "0cb856568443209eb8c0662eb9d9c626db486189",
+      "emitted_at": "2026-11-25T02:03:22.700311Z",
+      "recorded_at": "2026-11-25T02:05:03Z",
+      "file": "task-audit-10.ndjson",
+      "clean": true
+    },
+    {
+      "seq": 11,
+      "members": [
+        {
+          "id": "found-apply-attach",
+          "closed_at": "2026-11-25T02:02:52.747222Z",
+          "piece": 0,
+          "pieces": 1,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/cli/found.go",
+            "internal/cli/found_attach_test.go",
+            "internal/cli/set.go",
+            "internal/engine/foundapply.go",
+            "internal/engine/foundattach_test.go",
+            "internal/model/task.go"
+          ]
+        }
+      ],
+      "files": [
+        "internal/cli/found.go",
+        "internal/cli/found_attach_test.go",
+        "internal/cli/set.go",
+        "internal/engine/foundapply.go",
+        "internal/engine/foundattach_test.go",
+        "internal/model/task.go"
+      ],
+      "roles": [
+        "go-safety"
+      ],
+      "head": "eac4e10194b5b228f01393626251c176c2b57d2c",
+      "emitted_at": "2026-11-25T02:18:40.628002Z",
+      "recorded_at": "2026-11-25T02:20:21Z",
+      "file": "task-audit-11.ndjson",
+      "findings": 1
     }
   ]
 }
