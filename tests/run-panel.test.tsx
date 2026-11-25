@@ -688,6 +688,18 @@ test('a task only the person holds is read every 5 seconds while the pane is dra
   expect(ran.filter(line => line === 'tp now --json').length).toBe(12)
 })
 
+// tp now lists a task waiting to land under landing alone, not under held:
+// the person lands it, so the pane reads it fast while drawn, as their own.
+test('a task waiting to land is read every 5 seconds while the pane is drawn', async ($, on) => {
+  const clock = mock.clock(on, { now: AT })
+  const landing = { ...NOW, needs_you: [], run: null, held: [] }
+  const ran = world(on, { 'tp --version': VERSION, 'tp now --json': { exitCode: 0, stdout: JSON.stringify(landing) } })
+  on('ui.panes', () => ({ value: [{ id: 'tp-run', title: 'tp', isShown: true, isFocused: false, isPlaced: true }] }))
+  await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
+  await clock.advance(60_000)
+  expect(ran.filter(line => line === 'tp now --json').length).toBe(12)
+})
+
 // seed stands for a value an earlier module stored under key before a
 // reload: reads answer it until the plugin's first write to that key, which
 // then lands in the kit's own store.
