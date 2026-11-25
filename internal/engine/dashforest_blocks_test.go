@@ -135,3 +135,15 @@ func TestForestLayout_BlocksKeepTheLayers(t *testing.T) {
 	}
 }
 
+// TestForestLayout_BlocksAreStable: one input in blocks lays out alike.
+func TestForestLayout_BlocksAreStable(t *testing.T) {
+	t.Parallel()
+	for _, pack := range []ForestPacking{PackRows, PackTree} {
+		in := cycleRun(pack)
+		first := ForestLayout(&in)
+		for range 20 {
+			assert.Equal(t, first, ForestLayout(&in))
+		}
+	}
+}
+
