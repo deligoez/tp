@@ -165,7 +165,7 @@ func settleFoundQueue(taskFilePath string, rows []engine.FoundSettleRow) (engine
 			return err
 		}
 		if err := writeFoundQueue(taskFilePath, plan.Queue); err != nil {
-			if restoreErr := os.WriteFile(taskFilePath, original, 0o600); restoreErr != nil {
+			if restoreErr := model.WriteTaskFileBytes(taskFilePath, original); restoreErr != nil {
 				return fmt.Errorf("%w; restoring the task file: %w", err, restoreErr)
 			}
 			return err
