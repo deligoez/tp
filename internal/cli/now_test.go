@@ -523,6 +523,18 @@ func epicNowProject(t *testing.T) string {
 	return dir
 }
 
+// tp now --epic <id> is about that epic: epics lists it alone.
+func TestNow_EpicFlagListsThatEpicAlone(t *testing.T) {
+	t.Parallel()
+	dir := epicNowProject(t)
+
+	stdout, stderr, code := runTP(t, dir, "now", "--epic", "payments")
+	require.Equal(t, 0, code, "tp now --epic: %s", stderr)
+	assert.Equal(t, []any{
+		map[string]any{"id": "payments", "name": "Payment flow", "done": 0.0, "total": 1.0, "state": "open"},
+	}, decodeNow(t, stdout)["epics"])
+}
+
 // The epics are the task file's project's, not the working directory's: tp
 // now --file pointing into another project reports that project's graph.
 func TestNow_EpicsComeFromTheTaskFilesProject(t *testing.T) {
