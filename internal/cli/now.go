@@ -180,6 +180,7 @@ func buildNow(taskFilePath string, tf *model.TaskFile) (*nowResult, error) {
 		res.NeedsYou = append(res.NeedsYou, nowNeed{Kind: needLand, ID: l.ID,
 			Text: "A finished task waits to be landed onto this branch."})
 	}
+	res.Epics = nowEpics()
 	return res, nil
 }
 
