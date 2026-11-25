@@ -189,10 +189,13 @@ func buildNow(taskFilePath string, tf *model.TaskFile) (*nowResult, error) {
 // ones tp land would land, made under the claim of a task still wip.
 func nowLandings(taskFilePath string, tf *model.TaskFile) []nowLand {
 	out := []nowLand{}
-	requests, _, err := engine.ReadLandRequests(engine.LandDir(taskFilePath))
+	requests, unreadable, err := engine.ReadLandRequests(engine.LandDir(taskFilePath))
 	if err != nil {
 		output.Notice("warning: the land requests cannot be read: " + err.Error())
 		return out
+	}
+	for _, path := range unreadable {
+		output.Notice("warning: the land request " + path + " cannot be read")
 	}
 	for i := range requests {
 		r := &requests[i]
