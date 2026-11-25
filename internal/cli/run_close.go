@@ -87,6 +87,21 @@ func applyFoundFunc(root, taskFile string) func(running []string) ([]string, err
 	}
 }
 
+// commitRoundFilesFunc is how tp run commits a task-audit record unit's round
+// files on the main branch, under the effective commit_strategy the way tp
+// land commits its task file: tp's own commit under builtin, a one-commit hc
+// plan under hc.
+func commitRoundFilesFunc(root, taskFile string) func(paths []string, msg string) error {
+	commit := engine.CommitRoundFiles
+	if resolveEffectiveStrategy(taskFile) == engine.CommitStrategyHC {
+		commit = engine.CommitRoundFilesHC
+	}
+	return func(paths []string, msg string) error {
+		_, err := commit(root, paths, msg)
+		return err
+	}
+}
+
 // reopenSoloFunc is how tp run reopens a task whose unit failed to integrate:
 // back to open, marked solo so it runs alone from then on.
 func reopenSoloFunc(taskFile string) func(id, conflictBranch string) error {

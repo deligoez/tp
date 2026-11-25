@@ -64,6 +64,11 @@ type DriverOptions struct {
 	// unit (spec/1.31.0.md §2), with the units still running named, and
 	// returns the finders it returned to open. Nil applies nothing.
 	ApplyFound func(running []string) (reopened []string, err error)
+	// CommitRoundFiles commits the named round files on the main branch,
+	// with msg, after a task-audit record unit wrote them, so the closes
+	// that follow find no tp-owned change left uncommitted. Nil commits
+	// nothing.
+	CommitRoundFiles func(paths []string, msg string) error
 	// runSetup runs one worktree's setup command: runSetupCommand when
 	// nil, a test's own when it observes what the driver hands over.
 	runSetup setupRunner
@@ -482,6 +487,9 @@ func (d *driver) attemptUnits(res *ResumeResult, units []NextUnit) (iterationOut
 		spawnAll(d.opts.Root, batch)
 		if recErr := d.record(batch); recErr != nil {
 			return iterationOutcome{}, recErr
+		}
+		if commitErr := d.commitRecords(batch); commitErr != nil {
+			return iterationOutcome{}, commitErr
 		}
 		reopened, applyErr := d.applyFound(nil)
 		if applyErr != nil {
@@ -917,6 +925,26 @@ func failedUnits(attempts []*unitAttempt, waiting map[string]bool) []NextUnit {
 		}
 	}
 	return failed
+}
+
+// commitRecords commits what each succeeded task-audit record unit of batch
+// wrote on the main branch: the task audit's round file and state.json.
+// A failure is the driver's, as a found apply's is: nothing is charged to the
+// unit, whose record stands.
+func (d *driver) commitRecords(batch []*unitAttempt) error {
+	if d.opts.CommitRoundFiles == nil {
+		return nil
+	}
+	for _, a := range batch {
+		if a.unit.Kind != UnitTaskAuditRecord || !a.succeeded() {
+			continue
+		}
+		paths := taskAuditRoundFiles(d.opts.Spec, a.unit.ID)
+		if err := d.opts.CommitRoundFiles(paths, "chore(tp): record task audit "+a.unit.ID); err != nil {
+			return driverErrorf(err, "commit task audit %s's round files", a.unit.ID)
+		}
+	}
+	return nil
 }
 
 // applyFound applies the requests the units filed (spec/1.31.0.md §2), the

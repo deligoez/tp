@@ -107,6 +107,8 @@ func runRun(_ *cobra.Command, args []string) error {
 		ReopenSolo:   reopenSoloFunc(taskFilePath),
 		ReleaseTasks: releaseTasksFunc(taskFilePath),
 		ApplyFound:   applyFoundFunc(root, taskFilePath),
+
+		CommitRoundFiles: commitRoundFilesFunc(root, taskFilePath),
 	}
 
 	var result engine.DriverResult
