@@ -499,6 +499,10 @@ type BriefTask struct {
 	// Request is a found task's request, in place of spec_excerpt
 	// (spec/1.31.0.md §3); nil for a spec task.
 	Request *BriefFoundRequest `json:"request,omitempty"`
+	// FoundNotes are the requests tp found apply attached to the task
+	// (spec/1.31.0.md §2); kept under --compact, since each is a defect in
+	// the task's own files.
+	FoundNotes []model.FoundNote `json:"found_notes,omitempty"`
 }
 
 // Brief is the structured machine-readable parts of an implementation brief
@@ -555,6 +559,7 @@ func BuildBrief(tf *model.TaskFile, task *model.Task, specPath, effectiveStrateg
 		Acceptance:     task.Acceptance,
 		SourceSections: task.SourceSections,
 		SourceLines:    task.SourceLines,
+		FoundNotes:     task.FoundNotes,
 	}
 	if task.Origin != nil {
 		bt.Request = foundBriefRequest(task)
@@ -712,5 +717,28 @@ func renderBriefTaskText(t *BriefTask) string {
 	if t.SpecExcerpt != "" {
 		fmt.Fprintf(&s, "\nspec_excerpt:\n%s\n", t.SpecExcerpt)
 	}
+	renderFoundNotesText(&s, t.FoundNotes)
 	return s.String()
+}
+
+// renderFoundNotesText lists the requests attached to the task, each with the
+// fields it was filed with.
+func renderFoundNotesText(s *strings.Builder, notes []model.FoundNote) {
+	if len(notes) == 0 {
+		return
+	}
+	s.WriteString("\nfound_notes (requests filed inside this task's files):\n")
+	for i := range notes {
+		n := &notes[i]
+		fmt.Fprintf(s, "- %s at %s\n  reproduction: %s\n", n.Request, n.Location, n.Reproduction)
+		if n.Expected != "" || n.Observed != "" {
+			fmt.Fprintf(s, "  expected: %s\n  observed: %s\n", n.Expected, n.Observed)
+		}
+		if n.Question != "" {
+			fmt.Fprintf(s, "  question: %s\n", n.Question)
+			for _, alt := range n.Alternatives {
+				fmt.Fprintf(s, "  alternative: %s\n", alt)
+			}
+		}
+	}
 }
