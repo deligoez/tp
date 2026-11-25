@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/backlog/panel-dashboard.md",
   "created_at": "2026-11-25T13:47:09.155402Z",
-  "updated_at": "2026-11-25T13:47:16.683163Z",
+  "updated_at": "2026-11-25T14:10:30.267361Z",
   "workflow": {},
   "coverage": {
     "total_sections": 6,
@@ -19,7 +19,7 @@
     {
       "id": "tp-now",
       "title": "Add the tp now command",
-      "status": "wip",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 120,
@@ -34,15 +34,24 @@
       ],
       "started_at": "2026-11-25T13:47:16.664327Z",
       "duration_source": "claimed",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-11-25T14:08:22.626879Z",
+      "closed_reason": "- tp now --json returns the contract payload, measured 0.18s on this repo and showing this file's two wip tasks\n- tests cover no task file, held by you, agent and run, landing, run last_finished, blockers and escalations as plain needs, epics null and filled\n- README, SKILL.md and REFERENCE.md list the command and its payload",
+      "gate_passed_at": "2026-11-25T14:08:22.626879Z",
+      "commit_sha": "b4c6ccb1",
+      "commit_shas": [
+        "b4c6ccb1"
+      ],
+      "commit_files": [
+        ".claude-plugin/plugin.json"
+      ],
+      "task_audit_owed": [
+        "go-safety"
+      ]
     },
     {
       "id": "panel",
       "title": "Grow the panel into a dashboard",
-      "status": "wip",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 120,
@@ -58,10 +67,19 @@
       ],
       "started_at": "2026-11-25T13:47:16.683163Z",
       "duration_source": "claimed",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-11-25T14:10:30.255583Z",
+      "closed_reason": "- Now, Tasks, Epics, Run views and a task detail render from tp now (29 plugin tests, validate clean)\n- Turkish and English tables, chosen by .tp/config.json panel.language, Claude Code's language setting, the locale, then English\n- an older tp without tp now falls back to tp run --status and draws the Run view",
+      "gate_passed_at": "2026-11-25T14:10:30.255583Z",
+      "commit_sha": "326879b9",
+      "commit_shas": [
+        "326879b9"
+      ],
+      "commit_files": [
+        "tests/run-panel.test.tsx"
+      ],
+      "task_audit_owed": [
+        "go-safety"
+      ]
     },
     {
       "id": "merge",
