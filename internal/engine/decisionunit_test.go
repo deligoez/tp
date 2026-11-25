@@ -109,6 +109,23 @@ func TestUndecidedRequestIDs_AnUnparsableStoreIsAnError(t *testing.T) {
 	assert.Empty(t, ids)
 }
 
+// With no implement unit ready or running, and in the audit phase, an
+// undecided request gets its decision unit (spec/1.31.0.md §4, §5).
+func TestBuildNextUnits_AnUndecidedRequestGetsItsDecisionUnit(t *testing.T) {
+	root, taskFile, spec := nextUnitsRepo(t)
+	tf := &model.TaskFile{Spec: spec, Tasks: []model.Task{{ID: "a", Status: model.StatusDone}}}
+	require.NoError(t, UpdateFoundRequests(root, taskFile, func(reqs []FoundRequest) ([]FoundRequest, error) {
+		return append(reqs, FoundRequest{ID: "F1", Seq: 1, Location: "x.go:1", Reproduction: "r", Question: "q", State: FoundStateUndecided}), nil
+	}))
+
+	for _, phase := range []string{PhaseImplement, PhaseAudit} {
+		units, _ := BuildNextUnits(root, taskFile, spec, phase, tf, nil, nil)
+		require.Len(t, units, 1, phase)
+		assert.Equal(t, UnitDecision, units[0].Kind, phase)
+		assert.Equal(t, "F1", units[0].ID, phase)
+	}
+}
+
 // The audit phase asks the store for a decision unit before its audit units;
 // a store it cannot read hands out neither.
 func TestBuildNextUnits_AnUnparsableStoreHandsTheAuditPhaseNoUnit(t *testing.T) {
