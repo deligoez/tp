@@ -5,26 +5,38 @@ import (
 	"path/filepath"
 
 	"github.com/deligoez/tp/internal/engine"
-	"github.com/deligoez/tp/internal/model"
 	"github.com/deligoez/tp/internal/output"
 )
 
-// nowEpics is each epic of the project's graph in graph order, with the done
-// and total tasks of its bound files and whether tp epic status derives it
-// done; nil when the project has no epic graph. A graph or bound file that
-// cannot be read is said on stderr and reported as nil, so the rest of the
-// payload still reaches the pane.
-func nowEpics() []nowEpic {
-	tpDir := engine.DiscoverTPDir(".")
+// nowEpics is each epic of the graph of the project found from start, in
+// graph order, with the done and total tasks of its bound files and whether
+// tp epic status derives it done; nil when the project has no epic graph.
+// start is the task file's project root, so tp now --file into another
+// project reads that project's graph. A task file that cannot be read may
+// bind any epic or none: it is named on stderr and skipped, and the epics are
+// reported from the files that can be read. A graph that cannot be read, or a
+// state that cannot be derived, is said on stderr and reported as nil, so the
+// rest of the payload still reaches the pane.
+func nowEpics(start string) []nowEpic {
+	tpDir := engine.DiscoverTPDir(start)
 	if tpDir == "" {
 		return nil
 	}
 	if _, err := os.Stat(filepath.Join(tpDir, engine.EpicGraphFile)); err != nil {
 		return nil
 	}
-	g, states, bound, rerr := readEpicStates()
-	if rerr != nil {
-		output.Notice("warning: the epic graph cannot be read: " + rerr.msg)
+	g, _, err := engine.LoadEpicGraph(tpDir)
+	if err != nil {
+		output.Notice("warning: the epic graph cannot be read: " + err.Error())
+		return nil
+	}
+	bound, files, skipped := engine.EpicBoundTaskFiles(tpDir)
+	for _, s := range skipped {
+		output.Notice("warning: skipping a task file that cannot be read: " + s.Error())
+	}
+	states, err := engine.DeriveEpicStates(g, bound)
+	if err != nil {
+		output.Notice("warning: the epic states cannot be derived: " + err.Error())
 		return nil
 	}
 	out := make([]nowEpic, 0, len(g.Epics))
@@ -35,12 +47,7 @@ func nowEpics() []nowEpic {
 			row.State = "done"
 		}
 		for _, path := range bound[e.ID] {
-			tf, err := model.ReadTaskFile(path)
-			if err != nil {
-				output.Notice("warning: a bound task file cannot be read: " + err.Error())
-				return nil
-			}
-			c := countTasks(tf)
+			c := countTasks(files[path])
 			row.Done += c.Done
 			row.Total += c.Total
 		}
