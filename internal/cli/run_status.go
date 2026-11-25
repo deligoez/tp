@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/deligoez/tp/internal/engine"
+	"github.com/deligoez/tp/internal/model"
 	"github.com/deligoez/tp/internal/output"
 )
 
@@ -69,8 +70,30 @@ func runRunStatus(args []string) error {
 	}
 
 	wf := engine.EffectiveWorkflowForTaskFile(taskFilePath)
+	result := runStatusPayload(st, taskFilePath, &wf)
+	// §7: under --compact the per-unit row goes, and the log path — the one
+	// unbounded string in the payload, an absolute path per attempt — goes
+	// with it. stop_reason and the cap totals above are what a driver or an
+	// operator decides on, so they survive; the row is diagnosis, and
+	// diagnosis is what --compact exists to defer to the full report.
+	if !flagCompact {
+		result["last_unit"] = lastRunUnit(st)
+	}
+	// §1/§3.5: the divergence signal travels on any audit-phase stop, so the
+	// operator gets at the end of a run what v0.32.0's operator had to derive
+	// by hand at round ten.
+	if st.StopReason != nil && st.Phase == engine.PhaseAudit {
+		addAuditSignals(result, specPath, wf.AuditCleanRounds)
+	}
+	return output.JSON(result)
+}
+
+// runStatusPayload is the part of tp run --status's payload tp now carries
+// too: the run's identity, phase and state, the units it runs now, its stop
+// reason, and its accrual beside each of wf's caps.
+func runStatusPayload(st *engine.RunState, taskFilePath string, wf *model.Workflow) map[string]any {
 	runState := runStateOf(st, taskFilePath)
-	result := map[string]any{
+	return map[string]any{
 		"run_id":     st.RunID,
 		"started_at": st.StartedAt,
 		"phase":      st.Phase,
@@ -92,21 +115,6 @@ func runRunStatus(args []string) error {
 			"max_budget_usd":         wf.RunMaxBudgetUSD,
 		},
 	}
-	// §7: under --compact the per-unit row goes, and the log path — the one
-	// unbounded string in the payload, an absolute path per attempt — goes
-	// with it. stop_reason and the cap totals above are what a driver or an
-	// operator decides on, so they survive; the row is diagnosis, and
-	// diagnosis is what --compact exists to defer to the full report.
-	if !flagCompact {
-		result["last_unit"] = lastRunUnit(st)
-	}
-	// §1/§3.5: the divergence signal travels on any audit-phase stop, so the
-	// operator gets at the end of a run what v0.32.0's operator had to derive
-	// by hand at round ten.
-	if st.StopReason != nil && st.Phase == engine.PhaseAudit {
-		addAuditSignals(result, specPath, wf.AuditCleanRounds)
-	}
-	return output.JSON(result)
 }
 
 // runStateOf classifies a run (§3.5). A recorded stop reason is conclusive;
