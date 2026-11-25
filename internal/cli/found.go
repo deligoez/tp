@@ -244,7 +244,10 @@ func runFoundAdd(f *foundAddFlags) error {
 // unapplied for the next, then writes the task file, the queue and the
 // store. An audit unit's requests wait until their round is recorded. running
 // names the tasks a unit runs now, whose finders apply never reopens. It
-// returns the plan with its queue entries numbered.
+// returns the plan with its queue entries numbered. The task file and queue
+// are written before the store, so when a later write fails they are put
+// back: a task left on disk beside a request still unapplied is one dedup
+// cannot see, and applying again would open a second.
 func applyFoundRequests(root, taskFilePath string, foundMax int, running map[string]bool) (engine.FoundApplyPlan, error) {
 	var plan engine.FoundApplyPlan
 	err := engine.WithFileLock(taskFilePath, func() error {
@@ -256,15 +259,25 @@ func applyFoundRequests(root, taskFilePath string, foundMax int, running map[str
 		if err != nil {
 			return err
 		}
+		before, err := snapshotFoundFiles(taskFilePath)
+		if err != nil {
+			return err
+		}
 		specPath, _ := engine.ResolveSpecPath(taskFilePath, tf.Spec)
 		auditRecorded := engine.RecordedAuditRound(specPath)
-		return engine.UpdateFoundRequests(root, taskFilePath, func(reqs []engine.FoundRequest) ([]engine.FoundRequest, error) {
+		wrote := false
+		err = engine.UpdateFoundRequests(root, taskFilePath, func(reqs []engine.FoundRequest) ([]engine.FoundRequest, error) {
 			plan = engine.PlanFoundApplyRecorded(reqs, tf.Tasks, queue, foundMax, auditRecorded)
 			reopen := func(tasks []model.Task, entries []engine.FoundQueueEntry) []string {
 				return engine.FoundFindersToReopen(reqs, tasks, append(slices.Clone(queue), entries...), running)
 			}
+			wrote = true
 			return plan.Requests, writeFoundPlan(taskFilePath, tf, queue, &plan, reopen)
 		})
+		if err != nil && wrote {
+			return errors.Join(err, before.restore())
+		}
+		return err
 	})
 	return plan, err
 }
