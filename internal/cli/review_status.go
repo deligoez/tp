@@ -109,6 +109,7 @@ func runReviewStatus(specPath string, check bool) error {
 		"overlap_report":        overlapReport,
 	}
 	addLoopDone(result, done)
+	addFoundOpen(result, taskFilePath, converged)
 	addEpochs(result, st)
 	if !IsCompact() {
 		result["location_clusters"] = locationClusters
