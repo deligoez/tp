@@ -211,3 +211,14 @@ const anc = P.hops(2, preds), desc = P.hops(2, succs);
 out(edges.map((e) => P.onChain(2, anc, desc, e[0], e[1])));`)
 	assert.JSONEq(t, `[true, true, true, true, false, false, false]`, got)
 }
+
+// TestPure_ADrawerOverAGraphLeavesItsChainUndimmed: an epic's drawer, and
+// a task's over the Steps graph or the Map, opens beside the graph that
+// draws the selection's chain, so no backdrop dims it; a milestone's
+// drawer and a task's over the Board, where no chain is drawn, keep it.
+func TestPure_ADrawerOverAGraphLeavesItsChainUndimmed(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([P.drawerDims("epic", "steps"), P.drawerDims("task", "steps"), P.drawerDims("task", "map"),
+P.drawerDims("milestone", "steps"), P.drawerDims("task", "board"), P.drawerDims(null, "steps")]);`)
+	assert.JSONEq(t, `[false, false, false, true, true, false]`, got)
+}
