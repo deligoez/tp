@@ -756,3 +756,14 @@ test('every need tp now can send has a label in both languages', async () => {
   const run = toNow({ ...NOW, needs_you: [{ kind: 'run', text: 'Something.' }] }, 0)!
   expect(nowRows(run.now, run.run, 'tr', AT, 40).some(r => r.text === 'Koşu: Something.')).toBe(true)
 })
+
+// Seen live: a Turkish pane drew "Koşu: The run stopped: a unit failed every
+// attempt.", tp's English text after a Turkish label.
+test('a Turkish pane words a need from its code, with none of tp\'s English', async () => {
+  const text = 'The run stopped: a unit failed every attempt.'
+  const read = toNow({ ...NOW, needs_you: [{ kind: 'run', code: 'unit-failure', id: 'x', text }] }, 0)!
+  const want = 'Koşu: x her denemede başarısız olunca durdu.'
+  const need = nowRows(read.now, read.run, 'tr', AT, 40).find(r => r.text.startsWith('Koşu:'))
+  expect(need?.text).toBe(want)
+  expect(glanceRows(read.now, read.run, 'tr').at(-1)?.text).toBe(want)
+})
