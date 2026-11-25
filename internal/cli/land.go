@@ -254,12 +254,12 @@ func (l *lander) land(r *engine.LandRequest) {
 		return
 	}
 	if err != nil {
-		l.reopenAfter(r, session, "", err.Error(), "")
+		l.reopenAfter(r, session, "", err.Error(), "", l.conflictBranch(r, err))
 		return
 	}
 	logs := filepath.Join(l.dir, "logs")
 	if mkErr := os.MkdirAll(logs, 0o750); mkErr != nil {
-		l.reopenAfter(r, session, pre, mkErr.Error(), "")
+		l.reopenAfter(r, session, pre, mkErr.Error(), "", "")
 		return
 	}
 	logPath := filepath.Join(logs, r.ID+".log")
@@ -276,20 +276,36 @@ func (l *lander) land(r *engine.LandRequest) {
 		l.res.Blocked = append(l.res.Blocked, landItem{ID: r.ID, Error: "tp done refused the close: " + closeFailure(closeErr, logPath), Log: logPath,
 			Hint: "the request is kept: clear what the error names, then run tp land again"})
 	default:
-		l.reopenAfter(r, session, pre, closeFailure(closeErr, logPath), logPath)
+		l.reopenAfter(r, session, pre, closeFailure(closeErr, logPath), logPath, "")
 	}
+}
+
+// conflictBranch is the branch a conflicting pick's work stays on
+// (spec/backlog/worktree-dispatch.md §2.2), "" for any other failure: only a
+// conflict leaves work the next agent resolves rather than redoes.
+func (l *lander) conflictBranch(r *engine.LandRequest, err error) string {
+	var conflict *engine.LandConflictError
+	if !errors.As(err, &conflict) {
+		return ""
+	}
+	return engine.LandConflictBranch(l.root, r.Worktree, conflict.SHA)
 }
 
 // reopenAfter takes a failed landing back to pre (when it picked anything),
 // reopens the task to run alone, records the outcome for the agent's
-// worktree under the claim's session, and drops its request.
-func (l *lander) reopenAfter(r *engine.LandRequest, session, pre, cause, logPath string) {
+// worktree under the claim's session, and drops its request. branch is the
+// conflict's branch the task records, "" when there is none.
+func (l *lander) reopenAfter(r *engine.LandRequest, session, pre, cause, logPath, branch string) {
 	if pre != "" {
 		_ = engine.LandUndo(l.root, pre)
 	}
 	item := landItem{ID: r.ID, Error: cause, Log: logPath,
 		Hint: fmt.Sprintf("task %s is open again: spawn a fresh agent from tp brief %s --file %s, and tell it this error", r.ID, r.ID, l.relFile())}
-	if err := l.reopen(r.ID, ""); err != nil {
+	if branch != "" {
+		item.Hint = fmt.Sprintf("task %s is open again and its work stays on branch %s: keep the branch, and spawn a fresh agent from tp brief %s --file %s, which tells it to resolve the conflict rather than redo the task",
+			r.ID, branch, r.ID, l.relFile())
+	}
+	if err := l.reopen(r.ID, branch); err != nil {
 		item.Error += "; reopening failed: " + err.Error()
 		item.Hint = "the request is kept for the next tp land"
 		l.res.Blocked = append(l.res.Blocked, item)
