@@ -96,16 +96,7 @@ func printBrief(tf *model.TaskFile, task *model.Task, taskFilePath, specPath str
 		return nil
 	}
 
-	// A unit in a worktree beside others commits on its branch and asks for
-	// the close, which gates the worktree; the driver gates again on the main
-	// branch (spec/backlog/parallel-implement.md §2.4).
-	// The cycle's last failure lives under the main tree's root, which in a
-	// worktree is not the working directory.
-	failureRoot := "."
-	if root := donePendingRoot(taskFilePath); root != "" {
-		b.Close = engine.WorktreeCloseRecipeText(effective, wf.QualityGate, task.ID, task.Touches, engine.WorktreeRoot("."))
-		failureRoot = root
-	}
+	failureRoot := setBriefClose(b, task, taskFilePath, effective, wf.QualityGate)
 
 	// v0.35.0 §4.2: the cycle's last failure, when one is present, so the unit
 	// about to start reads it before it walks into the same wall.
@@ -114,7 +105,11 @@ func printBrief(tf *model.TaskFile, task *model.Task, taskFilePath, specPath str
 	if b.Marker != "" && failureRoot == "." {
 		if token := spawnClaimToken(taskFilePath, task.ID); token != "" {
 			b.ClaimToken = token
-			b.Close = engine.CloseRecipeTextFor(effective, wf.QualityGate, token, engine.RepoRelativePath(taskFilePath))
+			// A main-tree task closes where it was claimed, so its close
+			// names no token: the token is for an agent's own worktree.
+			if !engine.TouchesProjectConfig(task) {
+				b.Close = engine.CloseRecipeTextFor(effective, wf.QualityGate, token, engine.RepoRelativePath(taskFilePath))
+			}
 		}
 	}
 
@@ -123,6 +118,31 @@ func printBrief(tf *model.TaskFile, task *model.Task, taskFilePath, specPath str
 	}
 	fmt.Print(b.Text())
 	return nil
+}
+
+// setBriefClose gives b the close recipe for where task runs and returns the
+// root the cycle's last failure lives under: the main tree's, which in a
+// worktree is not the working directory. A unit in a worktree beside others
+// commits on its branch and asks for the close, which gates the worktree; the
+// driver gates again on the main branch (spec/backlog/parallel-implement.md
+// §2.4). A task whose touches name .tp/config.json runs in the main tree
+// wherever its brief is printed (spec/backlog/worktree-dispatch.md §2.1).
+func setBriefClose(b *engine.Brief, task *model.Task, taskFilePath, effective, gate string) string {
+	root := donePendingRoot(taskFilePath)
+	switch {
+	case engine.TouchesProjectConfig(task):
+		main := root
+		if main == "" {
+			main = engine.CanonicalProjectRoot(filepath.Dir(taskFilePath))
+		}
+		b.Close = engine.MainTreeCloseRecipeText(effective, gate, main)
+	case root != "":
+		b.Close = engine.WorktreeCloseRecipeText(effective, gate, task.ID, task.Touches, engine.WorktreeRoot("."))
+	}
+	if root == "" {
+		return "."
+	}
+	return root
 }
 
 // spawnClaimToken mints the claim token of a brief an Agent spawn will claim
