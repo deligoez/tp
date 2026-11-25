@@ -408,6 +408,8 @@ func TestIntegrate_AConflictKeepsTheBranchForItsResolution(t *testing.T) {
 	assert.Equal(t, map[string]string{"alpha": branch}, reopened)
 	assert.Equal(t, unit, gitIn(t, root, "rev-parse", branch), "the branch is kept")
 	assert.True(t, keptUnitBranch(root, taskFile, branch), "and outlives the next run's reconcile")
+	require.NotNil(t, ReadLastFailure(root, taskFile))
+	assert.Contains(t, ReadLastFailure(root, taskFile).Summary, "its work stays on branch "+branch+" ", "the failure names the kept branch")
 
 	clean := commitIn(t, root, "a1.txt", "1\n")
 	gitIn(t, root, "reset", "-q", "--hard", "HEAD~1")
@@ -415,6 +417,8 @@ func TestIntegrate_AConflictKeepsTheBranchForItsResolution(t *testing.T) {
 	d.opts.CloseTask = func(string, string, []string, string) error { return errors.New("quality gate failed") }
 	require.NoError(t, d.integratePending())
 	assert.Equal(t, map[string]string{"alpha": ""}, reopened, "a failed gate names no branch")
+	require.NotNil(t, ReadLastFailure(root, taskFile))
+	assert.NotContains(t, ReadLastFailure(root, taskFile).Summary, "stays on branch", "nor does its failure")
 }
 
 // TestCycleUnitBranches_NamesOnlyKeptBranches: a branch whose task is done is
