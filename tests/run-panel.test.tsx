@@ -805,3 +805,17 @@ test('every code tp now sends has a sentence in both languages that names no com
     }
   }
 })
+
+test('the command answers in the pane\'s language', async ($, on) => {
+  mock.clock(on, { now: AT })
+  let isTp = true
+  world(on, { 'tp --version': VERSION, 'tp now --json': { exitCode: 0, stdout: JSON.stringify(NOW) } }, () => isTp)
+  on('fs.read', () => {
+    throw new Error('ENOENT: no such file or directory')
+  })
+  on('settings.read', () => ({ value: { language: 'Türkçe' } }))
+  await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
+  expect(await runCommand($)).toBe('tp paneli açık.')
+  isTp = false
+  expect(await runCommand($)).toBe('Bu klasör bir tp projesi değil.')
+})
