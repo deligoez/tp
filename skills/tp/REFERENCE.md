@@ -1043,6 +1043,7 @@ spec/
 | `audit_converge_on` | string | `all` | `blocking`\|`all` | settable, and the one **fenced under `TP_UNATTENDED`** — by a change rule at `tp set --workflow`, `tp import` and `tp config --extract`, and by a value rule at `tp set --workflow --project` (v0.37.0; an audit round is **clean** when it has no non-`PASS` row under `all`, or when no non-`PASS` row carries a blocking severity under `blocking`; review never reads it) |
 | `review_max_rounds` | int | 3 | 0-50 | settable (0 = no cap); at the cap the loop is done once every finding of the latest round carries a disposition and no unresolved blocking row is carried |
 | `audit_max_rounds` | int | 3 | 0-50 | settable (0 = no cap); as `review_max_rounds` |
+| `found_max` | int | 5 | 0-100 | settable (v1.31.0; the found tasks one spec's task file may ever hold, see [Found Tasks](#found-tasks-v1310)). **0 is uncapped**, as for `review_max_rounds` and `audit_max_rounds` — not as for every `*_max` field: `run_max_units` and `run_max_parallel` take no 0. Raising it, or setting 0 over a cap, is the operator's (`raise-found-cap`), fenced under `TP_UNATTENDED`; lowering it is free |
 | `run_max_units` | int | 100 | 1-10000 | settable (v0.35.0; `tp run` cap) |
 | `run_max_wall_clock_seconds` | int | 28800 | 60-604800 | settable (v0.35.0) |
 | `run_max_budget_usd` | number | 0 (disabled) | 0-10000 | settable (v0.35.0; decimal dollars) |
