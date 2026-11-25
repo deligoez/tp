@@ -142,6 +142,14 @@ func TestRoleAgentsRegisterTheWriteAllowlist(t *testing.T) {
 	assert.Empty(t, implementer.Hooks["PreToolUse"],
 		"the implementer writes code; §6.3 restricts the reviewer and auditor, not it")
 
+	// The decision unit has no round, so the allowlist's findings path cannot
+	// build and the hook would refuse every write with a reason about a file the
+	// unit does not have. Its durable write is tp found answer, a command, and the
+	// plugin-level fence already keeps tp's state files out of its reach.
+	decider := readAgentDefinition(t, agentDeciderFile)
+	assert.Empty(t, decider.Hooks["PreToolUse"],
+		"the decision unit has no round directory, so the role allowlist is not its fence")
+
 	info, err := os.Stat(filepath.Join(repoRoot(t), filepath.FromSlash(roleWriteHookPath)))
 	require.NoError(t, err, "%s must exist", roleWriteHookPath)
 	assert.NotZero(t, info.Mode().Perm()&0o111, "%s must be executable", roleWriteHookPath)
