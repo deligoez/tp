@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -202,4 +203,38 @@ func TestNamedInbox_SameBaseSpecsInFlightShareOneInbox(t *testing.T) {
 	}
 	_, stderr, code = runTPEnv(t, dir, noRoundDir(), "review", specs[1], "--record-inbox", "--inbox", "outside")
 	require.Equal(t, 0, code, "b/x.md records its own round: %s", stderr)
+}
+
+// TestNamedInbox_ARoundInTheFlatLayoutNamesTheFolderToMoveItTo: a round whose
+// role files sit flat in <dir>/<phase>-inbox/, the layout before v1.34.0,
+// is refused as before (exit 3), and the hint names the spec folder to move
+// them into rather than asking for every role to run again.
+func TestNamedInbox_ARoundInTheFlatLayoutNamesTheFolderToMoveItTo(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		phase string
+		emit  func(spec, code string) []string
+	}{
+		{"review", func(s, _ string) []string { return []string{"review", s, "--inbox", "outside"} }},
+		{"audit", func(s, c string) []string { return []string{"audit", s, "--affected-files", c, "--inbox", "outside"} }},
+	} {
+		t.Run(tc.phase, func(t *testing.T) {
+			t.Parallel()
+			dir, specPath, codePath := emissionFixture(t)
+			prompts := emittedPrompts(t, dir, noRoundDir(), tc.emit(specPath, codePath)...)
+			folder := filepath.Dir(prompts[0]["output_path"].(string))
+			for _, pm := range prompts {
+				p := pm["output_path"].(string)
+				require.NoError(t, os.WriteFile(filepath.Join(filepath.Dir(folder), filepath.Base(p)), nil, 0o600))
+			}
+
+			_, stderr, code := runTPEnv(t, dir, noRoundDir(), tc.phase, specPath, "--record-inbox", "--inbox", "outside")
+			assert.Equal(t, 3, code, "stderr: %s", stderr)
+			var env map[string]any
+			require.NoError(t, json.Unmarshal([]byte(stderr), &env), stderr)
+			hint := env["hint"].(string)
+			assert.Contains(t, hint, "move them into "+folder, "the hint names the folder the flat files belong in")
+			assert.NotContains(t, hint, "run the prompts of roles", "the roles ran; their files only sit in the old layout")
+		})
+	}
 }
