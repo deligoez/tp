@@ -438,6 +438,28 @@
     return typeof n.x === "number" && typeof n.y === "number" ? { col: n.x, row: n.y } : { col: n.col, row: n.layer };
   };
 
+  // onChain says whether the edge s -> d lies on selection sel's chain,
+  // anc and desc its predecessors and successors (P.hops): into the
+  // selection from what it waits on, or out of it to what waits on it.
+  P.onChain = function (sel, anc, desc, s, d) {
+    const up = (d === sel || anc.has(d)) && anc.has(s);
+    const down = (s === sel || desc.has(s)) && desc.has(d);
+    return up || down;
+  };
+
+  // mapLineTops is the rows, in map units, where a line of the plan's map
+  // starts (its blocks' line_y), each once, top first.
+  P.mapLineTops = function (blocks) {
+    return [...new Set((blocks || []).map((b) => b.line_y))].sort((a, b) => a - b);
+  };
+
+  // mapY is map row y drawn on the page: unit per row, plus gap above each
+  // line top at or above y, so every line of blocks opens with a strip of
+  // its own the units alone do not leave.
+  P.mapY = function (y, tops, unit, gap) {
+    return y * unit + gap * tops.filter((t) => t <= y).length;
+  };
+
   // placeLabels places band labels in the order given, each box { x, y, w,
   // h, sw, alts } its left edge, top, full width, height, width with the
   // name alone, and further places to try ({ x, y }, the strip above the

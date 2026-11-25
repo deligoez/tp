@@ -103,6 +103,14 @@
   const GEO = {
     epic: { w: 150, h: 32, col: 172, row: 44, fs: 11, chars: 20 },
     milestone: { w: 200, h: 60, col: 240, row: 110, fs: 22, chars: 14 },
+    // The plan's map (layout blocks) is drawn roomier than the forest, as
+    // DESIGN.md's spacing asks (the gap inside a group smaller than the
+    // gap between groups, and the larger option when unsure): an epic box
+    // keeps its size while a column and a row unit grow, so epics of one
+    // block sit 50px apart side by side and 32px apart in height, two
+    // blocks of a line 450px apart, and each line of blocks opens lineGap
+    // lower (tpPure.mapY), a strip its labels keep at fit.
+    map: { w: 150, h: 32, col: 200, row: 64, fs: 11, chars: 20, lineGap: 256 },
   };
   // The neighbourhood opens no further out than this, where an epic's
   // 11-unit id reads at 12 pixels, its whole id drawn (tpPure.detailLevel).
@@ -262,8 +270,9 @@
   // ---------- preparing the drawing from a layout ----------
   function prepareNode(L, n, i, ctx) {
     const geo = ctx.geo;
-    const x = n.col * geo.col;
-    const y = n.layer * geo.row;
+    const at = pure.mapPlace(n);
+    const x = at.col * geo.col;
+    const y = ctx.tops ? pure.mapY(at.row, ctx.tops, geo.row, geo.lineGap) : at.row * geo.row;
     const out = { i, id: n.id, x, y, w: geo.w, h: geo.h, mark: null, hold: null, label: n.id, ms: n.milestone || null, title: "", cond: false,
       centre: !!n.centre, deferrable: !!n.deferrable, layer: n.layer, col: n.col, status: null, owner: [] };
     if (L.view === "milestones") {
@@ -304,21 +313,24 @@
       : [[x - w / 2, y], [x + w / 2, y], [x + w / 2, y + h], [x - w / 2, y + h]];
     return out;
   }
-  // bandRegions is each band's region: per layer it spans, the columns its
-  // nodes on that layer take, joined into one outline, so a band in one
-  // track does not reach over a neighbouring track's nodes on other layers.
+  // bandRegions is each band's region, or on the plan's map each milestone
+  // block's (L.blocks): per line of nodes it spans, the columns its nodes
+  // on that line take, joined into one outline, so a band in one track
+  // does not reach over a neighbouring track's nodes on other layers.
   function bandRegions(L, nodes, geo) {
     const pad = 12;
-    return (L.bands || []).map((b, k) => {
+    const regions = L.blocks && L.blocks.length ? L.blocks : L.bands || [];
+    return regions.map((b, k) => {
       const names = [b.milestone].concat(b.with || []);
-      const inBand = nodes.filter((n) => names.includes(n.ms));
+      const inBand = nodes.filter((n) => names.includes(n.ms) && n.layer >= b.from_layer && n.layer <= b.to_layer);
       if (!inBand.length) return null;
-      const rows = [];
-      for (let layer = b.from_layer; layer <= b.to_layer; layer++) {
-        const on = inBand.filter((n) => n.layer === layer);
-        if (on.length) rows.push({ y0: layer * geo.row - pad, y1: layer * geo.row + geo.h + pad, x0: Math.min(...on.map((n) => n.x - n.w / 2)) - pad, x1: Math.max(...on.map((n) => n.x + n.w / 2)) + pad });
-      }
-      rows[0].y0 -= 16;
+      const rows = [...new Set(inBand.map((n) => n.y))].sort((a, b2) => a - b2).map((y) => {
+        const on = inBand.filter((n) => n.y === y);
+        return { y0: y - pad, y1: y + geo.h + pad, x0: Math.min(...on.map((n) => n.x - n.w / 2)) - pad, x1: Math.max(...on.map((n) => n.x + n.w / 2)) + pad };
+      });
+      // The region's top holds its label: on the map it reaches up into the
+      // label line the layout keeps above each line of blocks.
+      rows[0].y0 -= L.blocks && L.blocks.length ? geo.row - geo.h : 16;
       // Two rows meet half-way between them, so the outline steps across
       // horizontally even where the band skips a layer.
       rows.forEach((r, i) => {
@@ -334,12 +346,12 @@
     }).filter(Boolean);
   }
   function prepare(L, g) {
-    const geo = L.view === "milestones" ? GEO.milestone : GEO.epic;
+    const geo = L.view === "milestones" ? GEO.milestone : L.blocks && L.blocks.length ? GEO.map : GEO.epic;
     // described is the graph's epics with a description, which the
     // tooltip names and the closure view counts.
     const described = new Set(((g.graph && g.graph.epics) || []).filter((e) => String(e.description || "").trim()).map((e) => e.id));
     const owners = L.view === "milestones" ? [] : ownersOf(g);
-    const ctx = { geo, epics: {}, reports: {}, titles: {}, owners };
+    const ctx = { geo, epics: {}, reports: {}, titles: {}, owners, tops: geo === GEO.map ? pure.mapLineTops(L.blocks) : null };
     (g.epics || []).forEach((e) => { ctx.epics[e.id] = e; });
     (g.milestones || []).forEach((m) => { ctx.reports[m.milestone] = m; });
     ((g.graph && g.graph.epics) || []).forEach((e) => { ctx.titles[e.id] = e; });
