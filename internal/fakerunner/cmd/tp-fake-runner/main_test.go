@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/deligoez/tp/internal/engine"
+	"github.com/deligoez/tp/internal/fakerunner"
 )
 
 // TestEditTaskWaitsForTheTaskFileLock pins that the fixture's task-file write
@@ -44,4 +45,40 @@ func TestEditTaskWaitsForTheTaskFileLock(t *testing.T) {
 	close(release)
 	require.NoError(t, <-lockDone)
 	require.NoError(t, <-edited)
+}
+
+// TestAnswerRequestsRefusesAnUnsetTaskFile pins that a decision unit with no
+// TP_FILE fails instead of resolving a project root from the working directory.
+func TestAnswerRequestsRefusesAnUnsetTaskFile(t *testing.T) {
+	err := answerRequests("", "decision-x")
+	require.ErrorContains(t, err, "TP_FILE is unset")
+}
+
+// TestAttemptedBeforeReportsAnUnreadableRecord pins that a record the fake
+// cannot parse is an error, not "never attempted": reading it as the latter
+// re-fires the fail-first, block and found arms on a retry.
+func TestAttemptedBeforeReportsAnUnreadableRecord(t *testing.T) {
+	dir := t.TempDir()
+	file, _, err := fakerunner.Claim(dir)
+	require.NoError(t, err)
+	_, err = file.WriteString("{not json\n")
+	require.NoError(t, err)
+	require.NoError(t, file.Close())
+
+	_, err = attemptedBefore(dir, "a")
+	require.Error(t, err)
+}
+
+// TestWriteSpendLineCreatesAPrivateLog pins the log file's mode at 0o600, the
+// mode every other file the fake writes carries.
+func TestWriteSpendLineCreatesAPrivateLog(t *testing.T) {
+	logPath := filepath.Join(t.TempDir(), "logs", "1-implement-a.jsonl")
+	saved := os.Args
+	t.Cleanup(func() { os.Args = saved })
+	os.Args = []string{"tp-fake-runner", "implement", "a", logPath, "0"}
+
+	require.NoError(t, writeSpendLine())
+	info, err := os.Stat(logPath)
+	require.NoError(t, err)
+	require.Equal(t, os.FileMode(0o600), info.Mode().Perm())
 }
