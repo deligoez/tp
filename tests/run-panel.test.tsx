@@ -387,6 +387,29 @@ test('an older tp without tp now falls back to the run status and draws the run 
   await ui.unmount()
 })
 
+test('a tp now that failed once is asked again when the minute comes round', async ($, on) => {
+  const clock = mock.clock(on, { now: AT })
+  const answers: Record<string, Answer> = {
+    'tp --version': VERSION,
+    'tp now --json': { exitCode: 1, stdout: '' },
+    'tp run --status': { exitCode: 0, stdout: JSON.stringify(NOW.run) },
+  }
+  const ran = world(on, answers)
+  const reads = () => ran.filter(line => line === 'tp now --json').length
+  await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
+  await clock.advance(10_000)
+  // The live run is read every 5 seconds through the status alone.
+  expect(reads()).toBe(1)
+  answers['tp now --json'] = { exitCode: 0, stdout: JSON.stringify(NOW) }
+  await clock.advance(50_000)
+  expect(reads()).toBe(1)
+  await clock.advance(5_000)
+  expect(reads()).toBe(2)
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ key: 'view-now' })).toBeTruthy()
+  await ui.unmount()
+})
+
 test('the command outside a tp project says so and reads no status', async ($, on) => {
   let ran = false
   on('command.register', () => ({ value: { command: 'tp-run' } }))
