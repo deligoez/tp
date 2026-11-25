@@ -378,7 +378,13 @@ func (d *driver) endSlot(p *pool, id string) {
 	delete(d.trees, id)
 	u := slot.tree
 	if keptUnitBranch(d.opts.Root, d.opts.TaskFile, u.branch) {
+		// The branch outlives the worktree, so only the worktree goes; one
+		// still on disk afterwards is reported, and the next run's
+		// reconcileUnits sweeps it as a registered unit worktree.
 		_, _ = gitOut(d.opts.Root, "worktree", "remove", "--force", u.worktree)
+		if _, err := os.Stat(u.worktree); err == nil {
+			output.Notice(fmt.Sprintf("the worktree of task %s could not be removed, still on disk: %s", u.id, u.worktree))
+		}
 		if !HasPendingClose(d.opts.Root, d.opts.TaskFile, u.id) {
 			output.Notice(fmt.Sprintf("task %s did not finish; its unit's work stays on branch %s until the task is done", u.id, u.branch))
 		}
