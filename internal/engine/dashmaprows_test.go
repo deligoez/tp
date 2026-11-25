@@ -307,3 +307,14 @@ func TestMapRows_AVeryFullLayerFoldsOntoThreeSubLines(t *testing.T) {
 	assert.InDelta(t, 8.0, a.ToCol-a.FromCol, 0)
 	assert.InDelta(t, 2.0, a.ToY-a.FromY, 0)
 }
+
+// TestMapRows_ABlockOnTheFirstLayerSpansOnlyIt: a block whose epics all sit
+// on layer 0 reports from_layer and to_layer 0.
+func TestMapRows_ABlockOnTheFirstLayerSpansOnlyIt(t *testing.T) {
+	t.Parallel()
+	in := mapInput(4, []LayoutBand{{Name: "A", From: 0, To: 0}, {Name: "B", From: 1, To: 1}},
+		mapNode{"a1", "A", 0, 0}, mapNode{"b1", "B", 1, 0})
+	got := MapRows(&in)
+	a := mapBlockOf(t, got.Blocks, "A")
+	assert.Equal(t, [2]int{0, 0}, [2]int{a.FromLayer, a.ToLayer})
+}
