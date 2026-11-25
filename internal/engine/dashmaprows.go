@@ -103,9 +103,10 @@ type mapBlock struct {
 // Bands that share a layer, directly or through another band, make one
 // row. Each group with a node in a row is one block of it, the blocks in
 // the order of their mean forest column, then of their first node. A
-// block is as wide as its fullest layer, up to mapFoldCap; a fuller layer
-// folds the block to ceil(fullest/mapFoldLines) columns, capped the same,
-// and every layer of it takes as many sub-lines as its nodes need. Inside
+// block is as wide as its fullest layer, up to mapFoldCap; past it the
+// block is mapFoldCap wide, or ceil(fullest/mapFoldLines) where that is
+// wider, so its fullest layer folds onto two or three sub-lines, and every
+// layer of it takes as many sub-lines as its nodes need. Inside
 // a sub-line the nodes keep their forest-column order and are centred in
 // the block. Blocks sit mapBlockGap columns apart and wrap onto another
 // line of the row where the next would pass Width, each line centred in
@@ -198,7 +199,7 @@ func mapSizeBlock(in *MapRowsInput, file map[string]int, b *mapBlock) {
 	}
 	b.width = fullest
 	if fullest > mapFoldCap {
-		b.width = min(mapFoldCap, (fullest+mapFoldLines-1)/mapFoldLines)
+		b.width = max(mapFoldCap, (fullest+mapFoldLines-1)/mapFoldLines)
 	}
 	for l, ids := range b.layers {
 		b.lines[l] = (len(ids) + b.width - 1) / b.width
