@@ -245,13 +245,16 @@ func writeSpendLine() error {
 		return fmt.Errorf("spend line: %w", err)
 	}
 
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o644)
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o600)
 	if err != nil {
 		return fmt.Errorf("log file: %w", err)
 	}
-	defer file.Close()
 	if _, err := file.Write(append(line, '\n')); err != nil {
+		_ = file.Close() // the write error is the one to report
 		return fmt.Errorf("write spend line: %w", err)
+	}
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("close log file: %w", err)
 	}
 	return nil
 }
