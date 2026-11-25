@@ -164,9 +164,6 @@ func canonicalFile(path string) string {
 // answerFoundRequest records an answer under the task-file lock, then the
 // store's, the order tp found apply takes them in, and returns the plan with
 // its queue entries numbered. A plan error is a refusal and writes nothing.
-// answerFoundRequest records an answer under the task-file lock, then the
-// store's, the order tp found apply takes them in, and returns the plan with
-// its queue entries numbered. A plan error is a refusal and writes nothing.
 // The task file and queue are written before the store, so when the store
 // write fails they are put back: a task left on disk beside a request still
 // undecided is one dedup cannot see, and answering again would open a second.
