@@ -108,9 +108,11 @@ func runNext(_ *cobra.Command, _ []string) error {
 		}
 	}
 
+	// A task whose touches overlap a claimed task's is passed over, as tp
+	// brief passes over it (engine.ClaimOverlap).
 	var ready []*model.Task
 	for i := range tf.Tasks {
-		if tf.Tasks[i].Startable(done) {
+		if tf.Tasks[i].Startable(done) && engine.ClaimOverlap(tf, &tf.Tasks[i]) == nil {
 			ready = append(ready, &tf.Tasks[i])
 		}
 	}
