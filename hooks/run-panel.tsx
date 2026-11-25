@@ -178,19 +178,23 @@ async function readLanguage($: EngineInterface, folder: string): Promise<Lang> {
 }
 
 // refresh reads the project once: `tp now --json`, or on a tp without it
-// `tp run --status`, whose run is then all the pane draws. Once `tp now` has
-// failed it is asked again only when retry says so (the minute's read), so
-// one slow answer does not cost the pane its views for the session.
+// `tp run --status`, whose run is then all the pane draws. A tp is taken for
+// one without `tp now` only while `tp now` has never answered: after it has,
+// a failed or slow read keeps the last views and is asked again next tick.
+// Once taken for older, `tp now` is asked again only when retry says so (the
+// minute's read).
 async function refresh($: EngineInterface, retry: boolean): Promise<RunView | null> {
   const at = await $.clock.now()
   const payload = nowMissing && !retry ? undefined : await runJSON($, ['tp', 'now', '--json'])
-  const read = payload ? toNow(payload, at) : null
-  if (read) {
+  const got = payload ? toNow(payload, at) : null
+  if (got) {
     nowMissing = false
-    await update($, nowState, () => read.now)
-    await update($, run, () => read.run)
-    return read.run
+    await update($, nowState, () => got.now)
+    await update($, run, () => got.run)
+    return got.run
   }
+  // A kept view (which outlives a reload) says `tp now` answered before.
+  if (await read($, nowState)) return read($, run)
   nowMissing = true
   const status = await runJSON($, ['tp', 'run', '--status'])
   const view = status ? toView(status, at) : null
