@@ -174,3 +174,15 @@ func TestPure_HopsCountTheStepsFromTheSelection(t *testing.T) {
 out([[...P.hops(0, (v) => next[v])], P.chainAlpha(1, false), P.chainAlpha(2, false), P.chainAlpha(3, false), P.chainAlpha(9, false)]);`)
 	assert.JSONEq(t, `[[[1, 1], [2, 1], [3, 2], [4, 3]], 255, 255, 170, 70]`, got)
 }
+
+// TestPure_APlansRegionsAreItsMilestoneBlocks: the map outlines and labels
+// one region per block when the layout lists blocks, so milestones that
+// share a band or its layers each get their own region with their own
+// count; a layout without blocks keeps its bands.
+func TestPure_APlansRegionsAreItsMilestoneBlocks(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `const bands = [{ milestone: "P", with: ["Q"], from_layer: 0, to_layer: 3 }];
+const blocks = [{ milestone: "P", from_layer: 0, to_layer: 3, from_col: 0, to_col: 2, count: 4 }, { milestone: "Q", from_layer: 1, to_layer: 3, from_col: 4, to_col: 5, count: 2 }];
+out([P.regionsOf({ bands, blocks }).map((r) => r.milestone), P.regionsOf({ bands }).map((r) => r.milestone), P.regionsOf({}).length]);`)
+	assert.JSONEq(t, `[["P", "Q"], ["P"], 0]`, got)
+}
