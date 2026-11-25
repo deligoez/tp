@@ -172,9 +172,15 @@ func foundNote(req *FoundRequest) model.FoundNote {
 
 // pastCapEntry is the open queue entry of a Fix-shaped request past the cap.
 // The queue is committed and the request store is not, so the entry carries
-// the Fix fields itself.
+// the Fix fields itself. A blocking request has no task outcome, so its entry
+// holds its task finder (spec/1.31.0.md §4).
 func pastCapEntry(req *FoundRequest, foundMax int) FoundQueueEntry {
+	var finders []string
+	if req.Blocks && req.Finder.Task != "" {
+		finders = []string{req.Finder.Task}
+	}
 	return FoundQueueEntry{
+		Finders:      finders,
 		State:        FoundQueueOpen,
 		Request:      req.ID,
 		Location:     req.Location,
