@@ -104,6 +104,7 @@ land:
 lint:
 list: ids status tag
 next: brief epic minimal peek
+now: epic
 plan: from level minimal
 pool: live session stop-hook unresolved
 ready: count epic first ids
