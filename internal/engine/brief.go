@@ -60,10 +60,27 @@ func CloseRecipeText(effectiveStrategy, qualityGate string) string {
 // task file relative to the repository root, so the close resolves in a
 // worktree of a repository that holds more than one task file.
 func CloseRecipeTextFor(effectiveStrategy, qualityGate, claimToken, taskFile string) string {
-	command, rejected := closeRecipeCommand(effectiveStrategy, claimToken, taskFile)
+	return closeRecipeText(effectiveStrategy, qualityGate, claimToken, taskFile, "")
+}
+
+// MainTreeCloseRecipeText is the close of a task that runs in the main tree
+// only, one whose touches name .tp/config.json
+// (spec/backlog/worktree-dispatch.md §2.1): the main-tree close without its
+// worktree variant, led by where to work. root is the main tree's root.
+func MainTreeCloseRecipeText(effectiveStrategy, qualityGate, root string) string {
+	return closeRecipeText(effectiveStrategy, qualityGate, "", "", root)
+}
+
+// closeRecipeText builds the recipe; a non-empty mainRoot is the main-tree
+// close MainTreeCloseRecipeText describes.
+func closeRecipeText(effectiveStrategy, qualityGate, claimToken, taskFile, mainRoot string) string {
+	command, rejected := closeRecipeCommand(effectiveStrategy, claimToken, taskFile, mainRoot != "")
 
 	var b strings.Builder
 	b.WriteString("How to close this unit.\n\n")
+	if mainRoot != "" {
+		fmt.Fprintf(&b, "This task's touches name .tp/config.json, which only the main tree commits: work in the main tree at %s, not in a worktree, and close it there.\n\n", mainRoot)
+	}
 
 	// §8.2: the resolved gate verbatim, and the rule a red gate is never closed over.
 	b.WriteString("1. Run the gate and confirm it is green before closing. A red gate is never closed over: --skip-gate is a human decision, never the unit's.\n")
@@ -146,31 +163,38 @@ func WorktreeCloseRecipeText(effectiveStrategy, qualityGate, id string, touches 
 // strategy (§8.1) and, for hc only, the rejected-invocation note (§8.4). An
 // unrecognized strategy resolves to the builtin recipe, matching
 // EffectiveCommitStrategy's default-to-builtin behavior.
-func closeRecipeCommand(effectiveStrategy, claimToken, taskFile string) (command, rejected string) {
-	worktreeClose := "   tp done <id> --commit <sha> -- \"<evidence>\"   (repeat --commit per sha), and stop.\n"
-	if claimToken != "" {
-		file := ""
-		if taskFile != "" {
-			file = " --file " + taskFile
-		}
-		worktreeClose = "   tp done <id>" + file + " --commit <sha> --claim-token " + claimToken + " -- \"<evidence>\"   (repeat --commit per sha), and stop.\n" +
-			"   In that worktree, give every file tool an absolute path under the directory git rev-parse --show-toplevel prints there: a relative path can resolve against the main checkout and change the wrong tree.\n"
-	}
+func closeRecipeCommand(effectiveStrategy, claimToken, taskFile string, mainTree bool) (command, rejected string) {
+	var worktree string
 	switch effectiveStrategy {
 	case CommitStrategyHC:
-		command = "   commit with hc, then:\n   tp done <id> --commit <sha> -- \"<evidence>\"   (repeat --commit per sha)\n" +
-			"   In a git worktree of your own, where the task is claimed in another tree, the same, and stop.\n"
+		command = "   commit with hc, then:\n   tp done <id> --commit <sha> -- \"<evidence>\"   (repeat --commit per sha)\n"
+		worktree = "   In a git worktree of your own, where the task is claimed in another tree, the same, and stop.\n"
 		if claimToken != "" {
-			command = "   commit with hc, then:\n   tp done <id> --commit <sha> -- \"<evidence>\"   (repeat --commit per sha)\n" +
-				"   In a git worktree of your own, where the task is claimed in another tree, commit with hc, then\n" + worktreeClose
+			worktree = "   In a git worktree of your own, where the task is claimed in another tree, commit with hc, then\n" + worktreeCloseLine(claimToken, taskFile)
 		}
 		rejected = "Under hc, a bare \"tp done\", \"tp commit\", and \"--auto-commit\" are all rejected: make the commit with hc, then record the SHA with \"tp done <id> --commit <sha>\"."
 	default:
-		command = "   tp done <id> --auto-commit -- \"<evidence>\"\n" +
-			"   In a git worktree of your own, where the task is claimed in another tree: commit with git, then\n" + worktreeClose
-		rejected = ""
+		command = "   tp done <id> --auto-commit -- \"<evidence>\"\n"
+		worktree = "   In a git worktree of your own, where the task is claimed in another tree: commit with git, then\n" + worktreeCloseLine(claimToken, taskFile)
+	}
+	if !mainTree {
+		command += worktree
 	}
 	return command, rejected
+}
+
+// worktreeCloseLine is the close an agent runs in a worktree of its own,
+// naming the brief's claim token and task file when it carries one.
+func worktreeCloseLine(claimToken, taskFile string) string {
+	if claimToken == "" {
+		return "   tp done <id> --commit <sha> -- \"<evidence>\"   (repeat --commit per sha), and stop.\n"
+	}
+	file := ""
+	if taskFile != "" {
+		file = " --file " + taskFile
+	}
+	return "   tp done <id>" + file + " --commit <sha> --claim-token " + claimToken + " -- \"<evidence>\"   (repeat --commit per sha), and stop.\n" +
+		"   In that worktree, give every file tool an absolute path under the directory git rev-parse --show-toplevel prints there: a relative path can resolve against the main checkout and change the wrong tree.\n"
 }
 
 // --- Prior-work selection (§5) ---
