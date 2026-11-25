@@ -34,6 +34,7 @@ func newImportCmd() *cobra.Command {
 }
 
 func runImport(_ *cobra.Command, args []string) error {
+	fenceTaskGraphWrite("tp import")
 	// §5.1: --force bypasses the convergence guard and overwrites a task file
 	// with real tasks in it, which is a user-approved decision.
 	if importForce && engine.Unattended() {
