@@ -106,7 +106,11 @@ func reopenSoloFunc(taskFile string) func(id, conflictBranch string) error {
 			task.DurationSource = ""
 			task.ClaimedBy = task.ClaimedBy.Released()
 			task.Solo = true
-			task.ConflictBranch = conflictBranch
+			// A reopen naming no branch keeps the one recorded: that
+			// branch may still hold the only copy of the work.
+			if conflictBranch != "" {
+				task.ConflictBranch = conflictBranch
+			}
 			tf.UpdatedAt = time.Now().UTC()
 			return model.WriteTaskFile(taskFile, tf)
 		})
