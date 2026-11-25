@@ -3,7 +3,7 @@
   "spec": "spec/1.31.0.md",
   "imported_at": "2026-11-24T21:33:03.666479Z",
   "created_at": "2026-11-24T21:33:03.664126Z",
-  "updated_at": "2026-11-24T22:35:16.636923Z",
+  "updated_at": "2026-11-25T02:02:52.819077Z",
   "workflow": {
     "review_max_rounds": 5,
     "audit_max_rounds": 3
@@ -56,7 +56,7 @@
       "id": "found-add-cmd",
       "title": "Add tp found add with shape checks",
       "description": "tp found add records one request; refuses with exit 2 a request with no location, no reproduction, or neither all four Fix fields nor a question; blocks only when the caller works a task. Changes no task.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "found"
@@ -69,17 +69,38 @@
       "source_sections": [
         "## 1. The request"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "solo": true,
+      "started_at": "2026-11-25T00:13:28.495084Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-25T00:43:14.969997Z",
+      "closed_reason": "- tp found add --location \u003cfile:line\u003e --reproduction \u003ccmd\u003e (--expected \u003ctext\u003e --observed \u003ctext\u003e | --question \u003ctext\u003e [--alternative \u003ctext\u003e]...) [--blocks] [--task \u003cid\u003e] records one request in the cycle's found store (engine.AddFoundRequest) after engine.FoundRequestShapeError; TestFoundAdd_AFixShapedRequestRecords records F1 with all four Fix fields, TestFoundAdd_ARequestWithoutAReproductionExits2 and TestFoundAdd_ARequestWithNeitherTheFixFieldsNorAQuestionExits2 exit 2 and record nothing; TestFoundAdd_AQuestionShapedRequestRecordsItsAlternatives keeps comma-bearing alternatives whole.\n- --blocks needs a wip task the caller works: an implement unit's own (TP_UNIT_KIND=implement + TP_UNIT_ID) or --task \u003cid\u003e; a role unit's TP_UNIT_ID never counts. TestFoundAdd_BlocksWithoutATaskTheCallerWorksExits2 covers no unit, an audit-role unit, an open task, an unknown task and a --task differing from the unit's task (all exit 2, nothing stored); the blocks-under-implement and --task-wip tests record blocks=true and finder.task=t1. Every test asserts spec.tasks.json is byte-identical afterwards (the task file is only read).\n- JSON output is {id, state, blocks, finder}; the Fix-shaped test asserts id F1. Command registered in root.go, commandSides (tp found none, tp found add file), the pinned surface and SKILL.md's inventory; gate green.\nOut of scope: from a git worktree the store root is CanonicalProjectRoot of the worktree's task file, so a request filed in a unit worktree lands in that worktree's .tp/ and not the coordinator's; run-applies-requests should decide where the driver reads it.",
+      "gate_passed_at": "2026-11-25T00:43:05.593472Z",
+      "commit_sha": "5fbb55b2",
+      "commit_shas": [
+        "5fbb55b2",
+        "32c8faf5",
+        "635d959b",
+        "e58eb8ae",
+        "13745312"
+      ],
+      "commit_files": [
+        "internal/cli/command_sides.go",
+        "internal/cli/found.go",
+        "internal/cli/found_add_test.go",
+        "internal/cli/nongoals_surface_test.go",
+        "internal/cli/root.go",
+        "internal/engine/foundrequest.go",
+        "skills/tp/SKILL.md"
+      ],
+      "task_audit_owed": [
+        "go-safety"
+      ]
     },
     {
       "id": "unit-prompts-no-sweep",
       "title": "Teach unit prompts to file requests",
       "description": "The implement and audit-role unit prompts say to file a defect outside the unit's task with tp found add, one defect per request, and carry the no-sweep sentence.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "prompt",
         "found"
@@ -92,11 +113,23 @@
       "source_sections": [
         "## 1. The request"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-25T00:43:27.824204Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-25T00:56:49.965432Z",
+      "closed_reason": "- engine.briefPrompt now appends, for the implement and audit-role kinds (UnitPrompt and the pool brief prompt both go through it), 'A defect your work runs into outside the work you were given is filed with `tp found add`, one defect per request.' and the no-sweep sentence 'Report only what your own work ran into; never sweep code for defects.'\n- TestUnitPrompt_RequestFilingKindsCarryTheNoSweepSentence asserts both sentences verbatim in the implement and audit-role prompts; seen red (4 failures, both sentences missing in both prompts) before the change, green after; go test ./internal/engine passes.\nOut of scope: task-audit-role units get no request sentences; the spec names implement and audit-role only, though §1 says every unit prompt that can file requests carries it.",
+      "gate_passed_at": "2026-11-25T00:56:49.965432Z",
+      "commit_sha": "43850ef3af3fd87b71387ab43eaaf99907a558b4",
+      "commit_shas": [
+        "43850ef3af3fd87b71387ab43eaaf99907a558b4",
+        "412eab6bbb3152917dc795f1222e4c6a67b42645"
+      ],
+      "commit_files": [
+        "internal/engine/runnertemplate.go",
+        "internal/engine/runnertemplate_test.go"
+      ],
+      "task_audit_owed": [
+        "go-safety"
+      ]
     },
     {
       "id": "task-origin-field",
@@ -141,7 +174,7 @@
       "id": "add-refuses-unresolved-anchor",
       "title": "Refuse tp add on unresolved headings",
       "description": "tp add refuses a source_sections entry that names no heading of the spec, naming the entry; today it accepts any text.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "found"
@@ -153,17 +186,64 @@
         "## 3. The found task",
         "## 10. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-24T22:40:04.597965Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-24T23:48:24.509674Z",
+      "closed_reason": "- tp add now refuses a source_sections entry that names no heading of the spec: exit 1 with error 'task \u003cid\u003e: source_sections entry \"\u003centry\u003e\" names no heading of the spec' (plus did-you-mean suggestions); engine.FirstUnresolvedSection runs after NormalizeSourceSections in addTasks, and nothing is written. Verified by TestAdd_RefusesUnresolvedSourceSection (exit 1, error names '## 9. Catch-all', tp list shows no t1).\n- §10 row 'An unresolved anchor is refused': fixture = tp add with source_sections ['## 9. Catch-all'] on a spec with '## 1. Setup'/'## 2. Models'; mutant = warn (output.Info) instead of refuse. Counts via go test ./internal/cli -run '^TestAdd' -v: HEAD 24 pass / 0 fail; under the mutant 23 pass / 1 fail (TestAdd_RefusesUnresolvedSourceSection).\n- An entry naming a real heading still adds the task: the same test then adds validEntryTask ('## 1. Setup') with exit 0; the 32 cli test files whose fixtures used made-up anchors (s1, s, ### 1. X) now name a heading their spec has, and the full cli package passed after the sweep apart from one fixture fixed in 5a41359a.\n- The refusal is skipped when the spec file is missing, unparseable or has no headings (the existing normalization guard); tp import is unchanged (spec §3 scopes the refusal to tp add).",
+      "gate_passed_at": "2026-11-24T23:48:24.509674Z",
+      "commit_sha": "69d142eb159acb5af897db85fb175a7697c8037a",
+      "commit_shas": [
+        "69d142eb159acb5af897db85fb175a7697c8037a",
+        "007f6dd6e1d82c051ecdc2f4b1558ecb1a16a20e",
+        "51aec53ea2be981037c419fe14fb0076ba9b4eee",
+        "a766c0337d5601bc1f90ad7fa0a11e0273c19b22"
+      ],
+      "commit_files": [
+        "internal/cli/acceptance_criteria_test.go",
+        "internal/cli/add.go",
+        "internal/cli/add_validation_test.go",
+        "internal/cli/agent_claims_test.go",
+        "internal/cli/audit_task_test.go",
+        "internal/cli/brief_test.go",
+        "internal/cli/close_strategy_test.go",
+        "internal/cli/commands_test.go",
+        "internal/cli/commit_files_test.go",
+        "internal/cli/commit_shas_test.go",
+        "internal/cli/commit_test.go",
+        "internal/cli/coveredby_test.go",
+        "internal/cli/done_batch_commit_test.go",
+        "internal/cli/done_multi_refusal_test.go",
+        "internal/cli/donegate_test.go",
+        "internal/cli/gate_atomic_test.go",
+        "internal/cli/gate_cmd_test.go",
+        "internal/cli/gate_process_test.go",
+        "internal/cli/gate_slots_test.go",
+        "internal/cli/gate_test.go",
+        "internal/cli/gate_unresolved_test.go",
+        "internal/cli/held_test.go",
+        "internal/cli/integration_test.go",
+        "internal/cli/last_failure_gate_test.go",
+        "internal/cli/lock_timeout_test.go",
+        "internal/cli/next_brief_test.go",
+        "internal/cli/outofscope_test.go",
+        "internal/cli/report_test.go",
+        "internal/cli/resume_bookkeeping_test.go",
+        "internal/cli/resume_worktree_test.go",
+        "internal/cli/task_audit_oracle_test.go",
+        "internal/cli/task_audit_roles_test.go",
+        "internal/cli/unattended_fence_test.go",
+        "internal/cli/v2_commands_test.go",
+        "internal/engine/resolve_section.go"
+      ],
+      "task_audit_owed": [
+        "go-safety"
+      ]
     },
     {
       "id": "found-queue-store",
       "title": "Store the queue beside the task file",
       "description": "A committed file beside the spec's task file holds open and decided entries: location, question, alternatives, the finders waiting on it, the request; decided entries are conforms answers.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "model",
         "found"
@@ -176,11 +256,25 @@
       "source_sections": [
         "## 6. The queue"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-24T22:40:02.655196Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-24T23:52:39.919482Z",
+      "closed_reason": "- engine.FoundQueuePath puts a spec's queue in \u003cbase\u003e.queue.json beside \u003cbase\u003e.tasks.json; TestFoundQueue_AnOpenAndADecidedEntryRoundTripBesideTheTaskFile writes an open entry (location, question, alternatives, finders) and a decided conforms entry through UpdateFoundQueue and reads both back equal from that path, and TestFoundQueue_AMissingFileIsAnEmptyQueue covers the absent file.\n- The queue file is committed, not ignored: the same test runs git check-ignore on it after EnsureTPGitignore and asserts exit 1 (also checked by hand: git check-ignore spec/1.31.0.queue.json exits 1 in this repo); UpdateFoundQueue writes under WithFileLock(taskFile), and TestFoundQueue_AWriteWaitsForTheTaskFileLock holds the task-file flock and shows no queue file appears until it is released.",
+      "gate_passed_at": "2026-11-24T23:52:39.919482Z",
+      "commit_sha": "fe12a3cf472c142895164f5cf33b26052a6213d2",
+      "commit_shas": [
+        "fe12a3cf472c142895164f5cf33b26052a6213d2",
+        "9911cdb7dd46b1c7555e40145fac5a744469e6a1",
+        "fdc8a0afabda68546af31d53aac7a200ecdd398b",
+        "02579fdfd7f34dd70bc0cb8e09ae33a5cf5a4bf9"
+      ],
+      "commit_files": [
+        "internal/engine/foundqueue.go",
+        "internal/engine/foundqueue_test.go"
+      ],
+      "task_audit_owed": [
+        "go-safety"
+      ]
     },
     {
       "id": "found-max-field",
@@ -245,7 +339,7 @@
       "id": "found-apply-dedup",
       "title": "Dedup requests by file and reproduction",
       "description": "tp found apply drops a request whose file and whitespace-normalised reproduction match one in its batch, one whose outcome is open, one still undecided, or an open queue entry; the duplicate opens nothing and its finder is placed against the kept one.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "found"
@@ -261,17 +355,33 @@
         "## 2. Applying requests",
         "## 10. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-25T00:43:28.41405Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-25T01:00:54.505875Z",
+      "closed_reason": "- engine.DedupFoundRequests (internal/engine/founddedup.go) splits a spec's unapplied requests into kept and FoundDuplicate, keyed by FoundDedupKey: the location's file with a trailing :N stripped plus the whitespace-collapsed reproduction; the earliest Seq in a batch is kept. §10 row 'Dedup keys on the reproduction': TestDedupFoundRequests_OneReproductionAtTwoLinesOfAFileKeepsOne (x.go:40 and x.go:44, one reproduction) keeps F1 and marks F2 its duplicate. Counts: at HEAD 10/10 top-level dedup tests pass; under the mutant 'dedup keyed on file:line' (line not stripped) 6 fail, 4 pass, the row test among the failures.\n- A request matching an undecided request (TestDedupFoundRequests_ARequestMatchingAnUndecidedOneIsADuplicate) or an open queue entry's request (TestDedupFoundRequests_ARequestMatchingAnOpenQueueEntryIsADuplicate, KeptEntry Q1) comes back as a duplicate and is not kept, so apply opens nothing and adds no entry for it; a decided entry or an entry naming an unknown request matches nothing.\n- An applied request matches only while its outcome task (new FoundRequest.Outcome field, round-tripped in TestFoundRequestWithEveryFieldRoundTrips) is open or wip (TestDedupFoundRequests_ARequestMatchingAnOpenOrWipTasksRequestIsADuplicate); a done outcome task is not a duplicate (TestDedupFoundRequests_ARequestMatchingADoneTasksRequestIsNotADuplicate). A handed-back task is done, so it is covered by the done case once its queue entry is no longer open; no separate handed-back marker exists yet.\nOut of scope: no tp found apply command yet; opening tasks, the cap, attachment and placement are found-apply-open, found-apply-attach and found-placement, which consume DedupFoundRequests and set Outcome.",
+      "gate_passed_at": "2026-11-25T01:00:54.505875Z",
+      "commit_sha": "8118bcde24a3f23fea5f5c42da89ac8a95f0e658",
+      "commit_shas": [
+        "8118bcde24a3f23fea5f5c42da89ac8a95f0e658",
+        "58650e802378387ca146b623a197165b5c7495fe",
+        "514e9e32022cb808ea68087811aa6cea7a7e45a6",
+        "eba83ff67e1ab1bd77f1afeebb5b314f2365421f"
+      ],
+      "commit_files": [
+        "internal/engine/founddedup.go",
+        "internal/engine/founddedup_test.go",
+        "internal/engine/foundrequest.go",
+        "internal/engine/foundrequest_test.go"
+      ],
+      "task_audit_owed": [
+        "go-safety"
+      ]
     },
     {
       "id": "found-apply-open",
       "title": "Open found tasks within the cap",
       "description": "tp found apply turns Fix-shaped requests into found tasks, blocking first then by arrival, within found_max counted over every found task the file has carried (task answers in, settled tasks out); past it they become open queue entries.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "found"
@@ -287,17 +397,39 @@
         "## 8. The cap",
         "## 10. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-25T01:02:22.270265Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-25T01:19:33.644246Z",
+      "closed_reason": "- tp found apply (internal/cli/found.go, applyFoundRequests under the task-file lock) applies a spec's unapplied requests through engine.PlanFoundApply: duplicates open nothing, Fix-shaped requests (four Fix fields, no question) become open found tasks with origin (id found-\u003crequest\u003e, unique against the file) sorted blocking first then by Seq, while CountFoundTasks (tasks with origin in the task file) is below found_max (0 uncapped); every processed request leaves the unapplied state.\n- §10 row 'Blocking first within the cap': TestPlanFoundApply_BlockingFirstWithinTheCap (4 found tasks, cap 5, F1 non-blocking then F2 blocking) opens F2 and queues F1. Counts over the 12 PlanFoundApply/FoundApply tests: HEAD 12 pass 0 fail; mutant 'apply in arrival order' (blocking comparison disabled) 11 pass 1 fail, the row test.\n- §10 row 'The cap holds across a restart': TestFoundApply_TheCapHoldsAcrossARestart files five requests and applies them in one tp found apply process, then files a sixth and applies it in a second process: it becomes open queue entry Q1 carrying location, reproduction, expected and observed, and the file keeps five found tasks whose schema/references/uniqueness/cycles checks pass in tp validate. Mutant 'count found tasks per run' (count starts at 0 each apply): 6 pass 6 fail, the row test among them. TestFoundApply_FoundMaxZeroOpensTheSixth and TestPlanFoundApply_FoundMaxZeroOpensTheSixth open the sixth at found_max=0.\n- Round-4 finding 1: TestPlanFoundApply_PastTheCapQueuesAndANonFixShapedRequestIsUndecided queues the past-cap Fix-shaped request and marks a question-only request and a request with all four Fix fields plus a question undecided for the decision unit; TestFoundApply_AQuestionIsUndecidedAndASecondApplyIsANoOp shows a second apply changes nothing.\n- Gate passed via tp gate after 9b103671.\nOut of scope: the cap counts found tasks present in the task file, so tp remove of a found task frees a slot; found-settle-cmd must keep the tasks it makes out of CountFoundTasks (e.g. no origin or a marker). Placement edges, attachment and Finders on queue entries are left to found-placement, found-apply-attach and finder-waits.",
+      "gate_passed_at": "2026-11-25T01:19:24.198476Z",
+      "commit_sha": "439bea21",
+      "commit_shas": [
+        "439bea21",
+        "633d4c48",
+        "bded5500",
+        "699eb2fb",
+        "97c8ef9c",
+        "69c378f4",
+        "9b103671"
+      ],
+      "commit_files": [
+        "internal/cli/command_sides.go",
+        "internal/cli/found.go",
+        "internal/cli/found_apply_test.go",
+        "internal/cli/nongoals_surface_test.go",
+        "internal/engine/foundapply.go",
+        "internal/engine/foundapply_test.go",
+        "internal/engine/foundqueue.go"
+      ],
+      "task_audit_owed": [
+        "go-safety"
+      ]
     },
     {
       "id": "found-apply-attach",
       "title": "Attach requests inside an open task",
       "description": "A request whose location falls inside an open spec task's files opens nothing, does not count against the cap, and is attached to that task as a note shown by tp show and the brief; that task is its outcome.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "found"
@@ -310,11 +442,38 @@
       "source_sections": [
         "## 2. Applying requests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-25T01:29:49.437849Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-25T02:02:52.747222Z",
+      "closed_reason": "- tp found apply attaches a request whose location falls in an open task's touches (not the finder, status open) to that task as a found_notes entry; it opens no task and does not count against found_max (c16b1127 and e9cb16da tests, landed here).\n- found_notes is managed: tp set refuses it; tp show and tp brief (json, text, --compact) list attached notes.\n- A request in an open found task's origin location opens its own task: a found task's files are its touches, which apply does not write.\nLanded by hand after the driver's integration hit a brief.go conflict with found-brief (both added one BriefTask field; both kept). Out of scope: the §4 placement edge for an attached blocking request; REFERENCE.md for origin/found_notes is the docs task's.",
+      "gate_passed_at": "2026-11-25T02:02:52.747222Z",
+      "commit_sha": "e158b95a",
+      "commit_shas": [
+        "e158b95a",
+        "02796a91",
+        "12031bee",
+        "d1021d88",
+        "3cbdafb6",
+        "7b7e219c",
+        "05c75bf7",
+        "fdb9fecd",
+        "bfda4ae9",
+        "140fa57b",
+        "3f980365",
+        "6d21d4bd"
+      ],
+      "commit_files": [
+        "internal/cli/found.go",
+        "internal/cli/found_attach_test.go",
+        "internal/cli/set.go",
+        "internal/engine/brief.go",
+        "internal/engine/foundapply.go",
+        "internal/engine/foundattach_test.go",
+        "internal/model/task.go"
+      ],
+      "task_audit_owed": [
+        "go-safety"
+      ]
     },
     {
       "id": "found-placement",
@@ -393,7 +552,7 @@
       "id": "stop-hook-apply",
       "title": "Refuse the coordinator's stop with requests unapplied",
       "description": "In a hand-coordinated session the pool's Stop hook refuses the coordinator's stop once while unapplied requests exist, naming tp found apply.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "hooks",
         "found"
@@ -406,17 +565,31 @@
       "source_sections": [
         "## 2. Applying requests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-25T01:29:48.768765Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-25T01:45:40.148278Z",
+      "closed_reason": "- tp pool --stop-hook (the pool's Stop hook) now refuses a coordinator's stop with a block decision naming `tp found apply --file \u003ctask file\u003e` while a task file the session coordinates holds an unapplied found request (engine.Pool.Unapplied via ReadFoundRequests at the root tp found apply uses; asked even when the payload carries no background_tasks), and with stop_hook_active true prints nothing; TestPoolStopHookRefusesWhileFoundRequestsAreUnapplied files a request with tp found add, sees the block naming tp found apply, then sees the stop_hook_active payload pass silently. Seen red first (empty hook output).\n- With no unapplied request the hook does not refuse for it: the same test sees an empty hook output before any request is filed and no tp found apply in the output after tp found apply ran; the existing TestPool* stop-hook tests still pass.",
+      "gate_passed_at": "2026-11-25T01:45:40.148278Z",
+      "commit_sha": "60da5a4e3c9d3be3da271d8b01577e76fc32b098",
+      "commit_shas": [
+        "60da5a4e3c9d3be3da271d8b01577e76fc32b098",
+        "19a9f439d8cb32c099854d1f6b79702df16b2e94",
+        "321d6ace029ed8385276a05cab95fde97d31133b"
+      ],
+      "commit_files": [
+        "internal/cli/pool.go",
+        "internal/cli/pool_test.go",
+        "internal/engine/pool.go"
+      ],
+      "task_audit_owed": [
+        "go-safety"
+      ]
     },
     {
       "id": "found-brief",
       "title": "Brief a found task from its request",
       "description": "A found task's brief carries the request's fields and no spec excerpt, and says its first step is the reproduction and tp found handback when it does not fail for the stated reason.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "brief",
         "found"
@@ -430,11 +603,27 @@
       "source_sections": [
         "## 3. The found task"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-25T01:29:48.251648Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-25T01:51:23.037023Z",
+      "closed_reason": "- A found task's brief carries task.request {location, reproduction, expected, observed, first_step} in place of spec_excerpt: BuildBrief skips the excerpt for any task with origin (compact or not) and reads the Fix fields back from the description newFoundTask writes (foundTaskDescription/parseFoundTaskDescription in internal/engine/foundbrief.go; a free-form description is shown whole). TestBuildBrief_AFoundTaskShowsItsRequestAndNoExcerpt asserts the four fields in the JSON and text briefs, with and without --compact, and no spec_excerpt against a real spec where a non-found control task with the same source_lines does get one (seen red before wiring); end-to-end: tp found add + tp found apply + tp brief found-f1 --json in a fresh repo showed location x.go:40, reproduction 'go test ./x', expected 'exit 0', observed 'exit 1' and no spec_excerpt.\n- The brief's first_step reads 'Run the reproduction first. When it does not fail for the stated reason, run `tp found handback \u003cid\u003e \"\u003cwhy\u003e\"` and stop', with the task's id filled in; the same test asserts 'tp found handback found-f1 \"\u003cwhy\u003e\"' in the text and JSON briefs. tp gate passed.\nOut of scope: tp found handback itself does not exist yet; the brief only names it.",
+      "gate_passed_at": "2026-11-25T01:51:23.037023Z",
+      "commit_sha": "651ad3c8193731e59416015cb0c629c1bfa814ef",
+      "commit_shas": [
+        "651ad3c8193731e59416015cb0c629c1bfa814ef",
+        "e5353c1492d1338fdc1293663b2b28409127dc59",
+        "74fb8ff915938a2c0051b907454fef9fcc9f5a20",
+        "e58a50cd617aec33d59aa7e4ad2430b61e18acb7"
+      ],
+      "commit_files": [
+        "internal/engine/brief.go",
+        "internal/engine/foundapply.go",
+        "internal/engine/foundbrief.go",
+        "internal/engine/foundbrief_test.go"
+      ],
+      "task_audit_owed": [
+        "go-safety"
+      ]
     },
     {
       "id": "found-handback",
@@ -464,7 +653,7 @@
       "id": "coverage-skips-found",
       "title": "Leave found tasks out of spec coverage",
       "description": "Spec coverage excludes found tasks from its denominator; a task audit still reaches them through their files.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "found"
@@ -477,11 +666,25 @@
       "source_sections": [
         "## 3. The found task"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-24T22:40:03.735788Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-24T23:58:27.83772Z",
+      "closed_reason": "- ValidateLineCoverage skips tasks with an origin, so spec coverage leaves found tasks out of its denominator; TestSpecCoverageLeavesFoundTasksOut (engine) and TestSpecCoverageIsTheSameAfterAFoundTaskIsAdded (cli, via tp add + tp validate) assert the coverage block and coverage/line-coverage findings are equal before and after a found task with source_lines is added.\n- A task audit reaches a found task through its files: TestTaskAudit_AFoundTaskIsReachedThroughItsFiles closes a found task with a commit touching found.go and asserts the emitted task_audit lists files [a.go found.go] and tasks [t1 f1]. Gate passed via tp gate.",
+      "gate_passed_at": "2026-11-24T23:58:27.83772Z",
+      "commit_sha": "ee7982be7e96c98aa3b6e4f60bee57ec47517293",
+      "commit_shas": [
+        "ee7982be7e96c98aa3b6e4f60bee57ec47517293",
+        "ea544afb5e3e4c1363de963aa11a9c8c5f2e6ea7",
+        "2ccd630c2dfdf6622ef981f0e238613d3503ce76"
+      ],
+      "commit_files": [
+        "internal/cli/found_coverage_test.go",
+        "internal/engine/foundcoverage_test.go",
+        "internal/engine/linecoverage.go"
+      ],
+      "task_audit_owed": [
+        "go-safety"
+      ]
     },
     {
       "id": "decision-answer-cmd",
