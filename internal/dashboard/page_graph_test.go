@@ -174,3 +174,12 @@ func TestPure_HopsCountTheStepsFromTheSelection(t *testing.T) {
 out([[...P.hops(0, (v) => next[v])], P.chainAlpha(1, false), P.chainAlpha(2, false), P.chainAlpha(3, false), P.chainAlpha(9, false)]);`)
 	assert.JSONEq(t, `[[[1, 1], [2, 1], [3, 2], [4, 3]], 255, 255, 170, 70]`, got)
 }
+
+// TestPure_ANodeSitsAtItsMapPlace: a node the layout gives a final x and y
+// (the plan's map) sits there, x = 0 included; one without them sits at
+// its forest column and layer.
+func TestPure_ANodeSitsAtItsMapPlace(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([P.mapPlace({ col: 4, layer: 2, x: 0, y: 5 }), P.mapPlace({ col: 4, layer: 2 })]);`)
+	assert.JSONEq(t, `[{"col": 0, "row": 5}, {"col": 4, "row": 2}]`, got)
+}
