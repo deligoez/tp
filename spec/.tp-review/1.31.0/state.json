@@ -156,6 +156,246 @@
       "recorded_at": "2026-11-24T22:39:40Z",
       "file": "task-audit-2.ndjson",
       "findings": 1
+    },
+    {
+      "seq": 3,
+      "members": [
+        {
+          "id": "task-origin-field",
+          "closed_at": "2026-11-24T22:35:16.407587Z",
+          "piece": 0,
+          "pieces": 1,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/engine/entry.go",
+            "internal/engine/origin_test.go",
+            "internal/model/origin_test.go",
+            "internal/model/task.go"
+          ]
+        }
+      ],
+      "files": [
+        "internal/engine/entry.go",
+        "internal/engine/origin_test.go",
+        "internal/model/origin_test.go",
+        "internal/model/task.go"
+      ],
+      "roles": [
+        "go-safety"
+      ],
+      "head": "9f7ad2a9decf83d1ab8acd39b34835d952a1c8c0",
+      "emitted_at": "2026-11-24T23:58:40.083714Z",
+      "recorded_at": "2026-11-25T00:01:13Z",
+      "file": "task-audit-3.ndjson",
+      "findings": 1
+    },
+    {
+      "seq": 4,
+      "members": [
+        {
+          "id": "add-refuses-unresolved-anchor",
+          "closed_at": "2026-11-24T23:48:24.509674Z",
+          "piece": 0,
+          "pieces": 4,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/cli/acceptance_criteria_test.go",
+            "internal/cli/add.go",
+            "internal/cli/add_validation_test.go",
+            "internal/cli/agent_claims_test.go",
+            "internal/cli/audit_task_test.go",
+            "internal/cli/brief_test.go",
+            "internal/cli/close_strategy_test.go",
+            "internal/cli/commands_test.go",
+            "internal/cli/commit_files_test.go",
+            "internal/cli/commit_shas_test.go"
+          ]
+        }
+      ],
+      "files": [
+        "internal/cli/acceptance_criteria_test.go",
+        "internal/cli/add.go",
+        "internal/cli/add_validation_test.go",
+        "internal/cli/agent_claims_test.go",
+        "internal/cli/audit_task_test.go",
+        "internal/cli/brief_test.go",
+        "internal/cli/close_strategy_test.go",
+        "internal/cli/commands_test.go",
+        "internal/cli/commit_files_test.go",
+        "internal/cli/commit_shas_test.go"
+      ],
+      "roles": [
+        "go-safety"
+      ],
+      "head": "9f7ad2a9decf83d1ab8acd39b34835d952a1c8c0",
+      "emitted_at": "2026-11-25T00:02:00.521781Z",
+      "recorded_at": "2026-11-25T00:04:38Z",
+      "file": "task-audit-4.ndjson",
+      "findings": 2
+    },
+    {
+      "seq": 5,
+      "members": [
+        {
+          "id": "add-refuses-unresolved-anchor",
+          "closed_at": "2026-11-24T23:48:24.509674Z",
+          "piece": 1,
+          "pieces": 4,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/cli/commit_test.go",
+            "internal/cli/coveredby_test.go",
+            "internal/cli/done_batch_commit_test.go",
+            "internal/cli/done_multi_refusal_test.go",
+            "internal/cli/donegate_test.go",
+            "internal/cli/gate_atomic_test.go",
+            "internal/cli/gate_cmd_test.go",
+            "internal/cli/gate_process_test.go",
+            "internal/cli/gate_slots_test.go",
+            "internal/cli/gate_test.go"
+          ]
+        }
+      ],
+      "files": [
+        "internal/cli/commit_test.go",
+        "internal/cli/coveredby_test.go",
+        "internal/cli/done_batch_commit_test.go",
+        "internal/cli/done_multi_refusal_test.go",
+        "internal/cli/donegate_test.go",
+        "internal/cli/gate_atomic_test.go",
+        "internal/cli/gate_cmd_test.go",
+        "internal/cli/gate_process_test.go",
+        "internal/cli/gate_slots_test.go",
+        "internal/cli/gate_test.go"
+      ],
+      "roles": [
+        "go-safety"
+      ],
+      "head": "9f7ad2a9decf83d1ab8acd39b34835d952a1c8c0",
+      "emitted_at": "2026-11-25T00:05:15.34206Z",
+      "recorded_at": "2026-11-25T00:07:44Z",
+      "file": "task-audit-5.ndjson",
+      "findings": 1
+    },
+    {
+      "seq": 6,
+      "members": [
+        {
+          "id": "add-refuses-unresolved-anchor",
+          "closed_at": "2026-11-24T23:48:24.509674Z",
+          "piece": 2,
+          "pieces": 4,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/cli/gate_unresolved_test.go",
+            "internal/cli/held_test.go",
+            "internal/cli/integration_test.go",
+            "internal/cli/last_failure_gate_test.go",
+            "internal/cli/lock_timeout_test.go",
+            "internal/cli/next_brief_test.go",
+            "internal/cli/outofscope_test.go",
+            "internal/cli/report_test.go",
+            "internal/cli/resume_bookkeeping_test.go",
+            "internal/cli/resume_worktree_test.go"
+          ]
+        }
+      ],
+      "files": [
+        "internal/cli/gate_unresolved_test.go",
+        "internal/cli/held_test.go",
+        "internal/cli/integration_test.go",
+        "internal/cli/last_failure_gate_test.go",
+        "internal/cli/lock_timeout_test.go",
+        "internal/cli/next_brief_test.go",
+        "internal/cli/outofscope_test.go",
+        "internal/cli/report_test.go",
+        "internal/cli/resume_bookkeeping_test.go",
+        "internal/cli/resume_worktree_test.go"
+      ],
+      "roles": [
+        "go-safety"
+      ],
+      "head": "9f7ad2a9decf83d1ab8acd39b34835d952a1c8c0",
+      "emitted_at": "2026-11-25T00:08:14.914889Z",
+      "recorded_at": "2026-11-25T00:09:50Z",
+      "file": "task-audit-6.ndjson",
+      "findings": 4
+    },
+    {
+      "seq": 7,
+      "members": [
+        {
+          "id": "add-refuses-unresolved-anchor",
+          "closed_at": "2026-11-24T23:48:24.509674Z",
+          "piece": 3,
+          "pieces": 4,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/cli/task_audit_oracle_test.go",
+            "internal/cli/task_audit_roles_test.go",
+            "internal/cli/unattended_fence_test.go",
+            "internal/cli/v2_commands_test.go",
+            "internal/engine/resolve_section.go"
+          ]
+        },
+        {
+          "id": "found-queue-store",
+          "closed_at": "2026-11-24T23:52:39.919482Z",
+          "piece": 0,
+          "pieces": 1,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/engine/foundqueue.go",
+            "internal/engine/foundqueue_test.go"
+          ]
+        },
+        {
+          "id": "coverage-skips-found",
+          "closed_at": "2026-11-24T23:58:27.83772Z",
+          "piece": 0,
+          "pieces": 1,
+          "roles": [
+            "go-safety"
+          ],
+          "files": [
+            "internal/cli/found_coverage_test.go",
+            "internal/engine/foundcoverage_test.go",
+            "internal/engine/linecoverage.go"
+          ]
+        }
+      ],
+      "files": [
+        "internal/cli/task_audit_oracle_test.go",
+        "internal/cli/task_audit_roles_test.go",
+        "internal/cli/unattended_fence_test.go",
+        "internal/cli/v2_commands_test.go",
+        "internal/engine/resolve_section.go",
+        "internal/engine/foundqueue.go",
+        "internal/engine/foundqueue_test.go",
+        "internal/cli/found_coverage_test.go",
+        "internal/engine/foundcoverage_test.go",
+        "internal/engine/linecoverage.go"
+      ],
+      "roles": [
+        "go-safety"
+      ],
+      "head": "9f7ad2a9decf83d1ab8acd39b34835d952a1c8c0",
+      "emitted_at": "2026-11-25T00:10:16.999808Z",
+      "recorded_at": "2026-11-25T00:13:13Z",
+      "file": "task-audit-7.ndjson",
+      "clean": true
     }
   ]
 }
