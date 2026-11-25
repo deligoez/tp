@@ -90,6 +90,7 @@ var commandSides = map[string]string{
 	"tp init":     sideFile,
 	"tp list":     sideFile,
 	"tp next":     sideFile,
+	"tp now":      sideFile,
 	"tp plan":     sideFile,
 	"tp ready":    sideFile,
 	"tp remove":   sideFile,
