@@ -101,7 +101,10 @@ export function toNow(payload: Record<string, unknown>, at: number): { now: NowV
 // v1.32.0"), or nothing when tp printed something else.
 export function tpVersion(printed: string): string {
   const match = /^tp version (\S+)/.exec(printed.trim())
-  return match?.[1] ?? ''
+  const version = match?.[1] ?? ''
+  // Go stamps a local build `v1.32.2-0.<timestamp>-<sha>[+dirty]`.
+  const pseudo = /^(v\d+\.\d+\.\d+)-0\.\d{14}-[0-9a-f]{12}/.exec(version)
+  return pseudo ? `${pseudo[1]}-dev` : version
 }
 
 // toDetail keeps what the detail adds from `tp show <id> --json`: acceptance
