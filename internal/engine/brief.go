@@ -51,14 +51,16 @@ func ExtractOutOfScope(closedReason string) string {
 // brief assembles this text; it is a statement of the close path, not a check
 // tp runs.
 func CloseRecipeText(effectiveStrategy, qualityGate string) string {
-	return CloseRecipeTextFor(effectiveStrategy, qualityGate, "")
+	return CloseRecipeTextFor(effectiveStrategy, qualityGate, "", "")
 }
 
 // CloseRecipeTextFor is CloseRecipeText for a brief that carries a claim
 // token: the close in an agent's own worktree names it
-// (spec/backlog/a-land-request-names-its-agent.md).
-func CloseRecipeTextFor(effectiveStrategy, qualityGate, claimToken string) string {
-	command, rejected := closeRecipeCommand(effectiveStrategy, claimToken)
+// (spec/backlog/a-land-request-names-its-agent.md), and names taskFile, the
+// task file relative to the repository root, so the close resolves in a
+// worktree of a repository that holds more than one task file.
+func CloseRecipeTextFor(effectiveStrategy, qualityGate, claimToken, taskFile string) string {
+	command, rejected := closeRecipeCommand(effectiveStrategy, claimToken, taskFile)
 
 	var b strings.Builder
 	b.WriteString("How to close this unit.\n\n")
@@ -140,10 +142,14 @@ func WorktreeCloseRecipeText(effectiveStrategy, qualityGate, id string, touches 
 // strategy (§8.1) and, for hc only, the rejected-invocation note (§8.4). An
 // unrecognized strategy resolves to the builtin recipe, matching
 // EffectiveCommitStrategy's default-to-builtin behavior.
-func closeRecipeCommand(effectiveStrategy, claimToken string) (command, rejected string) {
+func closeRecipeCommand(effectiveStrategy, claimToken, taskFile string) (command, rejected string) {
 	worktreeClose := "   tp done <id> --commit <sha> -- \"<evidence>\"   (repeat --commit per sha), and stop.\n"
 	if claimToken != "" {
-		worktreeClose = "   tp done <id> --commit <sha> --claim-token " + claimToken + " -- \"<evidence>\"   (repeat --commit per sha), and stop.\n"
+		file := ""
+		if taskFile != "" {
+			file = " --file " + taskFile
+		}
+		worktreeClose = "   tp done <id>" + file + " --commit <sha> --claim-token " + claimToken + " -- \"<evidence>\"   (repeat --commit per sha), and stop.\n"
 	}
 	switch effectiveStrategy {
 	case CommitStrategyHC:

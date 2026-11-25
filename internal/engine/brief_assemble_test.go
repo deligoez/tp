@@ -73,8 +73,8 @@ func TestBriefText_ClaimTokenFollowsTheMarker(t *testing.T) {
 // recipe names no flag.
 func TestCloseRecipeTextFor_TokenSitsInTheWorktreeCommand(t *testing.T) {
 	for _, strategy := range []string{CommitStrategyHC, CommitStrategyBuiltin, CommitStrategyAuto} {
-		assert.Contains(t, CloseRecipeTextFor(strategy, "", "k7f2ab01"), "--claim-token k7f2ab01 --", strategy)
-		assert.NotContains(t, CloseRecipeTextFor(strategy, "", ""), "--claim-token", strategy)
+		assert.Contains(t, CloseRecipeTextFor(strategy, "", "k7f2ab01", ""), "--claim-token k7f2ab01 --", strategy)
+		assert.NotContains(t, CloseRecipeTextFor(strategy, "", "", ""), "--claim-token", strategy)
 	}
 }
 func TestBuildBrief_CompactDropsExcerptAndFileLists(t *testing.T) {

@@ -114,7 +114,7 @@ func printBrief(tf *model.TaskFile, task *model.Task, taskFilePath, specPath str
 	if b.Marker != "" && failureRoot == "." {
 		if token := spawnClaimToken(taskFilePath, task.ID); token != "" {
 			b.ClaimToken = token
-			b.Close = engine.CloseRecipeTextFor(effective, wf.QualityGate, token)
+			b.Close = engine.CloseRecipeTextFor(effective, wf.QualityGate, token, engine.RepoRelativePath(taskFilePath))
 		}
 	}
 
