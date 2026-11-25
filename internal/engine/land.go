@@ -238,7 +238,7 @@ func pickOne(root, sha string) (string, error) {
 	}
 	conflicted, _ := gitOut(root, "diff", "--name-only", "--diff-filter=U")
 	if conflicted != "" {
-		_, _ = gitOut(root, "cherry-pick", "--abort")
+		_ = abortPick(root)
 		return "", fmt.Errorf("commit %s conflicts with this branch in %s", sha, strings.Join(strings.Fields(conflicted), ", "))
 	}
 	if emptyPick(root) {
@@ -248,7 +248,7 @@ func pickOne(root, sha string) (string, error) {
 		}
 		return gitOut(root, "rev-parse", "HEAD")
 	}
-	_, _ = gitOut(root, "cherry-pick", "--abort")
+	_ = abortPick(root)
 	return "", &LandBlockedError{Cause: strings.TrimSpace(string(out))}
 }
 
@@ -407,11 +407,52 @@ func LandUndo(root, pre string) error {
 	if !SafeGitRev(pre) {
 		return fmt.Errorf("%q is not a revision", pre)
 	}
+	if err := abortPick(root); err != nil {
+		return err
+	}
 	if head, err := gitOut(root, "rev-parse", "HEAD"); err == nil && head == pre {
 		return nil
 	}
-	_, err := gitOut(root, "reset", "-q", "--keep", pre)
-	return err
+	return resetKeep(root, pre)
+}
+
+// abortPick aborts a cherry-pick stopped in the tree at root, waiting out an
+// index lock another git process holds, and fails when one is still in
+// progress afterwards: reset --keep refuses an unmerged index, and a pick left
+// stopped there is a main branch half integrated.
+func abortPick(root string) error {
+	if !pickInProgress(root) {
+		return nil
+	}
+	out, err := gitWaitingOutLock(root, "cherry-pick", "--abort")
+	if err != nil || pickInProgress(root) {
+		return fmt.Errorf("git cherry-pick --abort left the cherry-pick in progress: %s", strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+// pickInProgress reports whether the tree at root is in a stopped cherry-pick.
+func pickInProgress(root string) bool {
+	_, err := gitOut(root, "rev-parse", "-q", "--verify", "CHERRY_PICK_HEAD")
+	return err == nil
+}
+
+// resetKeep moves the branch at root back to pre keeping uncommitted changes,
+// waiting out an index lock, with git's own message on failure.
+func resetKeep(root, pre string) error {
+	if out, err := gitWaitingOutLock(root, "reset", "-q", "--keep", pre); err != nil {
+		return fmt.Errorf("git reset --keep %s: %s", pre, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+// restoreHead takes the branch at root back to pre, aborting a cherry-pick
+// stopped there first.
+func restoreHead(root, pre string) error {
+	if err := abortPick(root); err != nil {
+		return err
+	}
+	return resetKeep(root, pre)
 }
 
 // landBlockingPaths lists what at root stands in the way of picking commits:
