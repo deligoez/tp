@@ -118,9 +118,10 @@ func TestRunCommand_ABlockingPlacementSpendsNoAttemptInAPool(t *testing.T) {
 	}
 	initGitRepo(t, dir)
 	// grow outlasts the found task, so the finder runs again inside the same
-	// pool, on the unit branch its first run left.
+	// pool; its rerun needs the found task's commit (found-f1.txt) in its
+	// tree, whichever tree it runs in.
 	env, records := seam(t, fakerunner.EnvDurable+"=1", fakerunner.EnvBlockIDs+"=seed",
-		fakerunner.EnvSleepByID+"=grow=3000")
+		fakerunner.EnvSleepByID+"=grow=3000", fakerunner.EnvRequireByID+"=seed=found-f1.txt")
 	_, stderr, _ = runTPEnv(t, dir, env, "run")
 
 	ids := unitIDs(t, records)
