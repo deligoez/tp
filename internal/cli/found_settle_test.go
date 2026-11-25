@@ -151,3 +151,24 @@ func TestFoundSettle_AQuestionEntryTakesItsFixFieldsFromTheCall(t *testing.T) {
 	_, _, code = foundSettle(t, dir, "--reject", "Q2=again")
 	assert.Equal(t, 2, code, "a settled entry is not open")
 }
+
+// §12.2: a task-file lock held past lock_timeout_seconds makes settle exit 4
+// (STATE) with LockTimeoutError's message and hint, as found apply, answer,
+// add and handback do, and leaves the queue as it was.
+func TestFoundSettle_LockContentionTimeoutExitsFour(t *testing.T) {
+	t.Parallel()
+	dir := foundSettleFixtureWith(t, `{"found_max":1,"lock_timeout_seconds":1}`)
+	taskFile := filepath.Join(dir, "spec.tasks.json")
+	queueBefore, err := os.ReadFile(engine.FoundQueuePath(taskFile))
+	require.NoError(t, err)
+
+	release := holdTaskFileLock(t, taskFile)
+	defer release()
+
+	_, stderr, code := foundSettle(t, dir, "--reject", "Q2=moved to BUGS.md")
+	assert.Equal(t, 4, code, "a lock held past lock_timeout_seconds exits 4 (STATE): %s", stderr)
+	assertLockTimeoutErrorObject(t, stderr)
+	queueAfter, err := os.ReadFile(engine.FoundQueuePath(taskFile))
+	require.NoError(t, err)
+	assert.Equal(t, string(queueBefore), string(queueAfter), "a timed-out settle writes no queue")
+}
