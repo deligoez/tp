@@ -756,19 +756,44 @@ func (ch *priorChanged) changed(c *engine.CarriedRow, file string) bool {
 // does not commit round state at all, or git cannot answer — it falls back to
 // the recorded_at window, which is what a project without committed round state
 // has always had.
+//
+// Either way an uncommitted change counts too (filesChangedInWorkingTree): an
+// acceptance made over code that has since been edited, committed or not, is
+// asked again.
 func filesChangedSinceRound(specPath string, round *engine.ReviewRound) map[string]bool {
 	dir := filepath.Dir(specPath)
+	var changed map[string]bool
 	if base := roundRecordBase(dir, specPath, round); base != "" {
-		changed := make(map[string]bool)
+		changed = make(map[string]bool)
 		// -c diff.external= for the same reason scripts/audit-round-prep.py sets
 		// it: under a configured external differ, `git diff` from a non-TTY child
 		// can answer near-empty, and a delta built on that carries every row.
 		for _, f := range execGitPaths(dir, "-c diff.external= diff --name-only", "-c", "diff.external=", "diff", "--name-only", base+"..HEAD") {
 			changed[f] = true
 		}
-		return changed
+	} else {
+		changed = filesChangedSince(dir, round.RecordedAt)
 	}
-	return filesChangedSince(dir, round.RecordedAt)
+	for _, f := range filesChangedInWorkingTree(dir) {
+		changed[f] = true
+	}
+	return changed
+}
+
+// filesChangedInWorkingTree returns the repo-relative paths whose index or
+// working-tree content differs from HEAD, and the untracked ones: what an
+// acceptance's evidence file may have become since its round without a commit
+// saying so. Empty when git cannot answer (no repository, no HEAD yet), which
+// leaves the committed delta to decide.
+func filesChangedInWorkingTree(dir string) []string {
+	var files []string
+	if out, err := gitQuiet(dir, "-c", "diff.external=", "diff", "--no-ext-diff", "--no-relative", "--name-only", "-z", "HEAD"); err == nil {
+		files = append(files, splitNulPaths([]byte(out))...)
+	}
+	if out, err := gitQuiet(dir, "ls-files", "--others", "--exclude-standard", "--full-name", "-z", "--", ":/"); err == nil {
+		files = append(files, splitNulPaths([]byte(out))...)
+	}
+	return files
 }
 
 // roundRecordBase returns the revision the round's delta is measured from, or
