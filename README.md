@@ -538,6 +538,20 @@ text; which text each one reads is in [REFERENCE.md](skills/tp/REFERENCE.md).
 tp validate --json | jq .checks.line_coverage
 ```
 
+## Found Tasks
+
+A unit that finds a defect outside its own task does not fix it and does not add a task. It files a
+request (`tp found add`): where the defect is, a command that reproduces it, and what it expected and
+observed, or the question it cannot answer. `tp found apply`, which `tp run` calls after every unit,
+turns requests into found tasks: it drops duplicates, attaches a request to an open task that already
+owns the file, and opens the rest up to `found_max` per spec (default 5). A request that names a
+choice goes to a decision unit, which may open a task only by quoting the spec or a project rule
+that settles it. Whatever is left, past the cap or for a person to decide, waits in
+`<base>.queue.json` until `tp found settle`. A found task whose reproduction does not fail is handed
+back, not fixed. Raising `found_max` is the operator's decision. The workflow is in
+[SKILL.md](skills/tp/SKILL.md); the request, queue and origin fields are in
+[REFERENCE.md](skills/tp/REFERENCE.md).
+
 ## Post-Implementation Audit
 
 `tp audit` verifies that the spec's requirements actually made it into the code. It emits one prompt
