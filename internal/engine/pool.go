@@ -49,8 +49,13 @@ type Pool struct {
 	Landing []PoolTask `json:"landing"`
 	Free    int        `json:"free"`
 	Ready   []PoolTask `json:"ready"`
-	Ask     bool       `json:"ask"`
-	Reason  string     `json:"reason,omitempty"`
+	// Unapplied are the coordinated task files, relative to the repository
+	// root, whose spec holds found requests tp found apply has not applied
+	// (spec/1.31.0.md §2). While any is left the coordinator is asked to
+	// apply them, slot or no slot.
+	Unapplied []string `json:"unapplied"`
+	Ask       bool     `json:"ask"`
+	Reason    string   `json:"reason,omitempty"`
 	// common is the repository's git common directory, where land
 	// requests live; home is the coordinator's worktree root.
 	common, home string
@@ -81,7 +86,7 @@ type otherCopies struct {
 func PoolOf(in PoolInput) Pool {
 	p := Pool{Session: in.Session, Unresolved: in.Unresolved,
 		Running: []PoolTask{}, Parked: []PoolTask{}, Orphans: []PoolTask{}, Respawn: []PoolTask{},
-		Unmerged: []PoolTask{}, Landing: []PoolTask{}, Ready: []PoolTask{}}
+		Unmerged: []PoolTask{}, Landing: []PoolTask{}, Ready: []PoolTask{}, Unapplied: []string{}}
 	home := gitToplevel(in.Start)
 	if home == "" || !ValidClaimToken(in.Session) {
 		return p
@@ -100,9 +105,15 @@ func PoolOf(in PoolInput) Pool {
 	}
 	p.Free = max(p.Cap-len(p.Running)-len(p.Parked)-p.landingLive-p.Unresolved, 0)
 	// A session that never claimed has cap 0, so no free slot to ask about.
-	p.Ask = len(p.Landing) > 0 || (p.Free > 0 && len(p.Ready)+len(p.Orphans)+len(p.Respawn) > 0)
-	if p.Ask {
+	slots := len(p.Landing) > 0 || (p.Free > 0 && len(p.Ready)+len(p.Orphans)+len(p.Respawn) > 0)
+	p.Ask = slots || len(p.Unapplied) > 0
+	switch {
+	case len(p.Unapplied) == 0 && slots:
 		p.Reason = poolReason(&p)
+	case len(p.Unapplied) > 0 && slots:
+		p.Reason = FoundApplyReason(p.Unapplied) + " " + poolReason(&p)
+	case len(p.Unapplied) > 0:
+		p.Reason = FoundApplyReason(p.Unapplied)
 	}
 	return p
 }
@@ -125,6 +136,9 @@ func (p *Pool) addFile(home, path string, live map[string]bool, others map[claim
 		p.Cap = limit
 	}
 	p.Coordinator = true
+	if hasUnappliedFoundRequests(path) {
+		p.Unapplied = append(p.Unapplied, rel)
+	}
 	if block, blockErr := EpicBlockFor(tf, path); blockErr != nil || (block != nil && block.Blocks()) {
 		return
 	}
@@ -298,6 +312,36 @@ func poolReason(p *Pool) string {
 		fmt.Fprintf(&b, " Claim %s lost its agent: free it with `tp claim %s --takeover --file %s`, then spawn one with its brief.", t.ID, t.ID, t.File)
 	}
 	b.WriteString(" If a task must not start yet for a reason that is not a task, record it with `tp set <id> waiting=\"<why>\" --file <task file>`, which holds it out of the ready set; then end the turn.")
+	return b.String()
+}
+
+// hasUnappliedFoundRequests reports whether the spec of the task file at
+// path holds a found request still unapplied. The store is read from the
+// root tp found apply uses; an unreadable store asks nothing, since the hook
+// only nudges.
+func hasUnappliedFoundRequests(path string) bool {
+	reqs, err := ReadFoundRequests(CanonicalProjectRoot(filepath.Dir(path)), path)
+	if err != nil {
+		return false
+	}
+	for i := range reqs {
+		if reqs[i].State == FoundStateUnapplied {
+			return true
+		}
+	}
+	return false
+}
+
+// FoundApplyReason is the block reason for task files, relative to the
+// repository root, whose found requests wait unapplied: one tp found apply
+// per file (spec/1.31.0.md §2).
+func FoundApplyReason(files []string) string {
+	var b strings.Builder
+	b.WriteString("Found requests wait unapplied: apply them before ending the turn, from the repository root, with")
+	for _, f := range files {
+		fmt.Fprintf(&b, " `tp found apply --file %s`", f)
+	}
+	b.WriteString(".")
 	return b.String()
 }
 
