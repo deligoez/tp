@@ -91,6 +91,23 @@ func TestRunSoloReopenClearsWaiting(t *testing.T) {
 	assert.Empty(t, waitingOf(t, taskFile))
 }
 
+// TestRunSoloReopenRecordsTheConflictBranch: a solo reopen over a conflict
+// records the unit branch on the task, where it survives a driver restart
+// for the unit that resolves it (spec/backlog/worktree-dispatch.md §2.2).
+func TestRunSoloReopenRecordsTheConflictBranch(t *testing.T) {
+	t.Parallel()
+	taskFile := heldRunTaskFile(t)
+	require.NoError(t, claimTasksFunc(taskFile)([]string{"a"}))
+	require.NoError(t, reopenSoloFunc(taskFile)("a", "tp-unit/c/r/a"))
+	tf, err := model.ReadTaskFile(taskFile)
+	require.NoError(t, err)
+	task, _, err := model.FindTask(tf, "a")
+	require.NoError(t, err)
+	assert.Equal(t, "tp-unit/c/r/a", task.ConflictBranch)
+	assert.True(t, task.Solo)
+	assert.Equal(t, model.StatusOpen, task.Status)
+}
+
 func setWaiting(t *testing.T, taskFile, waiting string) {
 	t.Helper()
 	tf, err := model.ReadTaskFile(taskFile)
