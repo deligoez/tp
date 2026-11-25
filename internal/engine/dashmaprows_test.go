@@ -236,3 +236,30 @@ func TestMapRows_BlocksOfARowStartLevel(t *testing.T) {
 	assert.InDelta(t, max(a.ToY, b.ToY), got.Rows[0].ToY, 0)
 	assert.InDelta(t, got.Rows[0].ToY+1, got.Height, 0)
 }
+
+// fillingRow is one row of three blocks in a width of five: A and B, two
+// columns each, fill the width exactly with the gap between them, and C,
+// three columns, takes a line of its own.
+func fillingRow() MapRowsInput {
+	bands := []LayoutBand{{Name: "A", From: 0, To: 1}, {Name: "B", From: 0, To: 1}, {Name: "C", From: 0, To: 1}}
+	return mapInput(5, bands,
+		mapNode{"a1", "A", 0, 0}, mapNode{"a2", "A", 0, 1},
+		mapNode{"b1", "B", 0, 2}, mapNode{"b2", "B", 0, 3},
+		mapNode{"c1", "C", 1, 2}, mapNode{"c2", "C", 1, 3}, mapNode{"c3", "C", 1, 4})
+}
+
+// TestMapRows_BlocksThatFillTheWidthExactlyShareALine: A and B fit the
+// width with not a column to spare, so they stay on the row's first line,
+// A from column 0 and B after one empty column; only C wraps.
+func TestMapRows_BlocksThatFillTheWidthExactlyShareALine(t *testing.T) {
+	t.Parallel()
+	in := fillingRow()
+	got := MapRows(&in)
+	require.Len(t, got.Rows, 1)
+	assert.Equal(t, 2, got.Rows[0].Lines)
+	a, b, c := mapBlockOf(t, got.Blocks, "A"), mapBlockOf(t, got.Blocks, "B"), mapBlockOf(t, got.Blocks, "C")
+	assert.Equal(t, []int{0, 0, 1}, []int{a.Line, b.Line, c.Line})
+	assert.InDelta(t, 0.0, a.FromCol, 0)
+	assert.InDelta(t, a.ToCol+2, b.FromCol, 0)
+	assert.InDelta(t, 5.0, got.Width, 0)
+}
