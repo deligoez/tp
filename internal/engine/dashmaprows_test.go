@@ -94,11 +94,11 @@ func TestMapRows_ALayerIsCentredInItsBlock(t *testing.T) {
 	assert.InDelta(t, a.FromCol+1, got.Places["a2"].X, 0)
 }
 
-// TestMapRows_AWideLayerFoldsAndEveryLayerKeepsOneY: a layer of ten epics
-// folds onto two sub-lines of a block eight columns wide, the next
-// layer starts below all three for every block of the line, and every
-// edge from a layer to a later one still points down.
-func TestMapRows_AWideLayerFoldsAndEveryLayerKeepsOneY(t *testing.T) {
+// TestMapRows_AWideLayerFoldsInsideItsOwnBlock: a layer of ten epics folds
+// onto two sub-lines of a block eight columns wide, and its next layer
+// starts below both; V beside it keeps its own shape, its layers one y
+// apart, so the fold makes only W's block taller.
+func TestMapRows_AWideLayerFoldsInsideItsOwnBlock(t *testing.T) {
 	t.Parallel()
 	nodes := []mapNode{{"w", "W", 0, 0}, {"v", "V", 0, 20}, {"v1", "V", 1, 20}}
 	for i := range 10 {
@@ -111,9 +111,9 @@ func TestMapRows_AWideLayerFoldsAndEveryLayerKeepsOneY(t *testing.T) {
 	assert.InDelta(t, 7.0, w.ToCol-w.FromCol, 0)
 	assert.InDelta(t, got.Places["w0"].Y+1, got.Places["w9"].Y, 0)
 	assert.InDelta(t, got.Places["w9"].Y+1, got.Places["wz"].Y, 0)
-	assert.InDelta(t, got.Places["wz"].Y, got.Places["vz"].Y, 0, "layer 2 keeps one y across the line")
-	assert.Less(t, got.Places["w9"].Y, got.Places["vz"].Y)
-	assert.Less(t, got.Places["v"].Y, got.Places["w0"].Y)
+	assert.InDelta(t, got.Places["v"].Y, got.Places["w"].Y, 0)
+	assert.InDelta(t, got.Places["v1"].Y+1, got.Places["vz"].Y, 0, "V keeps its own shape")
+	assert.InDelta(t, got.Places["wz"].Y+1, got.Height, 0, "the line as tall as W")
 }
 
 // TestMapRows_BlocksWrapInsideTheWidth: five two-column blocks sharing
