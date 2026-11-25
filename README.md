@@ -682,7 +682,7 @@ than degrading quietly. It also injects `tp resume --compact` as orientation. A 
 denies hand-writes to tp's own state — `.tp-review/` contents, `*.tasks.json`, `.tp/config.json`,
 `.tp/local.json` — and a `Stop` hook refuses a review, audit or task-audit role unit's stop, once, while its
 findings file is still missing and it has written no escalation record. `agents/` declares
-`tp-implementer`, `tp-reviewer` and `tp-auditor`, carrying tool restrictions only: a role's content
+`tp-implementer`, `tp-reviewer`, `tp-auditor` and `tp-decider`, carrying tool restrictions only: a role's content
 lives in the corpus and reaches the unit through the prompt tp emits. Every hook is bounded by a
 `timeout` of 10 seconds.
 
