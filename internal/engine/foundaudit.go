@@ -7,33 +7,46 @@ import (
 	"strings"
 )
 
+// InFlightAuditRound is the audit round emitted for specPath and not yet
+// recorded, 0 when none is in flight.
+func InFlightAuditRound(specPath string) (int, error) {
+	st, err := LoadReviewState(specPath)
+	if err != nil && !IsRebuildableStateIndex(err) {
+		return 0, err
+	}
+	recorded := 0
+	if err == nil && st != nil {
+		recorded = len(st.AuditRounds)
+	}
+	return InFlightRound(specPath, PhaseAudit, recorded), nil
+}
+
 // FoundAuditFinder names the finder of a request an audit-role unit files
 // from one of its rows (spec/1.31.0.md §7): the audit round in flight, so
 // tp found apply holds the request until that round is recorded, and the
 // row's role:item_id key. A row on an item the round asked the role keeps the
 // audit-fix path and never becomes a request, so such a key is refused, as are
-// a key that is not role:item_id and a spec with no audit round in flight.
+// a key that is not role:item_id, a spec with no audit round in flight, and a
+// round whose asked items were not kept (nothing shows the item was not asked).
 func FoundAuditFinder(specPath, rowKey string) (FoundFinder, error) {
 	role, item, ok := strings.Cut(rowKey, ":")
 	role, item = strings.TrimSpace(role), strings.TrimSpace(item)
 	if !ok || role == "" || item == "" {
 		return FoundFinder{}, fmt.Errorf("--audit-row %q is not a row key; name the row as role:item_id", rowKey)
 	}
-	recorded := 0
-	st, err := LoadReviewState(specPath)
-	switch {
-	case err != nil && !IsRebuildableStateIndex(err):
+	round, err := InFlightAuditRound(specPath)
+	if err != nil {
 		return FoundFinder{}, err
-	case st != nil:
-		recorded = len(st.AuditRounds)
 	}
-	round := InFlightRound(specPath, PhaseAudit, recorded)
 	if round == 0 {
 		return FoundFinder{}, errors.New("no audit round is in flight, so no audit row can file a request")
 	}
-	pools, _, err := ReadAuditPools(specPath, round)
+	pools, found, err := ReadAuditPools(specPath, round)
 	if err != nil {
 		return FoundFinder{}, err
+	}
+	if !found {
+		return FoundFinder{}, fmt.Errorf("audit round %d kept no record of what it asked, so no row can be shown to lie outside it", round)
 	}
 	for _, p := range pools {
 		if p.Role == role && slices.Contains(p.Items, item) {
