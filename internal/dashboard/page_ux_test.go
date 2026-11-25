@@ -927,3 +927,22 @@ func TestPage_TheMapsLabelsReadAtALowerZoom(t *testing.T) {
 		assert.Contains(t, script, s)
 	}
 }
+
+// TestPage_TheMapShowsShortLabelsFirst: the plan map names a short label
+// size twice its whole one, so its boxes read a shortened id (tpPure.shortId)
+// a zoom unit before the whole id, in medium weight, never larger than 20
+// pixels, the whole id still on hover.
+func TestPage_TheMapShowsShortLabelsFirst(t *testing.T) {
+	t.Parallel()
+	_, script := pageText(t)
+	for _, s := range []string{
+		`shortFs: 32, shortChars: 11 },`,
+		"G.detail = pure.detailLevel(P.geo.fs * scale, P.geo.minPx, (P.geo.shortFs || 0) * scale);",
+		"out.short = geo.shortFs ? pure.shortId(out.label, geo.shortChars) : \"\";",
+		`id: "ids-short", data: P.nodes, visible: G.detail === "short",`,
+		`id: "ids", data: P.nodes, visible: G.detail === "near",`,
+		"getSize: P.geo.shortFs || 0, sizeUnits: \"common\", sizeMaxPixels: 20,",
+	} {
+		assert.Contains(t, script, s)
+	}
+}
