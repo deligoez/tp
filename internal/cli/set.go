@@ -31,6 +31,7 @@ var (
 		"gate_skipped_reason": "set automatically by `tp done --skip-gate`",
 		"task_audit_owed":     "set automatically by `tp done` from the resolved task_audit_roles; cleared by `tp reopen`",
 		"found_notes":         "set automatically by `tp found apply` from the requests it attaches to a task",
+		"handed_back":         "set automatically by `tp found handback`; cleared by `tp reopen`",
 	}
 	setBulkFile     string
 	setWorkflowFlag bool
