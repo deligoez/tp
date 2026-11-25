@@ -28,7 +28,8 @@ type nowResult struct {
 	Landing    []nowLand  `json:"landing"`
 	Ready      []nowTask  `json:"ready"`
 	// Run is the current or last tp run as tp run --status reports it,
-	// with last_finished, the latest unit attempt that exited.
+	// without last_unit; its last_finished is the latest unit attempt that
+	// exited.
 	Run   map[string]any `json:"run"`
 	Epics []nowEpic      `json:"epics"`
 }
@@ -238,7 +239,6 @@ func nowRunOf(root, taskFilePath string) (run map[string]any, held map[string]*e
 	}
 	wf := engine.EffectiveWorkflowForTaskFile(taskFilePath)
 	run = runStatusPayload(st, taskFilePath, &wf)
-	run["last_finished"] = lastFinishedUnit(st)
 	slots, _ := run["running"].([]runningSlot)
 	needs := escalationNeeds(root, st)
 	runState, _ := run["run_state"].(string)

@@ -90,7 +90,7 @@ func runRunStatus(args []string) error {
 
 // runStatusPayload is the part of tp run --status's payload tp now carries
 // too: the run's identity, phase and state, the units it runs now, its stop
-// reason, and its accrual beside each of wf's caps.
+// reason, the latest unit to finish, and its accrual beside each of wf's caps.
 func runStatusPayload(st *engine.RunState, taskFilePath string, wf *model.Workflow) map[string]any {
 	runState := runStateOf(st, taskFilePath)
 	return map[string]any{
@@ -100,8 +100,12 @@ func runStatusPayload(st *engine.RunState, taskFilePath string, wf *model.Workfl
 		"run_state":  runState,
 		// Present under --compact too: it is small, and it is what a reader
 		// watching a live run acts on.
-		"running":     runningUnits(st, runState),
-		"stop_reason": st.StopReason,
+		"running": runningUnits(st, runState),
+		// The latest attempt to end, beside last_unit (the latest to start,
+		// usually still running): small and log-path-free, so it survives
+		// --compact too.
+		"last_finished": lastFinishedUnit(st),
+		"stop_reason":   st.StopReason,
 		// The accrual, beside the cap that bounds it. units_done counts
 		// ATTEMPTS, the same number run_max_units is compared against and the
 		// same number totals.units carries (§3.4) — a retried unit is counted
