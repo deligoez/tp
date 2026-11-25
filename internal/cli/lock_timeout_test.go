@@ -31,17 +31,25 @@ func TestSet_LockContentionTimeoutExitsFour(t *testing.T) {
 
 	taskFilePath := filepath.Join(dir, "spec.tasks.json")
 
-	// Hold the write lock from this process for the whole assertion.
+	// Hold the write lock from this process for the whole assertion. A lock
+	// error (MkdirAll failure or timeout) never calls fn, so it travels over
+	// lockErr instead of leaving the wait on acquired to hang.
 	acquired := make(chan struct{})
 	release := make(chan struct{})
+	lockErr := make(chan error, 1)
 	go func() {
-		_ = engine.WithFileLock(taskFilePath, func() error {
+		lockErr <- engine.WithFileLock(taskFilePath, func() error {
 			close(acquired)
 			<-release
 			return nil
 		})
 	}()
-	<-acquired
+	select {
+	case <-acquired:
+	case err := <-lockErr:
+		require.NoError(t, err, "acquire the task-file write lock")
+		require.FailNow(t, "WithFileLock returned without calling fn")
+	}
 	defer close(release)
 
 	_, stderr, code = runTP(t, dir, "set", "t1", "estimate_minutes=5")
