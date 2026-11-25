@@ -275,6 +275,23 @@ test('a live run counts its time from the start and its units as they finish', a
   ])
 })
 
+test('the widget glance says the phase, how much is in progress and the first thing that needs you', async () => {
+  const read = toNow(NOW, 0)!
+  expect(glanceRows(read.now, read.run, 'en').map(row => row.text)).toEqual([
+    'Implement phase',
+    '2 in progress',
+    'Escalation: The run stopped on a decision only you can make.',
+  ])
+  expect(glanceRows(read.now, read.run, 'tr').map(row => row.text)).toEqual([
+    'Uygulama aşaması',
+    '2 iş devam ediyor',
+    'Sana iletildi: The run stopped on a decision only you can make.',
+  ])
+  // An older tp gives the run alone: its slots are what is in progress.
+  expect(glanceRows(null, read.run, 'en').map(row => row.text)).toEqual(['Implement phase', '1 in progress'])
+  expect(glanceRows(null, null, 'en').map(row => row.text)).toEqual(['Nothing in progress'])
+})
+
 test('a project with no run says so', async $ => {
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect((await ui.find({ type: 'Text' }))?.text).toBe('tp')
