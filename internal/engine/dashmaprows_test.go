@@ -114,3 +114,28 @@ func TestMapRows_AWideLayerFoldsAndEveryLayerKeepsOneY(t *testing.T) {
 	assert.Less(t, got.Places["v"].Y, got.Places["w0"].Y)
 }
 
+// TestMapRows_BlocksWrapInsideTheWidth: five two-column blocks sharing
+// layers do not fit nine columns, so they wrap onto lines of two blocks,
+// each line centred, no block past the width, the lines stacked down.
+func TestMapRows_BlocksWrapInsideTheWidth(t *testing.T) {
+	t.Parallel()
+	var nodes []mapNode
+	var bands []LayoutBand
+	for i := range 5 {
+		g := fmt.Sprintf("M%d", i)
+		bands = append(bands, LayoutBand{Name: g, From: 0, To: 0})
+		nodes = append(nodes, mapNode{g + "a", g, 0, float64(2 * i)}, mapNode{g + "b", g, 0, float64(2*i + 1)})
+	}
+	in := mapInput(9, bands, nodes...)
+	got := MapRows(&in)
+	require.Len(t, got.Rows, 1)
+	assert.Equal(t, 3, got.Rows[0].Lines)
+	for _, b := range got.Blocks {
+		assert.True(t, b.FromCol >= 0 && b.ToCol < 9, "%+v", b)
+	}
+	m0, m1, m2 := mapBlockOf(t, got.Blocks, "M0"), mapBlockOf(t, got.Blocks, "M1"), mapBlockOf(t, got.Blocks, "M2")
+	assert.Equal(t, []int{0, 0, 1}, []int{m0.Line, m1.Line, m2.Line})
+	assert.InDelta(t, 1.5, m0.FromCol, 0, "a six-column line centred in nine")
+	assert.Less(t, m0.ToY, m2.FromY)
+}
+
