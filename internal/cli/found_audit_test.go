@@ -165,3 +165,40 @@ func TestFoundAudit_AnAskedItemOrANonFixRequestFilesNothing(t *testing.T) {
 	_, stderr, code = auditRowRequest(t, noPools, "go-safety:outside-1")
 	assert.Equal(t, 2, code, "nothing shows what the round asked: %s", stderr)
 }
+
+// An audit round's record reads the found request store to dispose of the rows
+// requests were filed from; a store it cannot parse refuses the record with
+// nothing written, rather than recording those rows open with no word why.
+func TestFoundAudit_AnUnparsableRequestStoreRefusesTheRecord(t *testing.T) {
+	t.Parallel()
+	dir := auditFoundFixture(t)
+	_, stderr, code := auditRowRequest(t, dir, "go-safety:outside-1")
+	require.Equal(t, 0, code, stderr)
+	store := engine.FoundRequestsPath(engine.CanonicalProjectRoot(dir), filepath.Join(dir, "spec.tasks.json"))
+	require.NoError(t, os.WriteFile(store, []byte("{not json"), 0o600))
+
+	rows := filepath.Join(t.TempDir(), "rows.ndjson")
+	require.NoError(t, os.WriteFile(rows, []byte(outOfSurfaceRows), 0o600))
+	stdout, stderr, code := runTPEnv(t, dir, nil, "audit", "spec.md", "--record", rows)
+	assert.Equal(t, 3, code, "stdout=%s stderr=%s", stdout, stderr)
+	assert.Contains(t, stderr, "found request")
+	assert.NoFileExists(t, filepath.Join(dir, ".tp-review", "spec", "audit-round-1.ndjson"), "the round is not recorded")
+}
+
+// An audit unit's request is held until the round of the task file's spec is
+// recorded; a spec that does not resolve has no round to name, so the request
+// is refused rather than filed with no round to wait for.
+func TestFoundAudit_AnUnresolvedSpecRefusesAnAuditUnitsRequest(t *testing.T) {
+	t.Parallel()
+	dir := auditFoundFixture(t)
+	require.NoError(t, os.Remove(filepath.Join(dir, "spec.md")))
+
+	_, stderr, code := foundAdd(t, dir, []string{"TP_UNIT_KIND=audit-role", "TP_UNIT_ID=go-safety"}, fixFlags...)
+	assert.Equal(t, 2, code, stderr)
+	assert.Contains(t, stderr, "spec.md")
+	assert.Empty(t, storedRequests(t, dir))
+
+	_, stderr, code = auditRowRequest(t, dir, "go-safety:outside-1")
+	assert.Equal(t, 2, code, stderr)
+	assert.Contains(t, stderr, "does not resolve")
+}
