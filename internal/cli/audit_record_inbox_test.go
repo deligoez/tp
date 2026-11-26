@@ -18,11 +18,12 @@ import (
 
 // answerAuditRound emits audit round 1 over code.go and writes a PASS row for
 // every checklist item of every role but skip; the role named sliced writes
-// one part file per item and no whole file.
-func answerAuditRound(t *testing.T, sliced, skip string) (dir string, roles []string) {
+// one part file per item and no whole file. extra is added to the emission,
+// as --inbox <dir> is.
+func answerAuditRound(t *testing.T, sliced, skip string, extra ...string) (dir string, roles []string) {
 	t.Helper()
 	dir, specPath, codePath := emissionFixture(t)
-	for _, pm := range emittedPrompts(t, dir, noRoundDir(), "audit", specPath, "--affected-files", codePath) {
+	for _, pm := range emittedPrompts(t, dir, noRoundDir(), append([]string{"audit", specPath, "--affected-files", codePath}, extra...)...) {
 		role := pm["role"].(string)
 		roles = append(roles, role)
 		if role == skip {
