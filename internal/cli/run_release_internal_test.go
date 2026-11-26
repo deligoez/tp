@@ -3,6 +3,7 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -155,6 +156,21 @@ func TestRunRenameConflictBranchFollowsTheSetAside(t *testing.T) {
 	require.NoError(t, renameConflictBranchFunc(taskFile)("tp-unit/c/r/a", "tp-unit/c/r-1/a"))
 	assert.Equal(t, "tp-unit/c/r-1/a", read().ConflictBranch)
 	assert.Equal(t, sha, read().ConflictSHA, "a rename leaves the recorded tip")
+}
+
+// TestRunDriverOptionsSupplyEveryCallback: the engine reaches the task file
+// only through DriverOptions' callbacks, and a nil one is skipped silently,
+// so tp run supplies every one of them.
+func TestRunDriverOptionsSupplyEveryCallback(t *testing.T) {
+	t.Parallel()
+	opts := runDriverOptions(heldRunTaskFile(t), "spec.md")
+	v := reflect.ValueOf(opts)
+	for i := range v.NumField() {
+		// Unexported func fields are the engine's own test seams.
+		if f := v.Field(i); f.Kind() == reflect.Func && v.Type().Field(i).IsExported() {
+			assert.False(t, f.IsNil(), "DriverOptions.%s is not supplied", v.Type().Field(i).Name)
+		}
+	}
 }
 
 func setWaiting(t *testing.T, taskFile, waiting string) {
