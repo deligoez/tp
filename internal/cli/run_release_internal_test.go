@@ -124,6 +124,29 @@ func TestRunSoloReopenKeepsARecordedConflictBranch(t *testing.T) {
 	assert.Equal(t, "tp-unit/c/r/a", task.ConflictBranch)
 }
 
+// TestRunRenameConflictBranchFollowsTheSetAside: once tp run sets a unit
+// branch aside, the task recording its old name as conflict_branch names the
+// new one, its conflict_sha unchanged; a name no task records changes nothing.
+func TestRunRenameConflictBranchFollowsTheSetAside(t *testing.T) {
+	t.Parallel()
+	taskFile := heldRunTaskFile(t)
+	require.NoError(t, reopenSoloFunc(taskFile)("a", "tp-unit/c/r/a"))
+	read := func() *model.Task {
+		tf, err := model.ReadTaskFile(taskFile)
+		require.NoError(t, err)
+		task, _, err := model.FindTask(tf, "a")
+		require.NoError(t, err)
+		return task
+	}
+	sha := read().ConflictSHA
+
+	require.NoError(t, renameConflictBranchFunc(taskFile)("tp-unit/c/other/a", "tp-unit/c/other-1/a"))
+	assert.Equal(t, "tp-unit/c/r/a", read().ConflictBranch, "a name no task records changes nothing")
+	require.NoError(t, renameConflictBranchFunc(taskFile)("tp-unit/c/r/a", "tp-unit/c/r-1/a"))
+	assert.Equal(t, "tp-unit/c/r-1/a", read().ConflictBranch)
+	assert.Equal(t, sha, read().ConflictSHA, "a rename leaves the recorded tip")
+}
+
 func setWaiting(t *testing.T, taskFile, waiting string) {
 	t.Helper()
 	tf, err := model.ReadTaskFile(taskFile)
