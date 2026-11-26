@@ -90,6 +90,33 @@ func TestNext_NamesTheTaskItPassesOverForAnOverlap(t *testing.T) {
 	assert.Contains(t, res.Message, "1 overlapping a held task", res.Message)
 }
 
+// TestBrief_NamesTheTaskItPassesOverForAnOverlap: tp brief with no id gives
+// tp next's not-ready payload, so the only ready task, overlapping a held
+// one, is listed under overlapping with its holder rather than counted as
+// blocked.
+func TestBrief_NamesTheTaskItPassesOverForAnOverlap(t *testing.T) {
+	t.Parallel()
+	dir := overlapRepo(t)
+	_, stderr, code := runTP(t, dir, "done", "t4", "t4 was finished before t1 was claimed", "--gate-passed")
+	require.Equal(t, 0, code, stderr)
+	holdT1(t, dir)
+
+	stdout, _, code := runTP(t, dir, "brief")
+	require.Equal(t, 4, code, stdout)
+	var res struct {
+		Message     string `json:"message"`
+		Overlapping []struct {
+			ID     string `json:"id"`
+			HeldBy string `json:"held_by"`
+		} `json:"overlapping"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &res), stdout)
+	require.Len(t, res.Overlapping, 1, stdout)
+	assert.Equal(t, "t2", res.Overlapping[0].ID)
+	assert.Equal(t, "t1", res.Overlapping[0].HeldBy)
+	assert.Contains(t, res.Message, "1 overlapping a held task", res.Message)
+}
+
 // TestClaim_RefusesATaskOverlappingAClaim: tp claim t2 refuses with exit 4
 // and the message tp brief gives, naming t1, and leaves t2 open.
 func TestClaim_RefusesATaskOverlappingAClaim(t *testing.T) {
