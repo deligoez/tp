@@ -65,6 +65,32 @@ func TestReviewNextAction_AFixAwaitingARoundNamesTheRound(t *testing.T) {
 	assert.NotContains(t, atCap, "tp import")
 }
 
+// TestNextAction_ACarriedRowsRoundNamesTheInbox: the round a carried row
+// waits for, a review fix's verifying round or an audit re-grade, is named in
+// the named inbox the latest round came from, as the other branches name it.
+func TestNextAction_ACarriedRowsRoundNamesTheInbox(t *testing.T) {
+	t.Parallel()
+	fixed := earlierHigh()
+	fixed.Disposition = CarryResolved
+	review := ReviewNextAction("spec.md", "/x/in", LoopDone{CarriedBlocking: []CarriedRow{fixed}}, false, nil, "r3.ndjson", CheckVerdict{})
+	assert.Contains(t, review, "tp review spec.md --inbox /x/in, then tp review spec.md --record-inbox --inbox /x/in")
+
+	row := earlierHigh()
+	row.Row = map[string]any{"role": "spec-coverage", "item_id": "task-t1", "status": "FAIL"}
+	audit := AuditNextAction("spec.md", "/x/in", LoopDone{CarriedBlocking: []CarriedRow{row}}, true, 0, "a3.ndjson")
+	assert.Contains(t, audit, "tp audit spec.md --inbox /x/in, then tp audit spec.md --record-inbox --inbox /x/in")
+	assert.NotContains(t, audit, "--record <file>")
+}
+
+// TestNextAction_AnInboxWithASpaceStaysOneWord: an inbox path a shell would
+// split is quoted, so the named command can be copied as it stands.
+func TestNextAction_AnInboxWithASpaceStaysOneWord(t *testing.T) {
+	t.Parallel()
+	got := ReviewNextAction("spec.md", "/x/my inbox", LoopDone{}, false, nil, "r3.ndjson", CheckVerdict{})
+	assert.Contains(t, got, "--record-inbox --inbox '/x/my inbox'")
+	assert.Contains(t, ReviewNextAction("spec.md", "/x/it's", LoopDone{}, false, nil, "r3.ndjson", CheckVerdict{}), `--inbox '/x/it'\''s'`)
+}
+
 // TestCarriedBlockingClause_CountsAndWordsEachKind: the clause counts the
 // unresolved rows and the fixed ones apart, words each count in the singular
 // or the plural, points past the first unresolved row only when there are
