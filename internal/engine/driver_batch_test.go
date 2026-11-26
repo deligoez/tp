@@ -214,6 +214,28 @@ func recoveryDriver(root, spec, taskFile string, closer *fakeCloser) *driver {
 
 const wipAlpha = `{"spec":"s.md","tasks":[{"id":"alpha","title":"A","status":"wip","depends_on":[],"estimate_minutes":5,"acceptance":"a","source_sections":["x"],"touches":["a1.txt","a2.txt"]}]}`
 
+// TestSetAside_TheRecordedConflictBranchFollowsTheRename: a task whose
+// conflict_branch is the unit branch an earlier unit of this run left names
+// the renamed branch once a new unit sets it aside, so the kept branch it
+// names is the one holding the earlier work, not the new attempt's.
+func TestSetAside_TheRecordedConflictBranchFollowsTheRename(t *testing.T) {
+	root, spec, taskFile, _ := batchProject(t, wipAlpha)
+	branch := unitBranch(root, taskFile, "r1", "alpha")
+	gitIn(t, root, "branch", branch)
+	tf, err := model.ReadTaskFile(taskFile)
+	require.NoError(t, err)
+	tf.Tasks[0].ConflictBranch = branch
+	require.NoError(t, model.WriteTaskFile(taskFile, tf))
+	d := recoveryDriver(root, spec, taskFile, &fakeCloser{closed: map[string][]string{}})
+
+	require.NoError(t, d.setAsideUnitBranch(unitTree{id: "alpha", branch: branch}))
+	aside := unitBranch(root, taskFile, "r1-1", "alpha")
+	assert.True(t, gitBranchExists(root, aside), "the earlier branch is set aside")
+	tf, err = model.ReadTaskFile(taskFile)
+	require.NoError(t, err)
+	assert.Equal(t, aside, tf.Tasks[0].ConflictBranch, "the task names the renamed branch")
+}
+
 // TestIntegrate_AMidPickCrashFinishesThePick: a crash between a unit's two
 // picks left the first on the main branch; the next run takes it back and
 // picks both, rather than refusing or picking the first twice.
