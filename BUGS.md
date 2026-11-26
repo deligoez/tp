@@ -31,11 +31,6 @@ fix needs a design choice leaves this file for a decision note.
   the new attempt's branch. No work is lost (`conflict_sha` no longer matches, so `tp land` keeps it),
   but the kept branch it names is the wrong one. Test: a conflict recorded, then a run sets the branch
   aside; the task's `conflict_branch` names the renamed branch.
-- **The map's long-edge test reads forest coordinates.** Since v1.35.0 the plan map draws epics at the
-  layout's `x`/`y`, but the page's long-edge check (`edgeLong`, `internal/dashboard/page/pure.js`)
-  still measures an edge by the forest's `layer` and `col`, so which edges fade as long no longer
-  matches the distance on screen. Test: a plan payload where two nodes are far apart in `col` but
-  adjacent in `x`/`y`; the edge is not long.
 
 ## Decided elsewhere, not a fix
 
