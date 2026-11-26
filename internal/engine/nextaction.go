@@ -317,10 +317,20 @@ func nextRoundCommands(phase, specPath, inbox string) (emit, record string) {
 	emit = "tp " + phase + " " + specPath
 	record = emit + " --record-inbox"
 	if inbox != "" {
-		emit += " --inbox " + inbox
-		record += " --inbox " + inbox
+		emit += " --inbox " + shellWord(inbox)
+		record += " --inbox " + shellWord(inbox)
 	}
 	return emit, record
+}
+
+// shellWord is s as one shell word: unchanged when it holds nothing a shell
+// splits or expands, otherwise single-quoted, so a copied command still
+// names a directory with a space in it.
+func shellWord(s string) string {
+	if !strings.ContainsAny(s, " \t\n'\"$`\\*?[]{}()<>|&;~#!") {
+		return s
+	}
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
 // LastAuditRoundClause is what next_action adds while one audit round is left
