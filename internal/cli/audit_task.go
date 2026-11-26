@@ -341,7 +341,9 @@ func runTaskAuditRecord(specPath string) error {
 func taskAuditRoleRows(specPath string, rec *engine.TaskAuditRecord) []map[string]any {
 	var missing, foreign, ungraded []string
 	var rows []map[string]any
+	asked := 0
 	for _, p := range taskAuditPrompts(specPath, rec) {
+		asked++
 		paths := taskAuditRoleFiles(specPath, rec.Seq, p.Role)
 		if len(paths) == 0 {
 			missing = append(missing, p.Role+" ("+roleOutputPath(engine.PhaseTaskAudit, specPath, rec.Seq, p.Role)+")")
@@ -356,11 +358,19 @@ func taskAuditRoleRows(specPath string, rec *engine.TaskAuditRecord) []map[strin
 		foreign, ungraded = append(foreign, f...), append(ungraded, u...)
 		rows = append(rows, parsed...)
 	}
+	missingHint := "run each role's prompt, then record again"
+	if len(missing) > 0 && len(missing) == asked && os.Getenv(engine.EnvRoundDir) == "" {
+		// No role's file is in the spec's folder: a round left flat in the
+		// layout before v1.34.0 is moved, not run again (flatInboxHint).
+		if flat := flatInboxHint(specPath, engine.PhaseTaskAudit, rec.Seq, "tp audit "+specPath+" --task-audit"); flat != "" {
+			missingHint = flat
+		}
+	}
 	for _, refusal := range []struct {
 		list      []string
 		msg, hint string
 	}{
-		{missing, "is missing role files", "run each role's prompt, then record again"},
+		{missing, "is missing role files", missingHint},
 		{foreign, "holds rows on items it did not ask", "a task-audit row grades one of its prompt's checklist items, under the prompt's role"},
 		{ungraded, "leaves items ungraded", "a task audit settles a file only when every role graded it: add a row for each item named, then record again"},
 	} {
