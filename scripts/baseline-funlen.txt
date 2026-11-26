@@ -62,7 +62,6 @@ internal/cli runSetProjectWorkflow
 internal/cli runSetWorkflow
 internal/cli runStats
 internal/cli runValidateProject
-internal/cli selectBriefTarget
 internal/cli toposortBatchEntries
 internal/cli validateReviewInputs
 internal/engine CheckNumberingGaps

@@ -43,7 +43,6 @@ cli runSetLocal
 cli runSetProjectWorkflow
 cli runSetWorkflow
 cli runStats
-cli selectBriefTarget
 cli toposortBatchEntries
 cli validateModeFlags
 cli validateReviewInputs
