@@ -57,6 +57,11 @@ type ReviewRound struct {
 	// staleness comparison (HarnessStale) judges it trimmed, but the stored
 	// value is never trimmed.
 	HarnessNote string `json:"harness_note,omitempty"`
+	// Inbox is the named inbox (--inbox <dir>, absolute) a round recorded
+	// with --record-inbox read its role files from; empty for the default
+	// inbox, a round recorded with --record <file>, and one recorded before
+	// this field existed. next_action names it on the next round's commands.
+	Inbox string `json:"inbox,omitempty"`
 	// Graded is, per code role of an audit round, how many files the role
 	// graded of the pool its list was cut from (RoleGraded), and, since
 	// v1.20.0, how many of its asked checklist items spec-coverage answered.
@@ -662,6 +667,16 @@ func HarnessStale(rounds []ReviewRound) bool {
 		return false
 	}
 	return last != prev
+}
+
+// LatestInbox is the named inbox the most recently recorded round was
+// recorded from (ReviewRound.Inbox), "" when there is no round or it used
+// the default inbox.
+func LatestInbox(rounds []ReviewRound) string {
+	if len(rounds) == 0 {
+		return ""
+	}
+	return rounds[len(rounds)-1].Inbox
 }
 
 // LatestHarnessNote returns the most recently recorded round's harness note
