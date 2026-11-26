@@ -82,6 +82,44 @@ func TestNamedInbox_RecordInboxReadsTheNamedInbox(t *testing.T) {
 	assert.FileExists(t, filepath.Join(dir, ".tp-review", "spec", "review-round-1.ndjson"))
 }
 
+// TestNamedInbox_TheNextRoundNamesTheInboxItWasRecordedFrom: a review round
+// recorded with --record-inbox --inbox stores the inbox on the round, and the
+// next_action of the record and of a later --status, which is given no
+// --inbox, name it on the next round's emission and record.
+func TestNamedInbox_TheNextRoundNamesTheInboxItWasRecordedFrom(t *testing.T) {
+	t.Parallel()
+	dir, _ := inboxSpec(t)
+	prompts := emittedPrompts(t, dir, noRoundDir(), "review", "spec.md", "--inbox", "outside")
+	for _, pm := range prompts {
+		require.NoError(t, os.WriteFile(pm["output_path"].(string), nil, 0o600))
+	}
+
+	stdout, stderr, code := runTPEnv(t, dir, noRoundDir(), "review", "spec.md", "--record-inbox", "--inbox", "outside")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var st struct {
+		ReviewRounds []struct {
+			Inbox string `json:"inbox"`
+		} `json:"review_rounds"`
+	}
+	data, err := os.ReadFile(filepath.Join(dir, ".tp-review", "spec", "state.json"))
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(data, &st))
+	require.Len(t, st.ReviewRounds, 1)
+	inbox := st.ReviewRounds[0].Inbox
+	require.NotEmpty(t, inbox, "the round stores the inbox it was recorded from")
+	assert.Equal(t, realPath(t, filepath.Join(dir, "outside")), realPath(t, inbox))
+
+	want := "tp review spec.md --inbox " + inbox + ", then tp review spec.md --record-inbox --inbox " + inbox
+	var rec map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &rec), stdout)
+	assert.Contains(t, rec["next_action"], want, "the record's next_action")
+	status, stderr, code := runTPEnv(t, dir, noRoundDir(), "review", "spec.md", "--status")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var got map[string]any
+	require.NoError(t, json.Unmarshal([]byte(status), &got), status)
+	assert.Contains(t, got["next_action"], want, "--status reads it from the round")
+}
+
 // TestNamedInbox_ARecordThatForgetsTheInboxNamesTheDirectoryRead: the files
 // are in the named inbox, and a --record-inbox without --inbox reads the
 // default one; it refuses, recording nothing, and names the directory it read
