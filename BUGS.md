@@ -16,12 +16,7 @@ fix needs a design choice leaves this file for a decision note.
 
 ## Fix track
 
-- **A set-aside unit branch leaves `conflict_branch` stale.** Under `tp run`,
-  `engine.setAsideUnitBranch` (`internal/engine/driver_pool.go`) renames an earlier unit branch with
-  `git branch -m` but does not update the task's `conflict_branch`, so the recorded name can point at
-  the new attempt's branch. No work is lost (`conflict_sha` no longer matches, so `tp land` keeps it),
-  but the kept branch it names is the wrong one. Test: a conflict recorded, then a run sets the branch
-  aside; the task's `conflict_branch` names the renamed branch.
+None open.
 
 ## Decided elsewhere, not a fix
 
