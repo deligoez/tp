@@ -60,6 +60,11 @@ type DriverOptions struct {
 	// worktree add or setup failed spends nothing
 	// (spec/backlog/worktree-setup.md §1).
 	ReleaseTasks func(ids []string) error
+	// RenameConflictBranch points every task recording from as its
+	// conflict_branch at to, after a new unit set the branch aside under
+	// that name (setAsideUnitBranch). It writes the task file, so tp run
+	// supplies it; nil renames nothing.
+	RenameConflictBranch func(from, to string) error
 	// ApplyFound applies the found requests the units filed, after every
 	// unit (spec/1.31.0.md §2), with the units still running named, and
 	// returns the finders it returned to open. Nil applies nothing.

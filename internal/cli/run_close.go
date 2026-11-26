@@ -133,6 +133,33 @@ func reopenSoloFunc(taskFile string) func(id, conflictBranch string) error {
 	}
 }
 
+// renameConflictBranchFunc is how tp run follows a unit branch it set aside:
+// every task recording the old name as its conflict_branch takes the new one.
+// conflict_sha, the branch's tip, is unchanged by a rename. Nothing is written
+// when no task records the old name.
+func renameConflictBranchFunc(taskFile string) func(from, to string) error {
+	return func(from, to string) error {
+		return engine.WithFileLock(taskFile, func() error {
+			tf, err := model.ReadTaskFile(taskFile)
+			if err != nil {
+				return err
+			}
+			renamed := false
+			for i := range tf.Tasks {
+				if tf.Tasks[i].ConflictBranch == from {
+					tf.Tasks[i].ConflictBranch = to
+					renamed = true
+				}
+			}
+			if !renamed {
+				return nil
+			}
+			tf.UpdatedAt = time.Now().UTC()
+			return model.WriteTaskFile(taskFile, tf)
+		})
+	}
+}
+
 // closeTaskFunc is how tp run closes an integrated pool unit
 // (spec/backlog/parallel-implement.md §2.4): it runs this binary's own tp done
 // in the main tree with the picked shas, so the gate, the evidence check and

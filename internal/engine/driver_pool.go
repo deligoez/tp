@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
-	"time"
 
 	"github.com/deligoez/tp/internal/model"
 	"github.com/deligoez/tp/internal/output"
@@ -245,33 +244,12 @@ func (d *driver) setAsideUnitBranch(tree unitTree) error {
 			if _, err := gitOut(d.opts.Root, "branch", "-m", tree.branch, aside); err != nil {
 				return err
 			}
-			return renameConflictBranch(d.opts.TaskFile, tree.branch, aside)
+			if d.opts.RenameConflictBranch == nil {
+				return nil
+			}
+			return d.opts.RenameConflictBranch(tree.branch, aside)
 		}
 	}
-}
-
-// renameConflictBranch points every task recording from as its
-// conflict_branch at to, the name the branch now has. Its tip, conflict_sha,
-// is unchanged by a rename. It writes nothing when no task records from.
-func renameConflictBranch(taskFile, from, to string) error {
-	return WithFileLock(taskFile, func() error {
-		tf, err := model.ReadTaskFile(taskFile)
-		if err != nil {
-			return err
-		}
-		renamed := false
-		for i := range tf.Tasks {
-			if tf.Tasks[i].ConflictBranch == from {
-				tf.Tasks[i].ConflictBranch = to
-				renamed = true
-			}
-		}
-		if !renamed {
-			return nil
-		}
-		tf.UpdatedAt = time.Now().UTC()
-		return model.WriteTaskFile(taskFile, tf)
-	})
 }
 
 // gitBranchExists reports whether root has a local branch of that name.
