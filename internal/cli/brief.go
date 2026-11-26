@@ -217,26 +217,9 @@ func selectBriefTarget(tf *model.TaskFile) *model.Task {
 	}
 
 	if len(ready) == 0 {
-		allDone := true
-		blocked := make([]string, 0)
-		for i := range tf.Tasks {
-			if tf.Tasks[i].Status != model.StatusDone {
-				allDone = false
-				if tf.Tasks[i].Status == model.StatusOpen {
-					blocked = append(blocked, tf.Tasks[i].ID)
-				}
-			}
-		}
-		if allDone {
-			_ = output.JSON(map[string]any{"done": true, "message": "All tasks complete"})
-		} else {
-			_ = output.JSON(withAgentHeld(tf, map[string]any{
-				"done":    false,
-				"message": fmt.Sprintf("No ready tasks. %d tasks blocked.", len(blocked)),
-				"blocked": blocked,
-			}))
-		}
-		os.Exit(ExitState)
+		// The same payload tp next gives: blocked, held and overlapping
+		// a held task's touches, each named.
+		exitNoReady(tf, done)
 		return nil
 	}
 
