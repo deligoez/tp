@@ -141,7 +141,7 @@ func runReviewRecordInbox(specPath, harnessNote string) error {
 		output.Error(ExitFile, err.Error(), runtimeFailureHint)
 		os.Exit(ExitFile)
 	}
-	if err := runReviewRecord(specPath, merged, harnessNote); err != nil {
+	if err := runReviewRecord(specPath, merged, harnessNote, namedInbox()); err != nil {
 		return err
 	}
 	removeNamedInboxFiles(files)

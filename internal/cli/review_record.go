@@ -18,8 +18,10 @@ import (
 // runReviewRecord implements `tp review <spec> --record <findings.ndjson>`:
 // parse the rows, copy the file into the state directory as
 // review-round-<R>.ndjson (round file first, index entry second, under the
-// state flock), and report convergence plus mechanization candidates.
-func runReviewRecord(specPath, recordPath, harnessNote string) error {
+// state flock), and report convergence plus mechanization candidates. inbox
+// is the named inbox a --record-inbox read the round from, stored on the
+// round (ReviewRound.Inbox); "" otherwise.
+func runReviewRecord(specPath, recordPath, harnessNote, inbox string) error {
 	if _, err := os.Stat(specPath); err != nil {
 		output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), specFileMissingHint)
 		os.Exit(ExitFile)
@@ -186,6 +188,7 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 			HashScheme:  hashScheme,
 			RolesHash:   rolesHash,
 			HarnessNote: harnessNote,
+			Inbox:       inbox,
 		}
 		if rewrite {
 			st.ReviewRounds[round-1] = entry

@@ -436,7 +436,7 @@ Modes (mutually exclusive):
 					return runReviewRecordInbox(engine.ResolveSpecArg(args[0]), harnessNote)
 				}
 				refuseHandRecordOverEmission(engine.ResolveSpecArg(args[0]))
-				return runReviewRecord(engine.ResolveSpecArg(args[0]), recordPath, harnessNote)
+				return runReviewRecord(engine.ResolveSpecArg(args[0]), recordPath, harnessNote, "")
 			case "rewritten":
 				if len(args) != 1 {
 					output.Error(ExitUsage, "spec path required for --rewritten")
