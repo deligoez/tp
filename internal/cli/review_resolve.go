@@ -141,7 +141,7 @@ func runReviewResolve(args []string, force bool) error {
 
 	// Check if all findings are now resolved — if so, include next_step
 	if allFindingsResolved(findings) {
-		result["next_step"] = reviewResolvedNextStep(findings)
+		result["next_step"] = reviewResolvedNextStep(findings, engine.RoundFileReviewInbox(filePath))
 	}
 	addRecordedRoundStatement(result, filePath)
 
@@ -220,7 +220,7 @@ func runReviewResolveAll(args []string, force bool) error {
 		"skipped_count":  skippedCount,
 		"status":         status,
 		"file":           filePath,
-		"next_step":      reviewResolvedNextStep(written),
+		"next_step":      reviewResolvedNextStep(written, engine.RoundFileReviewInbox(filePath)),
 	}
 	addRecordedRoundStatement(result, filePath)
 	return output.JSON(result)
@@ -274,7 +274,7 @@ func newDisposition(roundFile, status, evidence, at string) map[string]any {
 // write into the recorded round's directory. With no fixed finding the loop's
 // state decides, which --status names. Never --verify: that is the tail
 // protocol's check of disputed findings before a record.
-func reviewResolvedNextStep(findings []map[string]any) string {
+func reviewResolvedNextStep(findings []map[string]any, inbox string) string {
 	for _, f := range findings {
 		resolved, _ := f["resolved"].(map[string]any)
 		if status, _ := resolved["status"].(string); status != "fixed" {
@@ -283,7 +283,8 @@ func reviewResolvedNextStep(findings []map[string]any) string {
 		if os.Getenv(engine.EnvRound) != "" {
 			return "stop: the run emits the next review round, which verifies the repair"
 		}
-		return "run the next review round, which verifies the repair: tp review <spec>, then tp review <spec> --record-inbox"
+		emit, record := engine.NamedRoundCommands(engine.PhaseReview, "<spec>", inbox)
+		return "run the next review round, which verifies the repair: " + emit + ", then " + record
 	}
 	return "tp review <spec> --status, whose next_action names the next step"
 }
