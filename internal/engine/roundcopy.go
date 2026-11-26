@@ -35,6 +35,21 @@ func RoundStateListsFile(path string) bool {
 	return false
 }
 
+// RoundFileReviewInbox is the named inbox the latest review round recorded
+// beside path came from (ReviewRound.Inbox), "" when there is none or the
+// state cannot be read.
+func RoundFileReviewInbox(path string) string {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return ""
+	}
+	st, ok := readStateFile(filepath.Join(filepath.Dir(abs), stateFileName))
+	if !ok {
+		return ""
+	}
+	return LatestInbox(st.ReviewRounds)
+}
+
 // ReviewResolveOrder is the order a disposition written now into path takes
 // among the spec's review rounds (spec/backlog/carried-rows-block.md §2.6):
 // the highest review round recorded or emitted in path's state directory. A

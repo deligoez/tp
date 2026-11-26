@@ -323,6 +323,12 @@ func nextRoundCommands(phase, specPath, inbox string) (emit, record string) {
 	return emit, record
 }
 
+// NamedRoundCommands is a next round's emission and record for phase over
+// specPath, in inbox when it is not "", as next_action words them.
+func NamedRoundCommands(phase, specPath, inbox string) (emit, record string) {
+	return nextRoundCommands(phase, specPath, inbox)
+}
+
 // shellWord is s as one shell word: unchanged when it holds nothing a shell
 // splits or expands, otherwise single-quoted, so a copied command still
 // names a directory with a space in it.
