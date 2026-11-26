@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
+	"time"
 
 	"github.com/deligoez/tp/internal/model"
 	"github.com/deligoez/tp/internal/output"
@@ -232,7 +233,8 @@ func (d *driver) startUnit(p *pool, u NextUnit) {
 // finder tp found apply returned to open (spec/1.31.0.md §4) runs again on a
 // tree that holds the fix it waited for. The earlier unit's commits stay
 // reachable under tp-unit/<cycle>/<run>-<n>/<id>, kept like any unfinished
-// task's branch (keptUnitBranch). With no such branch it does nothing.
+// task's branch (keptUnitBranch), and a task recording the old name as its
+// conflict_branch names the new one. With no such branch it does nothing.
 func (d *driver) setAsideUnitBranch(tree unitTree) error {
 	if !gitBranchExists(d.opts.Root, tree.branch) {
 		return nil
@@ -240,10 +242,36 @@ func (d *driver) setAsideUnitBranch(tree unitTree) error {
 	for n := 1; ; n++ {
 		aside := unitBranch(d.opts.Root, d.opts.TaskFile, d.runID+"-"+strconv.Itoa(n), tree.id)
 		if !gitBranchExists(d.opts.Root, aside) {
-			_, err := gitOut(d.opts.Root, "branch", "-m", tree.branch, aside)
-			return err
+			if _, err := gitOut(d.opts.Root, "branch", "-m", tree.branch, aside); err != nil {
+				return err
+			}
+			return renameConflictBranch(d.opts.TaskFile, tree.branch, aside)
 		}
 	}
+}
+
+// renameConflictBranch points every task recording from as its
+// conflict_branch at to, the name the branch now has. Its tip, conflict_sha,
+// is unchanged by a rename. It writes nothing when no task records from.
+func renameConflictBranch(taskFile, from, to string) error {
+	return WithFileLock(taskFile, func() error {
+		tf, err := model.ReadTaskFile(taskFile)
+		if err != nil {
+			return err
+		}
+		renamed := false
+		for i := range tf.Tasks {
+			if tf.Tasks[i].ConflictBranch == from {
+				tf.Tasks[i].ConflictBranch = to
+				renamed = true
+			}
+		}
+		if !renamed {
+			return nil
+		}
+		tf.UpdatedAt = time.Now().UTC()
+		return model.WriteTaskFile(taskFile, tf)
+	})
 }
 
 // gitBranchExists reports whether root has a local branch of that name.
