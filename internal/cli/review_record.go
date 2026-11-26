@@ -295,7 +295,7 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 	// the same mechanize candidates surfaced above, and a check recordChecks saw
 	// fail replaces any step that would name import.
 	addLoopDone(result, done)
-	result["next_action"] = engine.ReviewNextAction(engine.RepoRelative(specPath), done, !liveClean,
+	result["next_action"] = engine.ReviewNextAction(engine.RepoRelative(specPath), engine.LatestInbox(st.ReviewRounds), done, !liveClean,
 		mechanizeCandidateClasses(candidates), engine.LatestRoundFile(specPath, st.ReviewRounds), verdict)
 	noteRecordWithoutEmission(engine.PhaseReview, specPath, &st.ReviewRounds[round-1], result["stale"] == true)
 	return output.JSON(result)

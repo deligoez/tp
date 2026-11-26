@@ -22,7 +22,7 @@ var (
 const roundFile = ".tp-review/spec/review-round-3.ndjson"
 
 func TestReviewNextAction_Converged(t *testing.T) {
-	got := ReviewNextAction("spec.md", doneConverged, false, nil, roundFile, CheckVerdict{})
+	got := ReviewNextAction("spec.md", "", doneConverged, false, nil, roundFile, CheckVerdict{})
 	assert.Contains(t, got, "tp import spec.tasks.json", "branch 1 names the decompose-then-import forward step")
 	assert.NotContains(t, got, "--resolve", "branch 1 never advises disposal")
 }
@@ -31,7 +31,7 @@ func TestReviewNextAction_Converged(t *testing.T) {
 // precedence — even with a blocking finding and a mechanize class present (an
 // unreachable overlap in practice, but it pins the ordering), branch 1 wins.
 func TestReviewNextAction_ConvergedWinsOverEverything(t *testing.T) {
-	got := ReviewNextAction("spec.md", doneConverged, true /*blocking*/, []string{"naming"}, roundFile, CheckVerdict{})
+	got := ReviewNextAction("spec.md", "", doneConverged, true /*blocking*/, []string{"naming"}, roundFile, CheckVerdict{})
 	assert.Contains(t, got, "tp import", "converged outranks blocking and mechanize")
 	assert.NotContains(t, got, "revise the spec")
 	assert.NotContains(t, got, "tp set --workflow")
@@ -40,7 +40,7 @@ func TestReviewNextAction_ConvergedWinsOverEverything(t *testing.T) {
 // TestReviewNextAction_DoneAtTheCap: a loop the cap ended goes forward like a
 // converged one, and says why, since no round graded it clean twice.
 func TestReviewNextAction_DoneAtTheCap(t *testing.T) {
-	got := ReviewNextAction("spec.md", doneAtCap, false, nil, roundFile, CheckVerdict{})
+	got := ReviewNextAction("spec.md", "", doneAtCap, false, nil, roundFile, CheckVerdict{})
 	assert.Contains(t, got, "tp import spec.tasks.json")
 	assert.Contains(t, got, "cap")
 }
@@ -48,7 +48,7 @@ func TestReviewNextAction_DoneAtTheCap(t *testing.T) {
 // TestReviewNextAction_AtTheCap names the only way out at the cap: disposition
 // what is left in the recorded round file, never another round.
 func TestReviewNextAction_AtTheCap(t *testing.T) {
-	got := ReviewNextAction("spec.md", openAtCap, true /*blocking*/, []string{"naming"}, roundFile, CheckVerdict{})
+	got := ReviewNextAction("spec.md", "", openAtCap, true /*blocking*/, []string{"naming"}, roundFile, CheckVerdict{})
 	assert.Contains(t, got, "tp review "+roundFile+" --resolve", "the command names the recorded round file")
 	assert.Contains(t, got, "operator", "accepting a blocking finding is named as the operator's decision")
 	assert.Contains(t, got, "tp import spec.tasks.json", "and the step after it")
@@ -60,7 +60,7 @@ func TestReviewNextAction_AtTheCap(t *testing.T) {
 // change: a finding leaves a round either as an edit or as a --resolve, and a
 // directive naming only the edit is what grew every spec it touched.
 func TestReviewNextAction_Blocking(t *testing.T) {
-	got := ReviewNextAction("spec.md", notDone, true /*blockingUnresolved*/, []string{"naming"}, roundFile, CheckVerdict{})
+	got := ReviewNextAction("spec.md", "", notDone, true /*blockingUnresolved*/, []string{"naming"}, roundFile, CheckVerdict{})
 	assert.Contains(t, got, "revise the spec", "branch 2 still names the spec change")
 	assert.Contains(t, got, "tp review "+roundFile+" --resolve", "and names disposition beside it")
 	assert.Contains(t, got, "operator", "accepting a blocking finding is the operator's decision")
@@ -73,7 +73,7 @@ func TestReviewNextAction_Blocking(t *testing.T) {
 // next round, which reads the repair — so the branch names that command, not
 // only the acceptances.
 func TestReviewNextAction_BlockingNamesTheRepairPath(t *testing.T) {
-	got := ReviewNextAction("spec.md", notDone, true /*blockingUnresolved*/, nil, roundFile, CheckVerdict{})
+	got := ReviewNextAction("spec.md", "", notDone, true /*blockingUnresolved*/, nil, roundFile, CheckVerdict{})
 	assert.Contains(t, got, "tp review "+roundFile+" --resolve <index> fixed \"<evidence>\"", "the repair is resolved fixed")
 	assert.Contains(t, got, "tp review spec.md, then tp review spec.md --record-inbox", "and the next round reads it")
 	assert.Contains(t, got, "--resolve <index> wontfix|duplicate", "acceptance stays named")
@@ -85,7 +85,7 @@ func TestReviewNextAction_BlockingNamesTheRepairPath(t *testing.T) {
 // directory and exit 2, so the branch names none.
 func TestReviewNextAction_BlockingInsideARunStopsAtTheResolve(t *testing.T) {
 	t.Setenv(EnvRound, "3")
-	got := ReviewNextAction("spec.md", notDone, true /*blockingUnresolved*/, nil, roundFile, CheckVerdict{})
+	got := ReviewNextAction("spec.md", "", notDone, true /*blockingUnresolved*/, nil, roundFile, CheckVerdict{})
 	assert.Contains(t, got, "tp review "+roundFile+" --resolve <index> fixed \"<evidence>\"", "the repair is still resolved fixed")
 	assert.Contains(t, got, "--resolve <index> wontfix|duplicate", "acceptance stays named")
 	assert.NotContains(t, got, "tp review spec.md,", "no emission of the next round")
@@ -93,7 +93,7 @@ func TestReviewNextAction_BlockingInsideARunStopsAtTheResolve(t *testing.T) {
 }
 
 func TestReviewNextAction_Mechanize(t *testing.T) {
-	got := ReviewNextAction("spec.md", notDone, false, []string{"naming"}, roundFile, CheckVerdict{})
+	got := ReviewNextAction("spec.md", "", notDone, false, []string{"naming"}, roundFile, CheckVerdict{})
 	assert.Contains(t, got, "tp set --workflow checks", "branch 3 names the register-a-check command")
 	assert.Contains(t, got, "naming", "branch 3 names the recurring class")
 	assert.Contains(t, got, "tp review spec.md --record", "branch 3 is compound: register, then next round")
@@ -103,7 +103,7 @@ func TestReviewNextAction_Mechanize(t *testing.T) {
 // class is un-mechanizable, so branch 3 does NOT fire on it — the state falls
 // through to branch 4's plain next-round command.
 func TestReviewNextAction_OverSpecificationExcluded(t *testing.T) {
-	got := ReviewNextAction("spec.md", notDone, false, []string{"over-specification"}, roundFile, CheckVerdict{})
+	got := ReviewNextAction("spec.md", "", notDone, false, []string{"over-specification"}, roundFile, CheckVerdict{})
 	assert.NotContains(t, got, "tp set --workflow checks", "over-specification does not trigger branch 3")
 	assert.Contains(t, got, "run the next review round", "falls through to branch 4")
 	assert.Contains(t, got, "tp review spec.md --record")
@@ -113,7 +113,7 @@ func TestReviewNextAction_OverSpecificationExcluded(t *testing.T) {
 // skipped, but a genuinely mechanizable class in the same list still fires
 // branch 3 (firstMechanizableClass picks it).
 func TestReviewNextAction_MechanizeSkipsOverSpecToNextClass(t *testing.T) {
-	got := ReviewNextAction("spec.md", notDone, false, []string{"over-specification", "naming"}, roundFile, CheckVerdict{})
+	got := ReviewNextAction("spec.md", "", notDone, false, []string{"over-specification", "naming"}, roundFile, CheckVerdict{})
 	assert.Contains(t, got, "tp set --workflow checks")
 	assert.Contains(t, got, "naming")
 }
@@ -124,17 +124,17 @@ func TestReviewNextAction_MechanizeSkipsOverSpecToNextClass(t *testing.T) {
 // branch alone — no other reachable state advises registering a check, so no
 // other state may carry the qualifier.
 func TestReviewNextAction_MechanizePhaseQualifier(t *testing.T) {
-	got := ReviewNextAction("spec.md", notDone, false, []string{"naming"}, roundFile, CheckVerdict{})
+	got := ReviewNextAction("spec.md", "", notDone, false, []string{"naming"}, roundFile, CheckVerdict{})
 	assert.Contains(t, got, "naming", "the qualified advice still names the recurring class")
 	assert.Contains(t, got, MechanizePhaseQualifier,
 		"branch 3 qualifies the registration by phase")
 
 	for name, other := range map[string]string{
-		"branch 1 (converged)":          ReviewNextAction("spec.md", doneConverged, false, []string{"naming"}, roundFile, CheckVerdict{}),
-		"at the cap":                    ReviewNextAction("spec.md", openAtCap, false, []string{"naming"}, roundFile, CheckVerdict{}),
-		"branch 2 (blocking)":           ReviewNextAction("spec.md", notDone, true, []string{"naming"}, roundFile, CheckVerdict{}),
-		"branch 4 (no class)":           ReviewNextAction("spec.md", notDone, false, nil, roundFile, CheckVerdict{}),
-		"branch 4 (over-specification)": ReviewNextAction("spec.md", notDone, false, []string{"over-specification"}, roundFile, CheckVerdict{}),
+		"branch 1 (converged)":          ReviewNextAction("spec.md", "", doneConverged, false, []string{"naming"}, roundFile, CheckVerdict{}),
+		"at the cap":                    ReviewNextAction("spec.md", "", openAtCap, false, []string{"naming"}, roundFile, CheckVerdict{}),
+		"branch 2 (blocking)":           ReviewNextAction("spec.md", "", notDone, true, []string{"naming"}, roundFile, CheckVerdict{}),
+		"branch 4 (no class)":           ReviewNextAction("spec.md", "", notDone, false, nil, roundFile, CheckVerdict{}),
+		"branch 4 (over-specification)": ReviewNextAction("spec.md", "", notDone, false, []string{"over-specification"}, roundFile, CheckVerdict{}),
 	} {
 		assert.NotContains(t, other, MechanizePhaseQualifier,
 			"%s advises no registration, so it carries no registration qualifier", name)
@@ -142,7 +142,7 @@ func TestReviewNextAction_MechanizePhaseQualifier(t *testing.T) {
 }
 
 func TestReviewNextAction_CleanNotConverged(t *testing.T) {
-	got := ReviewNextAction("spec.md", notDone, false, nil, roundFile, CheckVerdict{})
+	got := ReviewNextAction("spec.md", "", notDone, false, nil, roundFile, CheckVerdict{})
 	assert.Contains(t, got, "run the next review round", "branch 4 is the lowest-precedence default")
 	assert.Contains(t, got, "tp review spec.md --record-inbox")
 	assert.NotContains(t, got, "tp set --workflow", "no mechanize class present")
@@ -153,7 +153,7 @@ func TestReviewNextAction_CleanNotConverged(t *testing.T) {
 // TestReviewNextAction_BaseResolution: <base> resolves to the spec's base name
 // even for a pathed, dotted spec name.
 func TestReviewNextAction_BaseResolution(t *testing.T) {
-	got := ReviewNextAction("spec/0.31.0.md", doneConverged, false, nil, roundFile, CheckVerdict{})
+	got := ReviewNextAction("spec/0.31.0.md", "", doneConverged, false, nil, roundFile, CheckVerdict{})
 	assert.Contains(t, got, "tp import 0.31.0.tasks.json")
 }
 
@@ -164,33 +164,33 @@ func TestReviewNextAction_BaseResolution(t *testing.T) {
 const auditRoundFile = ".tp-review/spec/audit-round-3.ndjson"
 
 func TestAuditNextAction_Converged(t *testing.T) {
-	got := AuditNextAction("spec.md", doneConverged, true /*clean*/, 0, auditRoundFile)
+	got := AuditNextAction("spec.md", "", doneConverged, true /*clean*/, 0, auditRoundFile)
 	assert.Contains(t, got, "proceed to release", "converged names the terminal release marker")
 	assert.NotContains(t, got, "tp audit", "the terminal marker names no further tp command")
 }
 
 func TestAuditNextAction_DoneAtTheCap(t *testing.T) {
-	got := AuditNextAction("spec.md", doneAtCap, false, 1, auditRoundFile)
+	got := AuditNextAction("spec.md", "", doneAtCap, false, 1, auditRoundFile)
 	assert.Contains(t, got, "proceed to release")
 	assert.Contains(t, got, "cap", "it says the cap ended the loop, not two clean rounds")
 	assert.NotContains(t, got, "converged —")
 }
 
 func TestAuditNextAction_AtTheCap(t *testing.T) {
-	got := AuditNextAction("spec.md", openAtCap, false, 2, auditRoundFile)
+	got := AuditNextAction("spec.md", "", openAtCap, false, 2, auditRoundFile)
 	assert.Contains(t, got, "tp audit "+auditRoundFile+" --resolve", "the command names the recorded round file")
 	assert.Contains(t, got, "operator")
 	assert.NotContains(t, got, "--record", "the cap admits no further round")
 }
 
 func TestAuditNextAction_CleanNotConverged(t *testing.T) {
-	got := AuditNextAction("spec.md", notDone, true /*clean*/, 0 /*no non-PASS rows*/, auditRoundFile)
+	got := AuditNextAction("spec.md", "", notDone, true /*clean*/, 0 /*no non-PASS rows*/, auditRoundFile)
 	assert.Contains(t, got, "run the next audit round")
 	assert.Contains(t, got, "tp audit spec.md --record <file>")
 }
 
 func TestAuditNextAction_NonPassRowsPresent(t *testing.T) {
-	got := AuditNextAction("spec.md", notDone, false /*unclean*/, 1, auditRoundFile)
+	got := AuditNextAction("spec.md", "", notDone, false /*unclean*/, 1, auditRoundFile)
 	assert.Contains(t, got, "address the findings", "names the fix-and-re-audit directive")
 	assert.Contains(t, got, "tp audit spec.md --record <file>")
 	assert.Contains(t, got, "tp audit "+auditRoundFile+" --resolve", "and a finding needing no code change can be dispositioned")
@@ -199,7 +199,7 @@ func TestAuditNextAction_NonPassRowsPresent(t *testing.T) {
 // TestAuditNextAction_ConvergedWinsOverFindings pins the audit ordering: a
 // converged state names the forward step even if the round is (unreachably) unclean.
 func TestAuditNextAction_ConvergedWinsOverFindings(t *testing.T) {
-	got := AuditNextAction("spec.md", doneConverged, false, 1, auditRoundFile)
+	got := AuditNextAction("spec.md", "", doneConverged, false, 1, auditRoundFile)
 	assert.Contains(t, got, "proceed to release")
 	assert.NotContains(t, got, "address the findings")
 }
@@ -215,11 +215,11 @@ func TestAuditNextAction_AcceptedCountOnBothChangedBranches(t *testing.T) {
 		done  LoopDone
 		empty string
 	}{
-		{"converged", doneConverged, AuditNextAction("spec.md", doneConverged, true, 0, auditRoundFile)},
-		{"clean not converged", notDone, AuditNextAction("spec.md", notDone, true, 0, auditRoundFile)},
+		{"converged", doneConverged, AuditNextAction("spec.md", "", doneConverged, true, 0, auditRoundFile)},
+		{"clean not converged", notDone, AuditNextAction("spec.md", "", notDone, true, 0, auditRoundFile)},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got := AuditNextAction("spec.md", tc.done, true /*clean*/, 3, auditRoundFile)
+			got := AuditNextAction("spec.md", "", tc.done, true /*clean*/, 3, auditRoundFile)
 			assert.Contains(t, got, "3", "the accepted count is rendered as a numeral")
 			assert.NotEqual(t, tc.empty, got,
 				"a round closing over accepted rows reads differently from an empty one")
@@ -232,11 +232,11 @@ func TestAuditNextAction_AcceptedCountOnBothChangedBranches(t *testing.T) {
 // the default wrong, so it is asserted rather than assumed; 0 is asserted from
 // the other side, as the absence of the clause entirely.
 func TestAuditNextAction_AcceptedCountAgreesWithItsNoun(t *testing.T) {
-	assert.Contains(t, AuditNextAction("spec.md", notDone, true, 1, auditRoundFile), "1 accepted row ")
-	assert.Contains(t, AuditNextAction("spec.md", notDone, true, 2, auditRoundFile), "2 accepted rows")
-	assert.NotContains(t, AuditNextAction("spec.md", notDone, true, 0, auditRoundFile), "accepted",
+	assert.Contains(t, AuditNextAction("spec.md", "", notDone, true, 1, auditRoundFile), "1 accepted row ")
+	assert.Contains(t, AuditNextAction("spec.md", "", notDone, true, 2, auditRoundFile), "2 accepted rows")
+	assert.NotContains(t, AuditNextAction("spec.md", "", notDone, true, 0, auditRoundFile), "accepted",
 		"an empty round names no count at all rather than naming zero")
-	assert.NotContains(t, AuditNextAction("spec.md", doneConverged, true, 0, auditRoundFile), "accepted")
+	assert.NotContains(t, AuditNextAction("spec.md", "", doneConverged, true, 0, auditRoundFile), "accepted")
 }
 
 // TestAuditNextAction_UncleanRoundIsSilentAboutTheCount pins the boundary of
@@ -245,8 +245,8 @@ func TestAuditNextAction_AcceptedCountAgreesWithItsNoun(t *testing.T) {
 // directive is already sending the reader to.
 func TestAuditNextAction_UncleanRoundIsSilentAboutTheCount(t *testing.T) {
 	assert.Equal(t,
-		AuditNextAction("spec.md", notDone, false, 1, auditRoundFile),
-		AuditNextAction("spec.md", notDone, false, 7, auditRoundFile))
+		AuditNextAction("spec.md", "", notDone, false, 1, auditRoundFile),
+		AuditNextAction("spec.md", "", notDone, false, 7, auditRoundFile))
 }
 
 // TestFirstMechanizableClass covers the over-specification skip directly.
@@ -257,7 +257,7 @@ func TestFirstMechanizableClass(t *testing.T) {
 	assert.Equal(t, "", firstMechanizableClass(nil))
 	assert.Equal(t, OverSpecificationClass, "over-specification")
 	// sanity: none of the review directives leak an audit command and vice versa.
-	assert.False(t, strings.Contains(ReviewNextAction("s.md", notDone, false, nil, roundFile, CheckVerdict{}), "tp audit"))
+	assert.False(t, strings.Contains(ReviewNextAction("s.md", "", notDone, false, nil, roundFile, CheckVerdict{}), "tp audit"))
 }
 
 // TestNextAction_ABlockingFixedAtTheCap: the one state at the cap only the
@@ -265,12 +265,12 @@ func TestFirstMechanizableClass(t *testing.T) {
 // command pointed at the recorded round file.
 func TestNextAction_ABlockingFixedAtTheCap(t *testing.T) {
 	d := LoopDone{CapReached: true, BlockingFixedAtCap: 2}
-	review := ReviewNextAction("spec.md", d, true, nil, roundFile, CheckVerdict{})
+	review := ReviewNextAction("spec.md", "", d, true, nil, roundFile, CheckVerdict{})
 	assert.Contains(t, review, "2 blocking findings were marked fixed")
 	assert.Contains(t, review, "raises the cap by one")
 	assert.Contains(t, review, "tp review "+roundFile+" --resolve")
 
-	audit := AuditNextAction("spec.md", LoopDone{CapReached: true, BlockingFixedAtCap: 1}, false, 1, auditRoundFile)
+	audit := AuditNextAction("spec.md", "", LoopDone{CapReached: true, BlockingFixedAtCap: 1}, false, 1, auditRoundFile)
 	assert.Contains(t, audit, "1 blocking finding was marked fixed")
 	assert.Contains(t, audit, "tp audit "+auditRoundFile+" --resolve")
 }
@@ -288,7 +288,7 @@ func TestReviewNextAction_AFailingCheckReplacesEveryImportStep(t *testing.T) {
 		"open at the cap":           openAtCap,
 		"blocking fixed at the cap": {CapReached: true, BlockingFixedAtCap: 1},
 	} {
-		got := ReviewNextAction("spec.md", d, false, nil, roundFile, failingCheck)
+		got := ReviewNextAction("spec.md", "", d, false, nil, roundFile, failingCheck)
 		assert.NotContains(t, got, "tp import", "%s: no import step while a check fails", name)
 		assert.NotContains(t, got, "decompose", name)
 		assert.Contains(t, got, `fix the registered "naming" check — it exited 2`, name)
@@ -300,24 +300,24 @@ func TestReviewNextAction_AFailingCheckReplacesEveryImportStep(t *testing.T) {
 // the cap no step names import, so the loop's own next step still comes first.
 func TestReviewNextAction_AFailingCheckLeavesTheLoopBranchesAlone(t *testing.T) {
 	assert.Equal(t,
-		ReviewNextAction("spec.md", notDone, true, nil, roundFile, CheckVerdict{}),
-		ReviewNextAction("spec.md", notDone, true, nil, roundFile, failingCheck), "blocking")
+		ReviewNextAction("spec.md", "", notDone, true, nil, roundFile, CheckVerdict{}),
+		ReviewNextAction("spec.md", "", notDone, true, nil, roundFile, failingCheck), "blocking")
 	assert.Equal(t,
-		ReviewNextAction("spec.md", notDone, false, nil, roundFile, CheckVerdict{}),
-		ReviewNextAction("spec.md", notDone, false, nil, roundFile, failingCheck), "next round")
+		ReviewNextAction("spec.md", "", notDone, false, nil, roundFile, CheckVerdict{}),
+		ReviewNextAction("spec.md", "", notDone, false, nil, roundFile, failingCheck), "next round")
 }
 
 // TestReviewNextAction_ACandidateWhoseCheckDidNotRun: a recurring class whose
 // registered check did not run is named with that check to fix, never with a
 // check to register; another candidate class still gets the register advice.
 func TestReviewNextAction_ACandidateWhoseCheckDidNotRun(t *testing.T) {
-	got := ReviewNextAction("spec.md", notDone, false, []string{"naming"}, roundFile, failingCheck)
+	got := ReviewNextAction("spec.md", "", notDone, false, []string{"naming"}, roundFile, failingCheck)
 	assert.Contains(t, got, `fix the registered "naming" check — it exited 2`)
 	assert.NotContains(t, got, "tp set --workflow", "a check already exists")
 	assert.NotContains(t, got, MechanizePhaseQualifier)
 	assert.Contains(t, got, "tp review spec.md --record-inbox", "then the next round")
 
-	other := ReviewNextAction("spec.md", notDone, false, []string{"other"}, roundFile, failingCheck)
+	other := ReviewNextAction("spec.md", "", notDone, false, []string{"other"}, roundFile, failingCheck)
 	assert.Contains(t, other, "tp set --workflow checks", "a class with no registered check is still to be registered")
 }
 
@@ -331,7 +331,7 @@ func TestReviewNextAction_UnverifiedChecksGateEveryImportStep(t *testing.T) {
 		"done at the cap": doneAtCap,
 		"open at the cap": openAtCap,
 	} {
-		got := ReviewNextAction("spec.md", d, false, nil, roundFile, unverified)
+		got := ReviewNextAction("spec.md", "", d, false, nil, roundFile, unverified)
 		gate := strings.Index(got, "tp review spec.md --status --check")
 		assert.GreaterOrEqual(t, gate, 0, "%s: %s", name, got)
 		assert.Less(t, gate, strings.Index(got, "tp import"), "%s: the gate comes before import", name)
@@ -340,7 +340,7 @@ func TestReviewNextAction_UnverifiedChecksGateEveryImportStep(t *testing.T) {
 		}
 	}
 	assert.Equal(t,
-		ReviewNextAction("spec.md", notDone, false, nil, roundFile, CheckVerdict{}),
-		ReviewNextAction("spec.md", notDone, false, nil, roundFile, unverified),
+		ReviewNextAction("spec.md", "", notDone, false, nil, roundFile, CheckVerdict{}),
+		ReviewNextAction("spec.md", "", notDone, false, nil, roundFile, unverified),
 		"below done and the cap nothing names import, so nothing is gated")
 }

@@ -144,8 +144,11 @@ func (v *CheckVerdict) failure(class string) (CheckFailure, bool) {
 // next_action is advisory/read-only: it changes nothing and gates no exit code
 // (§8.1). <spec> is resolved to specPath and roundFile names the latest recorded
 // round's file; <file> stays a literal placeholder because tp cannot know the
-// operator's chosen findings filename (§8.2).
-func ReviewNextAction(specPath string, done LoopDone, blockingUnresolved bool, mechanizeClasses []string, roundFile string, checks CheckVerdict) string {
+// operator's chosen findings filename (§8.2). inbox is the named inbox the
+// latest round was recorded from (LatestInbox), "" for the default one: the
+// next round's emission and record name it, since the default inbox is not
+// where that round's roles wrote.
+func ReviewNextAction(specPath, inbox string, done LoopDone, blockingUnresolved bool, mechanizeClasses []string, roundFile string, checks CheckVerdict) string {
 	if (done.Done || done.CapReached) && len(checks.Failing) > 0 {
 		return checks.Failing[0].FixClause() + "; " + CheckGateCommand(specPath) + " exits 1 until every registered check passes"
 	}
@@ -189,12 +192,13 @@ func ReviewNextAction(specPath string, done LoopDone, blockingUnresolved bool, m
 	case blockingUnresolved:
 		// The usual way out is the repair: fixed does not clean its round,
 		// the next round reads the repair and verifies it.
+		emit, record := nextRoundCommands(PhaseReview, specPath, inbox)
 		return "revise the spec where a blocking finding is a defect and resolve it fixed — tp review " + roundFile +
-			" --resolve <index> fixed \"<evidence>\" — then run the next review round, which verifies the repair: tp review " + specPath +
-			", then tp review " + specPath + " --record-inbox; or accept it — tp review " + roundFile +
+			" --resolve <index> fixed \"<evidence>\" — then run the next review round, which verifies the repair: " + emit +
+			", then " + record + "; or accept it — tp review " + roundFile +
 			" --resolve <index> wontfix|duplicate \"<evidence>\", the operator's decision for a critical or high finding" + earlier + resolveEarlierFirst(done.CarriedBlocking)
 	default:
-		return mechanizeOrNextRound(specPath, mechanizeClasses, &checks) + earlier + resolveEarlierFirst(done.CarriedBlocking)
+		return mechanizeOrNextRound(specPath, inbox, mechanizeClasses, &checks) + earlier + resolveEarlierFirst(done.CarriedBlocking)
 	}
 }
 
@@ -225,8 +229,9 @@ func carriedEarlierNote(rows []CarriedRow, specPath string) string {
 }
 
 // mechanizeOrNextRound is ReviewNextAction's branches 4 and 5.
-func mechanizeOrNextRound(specPath string, mechanizeClasses []string, checks *CheckVerdict) string {
-	nextRound := "run the next review round: tp review " + specPath + ", then tp review " + specPath + " --record-inbox"
+func mechanizeOrNextRound(specPath, inbox string, mechanizeClasses []string, checks *CheckVerdict) string {
+	emit, record := nextRoundCommands(PhaseReview, specPath, inbox)
+	nextRound := "run the next review round: " + emit + ", then " + record
 	cls := firstMechanizableClass(mechanizeClasses)
 	if cls == "" {
 		return nextRound
@@ -258,8 +263,10 @@ func mechanizeOrNextRound(specPath string, mechanizeClasses []string, checks *Ch
 // of its non-PASS rows, which under `blocking` is positive on rounds that are
 // clean, and branches 1 and 4 render it as a numeral (v0.37.0 §2). Under the
 // default `all` the two agree and the numeral never appears. Advisory/read-only;
-// gates no exit code (§8.1).
-func AuditNextAction(specPath string, done LoopDone, latestRoundClean bool, latestRoundFindings int, roundFile string) string {
+// gates no exit code (§8.1). A round recorded from a named inbox (inbox, as
+// in ReviewNextAction) names the next round's emission and record in it in
+// place of --record <file>.
+func AuditNextAction(specPath, inbox string, done LoopDone, latestRoundClean bool, latestRoundFindings int, roundFile string) string {
 	if !done.Done {
 		if clause := taskAuditOwedClauseNow(specPath); clause != "" {
 			return clause
@@ -282,15 +289,38 @@ func AuditNextAction(specPath string, done LoopDone, latestRoundClean bool, late
 		return "the audit round cap is reached: disposition each remaining finding in " + roundFile +
 			" — tp audit " + roundFile + " --resolve <role:item_id> wontfix|duplicate \"<evidence>\" (no round past the cap re-grades a fix); accepting a finding without a code change is the operator's decision"
 	case !latestRoundClean:
-		return "address the findings, then re-audit: tp audit " + specPath + " --record <file> — or, for a finding that needs no code change, tp audit " +
+		return "address the findings, then re-audit: " + auditNextRound(specPath, inbox) + " — or, for a finding that needs no code change, tp audit " +
 			roundFile + " --resolve <role:item_id> wontfix|duplicate \"<evidence>\" (the operator's decision)"
 	default:
 		if latestRoundFindings > 0 {
-			return acceptedRows(latestRoundFindings) + " carried forward — run the next audit round: tp audit " +
-				specPath + " --record <file>"
+			return acceptedRows(latestRoundFindings) + " carried forward — run the next audit round: " + auditNextRound(specPath, inbox)
 		}
-		return "run the next audit round: tp audit " + specPath + " --record <file>"
+		return "run the next audit round: " + auditNextRound(specPath, inbox)
 	}
+}
+
+// auditNextRound is how AuditNextAction names the next audit round: by hand
+// with --record <file>, or, after a round recorded from a named inbox, its
+// emission and record in that inbox.
+func auditNextRound(specPath, inbox string) string {
+	if inbox == "" {
+		return "tp audit " + specPath + " --record <file>"
+	}
+	emit, record := nextRoundCommands(PhaseAudit, specPath, inbox)
+	return emit + ", then " + record
+}
+
+// nextRoundCommands is the emission and the --record-inbox of phase's next
+// round of specPath (tp review or tp audit), each naming --inbox <inbox> when
+// the round before was recorded from a named inbox.
+func nextRoundCommands(phase, specPath, inbox string) (emit, record string) {
+	emit = "tp " + phase + " " + specPath
+	record = emit + " --record-inbox"
+	if inbox != "" {
+		emit += " --inbox " + inbox
+		record += " --inbox " + inbox
+	}
+	return emit, record
 }
 
 // LastAuditRoundClause is what next_action adds while one audit round is left

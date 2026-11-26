@@ -174,7 +174,7 @@ func runReviewStatus(specPath string, check bool) error {
 	// left to resolve: next_action names the round that verifies them instead.
 	blockingUnresolved := len(rounds) > 0 && !rounds[len(rounds)-1].Clean &&
 		!engine.ReviewRoundAwaitsOnlyFixes(specPath, &rounds[len(rounds)-1], wf.ReviewConvergeOn)
-	result["next_action"] = engine.ReviewNextAction(engine.RepoRelative(specPath), done, blockingUnresolved,
+	result["next_action"] = engine.ReviewNextAction(engine.RepoRelative(specPath), engine.LatestInbox(rounds), done, blockingUnresolved,
 		mechanizeClassesFromRounds(specPath, rounds, mechanized), engine.LatestRoundFile(specPath, rounds), verdict)
 
 	if jsonErr := output.JSON(result); jsonErr != nil {

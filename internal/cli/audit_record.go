@@ -207,7 +207,7 @@ func runAuditRecord(specPath, recordPath, harnessNote string, conflicts []auditC
 		result["graded"] = graded
 	}
 	result["next_action"] = engine.GradedPrefix(graded) + engine.UnprovenReason(&st.AuditRounds[round-1]) +
-		engine.AuditNextAction(engine.RepoRelative(specPath), done, clean, findings, engine.LatestRoundFile(specPath, st.AuditRounds)) +
+		engine.AuditNextAction(engine.RepoRelative(specPath), engine.LatestInbox(st.AuditRounds), done, clean, findings, engine.LatestRoundFile(specPath, st.AuditRounds)) +
 		lastAuditRound(wf.AuditMaxRounds, len(st.AuditRounds), done)
 	noteRecordWithoutEmission(engine.PhaseAudit, specPath, &st.AuditRounds[round-1], stale)
 	return output.JSON(result)
@@ -573,7 +573,7 @@ func runAuditStatus(specPath string, check bool) error {
 		unproven = engine.UnprovenReason(&rounds[n-1])
 	}
 	result["next_action"] = engine.GradedPrefix(latestGraded) + unproven +
-		engine.AuditNextAction(engine.RepoRelative(specPath), done, latestClean, latestFindings, engine.LatestRoundFile(specPath, rounds)) +
+		engine.AuditNextAction(engine.RepoRelative(specPath), engine.LatestInbox(rounds), done, latestClean, latestFindings, engine.LatestRoundFile(specPath, rounds)) +
 		lastAuditRound(wf.AuditMaxRounds, len(rounds), done)
 
 	if jsonErr := output.JSON(result); jsonErr != nil {

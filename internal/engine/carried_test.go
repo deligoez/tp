@@ -155,7 +155,7 @@ func TestReviewCarried_TheCapEndingPastAnEpochCutSaysSo(t *testing.T) {
 	require.True(t, d.Done)
 	assert.Equal(t, DoneByCap, d.By)
 	assert.True(t, d.EpochCutBlocking)
-	assert.NotContains(t, ReviewNextAction("spec.md", d, false, nil, "", CheckVerdict{}), "every finding dispositioned")
+	assert.NotContains(t, ReviewNextAction("spec.md", "", d, false, nil, "", CheckVerdict{}), "every finding dispositioned")
 }
 
 // TestCarryDisposition_OnlyWontfixOrDuplicateWithEvidenceIsAccepted: each

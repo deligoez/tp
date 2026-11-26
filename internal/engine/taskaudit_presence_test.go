@@ -51,7 +51,7 @@ func TestTaskAuditPresence_AStampedTaskWithoutARecordIsOwed(t *testing.T) {
 	assert.Equal(t, []string{"t1"}, TaskAuditOwedTasks(spec, st))
 	d := AuditLoopDone(spec, st, 2, 0, "")
 	assert.False(t, d.Done)
-	assert.Contains(t, AuditNextAction(spec, d, true, 0, ""), "--task-audit")
+	assert.Contains(t, AuditNextAction(spec, "", d, true, 0, ""), "--task-audit")
 
 	st.TaskAudits = []TaskAuditRecord{read(1, &t1, "a.go")}
 	assert.Empty(t, TaskAuditOwedTasks(spec, st))
@@ -132,7 +132,7 @@ func TestTaskAuditPresence_AnUnreadableTaskFileHoldsTheAuditAndNamesTheRepair(t 
 	require.Len(t, TaskAuditOwedTasks(spec, &ReviewState{}), 1)
 	d := AuditLoopDone(spec, &ReviewState{}, 2, 0, "")
 	assert.False(t, d.Done)
-	na := AuditNextAction(spec, d, true, 0, "")
+	na := AuditNextAction(spec, "", d, true, 0, "")
 	assert.Contains(t, na, "cannot be read")
 	assert.NotContains(t, na, "--task-audit")
 }
