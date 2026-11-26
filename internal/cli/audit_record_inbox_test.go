@@ -92,7 +92,7 @@ func TestAuditRecordInbox_TheNextRoundNamesTheInboxItWasRecordedFrom(t *testing.
 	require.NoError(t, json.Unmarshal(data, &st))
 	require.Len(t, st.AuditRounds, 1)
 	inbox := st.AuditRounds[0].Inbox
-	require.NotEmpty(t, inbox, "the round stores the inbox it was recorded from")
+	require.Equal(t, realPath(t, filepath.Join(dir, "outside")), realPath(t, inbox), "the round stores the inbox it was recorded from, absolute")
 
 	emit, record := " --inbox "+inbox+", then tp audit ", " --record-inbox --inbox "+inbox
 	var rec map[string]any
