@@ -222,18 +222,14 @@ func TestSetAside_TheRecordedConflictBranchFollowsTheRename(t *testing.T) {
 	root, spec, taskFile, _ := batchProject(t, wipAlpha)
 	branch := unitBranch(root, taskFile, "r1", "alpha")
 	gitIn(t, root, "branch", branch)
-	tf, err := model.ReadTaskFile(taskFile)
-	require.NoError(t, err)
-	tf.Tasks[0].ConflictBranch = branch
-	require.NoError(t, model.WriteTaskFile(taskFile, tf))
 	d := recoveryDriver(root, spec, taskFile, &fakeCloser{closed: map[string][]string{}})
+	var renamed [][2]string
+	d.opts.RenameConflictBranch = func(from, to string) error { renamed = append(renamed, [2]string{from, to}); return nil }
 
 	require.NoError(t, d.setAsideUnitBranch(unitTree{id: "alpha", branch: branch}))
 	aside := unitBranch(root, taskFile, "r1-1", "alpha")
 	assert.True(t, gitBranchExists(root, aside), "the earlier branch is set aside")
-	tf, err = model.ReadTaskFile(taskFile)
-	require.NoError(t, err)
-	assert.Equal(t, aside, tf.Tasks[0].ConflictBranch, "the task names the renamed branch")
+	assert.Equal(t, [][2]string{{branch, aside}}, renamed, "the task file is told the branch's new name")
 }
 
 // TestIntegrate_AMidPickCrashFinishesThePick: a crash between a unit's two
