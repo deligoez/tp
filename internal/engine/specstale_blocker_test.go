@@ -29,6 +29,25 @@ func TestSpecStaleBlocker_DataCarriesTheClearingCommands(t *testing.T) {
 	assert.NotContains(t, b.Data, "operator")
 }
 
+// TestResume_TheNextRoundNamesTheInboxTheLastCameFrom: after a review round
+// recorded from a named inbox, tp resume names the next round in it, in its
+// next_action and in the spec-stale blocker's commands.
+func TestResume_TheNextRoundNamesTheInboxTheLastCameFrom(t *testing.T) {
+	t.Parallel()
+	b := builtSpecStale(t, &BlockerInputs{ReviewInbox: "/x/in"})
+	assert.Equal(t, []string{"tp review spec.md --inbox /x/in", "tp review spec.md --record-inbox --inbox /x/in"}, b.Data["commands"])
+
+	st := &ReviewState{ReviewRounds: []ReviewRound{{Round: 1, File: "review-round-1.ndjson", Inbox: "/x/in"}}}
+	next := BuildNextAction(PhaseReview, t.TempDir()+"/spec.md", "spec.md", nil, st, false)
+	require.NotNil(t, next.Command)
+	assert.Equal(t, "tp review spec.md --inbox /x/in", *next.Command)
+
+	st = &ReviewState{AuditRounds: []ReviewRound{{Round: 1, File: "audit-round-1.ndjson", Inbox: "/x/in"}}}
+	next = BuildNextAction(PhaseAudit, t.TempDir()+"/spec.md", "spec.md", nil, st, false)
+	require.NotNil(t, next.Command)
+	assert.Equal(t, "tp audit spec.md --inbox /x/in", *next.Command)
+}
+
 // TestSpecStaleBlocker_InFlightOverTheOldTextNamesTheRecord: a round in flight
 // whose snapshot is the old text refuses a new emission (exit 3), so the
 // clearing commands start with that round's record, and its discard is named
