@@ -16,10 +16,6 @@ fix needs a design choice leaves this file for a decision note.
 
 ## Fix track
 
-- **`tp brief` with no id hides overlaps.** When every ready task overlaps a held task's `touches`,
-  `tp brief` (no id) says only "No ready tasks" (`internal/cli/brief.go`, the no-id path). Test: two
-  ready tasks with overlapping `touches`, one claimed with `--spawn` in a worktree; `tp brief` should
-  name the other under `overlapping {id, held_by}`, as `tp next` does since v1.34.0.
 - **Task-audit `--record-inbox` gives no flat-layout hint.** A round emitted by v1.33 left its role
   files flat in `<inbox>/task-audit-inbox/`; `tp audit --task-audit … --record-inbox --inbox <dir>`
   exits 3 telling the person to re-run every role, while review and audit name the folder to move the
