@@ -395,7 +395,7 @@
       const d = index[e.to];
       if (s === undefined || d === undefined) return;
       links.push({ s, d, role: e.role || "cross", critical: !!e.critical, any: !!e.any_of,
-        long: pure.edgeLong(nodes[d].layer - nodes[s].layer, nodes[d].col - nodes[s].col) });
+        long: pure.edgeLongBetween(L.nodes[s], L.nodes[d]) });
     });
     const preds = nodes.map(() => []);
     const succs = nodes.map(() => []);
