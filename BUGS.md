@@ -12,17 +12,7 @@ None open.
 
 ## Fix track
 
-- **Two next-step texts still name the default inbox after a named-inbox round.** `tp review <file>
-  --resolve ... fixed` answers `next_step: run the next review round ... tp review <spec>, then tp
-  review <spec> --record-inbox` (`reviewResolvedNextStep`, internal/cli/review_resolve.go), and `tp
-  resume`'s blocker commands are built the same way (engine/resumeblockers.go, resumepayload.go).
-  Repro: record a review round with `--record-inbox --inbox /x`, resolve its finding fixed: the
-  step omits `--inbox /x`. The test asserts the step names the stored inbox. (`spec/1.36.0-measurements.md` §3)
-- **The task-audit flat-layout hint's "every role missing" condition is untested.** A round where
-  some role files sit in the flat layout and some in the spec folder still gets the plain refusal,
-  but weakening `len(missing) == asked` to `len(missing) > 0` in `taskAuditRoleRows`
-  (internal/cli/audit_task.go) keeps every test green. The test records a mixed round and asserts no
-  move hint. (`spec/1.36.0-measurements.md` §3)
+None open.
 
 ## Decided elsewhere, not a fix
 
