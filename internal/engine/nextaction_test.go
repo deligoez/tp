@@ -344,3 +344,27 @@ func TestReviewNextAction_UnverifiedChecksGateEveryImportStep(t *testing.T) {
 		ReviewNextAction("spec.md", "", notDone, false, nil, roundFile, unverified),
 		"below done and the cap nothing names import, so nothing is gated")
 }
+
+// TestReviewNextAction_TheNextRoundNamesTheInboxTheLastCameFrom: after a
+// round recorded from a named inbox, the next round's emission and its
+// --record-inbox each carry --inbox <dir>, on the next-round branch and on
+// the repair branch alike; with the default inbox neither does.
+func TestReviewNextAction_TheNextRoundNamesTheInboxTheLastCameFrom(t *testing.T) {
+	want := "tp review spec.md --inbox /x/in, then tp review spec.md --record-inbox --inbox /x/in"
+	assert.Contains(t, ReviewNextAction("spec.md", "/x/in", notDone, false, nil, roundFile, CheckVerdict{}), want, "next round")
+	assert.Contains(t, ReviewNextAction("spec.md", "/x/in", notDone, true, nil, roundFile, CheckVerdict{}), want, "repair")
+	assert.NotContains(t, ReviewNextAction("spec.md", "", notDone, false, nil, roundFile, CheckVerdict{}), "--inbox")
+}
+
+// TestAuditNextAction_TheNextRoundNamesTheInboxTheLastCameFrom: after an audit
+// round recorded from a named inbox, the next round is named as its emission
+// and --record-inbox in that inbox rather than --record <file>, clean or not.
+func TestAuditNextAction_TheNextRoundNamesTheInboxTheLastCameFrom(t *testing.T) {
+	want := "tp audit spec.md --inbox /x/in, then tp audit spec.md --record-inbox --inbox /x/in"
+	for name, clean := range map[string]bool{"clean": true, "unclean": false} {
+		got := AuditNextAction("spec.md", "/x/in", notDone, clean, 1, auditRoundFile)
+		assert.Contains(t, got, want, name)
+		assert.NotContains(t, got, "--record <file>", name)
+	}
+	assert.Contains(t, AuditNextAction("spec.md", "", notDone, true, 0, auditRoundFile), "tp audit spec.md --record <file>")
+}
