@@ -138,10 +138,20 @@ func TestRunRenameConflictBranchFollowsTheSetAside(t *testing.T) {
 		require.NoError(t, err)
 		return task
 	}
+	// The scratch task file has no git, so the recorded tip is set by hand:
+	// a rename must carry it over untouched.
+	tf, err := model.ReadTaskFile(taskFile)
+	require.NoError(t, err)
+	tf.Tasks[0].ConflictSHA = "0123abcd"
+	require.NoError(t, model.WriteTaskFile(taskFile, tf))
 	sha := read().ConflictSHA
+	before, err := os.ReadFile(taskFile)
+	require.NoError(t, err)
 
 	require.NoError(t, renameConflictBranchFunc(taskFile)("tp-unit/c/other/a", "tp-unit/c/other-1/a"))
-	assert.Equal(t, "tp-unit/c/r/a", read().ConflictBranch, "a name no task records changes nothing")
+	after, err := os.ReadFile(taskFile)
+	require.NoError(t, err)
+	assert.Equal(t, string(before), string(after), "a name no task records leaves the file unwritten")
 	require.NoError(t, renameConflictBranchFunc(taskFile)("tp-unit/c/r/a", "tp-unit/c/r-1/a"))
 	assert.Equal(t, "tp-unit/c/r-1/a", read().ConflictBranch)
 	assert.Equal(t, sha, read().ConflictSHA, "a rename leaves the recorded tip")
