@@ -16,11 +16,6 @@ fix needs a design choice leaves this file for a decision note.
 
 ## Fix track
 
-- **Task-audit `--record-inbox` gives no flat-layout hint.** A round emitted by v1.33 left its role
-  files flat in `<inbox>/task-audit-inbox/`; `tp audit --task-audit … --record-inbox --inbox <dir>`
-  exits 3 telling the person to re-run every role, while review and audit name the folder to move the
-  files into (`d2491c5b`). Test: flat `round-N-<role>.ndjson` files under a named inbox; the hint
-  names the `<base>-<hash>` folder.
 - **A set-aside unit branch leaves `conflict_branch` stale.** Under `tp run`,
   `engine.setAsideUnitBranch` (`internal/engine/driver_pool.go`) renames an earlier unit branch with
   `git branch -m` but does not update the task's `conflict_branch`, so the recorded name can point at
