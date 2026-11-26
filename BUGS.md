@@ -8,11 +8,7 @@ fix needs a design choice leaves this file for a decision note.
 
 ## Needs an operator decision
 
-- **The next-round text cannot name a named inbox.** After a round recorded with `--record-inbox
-  --inbox <dir>`, review's and audit's `next_action` name `tp review <spec>` and `--record-inbox`
-  without `--inbox <dir>`, so following it writes into the checkout's default inbox. Which inbox a
-  round came from is stored nowhere. Choice: record the inbox path on the recorded round (one
-  optional field; recommended), or leave the text generic. (`spec/1.34.0-measurements.md` §5)
+None open.
 
 ## Fix track
 
