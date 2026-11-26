@@ -314,6 +314,13 @@ func AuditCarriedResolveCommand(row *CarriedRow) string {
 // decision, and an epoch cuts them when the spec was rewritten, the
 // operator's decision past a blocking row.
 func AuditCarriedBlockingClause(rows []CarriedRow, specPath string, atCap bool) string {
+	return auditCarriedBlockingClauseIn(rows, specPath, "", atCap)
+}
+
+// auditCarriedBlockingClauseIn is AuditCarriedBlockingClause for an audit
+// whose latest round was recorded from a named inbox (AuditNextAction's
+// inbox): the next round it names is emitted and recorded there.
+func auditCarriedBlockingClauseIn(rows []CarriedRow, specPath, inbox string, atCap bool) string {
 	first := &rows[0]
 	key := AuditRowRole(first.Row) + ":" + rowString(first.Row, "item_id")
 	resolve := AuditCarriedResolveCommand(first)
@@ -340,8 +347,8 @@ func AuditCarriedBlockingClause(rows []CarriedRow, specPath string, atCap bool) 
 		return clause + fmt.Sprintf("; the round cap admits no round to re-grade %s: accept %s, the operator's decision (%s) — %s; or raise audit_max_rounds for a round that re-grades %s, the operator's decision (%s)",
 			pronoun, each, EscalateAcceptFinding, resolve, pronoun, EscalateRaiseAuditCap) + epoch
 	}
-	return clause + fmt.Sprintf("; the next round's prompts list %s to re-grade, and only a PASS clears it: run it — tp audit %s --record <file>; or accept %s, the operator's decision (%s) — %s",
-		pronoun, specPath, each, EscalateAcceptFinding, resolve) + epoch
+	return clause + fmt.Sprintf("; the next round's prompts list %s to re-grade, and only a PASS clears it: run it — %s; or accept %s, the operator's decision (%s) — %s",
+		pronoun, auditNextRound(specPath, inbox), each, EscalateAcceptFinding, resolve) + epoch
 }
 
 // orphanedAuditRows counts the rows whose role the spec's resolved audit panel

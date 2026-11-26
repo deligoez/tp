@@ -284,7 +284,7 @@ func AuditNextAction(specPath, inbox string, done LoopDone, latestRoundClean boo
 	case done.CapReached && done.BlockingFixedAtCap > 0:
 		return blockingFixedAtCap(done.BlockingFixedAtCap) + " — tp audit " + roundFile + " --resolve <role:item_id> wontfix \"<evidence>\" --force"
 	case len(done.CarriedBlocking) > 0 && (latestRoundClean || done.CapReached) && done.Undisposed == 0:
-		return AuditCarriedBlockingClause(done.CarriedBlocking, specPath, done.CapReached)
+		return auditCarriedBlockingClauseIn(done.CarriedBlocking, specPath, inbox, done.CapReached)
 	case done.CapReached:
 		return "the audit round cap is reached: disposition each remaining finding in " + roundFile +
 			" — tp audit " + roundFile + " --resolve <role:item_id> wontfix|duplicate \"<evidence>\" (no round past the cap re-grades a fix); accepting a finding without a code change is the operator's decision"
