@@ -366,6 +366,15 @@
     return Math.abs(rows) >= 3 || Math.abs(cols) >= 8;
   };
 
+  // edgeLongBetween is edgeLong for the edge from node a to node b,
+  // measured between the places they are drawn at (P.mapPlace): on the plan
+  // map that is the map's x and y, elsewhere the forest's column and layer.
+  P.edgeLongBetween = function (a, b) {
+    const s = P.mapPlace(a);
+    const d = P.mapPlace(b);
+    return P.edgeLong(d.row - s.row, d.col - s.col);
+  };
+
   // edgeLayers splits the edges edgeDrawn keeps into the card's layers,
   // bottom to top: plain cross edges, any-of edges, long tree and back
   // edges, short ones, and the critical path; drawn is how many it kept,
