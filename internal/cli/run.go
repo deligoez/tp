@@ -85,6 +85,26 @@ func newRunCmd() *cobra.Command {
 	return cmd
 }
 
+// runDriverOptions is the driver's view of one task file: every callback
+// through which the engine reaches the task file and git is supplied here,
+// since internal/cli is the task file's only writer.
+func runDriverOptions(taskFilePath, specPath string) engine.DriverOptions {
+	root := engine.CanonicalProjectRoot(filepath.Dir(taskFilePath))
+	return engine.DriverOptions{
+		Root:                 root,
+		TaskFile:             taskFilePath,
+		Spec:                 specPath,
+		Workflow:             engine.EffectiveWorkflowForTaskFile(taskFilePath),
+		CloseTask:            closeTaskFunc(root, taskFilePath),
+		ClaimTasks:           claimTasksFunc(taskFilePath),
+		ReopenSolo:           reopenSoloFunc(taskFilePath),
+		RenameConflictBranch: renameConflictBranchFunc(taskFilePath),
+		ReleaseTasks:         releaseTasksFunc(taskFilePath),
+		ApplyFound:           applyFoundFunc(root, taskFilePath),
+		CommitRoundFiles:     commitRoundFilesFunc(root, taskFilePath),
+	}
+}
+
 // runRun drives one run to its stop reason.
 //
 // The run-scoped lock is held for the whole run (§3.1.1) — a second tp run over
@@ -96,21 +116,7 @@ func runRun(_ *cobra.Command, args []string) error {
 	taskFilePath, specPath, _ := resolveCycle(args)
 	enterTree(taskFilePath, "tp run")
 
-	root := engine.CanonicalProjectRoot(filepath.Dir(taskFilePath))
-	opts := engine.DriverOptions{
-		Root:                 root,
-		TaskFile:             taskFilePath,
-		Spec:                 specPath,
-		Workflow:             engine.EffectiveWorkflowForTaskFile(taskFilePath),
-		CloseTask:            closeTaskFunc(root, taskFilePath),
-		ClaimTasks:           claimTasksFunc(taskFilePath),
-		ReopenSolo:           reopenSoloFunc(taskFilePath),
-		RenameConflictBranch: renameConflictBranchFunc(taskFilePath),
-		ReleaseTasks:         releaseTasksFunc(taskFilePath),
-		ApplyFound:           applyFoundFunc(root, taskFilePath),
-
-		CommitRoundFiles: commitRoundFilesFunc(root, taskFilePath),
-	}
+	opts := runDriverOptions(taskFilePath, specPath)
 
 	var result engine.DriverResult
 	if err := engine.WithRunLock(taskFilePath, func() error {
