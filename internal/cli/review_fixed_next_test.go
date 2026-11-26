@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -77,4 +78,35 @@ func TestReviewResolve_FixedNextStepInsideARunNamesNoRound(t *testing.T) {
 	assert.NotEmpty(t, next)
 	assert.NotContains(t, next, "tp review <spec>", "no emission from inside the unit")
 	assert.NotContains(t, next, "--verify")
+}
+
+// TestReviewResolve_FixedNextStepNamesTheInboxTheRoundCameFrom: after a round
+// recorded from a named inbox, --resolve's next_step names the next round in
+// that inbox, as next_action does.
+func TestReviewResolve_FixedNextStepNamesTheInboxTheRoundCameFrom(t *testing.T) {
+	t.Parallel()
+	dir, _ := inboxSpec(t)
+	for i, pm := range emittedPrompts(t, dir, noRoundDir(), "review", "spec.md", "--inbox", "outside") {
+		body := ""
+		if i == 0 {
+			body = `{"severity":"high","finding":"a contradiction","location":"§1","evidence":"line 3"}` + "\n"
+		}
+		require.NoError(t, os.WriteFile(pm["output_path"].(string), []byte(body), 0o600))
+	}
+	_, stderr, code := runTPEnv(t, dir, noRoundDir(), "review", "spec.md", "--record-inbox", "--inbox", "outside")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	next, _ := resolveFixed(t, dir, filepath.Join(".tp-review", "spec", "review-round-1.ndjson"), noRoundDir())["next_step"].(string)
+	var st struct {
+		ReviewRounds []struct {
+			Inbox string `json:"inbox"`
+		} `json:"review_rounds"`
+	}
+	data, err := os.ReadFile(filepath.Join(dir, ".tp-review", "spec", "state.json"))
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(data, &st))
+	require.Len(t, st.ReviewRounds, 1)
+	inbox := st.ReviewRounds[0].Inbox
+	require.NotEmpty(t, inbox)
+	assert.Contains(t, next, "tp review <spec> --inbox "+inbox+", then tp review <spec> --record-inbox --inbox "+inbox)
 }
