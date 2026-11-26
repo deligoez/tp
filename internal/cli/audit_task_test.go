@@ -220,6 +220,42 @@ func TestTaskAudit_ARoundInTheFlatLayoutNamesTheFolderToMoveItTo(t *testing.T) {
 	assert.NotContains(t, hint, "run each role's prompt", "the roles ran; their files only sit in the old layout")
 }
 
+// TestTaskAudit_ARoundPartlyInTheSpecFolderGetsNoMoveHint: the move hint is
+// for a round written wholly in the flat layout; with one role file in the
+// spec folder the round is incomplete, not misplaced, and the refusal names
+// the roles still to run.
+func TestTaskAudit_ARoundPartlyInTheSpecFolderGetsNoMoveHint(t *testing.T) {
+	t.Parallel()
+	dir := taskAuditProject(t, "t1")
+	data, err := os.ReadFile(filepath.Join("..", "..", ".tp", "auditors", "maintainability-conventions.json"))
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".tp", "auditors", "maintainability-conventions.json"), data, 0o600))
+	_, stderr, code := runTP(t, dir, "set", "--workflow", "--project", `task_audit_roles=["go-safety","maintainability-conventions"]`)
+	require.Equal(t, 0, code, "set: %s", stderr)
+	closeWith(t, dir, "t1", commitFiles(t, dir, "a.go"))
+	out, stderr, code := runTP(t, dir, "audit", "spec.md", "--task-audit", "--inbox", "outside")
+	require.Equal(t, 0, code, "task-audit emit: %s", stderr)
+	var res map[string]any
+	require.NoError(t, json.Unmarshal([]byte(out), &res), out)
+	prompts := res["prompts"].([]any)
+	require.GreaterOrEqual(t, len(prompts), 2, "two roles emit two prompts")
+	folder := filepath.Dir(prompts[0].(map[string]any)["output_path"].(string))
+	for i, pm := range prompts {
+		p := pm.(map[string]any)["output_path"].(string)
+		if i == 0 {
+			require.NoError(t, os.WriteFile(p, nil, 0o600))
+			continue
+		}
+		require.NoError(t, os.WriteFile(filepath.Join(filepath.Dir(folder), filepath.Base(p)), nil, 0o600))
+	}
+
+	_, stderr, code = runTP(t, dir, "audit", "spec.md", "--task-audit", "--record-inbox", "--inbox", "outside")
+	assert.Equal(t, 1, code, stderr)
+	var env map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stderr), &env), stderr)
+	assert.NotContains(t, env["hint"], "move them into", "one role file is where it belongs")
+}
+
 // TestTaskAudit_RecordRefusesAnItemOutsideTheBatch: a row on a file the batch
 // did not hold is refused, so a role cannot grade what it was not asked.
 func TestTaskAudit_RecordRefusesAnItemOutsideTheBatch(t *testing.T) {
