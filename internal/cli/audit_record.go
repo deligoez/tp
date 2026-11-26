@@ -18,7 +18,9 @@ import (
 // rounds; output carries no mechanize_candidates. conflicts are the
 // disagreeing groups a merge of the round's inputs kept (--record-inbox),
 // reported as tp audit --merge reports them; nil for a file recorded as is.
-func runAuditRecord(specPath, recordPath, harnessNote string, conflicts []auditConflict) error {
+// inbox is the named inbox a --record-inbox read the round from, stored on
+// the round (ReviewRound.Inbox); "" otherwise.
+func runAuditRecord(specPath, recordPath, harnessNote, inbox string, conflicts []auditConflict) error {
 	if _, err := os.Stat(specPath); err != nil {
 		output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), specFileMissingHint)
 		os.Exit(ExitFile)
@@ -142,7 +144,7 @@ func runAuditRecord(specPath, recordPath, harnessNote string, conflicts []auditC
 		return nil
 	}
 
-	st, round, lockErr := recordAuditRoundEntry(specPath, data, rows, findings, clean, harnessNote, wfPre.AuditConvergeOn, roundRolesHash)
+	st, round, lockErr := recordAuditRoundEntry(specPath, data, rows, findings, clean, roundNotes{harness: harnessNote, inbox: inbox}, wfPre.AuditConvergeOn, roundRolesHash)
 	if lockErr != nil {
 		exitStateError(lockErr)
 		return nil
@@ -286,6 +288,12 @@ func auditSignalFields(result map[string]any, specPath string, rounds []engine.R
 	}
 }
 
+// roundNotes is what an audit round records beside its rows: the
+// --harness-note verbatim and the named inbox a --record-inbox read it from.
+type roundNotes struct {
+	harness, inbox string
+}
+
 // recordAuditRoundEntry copies the results file into the state directory as
 // audit-round-<N>.ndjson and appends the round entry to state.json under the
 // state flock (round file first, index entry second).
@@ -294,7 +302,7 @@ func auditSignalFields(result map[string]any, specPath string, rounds []engine.R
 // state write; it is stamped on the new round entry, and §2.4's condition 5
 // compares against that same value instead of hashing the corpus a second time
 // on the --record path.
-func recordAuditRoundEntry(specPath string, data []byte, rows []map[string]any, findings int, clean bool, harnessNote, convergeOn, rolesHash string) (st *engine.ReviewState, round int, err error) {
+func recordAuditRoundEntry(specPath string, data []byte, rows []map[string]any, findings int, clean bool, notes roundNotes, convergeOn, rolesHash string) (st *engine.ReviewState, round int, err error) {
 	err = engine.WithReviewStateLock(specPath, func() error {
 		loaded, loadErr := engine.LoadReviewState(specPath)
 		if loadErr != nil {
@@ -340,7 +348,8 @@ func recordAuditRoundEntry(specPath string, data []byte, rows []map[string]any, 
 			RolesHash:   rolesHash,
 			IDScheme:    engine.IDSchemeSlug,
 			ConvergeOn:  convergeOn,
-			HarnessNote: harnessNote,
+			HarnessNote: notes.harness,
+			Inbox:       notes.inbox,
 		}
 		// Decision 4: what each code role graded of its pool, from the pools
 		// this round's emission kept in its inbox.

@@ -258,7 +258,7 @@ Use --findings to also verify review findings were addressed.`,
 			}
 			specPath := engine.ResolveSpecArg(args[0])
 			if recordPath != "" {
-				return runAuditRecord(specPath, recordPath, harnessNote, nil)
+				return runAuditRecord(specPath, recordPath, harnessNote, "", nil)
 			}
 			if statusMode {
 				return runAuditStatus(specPath, checkFlag)

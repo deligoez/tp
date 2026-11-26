@@ -96,7 +96,7 @@ func runAuditRecordInbox(specPath, harnessNote string) error {
 		output.Error(ExitFile, err.Error(), runtimeFailureHint)
 		os.Exit(ExitFile)
 	}
-	if err := runAuditRecord(specPath, merged, harnessNote, conflicts); err != nil {
+	if err := runAuditRecord(specPath, merged, harnessNote, namedInbox(), conflicts); err != nil {
 		return err
 	}
 	removeNamedInboxFiles(files)
