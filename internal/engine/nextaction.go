@@ -170,7 +170,7 @@ func ReviewNextAction(specPath, inbox string, done LoopDone, blockingUnresolved 
 	case done.CapReached && done.BlockingFixedAtCap > 0:
 		return blockingFixedAtCap(done.BlockingFixedAtCap) + " — tp review " + roundFile + " --resolve <index> wontfix \"<evidence>\" --force — then " + importStep + earlier
 	case len(done.CarriedBlocking) > 0 && !blockingUnresolved && done.Undisposed == 0:
-		clause := CarriedBlockingClause(done.CarriedBlocking, specPath, done.CapReached)
+		clause := carriedBlockingClauseIn(done.CarriedBlocking, specPath, inbox, done.CapReached)
 		if CarriedFixedUnverified(done.CarriedBlocking) > 0 {
 			return clause
 		}

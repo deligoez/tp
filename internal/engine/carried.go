@@ -311,6 +311,13 @@ func carriedBlockingOf(rows []CarriedRow, convergeOn string) []CarriedRow {
 // fix is recorded; at the cap no round is admitted, so raising the cap for one
 // is the operator's decision, and fixed is never offered as an ending.
 func CarriedBlockingClause(rows []CarriedRow, specPath string, atCap bool) string {
+	return carriedBlockingClauseIn(rows, specPath, "", atCap)
+}
+
+// carriedBlockingClauseIn is CarriedBlockingClause for a loop whose latest
+// round was recorded from a named inbox (ReviewNextAction's inbox), which
+// the round it names is emitted and recorded in.
+func carriedBlockingClauseIn(rows []CarriedRow, specPath, inbox string, atCap bool) string {
 	unresolved, fixed := make([]CarriedRow, 0, len(rows)), 0
 	for i := range rows {
 		if rows[i].State() == CarriedStateFixedUnverified {
@@ -324,7 +331,7 @@ func CarriedBlockingClause(rows []CarriedRow, specPath string, atCap bool) strin
 		parts = append(parts, unresolvedClause(unresolved, specPath, atCap))
 	}
 	if fixed > 0 {
-		parts = append(parts, fixedClause(fixed, specPath, atCap))
+		parts = append(parts, fixedClause(fixed, specPath, inbox, atCap))
 	}
 	return strings.Join(parts, "; ")
 }
@@ -357,7 +364,7 @@ func unresolvedClause(rows []CarriedRow, specPath string, atCap bool) string {
 		specPath + " --rewritten \"<evidence>\", the operator's decision " + EscalateRewritePastBlocking
 }
 
-func fixedClause(n int, specPath string, atCap bool) string {
+func fixedClause(n int, specPath, inbox string, atCap bool) string {
 	noun := "finding marked fixed awaits"
 	if n > 1 {
 		noun = "findings marked fixed await"
@@ -369,5 +376,6 @@ func fixedClause(n int, specPath string, atCap bool) string {
 	if os.Getenv(EnvRound) != "" {
 		return clause + ": the run emits the next review round, which reads it"
 	}
-	return clause + ": run the next review round — tp review " + specPath + ", then tp review " + specPath + " --record-inbox"
+	emit, record := nextRoundCommands(PhaseReview, specPath, inbox)
+	return clause + ": run the next review round — " + emit + ", then " + record
 }
