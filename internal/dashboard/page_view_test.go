@@ -178,6 +178,20 @@ func TestPure_ALongEdgeSpansThreeLayersOrEightColumns(t *testing.T) {
 	assert.JSONEq(t, `[false, false, true, true, true, true]`, got)
 }
 
+// TestPure_AMapEdgeIsMeasuredInTheMapsPlaces: on the plan map an edge's
+// length is the distance between the places the map gives its ends, not
+// between their forest layers and columns, so two epics drawn side by side
+// are joined by a short edge however far apart the forest put them.
+func TestPure_AMapEdgeIsMeasuredInTheMapsPlaces(t *testing.T) {
+	t.Parallel()
+	got := runPure(t, `out([
+	  P.edgeLongBetween({layer: 0, col: 0, x: 4, y: 2}, {layer: 1, col: 20, x: 5, y: 3}),
+	  P.edgeLongBetween({layer: 0, col: 0, x: 0, y: 0}, {layer: 1, col: 1, x: 0, y: 3}),
+	  P.edgeLongBetween({layer: 0, col: 0}, {layer: 1, col: 20})
+	]);`)
+	assert.JSONEq(t, `[false, true, true]`, got)
+}
+
 // TestPure_TheEdgeLayersRunCrossLongTreeTreeCritical: the card's edge
 // layers run bottom to top as plain cross edges, any-of edges, long tree
 // edges, short tree edges, the critical path; every drawn edge sits in one.
