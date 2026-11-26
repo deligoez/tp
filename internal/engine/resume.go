@@ -287,6 +287,7 @@ func resumeBlockers(taskFilePath, shownSpec string, changes []string, tf *model.
 
 		ReviewInFlightRound:       loops.reviewInFlight,
 		ReviewInFlightOverOldText: loops.reviewInFlightOld,
+		ReviewInbox:               LatestInbox(loops.reviewRounds),
 
 		ReviewBlockingFixedAtCap: loops.reviewDone.BlockingFixedAtCap,
 		AuditBlockingFixedAtCap:  loops.auditDone.BlockingFixedAtCap,

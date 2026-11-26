@@ -47,6 +47,9 @@ type BlockerInputs struct {
 	// discarded. Both shape the spec-stale blocker's way out.
 	ReviewInFlightRound       int
 	ReviewInFlightOverOldText bool
+	// ReviewInbox is the named inbox the latest review round was recorded
+	// from (LatestInbox), "" for the default: the round commands name it.
+	ReviewInbox string
 
 	// ReviewBlockingFixedAtCap and AuditBlockingFixedAtCap count the latest
 	// round's blocking findings marked fixed at the cap (LoopDone): the state
@@ -162,8 +165,7 @@ func BuildBlockers(in *BlockerInputs) []Blocker {
 // is never a command either: with no round in flight it moves under operator
 // as raise-review-cap, and after a record that reaches the cap it is dropped.
 func specStaleBlocker(in *BlockerInputs) Blocker {
-	emit := "tp review " + in.SpecPath
-	record := emit + " --record-inbox"
+	emit, record := nextRoundCommands(PhaseReview, in.SpecPath, in.ReviewInbox)
 	b := Blocker{
 		Code:  "spec-stale",
 		Class: ClassEscalate,
@@ -291,6 +293,7 @@ func carriedBlockingBlocker(in *BlockerInputs) *Blocker {
 		return nil
 	}
 	emit := "tp review " + in.SpecPath
+	roundEmit, roundRecord := nextRoundCommands(PhaseReview, in.SpecPath, in.ReviewInbox)
 	data := map[string]any{
 		"count":    len(earlier),
 		"rows":     CarriedRowsJSON(earlier),
@@ -316,13 +319,13 @@ func carriedBlockingBlocker(in *BlockerInputs) *Blocker {
 	} else {
 		data["operator"] = map[string]any{
 			"decision": EscalateRaiseReviewCap,
-			"commands": []string{emit, emit + " --record-inbox"},
+			"commands": []string{roundEmit, roundRecord},
 		}
 	}
 	return &Blocker{
 		Code:    "review-carried-blocking",
 		Class:   ClassEscalate,
-		Message: CarriedBlockingClause(earlier, in.SpecPath, atCap),
+		Message: carriedBlockingClauseIn(earlier, in.SpecPath, in.ReviewInbox, atCap),
 		Data:    data,
 	}
 }
