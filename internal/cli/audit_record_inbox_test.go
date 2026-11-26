@@ -69,6 +69,43 @@ func TestAuditRecordInbox_RecordsTheRoundFromItsRolesFiles(t *testing.T) {
 	assert.NoDirExists(t, filepath.Join(dir, ".tp-review", "spec", "audit-inbox"))
 }
 
+// TestAuditRecordInbox_TheNextRoundNamesTheInboxItWasRecordedFrom: an audit
+// round recorded with --record-inbox --inbox stores the inbox on the round,
+// and next_action names the next round's emission and record in it, on the
+// record and on a later --status given no --inbox.
+func TestAuditRecordInbox_TheNextRoundNamesTheInboxItWasRecordedFrom(t *testing.T) {
+	t.Parallel()
+	dir, _ := answerAuditRound(t, "", "", "--inbox", "outside")
+	// The spec as the emission named it: outside git a named inbox is keyed
+	// by the spec's absolute path (engine.InboxSpecKey).
+	specPath := filepath.Join(dir, "spec.md")
+
+	stdout, stderr, code := runTPEnv(t, dir, noRoundDir(), "audit", specPath, "--record-inbox", "--inbox", "outside")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var st struct {
+		AuditRounds []struct {
+			Inbox string `json:"inbox"`
+		} `json:"audit_rounds"`
+	}
+	data, err := os.ReadFile(filepath.Join(dir, ".tp-review", "spec", "state.json"))
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(data, &st))
+	require.Len(t, st.AuditRounds, 1)
+	inbox := st.AuditRounds[0].Inbox
+	require.NotEmpty(t, inbox, "the round stores the inbox it was recorded from")
+
+	emit, record := " --inbox "+inbox+", then tp audit ", " --record-inbox --inbox "+inbox
+	var rec map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &rec), stdout)
+	assert.Contains(t, rec["next_action"], emit, "the record's next_action names the emission")
+	assert.Contains(t, rec["next_action"], record, "and the record")
+	status, stderr, code := runTPEnv(t, dir, noRoundDir(), "audit", specPath, "--status")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var got map[string]any
+	require.NoError(t, json.Unmarshal([]byte(status), &got), status)
+	assert.Contains(t, got["next_action"], record, "--status reads it from the round")
+}
+
 // TestAuditRecordInbox_RefusesAMissingRole: an emitted role with no file
 // refuses the record, exit 3, naming the role, and nothing is recorded.
 func TestAuditRecordInbox_RefusesAMissingRole(t *testing.T) {
